@@ -14,6 +14,7 @@ pub mod authentication;
 pub mod behaviour;
 pub mod business_profile;
 pub mod callback_mapper;
+pub mod capture;
 pub mod card_issuer;
 pub mod cards_info;
 pub mod config;
@@ -52,6 +53,7 @@ use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
 
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
+use crate::redis::kv_store;
 pub use crate::{database::store::DatabaseStore, errors::StorageError};
 
 #[derive(Debug, Clone)]
@@ -363,6 +365,27 @@ pub trait UniqueConstraints {
     }
 }
 
+/// This trait defines behaviour that must be followed by any table that has support for KV
+pub trait KvSupportedEntity: UniqueConstraints {
+    fn get_partition_key(&self) -> kv_store::PartitionKey<'_>;
+    fn get_hash_field_key(&self) -> String;
+}
+
+impl KvSupportedEntity for diesel_models::Capture {
+    fn get_partition_key(&self) -> kv_store::PartitionKey<'_> {
+        kv_store::PartitionKey::MerchantIdPaymentId {
+            merchant_id: &self.merchant_id,
+            payment_id: &self.payment_id,
+        }
+    }
+    fn get_hash_field_key(&self) -> String {
+        format!(
+            "pa_{}_capture_{}",
+            self.authorized_attempt_id, self.capture_id
+        )
+    }
+}
+
 impl UniqueConstraints for diesel_models::Address {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!("address_{}", self.address_id)]
@@ -507,6 +530,20 @@ impl UniqueConstraints for diesel_models::PaymentMethod {
     }
     fn table_name(&self) -> &str {
         "PaymentMethod"
+    }
+}
+
+impl UniqueConstraints for diesel_models::Capture {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!(
+            "capture_{}_{}_{}",
+            self.merchant_id.get_string_repr(),
+            self.authorized_attempt_id,
+            self.capture_id
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "Capture"
     }
 }
 

@@ -1,7 +1,7 @@
 use api_models::payments::{
-    AccountType, BeneficiaryDetails, BoletoPaymentTypeConstraints, CalculationType,
-    ConnectorMetadata, DiscountTier, DiscountType, PollConfig, ProtestType, QrCodeInformation,
-    SantanderData, SantanderMandatePeriodicity, SantanderPaymentDiscountRules, VoucherNextStepData,
+    AccountType, BeneficiaryDetails, BoletoPaymentTypeConstraints, CalculationType, DiscountTier,
+    DiscountType, FeatureMetadata, PollConfig, ProtestType, QrCodeInformation, SantanderData,
+    SantanderMandatePeriodicity, SantanderPaymentDiscountRules, VoucherNextStepData,
 };
 use common_enums::{enums, AttemptStatus, BoletoDocumentKind, ExpiryType, PixKey};
 use common_utils::{
@@ -24,7 +24,8 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsPushNotificationRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsPreAuthorizeCancelRouterData, PaymentsPushNotificationRouterData,
         PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData, RefundsRouterData,
     },
 };
@@ -675,6 +676,11 @@ impl
                 SantanderDocumentKind::Cnpj,
                 Some(customer_document_details.document_number),
             ),
+            common_types::customers::DocumentKind::Psn
+            | common_types::customers::DocumentKind::Other => (
+                SantanderDocumentKind::Cpf,
+                Some(customer_document_details.document_number),
+            ),
         };
 
         let order_id = value
@@ -714,12 +720,7 @@ impl
                 max_value_or_percentage,
             ),
         ) = get_boleto_additional_fields_from_connector_metadata(
-            value
-                .0
-                .router_data
-                .request
-                .connector_intent_metadata
-                .clone(),
+            value.0.router_data.request.feature_metadata.clone(),
         );
 
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
@@ -817,6 +818,10 @@ impl
             }
             common_types::customers::DocumentKind::Cnpj => {
                 (None, Some(customer_document_details.document_number))
+            }
+            common_types::customers::DocumentKind::Psn
+            | common_types::customers::DocumentKind::Other => {
+                (Some(customer_document_details.document_number), None)
             }
         };
 
@@ -1286,6 +1291,8 @@ impl From<common_types::customers::DocumentKind> for SantanderDocumentKind {
         match item {
             common_types::customers::DocumentKind::Cnpj => Self::Cnpj,
             common_types::customers::DocumentKind::Cpf => Self::Cpf,
+            common_types::customers::DocumentKind::Psn
+            | common_types::customers::DocumentKind::Other => Self::Cpf,
         }
     }
 }
@@ -1671,30 +1678,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderVoidResponse, T, PaymentsRespo
     }
 }
 
-impl TryFrom<&PaymentsCancelRouterData> for SantanderPaymentsCancelRequest {
-    type Error = Error;
-
-    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
-
-        match item.payment_method {
-            enums::PaymentMethod::BankTransfer => {
-                let pix_req = SantanderPixCancelRequest::try_from(item)?;
-                Ok(Self::PixQR(pix_req))
-            }
-            enums::PaymentMethod::Voucher => {
-                let boleto_req =
-                    SantanderBoletoCancelRequest::try_from((item, santander_mca_metadata))?;
-                Ok(Self::Boleto(boleto_req))
-            }
-            _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method",
-            }
-            .into()),
-        }
-    }
-}
-
 impl TryFrom<(&PaymentsCancelRouterData, SantanderMetadataObject)>
     for SantanderBoletoCancelRequest
 {
@@ -1709,7 +1692,7 @@ impl TryFrom<(&PaymentsCancelRouterData, SantanderMetadataObject)>
         Ok(Self {
             operation: SantanderBoletoCancelOperation::Baixar,
             covenant_code: boleto_mca_metadata.covenant_code.clone(),
-            bank_number: extract_bank_number(value.0.request.connector_meta.clone())?,
+            bank_number: value.0.connector_request_reference_id.clone(),
         })
     }
 }
@@ -1723,22 +1706,66 @@ impl TryFrom<&PaymentsCancelRouterData> for SantanderPixCancelRequest {
     }
 }
 
-fn extract_bank_number(value: Option<Value>) -> Result<String, errors::ConnectorError> {
-    let value = value.ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?;
+impl TryFrom<&PaymentsPreAuthorizeCancelRouterData> for SantanderPaymentsCancelRequest {
+    type Error = Error;
 
-    let map = value
-        .as_object()
-        .ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?;
+    fn try_from(item: &PaymentsPreAuthorizeCancelRouterData) -> Result<Self, Self::Error> {
+        let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
 
-    let bank_number = map
-        .get("bank_number")
-        .ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?;
+        match item.payment_method {
+            enums::PaymentMethod::BankTransfer => {
+                let pix_req = SantanderPixCancelRequest::try_from(item)?;
+                Ok(Self::PixQR(pix_req))
+            }
+            enums::PaymentMethod::Voucher => {
+                let boleto_req =
+                    SantanderBoletoCancelRequest::try_from((item, santander_mca_metadata))?;
+                Ok(Self::Boleto(boleto_req))
+            }
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: format!(
+                    "Pre-authorization Cancel for Payment method {}",
+                    item.payment_method
+                ),
+                connector: "Santander",
+            }
+            .into()),
+        }
+    }
+}
 
-    let bank_number_str = bank_number
-        .as_str()
-        .ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?
-        .to_string();
-    Ok(bank_number_str)
+impl
+    TryFrom<(
+        &PaymentsPreAuthorizeCancelRouterData,
+        SantanderMetadataObject,
+    )> for SantanderBoletoCancelRequest
+{
+    type Error = Error;
+    fn try_from(
+        value: (
+            &PaymentsPreAuthorizeCancelRouterData,
+            SantanderMetadataObject,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let boleto_mca_metadata = value
+            .1
+            .boleto
+            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+        Ok(Self {
+            operation: SantanderBoletoCancelOperation::Baixar,
+            covenant_code: boleto_mca_metadata.covenant_code.clone(),
+            bank_number: value.0.connector_request_reference_id.clone(),
+        })
+    }
+}
+
+impl TryFrom<&PaymentsPreAuthorizeCancelRouterData> for SantanderPixCancelRequest {
+    type Error = Error;
+    fn try_from(_value: &PaymentsPreAuthorizeCancelRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: Some(SantanderVoidStatus::RemovidaPeloUsuarioRecebedor),
+        })
+    }
 }
 
 fn get_qr_code_data<F, T>(
@@ -1806,7 +1833,7 @@ fn convert_pix_data_to_value(
 
     let qr_code_info = QrCodeInformation::QrCodeUrl {
         image_data_url: image_data_url.clone(),
-        qr_code_url: None,
+        qr_code_url: Some(image_data_url),
         display_to_timestamp: None,
         expiry_type: variant,
         raw_qr_data: Some(data),
@@ -2166,11 +2193,10 @@ impl From<BoletoPaymentTypeConstraints> for SantanderBoletoPaymentType {
 }
 
 fn get_boleto_additional_fields_from_connector_metadata(
-    metadata: Option<ConnectorMetadata>,
+    metadata: Option<FeatureMetadata>,
 ) -> BoletoAdditionalFields {
     metadata
-        .and_then(|m| m.santander)
-        .and_then(|s| s.boleto)
+        .and_then(|m| m.boleto_additional_details)
         .map(|b| {
             let fine = b.penalties.as_ref().and_then(|p| p.fixed_penalty.as_ref());
             let fine_quantity_days = fine.and_then(|f| f.grace_period_days.map(|d| d.to_string()));
@@ -2341,6 +2367,10 @@ impl
                 }
                 common_types::customers::DocumentKind::Cnpj => {
                     (None, Some(details.document_number.clone()))
+                }
+                common_types::customers::DocumentKind::Psn
+                | common_types::customers::DocumentKind::Other => {
+                    (Some(details.document_number.clone()), None)
                 }
             })
             .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -2613,6 +2643,10 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
             common_types::customers::DocumentKind::Cnpj => {
                 (None, Some(customer_document_details.document_number))
             }
+            common_types::customers::DocumentKind::Psn
+            | common_types::customers::DocumentKind::Other => {
+                (Some(customer_document_details.document_number), None)
+            }
         };
 
         Ok(Self {
@@ -2790,6 +2824,7 @@ pub fn decide_access_token_key_suffix(
                         None => Some(AccessTokenUrlPath::Leg2),
                     }
                 }
+                (_, Some(enums::PaymentMethodType::Boleto)) => Some(AccessTokenUrlPath::Boleto),
                 (None, Some(enums::PaymentMethodType::PixAutomaticoPush)) => {
                     Some(AccessTokenUrlPath::Leg2)
                 }

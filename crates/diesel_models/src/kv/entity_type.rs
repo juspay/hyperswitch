@@ -58,4 +58,8 @@ entity_type! {
         crate::authentication::AuthenticationNew,
         crate::authentication::AuthenticationUpdateInternal,
     }
+    "capture" => {
+        crate::capture::CaptureNew,
+        crate::capture::CaptureUpdateInternal,
+    }
 }

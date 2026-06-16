@@ -935,6 +935,7 @@ async fn payments_incoming_webhook_flow(
                 shadow_ucs_call_connector_action,
                 None,
                 HeaderPayload::default(),
+                None,
             ))
             .await;
             // When mandate details are present in successful webhooks, and consuming webhooks are skipped during payment sync if the payment status is already updated to charged, this function is used to update the connector mandate details.
@@ -1783,7 +1784,7 @@ pub async fn get_or_update_dispute_object(
                 connector_created_at: dispute_details.created_at,
                 connector_updated_at: dispute_details.updated_at,
                 profile_id: Some(business_profile.get_id().to_owned()),
-                evidence: None,
+                evidence: hyperswitch_masking::Secret::new(serde_json::json!({})),
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 dispute_amount: StringMinorUnitForConnector::convert_back(
                     &StringMinorUnitForConnector,
@@ -1808,6 +1809,8 @@ pub async fn get_or_update_dispute_object(
                     .created_by
                     .as_ref()
                     .map(|created_by| created_by.to_string()),
+                created_at: common_utils::date_time::now(),
+                modified_at: common_utils::date_time::now(),
             };
             state
                 .store
@@ -1989,6 +1992,7 @@ async fn external_authentication_incoming_webhook_flow(
                         None,
                         None,
                         HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                        None,
                     ))
                     .await?
                 } else {
@@ -2011,6 +2015,7 @@ async fn external_authentication_incoming_webhook_flow(
                         None,
                         None,
                         HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                        None,
                     ))
                     .await?
                 };
@@ -2222,6 +2227,7 @@ async fn frm_incoming_webhook_flow(
                     None,
                     None,
                     HeaderPayload::default(),
+                    None,
                 ))
                 .await?
             }
@@ -2251,6 +2257,7 @@ async fn frm_incoming_webhook_flow(
                     None,
                     None,
                     HeaderPayload::default(),
+                    None,
                 ))
                 .await?
             }
@@ -2477,6 +2484,7 @@ async fn bank_transfer_webhook_flow(
             None,
             None,
             HeaderPayload::with_source(common_enums::PaymentSource::Webhook),
+            None,
         ))
         .await;
         (response, created_by)

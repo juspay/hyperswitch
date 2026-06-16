@@ -1,34 +1,42 @@
-use std::collections::HashMap;
-
 use common_utils::events::ApiEventMetric;
 use serde_json::{Map, Value};
 use superposition_types::Config;
 
 use crate::enums as api_enums;
 
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentMethodCriteria {
+    CardNetwork,
+    BankName,
+    PaymentExperience,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SdkCriteriaRule {
+    pub criteria_value: String,
+    pub eligible_connectors: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SdkPaymentMethodType {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub payment_method_criteria: Option<PaymentMethodCriteria>,
+    pub criteria_rules: Vec<SdkCriteriaRule>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SdkPaymentMethod {
+    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method_types: Vec<SdkPaymentMethodType>,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SuperPositionConfigResponse {
-    pub raw_configs: Option<Config>,
+    pub raw_configs: Config,
     pub resolved_configs: Option<Map<String, Value>>,
     pub context_used: Map<String, Value>,
-    pub dynamic_fields: Option<DynamicFields>,
+    pub payment_methods: Option<Vec<SdkPaymentMethod>>,
 }
 
 impl ApiEventMetric for SuperPositionConfigResponse {}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DynamicFields {
-    pub payment_methods: Vec<PaymentMethodGroup>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentMethodGroup {
-    pub payment_method: api_enums::PaymentMethod,
-    pub payment_method_types: Vec<PaymentMethodTypeWithFields>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentMethodTypeWithFields {
-    pub payment_method_type: api_enums::PaymentMethodType,
-    pub required_fields: HashMap<String, crate::payment_methods::RequiredFieldInfo>,
-}
