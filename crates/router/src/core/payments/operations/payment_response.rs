@@ -2893,7 +2893,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             Some(authentication_store)
         }
         None => None,
-    };
+        };
+    }
 
     let amount_captured = get_total_amount_captured(
         &router_data.request,
