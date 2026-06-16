@@ -2482,7 +2482,10 @@ pub async fn retrieve_payment_method_data_from_storage(
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
     let mut payment_method_data = match storage_type {
         enums::StorageType::Persistent => {
-            Box::pin(retrieve_payment_method_from_vault(state, platform, profile, pm)).await?
+            Box::pin(retrieve_payment_method_from_vault(
+                state, platform, profile, pm,
+            ))
+            .await?
         }
         enums::StorageType::Volatile => {
             retrieve_volatile_payment_method_from_redis(

@@ -5269,24 +5269,26 @@ pub async fn retrieve_payment_method(
     .attach_printable("Failed to retrieve cvc from redis")
     .ok();
 
-    let raw_payment_method_data = Box::pin(raw_payment_method_fetch_access.get_raw_payment_method_data(
-        &state,
-        &platform,
-        &profile,
-        &payment_method,
-        storage_type,
-    ))
-    .await
-    .attach_printable("Failed to get raw payment method data")?;
+    let raw_payment_method_data =
+        Box::pin(raw_payment_method_fetch_access.get_raw_payment_method_data(
+            &state,
+            &platform,
+            &profile,
+            &payment_method,
+            storage_type,
+        ))
+        .await
+        .attach_printable("Failed to get raw payment method data")?;
 
-    let raw_network_token_details = Box::pin(raw_payment_method_fetch_access.get_raw_network_token_data(
-        &state,
-        &platform,
-        &profile,
-        &payment_method,
-        storage_type,
-    ))
-    .await
+    let raw_network_token_details =
+        Box::pin(raw_payment_method_fetch_access.get_raw_network_token_data(
+            &state,
+            &platform,
+            &profile,
+            &payment_method,
+            storage_type,
+        ))
+        .await
         .inspect_err(|err| {
             logger::warn!(?err, "Failed to fetch raw network token details");
         })
@@ -5651,17 +5653,18 @@ impl RawPaymentMethodFetchAccess {
                     Some(domain::VaultId::generate(network_token_locker_id));
                 network_token_payment_method.customer_id = Some(customer_id);
 
-                let network_token_vault_data = Box::pin(vault::retrieve_payment_method_data_from_storage(
-                    state,
-                    platform,
-                    profile,
-                    &network_token_payment_method,
-                    storage_type,
-                ))
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to retrieve network token from vault")?
-                .data;
+                let network_token_vault_data =
+                    Box::pin(vault::retrieve_payment_method_data_from_storage(
+                        state,
+                        platform,
+                        profile,
+                        &network_token_payment_method,
+                        storage_type,
+                    ))
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve network token from vault")?
+                    .data;
 
                 let check_token_status_response =
                     network_tokenization::do_status_check_for_network_token(state, payment_method)
@@ -7195,16 +7198,17 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             return Ok((None, None));
         }
 
-        let pmd: domain::PaymentMethodVaultingData = Box::pin(vault::retrieve_payment_method_from_vault(
-            self.state,
-            self.platform,
-            self.profile,
-            &self.payment_method,
-        ))
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to retrieve payment method from vault")?
-        .data;
+        let pmd: domain::PaymentMethodVaultingData =
+            Box::pin(vault::retrieve_payment_method_from_vault(
+                self.state,
+                self.platform,
+                self.profile,
+                &self.payment_method,
+            ))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to retrieve payment method from vault")?
+            .data;
 
         let vault_request_data = self
             .request
