@@ -3540,6 +3540,9 @@ pub struct PaymentLinkConfigRequest {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
+    /// Flag to display the merchant name in the payment link
+    #[schema(default = true, example = true)]
+    pub show_merchant_name: Option<bool>,
 }
 
 impl PaymentLinkConfigRequest {
@@ -3652,6 +3655,8 @@ pub struct PaymentLinkConfig {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
+    /// Flag to display the merchant name in the payment link
+    pub show_merchant_name: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

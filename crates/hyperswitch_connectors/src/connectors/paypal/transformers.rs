@@ -1564,6 +1564,7 @@ impl
             session_token: credentials.get_client_id().clone().expose(),
             sdk_next_action: SdkNextAction {
                 next_action: NextActionCall::PostSessionTokens,
+                should_block_confirm: None,
             },
             client_token: None,
             data_user_id_token: response.id_token.clone().map(|id| id.expose()),
@@ -3007,6 +3008,10 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalPayoutI
                 }
                 WalletPayout::ApplePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
                     message: "ApplePayDecrypt PayoutMethodType is not supported".to_string(),
+                    connector: "Paypal",
+                })?,
+                WalletPayout::GooglePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
+                    message: "GooglePayDecrypt PayoutMethodType is not supported".to_string(),
                     connector: "Paypal",
                 })?,
             },

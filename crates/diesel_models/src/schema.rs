@@ -1215,6 +1215,8 @@ diesel::table! {
         network_transaction_link_id -> Nullable<Varchar>,
         #[max_length = 255]
         sender_payment_instrument_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        external_threeds_authentication_type -> Nullable<Varchar>,
     }
 }
 
@@ -1329,6 +1331,9 @@ diesel::table! {
         installment_options -> Nullable<Jsonb>,
         #[max_length = 64]
         profile_acquirer_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        external_surcharge_strategy -> Nullable<Varchar>,
+        external_surcharge_applicable -> Nullable<Bool>,
     }
 }
 

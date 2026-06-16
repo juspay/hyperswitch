@@ -4004,13 +4004,8 @@ fn get_shopper_email(
     is_mandate_payment: bool,
 ) -> CustomResult<Option<Email>, errors::ConnectorError> {
     if is_mandate_payment {
-        let payment_method_type = item
-            .request
-            .payment_method_type
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
-        match payment_method_type {
-            storage_enums::PaymentMethodType::Paypal => Ok(Some(item.get_billing_email()?)),
+        match item.request.payment_method_type {
+            Some(storage_enums::PaymentMethodType::Paypal) => Ok(Some(item.get_billing_email()?)),
             _ => Ok(item.get_optional_billing_email()),
         }
     } else {
@@ -6373,6 +6368,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                             connector: "Adyen",
                         })?
                     }
+                    payouts::Wallet::GooglePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
+                        message: "Google Pay Decrypt Wallet is not supported".to_string(),
+                        connector: "Adyen",
+                    })?,
                 };
                 let address: &hyperswitch_domain_models::address::AddressDetails =
                     item.router_data.get_billing_address()?;

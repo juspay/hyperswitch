@@ -179,6 +179,7 @@ pub trait PaymentMethodsController {
         bank_debit_data: api_models::payment_methods::BankDebitDetail,
         key_store: &merchant_key_store::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
+        key: Option<String>,
     ) -> errors::VaultResult<(
         payment_methods::PaymentMethodResponse,
         Option<DataDuplicationCheck>,
@@ -191,6 +192,7 @@ pub trait PaymentMethodsController {
         wallet_data: api_models::payment_methods::WalletDetail,
         key_store: &merchant_key_store::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
+        key: Option<String>,
     ) -> errors::VaultResult<(
         payment_methods::PaymentMethodResponse,
         Option<DataDuplicationCheck>,

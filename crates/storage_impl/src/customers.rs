@@ -151,6 +151,31 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         })
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_customer_for_global_id_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
+        self.router_store
+            .find_customer_for_global_id_migration(customer_id, merchant_id)
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn update_customer_global_id_for_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        new_id: id_type::GlobalCustomerId,
+    ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
+        self.router_store
+            .update_customer_global_id_for_migration(customer_id, merchant_id, new_id)
+            .await
+    }
+
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
@@ -620,6 +645,43 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         })
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_customer_for_global_id_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        customers::Customer::find_by_merchant_id_customer_id_for_global_id_migration(
+            &conn,
+            merchant_id,
+            customer_id,
+        )
+        .await
+        .map_err(|error| {
+            let new_err = diesel_error_to_data_error(*error.current_context());
+            error.change_context(new_err)
+        })
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn update_customer_global_id_for_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        new_id: id_type::GlobalCustomerId,
+    ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
+        let conn = pg_connection_write(self).await?;
+        customers::Customer::update_global_id_for_migration(&conn, merchant_id, customer_id, new_id)
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
+    }
+
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
@@ -889,6 +951,64 @@ impl domain::CustomerInterface for MockDb {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         todo!()
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_customer_for_global_id_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
+        let customers = self.customers.lock().await;
+        customers
+            .iter()
+            .find_map(|customer| {
+                let row_customer_id = customer.customer_id.as_ref()?.get_string_repr();
+                (customer.merchant_id == *merchant_id
+                    && row_customer_id == customer_id.get_string_repr())
+                .then(|| customers::CustomerGlobalIdMigrationRow {
+                    merchant_id: customer.merchant_id.clone(),
+                    customer_id: Some(row_customer_id.to_owned()),
+                    id: Some(customer.id.get_string_repr().to_owned()),
+                    version: customer.version,
+                })
+            })
+            .ok_or_else(|| StorageError::ValueNotFound("customer".to_string()).into())
+    }
+
+    #[cfg(feature = "v2")]
+    async fn update_customer_global_id_for_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        new_id: id_type::GlobalCustomerId,
+    ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
+        let mut customers = self.customers.lock().await;
+        let customer = customers
+            .iter_mut()
+            .find(|customer| {
+                customer.version == common_enums::ApiVersion::V1
+                    && customer.merchant_id == *merchant_id
+                    && customer
+                        .customer_id
+                        .as_ref()
+                        .is_some_and(|row_customer_id| {
+                            row_customer_id.get_string_repr() == customer_id.get_string_repr()
+                        })
+            })
+            .ok_or_else(|| StorageError::ValueNotFound("customer".to_string()))?;
+
+        customer.id = new_id;
+
+        Ok(customers::CustomerGlobalIdMigrationRow {
+            merchant_id: customer.merchant_id.clone(),
+            customer_id: customer
+                .customer_id
+                .as_ref()
+                .map(|customer_id| customer_id.get_string_repr().to_owned()),
+            id: Some(customer.id.get_string_repr().to_owned()),
+            version: customer.version,
+        })
     }
 
     async fn list_customers_by_merchant_id(
