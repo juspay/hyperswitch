@@ -2305,11 +2305,16 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let vault_data = retrieve_payment_method_from_vault(state, platform, profile, &payment_method)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to retrieve payment method from vault")?
-        .data;
+    let vault_data = Box::pin(retrieve_payment_method_from_vault(
+        state,
+        platform,
+        profile,
+        &payment_method,
+    ))
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to retrieve payment method from vault")?
+    .data;
 
     Ok((payment_method, vault_data))
 }
@@ -2477,7 +2482,7 @@ pub async fn retrieve_payment_method_data_from_storage(
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
     let mut payment_method_data = match storage_type {
         enums::StorageType::Persistent => {
-            retrieve_payment_method_from_vault(state, platform, profile, pm).await?
+            Box::pin(retrieve_payment_method_from_vault(state, platform, profile, pm)).await?
         }
         enums::StorageType::Volatile => {
             retrieve_volatile_payment_method_from_redis(

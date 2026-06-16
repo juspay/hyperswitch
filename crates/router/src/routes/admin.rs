@@ -561,12 +561,12 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data, req, _| async move {
-            create_connector(
+            Box::pin(create_connector(
                 state,
                 req,
                 auth_data.platform.get_processor().clone(),
                 auth_data.profile.map(|profile| profile.get_id().clone()),
-            )
+            ))
             .await
         },
         auth::auth_type(
@@ -602,7 +602,13 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data: auth::AuthenticationData, req, _| async move {
-            create_connector(state, req, auth_data.platform.get_processor().clone(), None).await
+            Box::pin(create_connector(
+                state,
+                req,
+                auth_data.platform.get_processor().clone(),
+                None,
+            ))
+            .await
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,

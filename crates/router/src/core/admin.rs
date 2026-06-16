@@ -3877,7 +3877,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
 /// merchants share the platform's vault pool and must not configure their own external vault.
 fn validate_external_vault_config_for_merchant_account_type(
     merchant_account_type: MerchantAccountType,
-    is_external_vault_enabled: &Option<common_enums::ExternalVaultEnabled>,
+    is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
     has_external_vault_connector_details: bool,
 ) -> RouterResult<()> {
     let is_external_vault_being_configured = matches!(
@@ -3902,11 +3902,11 @@ fn validate_external_vault_config_for_merchant_account_type(
 /// merchants share the platform's vault pool and must not configure their own external vault.
 fn validate_external_vault_config_for_merchant_account_type(
     merchant_account_type: MerchantAccountType,
-    is_external_vault_enabled: &Option<bool>,
+    is_external_vault_enabled: Option<bool>,
     has_external_vault_connector_details: bool,
 ) -> RouterResult<()> {
     let is_external_vault_being_configured =
-        *is_external_vault_enabled == Some(true) || has_external_vault_connector_details;
+        is_external_vault_enabled == Some(true) || has_external_vault_connector_details;
     fp_utils::when(
         is_external_vault_being_configured
             && merchant_account_type == MerchantAccountType::Connected,
@@ -3929,7 +3929,7 @@ pub async fn create_profile(
 
     validate_external_vault_config_for_merchant_account_type(
         processor.get_account().merchant_account_type,
-        &request.is_external_vault_enabled,
+        request.is_external_vault_enabled,
         request.external_vault_connector_details.is_some(),
     )?;
 
@@ -4468,7 +4468,7 @@ pub async fn update_profile(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     validate_external_vault_config_for_merchant_account_type(
         merchant_account.merchant_account_type,
-        &request.is_external_vault_enabled,
+        request.is_external_vault_enabled,
         request.external_vault_connector_details.is_some(),
     )?;
 
