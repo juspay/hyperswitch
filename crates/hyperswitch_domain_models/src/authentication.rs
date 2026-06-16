@@ -109,8 +109,10 @@ pub struct Authentication {
 impl Authentication {
     /// Records which storage layer (KV / Postgres) wrote this row; the previous value
     /// drives KV-vs-Postgres routing on later updates in `decide_storage_scheme`.
-    pub fn update_storage_scheme( mut self, storage_scheme: common_enums::MerchantStorageScheme, ) 
-    -> Self {
+    pub fn update_storage_scheme(
+        mut self,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> Self {
         self.updated_by = storage_scheme.to_string();
         self
     }
