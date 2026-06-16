@@ -69,9 +69,7 @@ use crate::{
         ConnectorPostAuthenticationRouterData, ConnectorPostAuthenticationType,
         ConnectorPreAuthenticationType, PreAuthNRouterData, ResponseRouterData,
     },
-    utils::{
-        convert_amount, is_mandate_supported, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-    },
+    utils::{convert_amount, PaymentsAuthorizeRequestData},
 };
 
 #[derive(Clone)]
@@ -145,7 +143,9 @@ impl ConnectorCommon for Aci {
             attempt_status: None,
             connector_transaction_id: None,
             connector_response_reference_id: None,
-            network_advice_code: None,
+            network_advice_code: response
+                .result_details
+                .and_then(|details| details.merchant_advice_code),
             network_decline_code: None,
             network_error_message: None,
             connector_metadata: None,
@@ -153,21 +153,7 @@ impl ConnectorCommon for Aci {
     }
 }
 
-impl ConnectorValidation for Aci {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::SamsungPay,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Aci {}
 
 impl api::Payment for Aci {}
 
