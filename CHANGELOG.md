@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.10.0-hotfix3
+
+### Features
+
+- **connector:** [worldpayxml] Googlepay predecrypt | hyperswitch decrypt ([#12762](https://github.com/juspay/hyperswitch/pull/12762)) ([`cf81ae5`](https://github.com/juspay/hyperswitch/commit/cf81ae5d9e4930a1f867ef615c8ac1dab604a468))
+
+**Full Changelog:** [`2026.06.10.0-hotfix2...2026.06.10.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.06.10.0-hotfix2...2026.06.10.0-hotfix3)
+
+- - -
+
 ## 2026.06.10.0-hotfix2
 
 ### Features
