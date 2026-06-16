@@ -123,6 +123,8 @@ pub trait IncomingWebhookGateway: Send + Sync {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         ctx: &WebhookGatewayContext,
+        ucs_reference: Option<payments_grpc::EventReference>,
+        ucs_event_type: Option<IncomingWebhookEvent>,
     ) -> RouterResult<WebhookOutcome>;
 }
 
@@ -176,12 +178,15 @@ pub async fn get_rollout_flow_for_incoming_webhook(
     connector_name: &str,
     merchant_connector_account: Option<&domain::MerchantConnectorAccount>,
     request: &IncomingWebhookRequestDetails<'_>,
-) -> Option<api_models::webhooks::WebhookFlow> {
-    let client = state
-        .grpc_client
-        .unified_connector_service_client
-        .as_ref()?
-        .clone();
+) -> (
+    Option<api_models::webhooks::WebhookFlow>,
+    Option<payments_grpc::EventReference>,
+    Option<IncomingWebhookEvent>,
+) {
+    let client = match state.grpc_client.unified_connector_service_client.as_ref() {
+        Some(client) => client.clone(),
+        None => return (None, None, None),
+    };
 
     let ctx = WebhookGatewayContext {
         state: state.clone(),
@@ -193,20 +198,24 @@ pub async fn get_rollout_flow_for_incoming_webhook(
         execution_mode: ExecutionMode::NotApplicable,
     };
 
-    let parse_request = payments_grpc::EventServiceParseRequest::foreign_try_from(request)
+    let parse_request = match payments_grpc::EventServiceParseRequest::foreign_try_from(request)
         .inspect_err(|error| {
             logger::debug!(?error, "Failed to build UCS ParseEvent request");
-        })
-        .ok()?;
+        }) {
+        Ok(parse_request) => parse_request,
+        Err(_) => return (None, None, None),
+    };
 
-    let parse_auth = build_ucs_auth_metadata(&ctx, None)
-        .inspect_err(|error| {
-            logger::debug!(?error, "Failed to build UCS auth metadata");
-        })
-        .ok()?;
+    let parse_auth = match build_ucs_auth_metadata(&ctx, None).inspect_err(|error| {
+        logger::debug!(?error, "Failed to build UCS auth metadata");
+    }) {
+        Ok(parse_auth) => parse_auth,
+        Err(_) => return (None, None, None),
+    };
+
     let parse_headers = build_ucs_headers_builder(&ctx, None, ExecutionMode::NotApplicable);
 
-    let parse_response = unified_connector_service::ucs_webhook_logging_wrapper(
+    let parse_response = match unified_connector_service::ucs_webhook_logging_wrapper(
         state,
         connector_name.to_string(),
         "EventServiceParseEvent",
@@ -224,14 +233,20 @@ pub async fn get_rollout_flow_for_incoming_webhook(
     .await
     .inspect_err(|error| {
         logger::debug!(?error, "UCS ParseEvent failed");
-    })
-    .ok()?;
+    }) {
+        Ok(parse_response) => parse_response,
+        Err(_) => return (None, None, None),
+    };
 
     let event_type = parse_response
         .event_type
         .map(IncomingWebhookEvent::from_ucs_event_type);
 
-    event_type.map(api_models::webhooks::WebhookFlow::from)
+    (
+        event_type.map(api_models::webhooks::WebhookFlow::from),
+        parse_response.reference,
+        event_type,
+    )
 }
 
 pub struct DirectIncomingWebhookGateway;
@@ -242,6 +257,8 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         ctx: &WebhookGatewayContext,
+        _ucs_event_reference: Option<payments_grpc::EventReference>,
+        _ucs_event_type: Option<IncomingWebhookEvent>,
     ) -> RouterResult<WebhookOutcome> {
         let decoded_body = ctx
             .connector
@@ -378,6 +395,8 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         ctx: &WebhookGatewayContext,
+        ucs_event_reference: Option<payments_grpc::EventReference>,
+        ucs_event_type: Option<IncomingWebhookEvent>,
     ) -> RouterResult<WebhookOutcome> {
         let client = ctx
             .state
@@ -393,37 +412,11 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
         let connector_name = ctx.connector_name.clone();
         let merchant_event_id = build_merchant_event_id(ctx);
 
-        let parse_request = payments_grpc::EventServiceParseRequest::foreign_try_from(request)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to build UCS EventServiceParseRequest")?;
-        let parse_auth = build_ucs_auth_metadata(ctx, None)?;
-        let parse_headers = build_ucs_headers_builder(ctx, None, ctx.execution_mode);
-        let parse_client = client.clone();
-        let parse_response = unified_connector_service::ucs_webhook_logging_wrapper(
-            &ctx.state,
-            connector_name.clone(),
-            "EventServiceParseEvent",
-            parse_request,
-            parse_headers,
-            |request, headers| async move {
-                parse_client
-                    .incoming_webhook_parse_event(request, parse_auth, headers)
-                    .await
-                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                    .attach_printable("UCS ParseEvent call failed")
-                    .map(|response| response.into_inner())
-            },
-        )
-        .await?;
-
-        let reference = match parse_response.reference.as_ref() {
+        let reference = match ucs_event_reference.as_ref() {
             Some(r) => event_reference_to_object_ref(r)?,
             None => None,
         };
-        let event_type = parse_response
-            .event_type
-            .map(IncomingWebhookEvent::from_ucs_event_type)
-            .unwrap_or(IncomingWebhookEvent::EventNotSupported);
+        let event_type = ucs_event_type.unwrap_or(IncomingWebhookEvent::EventNotSupported);
 
         let outcome = match FilterDecision::evaluate(event_type, ctx).await {
             FilterDecision::Skip => WebhookOutcome::Skipped {
@@ -536,16 +529,32 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
 pub async fn execute_incoming_webhook_gateway(
     ctx: &WebhookGatewayContext,
     request: &IncomingWebhookRequestDetails<'_>,
+    ucs_event_reference: Option<payments_grpc::EventReference>,
+    ucs_event_type: Option<IncomingWebhookEvent>,
 ) -> RouterResult<WebhookOutcome> {
     match ctx.execution_path {
-        ExecutionPath::Direct => DirectIncomingWebhookGateway.execute(request, ctx).await,
+        ExecutionPath::Direct => {
+            DirectIncomingWebhookGateway
+                .execute(request, ctx, None, None)
+                .await
+        }
         ExecutionPath::UnifiedConnectorService => {
-            UcsIncomingWebhookGateway.execute(request, ctx).await
+            UcsIncomingWebhookGateway
+                .execute(request, ctx, ucs_event_reference, ucs_event_type)
+                .await
         }
         ExecutionPath::ShadowUnifiedConnectorService => {
-            let direct_result = DirectIncomingWebhookGateway.execute(request, ctx).await;
+            let direct_result = DirectIncomingWebhookGateway
+                .execute(request, ctx, None, None)
+                .await;
             let primary_snapshot = WebhookShadowSnapshot::from_result(&direct_result);
-            spawn_shadow_ucs_run(ctx, request, primary_snapshot);
+            spawn_shadow_ucs_run(
+                ctx,
+                request,
+                primary_snapshot,
+                ucs_event_reference,
+                ucs_event_type,
+            );
             direct_result
         }
     }
@@ -555,6 +564,8 @@ fn spawn_shadow_ucs_run(
     ctx: &WebhookGatewayContext,
     request: &IncomingWebhookRequestDetails<'_>,
     primary_snapshot: WebhookShadowSnapshot,
+    ucs_event_reference: Option<payments_grpc::EventReference>,
+    ucs_event_type: Option<IncomingWebhookEvent>,
 ) {
     let mut inner_ctx = ctx.clone();
     inner_ctx.execution_path = ExecutionPath::UnifiedConnectorService;
@@ -566,7 +577,12 @@ fn spawn_shadow_ucs_run(
         async move {
             let request_ref = request_owned.borrow();
             let shadow_result = UcsIncomingWebhookGateway
-                .execute(&request_ref, &inner_ctx)
+                .execute(
+                    &request_ref,
+                    &inner_ctx,
+                    ucs_event_reference,
+                    ucs_event_type,
+                )
                 .await;
             if let Err(error) = shadow_result.as_ref() {
                 logger::warn!(?error, "UCS shadow webhook run failed");

@@ -722,8 +722,8 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
         merchant_id,
         connector_key,
-        flow_name,
-        webhook_category
+        webhook_category,
+        flow_name
     );
 
     // Determine connector integration type

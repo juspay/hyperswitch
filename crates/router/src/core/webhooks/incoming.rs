@@ -272,15 +272,16 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             let connector_name = mca_data.connector_name.clone();
             let mca_ref = mca_data.merchant_connector_account.as_ref();
 
-            let webhook_rollout_flow = super::gateway::get_rollout_flow_for_incoming_webhook(
-                &state,
-                &platform,
-                connector.clone(),
-                &connector_name,
-                mca_ref,
-                &request_details,
-            )
-            .await;
+            let (webhook_rollout_flow, ucs_event_reference, ucs_event_type) =
+                super::gateway::get_rollout_flow_for_incoming_webhook(
+                    &state,
+                    &platform,
+                    connector.clone(),
+                    &connector_name,
+                    mca_ref,
+                    &request_details,
+                )
+                .await;
 
             let execution_path =
                 unified_connector_service::should_call_unified_connector_service_for_webhooks(
@@ -317,8 +318,13 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 execution_path,
                 execution_mode,
             };
-            let outcome =
-                super::gateway::execute_incoming_webhook_gateway(&ctx, &request_details).await;
+            let outcome = super::gateway::execute_incoming_webhook_gateway(
+                &ctx,
+                &request_details,
+                ucs_event_reference,
+                ucs_event_type,
+            )
+            .await;
 
             (connector, connector_name, outcome)
         }
