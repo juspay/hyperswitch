@@ -13664,10 +13664,21 @@ async fn calculate_mit_external_surcharge(
             payment_attempt
                 .payment_method_data
                 .as_ref()
-                .and_then(|json| json.get("card"))
-                .and_then(|card| card.get("card_isin"))
-                .and_then(|isin| isin.as_str())
-                .map(String::from)
+                .and_then(|pmd| {
+                    pmd.clone()
+                        .parse_value::<payments_api::AdditionalPaymentData>(
+                            "additional_payment_method_data",
+                        )
+                        .inspect_err(|err| {
+                            logger::warn!(
+                                error=?err,
+                                "MIT confirm: failed to parse payment_attempt.payment_method_data as AdditionalPaymentData"
+                            );
+                        })
+                        .ok()
+                })
+                .and_then(|additional| additional.get_additional_card_info())
+                .and_then(|card_info| card_info.card_isin)
         });
     let currency = payment_intent.currency;
     let payment_method = payment_attempt.payment_method;
