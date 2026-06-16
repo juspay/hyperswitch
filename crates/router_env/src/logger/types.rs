@@ -645,6 +645,8 @@ pub enum Flow {
     Relay,
     /// Relay retrieve flow
     RelayRetrieve,
+    /// Relay unreferenced refund flow
+    RelayUnreferencedRefund,
     /// Card tokenization flow
     TokenizeCard,
     /// Card tokenization using payment method flow
