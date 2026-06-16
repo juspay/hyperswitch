@@ -5032,6 +5032,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                         &authentication_id,
                         platform.get_processor().get_key_store(),
                         key_manager_state,
+                        platform.get_processor().get_account().storage_scheme,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
