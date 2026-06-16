@@ -68,6 +68,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Pix => Ok(dirval!(BankTransferType = Pix)),
         api_enums::PaymentMethodType::PixKey => Ok(dirval!(BankTransferType = PixKey)),
         api_enums::PaymentMethodType::PixEmv => Ok(dirval!(BankTransferType = PixEmv)),
+        api_enums::PaymentMethodType::PixQr => Ok(dirval!(BankTransferType = PixQr)),
         api_enums::PaymentMethodType::PixAutomaticoPush => {
             Ok(dirval!(BankTransferType = PixAutomaticoPush))
         }

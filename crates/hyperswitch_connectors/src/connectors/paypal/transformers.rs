@@ -1291,6 +1291,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Pix
                     | enums::PaymentMethodType::PixKey
                     | enums::PaymentMethodType::PixEmv
+                    | enums::PaymentMethodType::PixQr
                     | enums::PaymentMethodType::PixAutomaticoPush
                     | enums::PaymentMethodType::PixAutomaticoQr
                     | enums::PaymentMethodType::PaySafeCard
@@ -1444,6 +1445,7 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::MandiriVaBankTransfer { .. }
             | BankTransferData::Pix { .. }
             | BankTransferData::PixEmv {}
+            | BankTransferData::PixQr {}
             | BankTransferData::PixAutomaticoPush { .. }
             | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {}

@@ -114,6 +114,7 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
                     | BankTransferData::PixAutomaticoPush { .. }
                     | BankTransferData::PixAutomaticoQr {}
                     | BankTransferData::PixEmv {}
+                    | BankTransferData::PixQr {}
                     | BankTransferData::LocalBankTransfer { .. } => {
                         Err(errors::ConnectorError::NotImplemented(
                             "Selected payment method through itaubank".to_string(),

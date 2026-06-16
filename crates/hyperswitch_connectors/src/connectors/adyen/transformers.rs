@@ -2993,6 +2993,7 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::IndonesianBankTransfer { .. }
             | BankTransferData::PixEmv { .. }
+            | BankTransferData::PixQr {}
             | BankTransferData::PixAutomaticoPush { .. }
             | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
@@ -3764,6 +3765,7 @@ impl
             | BankTransferData::PixAutomaticoPush { .. }
             | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::PixEmv {}
+            | BankTransferData::PixQr {}
             | BankTransferData::IndonesianBankTransfer { .. } => (None, None),
         };
         let application_info = get_application_info(item);

@@ -55,7 +55,7 @@ pub enum SantanderDiscountType {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SantanderMetadataObject {
-    pub pix_emv: Option<PixMetadataObject>,
+    pub pix_qr: Option<PixMetadataObject>,
     pub boleto: Option<BoletoMetadataObject>,
     pub pix_automatico_push: Option<PixAutomaticoPushMetadataObject>,
     pub pix_automatico_qr: Option<PixAutomaticoQrMetadataObject>,
