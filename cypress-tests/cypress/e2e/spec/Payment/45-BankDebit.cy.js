@@ -102,8 +102,7 @@ describe("Bank Debit tests", () => {
 
   context("ACH Bank Debit Create and Confirm flow test", () => {
     before(function () {
-      const baseUrl = globalState.get("baseUrl") || "";
-      if (baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1")) {
+      if (isLocalhost(globalState.get("baseUrl"))) {
         cy.task(
           "cli_log",
           "Skipping ACH Bank Debit tests on localhost - vault setup required. These tests run on integ/sandbox environments."
