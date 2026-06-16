@@ -518,11 +518,10 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
             common_enums::MerchantStorageScheme::RedisKv => {
                 let key_str = key.to_string();
 
-                let current_authentication = <Authentication as Conversion>::convert(
-                    previous_state.clone(),
-                )
-                .await
-                .change_context(errors::StorageError::EncryptionError)?;
+                let current_authentication =
+                    <Authentication as Conversion>::convert(previous_state.clone())
+                        .await
+                        .change_context(errors::StorageError::EncryptionError)?;
 
                 // Captured before the changeset to detect a connector-authentication-id change.
                 let old_connector_authentication_id =
@@ -714,9 +713,10 @@ impl AuthenticationInterface for MockDb {
                 previous_state.authentication_id.get_string_repr()
             )))?;
 
-        let current_authentication = <Authentication as Conversion>::convert(previous_state.clone())
-            .await
-            .change_context(errors::StorageError::EncryptionError)?;
+        let current_authentication =
+            <Authentication as Conversion>::convert(previous_state.clone())
+                .await
+                .change_context(errors::StorageError::EncryptionError)?;
 
         let updated_authentication =
             diesel_models::authentication::AuthenticationUpdateInternal::from(

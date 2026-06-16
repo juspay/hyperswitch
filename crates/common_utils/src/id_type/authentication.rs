@@ -15,9 +15,7 @@ crate::impl_to_sql_from_sql_id_type!(AuthenticationId);
 impl AuthenticationId {
     /// Generate Authentication Id from prefix
     pub fn generate_authentication_id(prefix: &'static str) -> Self {
-        Self(super::LengthId::new_unchecked(
-            super::AlphaNumericId::new_unchecked(crate::generate_time_ordered_id(prefix)),
-        ))
+        Self(crate::generate_ref_id_with_default_length(prefix))
     }
 
     /// Get external authentication request poll id
