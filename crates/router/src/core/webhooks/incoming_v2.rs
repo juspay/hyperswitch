@@ -586,8 +586,6 @@ async fn payments_incoming_webhook_flow(
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
                     webhook_recipient,
-                    None,
-                    profile,
                 ))
                 .await?;
             };

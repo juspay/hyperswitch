@@ -68,6 +68,7 @@ pub(crate) async fn get_webhook_events(
     };
     webhook_events.push(event_data);
 
+    #[cfg(feature = "v1")]
     if let Some(surcharge_connector_id) = provider_profile
         .surcharge_connector_details
         .as_ref()
@@ -102,6 +103,7 @@ pub(crate) async fn get_webhook_events(
 }
 
 /// Fetches surcharge connector and builds surcharge webhook event if applicable.
+#[cfg(feature = "v1")]
 async fn get_surcharge_webhook_event(
     state: &SessionState,
     platform: domain::Platform,
@@ -799,6 +801,7 @@ async fn trigger_webhook_to_merchant(
         .api_client
         .send_request(&state, request, None, false)
         .await;
+
 
     metrics::WEBHOOK_OUTGOING_COUNT.add(
         1,

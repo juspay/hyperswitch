@@ -3315,6 +3315,7 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
     .attach_printable("Failed to parse UCS surcharge calculate response")
 }
 
+#[cfg(feature = "v1")]
 fn extract_notify_connector_content_from_request(
     request_content: OutgoingWebhookRequestContent,
 ) -> CustomResult<payments_grpc::NotifyConnectorContent, errors::ApiErrorResponse> {

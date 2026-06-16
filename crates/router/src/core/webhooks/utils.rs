@@ -307,6 +307,7 @@ pub(crate) struct WebhookPayload {
 impl WebhookPayload {
     /// Builds a surcharge webhook payload if the primary event supports surcharge notification
     /// and the payment attempt has external surcharge details.
+    #[cfg(feature = "v1")]
     pub fn build_surcharge_payload(
         surcharge_event: types::storage::enums::EventType,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,

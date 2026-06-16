@@ -80,6 +80,7 @@ pub enum OutgoingWebhookEventContent {
         payment_id: Option<common_utils::id_type::PaymentId>,
         content: Value,
     },
+    #[cfg(feature = "v1")]
     Surcharge {
         payment_id: common_utils::id_type::PaymentId,
         attempt_id: String,

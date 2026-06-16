@@ -113,6 +113,7 @@ pub enum EventMetadata {
         invoice_id: Option<common_utils::id_type::InvoiceId>,
         payment_id: Option<common_utils::id_type::PaymentId>,
     },
+    #[cfg(feature = "v1")]
     Surcharge {
         payment_id: common_utils::id_type::PaymentId,
         attempt_id: String,
