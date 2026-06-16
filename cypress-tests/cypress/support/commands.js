@@ -2392,6 +2392,10 @@ Cypress.Commands.add(
     globalState.set("paymentCurrency", createPaymentBody.currency);
     globalState.set("captureMethod", capture_method);
     globalState.set("setupFutureUsage", createPaymentBody.setup_future_usage);
+    // Reset redirect-related state so stale values from previous tests
+    // (e.g. Inespay SEPA) do not leak into the current payment flow.
+    globalState.set("nextActionUrl", null);
+    globalState.set("nextActionType", null);
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
