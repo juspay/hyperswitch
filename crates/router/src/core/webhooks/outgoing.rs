@@ -802,7 +802,6 @@ async fn trigger_webhook_to_merchant(
         .send_request(&state, request, None, false)
         .await;
 
-
     metrics::WEBHOOK_OUTGOING_COUNT.add(
         1,
         router_env::metric_attributes!((MERCHANT_ID, business_profile.merchant_id.clone())),
