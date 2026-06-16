@@ -10251,20 +10251,18 @@ impl From<VaultDetails> for Option<VaultDetailsResponse> {
                 vault_id: vgs.external_vault_id,
                 environment: vgs.sdk_env,
             })),
-            Some(VaultSessionDetails::HyperswitchVault(hs)) => Some(
-                VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
+            Some(VaultSessionDetails::HyperswitchVault(hs)) => {
+                Some(VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
                     sdk_authorization: hs.sdk_authorization,
-                }),
-            ),
+                }))
+            }
             // No external vault configured (the SaaS default): fall back to the internal
             // Hyperswitch vault SDK authorization.
-            None => details
-                .internal_vault
-                .map(|internal| {
-                    VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
-                        sdk_authorization: Secret::new(internal.sdk_authorization),
-                    })
-                }),
+            None => details.internal_vault.map(|internal| {
+                VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
+                    sdk_authorization: Secret::new(internal.sdk_authorization),
+                })
+            }),
         }
     }
 }
