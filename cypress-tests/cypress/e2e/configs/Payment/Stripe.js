@@ -1468,17 +1468,14 @@ export const connectorDetails = {
   },
   subscription_pm: {
     // These configs define the request/response expectations for subscription tests.
-    // Empty values (customer_id, billing_processor_id) are dynamically populated by
-    // the createSubscriptionTest command from globalState (see commands.js lines 10207-10212).
+    // customer_id is dynamically populated by the createSubscriptionTest command from globalState.
     Create: getCustomExchange({
       Request: {
         customer_id: "", // Populated from globalState.get("customerId") in createSubscriptionTest
-        billing_processor_id: "", // Populated from globalState.get("merchantConnectorId") in createSubscriptionTest
-        currency: "USD",
-        amount: 1000,
-        interval: "month",
-        interval_count: 1,
-        description: "Test subscription",
+        item_price_id: "price_12345",
+        payment_details: {
+          return_url: "https://example.com/subscription/return",
+        },
       },
       Response: {
         status: 200,
@@ -1490,12 +1487,10 @@ export const connectorDetails = {
     CreateInvalidCustomer: getCustomExchange({
       Request: {
         customer_id: "cust_invalid_nonexistent", // Intentionally invalid for negative test case
-        billing_processor_id: "", // Will be populated from globalState
-        currency: "USD",
-        amount: 1000,
-        interval: "month",
-        interval_count: 1,
-        description: "Test subscription with invalid customer",
+        item_price_id: "price_12345",
+        payment_details: {
+          return_url: "https://example.com/subscription/return",
+        },
       },
       Response: {
         status: 400,

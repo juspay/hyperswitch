@@ -1,10 +1,7 @@
 {
   "customer_id": "",
-  "billing_processor_id": "",
-  "currency": "USD",
-  "amount": 1000,
-  "interval": "month",
-  "interval_count": 1,
-  "description": "Test subscription",
-  "item_price_id": "price_12345"
+  "item_price_id": "price_12345",
+  "payment_details": {
+    "return_url": "https://example.com/subscription/return"
+  }
 }

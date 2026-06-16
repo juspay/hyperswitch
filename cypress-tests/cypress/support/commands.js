@@ -2742,10 +2742,11 @@ Cypress.Commands.add(
       confirmBody.split_payments = reqData.split_payments;
     }
 
-    const headers = {
-      "Content-Type": "application/json",
-      "api-key": apiKey,
-    };
+  const headers = {
+    "Content-Type": "application/json",
+    "api-key": apiKey,
+    "X-Profile-Id": globalState.get("profileId"),
+  };
 
     if (connectedMerchantId) {
       headers["x-connected-merchant-id"] = connectedMerchantId;
@@ -10465,7 +10466,6 @@ Cypress.Commands.add(
 
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
-    const merchant_connector_id = globalState.get("merchantConnectorId");
 
     // Merge request body with any connector-specific Request fields
     const subscriptionBody = {
@@ -10477,14 +10477,11 @@ Cypress.Commands.add(
     if (subscriptionBody.customer_id === "") {
       subscriptionBody.customer_id = globalState.get("customerId");
     }
-    if (subscriptionBody.billing_processor_id === "") {
-      subscriptionBody.billing_processor_id = merchant_connector_id;
-    }
 
     const headers = {
       "Content-Type": "application/json",
       "api-key": apiKey,
-      "X-Billing-Processor-Id": merchant_connector_id,
+      "X-Profile-Id": globalState.get("profileId"),
     };
 
     cy.request({
@@ -10625,12 +10622,11 @@ Cypress.Commands.add("retrieveSubscriptionTest", (data, globalState) => {
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
   const subscriptionId = globalState.get("subscriptionId");
-  const merchant_connector_id = globalState.get("merchantConnectorId");
 
   const headers = {
     "Content-Type": "application/json",
     "api-key": apiKey,
-    "X-Billing-Processor-Id": merchant_connector_id,
+    "X-Profile-Id": globalState.get("profileId"),
   };
 
   cy.request({
@@ -10663,7 +10659,6 @@ Cypress.Commands.add(
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
     const subscriptionId = globalState.get("subscriptionId");
-    const merchant_connector_id = globalState.get("merchantConnectorId");
 
     const subscriptionBody = {
       ...updateSubscriptionBody,
@@ -10673,7 +10668,7 @@ Cypress.Commands.add(
     const headers = {
       "Content-Type": "application/json",
       "api-key": apiKey,
-      "X-Billing-Processor-Id": merchant_connector_id,
+      "X-Profile-Id": globalState.get("profileId"),
     };
 
     cy.request({
@@ -10706,7 +10701,6 @@ Cypress.Commands.add("cancelSubscriptionTest", (data, globalState) => {
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
   const subscriptionId = globalState.get("subscriptionId");
-  const merchant_connector_id = globalState.get("merchantConnectorId");
 
   const subscriptionBody = {
     ...(data.Request || {}),
@@ -10715,7 +10709,7 @@ Cypress.Commands.add("cancelSubscriptionTest", (data, globalState) => {
   const headers = {
     "Content-Type": "application/json",
     "api-key": apiKey,
-    "X-Billing-Processor-Id": merchant_connector_id,
+    "X-Profile-Id": globalState.get("profileId"),
   };
 
   cy.request({
@@ -10747,12 +10741,11 @@ Cypress.Commands.add("reactivateSubscriptionTest", (data, globalState) => {
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
   const subscriptionId = globalState.get("subscriptionId");
-  const merchant_connector_id = globalState.get("merchantConnectorId");
 
   const headers = {
     "Content-Type": "application/json",
     "api-key": apiKey,
-    "X-Billing-Processor-Id": merchant_connector_id,
+    "X-Profile-Id": globalState.get("profileId"),
   };
 
   cy.request({
