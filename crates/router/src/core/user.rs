@@ -3980,7 +3980,7 @@ pub async fn clone_connector(
         },
     )?;
 
-    let merchant_connector_create = utils::user::build_profile_clone_connector_create_request(
+    let merchant_connector_create = utils::user::build_cloned_connector_create_request(
         source_mca,
         request.destination_profile_id.clone(),
         request.connector_label,

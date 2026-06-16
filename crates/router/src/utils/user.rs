@@ -405,7 +405,7 @@ pub fn get_base_url(state: &SessionState) -> &str {
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn build_profile_clone_connector_create_request(
+pub async fn build_cloned_connector_create_request(
     source_mca: DomainMerchantConnectorAccount,
     destination_profile_id: id_type::ProfileId,
     destination_connector_label: Option<String>,
