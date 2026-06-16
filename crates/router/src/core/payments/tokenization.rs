@@ -860,9 +860,17 @@ where
                         }
                     },
                     None => {
-                        let wallet_decrypt_preference = WalletDecryptedToken::foreign_from(
+                        let should_save_walled_decrypted_token = dimensions
+                            .get_save_wallet_decrypted_data(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                Some(&customer_id),
+                            )
+                            .await;
+                        let wallet_decrypt_preference = WalletDecryptedToken::foreign_from((
                             save_payment_method_data.payment_method_token.as_ref(),
-                        );
+                            should_save_walled_decrypted_token,
+                        ));
 
                         let check_for_customer_pm = payment_method_type
                             .map(|payment_method_type_value| {
@@ -871,14 +879,7 @@ where
                                         wallet_decrypt_preference,
                                     )
                             })
-                            .unwrap_or(false)
-                            && dimensions
-                                .get_save_wallet_decrypted_data(
-                                    state.store.as_ref(),
-                                    state.superposition_service.as_ref(),
-                                    Some(&customer_id),
-                                )
-                                .await;
+                            .unwrap_or(false);
 
                         let customer_saved_pm_option = if check_for_customer_pm {
                             match state

@@ -3072,6 +3072,7 @@ where
         &business_profile,
         req.get_payment_method_data(),
         &feature_config,
+        &dimensions.without_profile_id(),
     )
     .await?;
 
