@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.16.0
+
+### Features
+
+- **core:** Allow JWT authentication for Payments Capture flow ([#12761](https://github.com/juspay/hyperswitch/pull/12761)) ([`9a5b6f2`](https://github.com/juspay/hyperswitch/commit/9a5b6f22437a20fdb219175a89178865aace58c6))
+
+### Bug Fixes
+
+- **connector:** [Nexixpay] Update Status Mapping for Automatic Capture in Nexixpay ([#12668](https://github.com/juspay/hyperswitch/pull/12668)) ([`8abe4af`](https://github.com/juspay/hyperswitch/commit/8abe4af3b4f23b13b173b110e3916ed3b049b693))
+
+**Full Changelog:** [`2026.06.15.1...2026.06.16.0`](https://github.com/juspay/hyperswitch/compare/2026.06.15.1...2026.06.16.0)
+
+- - -
+
 ## 2026.06.15.1
 
 ### Features
