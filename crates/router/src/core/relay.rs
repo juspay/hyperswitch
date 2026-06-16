@@ -8,6 +8,7 @@ use common_utils::{
     self, fp_utils,
     id_type::{self, GenerateId},
 };
+use router_env::tracing::instrument;
 use error_stack::ResultExt;
 use hyperswitch_connectors::connector_relay::RelayConnectors;
 use hyperswitch_domain_models::relay;
