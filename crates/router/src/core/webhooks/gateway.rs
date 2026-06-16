@@ -328,11 +328,28 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
             }
         };
 
+        let ack_creds = match reference {
+            Some(ref reference) => {
+                let mca = resolve_mca(ctx, &reference).await?;
+                Some(mca.connector_account_details.clone())
+            }
+            None => ctx
+                .merchant_connector_account
+                .as_ref()
+                .map(|m| m.connector_account_details.clone()),
+        };
+
+        let ack_response = ctx
+            .connector
+            .get_webhook_api_response(&decoded_request, None, ack_creds)
+            .switch()
+            .attach_printable("Failed to build webhook ack via connector")?;
+
         let outcome = match FilterDecision::evaluate(event_type, ctx).await {
             FilterDecision::Skip => WebhookOutcome::Skipped {
                 reference,
                 event_type,
-                ack_response: services::ApplicationResponse::StatusOk,
+                ack_response,
             },
             FilterDecision::Proceed => {
                 let reference = reference.ok_or_else(|| {
@@ -360,13 +377,6 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                         );
                         serde_json::Value::Null
                     }));
-
-                let ack_creds = mca.connector_account_details.clone();
-                let ack_response = ctx
-                    .connector
-                    .get_webhook_api_response(&decoded_request, None, Some(ack_creds))
-                    .switch()
-                    .attach_printable("Failed to build webhook ack via connector")?;
 
                 WebhookOutcome::Processed {
                     reference,
