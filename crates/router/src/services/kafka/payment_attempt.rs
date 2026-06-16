@@ -261,6 +261,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             encoded_data,
             merchant_connector_id,
             external_three_ds_authentication_attempted,
+            external_threeds_authentication_type: _,
             authentication_connector,
             authentication_id,
             fingerprint_id,

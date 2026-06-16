@@ -9,7 +9,6 @@ use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
-    unified_connector_service::transformers::UnifiedConnectorServiceError,
 };
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -17,30 +16,34 @@ use crate::{
     core::{payments::gateway::context::RouterGatewayContext, unified_connector_service},
     routes::SessionState,
     services::logger,
-    types::{self, transformers::ForeignTryFrom, MinorUnit},
+    types::{self, transformers::ForeignTryFrom},
 };
 
 // =============================================================================
-// PaymentGateway Implementation for domain::Capture
+// PaymentGateway Implementation for domain::PreAuthorizeVoid
 // =============================================================================
 
-/// Implementation of PaymentGateway for api::Capture flow
+/// Implementation of PaymentGateway for api::PreAuthorizeVoid flow
 #[async_trait]
 impl<RCD>
     payment_gateway::PaymentGateway<
         SessionState,
         RCD,
         Self,
-        types::PaymentsCaptureData,
+        types::PaymentsPreAuthorizeCancelData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-    > for domain::Capture
+    > for domain::PreAuthorizeVoid
 where
     RCD: Clone
         + Send
         + Sync
         + 'static
-        + RouterDataConversion<Self, types::PaymentsCaptureData, types::PaymentsResponseData>,
+        + RouterDataConversion<
+            Self,
+            types::PaymentsPreAuthorizeCancelData,
+            types::PaymentsResponseData,
+        >,
 {
     async fn execute(
         self: Box<Self>,
@@ -48,16 +51,20 @@ where
         _connector_integration: BoxedConnectorIntegrationInterface<
             Self,
             RCD,
-            types::PaymentsCaptureData,
+            types::PaymentsPreAuthorizeCancelData,
             types::PaymentsResponseData,
         >,
-        router_data: &RouterData<Self, types::PaymentsCaptureData, types::PaymentsResponseData>,
+        router_data: &RouterData<
+            Self,
+            types::PaymentsPreAuthorizeCancelData,
+            types::PaymentsResponseData,
+        >,
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
         _return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
-        RouterData<Self, types::PaymentsCaptureData, types::PaymentsResponseData>,
+        RouterData<Self, types::PaymentsPreAuthorizeCancelData, types::PaymentsResponseData>,
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
@@ -72,10 +79,10 @@ where
             .ok_or(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        let payment_capture_request =
-            payments_grpc::PaymentServiceCaptureRequest::foreign_try_from(router_data)
+        let payment_void_request =
+            payments_grpc::PaymentServiceVoidRequest::foreign_try_from(router_data)
                 .change_context(ConnectorError::RequestEncodingFailed)
-                .attach_printable("Failed to construct Payment Capture Request")?;
+                .attach_printable("Failed to construct Payment Void Request")?;
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -85,6 +92,7 @@ where
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
+
         let merchant_reference_id = unified_connector_service::parse_merchant_reference_id(
             header_payload
                 .x_reference_id
@@ -106,75 +114,29 @@ where
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
             .lineage_ids(lineage_ids);
+
         Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data.clone(),
             state,
-            payment_capture_request,
+            payment_void_request,
             header_payload,
             unified_connector_service_execution_mode,
-            |mut router_data, payment_capture_request, grpc_headers| async move {
-                let response = match client
-                    .payment_capture(
-                        payment_capture_request,
-                        connector_auth_metadata,
-                        grpc_headers,
-                    )
+            |mut router_data, payment_void_request, grpc_headers| async move {
+                let response = client
+                    .payment_void(payment_void_request, connector_auth_metadata, grpc_headers)
                     .await
-                {
-                    Ok(resp) => resp,
-                    Err(report) => {
-                        if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                            report.current_context()
-                        {
-                            let (code, message, status_code, reason,
-                                 network_decline_code, network_advice_code, network_error_message,
-                                 connector) = (
-                                &inner.code, &inner.message, inner.status_code, &inner.reason,
-                                &inner.network_decline_code, &inner.network_advice_code,
-                                &inner.network_error_message, &inner.connector,
-                            );
-                            logger::info!(
-                                "Connector error via UCS for capture (connector {}, status {}): {} - {}",
-                                connector,
-                                status_code,
-                                code,
-                                message
-                            );
-                            router_data.response = Err(
-                                hyperswitch_domain_models::router_data::ErrorResponse {
-                                    code: code.clone(),
-                                    message: message.clone(),
-                                    reason: reason.clone(),
-                                    status_code,
-                                    attempt_status: None,
-                                    connector_transaction_id: None,
-                                    connector_response_reference_id: None,
-                                    network_decline_code: network_decline_code.clone(),
-                                    network_advice_code: network_advice_code.clone(),
-                                    network_error_message: network_error_message.clone(),
-                                    connector_metadata: None,
-                                },
-                            );
-                            return Ok((
-                                router_data,
-                                (),
-                                payments_grpc::PaymentServiceCaptureResponse::default(),
-                            ));
-                        }
-                        return Err(report.attach_printable("Failed to capture payment"));
-                    }
-                };
+                    .attach_printable("Failed to Cancel payment")?;
 
-                let payment_capture_response = response.into_inner();
+                let payment_void_response = response.into_inner();
 
-                let ucs_data =
-                    unified_connector_service::handle_unified_connector_service_response_for_payment_capture(
-                        payment_capture_response.clone(),
+                let (router_data_response, status_code) =
+                    unified_connector_service::handle_unified_connector_service_response_for_payment_cancel(
+                        payment_void_response.clone(),
                         router_data.status,
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                let router_data_response = match ucs_data.router_data_response {
+                let router_data_response = match router_data_response {
                     Ok((response, status)) => {
                         router_data.status = status;
                         Ok(response)
@@ -188,42 +150,38 @@ where
                     }
                 };
                 router_data.response = router_data_response;
-                router_data.amount_captured = payment_capture_response.captured_amount;
-                router_data.minor_amount_captured = payment_capture_response
-                    .captured_amount
-                    .map(MinorUnit::new);
-                router_data.connector_http_status_code = Some(ucs_data.status_code);
+                router_data.connector_http_status_code = Some(status_code);
 
-                ucs_data.connector_response.map(|connector_response| {
-                    router_data.connector_response = Some(connector_response);
-                });
-
-                Ok((router_data, (), payment_capture_response))
+                Ok((router_data, (), payment_void_response))
             },
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .map_err(super::convert_ucs_error_to_connector_error)
+        .change_context(ConnectorError::ResponseHandlingFailed)
     }
 }
 
-/// Implementation of FlowGateway for api::PSync
+/// Implementation of FlowGateway for api::PreAuthorizeVoid
 ///
 /// This allows the flow to provide its specific gateway based on execution path
 impl<RCD>
     payment_gateway::FlowGateway<
         SessionState,
         RCD,
-        types::PaymentsCaptureData,
+        types::PaymentsPreAuthorizeCancelData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-    > for domain::Capture
+    > for domain::PreAuthorizeVoid
 where
     RCD: Clone
         + Send
         + Sync
         + 'static
-        + RouterDataConversion<Self, types::PaymentsCaptureData, types::PaymentsResponseData>,
+        + RouterDataConversion<
+            Self,
+            types::PaymentsPreAuthorizeCancelData,
+            types::PaymentsResponseData,
+        >,
 {
     fn get_gateway(
         execution_path: ExecutionPath,
@@ -232,7 +190,7 @@ where
             SessionState,
             RCD,
             Self,
-            types::PaymentsCaptureData,
+            types::PaymentsPreAuthorizeCancelData,
             types::PaymentsResponseData,
             RouterGatewayContext,
         >,
