@@ -1,9 +1,7 @@
 use std::{marker::PhantomData, str::FromStr};
 
 use api_models::webhooks::{self, WebhookResponseTracker};
-use common_utils::{
-    errors::ReportSwitchExt, types::keymanager::KeyManagerState,
-};
+use common_utils::{errors::ReportSwitchExt, types::keymanager::KeyManagerState};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payments::{HeaderPayload, PaymentStatusData},
@@ -36,10 +34,7 @@ use crate::{
         app::{ReqState, SessionStateInfo},
         lock_utils, SessionState,
     },
-    services::{
-        self, connector_integration_interface::ConnectorEnum,
-        ConnectorValidation,
-    },
+    services::{self, connector_integration_interface::ConnectorEnum, ConnectorValidation},
     types::{
         api::{self, ConnectorData, GetToken, IncomingWebhook},
         domain,
@@ -65,18 +60,17 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
 
-    let (application_response, _, _) =
-        Box::pin(incoming_webhooks_core::<W>(
-            state,
-            req_state,
-            req,
-            platform,
-            profile,
-            connector_id,
-            body,
-            is_relay_webhook,
-        ))
-        .await?;
+    let (application_response, _, _) = Box::pin(incoming_webhooks_core::<W>(
+        state,
+        req_state,
+        req,
+        platform,
+        profile,
+        connector_id,
+        body,
+        is_relay_webhook,
+    ))
+    .await?;
     Ok(application_response)
 }
 

@@ -46,14 +46,8 @@ use crate::{
         webhooks::{network_tokenization_incoming, utils},
     },
     logger,
-    routes::{
-        app::{ReqState},
-        lock_utils, SessionState,
-    },
-    services::{
-        self, connector_integration_interface::ConnectorEnum,
-        ConnectorValidation,
-    },
+    routes::{app::ReqState, lock_utils, SessionState},
+    services::{self, connector_integration_interface::ConnectorEnum, ConnectorValidation},
     types::{
         api::{
             self, mandates::MandateResponseExt, ConnectorCommon, ConnectorData, GetToken,
@@ -80,17 +74,16 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     is_relay_webhook: bool,
 ) -> RouterResponse<serde_json::Value> {
     let _ = flow;
-    let (application_response, _, _) =
-        Box::pin(incoming_webhooks_core::<W>(
-            state,
-            req_state,
-            req,
-            platform,
-            connector_name_or_mca_id,
-            body,
-            is_relay_webhook,
-        ))
-        .await?;
+    let (application_response, _, _) = Box::pin(incoming_webhooks_core::<W>(
+        state,
+        req_state,
+        req,
+        platform,
+        connector_name_or_mca_id,
+        body,
+        is_relay_webhook,
+    ))
+    .await?;
     Ok(application_response)
 }
 
@@ -110,9 +103,10 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
         body: &body,
     };
 
-    let (application_response, _, _, _) = Box::pin(
-        network_token_incoming_webhooks_core::<W>(&state, request_details),
-    )
+    let (application_response, _, _, _) = Box::pin(network_token_incoming_webhooks_core::<W>(
+        &state,
+        request_details,
+    ))
     .await?;
     Ok(application_response)
 }
