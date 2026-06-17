@@ -1,4 +1,5 @@
 use common_enums::enums;
+use common_types::primitive_wrappers;
 use common_utils::{
     errors::ParsingError,
     ext_traits::ValueExt,
@@ -12,7 +13,10 @@ use hyperswitch_domain_models::{
     payment_method_data::{
         BankRedirectData, BankTransferData, PayLaterData, PaymentMethodData, WalletData,
     },
-    router_data::{AccessToken, ConnectorAuthType, RouterData},
+    router_data::{
+        AccessToken, ConnectorAuthType, ConnectorResponseData, ExtendedAuthorizationResponseData,
+        RouterData,
+    },
     router_flow_types::{
         refunds::{Execute, RSync},
         PSync,
@@ -481,7 +485,7 @@ pub enum GpayPaymentDataType {
     EncryptedPaymentToken,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum AirwallexPaymentOptions {
     Card(AirwallexCardPaymentOptions),
@@ -489,14 +493,22 @@ pub enum AirwallexPaymentOptions {
     Atome(AirwallexPayLaterPaymentOptions),
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct AirwallexCardPaymentOptions {
     auto_capture: bool,
+    authorization_type: Option<AirwallexCardAuthorizationType>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum AirwallexCardAuthorizationType {
+    PreAuth,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct AirwallexPayLaterPaymentOptions {
     auto_capture: bool,
+    authorization_type: Option<AirwallexCardAuthorizationType>,
 }
 
 impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
@@ -518,6 +530,15 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                                 | Some(enums::CaptureMethod::SequentialAutomatic)
                                 | None
                         ),
+                        authorization_type: item
+                            .router_data
+                            .request
+                            .request_extended_authorization
+                            .and_then(|extended_authorization| {
+                                extended_authorization
+                                    .is_true()
+                                    .then_some(AirwallexCardAuthorizationType::PreAuth)
+                            }),
                     }));
                 Ok(AirwallexPaymentMethod::Card(AirwallexCard {
                     card: AirwallexCardDetails {
@@ -531,16 +552,30 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             }
             PaymentMethodData::Wallet(ref wallet_data) => get_wallet_details(wallet_data, item),
             PaymentMethodData::PayLater(ref paylater_data) => {
-                let paylater_options = AirwallexPayLaterPaymentOptions {
-                    auto_capture: item.router_data.request.is_auto_capture()?,
-                };
+                let auto_capture = item.router_data.request.is_auto_capture()?;
 
                 payment_method_options = match paylater_data {
-                    PayLaterData::KlarnaRedirect { .. } => {
-                        Some(AirwallexPaymentOptions::Klarna(paylater_options))
-                    }
+                    PayLaterData::KlarnaRedirect { .. } => Some(AirwallexPaymentOptions::Klarna(
+                        AirwallexPayLaterPaymentOptions {
+                            auto_capture,
+                            authorization_type: item
+                                .router_data
+                                .request
+                                .request_extended_authorization
+                                .and_then(|extended_authorization| {
+                                    extended_authorization
+                                        .is_true()
+                                        .then_some(AirwallexCardAuthorizationType::PreAuth)
+                                }),
+                        },
+                    )),
                     PayLaterData::AtomeRedirect { .. } => {
-                        Some(AirwallexPaymentOptions::Atome(paylater_options))
+                        Some(AirwallexPaymentOptions::Atome(
+                            AirwallexPayLaterPaymentOptions {
+                                auto_capture,
+                                authorization_type: None, // Extended Authorization Not supported
+                            },
+                        ))
                     }
                     _ => None,
                 };
@@ -1165,6 +1200,7 @@ pub struct AirwallexPaymentsResponse {
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentAttemptResponse {
     payment_method: Option<AirwallexPaymentMethodResponse>,
+    payment_method_options: Option<AirwallexPaymentOptions>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -1365,10 +1401,16 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsR
             mandate_metadata: item
                 .response
                 .latest_payment_attempt
+                .clone()
                 .and_then(|attempt| attempt.payment_method)
                 .map(|pm| Secret::new(serde_json::json!(AirwallexMandateMetadata { id: pm.id }))),
             connector_mandate_request_reference_id: None,
         }));
+        let connector_response = item
+            .response
+            .latest_payment_attempt
+            .clone()
+            .and_then(build_airwallex_connector_response_data);
 
         Ok(Self {
             status,
@@ -1385,6 +1427,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsR
                 authentication_data: None,
                 charges: None,
             }),
+            connector_response,
             ..item.data
         })
     }
@@ -1977,4 +2020,53 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexCustomerResponse, T, PaymentsR
             ..item.data
         })
     }
+}
+
+fn build_airwallex_connector_response_data(
+    latest_payment_attempt: AirwallexPaymentAttemptResponse,
+) -> Option<ConnectorResponseData> {
+    latest_payment_attempt
+        .payment_method_options
+        .as_ref()
+        .and_then(|payment_method_options| match payment_method_options {
+            AirwallexPaymentOptions::Card(card_options) => {
+                let extended_authentication_applied = card_options.authorization_type
+                    == Some(AirwallexCardAuthorizationType::PreAuth);
+
+                Some(ConnectorResponseData::new(
+                    None,
+                    None,
+                    Some(ExtendedAuthorizationResponseData {
+                        extended_authentication_applied: Some(
+                            primitive_wrappers::ExtendedAuthorizationAppliedBool::from(
+                                extended_authentication_applied,
+                            ),
+                        ),
+                        capture_before: None,
+                        extended_authorization_last_applied_at: None,
+                    }),
+                    None,
+                ))
+            }
+            AirwallexPaymentOptions::Klarna(klarna_options) => {
+                let extended_authentication_applied = klarna_options.authorization_type
+                    == Some(AirwallexCardAuthorizationType::PreAuth);
+
+                Some(ConnectorResponseData::new(
+                    None,
+                    None,
+                    Some(ExtendedAuthorizationResponseData {
+                        extended_authentication_applied: Some(
+                            primitive_wrappers::ExtendedAuthorizationAppliedBool::from(
+                                extended_authentication_applied,
+                            ),
+                        ),
+                        capture_before: None,
+                        extended_authorization_last_applied_at: None,
+                    }),
+                    None,
+                ))
+            }
+            _ => None,
+        })
 }
