@@ -84,6 +84,42 @@ pub fn build_upi_wait_screen_data(
         .attach_printable("Failed to serialize WaitScreenInstructions to JSON value")
 }
 
+/// Convert the domain `SplitPaymentsRequest` into the gRPC `SplitPaymentsRequest`.
+/// Only the Stripe Connect variant is represented in the UCS contract today; the
+/// Adyen / Xendit variants have no gRPC mapping yet and are dropped (None).
+fn build_unified_connector_service_split_payments(
+    split: Option<&common_types::payments::SplitPaymentsRequest>,
+) -> Option<payments_grpc::SplitPaymentsRequest> {
+    match split? {
+        common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe) => {
+            let charge_type = match &stripe.charge_type {
+                common_enums::PaymentChargeType::Stripe(charge) => match charge {
+                    common_enums::StripeChargeType::Destination => {
+                        payments_grpc::StripeChargeType::Destination
+                    }
+                    common_enums::StripeChargeType::Direct => {
+                        payments_grpc::StripeChargeType::Direct
+                    }
+                },
+            };
+            Some(payments_grpc::SplitPaymentsRequest {
+                split_payment: Some(
+                    payments_grpc::split_payments_request::SplitPayment::StripeSplitPayment(
+                        payments_grpc::StripeSplitPaymentRequest {
+                            charge_type: charge_type as i32,
+                            application_fees: stripe
+                                .application_fees
+                                .map(MinorUnit::get_amount_as_i64),
+                            transfer_account_id: stripe.transfer_account_id.clone(),
+                        },
+                    ),
+                ),
+            })
+        }
+        _ => None,
+    }
+}
+
 impl ForeignFrom<common_types::customers::DocumentKind> for payments_grpc::DocumentKind {
     fn foreign_from(document_kind: common_types::customers::DocumentKind) -> Self {
         match document_kind {
@@ -182,6 +218,9 @@ impl
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         Ok(Self {
+            split_payments: build_unified_connector_service_split_payments(
+                router_data.request.split_payments.as_ref(),
+            ),
             merchant_payment_method_id: Some(router_data.connector_request_reference_id.clone()),
             amount: router_data
                 .request
@@ -292,6 +331,9 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            split_payments: build_unified_connector_service_split_payments(
+                router_data.request.split_payments.as_ref(),
+            ),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -515,6 +557,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            split_payments: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -673,6 +716,9 @@ impl
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         Ok(Self {
+            split_payments: build_unified_connector_service_split_payments(
+                router_data.request.split_payments.as_ref(),
+            ),
             merchant_customer_id: router_data
                 .customer_id
                 .as_ref()
@@ -1288,6 +1334,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            split_payments: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -1437,6 +1484,9 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            split_payments: build_unified_connector_service_split_payments(
+                router_data.request.split_payments.as_ref(),
+            ),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -1613,6 +1663,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            split_payments: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
