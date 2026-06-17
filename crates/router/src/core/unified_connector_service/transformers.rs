@@ -5952,6 +5952,36 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             merchant_request_id: None,
             connector_order_id: None,
             payment_method: None,
+            // Map merchant-provided split_refunds (adyen) into the UCS gRPC request so the
+            // shadow UCS call builds the same store + splits as HS. Mirrors HS adyen
+            // get_adyen_split_request; split_type is stringified PascalCase (matches UCS enum).
+            split_refunds: router_data.request.split_refunds.as_ref().and_then(|sr| {
+                match sr {
+                    router_request_types::SplitRefundsRequest::AdyenSplitRefund(adyen) => {
+                        Some(payments_grpc::RefundSplitRequest {
+                            split_refund: Some(
+                                payments_grpc::refund_split_request::SplitRefund::AdyenSplitRefund(
+                                    payments_grpc::AdyenSplitRefund {
+                                        store: adyen.store.clone(),
+                                        split_items: adyen
+                                            .split_items
+                                            .iter()
+                                            .map(|item| payments_grpc::AdyenRefundSplitItem {
+                                                amount: item.amount.map(|a| a.get_amount_as_i64()),
+                                                split_type: item.split_type.to_string(),
+                                                account: item.account.clone(),
+                                                reference: item.reference.clone(),
+                                                description: item.description.clone(),
+                                            })
+                                            .collect(),
+                                    },
+                                ),
+                            ),
+                        })
+                    }
+                    _ => None,
+                }
+            }),
         })
     }
 }
