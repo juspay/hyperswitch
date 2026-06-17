@@ -260,6 +260,7 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                 // Reverse lookup by authentication id (find when under the payment's partition).
                 let authentication_id_lookup = ReverseLookupNew {
                     lookup_id: diesel_authentication::get_authentication_id_lookup_id(
+                        merchant_id,
                         authentication_id,
                     ),
                     pk_id: key_str.clone(),
@@ -345,7 +346,10 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
             common_enums::MerchantStorageScheme::RedisKv => {
                 // Resolve partition/field via the authentication-id reverse lookup.
                 let lookup_id =
-                    diesel_authentication::get_authentication_id_lookup_id(authentication_id);
+                    diesel_authentication::get_authentication_id_lookup_id(
+                        merchant_id,
+                        authentication_id,
+                    );
                 let lookup = fallback_reverse_lookup_not_found!(
                     self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                         .await,
@@ -495,7 +499,7 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                 authentication_id: &authentication_id,
             },
         };
-        let field = diesel_authentication::get_hash_key_for_kv_store(authentication_id);
+        let field = diesel_authentication::get_hash_key_for_kv_store(&authentication_id);
 
         // The previous write location drives KV-vs-Postgres routing in decide_storage_scheme.
         let updated_by = previous_state.updated_by.clone();

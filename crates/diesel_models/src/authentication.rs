@@ -97,11 +97,16 @@ impl Authentication {
         format!("auth_{}", authentication_id.get_string_repr())
     }
 
-    /// Reverse-lookup id to find an authentication by its id (distinct from the hash field key).
+    /// Reverse-lookup id to find an authentication by its id (scoped to the merchant).
     pub fn get_authentication_id_lookup_id(
+        merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
     ) -> String {
-        format!("authn_id_{}", authentication_id.get_string_repr())
+        format!(
+            "mid_{}_authn_id_{}",
+            merchant_id.get_string_repr(),
+            authentication_id.get_string_repr()
+        )
     }
 
     /// Reverse-lookup id to find an authentication by its connector authentication id (webhook path).
