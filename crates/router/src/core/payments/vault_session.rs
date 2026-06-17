@@ -64,6 +64,9 @@ pub async fn populate_vault_session_details<F, RouterDReq, ApiRequest, D>(
     profile: &domain::Profile,
     payment_data: &mut D,
     header_payload: HeaderPayload,
+    // V2 gates on `profile.is_vault_sdk_enabled()`; the modular-service flag is V1-only and ignored
+    // here, but kept in the signature so the shared call site compiles under both feature flags.
+    _is_modular_service_enabled: bool,
 ) -> RouterResult<()>
 where
     F: Send + Clone + Sync,
@@ -198,6 +201,7 @@ pub async fn populate_vault_session_details<F, RouterDReq, ApiRequest, D>(
     profile: &domain::Profile,
     payment_data: &mut D,
     _header_payload: HeaderPayload,
+    is_modular_service_enabled: bool,
 ) -> RouterResult<()>
 where
     F: Send + Clone + Sync,
@@ -208,13 +212,12 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let external_vault_profile =
-        helpers::resolve_provider_profile(state, platform, profile).await?;
-    let is_external_vault_sdk_enabled = external_vault_profile
-        .external_vault_details
-        .is_external_vault_enabled();
-
-    if is_external_vault_sdk_enabled {
+    // Always route vault session creation through the modular PM service when the org is eligible
+    // for it (not just when an external vault is configured). When no external vault is set up, the
+    // PM service returns the internal Hyperswitch vault SDK authorization, which is the SaaS default.
+    if is_modular_service_enabled {
+        let external_vault_profile =
+            helpers::resolve_provider_profile(state, platform, profile).await?;
         let customer_id = customer.as_ref().map(|c| c.get_id());
 
         // Use the resolved external vault profile (the platform merchant's profile in platform
