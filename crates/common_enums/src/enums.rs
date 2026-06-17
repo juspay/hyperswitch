@@ -2493,29 +2493,19 @@ pub enum PaymentMethodType {
     NetworkToken,
 }
 
-/// Indicates whether a wallet token is decrypted .
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum WalletDecryptedToken {
-    ApplePay,
-    GooglePay,
-    /// No wallet decryption occurred.
-    None,
-}
-
 impl PaymentMethodType {
-    /// - True : then fetch the saved payment method and update the last used, skip locker id creation
-    /// - False : For applepay and googlepay decrypted tokens create a new payment method according to locker fingerprint
     pub fn should_check_for_customer_saved_payment_method_type(
         self,
-        decrypted_token: WalletDecryptedToken,
+        is_apple_pay_decrypt: bool,
     ) -> bool {
-        match decrypted_token {
-            WalletDecryptedToken::ApplePay => !matches!(self, Self::ApplePay),
-            WalletDecryptedToken::GooglePay => !matches!(self, Self::GooglePay),
-            WalletDecryptedToken::None => matches!(
+        if is_apple_pay_decrypt {
+            // return false if the payment method is Apple Pay and the decryption is successful, else exhibit the existing behaviour
+            !matches!(self, Self::ApplePay)
+        } else {
+            matches!(
                 self,
                 Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
-            ),
+            )
         }
     }
     pub fn to_display_name(&self) -> String {
