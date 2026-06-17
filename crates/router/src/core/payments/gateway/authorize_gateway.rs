@@ -1,10 +1,13 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use common_enums::{CallConnectorAction, ExecutionPath};
+use common_enums::{CallConnectorAction, Currency, ExecutionPath};
 use common_utils::{errors::CustomResult, id_type, request::Request, ucs_types};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{router_data::RouterData, router_flow_types as domain};
+use hyperswitch_domain_models::{
+    router_data::RouterData, router_flow_types as domain,
+    router_request_types::AuthoriseIntegrityObject,
+};
 use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
@@ -341,6 +344,18 @@ where
                         }
                     };
                     router_data.response = router_data_response;
+
+                    router_data.request.integrity_object =
+                        payment_authorize_response.amount.and_then(|money| {
+                            let grpc_currency =
+                                payments_grpc::Currency::try_from(money.currency).ok()?;
+                            let currency = Currency::foreign_try_from(grpc_currency).ok()?;
+
+                            Some(AuthoriseIntegrityObject {
+                                amount: MinorUnit::new(money.minor_amount),
+                                currency,
+                            })
+                        });
 
                     router_data.amount_captured = payment_authorize_response.captured_amount;
                     router_data.minor_amount_captured = payment_authorize_response

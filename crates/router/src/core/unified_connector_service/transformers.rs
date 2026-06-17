@@ -1983,13 +1983,6 @@ impl
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
 
-        let additional_payment_data = router_data
-            .request
-            .additional_payment_method_data
-            .clone()
-            .map(|additional_payment_data| {
-                payments_grpc::AdditionalPaymentData::foreign_from(additional_payment_data)
-            });
         Ok(Self {
             merchant_charge_id: Some(router_data.connector_request_reference_id.clone()),
             payment_method,
@@ -2086,7 +2079,7 @@ impl
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
             }),
-            additional_payment_data,
+            additional_payment_data: None,
         })
     }
 }
