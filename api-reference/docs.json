@@ -110,7 +110,17 @@
                     "group": "Disputes",
                     "pages": [
                       "v1/disputes/disputes--retrieve",
-                      "v1/disputes/disputes--list"
+                      "v1/disputes/disputes--list",
+                      "v1/disputes/disputes--list-profiles",
+                      "v1/disputes/disputes--accept",
+                      "v1/disputes/disputes--submit-evidence",
+                      "v1/disputes/disputes--attach-evidence",
+                      "v1/disputes/disputes--retrieve-evidence",
+                      "v1/disputes/disputes--delete-evidence",
+                      "v1/disputes/disputes--get-aggregate",
+                      "v1/disputes/disputes--get-aggregate-profiles",
+                      "v1/disputes/disputes--get-filters",
+                      "v1/disputes/disputes--get-filters-profiles"
                     ]
                   },
                   {
