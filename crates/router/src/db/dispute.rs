@@ -235,8 +235,9 @@ mod storage_impl {
     use hyperswitch_domain_models::disputes;
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{
-        decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
+    use storage_impl::{
+        redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
+        utils as storage_impl_utils, KvSupportedEntity,
     };
 
     use super::DisputeInterface;
@@ -274,12 +275,6 @@ mod storage_impl {
                 enums::MerchantStorageScheme::RedisKv => {
                     let merchant_id = dispute.merchant_id.clone();
                     let payment_id = dispute.payment_id.clone();
-                    let key = PartitionKey::MerchantIdPaymentId {
-                        merchant_id: &merchant_id,
-                        payment_id: &payment_id,
-                    };
-                    let key_str = key.to_string();
-
                     let created_dispute = storage_types::Dispute {
                         dispute_id: dispute.dispute_id.clone(),
                         amount: dispute.amount.clone(),
@@ -309,15 +304,19 @@ mod storage_impl {
                         created_by: dispute.created_by.clone(),
                     };
 
-                    let field = format!("dspt_{}", created_dispute.dispute_id);
+                    let key = created_dispute.get_partition_key();
+                    let key_str = key.to_string();
+
+                    let field = created_dispute.get_hash_field_key();
 
                     let reverse_lookups = vec![
                         storage_types::ReverseLookupNew {
                             sk_id: field.clone(),
-                            lookup_id: diesel_models::Dispute::generate_lookup_id_for_dispute_id(
-                                &merchant_id,
-                                &created_dispute.dispute_id,
-                            ),
+                            lookup_id:
+                                diesel_models::Dispute::generate_lookup_merchant_id_dispute_id(
+                                    &merchant_id,
+                                    &created_dispute.dispute_id,
+                                ),
                             pk_id: key_str.clone(),
                             source: "dispute".to_string(),
                             updated_by: storage_scheme.to_string(),
@@ -325,7 +324,7 @@ mod storage_impl {
                         storage_types::ReverseLookupNew {
                             sk_id: field.clone(),
                             lookup_id:
-                                diesel_models::Dispute::generate_lookup_id_for_connector_dispute_id(
+                                diesel_models::Dispute::generate_lookup_merchant_id_payment_id_connector_dispute_id(
                                     &merchant_id,
                                     &payment_id,
                                     &created_dispute.connector_dispute_id,
@@ -424,7 +423,7 @@ mod storage_impl {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id =
-                        diesel_models::Dispute::generate_lookup_id_for_connector_dispute_id(
+                        diesel_models::Dispute::generate_lookup_merchant_id_payment_id_connector_dispute_id(
                             processor_merchant_id,
                             payment_id,
                             connector_dispute_id,
@@ -500,7 +499,7 @@ mod storage_impl {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = diesel_models::Dispute::generate_lookup_id_for_dispute_id(
+                    let lookup_id = diesel_models::Dispute::generate_lookup_merchant_id_dispute_id(
                         processor_merchant_id,
                         dispute_id,
                     );
@@ -560,17 +559,19 @@ mod storage_impl {
                         merchant_id: processor_merchant_id,
                         payment_id,
                     };
-                    Box::pin(db_utils::try_redis_get_else_try_database_get(
-                        async {
-                            Box::pin(kv_wrapper(
-                                self,
-                                KvOperation::<diesel_models::Dispute>::Scan("dspt_*"),
-                                key,
-                            ))
-                            .await?
-                            .try_into_scan()
-                        },
+                    let redis_fut = async {
+                        Box::pin(kv_wrapper(
+                            self,
+                            KvOperation::<diesel_models::Dispute>::Scan("dspt_*"),
+                            key,
+                        ))
+                        .await?
+                        .try_into_scan()
+                    };
+                    Box::pin(storage_impl_utils::find_all_combined_kv_database(
+                        redis_fut,
                         database_call,
+                        None,
                     ))
                     .await
                 }
@@ -602,12 +603,8 @@ mod storage_impl {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
             let merchant_id = this.merchant_id.clone();
-            let payment_id = this.payment_id.clone();
-            let key = PartitionKey::MerchantIdPaymentId {
-                merchant_id: &merchant_id,
-                payment_id: &payment_id,
-            };
-            let field = format!("dspt_{}", this.dispute_id);
+            let key = this.get_partition_key();
+            let field = this.get_hash_field_key();
             let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Dispute>(
                 self,
                 storage_scheme,

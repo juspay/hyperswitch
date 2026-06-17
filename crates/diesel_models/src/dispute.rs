@@ -83,7 +83,7 @@ impl Dispute {
             .unwrap_or(true)
     }
 
-    pub fn generate_lookup_id_for_dispute_id(
+    pub fn generate_lookup_merchant_id_dispute_id(
         merchant_id: &common_utils::id_type::MerchantId,
         dispute_id: &str,
     ) -> String {
@@ -94,7 +94,7 @@ impl Dispute {
         )
     }
 
-    pub fn generate_lookup_id_for_connector_dispute_id(
+    pub fn generate_lookup_merchant_id_payment_id_connector_dispute_id(
         merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
         connector_dispute_id: &str,

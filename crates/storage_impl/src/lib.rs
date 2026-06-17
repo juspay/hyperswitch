@@ -395,6 +395,18 @@ impl KvSupportedEntity for diesel_models::Capture {
     }
 }
 
+impl KvSupportedEntity for diesel_models::Dispute {
+    fn get_partition_key(&self) -> kv_store::PartitionKey<'_> {
+        kv_store::PartitionKey::MerchantIdPaymentId {
+            merchant_id: &self.merchant_id,
+            payment_id: &self.payment_id,
+        }
+    }
+    fn get_hash_field_key(&self) -> String {
+        format!("dispute_{}", self.dispute_id)
+    }
+}
+
 impl UniqueConstraints for diesel_models::Address {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!("address_{}", self.address_id)]
