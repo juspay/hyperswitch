@@ -2921,9 +2921,6 @@ pub async fn fetch_card_details_from_locker(
 /// profile, so we resolve the provider merchant's single profile. For standard merchants
 /// (provider == processor) the supplied payment profile is returned unchanged, keeping
 /// standard flows untouched.
-///
-/// The provider (platform) merchant always has exactly one profile, so the same lookup works
-/// for both v1 and v2 (v2 does not populate `default_profile`).
 pub async fn resolve_provider_profile(
     state: &SessionState,
     platform: &domain::Platform,
@@ -2935,17 +2932,33 @@ pub async fn resolve_provider_profile(
     if provider.get_account().get_id() == processor.get_account().get_id() {
         Ok(payment_profile.clone())
     } else {
-        let profiles = state
-            .store
-            .list_profile_by_merchant_id(provider.get_key_store(), provider.get_account().get_id())
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to list profiles for the provider merchant")?;
+        #[cfg(feature = "v1")]
+        {
+            let profile_id = provider
+                .get_account()
+                .get_default_profile()
+                .clone()
+                .ok_or_else(|| {
+                    report!(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Provider merchant has no default profile configured")
+                })?;
 
-        profiles.into_iter().next().ok_or_else(|| {
-            report!(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Provider merchant has no profile configured")
-        })
+            state
+                .store
+                .find_business_profile_by_profile_id(provider.get_key_store(), &profile_id)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                    id: profile_id.get_string_repr().to_owned(),
+                })
+        }
+        #[cfg(feature = "v2")]
+        {
+            Err(
+                report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "Platform-connected provider profile resolution is not supported in v2",
+                ),
+            )
+        }
     }
 }
 
