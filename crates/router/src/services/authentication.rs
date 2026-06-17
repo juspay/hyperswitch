@@ -879,7 +879,7 @@ where
 
 /// Same as [`ApiKeyAuthWithMerchantIdFromRoute`] but also permits a platform merchant to
 /// operate on its own resources. Used by endpoints the platform merchant needs to configure
-/// external vault (connector create, profile update).
+/// and manage its external vault (connector create/retrieve/update/list, profile update).
 pub struct ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(pub id_type::MerchantId);
 
 #[cfg(feature = "partial-auth")]

@@ -659,7 +659,7 @@ pub async fn connector_retrieve(
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id.clone()),
                 // This should ideally be ProfileConnectorRead, but since this API responds with
@@ -667,7 +667,7 @@ pub async fn connector_retrieve(
                 // TODO: Convert this to ProfileConnectorRead once data is masked.
                 permission: Some(Permission::ProfileConnectorWrite),
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -855,12 +855,12 @@ pub async fn connector_update(
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id.clone()),
                 permission: Some(Permission::ProfileConnectorWrite),
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             req.headers(),
         ),
