@@ -6224,6 +6224,9 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
+            stripe_split_payment: build_stripe_split_payment(
+                router_data.request.split_payments.as_ref(),
+            ),
         })
     }
 }
@@ -6267,6 +6270,7 @@ impl
             metadata: None,
             state,
             test_mode: router_data.test_mode,
+            stripe_split_payment: None,
         })
     }
 }
