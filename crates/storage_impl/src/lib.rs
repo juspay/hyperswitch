@@ -350,6 +350,7 @@ pub trait UniqueConstraints {
         redis_conn: &Arc<RedisConnectionPool>,
     ) -> CustomResult<(), RedisError> {
         let constraints = self.unique_constraints();
+        let unique_contraint_count = constraints.len();
         let sadd_result = redis_conn
             .sadd(
                 &format!("unique_constraint:{}", self.table_name()).into(),
@@ -359,7 +360,14 @@ pub trait UniqueConstraints {
 
         match sadd_result {
             SaddReply::KeyNotSet => Err(error_stack::report!(RedisError::SetAddMembersFailed)),
-            SaddReply::KeySet => Ok(()),
+            SaddReply::KeySet(set_count) => {
+                if usize::try_from(set_count) == Ok(unique_contraint_count) {
+                    // If all unique constraints were succesfully inserted into the set, then no collision occurred
+                    Ok(())
+                } else {
+                    Err(error_stack::report!(RedisError::SetAddMembersFailed))
+                }
+            }
         }
     }
 }
