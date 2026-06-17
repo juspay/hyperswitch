@@ -171,7 +171,7 @@ impl FilterDecision {
 
 // Classifies the webhook via UCS `ParseEvent` before UCS/Direct routing.
 // Returns `None` on any UCS error which causes downstream routing to use the Hyperswitch (Direct) gateway.
-pub async fn get_rollout_flow_for_incoming_webhook(
+pub async fn get_webhook_event_details_from_ucs(
     state: &SessionState,
     platform: &domain::Platform,
     connector: ConnectorEnum,
@@ -179,13 +179,12 @@ pub async fn get_rollout_flow_for_incoming_webhook(
     merchant_connector_account: Option<&domain::MerchantConnectorAccount>,
     request: &IncomingWebhookRequestDetails<'_>,
 ) -> (
-    Option<api_models::webhooks::WebhookFlow>,
     Option<payments_grpc::EventReference>,
     Option<IncomingWebhookEvent>,
 ) {
     let client = match state.grpc_client.unified_connector_service_client.as_ref() {
         Some(client) => client.clone(),
-        None => return (None, None, None),
+        None => return (None, None),
     };
 
     let ctx = WebhookGatewayContext {
@@ -203,14 +202,14 @@ pub async fn get_rollout_flow_for_incoming_webhook(
             logger::debug!(?error, "Failed to build UCS ParseEvent request");
         }) {
         Ok(parse_request) => parse_request,
-        Err(_) => return (None, None, None),
+        Err(_) => return (None, None),
     };
 
     let parse_auth = match build_ucs_auth_metadata(&ctx, None).inspect_err(|error| {
         logger::debug!(?error, "Failed to build UCS auth metadata");
     }) {
         Ok(parse_auth) => parse_auth,
-        Err(_) => return (None, None, None),
+        Err(_) => return (None, None),
     };
 
     let parse_headers = build_ucs_headers_builder(&ctx, None, ExecutionMode::NotApplicable);
@@ -235,7 +234,7 @@ pub async fn get_rollout_flow_for_incoming_webhook(
         logger::debug!(?error, "UCS ParseEvent failed");
     }) {
         Ok(parse_response) => parse_response,
-        Err(_) => return (None, None, None),
+        Err(_) => return (None, None),
     };
 
     let event_type = parse_response
@@ -243,7 +242,6 @@ pub async fn get_rollout_flow_for_incoming_webhook(
         .map(IncomingWebhookEvent::from_ucs_event_type);
 
     (
-        event_type.map(api_models::webhooks::WebhookFlow::from),
         parse_response.reference,
         event_type,
     )
