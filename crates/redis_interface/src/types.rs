@@ -196,7 +196,7 @@ impl DelReply {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum SaddReply {
-    KeySet,
+    KeySet(i64),
     KeyNotSet,
 }
 
