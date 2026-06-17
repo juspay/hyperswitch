@@ -106,7 +106,7 @@ fn build_unified_connector_service_split_payments(
                 split_payment: Some(
                     payments_grpc::split_payments_request::SplitPayment::StripeSplitPayment(
                         payments_grpc::StripeSplitPaymentRequest {
-                            charge_type: charge_type as i32,
+                            charge_type: i32::from(charge_type),
                             application_fees: stripe
                                 .application_fees
                                 .map(MinorUnit::get_amount_as_i64),
@@ -162,7 +162,7 @@ fn build_unified_connector_service_split_refunds(
                         payments_grpc::StripeSplitRefundRequest {
                             charge_id: stripe.charge_id.clone(),
                             transfer_account_id: stripe.transfer_account_id.clone(),
-                            charge_type: charge_type as i32,
+                            charge_type: i32::from(charge_type),
                             options: Some(payments_grpc::ChargeRefundsOptions {
                                 options: Some(options),
                             }),
