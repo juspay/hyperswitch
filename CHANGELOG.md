@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.15.1-hotfix1
+
+### Bug Fixes
+
+- **config:** Fix duplicate entry in integration_test.toml file ([#12820](https://github.com/juspay/hyperswitch/pull/12820)) ([`f1f68bb`](https://github.com/juspay/hyperswitch/commit/f1f68bb7033a2dd2b4c2f434d15be0347a9a55c4))
+- **infra:** Switch base images from Docker Hub to AWS ECR ([#12819](https://github.com/juspay/hyperswitch/pull/12819)) ([`3309ce2`](https://github.com/juspay/hyperswitch/commit/3309ce2879e01012a64b096b1631bcb10ad8a68d))
+
+**Full Changelog:** [`2026.06.15.1...2026.06.15.1-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.06.15.1...2026.06.15.1-hotfix1)
+
+- - -
+
 ## 2026.06.15.1
 
 ### Features
