@@ -1,9 +1,8 @@
-use std::{marker::PhantomData, str::FromStr, time::Instant};
+use std::{marker::PhantomData, str::FromStr};
 
-use actix_web::FromRequest;
 use api_models::webhooks::{self, WebhookResponseTracker};
 use common_utils::{
-    errors::ReportSwitchExt, events::ApiEventsType, types::keymanager::KeyManagerState,
+    errors::ReportSwitchExt, types::keymanager::KeyManagerState,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -12,7 +11,7 @@ use hyperswitch_domain_models::{
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
-use router_env::{instrument, tracing, RequestId};
+use router_env::{instrument, tracing};
 
 use super::{types, utils, MERCHANT_ID};
 #[cfg(feature = "revenue_recovery")]
@@ -32,14 +31,13 @@ use crate::{
         },
     },
     db::StorageInterface,
-    events::api_logs::ApiEvent,
     logger,
     routes::{
         app::{ReqState, SessionStateInfo},
         lock_utils, SessionState,
     },
     services::{
-        self, authentication as auth, connector_integration_interface::ConnectorEnum,
+        self, connector_integration_interface::ConnectorEnum,
         ConnectorValidation,
     },
     types::{
@@ -62,67 +60,23 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     body: actix_web::web::Bytes,
     is_relay_webhook: bool,
 ) -> RouterResponse<serde_json::Value> {
+    let _ = flow;
     let dimensions = dimension_state::Dimensions::new()
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
 
-    let start_instant = Instant::now();
-    let (application_response, webhooks_response_tracker, serialized_req) =
+    let (application_response, _, _) =
         Box::pin(incoming_webhooks_core::<W>(
-            state.clone(),
+            state,
             req_state,
             req,
-            platform.clone(),
+            platform,
             profile,
             connector_id,
-            body.clone(),
+            body,
             is_relay_webhook,
         ))
         .await?;
-
-    logger::info!(incoming_webhook_payload = ?serialized_req);
-
-    let request_duration = Instant::now()
-        .saturating_duration_since(start_instant)
-        .as_millis();
-
-    let request_id = RequestId::extract(req)
-        .await
-        .attach_printable("Unable to extract request id from request")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let auth_type = auth::AuthenticationType::WebhookAuth {
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
-    };
-    let status_code = 200;
-    let api_event = ApiEventsType::Webhooks {
-        connector: connector_id.clone(),
-        payment_id: webhooks_response_tracker.get_payment_id(),
-        refund_id: webhooks_response_tracker.get_refund_id(),
-    };
-    let response_value = serde_json::to_value(&webhooks_response_tracker)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Could not convert webhook effect to string")?;
-
-    let infra = state.infra_components.clone();
-
-    let api_event = ApiEvent::new(
-        state.tenant.tenant_id.clone(),
-        Some(platform.get_processor().get_account().get_id().clone()),
-        flow,
-        &request_id,
-        request_duration,
-        status_code,
-        serialized_req,
-        Some(response_value),
-        None,
-        auth_type,
-        None,
-        api_event,
-        req,
-        req.method(),
-        infra,
-    );
-    state.event_handler().log_event(&api_event);
     Ok(application_response)
 }
 
