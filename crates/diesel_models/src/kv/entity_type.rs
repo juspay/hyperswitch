@@ -58,4 +58,8 @@ entity_type! {
         crate::dispute::DisputeNew,
         crate::dispute::DisputeUpdateInternal,
     }
+    "capture" => {
+        crate::capture::CaptureNew,
+        crate::capture::CaptureUpdateInternal,
+    }
 }

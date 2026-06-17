@@ -206,6 +206,22 @@ pub enum ApplePayFlow {
 }
 
 impl PaymentMethodData {
+    /// BIN for any card-bearing variant — raw, saved, network-token, or NTID-based MIT.
+    pub fn get_card_iin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_card_isin()),
+            Self::CardWithOptionalCVC(card) => Some(card.card_number.get_card_isin()),
+            Self::CardWithNetworkTokenDetails(card) => {
+                Some(card.card_details.card_number.get_card_isin())
+            }
+            Self::CardDetailsForNetworkTransactionId(card) => {
+                Some(card.card_number.get_card_isin())
+            }
+            Self::CardWithLimitedDetails(card) => Some(card.card_number.get_card_isin()),
+            _ => None,
+        }
+    }
+
     pub fn apply_additional_payment_data(
         &self,
         additional_payment_data: api_models::payments::AdditionalPaymentData,
@@ -360,6 +376,13 @@ pub enum EligibilityPaymentMethodData {
 impl EligibilityPaymentMethodData {
     pub fn is_eligible_for_profile_config_blocklist(&self) -> bool {
         matches!(self, Self::Card(_))
+    }
+
+    pub fn get_card_iin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_card_isin()),
+            _ => None,
+        }
     }
 }
 
@@ -1651,6 +1674,11 @@ pub enum WalletDetail {
         expiry_month: Secret<String>,
         expiry_year: Secret<String>,
     },
+    GooglePayDecryptedData {
+        application_primary_account_number: cards::CardNumber,
+        expiry_month: Secret<String>,
+        expiry_year: Secret<String>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -1662,6 +1690,15 @@ impl From<payment_methods::WalletDetail> for WalletDetail {
                 expiry_month,
                 expiry_year,
             } => Self::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            },
+            payment_methods::WalletDetail::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::GooglePayDecryptedData {
                 application_primary_account_number,
                 expiry_month,
                 expiry_year,
@@ -1912,6 +1949,15 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             api_models::payments::PaymentMethodData::NetworkToken(network_token_data) => {
                 Self::NetworkToken(From::from(network_token_data))
             }
+            // ProxyCard / VaultCardTokenData are handled before reaching domain conversion
+            // (routed to external_vault_proxy_for_payments_core). These branches should not be
+            // reached in normal flow, but we handle them gracefully.
+            api_models::payments::PaymentMethodData::ProxyCard(_)
+            | api_models::payments::PaymentMethodData::VaultCardTokenData(_) => {
+                // These variants are intercepted at the routing layer and should not reach here.
+                // Falling back to MandatePayment as a safe no-op sentinel value.
+                Self::MandatePayment
+            }
         }
     }
 }
@@ -1919,7 +1965,7 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
 impl From<api_models::payments::ProxyPaymentMethodData> for ExternalVaultPaymentMethodData {
     fn from(api_model_payment_method_data: api_models::payments::ProxyPaymentMethodData) -> Self {
         match api_model_payment_method_data {
-            api_models::payments::ProxyPaymentMethodData::VaultDataCard(card_data) => {
+            api_models::payments::ProxyPaymentMethodData::ProxyCard(card_data) => {
                 Self::Card(Box::new(ExternalVaultCard::from(*card_data)))
             }
             api_models::payments::ProxyPaymentMethodData::VaultToken(vault_data) => {
