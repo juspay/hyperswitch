@@ -254,6 +254,8 @@ pub struct TrustlyBankTransferAdditionalData {
 pub enum WalletAdditionalData {
     /// Additional data for Apple pay decrypt wallet payout method
     ApplePayDecrypt(Box<ApplePayDecryptAdditionalData>),
+    /// Additional data for Google pay decrypt wallet payout method
+    GooglePayDecrypt(Box<GooglePayDecryptAdditionalData>),
     /// Additional data for paypal wallet payout method
     Paypal(Box<PaypalAdditionalData>),
     /// Additional data for venmo wallet payout method
@@ -305,6 +307,25 @@ pub struct VenmoAdditionalData {
 )]
 #[diesel(sql_type = Jsonb)]
 pub struct ApplePayDecryptAdditionalData {
+    /// Card expiry month
+    #[schema(value_type = String, example = "01")]
+    pub card_exp_month: Secret<String>,
+
+    /// Card expiry year
+    #[schema(value_type = String, example = "2026")]
+    pub card_exp_year: Secret<String>,
+
+    /// Card holder name
+    #[schema(value_type = String, example = "John Doe")]
+    pub card_holder_name: Option<Secret<String>>,
+}
+
+/// Masked payout method details for Google pay decrypt wallet payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct GooglePayDecryptAdditionalData {
     /// Card expiry month
     #[schema(value_type = String, example = "01")]
     pub card_exp_month: Secret<String>,
@@ -401,6 +422,7 @@ impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
                 WalletAdditionalData::ApplePayDecrypt(_) => Self::ApplePay,
                 WalletAdditionalData::Paypal(_) => Self::Paypal,
                 WalletAdditionalData::Venmo(_) => Self::Venmo,
+                WalletAdditionalData::GooglePayDecrypt(_) => Self::GooglePay,
             },
             AdditionalPayoutMethodData::BankRedirect(bank_redirect) => match **bank_redirect {
                 BankRedirectAdditionalData::Interac(_) => Self::Interac,
