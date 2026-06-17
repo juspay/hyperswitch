@@ -5999,7 +5999,7 @@ impl ForeignFrom<&common_types::domain::AdyenSplitData> for payments_grpc::Adyen
 impl ForeignFrom<&common_types::domain::AdyenSplitItem> for payments_grpc::AdyenSplitItem {
     fn foreign_from(item: &common_types::domain::AdyenSplitItem) -> Self {
         Self {
-            amount: item.amount.clone().map(|a| a.get_amount_as_i64()),
+            amount: item.amount.map(|a| a.get_amount_as_i64()),
             split_type: payments_grpc::AdyenSplitType::foreign_from(&item.split_type).into(),
             account: item.account.clone(),
             reference: item.reference.clone(),
