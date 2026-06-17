@@ -53,7 +53,7 @@ use crate::{
         },
         utils::get_flow_name,
     },
-    events::connector_api_logs::UcsApiEvent,
+    events::connector_api_logs::ConnectorEvent,
     routes::SessionState,
     types::{
         api::enums as api_enums,
@@ -2610,10 +2610,12 @@ pub fn build_webhook_secrets_from_merchant_connector_account(
     }
 }
 
-/// Build and emit the audit event for a Hyperswitch -> UCS gRPC call, as a `UcsApiEvent`.
+/// Build and emit the connector event for a Hyperswitch -> UCS gRPC call.
 ///
-/// Shared by `ucs_logging_wrapper` and `ucs_logging_wrapper_granular`, which differ only in
-/// the error type they propagate (router vs `UnifiedConnectorServiceError`).
+/// Same `connector_events` stream as a direct connector call, tagged
+/// `destination = unified_connector_service`. Shared by `ucs_logging_wrapper` and
+/// `ucs_logging_wrapper_granular`, which differ only in the error type they propagate
+/// (router vs `UnifiedConnectorServiceError`).
 #[allow(clippy::too_many_arguments)]
 fn emit_ucs_connector_event(
     state: &SessionState,
@@ -2630,7 +2632,7 @@ fn emit_ucs_connector_event(
     external_latency: u128,
     execution_mode: ExecutionMode,
 ) {
-    let mut ucs_api_event = UcsApiEvent::new(
+    let mut connector_event = ConnectorEvent::new(
         state.tenant.tenant_id.clone(),
         connector_name,
         flow_type,
@@ -2645,17 +2647,18 @@ fn emit_ucs_connector_event(
         dispute_id,
         payout_id,
         status_code,
+        common_enums::EventDestination::UnifiedConnectorService,
         common_enums::EventExecutionMode::from(execution_mode),
     );
 
     if let Some(body) = response_body {
         match status_code {
-            400..=599 => ucs_api_event.set_error_response_body(&body),
-            _ => ucs_api_event.set_response_body(&body),
+            400..=599 => connector_event.set_error_response_body(&body),
+            _ => connector_event.set_response_body(&body),
         }
     }
 
-    state.event_handler.log_event(&ucs_api_event);
+    state.event_handler.log_event(&connector_event);
 }
 
 /// UCS Event Logging Wrapper Function
@@ -2759,8 +2762,9 @@ where
         }
     };
 
-    // Emit the Hyperswitch -> UCS audit event (shared with the other wrapper); `execution_mode`
-    // is primary or shadow, so a shadow run lands as `hyperswitch / shadow` in ucs_api_events.
+    // Emit the Hyperswitch -> UCS connector event (shared with the other wrapper); it lands in
+    // connector_events with `destination = unified_connector_service`, `execution_mode` primary
+    // or shadow.
     emit_ucs_connector_event(
         state,
         std::any::type_name::<T>(),
@@ -2890,8 +2894,9 @@ where
         }
     };
 
-    // Emit the Hyperswitch -> UCS audit event (shared with the other wrapper); `execution_mode`
-    // is primary or shadow, so a shadow run lands as `hyperswitch / shadow` in ucs_api_events.
+    // Emit the Hyperswitch -> UCS connector event (shared with the other wrapper); it lands in
+    // connector_events with `destination = unified_connector_service`, `execution_mode` primary
+    // or shadow.
     emit_ucs_connector_event(
         state,
         std::any::type_name::<T>(),

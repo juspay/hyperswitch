@@ -15,7 +15,6 @@ CREATE TABLE ucs_api_events_queue
     `dispute_id` Nullable(String),
     `refund_id` Nullable(String),
     `payout_id` Nullable(String),
-    `source` LowCardinality(Nullable(String)),
     `execution_mode` LowCardinality(Nullable(String))
 )
 ENGINE = Kafka
@@ -60,6 +59,7 @@ CREATE TABLE ucs_api_events (
     `refund_id` Nullable(String),
     `payout_id` Nullable(String),
     `source` LowCardinality(Nullable(String)),
+    `destination` LowCardinality(Nullable(String)),
     `execution_mode` LowCardinality(Nullable(String)),
     INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
     INDEX connectorIndex connector_name TYPE bloom_filter GRANULARITY 1,
@@ -92,6 +92,7 @@ CREATE TABLE ucs_api_events_audit (
     `dispute_id` Nullable(String),
     `refund_id` Nullable(String),
     `source` LowCardinality(Nullable(String)),
+    `destination` LowCardinality(Nullable(String)),
     `execution_mode` LowCardinality(Nullable(String)),
     INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
     INDEX connectorIndex connector_name TYPE bloom_filter GRANULARITY 1,
@@ -116,6 +117,7 @@ CREATE TABLE ucs_api_events_payout_audit (
     `latency` UInt128,
     `method` LowCardinality(String),
     `source` LowCardinality(Nullable(String)),
+    `destination` LowCardinality(Nullable(String)),
     `execution_mode` LowCardinality(Nullable(String)),
     INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
     INDEX connectorIndex connector_name TYPE bloom_filter GRANULARITY 1,
@@ -161,7 +163,7 @@ SELECT
     method,
     refund_id,
     dispute_id,
-    source,
+    'ucs' AS source,
     execution_mode
 FROM
     ucs_api_events_queue
@@ -202,7 +204,7 @@ SELECT
     now64() AS inserted_at,
     latency,
     method,
-    source,
+    'ucs' AS source,
     execution_mode
 FROM
     ucs_api_events_queue
@@ -249,7 +251,7 @@ SELECT
     refund_id,
     dispute_id,
     payout_id,
-    source,
+    'ucs' AS source,
     execution_mode
 FROM
     ucs_api_events_queue
