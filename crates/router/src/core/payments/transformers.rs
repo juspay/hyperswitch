@@ -2797,7 +2797,9 @@ where
                     .clone()
                     .get_required_value("client_secret")?
                     .into(),
-                vault_details: payment_data.get_optional_external_vault_session_details(),
+                vault_details: payment_data
+                    .get_optional_external_vault_session_details()
+                    .and_then(Into::into),
             },
             vec![],
         )))
