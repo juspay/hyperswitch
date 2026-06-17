@@ -283,7 +283,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 )
                 .await;
 
-            let webhook_rollout_flow = ucs_event_type.map(api::WebhookFlow::from);
+            let webhook_flow = ucs_event_type.map(api::WebhookFlow::from);
 
             let execution_path =
                 unified_connector_service::should_call_unified_connector_service_for_webhooks(
@@ -291,13 +291,13 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     platform.get_processor(),
                     &connector_name,
                     mca_ref.map(|mca| &mca.merchant_connector_id),
-                    webhook_rollout_flow.clone(),
+                    webhook_flow.clone(),
                 )
                 .await?;
             logger::info!(
                 connector = %connector_name,
                 ?execution_path,
-                ?webhook_rollout_flow,
+                ?webhook_flow,
                 "Selected webhook execution path"
             );
 
