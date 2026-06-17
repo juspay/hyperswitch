@@ -2161,6 +2161,9 @@ impl
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
             }),
+            stripe_split_payment: build_stripe_split_payment(
+                router_data.request.split_payments.as_ref(),
+            ),
         })
     }
 }
