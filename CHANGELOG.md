@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.10.0-hotfix5
+
+### Bug Fixes
+
+- **config:** Fix duplicate entry in integration_test.toml file ([#12815](https://github.com/juspay/hyperswitch/pull/12815)) ([`58e81d3`](https://github.com/juspay/hyperswitch/commit/58e81d3e13df430cd2d8abe5fdc86319c7642af4))
+
+**Full Changelog:** [`2026.06.10.0-hotfix4...2026.06.10.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.06.10.0-hotfix4...2026.06.10.0-hotfix5)
+
+- - -
+
 ## 2026.06.10.0-hotfix4
 
 ### Bug Fixes
