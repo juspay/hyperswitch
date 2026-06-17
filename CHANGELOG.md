@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.25.0-hotfix12
+
+### Bug Fixes
+
+- **relay:** Remove raw connector response population logic for unreferenced refunds ([#12817](https://github.com/juspay/hyperswitch/pull/12817)) ([`8efe272`](https://github.com/juspay/hyperswitch/commit/8efe272fb6353728add709b343b44a2ed94d3b76))
+
+**Full Changelog:** [`2026.05.25.0-hotfix11...2026.05.25.0-hotfix12`](https://github.com/juspay/hyperswitch/compare/2026.05.25.0-hotfix11...2026.05.25.0-hotfix12)
+
+- - -
+
 ## 2026.05.25.0-hotfix11
 
 ### Bug Fixes
