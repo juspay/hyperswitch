@@ -291,6 +291,21 @@ pub async fn validate_create_request(
                                             }
                                         )
                                     ))),
+                                    hyperswitch_domain_models::payment_method_data::WalletDetail::GooglePayDecryptedData {
+                                        application_primary_account_number,
+                                        expiry_month,
+                                        expiry_year,
+                                    } => Ok(Some(payouts::PayoutMethodData::Wallet(
+                                        api_models::payouts::Wallet::GooglePayDecrypt(
+                                            api_models::payouts::GooglePayDecrypt {
+                                                application_primary_account_number,
+                                                expiry_month,
+                                                expiry_year,
+                                                card_holder_name: None,
+                                                card_network: None,
+                                            }
+                                        )
+                                    ))),
                                 }
                             }
                             (_, _, Some(bank)) => {

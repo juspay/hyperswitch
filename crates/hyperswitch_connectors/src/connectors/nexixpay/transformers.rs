@@ -50,8 +50,8 @@ use crate::{
         get_unimplemented_payment_method_error_message, to_connector_meta,
         to_connector_meta_from_secret, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
         PaymentsCompleteAuthorizeRequestData, PaymentsPostAuthenticateRequestData,
-        PaymentsPreProcessingRequestData, PaymentsSetupMandateRequestData, PaymentsSyncRequestData,
-        RouterData as _,
+        PaymentsPreAuthenticateRequestData, PaymentsPreProcessingRequestData,
+        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RouterData as _,
     },
 };
 
@@ -763,7 +763,7 @@ fn process_nexixpay_preprocessing_response(
         is_auto_capture,
     })?);
 
-    let status = AttemptStatus::from(response.operation.operation_result.clone());
+    let status = get_attempt_status(response.operation.operation_result.clone(), is_auto_capture);
     let authentication_data = UcsAuthenticationData::foreign_try_from((
         &three_ds_data,
         response.operation.operation_id.clone(),
@@ -1255,20 +1255,24 @@ pub struct NexixpayErrorResponse {
     pub errors: Vec<NexixpayErrorBody>,
 }
 
-impl From<NexixpayPaymentStatus> for AttemptStatus {
-    fn from(item: NexixpayPaymentStatus) -> Self {
-        match item {
-            NexixpayPaymentStatus::Declined
-            | NexixpayPaymentStatus::DeniedByRisk
-            | NexixpayPaymentStatus::ThreedsFailed
-            | NexixpayPaymentStatus::Failed => Self::Failure,
-            NexixpayPaymentStatus::Authorized => Self::Authorized,
-            NexixpayPaymentStatus::ThreedsValidated => Self::AuthenticationSuccessful,
-            NexixpayPaymentStatus::Executed => Self::Charged,
-            NexixpayPaymentStatus::Pending => Self::AuthenticationPending, // this is being used in authorization calls only.
-            NexixpayPaymentStatus::Canceled | NexixpayPaymentStatus::Voided => Self::Voided,
-            NexixpayPaymentStatus::Refunded => Self::AutoRefunded,
+fn get_attempt_status(item: NexixpayPaymentStatus, is_auto_capture: bool) -> AttemptStatus {
+    match item {
+        NexixpayPaymentStatus::Declined
+        | NexixpayPaymentStatus::DeniedByRisk
+        | NexixpayPaymentStatus::ThreedsFailed
+        | NexixpayPaymentStatus::Failed => AttemptStatus::Failure,
+        NexixpayPaymentStatus::Authorized => {
+            if is_auto_capture {
+                AttemptStatus::Charged
+            } else {
+                AttemptStatus::Authorized
+            }
         }
+        NexixpayPaymentStatus::ThreedsValidated => AttemptStatus::AuthenticationSuccessful,
+        NexixpayPaymentStatus::Executed => AttemptStatus::Charged,
+        NexixpayPaymentStatus::Pending => AttemptStatus::AuthenticationPending, // this is being used in authorization calls only.
+        NexixpayPaymentStatus::Canceled | NexixpayPaymentStatus::Voided => AttemptStatus::Voided,
+        NexixpayPaymentStatus::Refunded => AttemptStatus::AutoRefunded,
     }
 }
 
@@ -1335,7 +1339,10 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                 } else {
                     Box::new(None)
                 };
-                let status = AttemptStatus::from(response_body.operation.operation_result.clone());
+                let status = get_attempt_status(
+                    response_body.operation.operation_result.clone(),
+                    is_auto_capture,
+                );
                 match status {
                     AttemptStatus::Failure => {
                         let response = Err(get_error_response(
@@ -1370,8 +1377,10 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                 }
             }
             NexixpayPaymentsResponse::MandateResponse(ref mandate_response) => {
-                let status =
-                    AttemptStatus::from(mandate_response.operation.operation_result.clone());
+                let status = get_attempt_status(
+                    mandate_response.operation.operation_result.clone(),
+                    item.data.request.is_auto_capture()?,
+                );
                 let is_auto_capture = item.data.request.is_auto_capture()?;
                 let operation_id = mandate_response.operation.operation_id.clone();
                 let connector_metadata = Some(serde_json::json!(NexixpayConnectorMetaData {
@@ -1461,7 +1470,10 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
                 }));
                 // PreAuthenticate doesn't support mandates
                 let mandate_reference = Box::new(None);
-                let status = AttemptStatus::from(response_body.operation.operation_result.clone());
+                let status = get_attempt_status(
+                    response_body.operation.operation_result.clone(),
+                    item.data.request.is_auto_capture()?,
+                );
                 match status {
                     AttemptStatus::Failure => {
                         let response = Err(get_error_response(
@@ -1496,8 +1508,10 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
                 }
             }
             NexixpayPaymentsResponse::MandateResponse(ref mandate_response) => {
-                let status =
-                    AttemptStatus::from(mandate_response.operation.operation_result.clone());
+                let status = get_attempt_status(
+                    mandate_response.operation.operation_result.clone(),
+                    item.data.request.is_auto_capture()?,
+                );
                 let operation_id = mandate_response.operation.operation_id.clone();
                 let connector_metadata = Some(serde_json::json!(NexixpayConnectorMetaData {
                     three_d_s_auth_result: None,
@@ -1657,7 +1671,10 @@ impl<F>
         {
             AttemptStatus::Charged
         } else {
-            AttemptStatus::from(item.response.operation.operation_result.clone())
+            get_attempt_status(
+                item.response.operation.operation_result.clone(),
+                is_auto_capture,
+            )
         };
         match status {
             AttemptStatus::Failure => {
@@ -1842,7 +1859,10 @@ impl TryFrom<PaymentsSyncResponseRouterData<NexixpayTransactionResponse>>
     fn try_from(
         item: PaymentsSyncResponseRouterData<NexixpayTransactionResponse>,
     ) -> Result<Self, Self::Error> {
-        let status = AttemptStatus::from(item.response.operation_result.clone());
+        let status = get_attempt_status(
+            item.response.operation_result.clone(),
+            item.data.request.is_auto_capture()?,
+        );
         let mandate_reference = if item.data.request.is_mandate_payment() {
             Box::new(Some(MandateReference {
                 connector_mandate_id: item.data.connector_mandate_request_reference_id.clone(),
@@ -2043,7 +2063,10 @@ impl
             psync_flow: NexixpayPaymentIntent::Authorize
         }));
 
-        let status = AttemptStatus::from(item.response.operation.operation_result.clone());
+        let status = get_attempt_status(
+            item.response.operation.operation_result.clone(),
+            is_auto_capture,
+        );
         match status {
             AttemptStatus::Failure => {
                 let response = Err(get_error_response(

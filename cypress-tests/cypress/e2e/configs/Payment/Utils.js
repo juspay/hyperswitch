@@ -538,7 +538,7 @@ export const CONNECTOR_LISTS = {
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen"],
     BLUECODE_WALLET: ["calida"],
-    ALIPAY_HK_WALLET: ["adyen"],
+    ALIPAY_HK_WALLET: [""],
     PAYPAL_WALLET: [
       "airwallex",
       "globalpay",
