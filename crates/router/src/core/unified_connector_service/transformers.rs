@@ -120,6 +120,61 @@ fn build_unified_connector_service_split_payments(
     }
 }
 
+/// Map the domain split-refund routing (Stripe Connect) into the UCS gRPC
+/// `SplitRefundsRequest` so UCS can refund the charge and emit the `Stripe-Account`
+/// header (Direct charges) instead of refunding the payment_intent. Non-Stripe split
+/// refunds (Adyen/Xendit) are routed via their own request bodies and yield None here.
+fn build_unified_connector_service_split_refunds(
+    split: Option<&router_request_types::SplitRefundsRequest>,
+) -> Option<payments_grpc::SplitRefundsRequest> {
+    match split? {
+        router_request_types::SplitRefundsRequest::StripeSplitRefund(stripe) => {
+            let charge_type = match &stripe.charge_type {
+                common_enums::PaymentChargeType::Stripe(charge) => match charge {
+                    common_enums::StripeChargeType::Destination => {
+                        payments_grpc::StripeChargeType::Destination
+                    }
+                    common_enums::StripeChargeType::Direct => {
+                        payments_grpc::StripeChargeType::Direct
+                    }
+                },
+            };
+            let options = match &stripe.options {
+                router_request_types::ChargeRefundsOptions::Destination(d) => {
+                    payments_grpc::charge_refunds_options::Options::Destination(
+                        payments_grpc::DestinationChargeRefund {
+                            revert_platform_fee: d.revert_platform_fee,
+                            revert_transfer: d.revert_transfer,
+                        },
+                    )
+                }
+                router_request_types::ChargeRefundsOptions::Direct(d) => {
+                    payments_grpc::charge_refunds_options::Options::Direct(
+                        payments_grpc::DirectChargeRefund {
+                            revert_platform_fee: d.revert_platform_fee,
+                        },
+                    )
+                }
+            };
+            Some(payments_grpc::SplitRefundsRequest {
+                split_refund: Some(
+                    payments_grpc::split_refunds_request::SplitRefund::StripeSplitRefund(
+                        payments_grpc::StripeSplitRefundRequest {
+                            charge_id: stripe.charge_id.clone(),
+                            transfer_account_id: stripe.transfer_account_id.clone(),
+                            charge_type: charge_type as i32,
+                            options: Some(payments_grpc::ChargeRefundsOptions {
+                                options: Some(options),
+                            }),
+                        },
+                    ),
+                ),
+            })
+        }
+        _ => None,
+    }
+}
+
 impl ForeignFrom<common_types::customers::DocumentKind> for payments_grpc::DocumentKind {
     fn foreign_from(document_kind: common_types::customers::DocumentKind) -> Self {
         match document_kind {
@@ -6006,6 +6061,9 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             merchant_request_id: None,
             connector_order_id: None,
             payment_method: None,
+            split_refunds: build_unified_connector_service_split_refunds(
+                router_data.request.split_refunds.as_ref(),
+            ),
         })
     }
 }
