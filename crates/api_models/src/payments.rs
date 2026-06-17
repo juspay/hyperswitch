@@ -1923,6 +1923,8 @@ pub struct ResponseSurchargeDetails {
     #[smithy(value_type = "i64")]
     pub surcharge_amount: MinorUnit,
     pub external_surcharge_id: String,
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub payment_id: id_type::PaymentId,
     #[smithy(value_type = "String")]
     pub attempt_id: String,

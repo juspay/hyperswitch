@@ -483,7 +483,7 @@ pub enum OutgoingWebhookContent {
     PayoutDetails(Box<payouts::PayoutCreateResponse>),
     #[schema(value_type = ConfirmSubscriptionResponse, title = "ConfirmSubscriptionResponse")]
     SubscriptionDetails(Box<subscription::ConfirmSubscriptionResponse>),
-    #[schema(value_type = ResponseSurchargeData, title = "ResponseSurchargeData")]
+    #[schema(value_type = ResponseSurchargeDetails, title = "ResponseSurchargeDetails")]
     SurchargeDetails(Box<payments::ResponseSurchargeDetails>),
 }
 
