@@ -6593,7 +6593,7 @@ impl
             router_request_types::PayoutsData,
             PayoutsResponseData,
         >,
-    > for payments_grpc::PayoutServiceEligibilityRequest
+    > for payments_grpc::PayoutMethodEligibilityRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -6640,12 +6640,14 @@ impl
 
         Ok(Self {
             merchant_payout_id: router_data.payout_id.clone(),
-            address: Some(address),
+            connector_feature_data: None,
             payout_method_data,
             amount: Some(money),
+            connector_payout_id: None,
             destination_currency: destination_currency.into(),
-            customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
+            address: Some(address),
+            customer: Some(customer),
             source_bank_data,
         })
     }
@@ -7032,7 +7034,7 @@ impl_ucs_payout_response_transformation!(
 #[cfg(feature = "payouts")]
 impl
     transformers::ForeignTryFrom<(
-        payments_grpc::PayoutServiceEligibilityResponse,
+        payments_grpc::PayoutMethodEligibilityResponse,
         common_enums::PayoutStatus,
     )> for Result<PayoutsResponseData, ErrorResponse>
 {
@@ -7040,7 +7042,7 @@ impl
 
     fn foreign_try_from(
         (response, prev_status): (
-            payments_grpc::PayoutServiceEligibilityResponse,
+            payments_grpc::PayoutMethodEligibilityResponse,
             common_enums::PayoutStatus,
         ),
     ) -> Result<Self, Self::Error> {

@@ -2428,7 +2428,7 @@ impl
 
 impl
     ForeignTryFrom<(
-        payments_grpc::PayoutServiceEligibilityResponse,
+        payments_grpc::PayoutMethodEligibilityResponse,
         common_enums::PayoutStatus,
     )> for crate::types::UcsPayoutEligibilityResponseData
 {
@@ -2436,7 +2436,7 @@ impl
 
     fn foreign_try_from(
         value: (
-            payments_grpc::PayoutServiceEligibilityResponse,
+            payments_grpc::PayoutMethodEligibilityResponse,
             common_enums::PayoutStatus,
         ),
     ) -> Result<Self, Self::Error> {

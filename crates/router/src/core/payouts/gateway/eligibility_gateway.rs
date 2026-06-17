@@ -100,7 +100,7 @@ where
 
         logger::debug!("Granular Gateway: Payout eligibility flow");
         let granular_payout_eligibility_request =
-            payments_grpc::PayoutServiceEligibilityRequest::foreign_try_from(router_data)
+            payments_grpc::PayoutMethodEligibilityRequest::foreign_try_from(router_data)
                 .change_context(ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to construct Payout Eligibility Request")?;
 

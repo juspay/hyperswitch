@@ -1122,11 +1122,11 @@ impl UnifiedConnectorServiceClient {
     /// Performs Payout Eligibility (e.g. SEPA VoP / payee verification).
     pub async fn payout_eligibility(
         &self,
-        payout_eligibility_request: payments_grpc::PayoutServiceEligibilityRequest,
+        payout_eligibility_request: payments_grpc::PayoutMethodEligibilityRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PayoutServiceEligibilityResponse>,
+        tonic::Response<payments_grpc::PayoutMethodEligibilityResponse>,
     > {
         let mut request = tonic::Request::new(payout_eligibility_request);
 
