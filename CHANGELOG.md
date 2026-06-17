@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.10.0-hotfix6
+
+### Features
+
+- **superposition:** Add db fallback for pt configs ([#12826](https://github.com/juspay/hyperswitch/pull/12826)) ([`1af84ac`](https://github.com/juspay/hyperswitch/commit/1af84ac771669ff4d39618cc7e47249430684b2c))
+
+### Bug Fixes
+
+- **connector:** [Peachpayments] Add 5xx Error Response Structure ([#12823](https://github.com/juspay/hyperswitch/pull/12823)) ([`762e11b`](https://github.com/juspay/hyperswitch/commit/762e11b3e0423dda6e2f82dbda952532a794b4c7))
+- **docs:** Add superposition to scripts ([#12828](https://github.com/juspay/hyperswitch/pull/12828)) ([`a4f5d99`](https://github.com/juspay/hyperswitch/commit/a4f5d99bb77dd290a74e1fe91f5aa5f8502a7514))
+
+### Revert
+
+- **connector:** [worldpayxml] Googlepay predecrypt | hyperswitch decrypt ([#12816](https://github.com/juspay/hyperswitch/pull/12816)) ([`d03529a`](https://github.com/juspay/hyperswitch/commit/d03529a33f3cd6c822c84d876890d4a2413605a9))
+- Fix duplicate entry in integration_test.toml file ([#12821](https://github.com/juspay/hyperswitch/pull/12821)) ([`c5930c6`](https://github.com/juspay/hyperswitch/commit/c5930c61bd4979366027e62a43137bcb9baef987))
+
+**Full Changelog:** [`2026.06.10.0-hotfix5...2026.06.10.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.06.10.0-hotfix5...2026.06.10.0-hotfix6)
+
+- - -
+
 ## 2026.06.10.0-hotfix5
 
 ### Bug Fixes
