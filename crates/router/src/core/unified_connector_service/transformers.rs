@@ -1263,6 +1263,9 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
             order_tax_amount: None,
+            split_payments: build_unified_connector_service_split_payments(
+                router_data.request.split_payments.as_ref(),
+            ),
         })
     }
 }
