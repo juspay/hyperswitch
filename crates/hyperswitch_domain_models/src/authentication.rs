@@ -103,7 +103,7 @@ pub struct Authentication {
     pub merchant_country_code: Option<String>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<common_utils::types::CreatedBy>,
-    pub updated_by: String,
+    pub updated_by: Option<String>,
 }
 
 impl Authentication {
@@ -113,7 +113,7 @@ impl Authentication {
         mut self,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> Self {
-        self.updated_by = storage_scheme.to_string();
+        self.updated_by = Some(storage_scheme.to_string());
         self
     }
 

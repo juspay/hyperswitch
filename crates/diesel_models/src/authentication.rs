@@ -86,10 +86,17 @@ pub struct Authentication {
     pub shipping_country: Option<String>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
-    pub updated_by: String,
+    pub updated_by: Option<String>,
 }
 
 impl Authentication {
+    /// Redis hash field key under which the authentication record is stored within its partition.
+    pub fn get_hash_key_for_kv_store(
+        authentication_id: &common_utils::id_type::AuthenticationId,
+    ) -> String {
+        format!("auth_{}", authentication_id.get_string_repr())
+    }
+
     /// Reverse-lookup id to find an authentication by its id (distinct from the hash field key).
     pub fn get_authentication_id_lookup_id(
         authentication_id: &common_utils::id_type::AuthenticationId,
@@ -188,7 +195,7 @@ pub struct AuthenticationNew {
     pub shipping_country: Option<String>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
-    pub updated_by: String,
+    pub updated_by: Option<String>,
 }
 
 #[derive(Debug)]
@@ -558,7 +565,7 @@ impl AuthenticationUpdateInternal {
             shipping_country: shipping_country.or(source.shipping_country),
             processor_merchant_id: source.processor_merchant_id,
             created_by: source.created_by,
-            updated_by: updated_by.unwrap_or(source.updated_by),
+            updated_by: updated_by.or(source.updated_by),
         }
     }
 }

@@ -182,7 +182,7 @@ diesel::table! {
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
         #[max_length = 32]
-        updated_by -> Varchar,
+        updated_by -> Nullable<Varchar>,
     }
 }
 

@@ -236,7 +236,7 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                     },
                     None => PartitionKey::AuthenticationId { authentication_id },
                 };
-                let field = authentication_id.get_hash_key_for_kv_store();
+                let field = diesel_authentication::get_hash_key_for_kv_store(authentication_id);
                 let key_str = key.to_string();
 
                 let authentication_to_insert = authentication
@@ -495,14 +495,14 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                 authentication_id: &authentication_id,
             },
         };
-        let field = authentication_id.get_hash_key_for_kv_store();
+        let field = diesel_authentication::get_hash_key_for_kv_store(authentication_id);
 
         // The previous write location drives KV-vs-Postgres routing in decide_storage_scheme.
         let updated_by = previous_state.updated_by.clone();
         let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_authentication>(
             self,
             storage_scheme,
-            Op::Update(key.clone(), &field, Some(updated_by.as_str())),
+            Op::Update(key.clone(), &field, updated_by.as_deref()),
         ))
         .await;
 

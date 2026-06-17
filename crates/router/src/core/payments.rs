@@ -5056,21 +5056,6 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing authentication_id in payment_attempt")?;
-        let key_manager_state = &(state).into();
-        // Validates the authentication exists (errors if not); the record itself isn't needed here.
-        let _authentication = state
-            .store
-            .find_authentication_by_merchant_id_authentication_id(
-                platform.get_processor().get_account().get_id(),
-                &authentication_id,
-                platform.get_processor().get_key_store(),
-                key_manager_state,
-                platform.get_processor().get_account().storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
-                id: authentication_id.get_string_repr().to_string(),
-            })?;
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
 
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
