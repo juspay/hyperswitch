@@ -293,7 +293,7 @@ describe("Bank Debit tests", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          6540,
+          data.Request.amount,
           true,
           "automatic",
           "new_mandate",
@@ -315,7 +315,7 @@ describe("Bank Debit tests", () => {
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
-          6540,
+          data.Request.amount,
           true,
           "automatic",
           globalState
@@ -340,7 +340,7 @@ describe("Bank Debit tests", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          6540,
+          data.Request.amount,
           true,
           "automatic",
           "new_mandate",
@@ -362,7 +362,7 @@ describe("Bank Debit tests", () => {
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
-          6540,
+          data.Request.amount,
           true,
           "automatic",
           globalState
@@ -397,7 +397,7 @@ describe("Bank Debit tests", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          6540,
+          data.Request.amount,
           true,
           "automatic",
           "new_mandate",
@@ -430,7 +430,7 @@ describe("Bank Debit tests", () => {
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
-          6540,
+          data.Request.amount,
           true,
           "automatic",
           globalState
@@ -455,7 +455,7 @@ describe("Bank Debit tests", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          6540,
+          data.Request.amount,
           true,
           "automatic",
           "new_mandate",
@@ -481,7 +481,7 @@ describe("Bank Debit tests", () => {
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
-          6540,
+          data.Request.amount,
           true,
           "automatic",
           globalState

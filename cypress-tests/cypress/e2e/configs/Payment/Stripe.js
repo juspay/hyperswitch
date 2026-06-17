@@ -1626,6 +1626,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6540,
         payment_method: "bank_debit",
         payment_method_type: "ach",
         currency: "USD",
@@ -1673,6 +1674,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6540,
         payment_method: "bank_debit",
         payment_method_type: "bacs",
         currency: "GBP",
@@ -1720,6 +1722,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6540,
         payment_method: "bank_debit",
         payment_method_type: "sepa",
         currency: "EUR",
@@ -1770,6 +1773,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6540,
         payment_method: "bank_debit",
         payment_method_type: "becs",
         currency: "AUD",
@@ -1823,6 +1827,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6540,
         off_session: true,
         confirm: true,
         currency: "EUR",
@@ -1841,6 +1846,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6540,
         off_session: true,
         confirm: true,
         currency: "AUD",
@@ -1859,6 +1865,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6540,
         off_session: true,
         confirm: true,
         currency: "USD",
@@ -1877,6 +1884,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6540,
         off_session: true,
         confirm: true,
         currency: "GBP",
