@@ -2138,6 +2138,9 @@ impl
                 customer_document_details: to_grpc_customer_document_details(router_data),
             }),
             additional_payment_data,
+            split_payments: build_unified_connector_service_split_payments(
+                router_data.request.split_payments.as_ref(),
+            ),
         })
     }
 }
