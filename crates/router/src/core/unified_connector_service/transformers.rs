@@ -215,6 +215,11 @@ impl
                 .access_token
                 .as_ref()
                 .map(ConnectorState::foreign_from),
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsRequest::foreign_from),
         })
     }
 }
@@ -403,6 +408,11 @@ impl
                 .map(Into::into),
             l2_l3_data: None,
             merchant_request_id: None,
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsRequest::foreign_from),
         })
     }
 }
@@ -599,6 +609,7 @@ impl
             l2_l3_data: None,
             connector_order_id: None,
             merchant_request_id: None,
+            split_payments: None,
         })
     }
 }
@@ -696,6 +707,11 @@ impl
             metadata: None,
             connector_feature_data: None,
             test_mode: router_data.test_mode,
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsRequest::foreign_from),
         })
     }
 }
@@ -783,6 +799,11 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 .map(payments_grpc::PaymentMethodType::foreign_try_from)
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsRequest::foreign_from),
         })
     }
 }
@@ -1364,6 +1385,7 @@ impl
             connector_order_id: None,
             l2_l3_data: None,
             merchant_request_id: None,
+            split_payments: None,
         })
     }
 }
@@ -1548,6 +1570,11 @@ impl
             connector_order_id: None,
             l2_l3_data: None,
             merchant_request_id: None,
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsRequest::foreign_from),
         })
     }
 }
@@ -1712,6 +1739,11 @@ impl
             connector_order_id: None,
             l2_l3_data: None,
             merchant_request_id: None,
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsRequest::foreign_from),
         })
     }
 }
@@ -2087,6 +2119,11 @@ impl
                 customer_document_details: to_grpc_customer_document_details(router_data),
             }),
             additional_payment_data,
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsRequest::foreign_from),
         })
     }
 }
@@ -5990,6 +6027,44 @@ impl ForeignFrom<&common_enums::AdyenSplitType> for payments_grpc::AdyenSplitTyp
 }
 
 // ============================================================================
+// SPLIT PAYMENT TYPES
+// ============================================================================
+
+impl ForeignFrom<&common_types::payments::SplitPaymentsRequest>
+    for payments_grpc::SplitPaymentsRequest
+{
+    fn foreign_from(split_payments: &common_types::payments::SplitPaymentsRequest) -> Self {
+        let split_payment_type = match split_payments {
+            common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe) => Some(
+                payments_grpc::split_payments_request::SplitPaymentType::StripeSplitPayment(
+                    payments_grpc::StripeSplitPaymentRequest::foreign_from(stripe),
+                ),
+            ),
+            common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(adyen) => Some(
+                payments_grpc::split_payments_request::SplitPaymentType::AdyenSplitPayment(
+                    payments_grpc::AdyenSplitData::foreign_from(adyen),
+                ),
+            ),
+            common_types::payments::SplitPaymentsRequest::XenditSplitPayment(_) => None,
+        };
+        Self { split_payment_type }
+    }
+}
+
+impl ForeignFrom<&common_types::payments::StripeSplitPaymentRequest>
+    for payments_grpc::StripeSplitPaymentRequest
+{
+    fn foreign_from(stripe: &common_types::payments::StripeSplitPaymentRequest) -> Self {
+        Self {
+            charge_type: payments_grpc::PaymentChargeType::foreign_from(&stripe.charge_type).into(),
+            application_fees: stripe.application_fees.map(|fee| fee.get_amount_as_i64()),
+            transfer_account_id: stripe.transfer_account_id.clone(),
+            on_behalf_of: stripe.on_behalf_of.clone(),
+        }
+    }
+}
+
+// ============================================================================
 // REFUND TRANSFORMERS
 // ============================================================================
 
@@ -6159,6 +6234,11 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             connector_feature_data: None,
             merchant_request_id: None,
             connector_order_id: None,
+            split_refunds: router_data
+                .request
+                .split_refunds
+                .as_ref()
+                .map(payments_grpc::SplitRefundsRequest::foreign_from),
         })
     }
 }
