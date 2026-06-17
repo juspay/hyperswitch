@@ -345,11 +345,10 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
             common_enums::MerchantStorageScheme::PostgresOnly => database_call().await,
             common_enums::MerchantStorageScheme::RedisKv => {
                 // Resolve partition/field via the authentication-id reverse lookup.
-                let lookup_id =
-                    diesel_authentication::get_authentication_id_lookup_id(
-                        merchant_id,
-                        authentication_id,
-                    );
+                let lookup_id = diesel_authentication::get_authentication_id_lookup_id(
+                    merchant_id,
+                    authentication_id,
+                );
                 let lookup = fallback_reverse_lookup_not_found!(
                     self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                         .await,
