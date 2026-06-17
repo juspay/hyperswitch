@@ -1120,7 +1120,7 @@ async fn test_sadd_and_get_hash_field_and_deserialize() {
                 .await;
 
             match (sadd_result, sadd_dup, deser_result) {
-                (Ok(SaddReply::KeySet), Ok(SaddReply::KeyNotSet), Ok(deserialized)) => {
+                (Ok(SaddReply::KeySet(1)), Ok(SaddReply::KeyNotSet), Ok(deserialized)) => {
                     deserialized == data
                 }
                 _ => false,

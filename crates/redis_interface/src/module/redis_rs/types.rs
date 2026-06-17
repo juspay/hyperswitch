@@ -512,7 +512,7 @@ mod tests {
     fn test_sadd_reply_key_set() {
         assert_eq!(
             SaddReply::from_redis_value(redis::Value::Int(1)).unwrap(),
-            SaddReply::KeySet
+            SaddReply::KeySet(1)
         );
     }
 
