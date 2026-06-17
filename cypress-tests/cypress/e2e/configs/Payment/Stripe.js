@@ -1008,6 +1008,223 @@ export const connectorDetails = {
     ClientSessionInvalidConfirm:
       commonConnectorDetails.card_pm.ClientSessionInvalidConfirm,
   },
+  wallet_pm: {
+    PaymentIntent: (walletName) => {
+      const configs = {
+        AliPay: {
+          Request: {
+            currency: "USD",
+            payment_method: "wallet",
+            payment_method_type: "ali_pay",
+            payment_method_data: {
+              wallet: {
+                ali_pay_redirect: {},
+              },
+            },
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_confirmation",
+            },
+          },
+        },
+        AliPayManualFail: {
+          Request: {
+            currency: "USD",
+            capture_method: "manual",
+            payment_method: "wallet",
+            payment_method_type: "ali_pay",
+            payment_method_data: {
+              wallet: {
+                ali_pay_redirect: {},
+              },
+            },
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_confirmation",
+            },
+          },
+        },
+        CashAppAuto: {
+          Request: {
+            currency: "USD",
+            payment_method: "wallet",
+            payment_method_type: "cashapp",
+            payment_method_data: {
+              wallet: {
+                cashapp_qr: {},
+              },
+            },
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_confirmation",
+            },
+          },
+        },
+        CashAppManual: {
+          Request: {
+            currency: "USD",
+            capture_method: "manual",
+            payment_method: "wallet",
+            payment_method_type: "cashapp",
+            payment_method_data: {
+              wallet: {
+                cashapp_qr: {},
+              },
+            },
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_confirmation",
+            },
+          },
+        },
+        CashAppMandate: {
+          Request: {
+            currency: "USD",
+            setup_future_usage: "off_session",
+            payment_method: "wallet",
+            payment_method_type: "cashapp",
+            payment_method_data: {
+              wallet: {
+                cashapp_qr: {},
+              },
+            },
+            mandate_data: {
+              customer_acceptance: {
+                acceptance_type: "online",
+                accepted_at: "2026-06-01T00:00:00Z",
+                online: {
+                  ip_address: "127.0.0.1",
+                  user_agent: "Mozilla/5.0",
+                },
+              },
+              mandate_type: {
+                single_use: {
+                  amount: 10000,
+                  currency: "USD",
+                },
+              },
+            },
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_confirmation",
+            },
+          },
+        },
+      };
+      return configs[walletName];
+    },
+    AliPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "ali_pay",
+        billing: null,
+        payment_method_data: {
+          wallet: {
+            ali_pay_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          next_action: {
+            type: "redirect_to_url",
+          },
+        },
+      },
+    },
+    CashAppAuto: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "cashapp",
+        payment_method_data: {
+          wallet: {
+            cashapp_qr: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          next_action: {
+            type: "qr_code_information",
+          },
+        },
+      },
+    },
+    CashAppManual: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "cashapp",
+        payment_method_data: {
+          wallet: {
+            cashapp_qr: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          next_action: {
+            type: "qr_code_information",
+          },
+        },
+      },
+    },
+    CashAppMandate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "cashapp",
+        payment_method_data: {
+          wallet: {
+            cashapp_qr: {},
+          },
+        },
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "online",
+            accepted_at: "2026-06-01T00:00:00Z",
+            online: {
+              ip_address: "127.0.0.1",
+              user_agent: "Mozilla/5.0",
+            },
+          },
+          mandate_type: {
+            single_use: {
+              amount: 10000,
+              currency: "USD",
+            },
+          },
+        },
+        payment_method_info: {
+          type: "cashapp",
+          id: "cashapp-mandate-qa",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          next_action: {
+            type: "qr_code_information",
+          },
+        },
+      },
+    },
+  },
   bank_transfer_pm: {
     Ach: {
       Request: {
@@ -1074,6 +1291,54 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+      MandateSingleUseAutoCapture: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "ideal",
+          payment_method_data: {
+            bank_redirect: {
+              ideal: {
+                bank_name: "ing",
+              },
+            },
+          },
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "NL",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+            phone: {
+              number: "9123456789",
+              country_code: "+91",
+            },
+          },
+          currency: "EUR",
+          customer_acceptance: customerAcceptance,
+          mandate_data: {
+            customer_acceptance: customerAcceptance,
+            mandate_type: {
+              single_use: {
+                amount: 6540,
+                currency: "EUR",
+              },
+            },
+          },
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
         },
       },
     },
@@ -1188,6 +1453,84 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    Sofort: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        payment_method_data: {
+          bank_redirect: {
+            sofort: {
+              country: "DE",
+              preferred_language: "en",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      MandateSingleUseAutoCapture: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "sofort",
+          payment_method_data: {
+            bank_redirect: {
+              sofort: {
+                country: "DE",
+                preferred_language: "en",
+              },
+            },
+          },
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "DE",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+          },
+          currency: "EUR",
+          customer_acceptance: customerAcceptance,
+          mandate_data: {
+            customer_acceptance: customerAcceptance,
+            mandate_type: {
+              single_use: {
+                amount: 6540,
+                currency: "EUR",
+              },
+            },
+          },
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
         },
       },
     },

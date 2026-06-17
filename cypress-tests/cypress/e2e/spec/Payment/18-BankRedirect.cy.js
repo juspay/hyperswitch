@@ -925,5 +925,55 @@ describe("Bank Redirect tests", () => {
         });
       });
     });
+    context("Sofort - MandateSingleUseAutoCapture CIT", () => {
+      it("CIT mandate and retrieve", () => {
+        let shouldContinue = true;
+
+        cy.step("CIT for Mandate", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "bank_redirect_pm"
+          ]["Sofort"]["MandateSingleUseAutoCapture"];
+          cy.citForMandatesCallTest(
+            fixtures.citConfirmBody,
+            data,
+            6540,
+            true,
+            "automatic",
+            "new_mandate",
+            globalState
+          );
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("Retrieve Payment", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Retrieve Payment");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "bank_redirect_pm"
+          ]["Sofort"]["MandateSingleUseAutoCapture"];
+          cy.retrievePaymentCallTest({ globalState, data });
+        });
+
+        cy.step("List Mandate", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: List Mandate");
+            return;
+          }
+          cy.listMandateCallTest(globalState);
+        });
+
+        cy.step("Revoke Mandate", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Revoke Mandate");
+            return;
+          }
+          cy.revokeMandateCallTest(globalState);
+        });
+      });
+    });
   });
 });

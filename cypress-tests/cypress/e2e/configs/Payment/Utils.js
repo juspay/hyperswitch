@@ -536,7 +536,7 @@ export const CONNECTOR_LISTS = {
     ],
     BANK_DEBIT: ["adyen", "novalnet", "payload", "wellsfargo", "stax"], // payload verified as working
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
-    BANK_REDIRECT_MANDATE: ["adyen"],
+    BANK_REDIRECT_MANDATE: ["adyen", "stripe"],
     BLUECODE_WALLET: ["calida"],
     ALIPAY_HK_WALLET: [""],
     PAYPAL_WALLET: [
@@ -551,6 +551,7 @@ export const CONNECTOR_LISTS = {
     WECHATPAY_WALLET: ["multisafepay"],
     MBWAY_WALLET: ["multisafepay"],
     SKRILL_WALLET: ["paysafe"],
+    STRIPE_WALLET: ["stripe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
     PAYPAL_MANDATE: ["globalpay", "paypal"],
     PAYPAL_WALLET_MANDATE: ["adyen"],

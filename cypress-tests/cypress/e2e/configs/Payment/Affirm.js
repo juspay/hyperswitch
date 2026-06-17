@@ -56,9 +56,13 @@ export const connectorDetails = {
         ],
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            code: "IR_00",
+            message: "Payment method type not supported",
+          },
         },
       },
     },

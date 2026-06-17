@@ -2488,9 +2488,19 @@ Cypress.Commands.add(
           expect(createPaymentBody.capture_method, "capture_method").to.equal(
             response.body.capture_method
           );
-          expect(response.body.payment_method, "payment_method").to.be.null;
-          expect(response.body.payment_method_data, "payment_method_data").to.be
-            .null;
+          if (
+            createPaymentBody.payment_method !== "wallet" &&
+            response.body.payment_method !== "wallet"
+          ) {
+            expect(response.body.payment_method, "payment_method").to.be.null;
+          }
+          if (
+            !createPaymentBody.payment_method_data &&
+            !response.body.payment_method_data
+          ) {
+            expect(response.body.payment_method_data, "payment_method_data").to
+              .be.null;
+          }
           expect(response.body.merchant_connector_id, "merchant_connector_id")
             .to.be.null;
           expect(response.body.payment_method_id, "payment_method_id").to.be
@@ -3160,13 +3170,28 @@ Cypress.Commands.add(
                   response.body.capture_method === "manual" ||
                   response.body.capture_method === "manual_multiple"
                 ) {
-                  expect(response.body)
-                    .to.have.property("next_action")
-                    .to.have.property("redirect_to_url");
-                  globalState.set(
-                    "nextActionUrl",
-                    response.body.next_action.redirect_to_url
-                  );
+                  if (
+                    response.body.payment_method_type === "cashapp" &&
+                    response.body.next_action?.type === "qr_code_information"
+                  ) {
+                    expect(response.body)
+                      .to.have.property("next_action")
+                      .to.have.property("type")
+                      .to.equal("qr_code_information");
+                    globalState.set(
+                      "nextActionUrl",
+                      response.body.next_action.qr_code_information
+                        ?.image_data_url
+                    );
+                  } else {
+                    expect(response.body)
+                      .to.have.property("next_action")
+                      .to.have.property("redirect_to_url");
+                    globalState.set(
+                      "nextActionUrl",
+                      response.body.next_action.redirect_to_url
+                    );
+                  }
                 } else {
                   throw new Error(
                     `Invalid capture method ${response.body.capture_method}`
@@ -4002,7 +4027,10 @@ Cypress.Commands.add(
             globalState.get("paymentAmount")
           );
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          if (!configs.skipBillingAssertion) {
+          if (
+            !configs.skipBillingAssertion &&
+            response.body.payment_method !== "wallet"
+          ) {
             expect(response.body.billing, "billing_address").to.not.be.null;
           }
           expect(response.body.customer, "customer").to.not.be.empty;

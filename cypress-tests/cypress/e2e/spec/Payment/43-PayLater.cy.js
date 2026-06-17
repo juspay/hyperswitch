@@ -20,6 +20,10 @@ describe("PayLater tests", () => {
           shouldIncludeConnector(
             globalState.get("connectorId"),
             CONNECTOR_LISTS.INCLUDE.PAY_LATER
+          ) &&
+          shouldIncludeConnector(
+            globalState.get("connectorId"),
+            CONNECTOR_LISTS.INCLUDE.AFFIRM_PAY_LATER
           )
         ) {
           skip = true;
