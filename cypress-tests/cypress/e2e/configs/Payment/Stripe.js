@@ -1473,8 +1473,8 @@ export const connectorDetails = {
             multi_use: {
               amount: 1000,
               currency: "EUR",
-              start_date: "2023-04-21T00:00:00Z",
-              end_date: "2023-05-21T00:00:00Z",
+              start_date: "2025-04-21T00:00:00Z",
+              end_date: "2028-05-21T00:00:00Z",
               metadata: {
                 frequency: "13",
               },
@@ -1525,8 +1525,8 @@ export const connectorDetails = {
             multi_use: {
               amount: 1000,
               currency: "AUD",
-              start_date: "2023-04-21T00:00:00Z",
-              end_date: "2023-05-21T00:00:00Z",
+              start_date: "2025-04-21T00:00:00Z",
+              end_date: "2028-05-21T00:00:00Z",
               metadata: {
                 frequency: "13",
               },
@@ -1740,8 +1740,8 @@ export const connectorDetails = {
             multi_use: {
               amount: 8000,
               currency: "EUR",
-              start_date: "2023-04-21T00:00:00Z",
-              end_date: "2023-05-21T00:00:00Z",
+              start_date: "2025-04-21T00:00:00Z",
+              end_date: "2028-05-21T00:00:00Z",
               metadata: {
                 frequency: "13",
               },
@@ -1792,8 +1792,8 @@ export const connectorDetails = {
             multi_use: {
               amount: 8000,
               currency: "AUD",
-              start_date: "2023-04-21T00:00:00Z",
-              end_date: "2023-05-21T00:00:00Z",
+              start_date: "2025-04-21T00:00:00Z",
+              end_date: "2028-05-21T00:00:00Z",
               metadata: {
                 frequency: "13",
               },
