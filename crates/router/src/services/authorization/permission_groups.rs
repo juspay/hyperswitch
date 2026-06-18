@@ -82,14 +82,23 @@ impl PermissionGroupExt for PermissionGroup {
                 Self::ConnectorsView,
             ],
 
-            Self::ConnectorsView => vec![Self::ConnectorsView],
-            Self::ConnectorsManage => vec![Self::ConnectorsView, Self::ConnectorsManage],
+            Self::ConnectorsView => vec![Self::ConnectorsView, Self::AccountView],
+            Self::ConnectorsManage => {
+                vec![
+                    Self::ConnectorsView,
+                    Self::ConnectorsManage,
+                    Self::AccountView,
+                ]
+            }
 
-            Self::WorkflowsView => vec![Self::WorkflowsView, Self::ConnectorsView],
+            Self::WorkflowsView => {
+                vec![Self::WorkflowsView, Self::ConnectorsView, Self::AccountView]
+            }
             Self::WorkflowsManage => vec![
                 Self::WorkflowsView,
                 Self::WorkflowsManage,
                 Self::ConnectorsView,
+                Self::AccountView,
             ],
 
             Self::AnalyticsView => vec![Self::AnalyticsView, Self::OperationsView],
@@ -278,7 +287,11 @@ pub static ANALYTICS: [Resource; 3] = [Resource::Analytics, Resource::Report, Re
 
 pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
 
-pub static ACCOUNT: [Resource; 3] = [Resource::Account, Resource::ApiKey, Resource::WebhookEvent];
+pub static ACCOUNT: [Resource; 1] = [Resource::Account];
+
+pub static WEBHOOK: [Resource; 1] = [Resource::WebhookEvent];
+
+pub static API_KEYS: [Resource; 1] = [Resource::ApiKey];
 
 pub static WEBHOOK: [Resource; 1] = [Resource::WebhookEvent];
 
