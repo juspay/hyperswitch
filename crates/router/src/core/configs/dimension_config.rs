@@ -367,17 +367,6 @@ impl DatabaseBackedConfig for GsmPayoutCall {
     }
 }
 
-pub struct ShouldDisableVaultTokenization;
-
-impl superposition::Config for ShouldDisableVaultTokenization {
-    type Output = bool;
-    type TargetingKey = id_type::CustomerId;
-    const SUPERPOSITION_KEY: &'static str = superposition_consts::SHOULD_DISABLE_VAULT_TOKENIZATION;
-    fn default_value() -> Self::Output {
-        false
-    }
-}
-
 impl DatabaseBackedConfig for ShouldDisableVaultTokenization {
     const KEY: &'static str = "should_disable_vault_tokenization";
 
@@ -385,118 +374,31 @@ impl DatabaseBackedConfig for ShouldDisableVaultTokenization {
         dimensions
             .get_processor_merchant_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+            .or_else(|| {
+                dimensions
+                    .get_organization_id()
+                    .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+            })
+    }
+
+    fn db_keys(dimensions: &impl dimension_state::DimensionsBase) -> Vec<Option<String>> {
+        vec![
+            dimensions
+                .get_organization_id()
+                .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr())),
+            dimensions
+                .get_processor_merchant_id()
+                .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr())),
+        ]
     }
 }
 
-impl dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId {
-    async fn fetch_from_superposition(
-        &self,
-        key: &str,
-        client: &superposition::SuperpositionClient,
-        level: &'static str,
-    ) -> Option<bool> {
-        let context = self.to_superposition_context();
-        match client
-            .get_config_value::<bool>(key, context.as_ref(), None)
-            .await
-        {
-            Ok(value) => {
-                router_env::logger::info!(
-                    config_key = %key,
-                    source = "superposition",
-                    level = level,
-                    "Config resolved"
-                );
-                Some(value)
-            }
-            Err(error) => {
-                router_env::logger::warn!(
-                    config_key = %key,
-                    source = "superposition",
-                    level = level,
-                    error = %error,
-                    "Config resolution failed"
-                );
-                None
-            }
-        }
-    }
-
-    async fn fetch_from_db(
-        key: &str,
-        storage: &dyn StorageInterface,
-        level: &'static str,
-    ) -> Option<bool> {
-        match storage.find_config_by_key(key).await {
-            Ok(config) => {
-                router_env::logger::info!(
-                    config_key = %key,
-                    source = "database",
-                    level = level,
-                    "Config resolved"
-                );
-
-                Some(config.config.eq_ignore_ascii_case("true"))
-            }
-            Err(error) => {
-                router_env::logger::warn!(
-                    config_key = %key,
-                    source = "database",
-                    level = level,
-                    error = %error,
-                    "Config resolution failed"
-                );
-                None
-            }
-        }
-    }
-
-    pub async fn get_should_disable_vault_tokenization(
-        &self,
-        storage: &dyn StorageInterface,
-        superposition_client: &superposition::SuperpositionClient,
-    ) -> bool {
-        let org_key = self
-            .get_organization_id()
-            .map(|org_id| org_id.get_should_disable_vault_tokenization());
-
-        let merchant_key = self
-            .get_provider_merchant_id()
-            .map(|merchant_id| merchant_id.get_should_disable_vault_tokenization());
-
-        // Priority:
-        // 1. Org in Superposition
-        // 2. Merchant in Superposition
-        // 3. Org in DB
-        // 4. Merchant in DB
-
-        for (key, level) in [
-            (org_key.as_deref(), "org"),
-            (merchant_key.as_deref(), "merchant"),
-        ] {
-            if let Some(key) = key {
-                if let Some(value) = self
-                    .fetch_from_superposition(key, superposition_client, level)
-                    .await
-                {
-                    return value;
-                }
-            }
-        }
-
-        for (key, level) in [
-            (org_key.as_deref(), "org"),
-            (merchant_key.as_deref(), "merchant"),
-        ] {
-            if let Some(key) = key {
-                if let Some(value) = Self::fetch_from_db(key, storage, level).await {
-                    return value;
-                }
-            }
-        }
-
-        false
-    }
+config! {
+    superposition_key = SHOULD_DISABLE_VAULT_TOKENIZATION,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
+    targeting_key = id_type::MerchantId
 }
 
 #[cfg(feature = "v2")]

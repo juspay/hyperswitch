@@ -2195,9 +2195,11 @@ pub async fn authentication_sync_core(
     // Determine whether to tokenise or not
 
     let should_disable_vault_tokenization = dimensions
+        .without_profile_id()
         .get_should_disable_vault_tokenization(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
+            Some(merchant_id),
         )
         .await;
 
