@@ -224,46 +224,52 @@ where
             // `attempted` tracks if at least one database key was valid (Some) and queried.
             // This determines whether we log that we fallback to defaults or that no key was provided.
             let mut attempted = false;
+            let mut resolved_value = None;
             for db_key in db_keys.into_iter().flatten() {
                 attempted = true;
-                router_env::logger::info!(
-                    "Retrieving config from database for key '{}'",
-                    config_type
-                );
+                if resolved_value.is_none() {
+                    let config_result = storage.find_config_by_key(db_key).await;
 
-                let config_result = storage.find_config_by_key(db_key).await;
-
-                if let Some(value) = config_result
-                    .ok()
-                    .and_then(|config| C::parse_db_config(&config.config, context.as_ref()))
-                {
-                    router_env::logger::info!(
-                        config_key = %config_type,
-                        db_key = %db_key,
-                        source = "database",
-                        "Config resolved from database"
-                    );
-                    metrics::CONFIG_DATABASE_FETCH.add(
-                        1,
-                        router_env::metric_attributes!(("config_type", config_type)),
-                    );
-                    return value;
+                    if let Some(value) = config_result
+                        .ok()
+                        .and_then(|config| C::parse_db_config(&config.config, context.as_ref()))
+                    {
+                        router_env::logger::info!(
+                            config_key = %config_type,
+                            db_key = %db_key,
+                            source = "database",
+                            "Config resolved from database"
+                        );
+                        metrics::CONFIG_DATABASE_FETCH.add(
+                            1,
+                            router_env::metric_attributes!(("config_type", config_type)),
+                        );
+                        resolved_value = Some(value);
+                    }
                 }
             }
 
-            if attempted {
-                router_env::logger::info!("Using default config value for key '{}'", config_type);
-            } else {
-                router_env::logger::info!(
-                    "No database key provided for config '{}', using default value",
-                    config_type
-                );
+            match resolved_value {
+                Some(value) => value,
+                None => {
+                    if attempted {
+                        router_env::logger::info!(
+                            "Using default config value for key '{}'",
+                            config_type
+                        );
+                    } else {
+                        router_env::logger::info!(
+                            "No database key provided for config '{}', using default value",
+                            config_type
+                        );
+                    }
+                    metrics::CONFIG_DEFAULT_FALLBACK.add(
+                        1,
+                        router_env::metric_attributes!(("config_type", config_type)),
+                    );
+                    default_value
+                }
             }
-            metrics::CONFIG_DEFAULT_FALLBACK.add(
-                1,
-                router_env::metric_attributes!(("config_type", config_type)),
-            );
-            default_value
         }
     }
 }
