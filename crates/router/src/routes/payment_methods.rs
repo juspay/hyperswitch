@@ -3,9 +3,6 @@ use std::collections::HashMap;
 
 #[cfg(feature = "v1")]
 mod migrate;
-#[cfg(feature = "v1")]
-pub use migrate::modular_migrate_payment_methods;
-
 use ::payment_methods::{
     controller::PaymentMethodsController,
     core::{migration, migration::payment_methods::migrate_payment_method},
@@ -20,6 +17,8 @@ use hyperswitch_domain_models::{
     bulk_tokenization::CardNetworkTokenizeRequest, merchant_key_store::MerchantKeyStore,
     payment_methods::PaymentMethodCustomerMigrate, transformers::ForeignTryFrom,
 };
+#[cfg(feature = "v1")]
+pub use migrate::modular_migrate_payment_methods;
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
