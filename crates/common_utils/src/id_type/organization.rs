@@ -30,12 +30,4 @@ impl OrganizationId {
     pub fn get_should_call_pm_modular_service_key(&self) -> String {
         format!("should_call_pm_modular_service_{}", self.get_string_repr())
     }
-
-    /// get should call auth tokenization for modular authentication
-    pub fn get_should_disable_vault_tokenization(&self) -> String {
-        format!(
-            "should_disable_vault_tokenization_{}",
-            self.get_string_repr()
-        )
-    }
 }
