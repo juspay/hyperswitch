@@ -224,32 +224,30 @@ where
             // `attempted` tracks if at least one database key was valid (Some) and queried.
             // This determines whether we log that we fallback to defaults or that no key was provided.
             let mut attempted = false;
-            for db_key in db_keys {
-                if let Some(db_key) = db_key {
-                    attempted = true;
+            for db_key in db_keys.into_iter().flatten() {
+                attempted = true;
+                router_env::logger::info!(
+                    "Retrieving config from database for key '{}'",
+                    config_type
+                );
+
+                let config_result = storage.find_config_by_key(db_key).await;
+
+                if let Some(value) = config_result
+                    .ok()
+                    .and_then(|config| C::parse_db_config(&config.config, context.as_ref()))
+                {
                     router_env::logger::info!(
-                        "Retrieving config from database for key '{}'",
-                        config_type
+                        config_key = %config_type,
+                        db_key = %db_key,
+                        source = "database",
+                        "Config resolved from database"
                     );
-
-                    let config_result = storage.find_config_by_key(db_key).await;
-
-                    if let Some(value) = config_result
-                        .ok()
-                        .and_then(|config| C::parse_db_config(&config.config, context.as_ref()))
-                    {
-                        router_env::logger::info!(
-                            config_key = %config_type,
-                            db_key = %db_key,
-                            source = "database",
-                            "Config resolved from database"
-                        );
-                        metrics::CONFIG_DATABASE_FETCH.add(
-                            1,
-                            router_env::metric_attributes!(("config_type", config_type)),
-                        );
-                        return value;
-                    }
+                    metrics::CONFIG_DATABASE_FETCH.add(
+                        1,
+                        router_env::metric_attributes!(("config_type", config_type)),
+                    );
+                    return value;
                 }
             }
 
