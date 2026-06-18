@@ -9,9 +9,8 @@ use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::dispute};
 
-#[derive(Clone, Debug, Insertable, Serialize, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = dispute)]
-#[serde(deny_unknown_fields)]
 pub struct DisputeNew {
     pub dispute_id: String,
     pub amount: StringMinorUnit,
@@ -56,8 +55,11 @@ pub struct Dispute {
     pub connector_dispute_id: String,
     pub connector_reason: Option<String>,
     pub connector_reason_code: Option<String>,
+    #[serde(with = "custom_serde::iso8601::option")]
     pub challenge_required_by: Option<PrimitiveDateTime>,
+    #[serde(with = "custom_serde::iso8601::option")]
     pub connector_created_at: Option<PrimitiveDateTime>,
+    #[serde(with = "custom_serde::iso8601::option")]
     pub connector_updated_at: Option<PrimitiveDateTime>,
     #[serde(with = "custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
