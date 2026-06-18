@@ -1,6 +1,7 @@
 pub(crate) mod api_error;
 pub(crate) mod apply_changeset;
 pub(crate) mod diesel;
+pub(crate) mod from_new;
 pub(crate) mod generate_permissions;
 pub(crate) mod generate_schema;
 pub(crate) mod misc;
@@ -19,6 +20,7 @@ pub(crate) use self::{
     api_error::api_error_derive_inner,
     apply_changeset::apply_changeset_attribute,
     diesel::{diesel_enum_derive_inner, diesel_enum_text_derive_inner},
+    from_new::from_new_derive_inner,
     generate_permissions::generate_permissions_inner,
     generate_schema::polymorphic_macro_derive_inner,
     schema::validate_schema_derive,
