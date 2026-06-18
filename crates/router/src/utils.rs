@@ -16,6 +16,7 @@ pub mod user_role;
 pub mod verify_connector;
 use std::fmt::Debug;
 
+#[cfg(feature = "olap")]
 use analytics::{enums::AuthInfo, errors::AnalyticsError};
 use api_models::{
     enums,
@@ -48,6 +49,8 @@ use subscriptions::{subscription_handler::SubscriptionHandler, workflows::Invoic
 use tracing_futures::Instrument;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
+#[cfg(feature = "olap")]
+use crate::db::StorageInterface;
 use crate::{
     consts,
     core::{
@@ -55,7 +58,6 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments as payments_core,
     },
-    db::StorageInterface,
     headers::ACCEPT_LANGUAGE,
     logger,
     routes::{metrics, SessionState},
@@ -1493,6 +1495,7 @@ pub async fn trigger_subscriptions_outgoing_webhook(
     Ok(())
 }
 
+#[cfg(feature = "olap")]
 pub async fn get_payment_response_hash_key(
     store: &dyn StorageInterface,
     key_store: &domain::MerchantKeyStore,

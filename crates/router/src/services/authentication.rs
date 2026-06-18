@@ -65,6 +65,7 @@ use crate::{
 pub mod blacklist;
 pub mod cookies;
 pub mod decision;
+#[cfg(feature = "olap")]
 pub mod embedded;
 
 #[cfg(feature = "partial-auth")]
@@ -245,6 +246,7 @@ impl AuthenticationType {
     }
 }
 
+#[cfg(feature = "olap")]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, serde::Deserialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -359,6 +361,7 @@ pub struct SinglePurposeOrLoginToken {
     pub tenant_id: Option<id_type::TenantId>,
 }
 
+#[cfg(feature = "olap")]
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
 pub enum AuthOrEmbeddedClaims {
@@ -366,6 +369,7 @@ pub enum AuthOrEmbeddedClaims {
     EmbeddedToken(embedded::EmbeddedToken),
 }
 
+#[cfg(feature = "olap")]
 impl AuthOrEmbeddedClaims {
     fn get_tenant_id(&self) -> Option<&id_type::TenantId> {
         match self {
@@ -5421,6 +5425,7 @@ where
     }
 }
 
+#[cfg(feature = "olap")]
 pub struct JWTAndEmbeddedAuth {
     pub merchant_id_from_route: Option<id_type::MerchantId>,
     pub permission: Option<Permission>,
@@ -5428,7 +5433,7 @@ pub struct JWTAndEmbeddedAuth {
     pub allow_platform: bool,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "olap"))]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for JWTAndEmbeddedAuth
 where
@@ -6494,6 +6499,7 @@ fn throw_error_if_platform_merchant_authentication_required(
         })
 }
 
+#[cfg(feature = "olap")]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct ExternalToken {
     pub user_id: String,
@@ -6502,6 +6508,7 @@ pub struct ExternalToken {
     pub external_service_type: ExternalServiceType,
 }
 
+#[cfg(feature = "olap")]
 impl ExternalToken {
     pub async fn new_token(
         user_id: String,

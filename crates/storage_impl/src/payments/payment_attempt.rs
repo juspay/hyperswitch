@@ -10,7 +10,7 @@ use diesel_models::{
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
 use error_stack::ResultExt;
-#[cfg(all(feature = "v1", feature = "olap"))]
+#[cfg(feature = "v1")]
 use futures::future::{try_join_all, FutureExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::behaviour::ReverseConversion;

@@ -112,9 +112,9 @@ use super::{
         extract_gateway_system_from_payment_intent, should_call_unified_connector_service,
     },
 };
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "oltp"))]
 use crate::core::blocklist::utils as blocklist_utils;
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "oltp"))]
 use crate::core::card_testing_guard::utils as card_testing_guard_utils;
 #[cfg(feature = "v1")]
 use crate::core::debit_routing;
@@ -13230,7 +13230,7 @@ pub async fn payments_manual_status_update(
 }
 
 // Trait for Eligibility Checks
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "oltp"))]
 #[async_trait::async_trait]
 trait EligibilityCheck {
     type Output;
@@ -13255,14 +13255,14 @@ trait EligibilityCheck {
 }
 
 // Result of an Eligibility Check
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "oltp"))]
 #[derive(Debug, Clone)]
 pub enum CheckResult {
     Allow,
     Deny { message: String },
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "oltp"))]
 impl From<CheckResult> for Option<api_models::payments::SdkNextAction> {
     fn from(result: CheckResult) -> Self {
         match result {
@@ -13276,10 +13276,10 @@ impl From<CheckResult> for Option<api_models::payments::SdkNextAction> {
 }
 
 // Perform Blocklist Check for the Card Number provided in Payment Method Data
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "oltp"))]
 struct BlockListCheck;
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "oltp"))]
 #[async_trait::async_trait]
 impl EligibilityCheck for BlockListCheck {
     type Output = CheckResult;
@@ -13345,10 +13345,10 @@ impl EligibilityCheck for BlockListCheck {
 }
 
 // Perform Card Testing Guard Check
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "oltp"))]
 struct CardTestingCheck;
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "oltp"))]
 #[async_trait::async_trait]
 impl EligibilityCheck for CardTestingCheck {
     type Output = CheckResult;
@@ -13409,7 +13409,7 @@ impl EligibilityCheck for CardTestingCheck {
 }
 
 // Eligibility Pipeline to run all the eligibility checks in sequence
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "oltp"))]
 pub struct EligibilityHandler {
     state: SessionState,
     platform: domain::Platform,
@@ -13417,7 +13417,7 @@ pub struct EligibilityHandler {
     business_profile: domain::Profile,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "oltp"))]
 impl EligibilityHandler {
     fn new(
         state: SessionState,

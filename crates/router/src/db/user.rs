@@ -3,7 +3,9 @@ use error_stack::report;
 use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
-use super::{domain, MockDb};
+#[cfg(feature = "olap")]
+use super::domain;
+use super::MockDb;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -19,11 +21,13 @@ pub trait UserInterface {
         user_data: storage::UserNew,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
+    #[cfg(feature = "olap")]
     async fn find_active_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
+    #[cfg(feature = "olap")]
     async fn find_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
@@ -45,6 +49,7 @@ pub trait UserInterface {
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
+    #[cfg(feature = "olap")]
     async fn update_active_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
@@ -82,6 +87,7 @@ impl UserInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[cfg(feature = "olap")]
     #[instrument(skip_all)]
     async fn find_active_user_by_user_email(
         &self,
@@ -93,6 +99,7 @@ impl UserInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[cfg(feature = "olap")]
     #[instrument(skip_all)]
     async fn find_user_by_user_email(
         &self,
@@ -139,6 +146,7 @@ impl UserInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[cfg(feature = "olap")]
     #[instrument(skip_all)]
     async fn update_active_user_by_user_email(
         &self,
@@ -222,6 +230,7 @@ impl UserInterface for MockDb {
         Ok(user)
     }
 
+    #[cfg(feature = "olap")]
     async fn find_active_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
@@ -239,6 +248,7 @@ impl UserInterface for MockDb {
             )
     }
 
+    #[cfg(feature = "olap")]
     async fn find_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
@@ -364,6 +374,7 @@ impl UserInterface for MockDb {
         Ok(user.to_owned())
     }
 
+    #[cfg(feature = "olap")]
     async fn update_active_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,

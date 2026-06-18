@@ -23,13 +23,14 @@ use hyperswitch_domain_models::payouts::{
 };
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::platform::Initiator;
+#[cfg(feature = "olap")]
+use hyperswitch_domain_models::refunds;
 use hyperswitch_domain_models::{
     cards_info::CardsInfoInterface,
     disputes,
     invoice::{Invoice as DomainInvoice, InvoiceInterface, InvoiceUpdate as DomainInvoiceUpdate},
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
-    refunds,
     subscription::{
         Subscription as DomainSubscription, SubscriptionInterface,
         SubscriptionUpdate as DomainSubscriptionUpdate,
@@ -1884,7 +1885,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "v1")]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filters_for_payments(
         &self,
         pi: &[hyperswitch_domain_models::payments::PaymentIntent],
@@ -1899,7 +1900,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "v1")]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
         processor_merchant_id: &id_type::MerchantId,
@@ -1929,7 +1930,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(all(feature = "v2", feature = "olap"))]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -3568,6 +3569,7 @@ impl UserInterface for KafkaStore {
         self.diesel_store.insert_user(user_data).await
     }
 
+    #[cfg(feature = "olap")]
     async fn find_active_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
@@ -3577,6 +3579,7 @@ impl UserInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "olap")]
     async fn find_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
@@ -3608,6 +3611,7 @@ impl UserInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "olap")] // this is update - shouldn't it be OLTP?
     async fn update_active_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,

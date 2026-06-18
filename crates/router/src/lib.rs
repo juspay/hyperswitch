@@ -16,6 +16,7 @@ pub mod workflows;
 
 #[cfg(feature = "olap")]
 pub mod analytics;
+#[cfg(feature = "olap")]
 pub mod analytics_validator;
 pub mod events;
 pub mod middleware;
@@ -157,12 +158,21 @@ pub fn mk_app(
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
-            .service(routes::MerchantConnectorAccount::server(state.clone()))
-            .service(routes::RelayWebhooks::server(state.clone()))
-            .service(routes::Webhooks::server(state.clone()))
-            .service(routes::Hypersense::server(state.clone()))
-            .service(routes::Relay::server(state.clone()))
-            .service(routes::ThreeDsDecisionRule::server(state.clone()));
+            .service(routes::MerchantConnectorAccount::server(state.clone()));
+
+        #[cfg(feature = "oltp")]
+        {
+            server_app = server_app
+                .service(routes::RelayWebhooks::server(state.clone()))
+                .service(routes::Webhooks::server(state.clone()))
+                .service(routes::Relay::server(state.clone()))
+                .service(routes::ThreeDsDecisionRule::server(state.clone()));
+        }
+
+        #[cfg(feature = "olap")]
+        {
+            server_app = server_app.service(routes::Hypersense::server(state.clone()));
+        }
 
         #[cfg(feature = "oltp")]
         {
@@ -184,8 +194,12 @@ pub fn mk_app(
             server_app = server_app
                 .service(routes::Refunds::server(state.clone()))
                 .service(routes::Mandates::server(state.clone()))
-                .service(routes::Authentication::server(state.clone()))
                 .service(routes::SdkConfig::server(state.clone()));
+        }
+        #[cfg(all(feature = "v1", feature = "oltp"))]
+        {
+            // routes::Authentication::server - why only OLTP? Doesn't OLAP need it?
+            server_app = server_app.service(routes::Authentication::server(state.clone()));
         }
     }
 
@@ -219,8 +233,12 @@ pub fn mk_app(
                 .service(routes::Files::server(state.clone()))
                 .service(routes::Disputes::server(state.clone()))
                 .service(routes::Blocklist::server(state.clone()))
-                .service(routes::CardIssuers::server(state.clone()))
-                .service(routes::Subscription::server(state.clone()))
+                .service(routes::CardIssuers::server(state.clone()));
+            #[cfg(feature = "oltp")]
+            {
+                server_app = server_app.service(routes::Subscription::server(state.clone()));
+            }
+            server_app = server_app
                 .service(routes::Gsm::server(state.clone()))
                 .service(routes::ApplePayCertificatesMigration::server(state.clone()))
                 .service(routes::PaymentLink::server(state.clone()))
@@ -250,7 +268,7 @@ pub fn mk_app(
             .service(routes::PayoutLink::server(state.clone()));
     }
 
-    #[cfg(all(feature = "stripe", feature = "v1"))]
+    #[cfg(all(feature = "stripe", feature = "v1", feature = "oltp"))]
     {
         server_app = server_app
             .service(routes::StripeApis::server(state.clone()))

@@ -25,10 +25,12 @@ pub mod files;
 pub mod fraud_check;
 pub mod gsm;
 pub mod health;
+#[cfg(feature = "olap")]
 pub mod hypersense;
 pub mod lock_utils;
 pub mod mandates;
 pub mod metrics;
+#[cfg(feature = "olap")]
 pub mod oidc;
 #[cfg(feature = "v1")]
 pub mod payment_link;
@@ -55,6 +57,7 @@ pub mod routing;
 #[cfg(feature = "v1")]
 pub mod subscription;
 pub mod superposition_sdk_config;
+#[cfg(feature = "oltp")]
 pub mod three_ds_decision_rule;
 pub mod tokenization;
 #[cfg(feature = "olap")]
@@ -72,6 +75,7 @@ pub mod webhooks;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 pub mod recovery_webhooks;
 
+#[cfg(feature = "oltp")]
 pub mod relay;
 
 #[cfg(feature = "olap")]
@@ -80,6 +84,7 @@ pub mod process_tracker;
 #[cfg(feature = "v2")]
 pub mod proxy;
 
+#[cfg(feature = "olap")]
 pub mod chat;
 
 #[cfg(feature = "dummy_connector")]
@@ -88,16 +93,20 @@ pub use self::app::DummyConnector;
 pub use self::app::PaymentMethodSession;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 pub use self::app::Proxy;
+#[cfg(feature = "oltp")]
+pub use self::app::Subscription;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
-    Chat, Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, FeatureMatrix,
-    Files, Forex, Gsm, Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount,
-    Oidc, PaymentLink, PaymentMethods, Payments, Poll, ProcessTracker, ProcessTrackerDeprecated,
-    Profile, ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks, SdkConfig, SessionState,
+    Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, Files, Forex, Gsm,
+    Health, Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods,
+    Payments, Poll, Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SdkConfig, SessionState,
     ThreeDsDecisionRule, User, UserDeprecated, Webhooks,
 };
 #[cfg(feature = "olap")]
-pub use self::app::{Blocklist, Organization, Routing, Subscription, Verify, WebhookEvents};
+pub use self::app::{
+    Blocklist, Chat, FeatureMatrix, Hypersense, Oidc, Organization, ProcessTracker,
+    ProcessTrackerDeprecated, ProfileAcquirer, Routing, Verify, WebhookEvents,
+};
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
 #[cfg(feature = "v2")]

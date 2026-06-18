@@ -39,15 +39,14 @@ use error_stack::{report, ResultExt};
 use futures::future::Either;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints;
 pub use hyperswitch_domain_models::{customer, type_encryption::AsyncLift};
 use hyperswitch_domain_models::{
     mandates,
     mandates::MandateData,
     payment_method_data::{GetPaymentMethodType, PazeWalletData},
-    payments::{
-        self as domain_payments, payment_attempt::PaymentAttempt,
-        payment_intent::PaymentIntentFetchConstraints, PaymentIntent,
-    },
+    payments::{self as domain_payments, payment_attempt::PaymentAttempt, PaymentIntent},
     router_data::{InteracCustomerInfo, KlarnaSdkResponse, PaymentMethodToken},
     router_request_types::MandateIdSettable,
 };
