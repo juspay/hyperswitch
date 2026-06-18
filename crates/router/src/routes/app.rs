@@ -3406,5 +3406,9 @@ impl SdkConfig {
                 web::resource("{platform}/sdk_config.json")
                     .route(web::get().to(super::superposition_sdk_config::get_sdk_config)),
             )
+            .service(
+                web::resource("{platform}/{profile_id}/sdk_config.json")
+                    .route(web::get().to(super::superposition_sdk_config::get_profile_sdk_config)),
+            )
     }
 }
