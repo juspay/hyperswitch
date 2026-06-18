@@ -826,3 +826,41 @@ pub fn validate_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
         .unwrap_or_else(|error| error.into_compile_error())
         .into()
 }
+
+/// Generates a *domain status* enum that mirrors a storage status enum and adds
+/// an internal-only `#[serde(other)] Unknown` catch-all, for connector-response
+/// deserialization resilience.
+///
+/// Apply it to a plain unit-variant enum that lists the storage enum's variants
+/// (do not list `Unknown` — it is appended automatically). `storage` is the path
+/// to the storage enum being mirrored.
+///
+/// It generates, for the annotated enum `D` mirroring storage `S`:
+/// - the enum itself with serde derives and `#[serde(other)] Unknown`;
+/// - `From<S> for D` (infallible — every storage state is known);
+/// - `TryFrom<D> for S` returning [`common_enums::domain_status::UnknownStatusError`]
+///   on `Unknown` (so a missing previous-state resolution surfaces loudly);
+/// - `resolve_or_keep(previous)`, `is_unknown`, and `to_storage` helpers.
+///
+/// # Example
+///
+/// ```rust, ignore
+/// #[router_derive::domain_status(storage = crate::AttemptStatus)]
+/// pub enum AttemptStatusDomain {
+///     Charged,
+///     Pending,
+///     Failure,
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn domain_status(
+    args: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let args_parsed = parse_macro_input!(args as macros::domain_status::DomainStatusArgs);
+    let item = syn::parse_macro_input!(item as syn::ItemEnum);
+
+    macros::domain_status::domain_status_attribute_macro(args_parsed, &item)
+        .unwrap_or_else(|error| error.to_compile_error())
+        .into()
+}
