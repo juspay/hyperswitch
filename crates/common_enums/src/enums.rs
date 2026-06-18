@@ -2890,33 +2890,14 @@ impl From<ExecutionMode> for EventExecutionMode {
     }
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    ToSchema,
-)]
+#[derive(Clone, Copy, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 /// Where a connector event's call was sent.
 ///
 /// Both direct connector calls and calls to the Unified Connector Service (UCS) land in
 /// `connector_events`; this is the column that tells them apart.
 pub enum EventDestination {
     /// A direct call to the connector.
-    #[default]
     Connector,
     /// A call to the Unified Connector Service.
     UnifiedConnectorService,
