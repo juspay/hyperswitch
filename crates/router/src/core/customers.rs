@@ -792,9 +792,11 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
         {
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
-                    delete_payment_method_by_record(db, state, platform, &profile, pm)
-                        .await
-                        .switch()?;
+                    Box::pin(delete_payment_method_by_record(
+                        db, state, platform, &profile, pm,
+                    ))
+                    .await
+                    .switch()?;
                 }
             }
             Err(error) => {

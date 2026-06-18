@@ -2993,10 +2993,13 @@ pub async fn create_payment_method_proxy_card_core(
     let key_manager_state = &(state).into();
 
     // A proxy card is, by definition, vaulted in an external vault, so the external vault
-    // connector must be configured on the profile. Fetch it from the profile and require it —
-    // otherwise the payment method would be persisted with a `None` external vault source.
+    // connector must be configured on the resolved profile (the platform merchant's profile in
+    // platform flows). Fetch it from the profile and require it — otherwise the payment method
+    // would be persisted with a `None` external vault source.
+    let external_vault_profile =
+        payments_core::helpers::resolve_provider_profile(state, platform, profile).await?;
     let external_vault_source = Some(
-        profile
+        external_vault_profile
             .external_vault_connector_details
             .clone()
             .map(|details| details.vault_connector_id)
@@ -4783,11 +4786,13 @@ pub async fn vault_payment_method(
     pm_types::AddVaultResponse,
     Option<id_type::MerchantConnectorAccountId>,
 )> {
-    let is_external_vault_enabled = profile.is_external_vault_enabled();
+    let external_vault_profile =
+        payments_core::helpers::resolve_provider_profile(state, platform, profile).await?;
+    let is_external_vault_enabled = external_vault_profile.is_external_vault_enabled();
 
     match is_external_vault_enabled {
         true => {
-            let (external_vault_source, vault_token_selector) = profile
+            let (external_vault_source, vault_token_selector) = external_vault_profile
                 .external_vault_connector_details
                 .clone()
                 .map(|connector_details| {
@@ -4801,9 +4806,9 @@ pub async fn vault_payment_method(
 
             let merchant_connector_account =
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                    payments_core::helpers::get_merchant_connector_account_v2(
+                    payments_core::helpers::get_provider_mca_v2(
                         state,
-                        platform.get_processor(),
+                        platform.get_provider(),
                         Some(&external_vault_source),
                     )
                     .await
@@ -5264,13 +5269,25 @@ pub async fn retrieve_payment_method(
     .attach_printable("Failed to retrieve cvc from redis")
     .ok();
 
-    let raw_payment_method_data = raw_payment_method_fetch_access
-        .get_raw_payment_method_data(&state, &platform, &profile, &payment_method, storage_type)
+    let raw_payment_method_data =
+        Box::pin(raw_payment_method_fetch_access.get_raw_payment_method_data(
+            &state,
+            &platform,
+            &profile,
+            &payment_method,
+            storage_type,
+        ))
         .await
         .attach_printable("Failed to get raw payment method data")?;
 
-    let raw_network_token_details = raw_payment_method_fetch_access
-        .get_raw_network_token_data(&state, &platform, &profile, &payment_method, storage_type)
+    let raw_network_token_details =
+        Box::pin(raw_payment_method_fetch_access.get_raw_network_token_data(
+            &state,
+            &platform,
+            &profile,
+            &payment_method,
+            storage_type,
+        ))
         .await
         .inspect_err(|err| {
             logger::warn!(?err, "Failed to fetch raw network token details");
@@ -5575,13 +5592,13 @@ impl RawPaymentMethodFetchAccess {
                     logger::debug!("Skipping raw payment method fetch for wallet or bank redirect payment method");
                     Ok(None)
                 } else {
-                    let vault_data = vault::retrieve_payment_method_data_from_storage(
+                    let vault_data = Box::pin(vault::retrieve_payment_method_data_from_storage(
                         state,
                         platform,
                         profile,
                         payment_method,
                         storage_type,
-                    )
+                    ))
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to retrieve payment method from vault")?
@@ -5636,17 +5653,18 @@ impl RawPaymentMethodFetchAccess {
                     Some(domain::VaultId::generate(network_token_locker_id));
                 network_token_payment_method.customer_id = Some(customer_id);
 
-                let network_token_vault_data = vault::retrieve_payment_method_data_from_storage(
-                    state,
-                    platform,
-                    profile,
-                    &network_token_payment_method,
-                    storage_type,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to retrieve network token from vault")?
-                .data;
+                let network_token_vault_data =
+                    Box::pin(vault::retrieve_payment_method_data_from_storage(
+                        state,
+                        platform,
+                        profile,
+                        &network_token_payment_method,
+                        storage_type,
+                    ))
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve network token from vault")?
+                    .data;
 
                 let check_token_status_response =
                     network_tokenization::do_status_check_for_network_token(state, payment_method)
@@ -5905,7 +5923,14 @@ pub async fn delete_payment_method_core(
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Customer not found for the payment method")?;
 
-    delete_payment_method_by_record(db, state, platform, profile, payment_method).await?;
+    Box::pin(delete_payment_method_by_record(
+        db,
+        state,
+        platform,
+        profile,
+        payment_method,
+    ))
+    .await?;
 
     let response = api::PaymentMethodDeleteResponse { id: pm_id };
 
@@ -7173,16 +7198,17 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             return Ok((None, None));
         }
 
-        let pmd: domain::PaymentMethodVaultingData = vault::retrieve_payment_method_from_vault(
-            self.state,
-            self.platform,
-            self.profile,
-            &self.payment_method,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to retrieve payment method from vault")?
-        .data;
+        let pmd: domain::PaymentMethodVaultingData =
+            Box::pin(vault::retrieve_payment_method_from_vault(
+                self.state,
+                self.platform,
+                self.profile,
+                &self.payment_method,
+            ))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to retrieve payment method from vault")?
+            .data;
 
         let vault_request_data = self
             .request

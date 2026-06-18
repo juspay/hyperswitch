@@ -832,6 +832,37 @@ impl GetAuthType for ApiKeyAuthWithMerchantIdFromRoute {
 }
 
 #[cfg(feature = "v1")]
+/// Shared API-key authentication for profile and connector CRUD operations keyed off a
+/// merchant id from the route. `allow_platform_self_operation` controls whether a platform
+/// merchant may perform the operation on its own resources (e.g. configuring external vault).
+async fn api_key_auth_with_merchant_id_from_route<A>(
+    merchant_id_from_route: &id_type::MerchantId,
+    allow_platform_self_operation: bool,
+    request_headers: &HeaderMap,
+    state: &A,
+) -> RouterResult<(AuthenticationData, AuthenticationType)>
+where
+    A: SessionStateInfo + Sync,
+{
+    let api_auth = ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation,
+    };
+    let (auth_data, auth_type): (AuthenticationData, AuthenticationType) = api_auth
+        .authenticate_and_fetch(request_headers, state)
+        .await?;
+
+    let processor_merchant_id = auth_data.platform.get_processor().get_account().get_id();
+
+    fp_utils::when(merchant_id_from_route != processor_merchant_id, || {
+        Err(report!(errors::ApiErrorResponse::Unauthorized))
+            .attach_printable("Merchant ID from route and Processor Merchant Id do not match")
+    })?;
+
+    Ok((auth_data, auth_type))
+}
+
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for ApiKeyAuthWithMerchantIdFromRoute
 where
@@ -842,24 +873,35 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        // This is currently used for profile and connector CRUD operations
-        let api_auth = ApiKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: false,
-        };
-        let (auth_data, auth_type): (AuthenticationData, AuthenticationType) = api_auth
-            .authenticate_and_fetch(request_headers, state)
-            .await?;
+        api_key_auth_with_merchant_id_from_route(&self.0, false, request_headers, state).await
+    }
+}
 
-        let merchant_id_from_route = self.0.clone();
-        let processor_merchant_id = auth_data.platform.get_processor().get_account().get_id();
+/// Same as [`ApiKeyAuthWithMerchantIdFromRoute`] but also permits a platform merchant to
+/// operate on its own resources. Used by endpoints the platform merchant needs to configure
+/// and manage its external vault (connector create/retrieve/update/list, profile update).
+pub struct ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(pub id_type::MerchantId);
 
-        if merchant_id_from_route != *processor_merchant_id {
-            return Err(report!(errors::ApiErrorResponse::Unauthorized))
-                .attach_printable("Merchant ID from route and Processor Merchant Id do not match");
-        }
+#[cfg(feature = "partial-auth")]
+impl GetAuthType for ApiKeyAuthWithMerchantIdFromRouteAllowPlatform {
+    fn get_auth_type(&self) -> detached::PayloadType {
+        detached::PayloadType::ApiKey
+    }
+}
 
-        Ok((auth_data, auth_type))
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A>
+    for ApiKeyAuthWithMerchantIdFromRouteAllowPlatform
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        api_key_auth_with_merchant_id_from_route(&self.0, true, request_headers, state).await
     }
 }
 
