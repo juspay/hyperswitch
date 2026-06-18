@@ -2017,7 +2017,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexCustomerResponse, T, PaymentsR
 }
 
 fn build_airwallex_connector_response_data(
-    extended_authorization_requested: primitive_wrappers::ExtendedAuthorizationAppliedBool,
+    extended_authorization_requested: primitive_wrappers::RequestExtendedAuthorizationBool,
     payment_method: enums::PaymentMethod,
     payment_method_type: Option<enums::PaymentMethodType>,
 ) -> Option<ConnectorResponseData> {
