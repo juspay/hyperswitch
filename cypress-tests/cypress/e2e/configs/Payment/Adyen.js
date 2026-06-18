@@ -1,8 +1,6 @@
-import { customerAcceptance, multiUseMandateData } from "./Commons";
+import { customerAcceptance } from "./Commons";
 import {
-  getCurrency,
   getCustomExchange,
-  getIframeRedirectionConfig,
 } from "./Modifiers";
 
 // Reusable billing addresses for bank debit tests
@@ -46,14 +44,6 @@ const bacsBillingAddress = {
     first_name: "John",
     last_name: "Doe",
   },
-};
-
-const successfulNo3DSCardDetails = {
-  card_number: "4111111111111111",
-  card_exp_month: "03",
-  card_exp_year: "30",
-  card_holder_name: "John Doe",
-  card_cvc: "737",
 };
 
 const successfulThreeDSTestCardDetails = {
