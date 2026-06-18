@@ -1401,8 +1401,8 @@ where
             .and_then(|request_extended_authorization| {
                 build_airwallex_connector_response_data(
                     request_extended_authorization,
-                    item.data.payment_method.clone(),
-                    item.data.payment_method_type.clone(),
+                    item.data.payment_method,
+                    item.data.payment_method_type,
                 )
             });
 
