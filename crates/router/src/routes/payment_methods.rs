@@ -1,6 +1,11 @@
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 use std::collections::HashMap;
 
+#[cfg(feature = "v1")]
+mod migrate;
+#[cfg(feature = "v1")]
+pub use migrate::modular_migrate_payment_methods;
+
 use ::payment_methods::{
     controller::PaymentMethodsController,
     core::{migration, migration::payment_methods::migrate_payment_method},
@@ -488,59 +493,6 @@ pub async fn migrate_payment_methods(
                     &merchant_id,
                     &platform,
                     merchant_connector_ids,
-                    &controller,
-                ))
-                .await
-            }
-        },
-        &auth::AdminApiAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(feature = "v1")]
-pub async fn modular_migrate_payment_methods(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    MultipartForm(form): MultipartForm<migration::ModularPaymentMethodsMigrateForm>,
-) -> HttpResponse {
-    let flow = Flow::ModularPaymentMethodsMigrate;
-
-    let (merchant_id, records) = match form.get_payment_method_ids() {
-        Ok((merchant_id, records)) => (merchant_id, records),
-        Err(e) => return api::log_and_return_error_response(e.into()),
-    };
-
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        records,
-        |state, _, req, _| {
-            let merchant_id = merchant_id.clone();
-            async move {
-                let (key_store, merchant_account) =
-                    get_merchant_account(&state, &merchant_id).await?;
-                // Create customers if they are not already present
-                let platform = domain::Platform::new(
-                    merchant_account.clone(),
-                    key_store.clone(),
-                    merchant_account,
-                    key_store,
-                    None,
-                );
-
-                let controller = cards::PmCards {
-                    state: &state,
-                    provider: platform.get_provider(),
-                };
-
-                Box::pin(migration::modular_migrate_payment_methods(
-                    &(&state).into(),
-                    req,
-                    &merchant_id,
-                    &platform,
                     &controller,
                 ))
                 .await

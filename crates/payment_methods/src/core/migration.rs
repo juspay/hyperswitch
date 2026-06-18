@@ -1,7 +1,6 @@
 use actix_multipart::form::{self, bytes, text};
 use api_models::payment_methods as pm_api;
-#[cfg(feature = "v1")]
-use common_enums::{enums, ApiVersion};
+use common_utils::id_type;
 use csv::Reader;
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
@@ -24,9 +23,9 @@ type PmMigrationResult<T> =
 pub async fn migrate_payment_methods(
     state: &state::PaymentMethodsState,
     payment_methods: Vec<pm_api::PaymentMethodRecord>,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     platform: &platform::Platform,
-    mca_ids: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+    mca_ids: Option<Vec<id_type::MerchantConnectorAccountId>>,
     controller: &dyn pm::PaymentMethodsController,
 ) -> PmMigrationResult<Vec<pm_api::PaymentMethodMigrationResponse>> {
     let mut result = Vec::with_capacity(payment_methods.len());
@@ -66,210 +65,16 @@ pub async fn migrate_payment_methods(
     Ok(api::ApplicationResponse::Json(result))
 }
 
-#[cfg(feature = "v1")]
-pub async fn modular_migrate_payment_methods(
-    state: &state::PaymentMethodsState,
-    payment_method_ids: Vec<pm_api::PaymentMethodId>,
-    merchant_id: &common_utils::id_type::MerchantId,
-    platform: &platform::Platform,
-    controller: &dyn pm::PaymentMethodsController,
-) -> PmMigrationResult<pm_api::ModularPaymentMethodMigrationResponse> {
-    let mut successfully_migrated = Vec::new();
-    let mut failed_migrations = Vec::new();
-
-    for pm_id_record in payment_method_ids {
-        let pm_id = pm_id_record.payment_method_id.clone();
-
-        match migrate_single_payment_method(state, &pm_id, merchant_id, platform, controller).await
-        {
-            Ok(()) => {
-                router_env::logger::info!("Successfully migrated payment method: {}", pm_id);
-                successfully_migrated.push(pm_id_record.payment_method_id);
-            }
-            Err(err) => {
-                router_env::logger::error!("Failed to migrate payment method {}: {:?}", pm_id, err);
-                let failed_migration = pm_api::FailedMigration {
-                    failed_record: pm_id_record.payment_method_id,
-                    error_message: err.to_string(),
-                };
-                failed_migrations.push(failed_migration);
-            }
-        }
-    }
-
-    Ok(api::ApplicationResponse::Json(
-        pm_api::ModularPaymentMethodMigrationResponse {
-            successfully_migrated,
-            failed_migrations,
-        },
-    ))
-}
-
-#[cfg(feature = "v1")]
-async fn migrate_single_payment_method(
-    state: &state::PaymentMethodsState,
-    payment_method_id: &str,
-    merchant_id: &common_utils::id_type::MerchantId,
-    platform: &platform::Platform,
-    controller: &dyn pm::PaymentMethodsController,
-) -> errors::PmResult<()> {
-    // Step 1: Fetch payment method record
-    let db = &*state.store;
-    let payment_method = fetch_payment_method_record(state, payment_method_id, platform).await?;
-
-    router_env::logger::info!(
-        "Fetched payment method record for ID : {}",
-        payment_method_id
-    );
-
-    // Step 2: Validate merchant_id
-    validate_merchant_id(&payment_method, merchant_id)?;
-
-    let customer_id = payment_method.customer_id.as_ref().ok_or(
-        errors::ApiErrorResponse::InvalidRequestData {
-            message: "Payment method must have a customer_id".to_string(),
-        },
-    )?;
-
-    let customer_obj = db
-        .find_customer_by_customer_id_merchant_id(
-            customer_id,
-            merchant_id,
-            platform.get_provider().get_key_store(),
-            platform.get_provider().get_account().storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch customer record")?;
-
-    let customer_key = customer_obj.get_global_customer_id();
-
-    let locker_id =
-        payment_method
-            .locker_id
-            .as_ref()
-            .ok_or(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Payment method must have a locker_id".to_string(),
-            })?;
-
-    let fingerprint_id = payment_method.locker_fingerprint_id.as_ref().ok_or(
-        errors::ApiErrorResponse::InvalidRequestData {
-            message: "Payment method must have a fingerprint".to_string(),
-        },
-    )?;
-
-    let is_v2_pm = payment_method.version == ApiVersion::V2
-        && payment_method.payment_method == Some(enums::PaymentMethod::Card);
-
-    let vault_id = hyperswitch_domain_models::payment_methods::VaultId::generate(locker_id.clone());
-
-    let vaulting_data = controller
-        .retrieve_payment_method_from_vault(&vault_id, merchant_id, customer_id, is_v2_pm)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to retrieve payment method from vault")?;
-
-    // Step 4: Check if payment method is bank_debit or wallet or card (only for v2)
-    let is_bank_debit = matches!(
-        vaulting_data,
-        hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankDebit(_)
-    );
-    let is_wallet = matches!(
-        vaulting_data,
-        hyperswitch_domain_models::vault::PaymentMethodVaultingData::Wallet(_)
-    );
-
-    let is_card = matches!(
-        vaulting_data,
-        hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(_)
-    ) && payment_method.version == ApiVersion::V2;
-
-    common_utils::fp_utils::when(!is_bank_debit && !is_wallet && !is_card, || {
-        router_env::logger::info!(
-            "Skipping migration for payment method {}: not bank_debit, wallet, or card",
-            payment_method_id
-        );
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "Payment method {} is not bank_debit, wallet, or card, skipping migration",
-                payment_method_id
-            ),
-        })
-    })?;
-
-    // Step 5: Create new record in vault with new entity_id(merchant_id)
-
-    controller
-        .store_payment_method_in_vault(&merchant_id.clone(), &vault_id, &vaulting_data)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to store payment method in vault with new entity_id")?;
-
-    // Step 6 & 7: If bank_debit and wallet,, handle fingerprint data migration with new customer key
-    if is_bank_debit && is_wallet {
-        let fingerprint_data = vaulting_data.to_fingerprint_data();
-        controller
-            .get_fingerprint_id_from_vault(customer_key, &fingerprint_data, fingerprint_id.clone())
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to create fingerprint record in vault")?;
-    }
-
-    Ok(())
-}
-
-#[cfg(feature = "v1")]
-async fn fetch_payment_method_record(
-    state: &state::PaymentMethodsState,
-    payment_method_id: &str,
-    platform: &platform::Platform,
-) -> errors::PmResult<hyperswitch_domain_models::payment_methods::PaymentMethod> {
-    let key_store = platform.get_provider().get_key_store();
-    let merchant_account = platform.get_provider().get_account();
-
-    state
-        .find_payment_method(key_store, merchant_account, payment_method_id.to_string())
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-        .attach_printable("Failed to find payment method record")
-}
-
-#[cfg(feature = "v1")]
-fn validate_merchant_id(
-    payment_method: &hyperswitch_domain_models::payment_methods::PaymentMethod,
-    expected_merchant_id: &common_utils::id_type::MerchantId,
-) -> errors::PmResult<()> {
-    common_utils::fp_utils::when(payment_method.merchant_id != *expected_merchant_id, || {
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "Merchant ID mismatch: expected {}, found {}",
-                expected_merchant_id.get_string_repr(),
-                payment_method.merchant_id.get_string_repr()
-            ),
-        })
-    })?;
-    Ok(())
-}
-
 #[derive(Debug, form::MultipartForm)]
 pub struct PaymentMethodsMigrateForm {
     #[multipart(limit = "1MB")]
     pub file: bytes::Bytes,
 
-    pub merchant_id: text::Text<common_utils::id_type::MerchantId>,
+    pub merchant_id: text::Text<id_type::MerchantId>,
 
-    pub merchant_connector_id:
-        Option<text::Text<common_utils::id_type::MerchantConnectorAccountId>>,
+    pub merchant_connector_id: Option<text::Text<id_type::MerchantConnectorAccountId>>,
 
     pub merchant_connector_ids: Option<text::Text<String>>,
-}
-
-#[derive(Debug, form::MultipartForm)]
-pub struct ModularPaymentMethodsMigrateForm {
-    #[multipart(limit = "1MB")]
-    pub file: bytes::Bytes,
-
-    pub merchant_id: text::Text<common_utils::id_type::MerchantId>,
 }
 
 pub struct MerchantConnectorValidator;
@@ -277,8 +82,7 @@ pub struct MerchantConnectorValidator;
 impl MerchantConnectorValidator {
     pub fn parse_comma_separated_ids(
         ids_string: &str,
-    ) -> Result<Vec<common_utils::id_type::MerchantConnectorAccountId>, errors::ApiErrorResponse>
-    {
+    ) -> Result<Vec<id_type::MerchantConnectorAccountId>, errors::ApiErrorResponse> {
         // Estimate capacity based on comma count
         let capacity = ids_string.matches(',').count() + 1;
         let mut result = Vec::with_capacity(capacity);
@@ -286,11 +90,10 @@ impl MerchantConnectorValidator {
         for id in ids_string.split(',') {
             let trimmed_id = id.trim();
             if !trimmed_id.is_empty() {
-                let mca_id =
-                    common_utils::id_type::MerchantConnectorAccountId::wrap(trimmed_id.to_string())
-                        .map_err(|_| errors::ApiErrorResponse::InvalidRequestData {
-                            message: format!("Invalid merchant_connector_account_id: {trimmed_id}"),
-                        })?;
+                let mca_id = id_type::MerchantConnectorAccountId::wrap(trimmed_id.to_string())
+                    .map_err(|_| errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!("Invalid merchant_connector_account_id: {trimmed_id}"),
+                    })?;
                 result.push(mca_id);
             }
         }
@@ -337,9 +140,9 @@ impl MerchantConnectorValidator {
 
 type MigrationValidationResult = Result<
     (
-        common_utils::id_type::MerchantId,
+        id_type::MerchantId,
         Vec<pm_api::PaymentMethodRecord>,
-        Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+        Option<Vec<id_type::MerchantConnectorAccountId>>,
     ),
     errors::ApiErrorResponse,
 >;
@@ -398,26 +201,6 @@ impl PaymentMethodsMigrateForm {
     }
 }
 
-type ModularMigrationValidationResult = Result<
-    (
-        common_utils::id_type::MerchantId,
-        Vec<pm_api::PaymentMethodId>,
-    ),
-    errors::ApiErrorResponse,
->;
-
-impl ModularPaymentMethodsMigrateForm {
-    pub fn get_payment_method_ids(self) -> ModularMigrationValidationResult {
-        let records = parse_csv_new(self.file.data.to_bytes()).map_err(|e| {
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: e.to_string(),
-            }
-        })?;
-
-        Ok((self.merchant_id.clone(), records))
-    }
-}
-
 fn parse_csv(data: &[u8]) -> csv::Result<Vec<pm_api::PaymentMethodRecord>> {
     let mut csv_reader = Reader::from_reader(data);
     let mut records = Vec::new();
@@ -426,16 +209,6 @@ fn parse_csv(data: &[u8]) -> csv::Result<Vec<pm_api::PaymentMethodRecord>> {
         let mut record: pm_api::PaymentMethodRecord = result?;
         id_counter += 1;
         record.line_number = Some(id_counter);
-        records.push(record);
-    }
-    Ok(records)
-}
-
-fn parse_csv_new(data: &[u8]) -> csv::Result<Vec<pm_api::PaymentMethodId>> {
-    let mut csv_reader = Reader::from_reader(data);
-    let mut records = Vec::new();
-    for result in csv_reader.deserialize() {
-        let record: pm_api::PaymentMethodId = result?;
         records.push(record);
     }
     Ok(records)

@@ -3734,6 +3734,15 @@ pub struct PaymentMethodId {
     pub payment_method_id: String,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ModularPaymentMethodMigrationRecord {
+    pub merchant_id: id_type::MerchantId,
+    #[serde(flatten)]
+    pub payment_method_id: PaymentMethodId,
+    #[serde(skip_deserializing, default)]
+    pub line_number: Option<i64>,
+}
+
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct DefaultPaymentMethod {
@@ -4020,17 +4029,27 @@ pub struct PaymentMethodMigrationResponse {
 
 #[derive(Debug, Default, serde::Serialize)]
 pub struct ModularPaymentMethodMigrationResponse {
-    pub successfully_migrated: Vec<String>,
-    pub failed_migrations: Vec<FailedMigration>,
+    pub total_rows: usize,
+    pub successful_count: usize,
+    pub failed_count: usize,
+    pub results: Vec<ModularPaymentMethodMigrationRowResult>,
 }
 
-#[derive(Debug, serde::Serialize)]
-pub struct FailedMigration {
-    pub failed_record: String,
-    pub error_message: String,
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ModularPaymentMethodMigrationRowResult {
+    pub row_number: usize,
+    pub merchant_id: Option<id_type::MerchantId>,
+    pub payment_method_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub old_fingerprint_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_fingerprint_id: Option<String>,
+    pub migration_status: MigrationStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
 }
 
-#[derive(Debug, Default, serde::Serialize)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub enum MigrationStatus {
     Success,
     #[default]

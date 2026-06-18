@@ -1487,7 +1487,10 @@ impl PaymentMethodsController for PmCards<'_> {
             self.state,
             payload,
             None,
-            Some(fingerprint_id.to_string()),
+            Some(HashMap::from([(
+                crate::headers::X_FINGERPRINT_ID.to_string(),
+                fingerprint_id.to_string(),
+            )])),
         )
         .await
         .change_context(errors::VaultError::VaultAPIError)

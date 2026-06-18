@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use common_enums::PaymentMethodType;
 #[cfg(feature = "v2")]
 use common_utils::encryption::Encryption;
@@ -1938,7 +1940,7 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     payload: Vec<u8>,
     tenant_id: id_type::TenantId,
     write_mode: Option<pm_types::VaultQueryParam>,
-    additional_headers: Option<String>,
+    additional_headers: Option<HashMap<String, String>>,
 ) -> CustomResult<request::Request, errors::VaultError> {
     let private_key = jwekey.vault_private_key.peek().as_bytes();
 
@@ -1971,8 +1973,10 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
         tenant_id.get_string_repr().to_owned().into(),
     );
 
-    if let Some(headers) = additional_headers {
-        request.add_header(headers::X_FINGERPRINT_ID, headers.into());
+    if let Some(additional_headers) = additional_headers {
+        for (header_name, header_value) in additional_headers {
+            request.add_header(&header_name, header_value.into());
+        }
     }
     request.set_body(request::RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
@@ -1983,7 +1987,7 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     state: &routes::SessionState,
     payload: Vec<u8>,
     query_params: Option<pm_types::VaultQueryParam>,
-    additional_headers: Option<String>,
+    additional_headers: Option<HashMap<String, String>>,
 ) -> CustomResult<String, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
