@@ -262,4 +262,3 @@ max_retries_count = 5
 [default-configs.pt_mapping_dispute_sync.value.default_mapping]
 start_after = 60
 frequencies = [[300, 5]]
-
