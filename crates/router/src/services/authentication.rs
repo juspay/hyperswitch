@@ -5870,6 +5870,54 @@ where
     }
 }
 
+/// Checks SDK authorization first, then falls back to publishable-key auth with
+/// a required client secret. Merchant secret-key auth is intentionally rejected.
+#[cfg(feature = "v1")]
+pub fn check_sdk_auth_or_client_secret_auth<T>(
+    headers: &HeaderMap,
+    payload: &impl ClientSecretFetch,
+    api_auth: ApiKeyAuth,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+    api::AuthFlow,
+)>
+where
+    T: SessionStateInfo + Sync + Send,
+    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    SdkAuthorizationAuth: AuthenticateAndFetch<AuthenticationData, T>,
+{
+    match get_header_value_by_key(headers::AUTHORIZATION.into(), headers)? {
+        Some(_) => Ok((
+            Box::new(SdkAuthorizationAuth {
+                allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                allow_platform_self_operation: api_auth.allow_platform_self_operation,
+            }),
+            api::AuthFlow::Client,
+        )),
+        None => {
+            let api_key = get_api_key(headers)?;
+
+            match (
+                api_key.starts_with("pk_"),
+                payload.get_client_secret().is_some(),
+            ) {
+                (true, true) => Ok((
+                    Box::new(HeaderAuth(PublishableKeyAuth {
+                        allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                        allow_platform_self_operation: api_auth.allow_platform_self_operation,
+                    })),
+                    api::AuthFlow::Client,
+                )),
+                (true, false) => Err(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "client_secret",
+                }
+                .into()),
+                (false, _) => Err(errors::ApiErrorResponse::Unauthorized.into()),
+            }
+        }
+    }
+}
+
 pub async fn get_ephemeral_or_other_auth<T>(
     headers: &HeaderMap,
     is_merchant_flow: bool,
