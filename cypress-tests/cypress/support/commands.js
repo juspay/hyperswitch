@@ -3508,8 +3508,6 @@ Cypress.Commands.add(
       }
     }
 
-
-
     if (reqData?.split_payments && isStripeConnect(globalState)) {
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }

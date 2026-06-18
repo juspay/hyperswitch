@@ -360,8 +360,10 @@ export const isLocalhost = (baseUrl) => {
 export const isVaultAvailable = () => {
   // Check if vault service is available via environment variable
   // Set CYPRESS_VAULT_AVAILABLE=true when vault is configured locally
-  return Cypress.env("VAULT_AVAILABLE") === true ||
-         Cypress.env("VAULT_URL") !== undefined;
+  return (
+    Cypress.env("VAULT_AVAILABLE") === true ||
+    Cypress.env("VAULT_URL") !== undefined
+  );
 };
 
 /**
@@ -376,7 +378,7 @@ export const shouldSkipBankDebitOnLocalhost = (baseUrl) => {
   if (!isLocalhost(baseUrl)) {
     return false;
   }
-  
+
   // On localhost, only skip if vault is not available
   return !isVaultAvailable();
 };
