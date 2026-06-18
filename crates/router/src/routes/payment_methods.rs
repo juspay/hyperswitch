@@ -2125,12 +2125,12 @@ pub async fn list_payment_methods_for_payments_client(
                             payload.client_secret = Some(client_secret);
                         }
 
-                        payment_methods_routes::client::list_payment_methods_client(
+                        Box::pin(payment_methods_routes::client::list_payment_methods_client(
                             state,
                             auth.platform,
                             payment_id,
                             payload.client_secret,
-                        )
+                        ))
                         .await
                     }
                 },
