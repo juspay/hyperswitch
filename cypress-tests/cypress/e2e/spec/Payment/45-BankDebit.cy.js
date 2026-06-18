@@ -102,12 +102,25 @@ describe("Bank Debit tests", () => {
 
   context("ACH Bank Debit Create and Confirm flow test", () => {
     before(function () {
-      if (isLocalhost(globalState.get("baseUrl"))) {
-        cy.task(
-          "cli_log",
-          "Skipping ACH Bank Debit tests on localhost - vault setup required. These tests run on integ/sandbox environments."
-        );
-        this.skip();
+      const baseUrl = globalState.get("baseUrl");
+      // Skip on localhost unless vault is confirmed running via health check
+      if (isLocalhost(baseUrl)) {
+        const vaultUrl = Cypress.env("VAULT_URL") || "http://localhost:3001";
+        // Check if vault is actually responding via node task
+        cy.task("checkVaultHealth", { vaultUrl }).then((result) => {
+          if (!result.healthy) {
+            cy.task(
+              "cli_log",
+              `Skipping ACH Bank Debit tests - vault not responding at ${vaultUrl}`
+            );
+            this.skip();
+          } else {
+            cy.task(
+              "cli_log",
+              `Vault is healthy at ${vaultUrl}, running ACH tests`
+            );
+          }
+        });
       }
     });
 
@@ -373,12 +386,25 @@ describe("Bank Debit tests", () => {
 
   context("ACH Bank Debit Mandate flow test", () => {
     before(function () {
-      if (isLocalhost(globalState.get("baseUrl"))) {
-        cy.task(
-          "cli_log",
-          "Skipping ACH Bank Debit Mandate tests on localhost - vault setup required. These tests run on integ/sandbox environments."
-        );
-        this.skip();
+      const baseUrl = globalState.get("baseUrl");
+      // Skip on localhost unless vault is confirmed running via health check
+      if (isLocalhost(baseUrl)) {
+        const vaultUrl = Cypress.env("VAULT_URL") || "http://localhost:3001";
+        // Check if vault is actually responding via node task
+        cy.task("checkVaultHealth", { vaultUrl }).then((result) => {
+          if (!result.healthy) {
+            cy.task(
+              "cli_log",
+              `Skipping ACH Bank Debit Mandate tests - vault not responding at ${vaultUrl}`
+            );
+            this.skip();
+          } else {
+            cy.task(
+              "cli_log",
+              `Vault is healthy at ${vaultUrl}, running ACH mandate tests`
+            );
+          }
+        });
       }
     });
 
