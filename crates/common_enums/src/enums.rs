@@ -2866,26 +2866,8 @@ pub enum ExecutionMode {
     NotApplicable,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    ToSchema,
-)]
+#[derive(Clone, Copy, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 /// Execution mode as recorded on a connector event.
 ///
 /// This is the two-state *observability* projection of the routing [`ExecutionMode`]:
@@ -2894,10 +2876,7 @@ pub enum ExecutionMode {
 /// maps to [`EventExecutionMode::Primary`] — see the `From` impl below. Keeping this distinct
 /// from the 3-variant routing enum means a connector event can never carry `not_applicable`.
 pub enum EventExecutionMode {
-    /// The real, live execution whose result is used.
-    #[default]
     Primary,
-    /// A shadow mirror whose result is discarded (validation only).
     Shadow,
 }
 
@@ -2941,6 +2920,40 @@ pub enum EventDestination {
     Connector,
     /// A call to the Unified Connector Service.
     UnifiedConnectorService,
+}
+
+#[cfg(test)]
+mod connector_event_enum_tests {
+    use serde_json::json;
+
+    use super::{EventDestination, EventExecutionMode, ExecutionMode};
+
+    #[test]
+    fn event_execution_mode_projection_serializes() {
+        // The routing mode projects to the 2-state event mode; a direct call (`NotApplicable`)
+        // is a live call, so it records as `primary`.
+        assert_eq!(
+            json!(EventExecutionMode::from(ExecutionMode::Primary)),
+            json!("primary")
+        );
+        assert_eq!(
+            json!(EventExecutionMode::from(ExecutionMode::Shadow)),
+            json!("shadow")
+        );
+        assert_eq!(
+            json!(EventExecutionMode::from(ExecutionMode::NotApplicable)),
+            json!("primary")
+        );
+    }
+
+    #[test]
+    fn event_destination_serializes() {
+        assert_eq!(json!(EventDestination::Connector), json!("connector"));
+        assert_eq!(
+            json!(EventDestination::UnifiedConnectorService),
+            json!("unified_connector_service")
+        );
+    }
 }
 
 #[derive(
