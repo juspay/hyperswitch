@@ -247,7 +247,7 @@ describe("Connector Setup for Connected Merchants", () => {
         globalState,
         "profile", // profilePrefix
         "merchantConnector", // mcaPrefix
-        400 // expectedStatus
+        422 // expectedStatus (InvalidRequestData -> Unprocessable Entity)
       );
 
       cy.then(() => {
