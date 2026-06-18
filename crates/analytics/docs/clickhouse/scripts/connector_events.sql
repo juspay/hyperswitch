@@ -14,9 +14,7 @@ CREATE TABLE connector_events_queue
     `method` LowCardinality(String),
     `dispute_id` Nullable(String),
     `refund_id` Nullable(String),
-    `payout_id` Nullable(String),
-    `destination` LowCardinality(Nullable(String)),
-    `execution_mode` LowCardinality(Nullable(String))
+    `payout_id` Nullable(String)
 )
 ENGINE = Kafka
 SETTINGS kafka_broker_list = 'kafka0:29092', kafka_topic_list = 'hyperswitch-outgoing-connector-events', kafka_group_name = 'hyper', kafka_format = 'JSONEachRow', kafka_handle_error_mode = 'stream';
@@ -59,9 +57,6 @@ CREATE TABLE connector_events (
     `dispute_id` Nullable(String),
     `refund_id` Nullable(String),
     `payout_id` Nullable(String),
-    `source` LowCardinality(Nullable(String)),
-    `destination` LowCardinality(Nullable(String)),
-    `execution_mode` LowCardinality(Nullable(String)),
     INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
     INDEX connectorIndex connector_name TYPE bloom_filter GRANULARITY 1,
     INDEX statusIndex status_code TYPE bloom_filter GRANULARITY 1
@@ -92,9 +87,6 @@ CREATE TABLE connector_events_audit (
     `method` LowCardinality(String),
     `dispute_id` Nullable(String),
     `refund_id` Nullable(String),
-    `source` LowCardinality(Nullable(String)),
-    `destination` LowCardinality(Nullable(String)),
-    `execution_mode` LowCardinality(Nullable(String)),
     INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
     INDEX connectorIndex connector_name TYPE bloom_filter GRANULARITY 1,
     INDEX statusIndex status_code TYPE bloom_filter GRANULARITY 1
@@ -117,9 +109,6 @@ CREATE TABLE connector_events_payout_audit (
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `latency` UInt128,
     `method` LowCardinality(String),
-    `source` LowCardinality(Nullable(String)),
-    `destination` LowCardinality(Nullable(String)),
-    `execution_mode` LowCardinality(Nullable(String)),
     INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
     INDEX connectorIndex connector_name TYPE bloom_filter GRANULARITY 1,
     INDEX statusIndex status_code TYPE bloom_filter GRANULARITY 1
@@ -143,10 +132,7 @@ CREATE MATERIALIZED VIEW connector_events_audit_mv TO connector_events_audit (
     `latency` UInt128,
     `method` LowCardinality(String),
     `refund_id` Nullable(String),
-    `dispute_id` Nullable(String),
-    `source` LowCardinality(Nullable(String)),
-    `destination` LowCardinality(Nullable(String)),
-    `execution_mode` LowCardinality(Nullable(String))
+    `dispute_id` Nullable(String)
 ) AS
 SELECT
     merchant_id,
@@ -164,10 +150,7 @@ SELECT
     latency,
     method,
     refund_id,
-    dispute_id,
-    'hyperswitch' AS source,
-    destination,
-    execution_mode
+    dispute_id
 FROM
     connector_events_queue
 WHERE
@@ -188,10 +171,7 @@ CREATE MATERIALIZED VIEW connector_events_payout_audit_mv TO connector_events_pa
     `created_at` DateTime64(3),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `latency` UInt128,
-    `method` LowCardinality(String),
-    `source` LowCardinality(Nullable(String)),
-    `destination` LowCardinality(Nullable(String)),
-    `execution_mode` LowCardinality(Nullable(String))
+    `method` LowCardinality(String)
 ) AS
 SELECT
     merchant_id,
@@ -207,10 +187,7 @@ SELECT
     created_at,
     now64() AS inserted_at,
     latency,
-    method,
-    'hyperswitch' AS source,
-    destination,
-    execution_mode
+    method
 FROM
     connector_events_queue
 WHERE
@@ -234,10 +211,7 @@ CREATE MATERIALIZED VIEW connector_events_mv TO connector_events (
     `method` LowCardinality(String),
     `refund_id` Nullable(String),
     `dispute_id` Nullable(String),
-    `payout_id` Nullable(String),
-    `source` LowCardinality(Nullable(String)),
-    `destination` LowCardinality(Nullable(String)),
-    `execution_mode` LowCardinality(Nullable(String))
+    `payout_id` Nullable(String)
 ) AS
 SELECT
     merchant_id,
@@ -256,10 +230,7 @@ SELECT
     method,
     refund_id,
     dispute_id,
-    payout_id,
-    'hyperswitch' AS source,
-    destination,
-    execution_mode
+    payout_id
 FROM
     connector_events_queue
 WHERE
