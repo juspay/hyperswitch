@@ -1404,7 +1404,6 @@ where
                 build_airwallex_connector_response_data(
                     request_extended_authorization,
                     item.data.payment_method,
-                    item.data.payment_method_type,
                 )
             });
 
@@ -2021,7 +2020,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexCustomerResponse, T, PaymentsR
 fn build_airwallex_connector_response_data(
     extended_authorization_requested: primitive_wrappers::RequestExtendedAuthorizationBool,
     payment_method: enums::PaymentMethod,
-    payment_method_type: Option<enums::PaymentMethodType>,
 ) -> Option<ConnectorResponseData> {
     let extended_authentication_applicable = match payment_method {
         enums::PaymentMethod::Card => true,
