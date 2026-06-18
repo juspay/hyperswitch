@@ -367,6 +367,14 @@ impl DatabaseBackedConfig for GsmPayoutCall {
     }
 }
 
+config! {
+    superposition_key = SHOULD_DISABLE_VAULT_TOKENIZATION,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
+}
+
 impl DatabaseBackedConfig for ShouldDisableVaultTokenization {
     const KEY: &'static str = "should_disable_vault_tokenization";
 
@@ -380,14 +388,6 @@ impl DatabaseBackedConfig for ShouldDisableVaultTokenization {
                 .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr())),
         ]
     }
-}
-
-config! {
-    superposition_key = SHOULD_DISABLE_VAULT_TOKENIZATION,
-    output = bool,
-    default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
-    targeting_key = id_type::MerchantId
 }
 
 #[cfg(feature = "v2")]
