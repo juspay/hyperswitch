@@ -370,17 +370,6 @@ impl DatabaseBackedConfig for GsmPayoutCall {
 impl DatabaseBackedConfig for ShouldDisableVaultTokenization {
     const KEY: &'static str = "should_disable_vault_tokenization";
 
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        dimensions
-            .get_processor_merchant_id()
-            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
-            .or_else(|| {
-                dimensions
-                    .get_organization_id()
-                    .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
-            })
-    }
-
     fn db_keys(dimensions: &impl dimension_state::DimensionsBase) -> Vec<Option<String>> {
         vec![
             dimensions

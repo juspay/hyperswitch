@@ -173,7 +173,9 @@ pub trait DatabaseBackedConfig: superposition::Config {
     const KEY: &'static str;
 
     /// Generate the database key for this config based on dimensions
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String>;
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
 
     /// Parse the raw database config string into the output type.
     /// Override this for configs whose DB format differs from the Output type
