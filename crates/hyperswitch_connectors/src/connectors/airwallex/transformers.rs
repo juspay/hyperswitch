@@ -506,7 +506,7 @@ pub enum AirwallexCardAuthorizationType {
     FinalAuth,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct AirwallexPayLaterPaymentOptions {
     auto_capture: bool,
 }
