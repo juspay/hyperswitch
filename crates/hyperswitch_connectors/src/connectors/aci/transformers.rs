@@ -1,7 +1,10 @@
 use std::str::FromStr;
 
-use hyperswitch_domain_models::mandates::MandateReferenceId;
+#[cfg(feature = "frm")]
+use api_models::webhooks::IncomingWebhookEvent;
 use cards::NetworkToken;
+#[cfg(feature = "frm")]
+use common_enums::FraudCheckStatus;
 use common_enums::{enums, MitCategory};
 use common_types::payments::{ApplePayPredecryptData, GPayPredecryptData};
 use common_utils::{
@@ -11,8 +14,11 @@ use common_utils::{
     types::{SemanticVersion, StringMajorUnit},
 };
 use error_stack::report;
+#[cfg(feature = "frm")]
+use hyperswitch_domain_models::router_response_types::fraud_check::FraudCheckResponseData;
 use hyperswitch_domain_models::{
     mandates,
+    mandates::MandateReferenceId,
     payment_method_data::{
         ApplePayWalletData, BankRedirectData, Card, GooglePayWalletData, NetworkTokenData,
         PayLaterData, PaymentMethodData, SamsungPayWalletData, WalletData,
@@ -47,6 +53,8 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use super::aci_result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
+#[cfg(feature = "frm")]
+use crate::types::{FrmCheckoutRouterData, FrmSaleRouterData};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
@@ -3225,5 +3233,311 @@ impl
             response,
             ..item.data
         })
+    }
+}
+
+// =============================================================================
+// Fraud Risk Management (FRM) — ACI stand-alone fraud management (redShield)
+//
+// ACI exposes a stand-alone risk service at `POST /v2/redShield` on the same
+// card host and using the same auth (`Bearer api_key` + `entityId`) as the card
+// gateway. It returns a risk decision independently of payment processing. We
+// reuse the `aci` connector identity for FRM (see `FrmConnectors::Aci`).
+//
+// Both the FRM `Sale` (post-auth) and `Checkout` (pre-auth) flows map onto the
+// same redShield call and request/response shape.
+// =============================================================================
+
+/// redShield request. Serialized as `x-www-form-urlencoded` (ACI's content
+/// type), with the same dotted-key convention as the payment request.
+#[cfg(feature = "frm")]
+#[derive(Debug, Serialize)]
+pub struct AciRedShieldRequest {
+    #[serde(rename = "entityId")]
+    pub entity_id: Secret<String>,
+    pub amount: StringMajorUnit,
+    pub currency: String,
+    #[serde(
+        rename = "merchantTransactionId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_transaction_id: Option<String>,
+    #[serde(
+        rename = "customer.merchantCustomerId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub customer_merchant_id: Option<Secret<String>>,
+    #[serde(rename = "customer.email", skip_serializing_if = "Option::is_none")]
+    pub customer_email: Option<Email>,
+    #[serde(rename = "customer.ip", skip_serializing_if = "Option::is_none")]
+    pub customer_ip: Option<Secret<String, IpAddress>>,
+    #[serde(rename = "customer.phone", skip_serializing_if = "Option::is_none")]
+    pub customer_phone: Option<Secret<String>>,
+}
+
+/// Shared builder for the redShield request. `Sale` and `Checkout` carry the
+/// same customer/amount fields, so both flows funnel through here.
+#[cfg(feature = "frm")]
+#[allow(clippy::too_many_arguments)]
+fn build_aci_redshield_request(
+    amount: StringMajorUnit,
+    currency: Option<common_enums::Currency>,
+    auth_type: &ConnectorAuthType,
+    connector_request_reference_id: &str,
+    customer_id: Option<&id_type::CustomerId>,
+    email: Option<Email>,
+    client_ip: Option<std::net::IpAddr>,
+    phone: Option<Secret<String>>,
+) -> Result<AciRedShieldRequest, Error> {
+    let auth = AciAuthType::try_from(auth_type)?;
+    let currency = currency.ok_or(errors::ConnectorError::MissingRequiredField {
+        field_name: "currency",
+    })?;
+    Ok(AciRedShieldRequest {
+        entity_id: auth.entity_id,
+        amount,
+        currency: currency.to_string(),
+        merchant_transaction_id: Some(format_aci_merchant_transaction_id(
+            connector_request_reference_id,
+        )),
+        customer_merchant_id: customer_id.map(|id| Secret::new(id.get_string_repr().to_string())),
+        customer_email: email,
+        customer_ip: client_ip.map(|ip| Secret::new(ip.to_string())),
+        customer_phone: phone,
+    })
+}
+
+#[cfg(feature = "frm")]
+impl TryFrom<&AciRouterData<&FrmSaleRouterData>> for AciRedShieldRequest {
+    type Error = Error;
+    fn try_from(item: &AciRouterData<&FrmSaleRouterData>) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let req = &router_data.request;
+        build_aci_redshield_request(
+            item.amount.clone(),
+            req.currency,
+            &router_data.connector_auth_type,
+            &router_data.connector_request_reference_id,
+            req.customer_id.as_ref(),
+            req.email.clone(),
+            req.client_ip,
+            req.phone.clone(),
+        )
+    }
+}
+
+#[cfg(feature = "frm")]
+impl TryFrom<&AciRouterData<&FrmCheckoutRouterData>> for AciRedShieldRequest {
+    type Error = Error;
+    fn try_from(item: &AciRouterData<&FrmCheckoutRouterData>) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let req = &router_data.request;
+        build_aci_redshield_request(
+            item.amount.clone(),
+            req.currency,
+            &router_data.connector_auth_type,
+            &router_data.connector_request_reference_id,
+            req.customer_id.as_ref(),
+            req.email.clone(),
+            req.client_ip,
+            req.phone.clone(),
+        )
+    }
+}
+
+/// Risk-specific fields inside the redShield response `resultDetails`.
+#[cfg(feature = "frm")]
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+pub struct AciRedShieldResultDetails {
+    #[serde(rename = "RiskOrderId")]
+    pub risk_order_id: Option<String>,
+    #[serde(rename = "TransactionId")]
+    pub transaction_id: Option<String>,
+    /// redShield risk decision (e.g. ACCEPT / DENY / CHALLENGE).
+    #[serde(rename = "RiskFraudStatusCode")]
+    pub risk_fraud_status_code: Option<String>,
+    #[serde(rename = "RiskFraudDescription")]
+    pub risk_fraud_description: Option<String>,
+    /// Neural fraud score; returned as a numeric string.
+    #[serde(rename = "RiskNeuralScore")]
+    pub risk_neural_score: Option<String>,
+    #[serde(rename = "RiskRuleCategory")]
+    pub risk_rule_category: Option<String>,
+}
+
+#[cfg(feature = "frm")]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciRedShieldResponse {
+    pub id: Option<String>,
+    pub result: ResultCode,
+    pub result_details: Option<AciRedShieldResultDetails>,
+}
+
+/// Map an ACI risk decision to Hyperswitch's `FraudCheckStatus`.
+///
+/// Prefers the explicit redShield `RiskFraudStatusCode` when present, otherwise
+/// falls back to ACI's shared result-code classification tables (the same
+/// tables the payment flows use). A decision we cannot classify fails CLOSED to
+/// `ManualReview` (which holds the payment for merchant action) rather than
+/// `Pending` (which lets it proceed) — we never auto-approve a risk outcome we
+/// don't understand.
+#[cfg(feature = "frm")]
+pub fn map_aci_risk_status(result_code: &str, risk_status_code: Option<&str>) -> FraudCheckStatus {
+    // Match exact, normalized values rather than substrings: substring matching
+    // both over-matches composites (e.g. "ACCEPT_REVIEW" would map to Legit) and
+    // under-matches denials that lack the literal token (e.g. "DECLINED"). The
+    // value set is best-effort and MUST be confirmed against the live sandbox;
+    // anything unrecognized falls through to the shared result-code tables below.
+    if let Some(status) = risk_status_code {
+        match status.trim().to_uppercase().as_str() {
+            "ACCEPT" | "ACCEPTED" => return FraudCheckStatus::Legit,
+            "DENY" | "DENIED" | "DECLINE" | "DECLINED" | "REJECT" | "REJECTED" => {
+                return FraudCheckStatus::Fraud
+            }
+            "CHALLENGE" | "REVIEW" | "MANUAL_REVIEW" => return FraudCheckStatus::ManualReview,
+            _ => {}
+        }
+    }
+    if SUCCESSFUL_CODES.contains(&result_code) {
+        FraudCheckStatus::Legit
+    } else if PENDING_CODES.contains(&result_code) {
+        // Genuine "awaiting external/async confirmation" codes — resolved later
+        // by a RISK webhook, so Pending (not a hold) is correct here.
+        FraudCheckStatus::Pending
+    } else if FAILURE_CODES.contains(&result_code) {
+        FraudCheckStatus::Fraud
+    } else {
+        // Unrecognized code with no recognized risk status: fail closed.
+        FraudCheckStatus::ManualReview
+    }
+}
+
+#[cfg(feature = "frm")]
+impl<F, T> TryFrom<ResponseRouterData<F, AciRedShieldResponse, T, FraudCheckResponseData>>
+    for RouterData<F, T, FraudCheckResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<F, AciRedShieldResponse, T, FraudCheckResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let details = item.response.result_details.as_ref();
+        let status = map_aci_risk_status(
+            &item.response.result.code,
+            details.and_then(|d| d.risk_fraud_status_code.as_deref()),
+        );
+        let score = details
+            .and_then(|d| d.risk_neural_score.as_deref())
+            .and_then(|s| s.parse::<f64>().ok())
+            .map(|s| s.round() as i32);
+        let resource_id = item
+            .response
+            .id
+            .clone()
+            .or_else(|| {
+                details.and_then(|d| d.risk_order_id.clone().or_else(|| d.transaction_id.clone()))
+            })
+            .map(ResponseId::ConnectorTransactionId)
+            .unwrap_or(ResponseId::NoResponseId);
+        let connector_metadata = details.and_then(|d| serde_json::to_value(d).ok());
+        let reason = details
+            .and_then(|d| d.risk_fraud_description.clone())
+            .map(serde_json::Value::from);
+        Ok(Self {
+            response: Ok(FraudCheckResponseData::TransactionResponse {
+                resource_id,
+                status,
+                connector_metadata,
+                score,
+                reason,
+            }),
+            ..item.data
+        })
+    }
+}
+
+/// Lenient payload for an ACI `RISK` webhook (decrypted). Only `result` is
+/// guaranteed; the rest is best-effort enrichment.
+#[cfg(feature = "frm")]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciRiskWebhookPayload {
+    pub id: Option<String>,
+    pub merchant_transaction_id: Option<String>,
+    pub result: ResultCode,
+    pub result_details: Option<AciRedShieldResultDetails>,
+    pub risk: Option<AciWebhookRiskDetails>,
+}
+
+/// Map a decrypted ACI `RISK` webhook to an incoming FRM webhook event.
+#[cfg(feature = "frm")]
+pub fn aci_risk_webhook_event(payload: &AciRiskWebhookPayload) -> IncomingWebhookEvent {
+    match map_aci_risk_status(
+        &payload.result.code,
+        payload
+            .result_details
+            .as_ref()
+            .and_then(|d| d.risk_fraud_status_code.as_deref()),
+    ) {
+        FraudCheckStatus::Legit => IncomingWebhookEvent::FrmApproved,
+        FraudCheckStatus::Fraud => IncomingWebhookEvent::FrmRejected,
+        FraudCheckStatus::ManualReview
+        | FraudCheckStatus::Pending
+        | FraudCheckStatus::TransactionFailure => IncomingWebhookEvent::EventNotSupported,
+    }
+}
+
+#[cfg(all(test, feature = "frm"))]
+mod frm_tests {
+    use common_enums::FraudCheckStatus;
+
+    use super::{map_aci_risk_status, FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
+
+    #[test]
+    fn explicit_risk_status_code_takes_precedence() {
+        // RiskFraudStatusCode overrides the generic result code classification.
+        assert_eq!(
+            map_aci_risk_status("800.100.151", Some("ACCEPT")),
+            FraudCheckStatus::Legit
+        );
+        assert_eq!(
+            map_aci_risk_status("000.100.110", Some("DENY")),
+            FraudCheckStatus::Fraud
+        );
+        assert_eq!(
+            map_aci_risk_status("000.100.110", Some("CHALLENGE")),
+            FraudCheckStatus::ManualReview
+        );
+    }
+
+    #[test]
+    fn falls_back_to_result_code_tables() {
+        // A known successful code → Legit; a known failure code → Fraud.
+        assert_eq!(
+            map_aci_risk_status(SUCCESSFUL_CODES[0], None),
+            FraudCheckStatus::Legit
+        );
+        assert_eq!(
+            map_aci_risk_status(FAILURE_CODES[0], None),
+            FraudCheckStatus::Fraud
+        );
+        // An unrecognized code fails closed to ManualReview (holds the payment
+        // for merchant action rather than letting it proceed).
+        assert_eq!(
+            map_aci_risk_status("not.a.real.code", None),
+            FraudCheckStatus::ManualReview
+        );
+        // An unrecognized explicit risk status with an unknown result code also
+        // fails closed.
+        assert_eq!(
+            map_aci_risk_status("not.a.real.code", Some("SOMETHING_NEW")),
+            FraudCheckStatus::ManualReview
+        );
+        // A genuine pending/await result code stays Pending (resolved later by
+        // a RISK webhook), not held.
+        assert_eq!(
+            map_aci_risk_status(PENDING_CODES[0], None),
+            FraudCheckStatus::Pending
+        );
     }
 }

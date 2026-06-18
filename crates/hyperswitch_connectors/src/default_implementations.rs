@@ -6121,7 +6121,6 @@ macro_rules! default_imp_for_frm_sale {
 default_imp_for_frm_sale!(
     connectors::Vgs,
     connectors::AbsaSanlam,
-    connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Affirm,
@@ -6286,7 +6285,6 @@ macro_rules! default_imp_for_frm_checkout {
 default_imp_for_frm_checkout!(
     connectors::Vgs,
     connectors::AbsaSanlam,
-    connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Affirm,
