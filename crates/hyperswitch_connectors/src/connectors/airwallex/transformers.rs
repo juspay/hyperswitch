@@ -552,15 +552,17 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             }
             PaymentMethodData::Wallet(ref wallet_data) => get_wallet_details(wallet_data, item),
             PaymentMethodData::PayLater(ref paylater_data) => {
-                let auto_capture = item.router_data.request.is_auto_capture()?;
+                let paylater_options = AirwallexPayLaterPaymentOptions {
+                    auto_capture: item.router_data.request.is_auto_capture()?,
+                };
 
                 payment_method_options = match paylater_data {
-                    PayLaterData::KlarnaRedirect { .. } => Some(AirwallexPaymentOptions::Klarna(
-                        AirwallexPayLaterPaymentOptions { auto_capture },
-                    )),
-                    PayLaterData::AtomeRedirect { .. } => Some(AirwallexPaymentOptions::Atome(
-                        AirwallexPayLaterPaymentOptions { auto_capture },
-                    )),
+                    PayLaterData::KlarnaRedirect { .. } => {
+                        Some(AirwallexPaymentOptions::Klarna(paylater_options))
+                    }
+                    PayLaterData::AtomeRedirect { .. } => {
+                        Some(AirwallexPaymentOptions::Atome(paylater_options))
+                    }
                     _ => None,
                 };
 
@@ -2023,11 +2025,6 @@ fn build_airwallex_connector_response_data(
 ) -> Option<ConnectorResponseData> {
     let extended_authentication_applicable = match payment_method {
         enums::PaymentMethod::Card => true,
-        enums::PaymentMethod::PayLater
-            if matches!(payment_method_type, Some(enums::PaymentMethodType::Klarna)) =>
-        {
-            true
-        }
         _ => false,
     };
 
