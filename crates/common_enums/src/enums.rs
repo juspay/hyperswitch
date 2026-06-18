@@ -2922,40 +2922,6 @@ pub enum EventDestination {
     UnifiedConnectorService,
 }
 
-#[cfg(test)]
-mod connector_event_enum_tests {
-    use serde_json::json;
-
-    use super::{EventDestination, EventExecutionMode, ExecutionMode};
-
-    #[test]
-    fn event_execution_mode_projection_serializes() {
-        // The routing mode projects to the 2-state event mode; a direct call (`NotApplicable`)
-        // is a live call, so it records as `primary`.
-        assert_eq!(
-            json!(EventExecutionMode::from(ExecutionMode::Primary)),
-            json!("primary")
-        );
-        assert_eq!(
-            json!(EventExecutionMode::from(ExecutionMode::Shadow)),
-            json!("shadow")
-        );
-        assert_eq!(
-            json!(EventExecutionMode::from(ExecutionMode::NotApplicable)),
-            json!("primary")
-        );
-    }
-
-    #[test]
-    fn event_destination_serializes() {
-        assert_eq!(json!(EventDestination::Connector), json!("connector"));
-        assert_eq!(
-            json!(EventDestination::UnifiedConnectorService),
-            json!("unified_connector_service")
-        );
-    }
-}
-
 #[derive(
     Clone,
     Copy,

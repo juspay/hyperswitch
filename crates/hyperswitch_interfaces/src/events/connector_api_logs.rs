@@ -107,3 +107,96 @@ impl ConnectorEvent {
         self.error = Some(error.to_string());
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::borrow::Cow;
+
+    use common_enums::{EventDestination, EventExecutionMode, ExecutionMode};
+    use common_utils::request::Method;
+
+    use super::ConnectorEvent;
+
+    /// Builds a connector event the way `emit_ucs_connector_event` does and returns its
+    /// serialized form, routing the body by status code like the wrappers do.
+    fn serialized_event(
+        status_code: u16,
+        destination: EventDestination,
+        execution_mode: EventExecutionMode,
+    ) -> serde_json::Value {
+        let tenant_id =
+            common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(Cow::from("test_merchant")).unwrap();
+        let mut event = ConnectorEvent::new(
+            tenant_id,
+            "stripe".to_string(),
+            "Authorize",
+            serde_json::json!({ "amount": 100 }),
+            "grpc://unified-connector-service".to_string(),
+            Method::Post,
+            "pay_123".to_string(),
+            merchant_id,
+            None,
+            42,
+            None,
+            None,
+            None,
+            status_code,
+            destination,
+            execution_mode,
+        );
+        let body = serde_json::json!({ "status": "ok" });
+        match status_code {
+            400..=599 => event.set_error_response_body(&body),
+            _ => event.set_response_body(&body),
+        }
+        serde_json::to_value(&event).unwrap()
+    }
+
+    #[test]
+    fn ucs_call_tags_destination_and_execution_mode() {
+        let primary = serialized_event(
+            200,
+            EventDestination::UnifiedConnectorService,
+            ExecutionMode::Primary.into(),
+        );
+        assert_eq!(primary["destination"], "unified_connector_service");
+        assert_eq!(primary["execution_mode"], "primary");
+
+        let shadow = serialized_event(
+            200,
+            EventDestination::UnifiedConnectorService,
+            ExecutionMode::Shadow.into(),
+        );
+        assert_eq!(shadow["execution_mode"], "shadow");
+
+        // A direct connector call (`NotApplicable`) is a live call -> recorded as primary.
+        let direct = serialized_event(
+            200,
+            EventDestination::Connector,
+            ExecutionMode::NotApplicable.into(),
+        );
+        assert_eq!(direct["destination"], "connector");
+        assert_eq!(direct["execution_mode"], "primary");
+    }
+
+    #[test]
+    fn response_body_routes_by_status_code() {
+        let ok = serialized_event(
+            200,
+            EventDestination::UnifiedConnectorService,
+            EventExecutionMode::Primary,
+        );
+        assert!(ok["error"].is_null());
+        assert!(!ok["masked_response"].is_null());
+
+        let failure = serialized_event(
+            402,
+            EventDestination::UnifiedConnectorService,
+            EventExecutionMode::Primary,
+        );
+        assert!(!failure["error"].is_null());
+        assert!(failure["masked_response"].is_null());
+    }
+}
