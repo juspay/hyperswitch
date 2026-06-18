@@ -175,6 +175,8 @@ where
         &profile,
         &mut payment_data,
         header_payload.clone(),
+        // V2 gates internally on `profile.is_vault_sdk_enabled()`; this flag is ignored here.
+        false,
     )
     .await?;
 

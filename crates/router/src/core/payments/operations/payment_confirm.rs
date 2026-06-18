@@ -44,9 +44,8 @@ use crate::{
         metrics,
         payment_methods::transformers as pm_transformers,
         payments::{
-            self, helpers, operations, populate_installment_details, populate_surcharge_details,
-            CustomerDetails, OperationSessionGetters, OperationSessionSetters, PaymentAddress,
-            PaymentData,
+            self, helpers, operations, populate_installment_details, CustomerDetails,
+            OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
         },
         three_ds_decision_rule,
         unified_authentication_service::{
@@ -1433,13 +1432,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     #[instrument(skip_all)]
     async fn populate_payment_data<'a>(
         &'a self,
-        state: &SessionState,
+        _state: &SessionState,
         payment_data: &mut PaymentData<F>,
         _processor: &domain::Processor,
         business_profile: &domain::Profile,
         connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        populate_surcharge_details(state, payment_data).await?;
         populate_installment_details(payment_data)?;
         payment_data.payment_attempt.request_extended_authorization = payment_data
             .payment_intent
