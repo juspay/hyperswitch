@@ -1390,7 +1390,7 @@ pub struct CellInformation {
 impl Default for CellInformation {
     fn default() -> Self {
         Self {
-            id: String::from("defid"),
+            id: String::from("00"),
         }
     }
 }
@@ -1404,7 +1404,7 @@ impl Default for CellInformation {
         // And a panic at application startup is considered acceptable.
         #[allow(clippy::expect_used)]
         let cell_id =
-            id_type::CellId::from_string("defid").expect("Failed to create a default for Cell Id");
+            id_type::CellId::from_string("00").expect("Failed to create a default for Cell Id");
         Self { id: cell_id }
     }
 }

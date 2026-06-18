@@ -44,9 +44,8 @@ use crate::{
         metrics,
         payment_methods::transformers as pm_transformers,
         payments::{
-            self, helpers, operations, populate_installment_details, populate_surcharge_details,
-            CustomerDetails, OperationSessionGetters, OperationSessionSetters, PaymentAddress,
-            PaymentData,
+            self, helpers, operations, populate_installment_details, CustomerDetails,
+            OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
         },
         three_ds_decision_rule,
         unified_authentication_service::{
@@ -87,6 +86,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let operations::PaymentMethodFetchData {
@@ -943,6 +943,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             external_authentication_data: request.three_ds_data.clone(),
             client_session_id: None,
             vault_session_details: None,
+            external_vault_pmd: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1136,7 +1137,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                         == Some(common_enums::FutureUsage::OffSession)
                                 }
                                 Some(api_models::payments::PaymentMethodData::Card(_))
-                                | Some(api_models::payments::PaymentMethodData::BankRedirect(_)) => {
+                                | Some(api_models::payments::PaymentMethodData::BankRedirect(_))
+                                | Some(api_models::payments::PaymentMethodData::BankDebit(_)) => {
                                     true
                                 }
                                 _ => false,
@@ -1430,13 +1432,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     #[instrument(skip_all)]
     async fn populate_payment_data<'a>(
         &'a self,
-        state: &SessionState,
+        _state: &SessionState,
         payment_data: &mut PaymentData<F>,
         _processor: &domain::Processor,
         business_profile: &domain::Profile,
         connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        populate_surcharge_details(state, payment_data).await?;
         populate_installment_details(payment_data)?;
         payment_data.payment_attempt.request_extended_authorization = payment_data
             .payment_intent
@@ -1954,35 +1955,19 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     field_name: "currency",
                 }).attach_printable("Currency missing")?;
 
-                let req_identifier = router_env::RequestIdentifier::new("x-request-id");
-                let client = crate::core::authentication_client::AuthenticationServiceClient::new(
-                    auth_config,
-                    &req_identifier,
-                ).change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to create auth client")?;
-
                 let auth_req = api_models::authentication::AuthenticationCreateRequest {
-                    authentication_id: None,
-                    profile_id: None,
-                    amount: payment_data.payment_intent.amount,
-                    authentication_connector: Some(authentication_connector),
-                    currency,
-                    return_url: Some(return_url),
-                    force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
-                    psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
-                    profile_acquirer_id: None,
-                    acquirer_details: Some(authentication_acquirer_details),
-                    customer_details: None,
-                };
-
-                let auth_create_resp = crate::core::authentication_client::AuthenticationCreateFlow::call(
-                    state,
-                    &client,
-                    auth_req,
-                ).await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to call authentication create flow")?;
-                payment_data.payment_attempt.authentication_id = Some(auth_create_resp.authentication_id.clone());
+                        authentication_id: None,
+                        profile_id: None,
+                        amount: payment_data.payment_intent.amount,
+                        authentication_connector: Some(authentication_connector),
+                        currency,
+                        return_url: Some(return_url),
+                        force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
+                        psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
+                        profile_acquirer_id: None,
+                        acquirer_details: Some(authentication_acquirer_details),
+                        customer_details: None,
+                    };
 
                 let pm_data: api_models::payments::PaymentMethodData = match payment_data.payment_method_data.clone() {
                     Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card)) => {
@@ -2026,25 +2011,68 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .attach_printable("payment_method not found in payment_attempt")?,
                     payment_method_type: payment_data.payment_attempt.payment_method_type,
                     client_secret: None,
-                    profile_id: payment_data.payment_intent.profile_id.clone(),
+                    profile_id: None,
                     billing: domain_address,
                     shipping,
                     browser_information: browser_info.clone(),
                     email: email.clone(),
                 };
 
-                let elig_resp = crate::core::authentication_client::AuthenticationEligibilityFlow::call(
-                    state,
-                    &client,
-                    (
-                        eligibility_req,
-                        auth_create_resp.authentication_id.get_string_repr().to_owned(),
-                    ),
-                ).await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to call authentication eligibility flow")?;
+                // If micro service is enabled we do api call else do internal function call
+                if let Some(auth_config) = auth_config {
+                    let req_identifier = router_env::RequestIdentifier::new("x-request-id");
+                    let client = crate::core::authentication_client::AuthenticationServiceClient::new(
+                        auth_config,
+                        &req_identifier,
+                    ).change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to create auth client")?;
 
-                (auth_create_resp, elig_resp)
+                    let auth_create_resp = crate::core::authentication_client::AuthenticationCreateFlow::call(
+                        state,
+                        &client,
+                        auth_req,
+                    ).await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to call authentication create flow")?;
+
+                    payment_data.payment_attempt.authentication_id = Some(auth_create_resp.authentication_id.clone());
+
+                    let elig_resp = crate::core::authentication_client::AuthenticationEligibilityFlow::call(
+                        state,
+                        &client,
+                        (
+                            eligibility_req,
+                            auth_create_resp.authentication_id.get_string_repr().to_owned(),
+                        ),
+                    ).await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to call authentication eligibility flow")?;
+
+                    (auth_create_resp, elig_resp)
+                } else {
+                    let auth_create_resp = crate::core::unified_authentication_service::authentication_create_core(
+                        state.clone(),
+                        platform.clone(),
+                        auth_req
+                    ).await?
+                    .get_json_body()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get json body from authentication create response")?;
+
+                    payment_data.payment_attempt.authentication_id = Some(auth_create_resp.authentication_id.clone());
+
+                    let elig_resp = crate::core::unified_authentication_service::authentication_eligibility_core(
+                        state.clone(),
+                        platform.clone(),
+                        eligibility_req,
+                        auth_create_resp.authentication_id.clone(),
+                    ).await?
+                    .get_json_body()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get json body from authentication eligibility response")?;
+
+                    (auth_create_resp, elig_resp)
+                }
             };
 
                 if eligibility_response.is_separate_authn_required()
@@ -2108,8 +2136,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     );
 
                 let sync_response = if !payment_data.payment_attempt.status.is_terminal_status() && is_pull_mechanism_enabled {
-                    {
-                        let auth_config = &state.conf.micro_services.authentication_service;
+                    let sync_req = api_models::authentication::AuthenticationSyncRequest {
+                        client_secret: None,
+                        payment_method_details: None,
+                        authentication_id: authentication_id.clone(),
+                    };
+
+                    // If micro service is enabled we do api call else do internal function call
+                    if let Some(auth_config) = &state.conf.micro_services.authentication_service {
                         let req_identifier = router_env::RequestIdentifier::new("x-request-id");
                         let client = crate::core::authentication_client::AuthenticationServiceClient::new(
                             auth_config,
@@ -2118,12 +2152,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to create auth client")?;
 
-                        let sync_req = api_models::authentication::AuthenticationSyncRequest {
-                            client_secret: None,
-                            payment_method_details: None,
-                            authentication_id: authentication_id.clone(),
-                        };
-
                         crate::core::authentication_client::AuthenticationSyncFlow::call(
                             state,
                             &client,
@@ -2131,7 +2159,17 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         ).await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to call authentication sync flow")?
-
+                    } else {
+                        crate::core::unified_authentication_service::authentication_sync_core(
+                            state.clone(),
+                            platform.clone(),
+                            services::api::AuthFlow::Merchant,
+                            sync_req,
+                        )
+                        .await?
+                        .get_json_body()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to get json body from authentication sync response")?
                     }
                 } else {
                     return Err(errors::ApiErrorResponse::InternalServerError).attach_printable("Pull mechanism disabled or terminal status during post-authentication sync")?;
@@ -2146,18 +2184,17 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     )
                  );
 
-                let tokenized_data = if updated_authentication_status.is_success() {
-                    Some(crate::core::payment_methods::vault::get_tokenized_data(state, authentication_id.get_string_repr(), false, platform.get_provider().get_key_store().key.get_inner()).await?)
-                } else {
-                    None
-                };
+                let cryptogram = sync_response.authentication_details.and_then(|authentication_details| authentication_details.three_ds_data.and_then(|data| data.authentication_cryptogram)).ok_or(errors::ApiErrorResponse::MissingRequiredField{field_name:"authentication_cryptogram"})?;
 
-                    let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-                        cavv: tokenized_data.map(|tokenized_data| hyperswitch_masking::Secret::new(tokenized_data.value1)),
-                    authentication:authentication_domain_model
-                    };
+                let authentication_store =
+                        hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
+                            cavv: match cryptogram {
+                                api_models::authentication::Cryptogram::Cavv { authentication_cryptogram } => Some(authentication_cryptogram),
+                            },
+                            authentication:authentication_domain_model
+                        };
 
-                    payment_data.authentication = Some(authentication_store.clone());
+                payment_data.authentication = Some(authentication_store);
                 //If authentication is not successful, skip the payment connector flows and mark the payment as failure
                 if updated_authentication_status != api_models::enums::AuthenticationStatus::Success
                 {
@@ -2336,6 +2373,7 @@ impl PaymentConfirm {
             &profile_id,
             payment_method_ref,
             card_token_data,
+            true, // fetch raw card detail from the internal vault
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
@@ -2599,6 +2637,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let (
             external_three_ds_authentication_attempted,
+            external_threeds_authentication_type,
             authentication_connector,
             authentication_id,
         ) = match payment_data.authentication.as_ref() {
@@ -2608,6 +2647,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .authentication
                         .is_separate_authn_required(),
                 ),
+                authentication_store.authentication.authentication_type,
                 authentication_store
                     .authentication
                     .authentication_connector
@@ -2619,7 +2659,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .clone(),
                 ),
             ),
-            None => (None, None, None),
+            None => (None, None, None, None),
         };
 
         let card_discovery = payment_data.get_card_discovery_for_card_payment_method();
@@ -2654,6 +2694,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         updated_by: storage_scheme.to_string(),
                         merchant_connector_id,
                         external_three_ds_authentication_attempted,
+                        external_threeds_authentication_type,
                         authentication_connector,
                         authentication_id,
                         payment_method_billing_address_id,
@@ -2822,6 +2863,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .profile_acquirer_id
                             .clone(),
+                        external_surcharge_strategy: payment_data
+                            .payment_intent
+                            .external_surcharge_strategy,
+                        external_surcharge_applicable: payment_data
+                            .payment_intent
+                            .external_surcharge_applicable,
                     })),
                     &m_key_store,
                     storage_scheme,

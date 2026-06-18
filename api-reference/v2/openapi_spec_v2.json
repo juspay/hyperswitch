@@ -3829,7 +3829,7 @@
               "examples": {
                 "Create a payment method session with customer_id": {
                   "value": {
-                    "customer_id": "12345_cus_abcdefghijklmnopqrstuvwxyz"
+                    "customer_id": "0a_cus_abcdefghijklmnopqrstuvwxyz"
                   }
                 }
               }
@@ -3888,7 +3888,7 @@
               "examples": {
                 "Create a payment method session with customer_id": {
                   "value": {
-                    "customer_id": "12345_cus_abcdefghijklmnopqrstuvwxyz"
+                    "customer_id": "0a_cus_abcdefghijklmnopqrstuvwxyz"
                   }
                 }
               }
@@ -5003,7 +5003,7 @@
               "examples": {
                 "Create a token with customer_id": {
                   "value": {
-                    "customer_id": "12345_cus_0196d94b9c207333a297cbcf31f2e8c8",
+                    "customer_id": "0a_cus_0196d94b9c207333a297cbcf31f2e8c8",
                     "token_request": {
                       "payment_method_data": {
                         "card": {
@@ -5066,8 +5066,8 @@
               "examples": {
                 "Delete a token entry with customer_id and session_id": {
                   "value": {
-                    "customer_id": "12345_cus_0196d94b9c207333a297cbcf31f2e8c8",
-                    "session_id": "12345_pms_01926c58bc6e77c09e809964e72af8c8"
+                    "customer_id": "0a_cus_0196d94b9c207333a297cbcf31f2e8c8",
+                    "session_id": "0a_pms_01926c58bc6e77c09e809964e72af8c8"
                   }
                 }
               }
@@ -9631,6 +9631,46 @@
               }
             ],
             "nullable": true
+          },
+          "discount_rules": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderPaymentDiscountRules"
+              }
+            ],
+            "nullable": true
+          },
+          "penalties": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PenaltyRules"
+              }
+            ],
+            "nullable": true
+          },
+          "collection_actions": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CollectionActions"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_constraints": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoPaymentTypeConstraints"
+              }
+            ],
+            "nullable": true
+          },
+          "beneficiary": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BeneficiaryDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -12661,7 +12701,7 @@
           "id": {
             "type": "string",
             "description": "Unique identifier for the customer",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -12818,7 +12858,7 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -12995,7 +13035,7 @@
           "id": {
             "type": "string",
             "description": "Unique identifier for the customer",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -13076,7 +13116,7 @@
           "default_payment_method_id": {
             "type": "string",
             "description": "The identifier for the default payment method.",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true,
             "maxLength": 64
           },
@@ -13161,7 +13201,7 @@
           "default_payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the payment method",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           },
           "tax_registration_id": {
@@ -13363,12 +13403,12 @@
           "customer_id": {
             "type": "string",
             "description": "Customer ID for which the tokenization is requested",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8"
           },
           "session_id": {
             "type": "string",
             "description": "Session ID associated with the tokenization request",
-            "example": "12345_pms_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_pms_01926c58bc6e77c09e809964e72af8c8"
           }
         }
       },
@@ -13381,7 +13421,7 @@
           "id": {
             "type": "string",
             "description": "Unique identifier returned by the tokenization service",
-            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_tok_01926c58bc6e77c09e809964e72af8c8"
           }
         }
       },
@@ -13688,7 +13728,9 @@
         "description": "Represents the type of identification document used for validation.",
         "enum": [
           "cpf",
-          "cnpj"
+          "cnpj",
+          "psn",
+          "other"
         ]
       },
       "DokuBankTransferInstructions": {
@@ -15292,7 +15334,7 @@
           "customer_id": {
             "type": "string",
             "description": "Customer ID for which the tokenization is requested",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8"
           },
           "token_request": {
             "type": "object",
@@ -15311,7 +15353,7 @@
           "id": {
             "type": "string",
             "description": "Unique identifier returned by the tokenization service",
-            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_tok_01926c58bc6e77c09e809964e72af8c8"
           },
           "created_at": {
             "type": "string",
@@ -15496,6 +15538,69 @@
           "PREPAID",
           "UNKNOWN"
         ]
+      },
+      "GooglePayDecrypt": {
+        "type": "object",
+        "required": [
+          "application_primary_account_number",
+          "expiry_month",
+          "expiry_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "application_primary_account_number": {
+            "type": "string",
+            "description": "The dpan number associated with card number",
+            "example": "4242424242424242"
+          },
+          "expiry_month": {
+            "type": "string",
+            "description": "The card's expiry month"
+          },
+          "expiry_year": {
+            "type": "string",
+            "description": "The card's expiry year"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Doe"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "GooglePayDecryptAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for Google pay decrypt wallet payout method",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card expiry month",
+            "example": "01"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card expiry year",
+            "example": "2026"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card holder name",
+            "example": "John Doe"
+          }
+        }
       },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
@@ -16345,27 +16450,12 @@
       "HyperswitchVaultSessionDetails": {
         "type": "object",
         "required": [
-          "payment_method_session_id",
-          "client_secret",
-          "publishable_key",
-          "profile_id"
+          "sdk_authorization"
         ],
         "properties": {
-          "payment_method_session_id": {
+          "sdk_authorization": {
             "type": "string",
-            "description": "Session ID for Hyperswitch Vault"
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "Client secret for Hyperswitch Vault"
-          },
-          "publishable_key": {
-            "type": "string",
-            "description": "Publishable key for Hyperswitch Vault"
-          },
-          "profile_id": {
-            "type": "string",
-            "description": "Profile ID for Hyperswitch Vault"
+            "description": "Base64-encoded SDK authorization token for the Hyperswitch Vault session"
           }
         }
       },
@@ -16983,7 +17073,8 @@
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "deprecated": true
       },
       "MandateResponse": {
         "type": "object",
@@ -18759,12 +18850,12 @@
           "payment_method_id": {
             "type": "string",
             "description": "The payment method ID that was checked",
-            "example": "12345_pm_019959146f92737389eb6927ce1eb7dc"
+            "example": "0a_pm_019959146f92737389eb6927ce1eb7dc"
           },
           "customer_id": {
             "type": "string",
             "description": "The customer ID associated with the payment method",
-            "example": "12345_cus_0195dc62bb8e7312a44484536da76aef"
+            "example": "0a_cus_0195dc62bb8e7312a44484536da76aef"
           }
         }
       },
@@ -20725,7 +20816,7 @@
           "payment_method_id": {
             "type": "string",
             "description": "Identifier for Payment Method used for the payment attempt",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           },
           "client_source": {
@@ -21597,7 +21688,7 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -21890,6 +21981,30 @@
             "properties": {
               "network_token": {
                 "$ref": "#/components/schemas/NetworkTokenData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "VaultDataCard",
+            "required": [
+              "vault_data_card"
+            ],
+            "properties": {
+              "vault_data_card": {
+                "$ref": "#/components/schemas/ProxyCardData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "VaultCardTokenData",
+            "required": [
+              "vault_card_token_data"
+            ],
+            "properties": {
+              "vault_card_token_data": {
+                "$ref": "#/components/schemas/CardToken"
               }
             }
           }
@@ -22201,7 +22316,7 @@
           "id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8"
           }
         }
       },
@@ -22228,7 +22343,7 @@
           "id": {
             "type": "string",
             "description": "The payment method ID associated with the token",
-            "example": "12345_pm_019959146f92737389eb6927ce1eb7dc"
+            "example": "0a_pm_019959146f92737389eb6927ce1eb7dc"
           },
           "payment_method_token": {
             "type": "string",
@@ -22287,7 +22402,7 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           }
@@ -22418,7 +22533,7 @@
           "id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8"
           },
           "merchant_id": {
             "type": "string",
@@ -22428,7 +22543,7 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -22575,12 +22690,12 @@
           "id": {
             "type": "string",
             "description": "The unique identifier of the payment method.",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8"
           },
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -22783,12 +22898,12 @@
         "properties": {
           "id": {
             "type": "string",
-            "example": "12345_pms_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_pms_01926c58bc6e77c09e809964e72af8c8"
           },
           "customer_id": {
             "type": "string",
             "description": "The customer id for which the payment methods session is to be created",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           },
           "billing": {
@@ -22855,7 +22970,7 @@
           "associated_token_id": {
             "type": "string",
             "description": "The token-id created if there is tokenization_data present",
-            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_tok_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           },
           "storage_type": {
@@ -23575,7 +23690,7 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -23979,7 +24094,7 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -24113,7 +24228,7 @@
           "id": {
             "type": "string",
             "description": "Unique identifier for the payment",
-            "example": "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_pay_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -24130,7 +24245,7 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true,
             "maxLength": 64,
             "minLength": 32
@@ -24373,7 +24488,7 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -24592,7 +24707,7 @@
           "id": {
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
-            "example": "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_pay_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -24605,7 +24720,7 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -25599,7 +25714,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
+            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated. _Deprecated: Use the customer object instead._",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 255
           },
@@ -25626,7 +25742,8 @@
           },
           "business_label": {
             "type": "string",
-            "description": "Business label of the merchant for this payout",
+            "description": "Business label of the merchant for this payout. _Deprecated: Use profile_id instead._",
+            "deprecated": true,
             "example": "food",
             "nullable": true
           },
@@ -27085,16 +27202,12 @@
         "type": "object",
         "description": "Additional metadata for payment intent state containing refunded and disputed amounts",
         "required": [
+          "status",
           "updated_at"
         ],
         "properties": {
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PostCaptureVoidStatus"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PostCaptureVoidStatus"
           },
           "connector_reference_id": {
             "type": "string",
@@ -27841,6 +27954,90 @@
           "business_days",
           "contract_default"
         ]
+      },
+      "ProxyCardData": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name",
+          "card_cvc",
+          "bin_number",
+          "last_four"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The token which refers to the card number",
+            "example": "token_card_number"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "bin_number": {
+            "type": "string",
+            "description": "The first six digit of the card number",
+            "example": "424242"
+          },
+          "last_four": {
+            "type": "string",
+            "description": "The last four digit of the card number",
+            "example": "4242"
+          }
+        }
       },
       "ProxyCardDetails": {
         "type": "object",
@@ -30148,6 +30345,11 @@
         "properties": {
           "next_action": {
             "$ref": "#/components/schemas/NextActionCall"
+          },
+          "should_block_confirm": {
+            "type": "boolean",
+            "description": "Whether the SDK should block the confirm call for user.",
+            "nullable": true
           }
         }
       },
@@ -31573,7 +31775,7 @@
           "payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the payment method.",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8"
           },
           "token_type": {
             "$ref": "#/components/schemas/TokenDataType"
@@ -32578,6 +32780,17 @@
           {
             "type": "object",
             "required": [
+              "google_pay_decrypt"
+            ],
+            "properties": {
+              "google_pay_decrypt": {
+                "$ref": "#/components/schemas/GooglePayDecrypt"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "paypal"
             ],
             "properties": {
@@ -32603,6 +32816,9 @@
         "oneOf": [
           {
             "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/GooglePayDecryptAdditionalData"
           },
           {
             "$ref": "#/components/schemas/PaypalAdditionalData"

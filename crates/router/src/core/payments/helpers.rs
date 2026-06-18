@@ -17,7 +17,7 @@ use api_models::{
     },
 };
 use base64::Engine;
-use common_enums::{enums::ExecutionMode, ConnectorType};
+use common_enums::{enums::ExecutionMode, ConnectorType, WalletDecryptedToken};
 use common_types::payments::InstallmentOption;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
@@ -646,7 +646,9 @@ pub async fn get_token_pm_type_mandate_details(
                         .payment_method_type
                         .map(|payment_method_type_value| {
                             payment_method_type_value
-                                .should_check_for_customer_saved_payment_method_type(false)
+                                .should_check_for_customer_saved_payment_method_type(
+                                    WalletDecryptedToken::None,
+                                )
                         })
                         .unwrap_or(false)
                     {
@@ -1546,10 +1548,16 @@ where
                         1,
                         router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
                     );
-                    super::reset_process_sync_task(&*state.store, payment_attempt, stime)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while updating task in process tracker")
+                    super::reset_process_sync_task(
+                        &*state.store,
+                        payment_attempt,
+                        stime,
+                        "PAYMENTS_SYNC",
+                        storage::ProcessTrackerRunner::PaymentsSyncWorkflow,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while updating task in process tracker")
                 }
             }
             None => Ok(()),
@@ -2112,10 +2120,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 }
                 None => {
                     // Validate that the customer_id is not in GlobalCustomerId format
-                    if customers::is_customer_id_in_global_format(
-                        &customer_id,
-                        &state.conf.cell_information.id,
-                    ) {
+                    if customers::is_customer_id_in_global_format(&customer_id) {
                         Err(report!(errors::StorageError::InvalidDataFormat(format!(
                             "customer_id '{}' format is not supported",
                             &customer_id.get_string_repr()
@@ -2601,7 +2606,22 @@ pub async fn should_execute_based_on_rollout(
                 .unwrap_or_default())
         }
         Err(err) => {
-            logger::error!(error = ?err, "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false.");
+            // ValueNotFound may be an expected outcome when a rollout configuration has not
+            // been provisioned. Treat it as a warning to avoid generating misleading errors.
+            match err.current_context() {
+                errors::StorageError::ValueNotFound(_) => {
+                    logger::warn!(
+                        error = ?err,
+                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+                    );
+                }
+                _ => {
+                    logger::error!(
+                        error = ?err,
+                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+                    );
+                }
+            }
             Ok(RolloutExecutionResult::default())
         }
     }
@@ -2871,11 +2891,11 @@ pub async fn fetch_card_details_from_locker(
         } => {
             Box::pin(fetch_card_details_from_external_vault(
                 state,
-                platform.get_processor().get_account().get_id(),
+                platform.get_provider().get_account().get_id(),
                 card_token_data,
                 co_badged_card_data,
                 payment_method_info,
-                platform.get_processor().get_key_store(),
+                platform.get_provider().get_key_store(),
                 external_vault_source,
             ))
             .await
@@ -2892,6 +2912,72 @@ pub async fn fetch_card_details_from_locker(
             .await
         }
     }
+}
+
+/// Resolve the provider (platform) merchant's business profile in a platform-connected flow.
+///
+/// In a platform-connected flow the payment runs under the connected (processor) merchant,
+/// but provider-level configuration (such as external vault) lives on the provider merchant's
+/// profile, so we resolve the provider merchant's single profile. For standard merchants
+/// (provider == processor) the supplied payment profile is returned unchanged, keeping
+/// standard flows untouched.
+pub async fn resolve_provider_profile(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_profile: &domain::Profile,
+) -> RouterResult<domain::Profile> {
+    let provider = platform.get_provider();
+    let processor = platform.get_processor();
+
+    if provider.get_account().get_id() == processor.get_account().get_id() {
+        Ok(payment_profile.clone())
+    } else {
+        #[cfg(feature = "v1")]
+        {
+            let profile_id = provider
+                .get_account()
+                .get_default_profile()
+                .clone()
+                .ok_or_else(|| {
+                    report!(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Provider merchant has no default profile configured")
+                })?;
+
+            state
+                .store
+                .find_business_profile_by_profile_id(provider.get_key_store(), &profile_id)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                    id: profile_id.get_string_repr().to_owned(),
+                })
+        }
+        #[cfg(feature = "v2")]
+        {
+            Err(
+                report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "Platform-connected provider profile resolution is not supported in v2",
+                ),
+            )
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+pub async fn get_provider_mca_v2(
+    state: &SessionState,
+    provider: &domain::Provider,
+    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
+) -> RouterResult<domain::MerchantConnectorAccount> {
+    let merchant_connector_id = merchant_connector_id
+        .get_required_value("merchant_connector_id")
+        .attach_printable("merchant_connector_id not provided")?;
+    state
+        .store
+        .find_merchant_connector_account_by_id(merchant_connector_id, provider.get_key_store())
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.get_string_repr().to_string(),
+        })
 }
 
 #[cfg(feature = "v1")]
@@ -4681,6 +4767,8 @@ mod tests {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: None,
+            external_surcharge_strategy: None,
+            external_surcharge_applicable: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4773,6 +4861,8 @@ mod tests {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: None,
+            external_surcharge_strategy: None,
+            external_surcharge_applicable: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4863,6 +4953,8 @@ mod tests {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: None,
+            external_surcharge_strategy: None,
+            external_surcharge_applicable: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -5361,6 +5453,8 @@ impl AttemptType {
             net_amount: old_payment_attempt.net_amount,
             external_three_ds_authentication_attempted: old_payment_attempt
                 .external_three_ds_authentication_attempted,
+            external_threeds_authentication_type: old_payment_attempt
+                .external_threeds_authentication_type,
             authentication_connector: None,
             authentication_id: None,
             mandate_data: old_payment_attempt.mandate_data,
@@ -7128,7 +7222,6 @@ impl GooglePayTokenDecryptor {
 
         // decrypt the message
         let decrypted = self.decrypt_message(symmetric_encryption_key, encrypted_message)?;
-
         // parse the decrypted data
         let decrypted_data: hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal =
             decrypted
@@ -7136,6 +7229,7 @@ impl GooglePayTokenDecryptor {
                 .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // check the expiration date of the decrypted data
+
         if matches!(
             check_expiration_date_is_valid(&decrypted_data.message_expiration),
             Ok(true)
@@ -8470,22 +8564,27 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 .get_metadata()
                 .as_ref()
                 .and_then(|metadata| {
-                    metadata
-                    .peek()
-                    .clone()
-                    .parse_value::<authentication::types::AcquirerDetails>("AcquirerDetails")
-                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
-                        message:
-                            "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
-                                .to_string(),
-                    })
-                    .inspect_err(|err| {
-                        logger::error!(
-                            "Failed to parse acquirer details from Payment Connector's Metadata: {:?}",
-                            err
-                        );
-                    })
-                    .ok()
+                    let metadata_val = metadata.peek();
+                    metadata_val
+                        .get("acquirer_details")
+                        .cloned()
+                        .or_else(|| metadata_val.get("acquirer_bin").map(|_| metadata_val.clone()))
+                        .and_then(|val| {
+                            val.parse_value::<authentication::types::AcquirerDetails>(
+                                "AcquirerDetails",
+                            )
+                            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                                message: "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
+                                    .to_string(),
+                            })
+                            .inspect_err(|err| {
+                                logger::error!(
+                                    "Failed to parse acquirer details from Payment Connector's Metadata: {:?}",
+                                    err
+                                );
+                            })
+                            .ok()
+                        })
                 }) {
                 Some(details) => Some(details),
                 None => {

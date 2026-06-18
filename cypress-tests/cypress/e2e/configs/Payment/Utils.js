@@ -13,6 +13,7 @@ import { connectorDetails as bamboraConnectorDetails } from "./Bambora.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as barclaycardConnectorDetails } from "./Barclaycard.js";
+import { connectorDetails as bitpayConnectorDetails } from "./Bitpay.js";
 import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
@@ -91,6 +92,7 @@ const connectorDetails = {
   bamboraapac: bamboraapacConnectorDetails,
   barclaycard: barclaycardConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
+  bitpay: bitpayConnectorDetails,
   billwerk: billwerkConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
@@ -457,7 +459,7 @@ export const CONNECTOR_LISTS = {
       "mollie",
       "zift",
     ],
-    MANDATE_ID_TEST: ["airwallex", "payload", "gigadat", "loonio"],
+    MANDATE_ID_TEST: ["airwallex", "payload", "gigadat", "loonio", "redsys"],
     // Add more exclusion lists
   },
 
@@ -536,7 +538,7 @@ export const CONNECTOR_LISTS = {
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen"],
     BLUECODE_WALLET: ["calida"],
-    ALIPAY_HK_WALLET: ["adyen"],
+    ALIPAY_HK_WALLET: [""],
     PAYPAL_WALLET: [
       "airwallex",
       "globalpay",
@@ -551,6 +553,12 @@ export const CONNECTOR_LISTS = {
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
     PAYPAL_MANDATE: ["globalpay", "paypal"],
+    PAYPAL_WALLET_MANDATE: ["adyen"],
+    KAKAO_PAY_WALLET_MANDATE: ["adyen"],
+    GCASH_WALLET_MANDATE: ["adyen"],
+    TWINT_WALLET_MANDATE: ["adyen"],
+    DANA_WALLET_MANDATE: ["adyen"],
+    GOPAY_WALLET_MANDATE: ["adyen"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
@@ -603,6 +611,7 @@ export const CONNECTOR_LISTS = {
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
+    PAYMENT_RESPONSE_HASH: ["stripe"],
     MULTIPLE_CAPTURE: ["adyen", "checkout"],
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
     MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
@@ -622,6 +631,7 @@ export const CONNECTOR_LISTS = {
     CLEAR_PAN_RETRY: ["bankofamerica"],
     L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
+    REFUND_TYPE: ["stripe", "adyen", "checkout"],
     MANUAL_PAYMENT_UPDATE: ["stripe"],
     STEP_UP_RETRY: [
       "cybersource",
@@ -645,6 +655,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
+    CLIENT_SESSION_VALIDATION: ["stripe"],
     // Add more inclusion lists
   },
 };

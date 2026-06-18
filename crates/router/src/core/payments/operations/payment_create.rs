@@ -82,6 +82,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let operations::PaymentMethodFetchData {
@@ -730,6 +731,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             external_authentication_data: request.three_ds_data.clone(),
             client_session_id,
             vault_session_details: None,
+            external_vault_pmd: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1347,6 +1349,7 @@ impl PaymentCreate {
             &profile_id,
             payment_method_ref,
             None, // CVC token data is not passed in create api
+            true, // fetch raw card detail from the internal vault
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
@@ -1650,6 +1653,7 @@ impl PaymentCreate {
                     .as_ref()
                     .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 mandate_data,
                 payment_method_billing_address_id,
                 net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::from_payments_request(
@@ -1980,6 +1984,8 @@ impl PaymentCreate {
             state_metadata: None,
             installment_options: request.installment_options.clone(),
             profile_acquirer_id: request.profile_acquirer_id.clone(),
+            external_surcharge_strategy: request.external_surcharge_strategy,
+            external_surcharge_applicable: None,
         })
     }
 }
