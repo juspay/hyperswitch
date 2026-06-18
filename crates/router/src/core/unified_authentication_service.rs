@@ -2192,15 +2192,12 @@ pub async fn authentication_sync_core(
         .await?;
     }
 
-    let dimensions = dimensions.without_organization_id();
-
     // Determine whether to tokenise or not
 
     let should_disable_vault_tokenization = dimensions
         .get_should_disable_vault_tokenization(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
-            None,
         )
         .await;
 
