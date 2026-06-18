@@ -35,6 +35,26 @@ describe("Payout Link", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  after("reset business profile payout_link_config", () => {
+    const profileId =
+      globalState.get("profileId") || globalState.get("defaultProfileId");
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/business_profile/${profileId}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      body: {
+        payout_link_config: null,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      expect(response.status).to.equal(200);
+    });
+  });
+
   beforeEach(function () {
     if (!shouldContinue) {
       this.skip();
