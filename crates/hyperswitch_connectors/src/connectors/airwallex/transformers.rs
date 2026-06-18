@@ -2021,11 +2021,7 @@ fn build_airwallex_connector_response_data(
     extended_authorization_requested: primitive_wrappers::RequestExtendedAuthorizationBool,
     payment_method: enums::PaymentMethod,
 ) -> Option<ConnectorResponseData> {
-    let extended_authentication_applicable = match payment_method {
-        enums::PaymentMethod::Card => true,
-        _ => false,
-    };
-
+    let extended_authentication_applicable = matches!(payment_method, enums::PaymentMethod::Card);
     let extended_authentication_applied =
         if extended_authorization_requested.is_true() && extended_authentication_applicable {
             Some(primitive_wrappers::ExtendedAuthorizationAppliedBool::from(
