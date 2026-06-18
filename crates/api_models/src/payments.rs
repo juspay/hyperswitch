@@ -3498,7 +3498,8 @@ pub enum PaymentMethodData {
     NetworkToken(NetworkTokenData),
     /// Vault card data used for external vault proxy payments.
     /// When this variant is used, the payment will be routed through the external vault proxy flow.
-    #[schema(title = "ProxyCard")]
+    #[schema(title = "VaultDataCard")]
+    #[serde(rename = "vault_data_card")]
     ProxyCard(Box<ProxyCardData>),
     /// Vault card token data used for external vault proxy payments with an already-saved card.
     /// The top-level `payment_token` resolves to a stored payment method whose external vault

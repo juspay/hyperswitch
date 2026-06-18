@@ -21986,12 +21986,12 @@
           },
           {
             "type": "object",
-            "title": "ProxyCard",
+            "title": "VaultDataCard",
             "required": [
-              "proxy_card"
+              "vault_data_card"
             ],
             "properties": {
-              "proxy_card": {
+              "vault_data_card": {
                 "$ref": "#/components/schemas/ProxyCardData"
               }
             }
