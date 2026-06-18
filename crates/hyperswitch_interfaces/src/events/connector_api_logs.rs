@@ -154,6 +154,18 @@ mod tests {
         serde_json::to_value(&event).unwrap()
     }
 
+    fn str_field<'a>(event: &'a serde_json::Value, key: &str) -> Option<&'a str> {
+        event.get(key).and_then(serde_json::Value::as_str)
+    }
+
+    /// True when the field is present and non-null.
+    fn present(event: &serde_json::Value, key: &str) -> bool {
+        match event.get(key) {
+            Some(value) => !value.is_null(),
+            None => false,
+        }
+    }
+
     #[test]
     fn ucs_call_tags_destination_and_execution_mode() {
         let primary = serialized_event(
@@ -161,15 +173,18 @@ mod tests {
             EventDestination::UnifiedConnectorService,
             ExecutionMode::Primary.into(),
         );
-        assert_eq!(primary["destination"], "unified_connector_service");
-        assert_eq!(primary["execution_mode"], "primary");
+        assert_eq!(
+            str_field(&primary, "destination"),
+            Some("unified_connector_service")
+        );
+        assert_eq!(str_field(&primary, "execution_mode"), Some("primary"));
 
         let shadow = serialized_event(
             200,
             EventDestination::UnifiedConnectorService,
             ExecutionMode::Shadow.into(),
         );
-        assert_eq!(shadow["execution_mode"], "shadow");
+        assert_eq!(str_field(&shadow, "execution_mode"), Some("shadow"));
 
         // A direct connector call (`NotApplicable`) is a live call -> recorded as primary.
         let direct = serialized_event(
@@ -177,8 +192,8 @@ mod tests {
             EventDestination::Connector,
             ExecutionMode::NotApplicable.into(),
         );
-        assert_eq!(direct["destination"], "connector");
-        assert_eq!(direct["execution_mode"], "primary");
+        assert_eq!(str_field(&direct, "destination"), Some("connector"));
+        assert_eq!(str_field(&direct, "execution_mode"), Some("primary"));
     }
 
     #[test]
@@ -188,15 +203,15 @@ mod tests {
             EventDestination::UnifiedConnectorService,
             EventExecutionMode::Primary,
         );
-        assert!(ok["error"].is_null());
-        assert!(!ok["masked_response"].is_null());
+        assert!(!present(&ok, "error"));
+        assert!(present(&ok, "masked_response"));
 
         let failure = serialized_event(
             402,
             EventDestination::UnifiedConnectorService,
             EventExecutionMode::Primary,
         );
-        assert!(!failure["error"].is_null());
-        assert!(failure["masked_response"].is_null());
+        assert!(present(&failure, "error"));
+        assert!(!present(&failure, "masked_response"));
     }
 }
