@@ -7212,8 +7212,12 @@ key1="API Password"
   payment_method_type = "google_pay"
 [[worldpayxml_payout.credit]]
   payment_method_type = "Visa"
+[[worldpayxml_payout.credit]]
+  payment_method_type = "Mastercard"
 [[worldpayxml_payout.debit]]
   payment_method_type = "Visa"
+[[worldpayxml_payout.debit]]
+  payment_method_type = "Mastercard"
 [worldpayxml_payout.metadata.purpose_of_payment]
 name="purpose_of_payment"
 label="Purpose of Payment"
