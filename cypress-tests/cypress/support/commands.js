@@ -10542,8 +10542,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "updateBusinessProfileWithPayoutLinkConfigTest",
   (globalState) => {
-    const profileBody =
-      fixtures.businessProfileWithPayoutLink.bpWithPayoutLink;
+    const profileBody = fixtures.businessProfileWithPayoutLink.bpWithPayoutLink;
     const profileId =
       globalState.get("profileId") || globalState.get("defaultProfileId");
 
@@ -10636,4 +10635,3 @@ Cypress.Commands.add("retrieveNonExistentPayoutTest", (globalState) => {
     expect(response.status).to.equal(404);
   });
 });
-
