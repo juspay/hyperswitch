@@ -584,7 +584,7 @@ impl<T> ApplyOptionField<T> for Option<T> {
 
 #[doc(hidden)]
 impl<T> ApplyOptionField<Option<T>> for Option<T> {
-    fn apply(self, target: &mut Option<T>) {
+    fn apply(self, target: &mut Self) {
         if self.is_some() {
             *target = self;
         }
