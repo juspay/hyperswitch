@@ -1063,185 +1063,121 @@ impl FraudCheckSale for Aci {}
 #[cfg(feature = "frm")]
 impl FraudCheckCheckout for Aci {}
 
+// The Sale and Checkout redShield FRM flows are identical apart from their flow /
+// data / RouterData / type-alias parameters and the parse label; generate both from
+// one definition so a change to the redShield call shape can't drift between them.
 #[cfg(feature = "frm")]
-impl ConnectorIntegration<Sale, FraudCheckSaleData, FraudCheckResponseData> for Aci {
-    fn get_headers(
-        &self,
-        req: &FrmSaleRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
-    {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.common_get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
-    }
+macro_rules! impl_aci_redshield_frm_flow {
+    ($flow:ty, $data:ty, $router_data:ty, $flow_type:ty, $parse_label:literal) => {
+        impl ConnectorIntegration<$flow, $data, FraudCheckResponseData> for Aci {
+            fn get_headers(
+                &self,
+                req: &$router_data,
+                _connectors: &Connectors,
+            ) -> CustomResult<
+                Vec<(String, hyperswitch_masking::Maskable<String>)>,
+                errors::ConnectorError,
+            > {
+                let mut header = vec![(
+                    headers::CONTENT_TYPE.to_string(),
+                    self.common_get_content_type().to_string().into(),
+                )];
+                let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+                header.append(&mut api_key);
+                Ok(header)
+            }
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
+            fn get_content_type(&self) -> &'static str {
+                self.common_get_content_type()
+            }
 
-    fn get_url(
-        &self,
-        _req: &FrmSaleRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}v2/redShield", self.base_url(connectors)))
-    }
+            fn get_url(
+                &self,
+                _req: &$router_data,
+                connectors: &Connectors,
+            ) -> CustomResult<String, errors::ConnectorError> {
+                Ok(format!("{}v2/redShield", self.base_url(connectors)))
+            }
 
-    fn get_request_body(
-        &self,
-        req: &FrmSaleRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let currency =
-            req.request
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
-        let amount = convert_amount(self.amount_converter, req.request.amount, currency)?;
-        let connector_router_data = aci::AciRouterData::from((amount, req));
-        let connector_req = aci::AciRedShieldRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
+            fn get_request_body(
+                &self,
+                req: &$router_data,
+                _connectors: &Connectors,
+            ) -> CustomResult<RequestContent, errors::ConnectorError> {
+                let currency = req.request.currency.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "currency",
+                    },
+                )?;
+                let amount = convert_amount(self.amount_converter, req.request.amount, currency)?;
+                let connector_router_data = aci::AciRouterData::from((amount, req));
+                let connector_req = aci::AciRedShieldRequest::try_from(&connector_router_data)?;
+                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+            }
 
-    fn build_request(
-        &self,
-        req: &FrmSaleRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&FrmSaleType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(FrmSaleType::get_headers(self, req, connectors)?)
-                .set_body(FrmSaleType::get_request_body(self, req, connectors)?)
-                .build(),
-        ))
-    }
+            fn build_request(
+                &self,
+                req: &$router_data,
+                connectors: &Connectors,
+            ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+                Ok(Some(
+                    RequestBuilder::new()
+                        .method(Method::Post)
+                        .url(&<$flow_type>::get_url(self, req, connectors)?)
+                        .attach_default_headers()
+                        .headers(<$flow_type>::get_headers(self, req, connectors)?)
+                        .set_body(<$flow_type>::get_request_body(self, req, connectors)?)
+                        .build(),
+                ))
+            }
 
-    fn handle_response(
-        &self,
-        data: &FrmSaleRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<FrmSaleRouterData, errors::ConnectorError> {
-        let response: aci::AciRedShieldResponse = res
-            .response
-            .parse_struct("AciRedShieldResponse Sale")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        <FrmSaleRouterData>::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
+            fn handle_response(
+                &self,
+                data: &$router_data,
+                event_builder: Option<&mut ConnectorEvent>,
+                res: Response,
+            ) -> CustomResult<$router_data, errors::ConnectorError> {
+                let response: aci::AciRedShieldResponse = res
+                    .response
+                    .parse_struct($parse_label)
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                <$router_data>::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
 
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
+            fn get_error_response(
+                &self,
+                res: Response,
+                event_builder: Option<&mut ConnectorEvent>,
+            ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+                self.build_error_response(res, event_builder)
+            }
+        }
+    };
 }
 
 #[cfg(feature = "frm")]
-impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseData> for Aci {
-    fn get_headers(
-        &self,
-        req: &FrmCheckoutRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
-    {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.common_get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
-    }
+impl_aci_redshield_frm_flow!(
+    Sale,
+    FraudCheckSaleData,
+    FrmSaleRouterData,
+    FrmSaleType,
+    "AciRedShieldResponse Sale"
+);
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &FrmCheckoutRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}v2/redShield", self.base_url(connectors)))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &FrmCheckoutRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let currency =
-            req.request
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
-        let amount = convert_amount(self.amount_converter, req.request.amount, currency)?;
-        let connector_router_data = aci::AciRouterData::from((amount, req));
-        let connector_req = aci::AciRedShieldRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &FrmCheckoutRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&FrmCheckoutType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(FrmCheckoutType::get_headers(self, req, connectors)?)
-                .set_body(FrmCheckoutType::get_request_body(self, req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &FrmCheckoutRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<FrmCheckoutRouterData, errors::ConnectorError> {
-        let response: aci::AciRedShieldResponse = res
-            .response
-            .parse_struct("AciRedShieldResponse Checkout")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        <FrmCheckoutRouterData>::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
+#[cfg(feature = "frm")]
+impl_aci_redshield_frm_flow!(
+    Checkout,
+    FraudCheckCheckoutData,
+    FrmCheckoutRouterData,
+    FrmCheckoutType,
+    "AciRedShieldResponse Checkout"
+);
 
 #[async_trait::async_trait]
 impl IncomingWebhook for Aci {

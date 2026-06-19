@@ -807,17 +807,23 @@ fn get_aci_payment_brand(
 /// generic `APPLEPAYTKN` / `GOOGLEPAYTKN` brand. Falls back to `fallback` when the
 /// network string can't be mapped.
 fn get_aci_wallet_payment_brand(network: &str, fallback: PaymentBrand) -> PaymentBrand {
-    match network.to_lowercase().as_str() {
-        "visa" => PaymentBrand::Visa,
-        "mastercard" | "master" => PaymentBrand::Mastercard,
-        "amex" | "americanexpress" => PaymentBrand::AmericanExpress,
-        "jcb" => PaymentBrand::Jcb,
-        "diners" | "dinersclub" => PaymentBrand::DinersClub,
-        "discover" => PaymentBrand::Discover,
-        "unionpay" | "chinaunionpay" => PaymentBrand::UnionPay,
-        "maestro" => PaymentBrand::Maestro,
-        _ => fallback,
-    }
+    // Normalize the wallet-specific network string into a typed CardNetwork, then defer
+    // to get_aci_payment_brand for the CardNetwork -> PaymentBrand mapping so that table
+    // lives in exactly one place and the two paths cannot drift.
+    let card_network = match network.to_lowercase().as_str() {
+        "visa" => Some(common_enums::CardNetwork::Visa),
+        "mastercard" | "master" => Some(common_enums::CardNetwork::Mastercard),
+        "amex" | "americanexpress" => Some(common_enums::CardNetwork::AmericanExpress),
+        "jcb" => Some(common_enums::CardNetwork::JCB),
+        "diners" | "dinersclub" => Some(common_enums::CardNetwork::DinersClub),
+        "discover" => Some(common_enums::CardNetwork::Discover),
+        "unionpay" | "chinaunionpay" => Some(common_enums::CardNetwork::UnionPay),
+        "maestro" => Some(common_enums::CardNetwork::Maestro),
+        _ => None,
+    };
+    card_network
+        .and_then(|network| get_aci_payment_brand(Some(network), false).ok())
+        .unwrap_or(fallback)
 }
 
 fn get_apple_pay_data(
@@ -1099,6 +1105,28 @@ pub enum PaymentBrand {
     UnionPay,
     #[serde(rename = "MAESTRO")]
     Maestro,
+}
+
+impl PaymentBrand {
+    /// Canonical card network for the card-brand variants, used to populate the
+    /// informational `card_network` response field. Returns `None` for non-card
+    /// brands (wallets/APMs) so they don't leak into `card_network`. Mapping to a
+    /// typed `CardNetwork` keeps the stored value stable (Debug-formatting the enum
+    /// would couple the wire value to the derive and emit names like "Mastercard"
+    /// instead of the canonical network).
+    fn as_card_network(&self) -> Option<common_enums::CardNetwork> {
+        match self {
+            Self::Visa => Some(common_enums::CardNetwork::Visa),
+            Self::Mastercard => Some(common_enums::CardNetwork::Mastercard),
+            Self::AmericanExpress => Some(common_enums::CardNetwork::AmericanExpress),
+            Self::Jcb => Some(common_enums::CardNetwork::JCB),
+            Self::DinersClub => Some(common_enums::CardNetwork::DinersClub),
+            Self::Discover => Some(common_enums::CardNetwork::Discover),
+            Self::UnionPay => Some(common_enums::CardNetwork::UnionPay),
+            Self::Maestro => Some(common_enums::CardNetwork::Maestro),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
@@ -1737,7 +1765,13 @@ fn get_transaction_details(
 fn get_instruction_details(
     item: &AciRouterData<&PaymentsAuthorizeRouterData>,
 ) -> Option<Instruction> {
-    if item.router_data.request.customer_acceptance.is_some() {
+    if item.router_data.request.customer_acceptance.is_some()
+        && item.router_data.request.setup_future_usage.is_some()
+    {
+        // First (CIT) transaction of a stored-credential series: consent is captured
+        // (customer_acceptance) AND the merchant signalled a future-usage intent
+        // (setup_future_usage). A bare customer_acceptance with no future-usage intent
+        // is a one-off payment and must NOT create a registration / standing instruction.
         return Some(Instruction {
             mode: InstructionMode::Initial,
             transaction_type: InstructionType::Unscheduled,
@@ -1803,25 +1837,11 @@ fn get_instruction_details(
             frequency: None,
             agreement_id,
         });
-    } else if matches!(
-        item.router_data.request.setup_future_usage,
-        Some(enums::FutureUsage::OffSession)
-    ) {
-        // CIT with setup_future_usage=off_session but no ACI registration (DB-only mandate).
-        // Still required to send standingInstruction.mode=INITIAL so the acquirer marks
-        // this transaction as the first in a COF/standing-instruction series.
-        return Some(Instruction {
-            mode: InstructionMode::Initial,
-            transaction_type: InstructionType::Unscheduled,
-            source: InstructionSource::CardholderInitiatedTransaction,
-            initial_transaction_id: None,
-            create_registration: None,
-            reason: None,
-            expiry: None,
-            frequency: None,
-            agreement_id: None,
-        });
     }
+    // No off-session-only fallback: a setup_future_usage=off_session with no captured
+    // customer_acceptance must NOT emit standingInstruction.mode=INITIAL / source=CIT,
+    // as that asserts cardholder-initiated consent we never recorded. Off-session WITH
+    // consent is already handled by the first (CIT) branch above.
     None
 }
 
@@ -2455,7 +2475,8 @@ where
             .response
             .payment_brand
             .as_ref()
-            .map(|b| format!("{b:?}"));
+            .and_then(|b| b.as_card_network())
+            .map(|network| network.to_string());
         let payment_checks = {
             let cvv = item.response.result.cvv_response.clone();
             let acq = item
@@ -3139,8 +3160,18 @@ impl
                 network_error_message: None,
                 connector_metadata: None,
             })
-        } else if let Some(tds) = item.response.three_d_secure.as_ref() {
-            // Frictionless: 3DS completed without redirect
+        } else if let Some(tds) = item
+            .response
+            .three_d_secure
+            .as_ref()
+            .filter(|_| SUCCESSFUL_CODES.contains(&result_code.as_str()))
+        {
+            // Frictionless: 3DS authentication actually completed (success result code)
+            // without a challenge. A non-success code (e.g. a pending 000.200.x) that
+            // still carries a threeDSecure block means authentication is NOT yet
+            // complete, so it must fall through to the challenge/redirect branch rather
+            // than be reported as Frictionless+Success — otherwise we would propagate a
+            // bogus/empty CAVV/ECI and claim a liability shift ACI has not granted.
             Ok(AuthenticationResponseData::AuthNResponse {
                 authn_flow_type: AuthNFlowType::Frictionless,
                 authentication_value: tds
@@ -3426,9 +3457,12 @@ pub fn map_aci_risk_status(result_code: &str, risk_status_code: Option<&str>) ->
     if SUCCESSFUL_CODES.contains(&result_code) {
         FraudCheckStatus::Legit
     } else if PENDING_CODES.contains(&result_code) {
-        // Genuine "awaiting external/async confirmation" codes — resolved later
-        // by a RISK webhook, so Pending (not a hold) is correct here.
-        FraudCheckStatus::Pending
+        // "Awaiting confirmation" codes: hold for manual review rather than Pending. A
+        // synchronous redShield decision must never silently proceed, and the RISK
+        // webhook maps a still-pending code to EventNotSupported (see
+        // aci_risk_webhook_event), so a Pending FRM status could never be resolved
+        // asynchronously and would hang the payment indefinitely.
+        FraudCheckStatus::ManualReview
     } else if FAILURE_CODES.contains(&result_code) {
         FraudCheckStatus::Fraud
     } else {
@@ -3557,11 +3591,12 @@ mod frm_tests {
             map_aci_risk_status("not.a.real.code", Some("SOMETHING_NEW")),
             FraudCheckStatus::ManualReview
         );
-        // A genuine pending/await result code stays Pending (resolved later by
-        // a RISK webhook), not held.
+        // A pending/await result code is held for manual review (a synchronous
+        // decision must not proceed, and a still-pending RISK webhook is
+        // EventNotSupported so Pending could never resolve).
         assert_eq!(
             map_aci_risk_status(PENDING_CODES[0], None),
-            FraudCheckStatus::Pending
+            FraudCheckStatus::ManualReview
         );
     }
 }
