@@ -182,6 +182,7 @@ impl
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         Ok(Self {
+            split_payments: None,
             merchant_payment_method_id: Some(router_data.connector_request_reference_id.clone()),
             amount: router_data
                 .request
@@ -292,6 +293,10 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            split_payments: None,
+            domain_data: None,
+            mit_category: None,
+            surcharge_amount: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -534,6 +539,10 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            split_payments: None,
+            domain_data: None,
+            mit_category: None,
+            surcharge_amount: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -693,6 +702,7 @@ impl
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         Ok(Self {
+            split_payments: None,
             merchant_customer_id: router_data
                 .customer_id
                 .as_ref()
@@ -707,11 +717,7 @@ impl
                 .email
                 .clone()
                 .map(|e| e.expose().expose().into()),
-            phone_number: router_data
-                .request
-                .phone
-                .as_ref()
-                .map(|phone| phone.peek().to_string()),
+            phone_number: router_data.request.phone.clone(),
             address: Some(address),
             metadata: None,
             connector_feature_data: None,
@@ -765,6 +771,7 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
             .transpose()?;
 
         Ok(Self {
+            split_payments: None,
             connector_transaction_id,
             merchant_transaction_id,
             encoded_data: router_data.request.encoded_data.clone(),
@@ -1308,6 +1315,10 @@ impl
             .transpose()?;
 
         Ok(Self {
+            split_payments: None,
+            domain_data: None,
+            mit_category: None,
+            surcharge_amount: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -1458,6 +1469,10 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            split_payments: None,
+            domain_data: None,
+            mit_category: None,
+            surcharge_amount: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -1635,6 +1650,10 @@ impl
             .transpose()?;
 
         Ok(Self {
+            split_payments: None,
+            domain_data: None,
+            mit_category: None,
+            surcharge_amount: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -1792,6 +1811,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            mit_category: None,
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -2014,6 +2034,7 @@ impl
                 payments_grpc::AdditionalPaymentData::foreign_from(additional_payment_data)
             });
         Ok(Self {
+            split_payments: None,
             merchant_charge_id: Some(router_data.connector_request_reference_id.clone()),
             payment_method,
             connector_recurring_payment_id,
@@ -5945,6 +5966,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .map(|payment_method_type| payment_method_type.into());
 
         Ok(Self {
+            split_refunds: None,
             merchant_refund_id: Some(router_data.request.refund_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             payment_amount: router_data.request.payment_amount,
@@ -6019,6 +6041,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             .map(|payment_method_type| payment_method_type.into());
 
         Ok(Self {
+            split_refunds: None,
             merchant_refund_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             refund_id: router_data.request.connector_refund_id.clone().ok_or(
@@ -6425,7 +6448,7 @@ impl ForeignFrom<&router_request_types::CustomerDetails> for payments_grpc::Cust
             connector_customer_id: None,
             name: customer.name.clone().map(|s| s.expose()),
             email: customer.email.clone().map(|e| e.expose().expose().into()),
-            phone_number: customer.phone.clone().map(|s| s.expose()),
+            phone_number: customer.phone.clone(),
             phone_country_code: customer.phone_country_code.clone(),
             first_name: None,
             last_name: None,
