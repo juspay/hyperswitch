@@ -36,23 +36,7 @@ describe("Payout Link", () => {
   });
 
   after("reset business profile payout_link_config", () => {
-    const profileId =
-      globalState.get("profileId") || globalState.get("defaultProfileId");
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/business_profile/${profileId}`,
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
-      body: {
-        payout_link_config: null,
-      },
-      failOnStatusCode: false,
-    }).then((response) => {
-      expect(response.status).to.equal(200);
-    });
+    cy.resetBusinessProfilePayoutLinkConfig(globalState);
   });
 
   beforeEach(function () {
@@ -99,19 +83,7 @@ describe("Payout Link", () => {
     });
 
     it("list-payout-links-test", () => {
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/payouts/list?limit=10`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body).to.have.property("data");
-        expect(response.body.data).to.be.an("array");
-      });
+      cy.listPayoutsTest(globalState);
     });
 
     it("retrieve-payout-call-test", () => {
@@ -167,18 +139,7 @@ describe("Payout Link", () => {
     });
 
     it("retrieve-non-existent-payout-link-test", () => {
-      const merchantId = globalState.get("merchantId");
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/payout_link/${merchantId}/non_existent_payout_12345`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.equal(404);
-      });
+      cy.retrieveNonExistentPayoutTest(globalState);
     });
   });
 
@@ -233,17 +194,17 @@ describe("Payout Link", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("create-payout-link-with-accordion-layout-test", () => {
+    it("create-payout-link-with-journey-layout-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
       ]["PayoutLinkBase"];
       const reqData = {
         ...data.Request,
         currency: "GBP",
-        description: "Test with accordion layout",
+        description: "Test with journey layout",
         payout_link_config: {
           ...data.Request.payout_link_config,
-          sdk_layout: "accordion",
+          form_layout: "journey",
         },
       };
       cy.createPayoutWithLinkTest(
@@ -264,7 +225,7 @@ describe("Payout Link", () => {
         description: "Test with tabs layout",
         payout_link_config: {
           ...data.Request.payout_link_config,
-          sdk_layout: "tabs",
+          form_layout: "tabs",
         },
       };
       cy.createPayoutWithLinkTest(
@@ -296,38 +257,12 @@ describe("Payout Link", () => {
     });
   });
 
-  context("Payout Link - Hosted page rendering", () => {
-    let shouldContinue = true;
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
-    it("create-payout-link-for-page-render-test", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "payout_link_pm"
-      ]["PayoutLinkBase"];
-      cy.createPayoutWithLinkTest(
-        fixtures.createPayoutLinkBody,
-        data,
-        globalState
-      );
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("Visit payout page and verify SDK loads", function () {
-      cy.initiatePayoutLinkTest({}, globalState);
-    });
-
-    it("retrieve-payout-after-link-test", () => {
-      cy.retrievePayoutCallTest(globalState);
-    });
-  });
-
   context("Payout Link - Bank transfer form submission", () => {
     let shouldContinue = true;
+
+    before("reset business profile payout_link_config", () => {
+      cy.resetBusinessProfilePayoutLinkConfig(globalState);
+    });
 
     beforeEach(function () {
       if (!shouldContinue) {

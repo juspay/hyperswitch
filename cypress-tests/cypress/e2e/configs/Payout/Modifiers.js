@@ -32,13 +32,10 @@ function normalise(input) {
     return `${specName}`;
   }
 
-  // Strip _payout suffix so "wise_payout" resolves to "wise"
-  const normalizedInput = input.replace(/_payout$/, "");
-
-  if (exceptions[normalizedInput.toLowerCase()]) {
-    return exceptions[normalizedInput.toLowerCase()];
+  if (exceptions[input.toLowerCase()]) {
+    return exceptions[input.toLowerCase()];
   } else {
-    return normalizedInput;
+    return input;
   }
 }
 

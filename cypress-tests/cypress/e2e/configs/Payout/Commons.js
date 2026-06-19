@@ -262,7 +262,7 @@ export const connectorDetails = {
             type: "invalid_request",
             code: "IR_04",
             message:
-              "Provide either customer or customer_id when payout_link is true",
+              "Missing required param: customer or customer_id when payout_link is true",
           },
         },
       },

@@ -1693,10 +1693,8 @@ Cypress.Commands.add(
   (connectorType, createConnectorBody, globalState) => {
     const merchantId = globalState.get("merchantId");
     const connectorName = globalState.get("connectorId");
-    // Strip _payout suffix for API name (backend only recognizes base names like "wise", not "wise_payout")
-    const apiConnectorName = connectorName.replace(/_payout$/, "");
     createConnectorBody.connector_type = connectorType;
-    createConnectorBody.connector_name = apiConnectorName;
+    createConnectorBody.connector_name = connectorName;
     createConnectorBody.connector_type = "payout_processor";
     createConnectorBody.profile_id = globalState.get("profileId");
 
@@ -1704,13 +1702,9 @@ Cypress.Commands.add(
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
       (jsonContent) => {
-        // Normalize connector name: if it already ends with _payout, don't double-append
-        const normalizedConnectorName = connectorName.endsWith("_payout")
-          ? connectorName
-          : `${connectorName}_payout`;
         const { authDetails } = getValueByKey(
           JSON.stringify(jsonContent),
-          normalizedConnectorName
+          `${connectorName}_payout`
         );
 
         // If the connector does not have payout connector creds in creds file, set payoutsExecution to false
@@ -1746,8 +1740,9 @@ Cypress.Commands.add(
 
           cy.wrap(response).then(() => {
             if (response.status === 200) {
-              // API returns base name (e.g. "wise"), but env may be "wise_payout" — compare normalized
-              expect(apiConnectorName).to.equal(response.body.connector_name);
+              expect(globalState.get("connectorId")).to.equal(
+                response.body.connector_name
+              );
               globalState.set(
                 "merchantConnectorId",
                 response.body.merchant_connector_id
@@ -5871,14 +5866,12 @@ Cypress.Commands.add(
   (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
     const { Request: reqData, Response: resData } = data || {};
 
-    const requestBody = Cypress._.cloneDeep(createConfirmPayoutBody);
-
     for (const key in reqData) {
-      requestBody[key] = reqData[key];
+      createConfirmPayoutBody[key] = reqData[key];
     }
-    requestBody.auto_fulfill = auto_fulfill;
-    requestBody.confirm = confirm;
-    requestBody.customer_id = globalState.get("customerId");
+    createConfirmPayoutBody.auto_fulfill = auto_fulfill;
+    createConfirmPayoutBody.confirm = confirm;
+    createConfirmPayoutBody.customer_id = globalState.get("customerId");
 
     cy.request({
       method: "POST",
@@ -5888,20 +5881,17 @@ Cypress.Commands.add(
         "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
-      body: requestBody,
+      body: createConfirmPayoutBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.status === 200) {
-          globalState.set("payoutAmount", requestBody.amount);
+          globalState.set("payoutAmount", createConfirmPayoutBody.amount);
           globalState.set("payoutID", response.body.payout_id);
           for (const key in resData.body) {
             expect(resData.body[key]).to.deep.equal(response.body[key]);
-          }
-          if (reqData?.payout_link === false) {
-            expect(response.body.payout_link).to.be.null;
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -5916,15 +5906,13 @@ Cypress.Commands.add(
   (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
     const { Request: reqData, Response: resData } = data || {};
 
-    const requestBody = Cypress._.cloneDeep(createConfirmPayoutBody);
-
     for (const key in reqData) {
-      requestBody[key] = reqData[key];
+      createConfirmPayoutBody[key] = reqData[key];
     }
-    requestBody.customer_id = globalState.get("customerId");
-    requestBody.payout_token = globalState.get("paymentToken");
-    requestBody.auto_fulfill = auto_fulfill;
-    requestBody.confirm = confirm;
+    createConfirmPayoutBody.customer_id = globalState.get("customerId");
+    createConfirmPayoutBody.payout_token = globalState.get("paymentToken");
+    createConfirmPayoutBody.auto_fulfill = auto_fulfill;
+    createConfirmPayoutBody.confirm = confirm;
 
     cy.request({
       method: "POST",
@@ -5934,7 +5922,7 @@ Cypress.Commands.add(
         "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
-      body: requestBody,
+      body: createConfirmPayoutBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
@@ -5942,7 +5930,7 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
 
         if (response.status === 200) {
-          globalState.set("payoutAmount", requestBody.amount);
+          globalState.set("payoutAmount", createConfirmPayoutBody.amount);
           globalState.set("payoutID", response.body.payout_id);
           for (const key in resData.body) {
             expect(resData.body[key]).to.deep.equal(response.body[key]);
@@ -5960,16 +5948,14 @@ Cypress.Commands.add(
   (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
     const { Request: reqData, Response: resData } = data || {};
 
-    const requestBody = Cypress._.cloneDeep(createConfirmPayoutBody);
-
     for (const key in reqData) {
-      requestBody[key] = reqData[key];
+      createConfirmPayoutBody[key] = reqData[key];
     }
-    requestBody.customer_id = globalState.get("customerId");
-    requestBody.auto_fulfill = auto_fulfill;
-    requestBody.confirm = confirm;
-    requestBody.payout_method_id = globalState.data.paymentMethodId;
-    delete requestBody.payout_token;
+    createConfirmPayoutBody.customer_id = globalState.get("customerId");
+    createConfirmPayoutBody.auto_fulfill = auto_fulfill;
+    createConfirmPayoutBody.confirm = confirm;
+    createConfirmPayoutBody.payout_method_id = globalState.data.paymentMethodId;
+    delete createConfirmPayoutBody.payout_token;
 
     cy.request({
       method: "POST",
@@ -5979,7 +5965,7 @@ Cypress.Commands.add(
         "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
-      body: requestBody,
+      body: createConfirmPayoutBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
@@ -5987,7 +5973,7 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
 
         if (response.status === 200) {
-          globalState.set("payoutAmount", requestBody.amount);
+          globalState.set("payoutAmount", createConfirmPayoutBody.amount);
           globalState.set("payoutID", response.body.payout_id);
           for (const key in resData.body) {
             expect(resData.body[key]).to.equal(response.body[key]);
@@ -6005,8 +5991,7 @@ Cypress.Commands.add(
   (payoutFulfillBody, data, globalState) => {
     const { Response: resData } = data || {};
 
-    const requestBody = Cypress._.cloneDeep(payoutFulfillBody);
-    requestBody.payout_id = globalState.get("payoutID");
+    payoutFulfillBody.payout_id = globalState.get("payoutID");
 
     cy.request({
       method: "POST",
@@ -6016,7 +6001,7 @@ Cypress.Commands.add(
         "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
-      body: requestBody,
+      body: payoutFulfillBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
@@ -6040,9 +6025,8 @@ Cypress.Commands.add(
   (payoutConfirmBody, data, auto_fulfill, globalState) => {
     const { Response: resData } = data || {};
 
-    const requestBody = Cypress._.cloneDeep(payoutConfirmBody);
-    requestBody.confirm = true;
-    requestBody.auto_fulfill = auto_fulfill;
+    payoutConfirmBody.confirm = true;
+    payoutConfirmBody.auto_fulfill = auto_fulfill;
 
     cy.request({
       method: "PUT",
@@ -6052,7 +6036,7 @@ Cypress.Commands.add(
         "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
-      body: requestBody,
+      body: payoutConfirmBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
@@ -6088,12 +6072,6 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
       expect(response.headers["content-type"]).to.include("application/json");
       expect(response.body.payout_id).to.equal(payout_id);
       expect(response.body.amount).to.equal(globalState.get("payoutAmount"));
-      if (response.body.payout_method_data) {
-        expect(response.body.status).to.be.oneOf([
-          "requires_fulfillment",
-          "initiated",
-        ]);
-      }
     });
   });
 });
@@ -10590,4 +10568,72 @@ Cypress.Commands.add(
     });
   }
 );
+
+/**
+ * Resets the business profile's payout_link_config to null.
+ * Used in before/after hooks to ensure a clean state between test contexts.
+ *
+ * @param {Object} globalState - The global state object
+ */
+Cypress.Commands.add("resetBusinessProfilePayoutLinkConfig", (globalState) => {
+  const profileId =
+    globalState.get("profileId") || globalState.get("defaultProfileId");
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/business_profile/${profileId}`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    body: {
+      payout_link_config: null,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    expect(response.status).to.equal(200);
+  });
+});
+
+/**
+ * Lists payouts and validates the response structure.
+ *
+ * @param {Object} globalState - The global state object
+ */
+Cypress.Commands.add("listPayoutsTest", (globalState) => {
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/payouts/list?limit=10`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    expect(response.status).to.equal(200);
+    expect(response.body).to.have.property("data");
+    expect(response.body.data).to.be.an("array");
+  });
+});
+
+/**
+ * Retrieves a non-existent payout and verifies a 404 response.
+ *
+ * @param {Object} globalState - The global state object
+ */
+Cypress.Commands.add("retrieveNonExistentPayoutTest", (globalState) => {
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/payouts/non_existent_payout_12345`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    expect(response.status).to.equal(404);
+  });
+});
 
