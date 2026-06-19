@@ -827,40 +827,39 @@ pub fn validate_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
         .into()
 }
 
-/// Generates a *domain status* enum that mirrors a storage status enum and adds
+/// Derives a *domain status* enum that mirrors this storage status enum and adds
 /// an internal-only `#[serde(other)] Unknown` catch-all, for connector-response
 /// deserialization resilience.
 ///
-/// Apply it to a plain unit-variant enum that lists the storage enum's variants
-/// (do not list `Unknown` — it is appended automatically). `storage` is the path
-/// to the storage enum being mirrored.
+/// Apply it to the existing storage status enum — the variants are read directly
+/// from that definition (single source of truth; nothing to re-list). The
+/// storage enum is left untouched; the derive emits a sibling `<Name>Domain`
+/// type with the same variants plus `Unknown`.
 ///
-/// It generates, for the annotated enum `D` mirroring storage `S`:
-/// - the enum itself with serde derives and `#[serde(other)] Unknown`;
-/// - `From<S> for D` (infallible — every storage state is known);
-/// - `TryFrom<D> for S` returning [`common_enums::domain_status::UnknownStatusError`]
+/// For storage enum `S`, it generates `SDomain` with:
+/// - the same variants, mirrored serde container attrs, and `#[serde(other)] Unknown`;
+/// - `From<S> for SDomain` (infallible — every storage state is known);
+/// - `TryFrom<SDomain> for S` returning [`common_enums::domain_status::UnknownStatusError`]
 ///   on `Unknown` (so a missing previous-state resolution surfaces loudly);
 /// - `resolve_or_keep(previous)`, `is_unknown`, and `to_storage` helpers.
 ///
 /// # Example
 ///
 /// ```rust, ignore
-/// #[router_derive::domain_status(storage = crate::AttemptStatus)]
-/// pub enum AttemptStatusDomain {
+/// #[derive(router_derive::DomainStatus)]
+/// #[serde(rename_all = "snake_case")]
+/// pub enum AttemptStatus {
 ///     Charged,
 ///     Pending,
 ///     Failure,
 /// }
+/// // generates `AttemptStatusDomain { Charged, Pending, Failure, Unknown }`
 /// ```
-#[proc_macro_attribute]
-pub fn domain_status(
-    args: proc_macro::TokenStream,
-    item: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
-    let args_parsed = parse_macro_input!(args as macros::domain_status::DomainStatusArgs);
-    let item = syn::parse_macro_input!(item as syn::ItemEnum);
+#[proc_macro_derive(DomainStatus)]
+pub fn domain_status_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let ast = syn::parse_macro_input!(input as syn::DeriveInput);
 
-    macros::domain_status::domain_status_attribute_macro(args_parsed, &item)
+    macros::domain_status::domain_status_derive_inner(&ast)
         .unwrap_or_else(|error| error.to_compile_error())
         .into()
 }

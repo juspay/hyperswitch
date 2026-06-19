@@ -1,76 +1,81 @@
-//! Attribute macro that turns a plain unit-variant enum into a *domain status*
-//! type mirroring a storage status enum, with an internal-only `Unknown`
-//! catch-all for connector-response deserialization resilience.
+//! `#[derive(DomainStatus)]` — generates a *domain status* mirror of a storage
+//! status enum for connector-response deserialization resilience.
+//!
+//! The derive reads the variants of the enum it is applied to (the storage enum
+//! is the single source of truth — devs never re-list variants) and generates a
+//! sibling `<Name>Domain` enum carrying every storage variant plus an
+//! internal-only `#[serde(other)] Unknown` catch-all. The storage enum itself is
+//! left untouched.
 
 use proc_macro2::TokenStream;
-use quote::quote;
-use syn::{
-    parse::{Parse, ParseStream},
-    Fields, ItemEnum, Path, Token,
-};
+use quote::{format_ident, quote};
+use syn::{Data, DeriveInput, Fields};
 
-/// Parsed arguments for `#[domain_status(storage = <path>)]`.
-pub(crate) struct DomainStatusArgs {
-    storage: Path,
-}
+/// Generate the domain mirror enum + conversions for a storage status enum.
+pub(crate) fn domain_status_derive_inner(ast: &DeriveInput) -> syn::Result<TokenStream> {
+    let storage_ident = &ast.ident;
+    let domain_ident = format_ident!("{}Domain", storage_ident);
+    let vis = &ast.vis;
 
-impl Parse for DomainStatusArgs {
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let key: syn::Ident = input.parse()?;
-        if key != "storage" {
-            return Err(syn::Error::new(
-                key.span(),
-                "expected `storage = <path>` argument",
-            ));
+    let data = match &ast.data {
+        Data::Enum(data) => data,
+        _ => {
+            return Err(syn::Error::new_spanned(
+                ast,
+                "DomainStatus can only be derived for enums (it mirrors a storage status enum)",
+            ))
         }
-        input.parse::<Token![=]>()?;
-        let storage: Path = input.parse()?;
-        Ok(Self { storage })
-    }
-}
+    };
 
-/// Expand `#[domain_status(storage = S)] enum D { A, B, .. }` into the domain
-/// enum (with `#[serde(other)] Unknown`), `From<S> for D`, `TryFrom<D> for S`
-/// (erroring on `Unknown`), and `resolve_or_keep` / `is_unknown` / `to_storage`.
-pub(crate) fn domain_status_attribute_macro(
-    args: DomainStatusArgs,
-    item: &ItemEnum,
-) -> syn::Result<TokenStream> {
-    let storage = &args.storage;
-    let vis = &item.vis;
-    let ident = &item.ident;
-    let enum_attrs = &item.attrs;
+    // Mirror the storage enum's serde container attributes (e.g. rename_all) so
+    // the domain type's wire representation matches the storage type's.
+    let serde_container_attrs: Vec<_> = ast
+        .attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident("serde"))
+        .collect();
 
     let mut variant_defs = Vec::new();
     let mut variant_idents = Vec::new();
-    for variant in &item.variants {
+    for variant in &data.variants {
         if !matches!(variant.fields, Fields::Unit) {
             return Err(syn::Error::new_spanned(
                 variant,
-                "domain_status only supports unit variants (it mirrors a storage enum)",
+                "DomainStatus only supports unit variants",
             ));
         }
         if variant.ident == "Unknown" {
             return Err(syn::Error::new_spanned(
                 variant,
-                "do not declare `Unknown` manually; the macro appends it",
+                "storage enum must not declare `Unknown`; the derive appends it",
             ));
         }
-        let variant_attrs = &variant.attrs;
+        // Carry over doc comments and serde attrs (aliases/renames); drop the
+        // rest (`#[default]`, strum/diesel/schema helpers) which do not apply to
+        // the domain mirror.
+        let kept_attrs: Vec<_> = variant
+            .attrs
+            .iter()
+            .filter(|attr| attr.path().is_ident("doc") || attr.path().is_ident("serde"))
+            .collect();
         let variant_ident = &variant.ident;
-        variant_defs.push(quote! { #(#variant_attrs)* #variant_ident });
+        variant_defs.push(quote! { #(#kept_attrs)* #variant_ident });
         variant_idents.push(variant_ident.clone());
     }
 
     let from_arms = variant_idents
         .iter()
-        .map(|variant| quote! { <#storage>::#variant => Self::#variant });
-    let try_from_arms = variant_idents
-        .iter()
-        .map(|variant| quote! { #ident::#variant => ::core::result::Result::Ok(Self::#variant) });
+        .map(|variant| quote! { #storage_ident::#variant => Self::#variant });
+    let try_from_arms = variant_idents.iter().map(|variant| {
+        quote! { #domain_ident::#variant => ::core::result::Result::Ok(Self::#variant) }
+    });
 
     Ok(quote! {
-        #(#enum_attrs)*
+        #[doc = ::core::concat!(
+            "Domain mirror of [`", ::core::stringify!(#storage_ident),
+            "`] with an internal-only `Unknown` catch-all for connector-response \
+             deserialization resilience. Generated by `#[derive(DomainStatus)]`."
+        )]
         #[derive(
             ::core::clone::Clone,
             ::core::marker::Copy,
@@ -80,8 +85,8 @@ pub(crate) fn domain_status_attribute_macro(
             ::serde::Serialize,
             ::serde::Deserialize,
         )]
-        #[serde(rename_all = "snake_case")]
-        #vis enum #ident {
+        #(#serde_container_attrs)*
+        #vis enum #domain_ident {
             #(#variant_defs,)*
             /// Connector returned a status we do not model. Internal-only:
             /// must be resolved to the previous state before persistence and is
@@ -91,8 +96,8 @@ pub(crate) fn domain_status_attribute_macro(
         }
 
         #[automatically_derived]
-        impl ::core::convert::From<#storage> for #ident {
-            fn from(value: #storage) -> Self {
+        impl ::core::convert::From<#storage_ident> for #domain_ident {
+            fn from(value: #storage_ident) -> Self {
                 match value {
                     #(#from_arms,)*
                 }
@@ -100,15 +105,15 @@ pub(crate) fn domain_status_attribute_macro(
         }
 
         #[automatically_derived]
-        impl ::core::convert::TryFrom<#ident> for #storage {
+        impl ::core::convert::TryFrom<#domain_ident> for #storage_ident {
             type Error = common_enums::domain_status::UnknownStatusError;
 
-            fn try_from(value: #ident) -> ::core::result::Result<Self, Self::Error> {
+            fn try_from(value: #domain_ident) -> ::core::result::Result<Self, Self::Error> {
                 match value {
                     #(#try_from_arms,)*
-                    #ident::Unknown => ::core::result::Result::Err(
+                    #domain_ident::Unknown => ::core::result::Result::Err(
                         common_enums::domain_status::UnknownStatusError::new(
-                            ::core::stringify!(#ident)
+                            ::core::stringify!(#domain_ident)
                         )
                     ),
                 }
@@ -116,12 +121,12 @@ pub(crate) fn domain_status_attribute_macro(
         }
 
         #[automatically_derived]
-        impl #ident {
+        impl #domain_ident {
             /// Replace an `Unknown` status with the previously known storage
-            /// state; known statuses pass through unchanged. This is the merge
-            /// of connector response and previous state.
+            /// state; known statuses pass through unchanged. This is the merge of
+            /// connector response and previous state.
             #[must_use]
-            pub fn resolve_or_keep(self, previous: #storage) -> Self {
+            pub fn resolve_or_keep(self, previous: #storage_ident) -> Self {
                 match self {
                     Self::Unknown => Self::from(previous),
                     known => known,
@@ -137,8 +142,11 @@ pub(crate) fn domain_status_attribute_macro(
             /// Convert to the storage representation, erroring if still `Unknown`.
             pub fn to_storage(
                 self,
-            ) -> ::core::result::Result<#storage, common_enums::domain_status::UnknownStatusError> {
-                <#storage as ::core::convert::TryFrom<#ident>>::try_from(self)
+            ) -> ::core::result::Result<
+                #storage_ident,
+                common_enums::domain_status::UnknownStatusError,
+            > {
+                <#storage_ident as ::core::convert::TryFrom<#domain_ident>>::try_from(self)
             }
         }
     })
