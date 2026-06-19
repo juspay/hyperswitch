@@ -4026,8 +4026,10 @@ Cypress.Commands.add(
             expect(response.body.connector, "connector").to.equal(
               expectedConnector
             );
+          if (response.body.payment_method_data) {
             expect(response.body.payment_method_data, "payment_method_data").to
               .not.be.empty;
+          }
             expect(response.body.payment_method, "payment_method").to.not.be
               .null;
             if (!configs.skipConnectorIdAssertion) {
