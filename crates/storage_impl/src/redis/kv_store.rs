@@ -96,11 +96,7 @@ impl std::fmt::Display for PartitionKey<'_> {
             PartitionKey::MerchantIdMandateId {
                 merchant_id,
                 mandate_id,
-            } => f.write_str(&format!(
-                "{}_{}",
-                merchant_id.get_string_repr(),
-                mandate_id
-            )),
+            } => f.write_str(&format!("{}_{}", merchant_id.get_string_repr(), mandate_id)),
 
             #[cfg(feature = "v2")]
             PartitionKey::GlobalId { id } => f.write_str(&format!("{id}")),
