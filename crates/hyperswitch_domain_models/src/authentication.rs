@@ -278,10 +278,11 @@ impl behaviour::Conversion for Authentication {
             message: "Failed while decrypting authentication data".to_string(),
         })?;
 
-        let decrypted_data = FromRequestEncryptableAuthentication::from_encryptable(batch_decrypted)
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while decrypting authentication data".to_string(),
-            })?;
+        let decrypted_data =
+            FromRequestEncryptableAuthentication::from_encryptable(batch_decrypted)
+                .change_context(ValidationError::InvalidValue {
+                    message: "Failed while decrypting authentication data".to_string(),
+                })?;
 
         let email_decrypted = other
             .email
