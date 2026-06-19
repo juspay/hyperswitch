@@ -63,7 +63,7 @@ impl std::fmt::Display for PartitionKey<'_> {
                 merchant_id,
                 payment_id,
             } => f.write_str(&format!(
-                "mid_{}_pid_{}",
+                "{}_{}",
                 merchant_id.get_string_repr(),
                 payment_id.get_string_repr()
             )),
@@ -72,7 +72,7 @@ impl std::fmt::Display for PartitionKey<'_> {
                 merchant_id,
                 customer_id,
             } => f.write_str(&format!(
-                "mid_{}_cust_{}",
+                "{}_{}",
                 merchant_id.get_string_repr(),
                 customer_id.get_string_repr()
             )),
@@ -81,14 +81,15 @@ impl std::fmt::Display for PartitionKey<'_> {
                 merchant_id,
                 merchant_reference_id,
             } => f.write_str(&format!(
-                "mid_{}_cust_{merchant_reference_id}",
-                merchant_id.get_string_repr()
+                "{}_{}",
+                merchant_id.get_string_repr(),
+                merchant_reference_id,
             )),
             PartitionKey::MerchantIdPayoutId {
                 merchant_id,
                 payout_id,
             } => f.write_str(&format!(
-                "mid_{}_po_{}",
+                "{}_{}",
                 merchant_id.get_string_repr(),
                 payout_id.get_string_repr()
             )),
@@ -96,15 +97,16 @@ impl std::fmt::Display for PartitionKey<'_> {
                 merchant_id,
                 mandate_id,
             } => f.write_str(&format!(
-                "mid_{}_mandate_{mandate_id}",
-                merchant_id.get_string_repr()
+                "{}_{}",
+                merchant_id.get_string_repr(),
+                mandate_id
             )),
 
             #[cfg(feature = "v2")]
-            PartitionKey::GlobalId { id } => f.write_str(&format!("global_cust_{id}")),
+            PartitionKey::GlobalId { id } => f.write_str(&format!("{id}")),
             #[cfg(feature = "v2")]
             PartitionKey::GlobalPaymentId { id } => {
-                f.write_str(&format!("global_payment_{}", id.get_string_repr()))
+                f.write_str(&format!("{}", id.get_string_repr()))
             }
         }
     }
