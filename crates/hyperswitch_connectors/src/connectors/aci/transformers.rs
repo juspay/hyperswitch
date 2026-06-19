@@ -348,6 +348,13 @@ pub struct AciMandateResponse {
     pub result: ResultCode,
     pub build_number: String,
     pub timestamp: String,
+    /// Acquirer / connector response details. Carries the CITI (scheme trace /
+    /// network transaction id) used as `standingInstruction.initialTransactionId`
+    /// on subsequent MITs.
+    pub result_details: Option<AciResponseResultDetails>,
+    /// Standing instruction fields (Mastercard agreementId/TLID returned on the
+    /// initial registration).
+    pub standing_instruction: Option<AciResponseStandingInstruction>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -2865,11 +2872,28 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        // Parse the CITI (scheme trace / network transaction id) so the mandate
+        // carries it the same way the inline createRegistration flow does:
+        //   connector_mandate_id                    = ACI registrationId (response.id)
+        //   network_txn_id / request_reference_id   = CITI (initialTransactionId on MIT)
+        //   mandate_metadata.agreementId            = Mastercard TLID, when present
+        let citi = item
+            .response
+            .result_details
+            .as_ref()
+            .map(parse_connector_tx_ids)
+            .and_then(|p| p.citi);
+        let mandate_metadata = item
+            .response
+            .standing_instruction
+            .as_ref()
+            .and_then(|si| si.agreement_id.clone())
+            .map(|aid| Secret::new(serde_json::json!({ "agreementId": aid })));
         let mandate_reference = Some(MandateReference {
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
-            mandate_metadata: None,
-            connector_mandate_request_reference_id: None,
+            mandate_metadata,
+            connector_mandate_request_reference_id: citi.clone(),
         });
 
         let status = if SUCCESSFUL_CODES.contains(&item.response.result.code.as_str()) {
@@ -2900,7 +2924,7 @@ impl
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
-                network_txn_id: None,
+                network_txn_id: citi,
                 network_txn_link_id: None,
 
                 connector_response_reference_id: Some(item.response.id),
