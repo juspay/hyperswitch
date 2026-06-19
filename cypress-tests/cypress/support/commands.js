@@ -4769,15 +4769,75 @@ Cypress.Commands.add(
   }
 );
 
-// FIXME: This command needs to be refactored to not use connector-specific tasks.
-// The verifyStripeAchPaymentIntent task has been removed from cypress.config.js.
-// For now, this command is disabled. ACH tests for Stripe should be handled differently.
+// Generic microdeposit verification for bank debit mandates
 Cypress.Commands.add("verifyAchMicrodepositCallTest", (globalState) => {
-  cy.task(
-    "cli_log",
-    "verifyAchMicrodepositCallTest is temporarily disabled - needs refactoring to remove connector-specific code"
-  );
-  return;
+  const connectorTransactionId = globalState.get("connectorTransactionId");
+  const connectorId = globalState.get("connectorId");
+  const connectorAuthFilePath = globalState.get("connectorAuthFilePath");
+
+  if (!connectorTransactionId) {
+    cy.task(
+      "cli_log",
+      "No connector_transaction_id found, skipping microdeposit verification"
+    );
+    return;
+  }
+
+  // Read auth file to get provider credentials
+  cy.readFile(connectorAuthFilePath).then((authContent) => {
+    const connectorData = authContent[connectorId];
+    let providerConfig = null;
+
+    // Extract provider config based on connector structure
+    if (connectorData?.connector_account_details?.api_key) {
+      // Standard single connector
+      providerConfig = {
+        apiKey: connectorData.connector_account_details.api_key,
+        baseUrl: "api.stripe.com",
+      };
+    } else if (connectorData) {
+      // Multiple connectors - get first entry
+      const firstKey = Object.keys(connectorData)[0];
+      if (connectorData[firstKey]?.connector_account_details?.api_key) {
+        providerConfig = {
+          apiKey: connectorData[firstKey].connector_account_details.api_key,
+          baseUrl: "api.stripe.com",
+        };
+      }
+    }
+
+    if (!providerConfig) {
+      cy.task("cli_log", "Provider credentials not found, skipping verification");
+      return;
+    }
+
+    cy.task(
+      "cli_log",
+      `Fetching payment intent for microdeposit verification`
+    );
+
+    cy.task("fetchPaymentIntent", {
+      authApiKey: providerConfig.apiKey,
+      paymentIntentId: connectorTransactionId,
+      providerBaseUrl: providerConfig.baseUrl,
+    }).then((result) => {
+      if (result.status !== 200) {
+        cy.task("cli_log", `Failed to fetch payment intent: ${result.status}`);
+        return;
+      }
+
+      const hostedVerificationUrl =
+        result.body.next_action?.verify_with_microdeposits?.hosted_verification_url;
+
+      if (!hostedVerificationUrl) {
+        cy.task("cli_log", "No verification required or already verified");
+        return;
+      }
+
+      cy.task("cli_log", `Verifying microdeposit at: ${hostedVerificationUrl}`);
+      cy.handleStripeAchVerification({ hostedUrl: hostedVerificationUrl });
+    });
+  });
 });
 
 Cypress.Commands.add(

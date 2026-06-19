@@ -1873,7 +1873,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "processing",
         },
       },
     },
