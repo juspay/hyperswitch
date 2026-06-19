@@ -548,13 +548,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          session_token: {
-            delayed_session_token: true,
-            connector: "trustpay",
-            sdk_next_action: {
-              next_action: "confirm",
-            },
-          },
+          session_token: [],
         },
       },
     },
@@ -970,6 +964,7 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
+            type: "invalid_request",
             code: "IR_04",
             message: "Missing required parameter: client_secret",
           },
@@ -984,6 +979,7 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
+            type: "invalid_request",
             code: "HE_02",
             message: "Payment does not exist or access forbidden",
           },
