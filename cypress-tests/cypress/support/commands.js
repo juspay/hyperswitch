@@ -4687,10 +4687,8 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.status === 200) {
           globalState.set("paymentID", response.body.payment_id);
-          if (response.body.payment_method_data !== null) {
-            expect(response.body.payment_method_data, "payment_method_data").to
-              .not.be.empty;
-          }
+          expect(response.body.payment_method_data, "payment_method_data").to
+            .not.be.empty;
           const expectedConnector = getOriginalConnectorName(
             globalState.get("connectorId")
           );
