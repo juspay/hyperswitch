@@ -1413,7 +1413,7 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "This Payment could not be captured because it has a payment.status of requires_payment_method. The expected state is requires_capture, partially_captured_and_capturable, processing",
+              "This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially_captured_and_capturable, processing",
             code: "IR_14",
           },
         },
