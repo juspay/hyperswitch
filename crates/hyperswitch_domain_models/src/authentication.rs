@@ -260,7 +260,7 @@ impl behaviour::Conversion for Authentication {
         key: &Secret<Vec<u8>>,
         key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError> {
-        let encrypted_data = crypto_operation(
+        let batch_decrypted = crypto_operation(
             state,
             common_utils::type_name!(Self),
             CryptoOperation::BatchDecrypt(EncryptedAuthentication::to_encryptable(
@@ -278,7 +278,7 @@ impl behaviour::Conversion for Authentication {
             message: "Failed while decrypting authentication data".to_string(),
         })?;
 
-        let decrypted_data = FromRequestEncryptableAuthentication::from_encryptable(encrypted_data)
+        let decrypted_data = FromRequestEncryptableAuthentication::from_encryptable(batch_decrypted)
             .change_context(ValidationError::InvalidValue {
                 message: "Failed while decrypting authentication data".to_string(),
             })?;
@@ -481,6 +481,7 @@ pub enum AuthenticationUpdate {
     PreAuthenticationVersionCallUpdate {
         maximum_supported_3ds_version: common_utils::types::SemanticVersion,
         message_version: common_utils::types::SemanticVersion,
+        updated_by: String,
     },
     PreAuthenticationThreeDsMethodCall {
         threeds_server_transaction_id: String,
@@ -489,6 +490,7 @@ pub enum AuthenticationUpdate {
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
         connector_metadata: Option<Value>,
+        updated_by: String,
     },
     PreAuthenticationUpdate {
         threeds_server_transaction_id: String,
@@ -514,6 +516,7 @@ pub enum AuthenticationUpdate {
         shipping_country: Option<String>,
         earliest_supported_version: Option<common_utils::types::SemanticVersion>,
         latest_supported_version: Option<common_utils::types::SemanticVersion>,
+        updated_by: String,
     },
     AuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
@@ -536,6 +539,7 @@ pub enum AuthenticationUpdate {
         device_brand: Option<String>,
         device_os: Option<String>,
         device_display: Option<String>,
+        updated_by: String,
     },
     PostAuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
@@ -543,19 +547,23 @@ pub enum AuthenticationUpdate {
         authentication_status: common_enums::AuthenticationStatus,
         challenge_cancel: Option<String>,
         challenge_code_reason: Option<String>,
+        updated_by: String,
     },
     ErrorUpdate {
         error_message: Option<String>,
         error_code: Option<String>,
         authentication_status: common_enums::AuthenticationStatus,
         connector_authentication_id: Option<String>,
+        updated_by: String,
     },
     PostAuthorizationUpdate {
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus,
+        updated_by: String,
     },
     AuthenticationStatusUpdate {
         trans_status: common_enums::TransactionStatus,
         authentication_status: common_enums::AuthenticationStatus,
+        updated_by: String,
     },
     /// Used after bucket-based acquirer resolution in authentication_eligibility_core
     /// to persist the dynamically resolved acquirer details back to the authentication record.
@@ -563,6 +571,7 @@ pub enum AuthenticationUpdate {
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
         acquirer_country_code: Option<String>,
+        updated_by: String,
     },
 }
 
@@ -572,9 +581,11 @@ impl From<AuthenticationUpdate> for diesel_models::authentication::Authenticatio
             AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
                 maximum_supported_3ds_version,
                 message_version,
+                updated_by,
             } => Self::PreAuthenticationVersionCallUpdate {
                 maximum_supported_3ds_version,
                 message_version,
+                updated_by,
             },
             AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
                 threeds_server_transaction_id,
@@ -583,6 +594,7 @@ impl From<AuthenticationUpdate> for diesel_models::authentication::Authenticatio
                 acquirer_bin,
                 acquirer_merchant_id,
                 connector_metadata,
+                updated_by,
             } => Self::PreAuthenticationThreeDsMethodCall {
                 threeds_server_transaction_id,
                 three_ds_method_data,
@@ -590,6 +602,7 @@ impl From<AuthenticationUpdate> for diesel_models::authentication::Authenticatio
                 acquirer_bin,
                 acquirer_merchant_id,
                 connector_metadata,
+                updated_by,
             },
             AuthenticationUpdate::PreAuthenticationUpdate {
                 threeds_server_transaction_id,
@@ -615,6 +628,7 @@ impl From<AuthenticationUpdate> for diesel_models::authentication::Authenticatio
                 shipping_country,
                 earliest_supported_version,
                 latest_supported_version,
+                updated_by,
             } => Self::PreAuthenticationUpdate {
                 threeds_server_transaction_id,
                 maximum_supported_3ds_version,
@@ -639,6 +653,7 @@ impl From<AuthenticationUpdate> for diesel_models::authentication::Authenticatio
                 shipping_country,
                 earliest_supported_version,
                 latest_supported_version,
+                updated_by,
             },
             AuthenticationUpdate::AuthenticationUpdate {
                 trans_status,
@@ -661,6 +676,7 @@ impl From<AuthenticationUpdate> for diesel_models::authentication::Authenticatio
                 device_brand,
                 device_os,
                 device_display,
+                updated_by,
             } => Self::AuthenticationUpdate {
                 trans_status,
                 authentication_type,
@@ -682,6 +698,7 @@ impl From<AuthenticationUpdate> for diesel_models::authentication::Authenticatio
                 device_brand,
                 device_os,
                 device_display,
+                updated_by,
             },
             AuthenticationUpdate::PostAuthenticationUpdate {
                 trans_status,
@@ -689,44 +706,54 @@ impl From<AuthenticationUpdate> for diesel_models::authentication::Authenticatio
                 authentication_status,
                 challenge_cancel,
                 challenge_code_reason,
+                updated_by,
             } => Self::PostAuthenticationUpdate {
                 trans_status,
                 eci,
                 authentication_status,
                 challenge_cancel,
                 challenge_code_reason,
+                updated_by,
             },
             AuthenticationUpdate::ErrorUpdate {
                 error_message,
                 error_code,
                 authentication_status,
                 connector_authentication_id,
+                updated_by,
             } => Self::ErrorUpdate {
                 error_message,
                 error_code,
                 authentication_status,
                 connector_authentication_id,
+                updated_by,
             },
             AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status,
+                updated_by,
             } => Self::PostAuthorizationUpdate {
                 authentication_lifecycle_status,
+                updated_by,
             },
             AuthenticationUpdate::AuthenticationStatusUpdate {
                 trans_status,
                 authentication_status,
+                updated_by,
             } => Self::AuthenticationStatusUpdate {
                 trans_status,
                 authentication_status,
+                updated_by,
             },
             AuthenticationUpdate::AcquirerDetailsUpdate {
                 acquirer_bin,
                 acquirer_merchant_id,
                 acquirer_country_code,
+                updated_by,
             } => Self::AcquirerDetailsUpdate {
                 acquirer_bin,
                 acquirer_merchant_id,
                 acquirer_country_code,
+                updated_by,
             },
         }
     }

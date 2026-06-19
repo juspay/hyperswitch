@@ -367,7 +367,7 @@ impl
             merchant_country_code: None,
             processor_merchant_id: None,
             created_by: None,
-            updated_by: Some(common_enums::MerchantStorageScheme::PostgresOnly.to_string()),
+            updated_by: None,
         }
     }
 }
@@ -492,7 +492,7 @@ impl
             merchant_country_code: None,
             processor_merchant_id: None,
             created_by: None,
-            updated_by: Some(common_enums::MerchantStorageScheme::PostgresOnly.to_string()),
+            updated_by: None,
         }
     }
 }

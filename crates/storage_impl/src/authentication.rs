@@ -533,14 +533,12 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                 let old_connector_authentication_id =
                     previous_state.connector_authentication_id.clone();
 
-                let mut authentication_update_internal =
+                let authentication_update_internal =
                     diesel_models::authentication::AuthenticationUpdateInternal::from(
                         diesel_models::authentication::AuthenticationUpdate::from(
                             authentication_update,
                         ),
                     );
-                // Stamp the new write location onto the changeset.
-                authentication_update_internal.updated_by = Some(storage_scheme.to_string());
 
                 let updated_authentication = authentication_update_internal
                     .clone()

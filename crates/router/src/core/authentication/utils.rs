@@ -205,6 +205,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     ),
                     earliest_supported_version: Some(maximum_supported_3ds_version.clone()),
                     latest_supported_version: Some(maximum_supported_3ds_version.clone()),
+                    updated_by: storage_scheme.to_string(),
                 }
             }
             AuthenticationResponseData::AuthNResponse {
@@ -271,6 +272,7 @@ pub async fn update_trackers<F: Clone, Req>(
                         .device_details
                         .as_ref()
                         .and_then(|device_details| device_details.device_display.clone()),
+                    updated_by: storage_scheme.to_string(),
                 }
             }
             AuthenticationResponseData::PostAuthNResponse {
@@ -303,6 +305,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     eci,
                     challenge_cancel,
                     challenge_code_reason,
+                    updated_by: storage_scheme.to_string(),
                 }
             }
             AuthenticationResponseData::PreAuthVersionCallResponse {
@@ -310,6 +313,7 @@ pub async fn update_trackers<F: Clone, Req>(
             } => authentication::AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
                 message_version: maximum_supported_3ds_version.clone(),
                 maximum_supported_3ds_version,
+                updated_by: storage_scheme.to_string(),
             },
             AuthenticationResponseData::PreAuthThreeDsMethodCallResponse {
                 threeds_server_transaction_id,
@@ -326,6 +330,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
                 acquirer_merchant_id: acquirer_details
                     .map(|acquirer_details| acquirer_details.acquirer_merchant_id),
+                updated_by: storage_scheme.to_string(),
             },
         },
         Err(error) => authentication::AuthenticationUpdate::ErrorUpdate {
@@ -336,6 +341,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 .map(|reason| format!("message: {}, reason: {}", error.message, reason))
                 .or(Some(error.message)),
             error_code: Some(error.code),
+            updated_by: storage_scheme.to_string(),
         },
     };
     state

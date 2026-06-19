@@ -1207,6 +1207,7 @@ pub async fn authentication_eligibility_core(
                     acquirer_bin: acquirer_details.as_ref().and_then(|d| d.acquirer_bin.clone()),
                     acquirer_merchant_id: acquirer_details.as_ref().and_then(|d| d.acquirer_assigned_merchant_id.clone()),
                     acquirer_country_code: acquirer_details.as_ref().and_then(|d| d.acquirer_country_code.clone()),
+                    updated_by: merchant_account.storage_scheme.to_string(),
                 },
                 platform.get_processor().get_key_store(),
                 key_manager_state_ref,
