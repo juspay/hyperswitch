@@ -48,13 +48,6 @@ pub(crate) fn apply_changeset_attribute(
 
     let mut assignments = Vec::new();
 
-    // Generate a unique helper-module name so multiple uses in the same
-    // module don't clash.
-    let helper_mod = syn::Ident::new(
-        &format!("__apply_changeset_helper_{}", struct_name),
-        proc_macro2::Span::call_site(),
-    );
-
     for field in &fields {
         let Some(field_name) = field.ident.as_ref() else {
             continue;
@@ -63,7 +56,7 @@ pub(crate) fn apply_changeset_attribute(
 
         if is_option_type(ty) {
             assignments.push(quote! {
-                #helper_mod::ApplyOptionField::apply(
+                ::common_utils::ApplyOptionField::apply(
                     self.#field_name, &mut target.#field_name
                 );
             });
@@ -77,29 +70,6 @@ pub(crate) fn apply_changeset_attribute(
     Ok(quote! {
         #item
 
-        #[doc(hidden)]
-        mod #helper_mod {
-            pub trait ApplyOptionField<Target> {
-                fn apply(self, target: &mut Target);
-            }
-
-            impl<T> ApplyOptionField<T> for Option<T> {
-                fn apply(self, target: &mut T) {
-                    if let Some(v) = self {
-                        *target = v;
-                    }
-                }
-            }
-
-            impl<T> ApplyOptionField<Option<T>> for Option<T> {
-                fn apply(self, target: &mut Option<T>) {
-                    if self.is_some() {
-                        *target = self;
-                    }
-                }
-            }
-        }
-
         #[automatically_derived]
         impl #impl_generics #struct_name #ty_generics #where_clause {
             /// Applies the fields of this update struct to the given target,
@@ -108,7 +78,6 @@ pub(crate) fn apply_changeset_attribute(
             /// Fields of type `Option<T>` are only applied when `Some`, leaving
             /// the original value unchanged when `None`.
             pub fn apply_changeset(self, mut target: #target_type) -> #target_type {
-                use #helper_mod::ApplyOptionField;
                 #(#assignments)*
                 target
             }

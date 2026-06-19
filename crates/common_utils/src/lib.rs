@@ -389,6 +389,8 @@ mod nanoid_tests {
     }
 }
 
+pub use ext_traits::ApplyOptionField;
+
 /// Module for tokenization-related functionality
 ///
 /// This module provides types and functions for handling tokenized payment data,
