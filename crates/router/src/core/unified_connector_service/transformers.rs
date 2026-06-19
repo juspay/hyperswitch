@@ -7678,7 +7678,6 @@ impl ForeignFrom<AdditionalPaymentData> for payments_grpc::AdditionalPaymentData
     }
 }
 
-
 // ============================================================================
 // SPLIT REFUND TYPES
 // ============================================================================
