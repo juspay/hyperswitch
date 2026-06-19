@@ -431,7 +431,7 @@ pub struct AuthenticationUpdateInternal {
     pub merchant_country_code: Option<String>,
     pub billing_country: Option<String>,
     pub shipping_country: Option<String>,
-    pub updated_by: Option<String>,
+    pub updated_by: String,
 }
 
 impl AuthenticationUpdateInternal {
@@ -579,7 +579,7 @@ impl AuthenticationUpdateInternal {
             shipping_country: shipping_country.or(source.shipping_country),
             processor_merchant_id: source.processor_merchant_id,
             created_by: source.created_by,
-            updated_by: updated_by.or(source.updated_by),
+            updated_by: Some(updated_by),
         }
     }
 }
@@ -603,7 +603,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 payment_method_id: None,
                 connector_metadata: None,
-                updated_by: Some(updated_by),
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::PostAuthorizationUpdate {
@@ -620,7 +620,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 error_message: None,
                 error_code: None,
                 connector_metadata: None,
-                updated_by: Some(updated_by),
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::PreAuthenticationUpdate {
@@ -672,7 +672,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 shipping_country,
                 earliest_supported_version,
                 latest_supported_version,
-                updated_by: Some(updated_by),
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::AuthenticationUpdate {
@@ -718,7 +718,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 device_brand,
                 device_os,
                 device_display,
-                updated_by: Some(updated_by),
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::PostAuthenticationUpdate {
@@ -734,7 +734,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 authentication_status: Some(authentication_status),
                 challenge_cancel,
                 challenge_code_reason,
-                updated_by: Some(updated_by),
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
@@ -744,7 +744,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
             } => Self {
                 maximum_supported_version: Some(maximum_supported_3ds_version),
                 message_version: Some(message_version),
-                updated_by: Some(updated_by),
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
@@ -762,7 +762,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acquirer_bin,
                 acquirer_merchant_id,
                 connector_metadata,
-                updated_by: Some(updated_by),
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::AuthenticationStatusUpdate {
@@ -772,7 +772,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
             } => Self {
                 trans_status: Some(trans_status),
                 authentication_status: Some(authentication_status),
-                updated_by: Some(updated_by),
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::AcquirerDetailsUpdate {
@@ -784,7 +784,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acquirer_bin,
                 acquirer_merchant_id,
                 acquirer_country_code,
-                updated_by: Some(updated_by),
+                updated_by,
                 ..Default::default()
             },
         }
