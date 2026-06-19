@@ -356,7 +356,7 @@ pub trait UniqueConstraints {
         let sadd_result = redis_conn
             .sadd(
                 &format!("unique_constraint:{}", self.table_name()).into(),
-                constraints,
+                constraints.clone(),
             )
             .await?;
 
@@ -367,7 +367,18 @@ pub trait UniqueConstraints {
                     // If all unique constraints were succesfully inserted into the set, then no collision occurred
                     Ok(())
                 } else {
-                    Err(error_stack::report!(RedisError::SetAddMembersFailed))
+                    Err(error_stack::report!(RedisError::SetAddMembersFailed)).attach_printable_lazy(||{
+                        // saturating_sub avoids panic if set_count somehow exceeds unique_contraint_count.
+                        let duplicates_found = unique_contraint_count
+                            .saturating_sub(usize::try_from(set_count).unwrap_or(0));
+                        format!(
+                            "Unique constraint collision in table '{}': tried to insert {} constraint(s), but {} already existed. Attempted constraints: {:?}",
+                            self.table_name(),
+                            unique_contraint_count,
+                            duplicates_found,
+                            constraints
+                        )
+                    })
                 }
             }
         }
