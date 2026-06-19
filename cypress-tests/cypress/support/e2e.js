@@ -132,7 +132,7 @@ if (IS_PROXY_ENABLED) {
     testIdHash = computeTestIdHash(connector, spec, title);
     stepCounter = 0;
     Cypress.env("currentTestIdHash", testIdHash);
-    cy.resetRedirectReadCount(testIdHash);
+
 
     if (PROXY_ADMIN_URL) {
       notifyProxyTestStarted(titlePath, spec, connector);
