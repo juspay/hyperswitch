@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.19.0
+
+### Features
+
+- **authentication:** Added tokenisation disable config as org level to merchant level priority ([#12839](https://github.com/juspay/hyperswitch/pull/12839)) ([`48c3545`](https://github.com/juspay/hyperswitch/commit/48c3545bd97aac417be80354959d0dad2fb8b865))
+- **payment-methods:**
+  - External vault configuration for platform merchants ([#12708](https://github.com/juspay/hyperswitch/pull/12708)) ([`27f2818`](https://github.com/juspay/hyperswitch/commit/27f28188a031f1a4f0b89346a1f7e2d0d3d933d9))
+  - Add pub <> client secret auth for client PML endpoint ([#12841](https://github.com/juspay/hyperswitch/pull/12841)) ([`ad9ab39`](https://github.com/juspay/hyperswitch/commit/ad9ab398dc8a3b7fddeb7ad717f1fb160582b7c6))
+- **router:** Add IP address only blocking in Card Testing Guard ([#12553](https://github.com/juspay/hyperswitch/pull/12553)) ([`cb4f349`](https://github.com/juspay/hyperswitch/commit/cb4f349f7ae3c170de935480bf7b35b96eaff4d4))
+
+### Bug Fixes
+
+- **connector:** [WorldpayWPG] Add Mastercard in WASM for Payouts ([#12846](https://github.com/juspay/hyperswitch/pull/12846)) ([`380e45b`](https://github.com/juspay/hyperswitch/commit/380e45b82492ec5bd08a33dc3746aa01082d8001))
+
+**Full Changelog:** [`2026.06.18.0...2026.06.19.0`](https://github.com/juspay/hyperswitch/compare/2026.06.18.0...2026.06.19.0)
+
+- - -
+
 ## 2026.06.18.0
 
 ### Bug Fixes

@@ -2090,32 +2090,55 @@ pub async fn payment_method_get_token_details_api(
 /// Returns a unified response combining merchant-enabled payment methods and
 /// customer saved payment methods, filtered via Euclid constraint graph and
 /// session flow routing.
+///
+/// Supported client auth:
+/// - SDK auth via `Authorization`.
+/// - Publishable-key auth via `api-key: pk_...` and `client_secret` query param.
+///
+/// Merchant secret-key auth is intentionally not supported for this endpoint.
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
 pub async fn list_payment_methods_for_payments_client(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<id_type::PaymentId>,
+    query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsList;
     let payment_id = path.into_inner();
+    let payload = query_payload.into_inner();
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
+    };
 
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        payment_id.clone(),
-        |state, auth: auth::AuthenticationData, payment_id, _| {
-            payment_methods_routes::client::list_payment_methods_client(
+    match auth::check_sdk_auth_or_client_secret_auth(req.headers(), &payload, api_auth) {
+        Ok((auth_type, _auth_flow)) => {
+            Box::pin(api::server_wrap(
+                flow,
                 state,
-                auth.platform,
-                payment_id,
-            )
-        },
-        &auth::SdkAuthorizationAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: true,
-        },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
+                &req,
+                payload,
+                move |state, auth: auth::AuthenticationData, mut payload, _| {
+                    let payment_id = payment_id.clone();
+                    async move {
+                        if let Some(client_secret) = auth.client_secret {
+                            payload.client_secret = Some(client_secret);
+                        }
+
+                        Box::pin(payment_methods_routes::client::list_payment_methods_client(
+                            state,
+                            auth.platform,
+                            payment_id,
+                            payload.client_secret,
+                        ))
+                        .await
+                    }
+                },
+                &*auth_type,
+                api_locking::LockAction::NotApplicable,
+            ))
+            .await
+        }
+        Err(err) => api::log_and_return_error_response(err),
+    }
 }
