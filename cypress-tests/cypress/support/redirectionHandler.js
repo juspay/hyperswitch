@@ -3355,3 +3355,18 @@ function handleFlow(
     }
   });
 }
+
+// Handle Stripe ACH microdeposit verification
+Cypress.Commands.add("handleStripeAchVerification", ({ hostedUrl }) => {
+  cy.origin(
+    "https://payments.stripe.com",
+    { args: { hostedUrl } },
+    ({ hostedUrl }) => {
+      cy.visit(hostedUrl);
+      cy.get("input.p-CodePuncher-controllingInput").type("11AA{enter}", {
+        force: true,
+      });
+      cy.wait(5000);
+    }
+  );
+});

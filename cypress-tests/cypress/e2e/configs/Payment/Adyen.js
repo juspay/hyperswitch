@@ -1,4 +1,11 @@
-import { customerAcceptance, multiUseMandateData } from "./Commons";
+import {
+  customerAcceptance,
+  multiUseMandateData,
+  standardBillingAddress,
+  sepaBillingAddress,
+  achBillingAddress,
+  bacsBillingAddress,
+} from "./Commons";
 import {
   getCurrency,
   getCustomExchange,
@@ -2776,27 +2783,14 @@ export const connectorDetails = {
               bank_account_holder_name: "John Doe",
             },
           },
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "Amsterdam",
-              state: "North Holland",
-              zip: "1012",
-              country: "NL",
-              first_name: "John",
-              last_name: "Doe",
-            },
-            email: "test@example.com",
-          },
+          billing: sepaBillingAddress,
         },
         customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -2816,20 +2810,7 @@ export const connectorDetails = {
               bank_account_holder_name: "John Doe",
             },
           },
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Francisco",
-              state: "California",
-              zip: "94122",
-              country: "US",
-              first_name: "John",
-              last_name: "Doe",
-            },
-            email: "test@example.com",
-          },
+          billing: achBillingAddress,
         },
         customer_acceptance: customerAcceptance,
         mandate_data: {
@@ -2846,7 +2827,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -2862,20 +2843,7 @@ export const connectorDetails = {
               bank_account_holder_name: "David Archer",
             },
           },
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "London",
-              state: "England",
-              zip: "SW1A 1AA",
-              country: "GB",
-              first_name: "John",
-              last_name: "Doe",
-            },
-            email: "test@example.com",
-          },
+          billing: bacsBillingAddress,
         },
         customer_acceptance: customerAcceptance,
         mandate_data: {
