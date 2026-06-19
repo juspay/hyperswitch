@@ -2868,13 +2868,7 @@ pub enum ExecutionMode {
 
 #[derive(Clone, Copy, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
-/// Execution mode as recorded on a connector event.
-///
-/// This is the two-state *observability* projection of the routing [`ExecutionMode`]:
-/// a connector event is either the real (primary) execution or a shadow mirror. The routing
-/// `NotApplicable` value (Direct path, UCS not involved) is itself a live/real call, so it
-/// maps to [`EventExecutionMode::Primary`] — see the `From` impl below. Keeping this distinct
-/// from the 3-variant routing enum means a connector event can never carry `not_applicable`.
+/// Whether a connector event is the real call or a shadow mirror.
 pub enum EventExecutionMode {
     Primary,
     Shadow,
@@ -2884,7 +2878,6 @@ impl From<ExecutionMode> for EventExecutionMode {
     fn from(mode: ExecutionMode) -> Self {
         match mode {
             ExecutionMode::Shadow => Self::Shadow,
-            // Primary, plus Direct's `NotApplicable` — a direct connector call is the live call.
             ExecutionMode::Primary | ExecutionMode::NotApplicable => Self::Primary,
         }
     }
@@ -2893,9 +2886,6 @@ impl From<ExecutionMode> for EventExecutionMode {
 #[derive(Clone, Copy, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 /// Where a connector event's call was sent.
-///
-/// Both direct connector calls and calls to the Unified Connector Service (UCS) land in
-/// `connector_events`; this is the column that tells them apart.
 pub enum EventDestination {
     /// A direct call to the connector.
     Connector,

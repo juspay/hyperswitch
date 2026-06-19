@@ -25,8 +25,7 @@ pub struct ConnectorEvent {
     status_code: u16,
     /// Whether this call went to the connector directly or to the Unified Connector Service.
     destination: common_enums::EventDestination,
-    /// Primary (real) execution or shadow mirror — the two-state event projection of the
-    /// routing `ExecutionMode` (see `common_enums::EventExecutionMode`).
+    /// Whether this call is the real execution or a shadow mirror.
     execution_mode: common_enums::EventExecutionMode,
     #[serde(flatten)]
     connector_event_type: common_utils::events::ConnectorEventsType,
