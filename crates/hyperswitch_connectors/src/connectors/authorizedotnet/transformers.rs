@@ -168,6 +168,13 @@ struct TransactionRequest {
     processing_options: Option<ProcessingOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     subsequent_auth_information: Option<SubsequentAuthInformation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    surcharge: Option<Surcharge>,
+}
+
+#[derive(Debug, Serialize)]
+struct Surcharge {
+    amount: FloatMajorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -890,6 +897,22 @@ impl
             String,
         ),
     ) -> Result<Self, Self::Error> {
+        let surcharge_amount = item
+            .router_data
+            .request
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| {
+                surcharge_details
+                    .get_total_surcharge_amount()
+                    .to_major_unit_as_f64(item.router_data.request.currency)
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)
+                    .attach_printable("Failed to convert minor unit amount to major unit float")
+            })
+            .transpose()?;
+
+        let surcharge = surcharge_amount.map(|amount| Surcharge { amount });
+
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -979,6 +1002,7 @@ impl
                 original_network_trans_id: Secret::new(network_trans_id),
                 reason: Reason::Resubmission,
             }),
+            surcharge,
         })
     }
 }
@@ -1021,6 +1045,23 @@ impl
         let mandate_id = connector_mandate_id
             .get_connector_mandate_id()
             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
+
+        let surcharge_amount = item
+            .router_data
+            .request
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| {
+                surcharge_details
+                    .get_total_surcharge_amount()
+                    .to_major_unit_as_f64(item.router_data.request.currency)
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)
+                    .attach_printable("Failed to convert minor unit amount to major unit float")
+            })
+            .transpose()?;
+
+        let surcharge = surcharge_amount.map(|amount| Surcharge { amount });
+
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -1062,6 +1103,7 @@ impl
                 is_subsequent_auth: true,
             }),
             subsequent_auth_information: None,
+            surcharge,
         })
     }
 }
@@ -1121,6 +1163,22 @@ impl
             None
         };
 
+        let surcharge_amount = item
+            .router_data
+            .request
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| {
+                surcharge_details
+                    .get_total_surcharge_amount()
+                    .to_major_unit_as_f64(item.router_data.request.currency)
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)
+                    .attach_printable("Failed to convert minor unit amount to major unit float")
+            })
+            .transpose()?;
+
+        let surcharge = surcharge_amount.map(|amount| Surcharge { amount });
+
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -1167,6 +1225,7 @@ impl
             },
             processing_options: None,
             subsequent_auth_information: None,
+            surcharge,
         })
     }
 }
@@ -1219,6 +1278,22 @@ impl
             None
         };
 
+        let surcharge_amount = item
+            .router_data
+            .request
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| {
+                surcharge_details
+                    .get_total_surcharge_amount()
+                    .to_major_unit_as_f64(item.router_data.request.currency)
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)
+                    .attach_printable("Failed to convert minor unit amount to major unit float")
+            })
+            .transpose()?;
+
+        let surcharge = surcharge_amount.map(|amount| Surcharge { amount });
+
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -1264,6 +1339,7 @@ impl
             },
             processing_options: None,
             subsequent_auth_information: None,
+            surcharge,
         })
     }
 }
