@@ -1172,6 +1172,12 @@ pub struct PaymentsCancelPostCaptureSyncData {
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
+pub struct PaymentsPreAuthorizeCancelData {
+    pub connector_transaction_id: String,
+    pub connector_meta: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct PaymentsExtendAuthorizationData {
     pub minor_amount: MinorUnit,
     pub currency: storage_enums::Currency,

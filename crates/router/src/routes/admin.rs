@@ -560,21 +560,23 @@ pub async fn connector_create(
         state,
         &req,
         payload,
-        |state, auth_data, req, _| {
-            create_connector(
+        |state, auth_data, req, _| async move {
+            Box::pin(create_connector(
                 state,
                 req,
                 auth_data.platform.get_processor().clone(),
                 auth_data.profile.map(|profile| profile.get_id().clone()),
-            )
+            ))
+            .await
         },
         auth::auth_type(
-            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id.clone()),
                 permission: Some(Permission::ProfileConnectorWrite),
                 allow_connected: true,
-                allow_platform: false,
+                // Platform merchants create the external (vault) connector on themselves.
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -599,15 +601,22 @@ pub async fn connector_create(
         state,
         &req,
         payload,
-        |state, auth_data: auth::AuthenticationData, req, _| {
-            create_connector(state, req, auth_data.platform.get_processor().clone(), None)
+        |state, auth_data: auth::AuthenticationData, req, _| async move {
+            Box::pin(create_connector(
+                state,
+                req,
+                auth_data.platform.get_processor().clone(),
+                None,
+            ))
+            .await
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorWrite,
                 allow_connected: true,
-                allow_platform: false,
+                // Platform merchants create the external (vault) connector on themselves.
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -650,7 +659,7 @@ pub async fn connector_retrieve(
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id.clone()),
                 // This should ideally be ProfileConnectorRead, but since this API responds with
@@ -658,7 +667,7 @@ pub async fn connector_retrieve(
                 // TODO: Convert this to ProfileConnectorRead once data is masked.
                 permission: Some(Permission::ProfileConnectorWrite),
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -760,12 +769,12 @@ pub async fn connector_list(
             list_payment_connectors(state, auth.platform.get_processor().clone(), None)
         },
         auth::auth_type(
-            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -800,12 +809,12 @@ pub async fn connector_list_profile(
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id),
                 permission: Some(Permission::ProfileConnectorRead),
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -846,12 +855,12 @@ pub async fn connector_update(
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id.clone()),
                 permission: Some(Permission::ProfileConnectorWrite),
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             req.headers(),
         ),

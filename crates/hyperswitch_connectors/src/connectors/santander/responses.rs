@@ -270,7 +270,7 @@ pub struct SantanderPixVoidResponse {
     // Debtor
     pub devedor: Option<requests::SantanderDebtor>,
     // Recipient
-    pub recebedor: Recipient,
+    pub recebedor: Option<Recipient>,
     // Status
     pub status: SantanderPaymentStatus,
     // Value
@@ -284,6 +284,8 @@ pub struct SantanderPixVoidResponse {
     // Additional Info
     pub info_adicionais: Option<Vec<SantanderAdditionalInfo>>,
     pub pix: Option<Vec<SantanderPix>>,
+    // Location (for void response)
+    pub location: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -312,6 +314,8 @@ pub struct ValueResponse {
     pub juros: Option<Interest>,
     // Discount details
     pub desconto: Option<DiscountResponse>,
+    // Modal of alteration (for void response)
+    pub modalidade_alteracao: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
