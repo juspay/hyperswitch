@@ -59,6 +59,10 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Contains the connection timeout duration in seconds
     pub connection_timeout: u64,
 
+    /// Per-RPC timeout (seconds) for calls to the unified connector service.
+    #[serde(default = "default_ucs_request_timeout")]
+    pub request_timeout: u64,
+
     /// Set of external services/connectors available for the unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_only_connectors: HashSet<Connector>,
@@ -66,6 +70,10 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Set of connectors for which psync is disabled in unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
+}
+
+fn default_ucs_request_timeout() -> u64 {
+    consts::DEFAULT_UCS_REQUEST_TIMEOUT_SECS
 }
 
 /// Contains the Connector Auth Type and related authentication data.
@@ -149,17 +157,14 @@ pub struct HyperswitchVaultMetadata {
     pub vault_auth_data: VaultConnectorAuth,
 }
 
-/// Builds a gRPC client with timeout handling
+/// Builds a gRPC client. `$connection_timeout` bounds connect; `$request_timeout` bounds each RPC.
 #[macro_export]
 macro_rules! build_grpc_client {
-    ($client:ty, $name:expr, $uri:expr, $timeout:expr) => {{
-        match timeout(
-            Duration::from_secs($timeout),
-            <$client>::connect($uri.clone()),
-        )
-        .await
-        {
-            Ok(Ok(client)) => client,
+    ($client:ty, $name:expr, $uri:expr, $connection_timeout:expr, $request_timeout:expr) => {{
+        let endpoint = tonic::transport::Channel::builder($uri.clone())
+            .timeout(Duration::from_secs($request_timeout));
+        match timeout(Duration::from_secs($connection_timeout), endpoint.connect()).await {
+            Ok(Ok(channel)) => <$client>::new(channel),
             Ok(Err(err)) => {
                 router_env::logger::error!(
                     "Failed to connect to Unified Connector Service for {}: {:?}",
@@ -206,7 +211,8 @@ impl UnifiedConnectorServiceClient {
                     }
                 };
 
-                let timeout = unified_connector_service_client_config.connection_timeout;
+                let connection_timeout = unified_connector_service_client_config.connection_timeout;
+                let request_timeout = unified_connector_service_client_config.request_timeout;
 
                 let payment_service_client = build_grpc_client!(
                     payments_grpc::payment_service_client::PaymentServiceClient<
@@ -214,7 +220,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "payment_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let refund_service_client = build_grpc_client!(
@@ -223,7 +230,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "refund_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let event_service_client = build_grpc_client!(
@@ -232,7 +240,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "event_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let recurring_payment_service_client = build_grpc_client!(
@@ -241,7 +250,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "recurring_payment_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let dispute_service_client = build_grpc_client!(
@@ -250,7 +260,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "dispute_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let payment_method_service_client = build_grpc_client!(
@@ -259,7 +270,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "payment_method_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let customer_service_client = build_grpc_client!(
@@ -268,21 +280,24 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "customer_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let merchant_authentication_service_client = build_grpc_client!(
                     payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<tonic::transport::Channel>,
                     "merchant_authentication_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let payment_method_authentication_service_client = build_grpc_client!(
                     payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
                     "payment_method_authentication_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let payout_service_client = build_grpc_client!(
@@ -291,7 +306,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "payout_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let surcharge_service_client = build_grpc_client!(
@@ -300,7 +316,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "surcharge_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 logger::info!("Successfully connected to Unified Connector Service");
