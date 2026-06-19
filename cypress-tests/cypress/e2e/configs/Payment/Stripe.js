@@ -1327,9 +1327,6 @@ export const connectorDetails = {
       },
     }),
     Klarna: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "klarna",
