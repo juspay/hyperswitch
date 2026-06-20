@@ -35,7 +35,7 @@ fn test_no_plaintext_secrets_in_grafana_config() {
         "CHANGE_ME", "CHANGEME", "changeme",
         "TODO", "FIXME", "REPLACE_", "INSERT_",
         "YOUR_", "your_",
-        "EXAMPLE", "SAMPLE",
+        "EXAMPLE", "example", "SAMPLE", "test_",
         "00000000", "XXXXXXXX",
         "<", "PLACEHOLDER", "false", "true",
     ];
