@@ -2,7 +2,8 @@
 fn test_no_plaintext_secrets_in_grafana_config() {
     // Invariant: Configuration files must never contain plaintext API keys,
     // passwords, or secret tokens committed to version control.
-    let config_path = std::path::Path::new("config/grafana.ini");
+    let config_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../config/grafana.ini");
 
     if !config_path.exists() {
         return;
