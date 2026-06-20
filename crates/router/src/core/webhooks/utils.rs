@@ -5,15 +5,18 @@ use common_utils::{
     consts,
     crypto::{self, GenerateDigest},
     errors::CustomResult,
-    ext_traits::ValueExt,
-    fp_utils,
+    ext_traits::{Encode, ValueExt},
+    fp_utils, type_name,
+    types::keymanager,
 };
-use error_stack::{Report, ResultExt};
+use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
+    type_encryption::{crypto_operation, CryptoOperation},
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhook;
+use hyperswitch_masking::{PeekInterface, Secret};
 use redis_interface as redis;
 use router_env::tracing;
 
@@ -250,20 +253,47 @@ pub(crate) fn generate_event_id() -> String {
     common_utils::generate_time_ordered_id("evt")
 }
 
-pub fn increment_webhook_outgoing_received_count(merchant_id: &common_utils::id_type::MerchantId) {
-    metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
-        1,
-        router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
-    )
+pub fn increment_webhook_outgoing_received_count(recipient_data: &WebhookRecipientData) {
+    match recipient_data {
+        WebhookRecipientData::Connector {
+            merchant_connector_id,
+        } => {
+            metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
+                1,
+                router_env::metric_attributes!((
+                    crate::core::webhooks::MERCHANT_CONNECTOR_ACCOUNT_ID,
+                    merchant_connector_id.clone()
+                )),
+            );
+        }
+        WebhookRecipientData::Merchant { merchant_id } => metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT
+            .add(
+                1,
+                router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
+            ),
+    }
 }
 
-pub fn increment_webhook_outgoing_not_received_count(
-    merchant_id: &common_utils::id_type::MerchantId,
-) {
-    metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
-        1,
-        router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
-    );
+pub fn increment_webhook_outgoing_not_received_count(recipient_data: &WebhookRecipientData) {
+    match recipient_data {
+        WebhookRecipientData::Connector {
+            merchant_connector_id,
+        } => {
+            metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
+                1,
+                router_env::metric_attributes!((
+                    crate::core::webhooks::MERCHANT_CONNECTOR_ACCOUNT_ID,
+                    merchant_connector_id.clone()
+                )),
+            );
+        }
+        WebhookRecipientData::Merchant { merchant_id } => {
+            metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
+                1,
+                router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
+            );
+        }
+    }
 }
 
 pub fn is_outgoing_webhook_disabled(
@@ -338,7 +368,9 @@ impl WebhookPayload {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) enum WebhookRecipientData {
-    Merchant,
+    Merchant {
+        merchant_id: common_utils::id_type::MerchantId,
+    },
     Connector {
         merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     },
@@ -347,7 +379,7 @@ pub(crate) enum WebhookRecipientData {
 impl WebhookRecipientData {
     pub fn get_event_recipient(&self) -> common_enums::EventRecipient {
         match self {
-            Self::Merchant => common_enums::EventRecipient::Merchant,
+            Self::Merchant { .. } => common_enums::EventRecipient::Merchant,
             Self::Connector { .. } => common_enums::EventRecipient::Connector,
         }
     }

@@ -124,7 +124,6 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         is_overall_delivery_successful: Some(false),
         processor_merchant_id: Some(processor_merchant_id.clone()),
         initiator_merchant_id: Some(webhook_recipient.key_store.merchant_id.clone()),
-        recipient: Some(common_enums::EventRecipient::Merchant),
     };
 
     let event_insert_result = state
@@ -689,34 +688,8 @@ impl ForeignFrom<storage::EventMetadata> for outgoing_webhook_logs::OutgoingWebh
     }
 }
 
-trait OutgoingWebhookResponseHandler {
-    async fn handle_error_response(
-        &self,
-        state: SessionState,
-        merchant_key_store: domain::MerchantKeyStore,
-        merchant_id: &common_utils::id_type::MerchantId,
-        event_id: &str,
-        client_error: Report<errors::ApiClientError>,
-    ) -> CustomResult<
-        (domain::Event, Option<Report<errors::WebhooksFlowError>>),
-        errors::WebhooksFlowError,
-    >;
-
-    async fn handle_success_response(
-        &self,
-        state: SessionState,
-        merchant_key_store: domain::MerchantKeyStore,
-        merchant_id: &common_utils::id_type::MerchantId,
-        event_id: &str,
-        process_tracker: Option<storage::ProcessTracker>,
-        response: reqwest::Response,
-    ) -> CustomResult<
-        (domain::Event, Option<Report<errors::WebhooksFlowError>>),
-        errors::WebhooksFlowError,
-    >;
-}
-
-impl OutgoingWebhookResponseHandler for enums::WebhookDeliveryAttempt {
+#[cfg(feature = "v2")]
+impl types::OutgoingWebhookResponseHandler for enums::WebhookDeliveryAttempt {
     async fn handle_error_response(
         &self,
         state: SessionState,
@@ -776,7 +749,7 @@ impl OutgoingWebhookResponseHandler for enums::WebhookDeliveryAttempt {
         )
         .await?;
 
-        let webhook_action_handler = get_action_handler(*self);
+        let webhook_action_handler = types::get_action_handler(*self);
         let result = if is_webhook_notified {
             webhook_action_handler
                 .notified_action(
@@ -797,31 +770,9 @@ impl OutgoingWebhookResponseHandler for enums::WebhookDeliveryAttempt {
     }
 }
 
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
-trait WebhookNotificationHandler: Send + Sync {
-    async fn notified_action(
-        &self,
-        state: SessionState,
-        merchant_key_store: domain::MerchantKeyStore,
-        updated_event: &domain::Event,
-        merchant_id: &common_utils::id_type::MerchantId,
-        process_tracker: Option<storage::ProcessTracker>,
-    ) -> Option<Report<errors::WebhooksFlowError>>;
-
-    async fn not_notified_action(
-        &self,
-        state: SessionState,
-        merchant_id: &common_utils::id_type::MerchantId,
-        status_code: u16,
-    ) -> Option<Report<errors::WebhooksFlowError>>;
-}
-
-struct InitialAttempt;
-struct AutomaticRetry;
-struct ManualRetry;
-
-#[async_trait::async_trait]
-impl WebhookNotificationHandler for InitialAttempt {
+impl types::WebhookNotificationHandler for types::InitialAttempt {
     async fn notified_action(
         &self,
         state: SessionState,
@@ -863,8 +814,9 @@ impl WebhookNotificationHandler for InitialAttempt {
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
-impl WebhookNotificationHandler for AutomaticRetry {
+impl types::WebhookNotificationHandler for types::AutomaticRetry {
     async fn notified_action(
         &self,
         _state: SessionState,
@@ -886,8 +838,9 @@ impl WebhookNotificationHandler for AutomaticRetry {
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
-impl WebhookNotificationHandler for ManualRetry {
+impl types::WebhookNotificationHandler for types::ManualRetry {
     async fn notified_action(
         &self,
         _state: SessionState,
@@ -917,15 +870,5 @@ impl WebhookNotificationHandler for ManualRetry {
         .await
         .err()
         .map(|error| report!(error))
-    }
-}
-
-fn get_action_handler(
-    attempt: enums::WebhookDeliveryAttempt,
-) -> Box<dyn WebhookNotificationHandler> {
-    match attempt {
-        enums::WebhookDeliveryAttempt::InitialAttempt => Box::new(InitialAttempt),
-        enums::WebhookDeliveryAttempt::AutomaticRetry => Box::new(AutomaticRetry),
-        enums::WebhookDeliveryAttempt::ManualRetry => Box::new(ManualRetry),
     }
 }
