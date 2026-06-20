@@ -122,8 +122,10 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
                 })?;
             // `i64 -> Decimal` is infallible, so there is no error path here.
             let amount_decimal = Decimal::from(amount);
-            // The result is at most `amount` (percentage <= 100), which the guard bounds to
-            // i64::MAX/10000, so `to_i64` cannot overflow here; the error is a defensive fallback.
+            // `to_i64` returns None only above i64::MAX. Here the percentage is capped at 100%
+            // (range-validated) and `amount` is guarded to i64::MAX/10000, so the result =
+            // ceil(amount * pct/100) <= amount <= i64::MAX/10000, at most ~1/10000 of i64::MAX.
+            // The error is a defensive fallback the bounds make unreachable.
             let result = (amount_decimal * percentage_decimal / Decimal::from(100))
                 .ceil()
                 .to_i64()
