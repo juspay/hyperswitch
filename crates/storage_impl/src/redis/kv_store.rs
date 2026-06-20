@@ -103,7 +103,7 @@ impl std::fmt::Display for PartitionKey<'_> {
                 merchant_id.get_string_repr()
             )),
             PartitionKey::AuthenticationId { authentication_id } => {
-                f.write_str(&format!("auth_{}", authentication_id.get_string_repr()))
+                f.write_str(&format!("{}", authentication_id.get_string_repr()))
             }
 
             #[cfg(feature = "v2")]
