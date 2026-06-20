@@ -110,6 +110,8 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
             // 100_000_000 produced 2_220_001 instead of 2_220_000. The percentage is validated to at
             // most PRECISION decimal places, so `round_dp` recovers its exact value; the surcharge
             // ceiling itself is the `.ceil()` on the result below.
+            // Decimal is a bit slower than f64, but a surcharge runs once per payment, not in a
+            // tight loop, so correctness wins over the cost.
             // `from_f64` only returns `None` for a non-finite percentage, which validation
             // already rules out; report it as an invalid percentage rather than a failure to apply.
             let percentage_decimal = Decimal::from_f64(f64::from(self.percentage))
@@ -836,6 +838,30 @@ mod amount_conversion_tests {
             ten.apply_and_ceil_result(MinorUnit::new(105)).unwrap(),
             MinorUnit::new(11)
         );
+    }
+
+    #[test]
+    fn percentage_apply_and_ceil_edge_cases() {
+        // 0% and 100% boundaries.
+        let zero = Percentage::<2>::from_string("0".to_string()).unwrap();
+        assert_eq!(zero.apply_and_ceil_result(MinorUnit::new(12_345)).unwrap(), MinorUnit::new(0));
+        let full = Percentage::<2>::from_string("100".to_string()).unwrap();
+        assert_eq!(
+            full.apply_and_ceil_result(MinorUnit::new(12_345)).unwrap(),
+            MinorUnit::new(12_345)
+        );
+
+        // A tiny surcharge on a single minor unit still ceils up to 1.
+        let small = Percentage::<2>::from_string("2.22".to_string()).unwrap();
+        assert_eq!(small.apply_and_ceil_result(MinorUnit::new(1)).unwrap(), MinorUnit::new(1));
+
+        // Overflow guard: the boundary amount (i64::MAX/10000) is accepted; larger amounts error.
+        let max_amount = MinorUnit::new(i64::MAX / 10000);
+        assert_eq!(full.apply_and_ceil_result(max_amount).unwrap(), max_amount);
+        assert!(full.apply_and_ceil_result(MinorUnit::new(i64::MAX)).is_err());
+
+        // A surcharge above 100% cannot exist: the percentage range is validated to 0..=100.
+        assert!(Percentage::<2>::from_string("999.99".to_string()).is_err());
     }
 
     #[test]
