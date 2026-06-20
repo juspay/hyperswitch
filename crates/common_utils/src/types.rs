@@ -108,7 +108,8 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
             // is not exactly representable as an f64 (e.g. `2.22 / 100`), so the previous
             // `(amount as f64 * ..).ceil() as i64` could be off by a minor unit — 2.22% of
             // 100_000_000 produced 2_220_001 instead of 2_220_000. The percentage is validated to at
-            // most PRECISION decimal places, so `round_dp` recovers its exact intended value.
+            // most PRECISION decimal places, so `round_dp` recovers its exact value; the surcharge
+            // ceiling itself is the `.ceil()` on the result below.
             // `from_f64` only returns `None` for a non-finite percentage, which validation
             // already rules out; report it as an invalid percentage rather than a failure to apply.
             let percentage_decimal = Decimal::from_f64(f64::from(self.percentage))
