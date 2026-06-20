@@ -21,12 +21,16 @@ mod security_tests {
         let secret_patterns = vec![
             // Exact exploit patterns: API keys or passwords with actual values
             r"api_key\s*=\s*[A-Za-z0-9+/=_\-]{16,}",
+            // API key with no separator (e.g. apikey=secret)
+            r"(?i)apikey\s*=\s*[A-Za-z0-9+/=_\-]{16,}",
             // Auth tokens with real values
             r"secret_key\s*=\s*[A-Za-z0-9+/=_\-]{16,}",
             // Admin password set to a real value (not a placeholder)
             r"admin_password\s*=\s*[^\s${\}]{8,}",
             // Generic secret/token assignments with real-looking values
             r"(?i)(token|secret|password|api.?key)\s*=\s*[A-Za-z0-9+/=_\-]{20,}",
+            // Long base64-encoded values (32+ chars) assigned to any key-like setting
+            r"(?i)(key|token|secret|password)\s*=\s*[A-Za-z0-9+/]{32,}={0,2}",
         ];
 
         let placeholder_indicators = vec!["${", "{{", "CHANGE_ME", "your_", "<", "PLACEHOLDER"];
