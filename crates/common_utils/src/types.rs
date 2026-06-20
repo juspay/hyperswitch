@@ -88,7 +88,6 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
     }
 
     /// apply the percentage to amount and ceil the result
-    #[allow(clippy::as_conversions)]
     pub fn apply_and_ceil_result(
         &self,
         amount: MinorUnit,
@@ -105,8 +104,34 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
                 "Cannot calculate percentage for amount greater than {max_amount}",
             ))
         } else {
-            let percentage_f64 = f64::from(self.percentage);
-            let result = (amount as f64 * (percentage_f64 / 100.0)).ceil() as i64;
+            // Compute the surcharge in decimal, never in binary floating point. `percentage / 100.0`
+            // is not exactly representable as an f64 (e.g. `2.22 / 100`), so the previous
+            // `(amount as f64 * ..).ceil() as i64` could be off by a minor unit — 2.22% of
+            // 100_000_000 produced 2_220_001 instead of 2_220_000. The percentage is validated to at
+            // most PRECISION decimal places, so `round_dp` recovers its exact intended value.
+            let percentage_decimal = Decimal::from_f64(f64::from(self.percentage))
+                .map(|percentage| percentage.round_dp(u32::from(PRECISION)))
+                .ok_or_else(|| {
+                    report!(PercentageError::UnableToApplyPercentage {
+                        percentage: self.percentage,
+                        amount: MinorUnit::new(amount),
+                    })
+                })?;
+            let amount_decimal = Decimal::from_i64(amount).ok_or_else(|| {
+                report!(PercentageError::UnableToApplyPercentage {
+                    percentage: self.percentage,
+                    amount: MinorUnit::new(amount),
+                })
+            })?;
+            let result = (amount_decimal * percentage_decimal / Decimal::from(100))
+                .ceil()
+                .to_i64()
+                .ok_or_else(|| {
+                    report!(PercentageError::UnableToApplyPercentage {
+                        percentage: self.percentage,
+                        amount: MinorUnit::new(amount),
+                    })
+                })?;
             Ok(MinorUnit::new(result))
         }
     }
@@ -789,6 +814,36 @@ mod amount_conversion_tests {
     const TWO_DECIMAL_CURRENCY: enums::Currency = enums::Currency::USD;
     const THREE_DECIMAL_CURRENCY: enums::Currency = enums::Currency::BHD;
     const ZERO_DECIMAL_CURRENCY: enums::Currency = enums::Currency::JPY;
+
+    #[test]
+    fn percentage_apply_and_ceil_is_decimal_exact() {
+        // Surcharge percentages must be applied exactly. The previous f64 implementation
+        // returned 2_220_001 / 33_330_002 for these cases because `pct / 100.0` is not
+        // representable in binary floating point.
+        let two_twenty_two = Percentage::<2>::from_string("2.22".to_string()).unwrap();
+        assert_eq!(
+            two_twenty_two
+                .apply_and_ceil_result(MinorUnit::new(100_000_000))
+                .unwrap(),
+            MinorUnit::new(2_220_000)
+        );
+
+        let thirty_three = Percentage::<2>::from_string("33.33".to_string()).unwrap();
+        assert_eq!(
+            thirty_three
+                .apply_and_ceil_result(MinorUnit::new(100_000_000))
+                .unwrap(),
+            MinorUnit::new(33_330_000)
+        );
+
+        // A genuine fraction is still ceiled up: 10% of 105 minor units is 10.5 -> 11.
+        let ten = Percentage::<2>::from_string("10".to_string()).unwrap();
+        assert_eq!(
+            ten.apply_and_ceil_result(MinorUnit::new(105)).unwrap(),
+            MinorUnit::new(11)
+        );
+    }
+
     #[test]
     fn amount_conversion_to_float_major_unit() {
         let request_amount = MinorUnit::new(999999999);
