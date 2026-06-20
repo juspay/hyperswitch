@@ -109,20 +109,13 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
             // `(amount as f64 * ..).ceil() as i64` could be off by a minor unit — 2.22% of
             // 100_000_000 produced 2_220_001 instead of 2_220_000. The percentage is validated to at
             // most PRECISION decimal places, so `round_dp` recovers its exact intended value.
+            // `from_f64` only returns `None` for a non-finite percentage, which validation
+            // already rules out; report it as an invalid percentage rather than a failure to apply.
             let percentage_decimal = Decimal::from_f64(f64::from(self.percentage))
                 .map(|percentage| percentage.round_dp(u32::from(PRECISION)))
-                .ok_or_else(|| {
-                    report!(PercentageError::UnableToApplyPercentage {
-                        percentage: self.percentage,
-                        amount: MinorUnit::new(amount),
-                    })
-                })?;
-            let amount_decimal = Decimal::from_i64(amount).ok_or_else(|| {
-                report!(PercentageError::UnableToApplyPercentage {
-                    percentage: self.percentage,
-                    amount: MinorUnit::new(amount),
-                })
-            })?;
+                .ok_or_else(|| report!(PercentageError::InvalidPercentageValue))?;
+            // `i64 -> Decimal` is infallible, so there is no error path here.
+            let amount_decimal = Decimal::from(amount);
             let result = (amount_decimal * percentage_decimal / Decimal::from(100))
                 .ceil()
                 .to_i64()
