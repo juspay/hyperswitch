@@ -112,13 +112,18 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
             // ceiling itself is the `.ceil()` on the result below.
             // Decimal is a bit slower than f64, but a surcharge runs once per payment, not in a
             // tight loop, so correctness wins over the cost.
-            // `from_f64` only returns `None` for a non-finite percentage, which validation
-            // already rules out; report it as an invalid percentage rather than a failure to apply.
+            // `from_f64` only returns `None` for a non-finite percentage (NaN/Inf), which
+            // construction already rules out, so this is a defensive path.
             let percentage_decimal = Decimal::from_f64(f64::from(self.percentage))
                 .map(|percentage| percentage.round_dp(u32::from(PRECISION)))
-                .ok_or_else(|| report!(PercentageError::InvalidPercentageValue))?;
+                .ok_or_else(|| {
+                    report!(PercentageError::InvalidPercentageValue)
+                        .attach_printable("percentage could not be represented as a decimal")
+                })?;
             // `i64 -> Decimal` is infallible, so there is no error path here.
             let amount_decimal = Decimal::from(amount);
+            // The result is at most `amount` (percentage <= 100), which the guard bounds to
+            // i64::MAX/10000, so `to_i64` cannot overflow here; the error is a defensive fallback.
             let result = (amount_decimal * percentage_decimal / Decimal::from(100))
                 .ceil()
                 .to_i64()
