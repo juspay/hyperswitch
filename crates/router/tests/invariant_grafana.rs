@@ -20,10 +20,25 @@ fn test_no_plaintext_secrets_in_grafana_config() {
         "password",
         "secret",
         "token",
+        "private_key",
+        "access_key",
+        "client_secret",
+        "signing_key",
+        "encryption_key",
+        "auth_token",
+        "bearer_token",
     ];
 
     // Values that indicate a real credential (not a placeholder or disabled setting)
-    let placeholder_indicators = ["${", "{{", "CHANGE_ME", "your_", "<", "PLACEHOLDER", "false", "true"];
+    let placeholder_indicators = [
+        "${", "{{",
+        "CHANGE_ME", "CHANGEME", "changeme",
+        "TODO", "FIXME", "REPLACE_", "INSERT_",
+        "YOUR_", "your_",
+        "EXAMPLE", "SAMPLE",
+        "00000000", "XXXXXXXX",
+        "<", "PLACEHOLDER", "false", "true",
+    ];
 
     for line in content.lines() {
         let trimmed = line.trim();
