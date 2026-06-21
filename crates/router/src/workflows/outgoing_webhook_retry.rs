@@ -54,6 +54,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
         let db = &*state.store;
         let master_key = &db.get_master_key().to_vec().into();
         let provider_merchant_id = tracking_data.merchant_id.clone();
+        let recipient_data = tracking_data.recipient_data.clone();
 
         // Resolve the webhook recipient's merchant_id for keystore lookup.
         // `initiator_merchant_id` is populated by new deployments; fall back to
@@ -152,6 +153,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     delivery_attempt,
                     None,
                     Some(process),
+                    recipient_data,
                 ))
                 .await;
             }
@@ -251,6 +253,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                             delivery_attempt,
                             Some(content),
                             Some(process),
+                            recipient_data,
                         ))
                         .await;
                     }
@@ -334,24 +337,65 @@ pub(crate) async fn get_webhook_delivery_retry_schedule_time(
     scheduler_utils::get_time_from_delta(time_delta)
 }
 
+/// This configuration value represents:
+/// - `default_mapping.start_after`: The first retry attempt should happen after 60 seconds by
+///   default.
+/// - `default_mapping.frequency` and `count`: The next 5 retries should have an interval of 300
+///   seconds between them by default.
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub(crate) async fn get_connector_webhook_delivery_retry_schedule_time(
+    db: &dyn StorageInterface,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    retry_count: i32,
+) -> Option<time::PrimitiveDateTime> {
+    let mapping = dimensions
+        .get_pt_mapping_outgoing_connector_webhooks(db, superposition_client, None)
+        .await;
+
+    let time_delta =
+        scheduler_utils::get_outgoing_webhook_retry_schedule_time(mapping, retry_count);
+
+    scheduler_utils::get_time_from_delta(time_delta)
+}
+
 /// Schedule the webhook delivery task for retry
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub(crate) async fn retry_webhook_delivery_task(
     db: &dyn StorageInterface,
-    superposition_client: &external_services::superposition::SuperpositionClient,
     merchant_id: &id_type::MerchantId,
+    superposition_client: &external_services::superposition::SuperpositionClient,
     process: storage::ProcessTracker,
+    recipient_data: webhooks_core::utils::WebhookRecipientData,
 ) -> errors::CustomResult<(), errors::StorageError> {
-    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
-        .with_processor_merchant_id(merchant_id.clone().into());
-    let schedule_time = get_webhook_delivery_retry_schedule_time(
-        db,
-        superposition_client,
-        &dimensions,
-        process.retry_count + 1,
-    )
-    .await;
+    let schedule_time = match recipient_data {
+        webhooks_core::utils::WebhookRecipientData::Merchant { merchant_id } => {
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(merchant_id.clone().into());
+            get_webhook_delivery_retry_schedule_time(
+                db,
+                superposition_client,
+                &dimensions,
+                process.retry_count + 1,
+            )
+            .await
+        }
+        webhooks_core::utils::WebhookRecipientData::Connector { connector, .. } => {
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(merchant_id.clone().into())
+                .with_connector(connector);
+
+            get_connector_webhook_delivery_retry_schedule_time(
+                db,
+                superposition_client,
+                &dimensions,
+                process.retry_count + 1,
+            )
+            .await
+        }
+    };
 
     match schedule_time {
         Some(schedule_time) => {

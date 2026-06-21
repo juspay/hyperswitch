@@ -8,13 +8,8 @@ use serde::Serialize;
 use crate::{
     core::{errors, webhooks::utils::WebhookRecipientData},
     headers, logger,
-    routes::SessionState,
     services::request::Maskable,
-    types::{
-        api,
-        domain::{self},
-        storage::{self, enums},
-    },
+    types::storage::{self, enums},
 };
 
 #[derive(Debug)]
@@ -226,29 +221,6 @@ impl WebhookDeliveryResponse for NotifyConnectorResponseData {
             String::from("Failed to serialize response")
         }))
     }
-}
-
-/// Trait for dispatching outgoing webhook delivery.
-///
-/// Two concrete implementations exist:
-/// - [`MerchantWebhook`]: delivers webhooks to merchant-configured URLs
-/// - [`ConnectorWebhook`]: reserved for delivering connector-facing webhooks
-#[async_trait::async_trait]
-pub(crate) trait WebhookTrigger: Send + Sync {
-    #[allow(clippy::too_many_arguments)]
-    async fn trigger_and_raise(
-        &self,
-        state: SessionState,
-        business_profile: domain::Profile,
-        merchant_key_store: domain::MerchantKeyStore,
-        provider_merchant_id: common_utils::id_type::MerchantId,
-        processor_merchant_id: common_utils::id_type::MerchantId,
-        event: domain::Event,
-        request_content: webhook_events::OutgoingWebhookRequestContent,
-        delivery_attempt: enums::WebhookDeliveryAttempt,
-        content: Option<api::OutgoingWebhookContent>,
-        process_tracker: Option<storage::ProcessTracker>,
-    );
 }
 
 pub(crate) struct MerchantWebhook;

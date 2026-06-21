@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, str::FromStr};
 
 use base64::Engine;
 use common_utils::{
@@ -254,6 +254,7 @@ pub(crate) fn increment_webhook_outgoing_received_count(recipient_data: &Webhook
     match recipient_data {
         WebhookRecipientData::Connector {
             merchant_connector_id,
+            ..
         } => {
             metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
                 1,
@@ -275,6 +276,7 @@ pub(crate) fn increment_webhook_outgoing_not_received_count(recipient_data: &Web
     match recipient_data {
         WebhookRecipientData::Connector {
             merchant_connector_id,
+            ..
         } => {
             metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
                 1,
@@ -338,9 +340,15 @@ impl WebhookPayload {
     pub fn build_surcharge_payload(
         surcharge_event: types::storage::enums::EventType,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-        merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    ) -> Option<Self> {
-        payment_attempt
+        merchant_surcharge_connector: &domain::MerchantConnectorAccount,
+    ) -> CustomResult<Option<Self>, errors::ApiErrorResponse> {
+        let connector =
+            api::enums::Connector::from_str(&merchant_surcharge_connector.connector_name)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "connector",
+                })?;
+
+        Ok(payment_attempt
             .external_surcharge_details
             .as_ref()
             .map(|external_surcharge_details| {
@@ -356,10 +364,13 @@ impl WebhookPayload {
                         event_content,
                     )),
                     recipient_data: WebhookRecipientData::Connector {
-                        merchant_connector_id,
+                        connector,
+                        merchant_connector_id: merchant_surcharge_connector
+                            .merchant_connector_id
+                            .clone(),
                     },
                 }
-            })
+            }))
     }
 }
 
@@ -369,6 +380,7 @@ pub(crate) enum WebhookRecipientData {
         merchant_id: common_utils::id_type::MerchantId,
     },
     Connector {
+        connector: common_enums::connector_enums::Connector,
         merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     },
 }
