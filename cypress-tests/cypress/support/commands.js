@@ -5102,8 +5102,7 @@ Cypress.Commands.add(
       nextActionUrl = "https://example.com";
     }
 
-    const isProxyEnabled =
-      String(Cypress.env("IS_PROXY_ENABLED")) === "true";
+    const isProxyEnabled = String(Cypress.env("IS_PROXY_ENABLED")) === "true";
 
     if (isProxyEnabled) {
       const paymentId = globalState.get("paymentID");
