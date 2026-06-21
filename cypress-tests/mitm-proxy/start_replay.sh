@@ -81,8 +81,11 @@ if [[ -t 1 ]]; then
   echo "    LIVE  = request arrived with no x-request-id"
   echo "    BLOCK = strict-mode synthetic 599 (only in --strict)"
   echo ""
-  echo "Optional, for log breadcrumbs in the Cypress terminal:"
+  echo "Set these in the Cypress terminal:"
   echo "    export CYPRESS_PROXY_ADMIN_URL=http://127.0.0.1:${ADMIN_PORT:-8001}"
+  echo "    export CYPRESS_IS_PROXY_ENABLED=true"
+  echo "    export CYPRESS_MOCK_SERVER=true"
+  echo "    (REDIRECT_PROXY_ADMIN_URL not needed for replay — cy.request goes direct)"
   echo ""
 fi
 

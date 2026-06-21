@@ -5112,35 +5112,36 @@ Cypress.Commands.add(
 
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
       const redirectBodyFile = `cypress/fixtures/proxy-bodies/${testIdHash}-redirect-body.json`;
+      const redirectProxyAdminUrl = Cypress.env("REDIRECT_PROXY_ADMIN_URL");
 
       if (!isMockServer()) {
-        // RECORDING: intercept the browser POST from the ACS to redirect/complete,
-        // short-circuit it, capture the real body, persist it for replay, then
-        // re-send via cy.request with a Cypress RID so the MITM proxy captures
-        // the outbound connector call.
-        let capturedBody = null;
-        cy.intercept(
-          "POST",
-          `**/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`,
-          (req) => {
-            const raw = req.body;
-            capturedBody =
-              typeof raw === "string"
-                ? Object.fromEntries(new URLSearchParams(raw))
-                : raw || {};
-            // Redirect browser to return URL with payment_id + status so the
-            // redirectionHandler.js post-redirect verification passes.
-            const returnUrl = new URL(
-              expectedRedirection || "https://example.com"
-            );
-            returnUrl.searchParams.set("payment_id", paymentId);
-            returnUrl.searchParams.set("status", "succeeded");
-            req.reply({
-              statusCode: 302,
-              headers: { Location: returnUrl.toString() },
-            });
-          }
-        ).as("redirectComplete");
+        // RECORDING: the ACS browser POST to redirect/complete goes to the
+        // redirect proxy (port 9001) which injects the Cypress RID and forwards
+        // to Hyperswitch.  Hyperswitch returns the real 302 with the real status;
+        // the proxy passes it back to the browser unchanged.
+        // The proxy also saves the body for replay (cy.readFile below).
+        //
+        // Step layout:
+        //   step N+1 = cy.request(nextActionUrl) inside threeDsRedirection()
+        //   step N+2 = browser POST via redirect proxy (RID pre-registered here)
+        //   step N+3 = next Cypress cy.request (retrieve, etc.)
+        if (redirectProxyAdminUrl) {
+          // currentStep = N; browser POST needs N+2 (after threeDsRedirection GET)
+          const currentStep = Cypress._getStepCounter
+            ? Cypress._getStepCounter()
+            : 0;
+          const redirectStep = currentStep + 2;
+          const redirectRid = `${testIdHash}-${String(redirectStep).padStart(3, "0")}`;
+
+          // Admin call: excluded from step counting (isProxyAdminUrl guard in e2e.js)
+          cy.request({
+            method: "POST",
+            url: `${redirectProxyAdminUrl}/reserve`,
+            body: { rid: redirectRid, testIdHash },
+            failOnStatusCode: false,
+            timeout: 2000,
+          });
+        }
 
         const expectedUrl = new URL(expectedRedirection);
         const redirectionUrl = new URL(nextActionUrl);
@@ -5151,40 +5152,52 @@ Cypress.Commands.add(
           globalState.get("paymentMethodType")
         );
 
+        // Consume the step slot that the browser POST used so the next
+        // cy.request (retrieve) gets step N+3 instead of N+2.
         cy.then(() => {
-          if (capturedBody) {
-            // Persist the real ACS body so replay can send it verbatim.
-            cy.writeFile(redirectBodyFile, capturedBody);
-            cy.request({
-              method: "POST",
-              url: notificationUrl,
-              form: true,
-              body: capturedBody,
-              failOnStatusCode: false,
-              followRedirect: false,
-            });
+          if (Cypress._buildRequestId) {
+            Cypress._buildRequestId(); // increments counter, RID not sent anywhere
           }
         });
         return;
       }
 
-      // REPLAY: read the body captured during recording and send it verbatim.
-      // Step 004 = cy.request(nextActionUrl), step 005 = cy.request(notificationUrl),
-      // matching the step numbers from recording.
+      // REPLAY: mirror the recording step layout.
+      // Step N+1 = cy.request(nextActionUrl) (matches threeDsRedirection GET).
+      // Step N+2 = cy.request(notificationUrl) with stored body (matches browser POST).
       cy.request({
         url: nextActionUrl,
         failOnStatusCode: false,
         followRedirect: false,
       });
-      cy.readFile(redirectBodyFile).then((body) => {
-        cy.request({
-          method: "POST",
-          url: notificationUrl,
-          form: true,
-          body,
-          failOnStatusCode: false,
-          followRedirect: false,
-        });
+      cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
+        if (saved && saved.__redirect_method === "GET") {
+          // Connector uses a browser GET for redirect/complete (e.g. Cybersource DDC:
+          // window.location.href = ".../redirect/complete/cybersource?referenceId=...").
+          const qs = new URLSearchParams(saved.__query || {}).toString();
+          const url = qs ? `${notificationUrl}?${qs}` : notificationUrl;
+          cy.request({
+            method: "GET",
+            url,
+            failOnStatusCode: false,
+            followRedirect: false,
+          }); // step N+2 — replays browser GET cassette slot
+        } else if (saved) {
+          // Connector uses a browser form POST for redirect/complete (e.g. Redsys ACS).
+          cy.request({
+            method: "POST",
+            url: notificationUrl,
+            form: true,
+            body: saved,
+            failOnStatusCode: false,
+            followRedirect: false,
+          }); // step N+2 — mirrors browser POST cassette slot
+        } else if (Cypress._buildRequestId) {
+          // No redirect body captured (connector doesn't use redirect/complete, or
+          // recording predates redirect proxy). Consume the N+2 slot so retrieve
+          // lands on N+3, matching how the cassette was recorded.
+          cy.then(() => { Cypress._buildRequestId(); });
+        }
       });
       return;
     }

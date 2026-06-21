@@ -27,6 +27,18 @@ export default defineConfig({
         getGlobalState: () => {
           return globalState || {};
         },
+        // Read a file and return its parsed JSON, or null if the file doesn't
+        // exist. Used by the MITM proxy replay path to load saved redirect
+        // bodies without timing out when no body was captured (e.g. connectors
+        // that don't use a browser form POST to redirect/complete).
+        readFileOrNull: (filePath) => {
+          if (!fs.existsSync(filePath)) return null;
+          try {
+            return JSON.parse(fs.readFileSync(filePath, "utf8"));
+          } catch {
+            return null;
+          }
+        },
         cli_log: (message) => {
           // eslint-disable-next-line no-console
           console.log("Logging console message from task");
