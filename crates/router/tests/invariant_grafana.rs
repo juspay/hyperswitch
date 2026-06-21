@@ -28,6 +28,8 @@ fn test_no_plaintext_secrets_in_grafana_config() {
         "encryption_key",
         "auth_token",
         "bearer_token",
+        "smtp_password",
+        "ldap_bind_password",
     ];
 
     // Values that indicate a real credential (not a placeholder or disabled setting)
