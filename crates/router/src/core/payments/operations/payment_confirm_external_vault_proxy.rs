@@ -82,10 +82,7 @@ pub(crate) fn build_external_vault_payment_method_data(
                         .card_exp_year
                         .clone()
                         .get_required_value("card_exp_year")?;
-                    let card_cvc = token_data
-                        .card_cvc
-                        .clone()
-                        .get_required_value("card_cvc")?;
+                    let card_cvc = token_data.card_cvc.clone().get_required_value("card_cvc")?;
 
                     Some(
                         hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
