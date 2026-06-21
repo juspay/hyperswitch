@@ -104,16 +104,16 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
                 "Cannot calculate percentage for amount greater than {max_amount}",
             ))
         } else {
-            // Compute the surcharge in decimal, never in binary floating point. `percentage / 100.0`
-            // is not exactly representable as an f64 (e.g. `2.22 / 100`), so the previous
-            // `(amount as f64 * ..).ceil() as i64` could be off by a minor unit — 2.22% of
-            // 100_000_000 produced 2_220_001 instead of 2_220_000. The percentage is validated to at
-            // most PRECISION decimal places, so `round_dp` recovers its exact value; the surcharge
-            // ceiling itself is the `.ceil()` on the result below.
+            // Compute the surcharge in Decimal, never in binary float. `self.percentage` is an f32,
+            // which cannot store e.g. 2.22 exactly (it holds ~2.22000003), so the previous
+            // `(amount as f64 * (pct / 100.0)).ceil()` produced 2_220_001 instead of 2_220_000 for
+            // 2.22% of 100_000_000. `round_dp(PRECISION)` is REQUIRED (not defensive): it removes
+            // that f32 representation error and recovers the validated value. The surcharge ceiling
+            // is the `.ceil()` on the result below.
             // Decimal is a bit slower than f64, but a surcharge runs once per payment, not in a
             // tight loop, so correctness wins over the cost.
-            // `from_f64` only returns `None` for a non-finite percentage (NaN/Inf), which
-            // construction already rules out, so this is a defensive path.
+            // `self.percentage` is range-validated to 0..=100 at construction, so it is always
+            // finite; `from_f64` returns `None` only for NaN/Inf, so this arm is unreachable.
             let percentage_decimal = Decimal::from_f64(f64::from(self.percentage))
                 .map(|percentage| percentage.round_dp(u32::from(PRECISION)))
                 .ok_or_else(|| {
