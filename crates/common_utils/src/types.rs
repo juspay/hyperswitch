@@ -92,6 +92,8 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
         &self,
         amount: MinorUnit,
     ) -> CustomResult<MinorUnit, PercentageError> {
+        // Cap the input so the original f64 math stayed precise: i64::MAX/10000 (~9.2e14) is well
+        // within f64's exact-integer range (2^53). Pre-existing bound; kept as-is.
         let max_amount = i64::MAX / 10000;
         let amount = amount.0;
         if amount > max_amount {
@@ -869,6 +871,30 @@ mod amount_conversion_tests {
 
         // A surcharge above 100% cannot exist: the percentage range is validated to 0..=100.
         assert!(Percentage::<2>::from_string("999.99".to_string()).is_err());
+    }
+
+    #[test]
+    fn percentage_apply_and_ceil_other_precision() {
+        // The impl is generic over PRECISION (surcharge uses 2); exercise PRECISION = 4 to confirm
+        // `round_dp` recovers higher-precision values exactly.
+        let p = Percentage::<4>::from_string("2.2225".to_string()).unwrap();
+        assert_eq!(
+            p.apply_and_ceil_result(MinorUnit::new(100_000_000)).unwrap(),
+            MinorUnit::new(2_222_500)
+        );
+
+        let q = Percentage::<4>::from_string("0.0125".to_string()).unwrap();
+        assert_eq!(
+            q.apply_and_ceil_result(MinorUnit::new(80_000_000)).unwrap(),
+            MinorUnit::new(10_000)
+        );
+
+        // 4-decimal fraction still ceils up: 0.3333% of 1000 = 3.333 -> 4.
+        let r = Percentage::<4>::from_string("0.3333".to_string()).unwrap();
+        assert_eq!(r.apply_and_ceil_result(MinorUnit::new(1_000)).unwrap(), MinorUnit::new(4));
+
+        // PRECISION = 4 rejects a value with too many decimals (5 here).
+        assert!(Percentage::<4>::from_string("0.12345".to_string()).is_err());
     }
 
     #[test]
