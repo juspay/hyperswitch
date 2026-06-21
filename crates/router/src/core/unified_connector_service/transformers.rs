@@ -6026,13 +6026,17 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
     }
 }
 
-/// Transform UCS RefundResponse into Result<RefundsResponseData, ErrorResponse>
-impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
+/// Transform UCS RefundResponse into Result<RefundsResponseData, ErrorResponse>.
+/// prev_status is the refund status prior to the UCS call; it is used as a fallback when UCS
+/// returns Unspecified (i.e. an unknown connector refund status) so the DB state is not corrupted.
+impl transformers::ForeignTryFrom<(payments_grpc::RefundResponse, RefundStatus)>
     for Result<RefundsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from(response: payments_grpc::RefundResponse) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        (response, prev_status): (payments_grpc::RefundResponse, RefundStatus),
+    ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if let Some(error_info) = response.error.as_ref() {
@@ -6086,7 +6090,7 @@ impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
                 connector_metadata: None,
             })
         } else {
-            let refund_status = RefundStatus::foreign_try_from(response.status())?;
+            let refund_status = RefundStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok(RefundsResponseData {
                 connector_refund_id: response.connector_refund_id,
@@ -6198,12 +6202,20 @@ impl
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::RefundStatus> for RefundStatus {
+impl transformers::ForeignTryFrom<(payments_grpc::RefundStatus, Self)> for RefundStatus {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from(grpc_status: payments_grpc::RefundStatus) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        (grpc_status, prev_status): (payments_grpc::RefundStatus, Self),
+    ) -> Result<Self, Self::Error> {
         match grpc_status {
-            payments_grpc::RefundStatus::Unspecified => Ok(Self::Pending),
+            payments_grpc::RefundStatus::Unspecified => {
+                router_env::logger::warn!(
+                    "Received Unspecified refund status from UCS; retaining previous status {:?}",
+                    prev_status
+                );
+                Ok(prev_status)
+            }
             payments_grpc::RefundStatus::RefundFailure => Ok(Self::Failure),
             payments_grpc::RefundStatus::RefundManualReview => Ok(Self::ManualReview),
             payments_grpc::RefundStatus::RefundPending => Ok(Self::Pending),

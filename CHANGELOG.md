@@ -4,6 +4,82 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.19.0
+
+### Features
+
+- **authentication:** Added tokenisation disable config as org level to merchant level priority ([#12839](https://github.com/juspay/hyperswitch/pull/12839)) ([`48c3545`](https://github.com/juspay/hyperswitch/commit/48c3545bd97aac417be80354959d0dad2fb8b865))
+- **payment-methods:**
+  - External vault configuration for platform merchants ([#12708](https://github.com/juspay/hyperswitch/pull/12708)) ([`27f2818`](https://github.com/juspay/hyperswitch/commit/27f28188a031f1a4f0b89346a1f7e2d0d3d933d9))
+  - Add pub <> client secret auth for client PML endpoint ([#12841](https://github.com/juspay/hyperswitch/pull/12841)) ([`ad9ab39`](https://github.com/juspay/hyperswitch/commit/ad9ab398dc8a3b7fddeb7ad717f1fb160582b7c6))
+- **router:** Add IP address only blocking in Card Testing Guard ([#12553](https://github.com/juspay/hyperswitch/pull/12553)) ([`cb4f349`](https://github.com/juspay/hyperswitch/commit/cb4f349f7ae3c170de935480bf7b35b96eaff4d4))
+
+### Bug Fixes
+
+- **connector:** [WorldpayWPG] Add Mastercard in WASM for Payouts ([#12846](https://github.com/juspay/hyperswitch/pull/12846)) ([`380e45b`](https://github.com/juspay/hyperswitch/commit/380e45b82492ec5bd08a33dc3746aa01082d8001))
+
+**Full Changelog:** [`2026.06.18.0...2026.06.19.0`](https://github.com/juspay/hyperswitch/compare/2026.06.18.0...2026.06.19.0)
+
+- - -
+
+## 2026.06.18.0
+
+### Bug Fixes
+
+- **vault:** Rename `proxy_card` to `vault_data_card` ([#12837](https://github.com/juspay/hyperswitch/pull/12837)) ([`6c77b63`](https://github.com/juspay/hyperswitch/commit/6c77b63b07bcce5c112e68894e17e5e84960ea40))
+
+**Full Changelog:** [`2026.06.17.1...2026.06.18.0`](https://github.com/juspay/hyperswitch/compare/2026.06.17.1...2026.06.18.0)
+
+- - -
+
+## 2026.06.17.1
+
+### Features
+
+- **doc:** Add dispute management endpoints ([#12650](https://github.com/juspay/hyperswitch/pull/12650)) ([`1b22f6c`](https://github.com/juspay/hyperswitch/commit/1b22f6cebdecc532ab6d2acb387c5e5b39767357))
+
+### Bug Fixes
+
+- **config:** Fix duplicate entry in integration_test.toml file ([#12810](https://github.com/juspay/hyperswitch/pull/12810)) ([`72d5a6f`](https://github.com/juspay/hyperswitch/commit/72d5a6f1776ce9914aab66f4a43fe1a7998bb9d1))
+- **connector:** [Nexixpay] Revert Status Mapping ([#12776](https://github.com/juspay/hyperswitch/pull/12776)) ([`8b33436`](https://github.com/juspay/hyperswitch/commit/8b33436879aed4058146f6369eb3096eae7d85e8))
+- **kv:** Address gaps in refund reverse lookup handling for KV storage ([#12677](https://github.com/juspay/hyperswitch/pull/12677)) ([`51f304b`](https://github.com/juspay/hyperswitch/commit/51f304b6ca11d52f1fab16c0361c373efa15b49f))
+- **relay:** Remove raw connector response population logic for unreferenced refunds ([#12788](https://github.com/juspay/hyperswitch/pull/12788)) ([`9c7252b`](https://github.com/juspay/hyperswitch/commit/9c7252bc9b34b68db7f8d436833ccf0efa12b13c))
+
+### Refactors
+
+- **connector:** [Finix] Empty event support for webhook configuration ([#12824](https://github.com/juspay/hyperswitch/pull/12824)) ([`bb99802`](https://github.com/juspay/hyperswitch/commit/bb99802d7852d1fe1a867045dd3413451e64a86a))
+
+### Build System / Dependencies
+
+- **docker:** Switch base images from Docker Hub to AWS ECR Public Gallery ([#12822](https://github.com/juspay/hyperswitch/pull/12822)) ([`3fe2e87`](https://github.com/juspay/hyperswitch/commit/3fe2e8773927bd6f854b030a507403768500efd1))
+
+**Full Changelog:** [`2026.06.17.0...2026.06.17.1`](https://github.com/juspay/hyperswitch/compare/2026.06.17.0...2026.06.17.1)
+
+- - -
+
+## 2026.06.17.0
+
+### Features
+
+- **api_models/connector:** [SANTANDER] Add boleto related fields in feature metadata ([#12683](https://github.com/juspay/hyperswitch/pull/12683)) ([`4ce8ca4`](https://github.com/juspay/hyperswitch/commit/4ce8ca471a7a44be0c3f02b5fc8d0188d4a238a4))
+- **connector:** Fiserv commerce hub manual capture and setupmandate MIT| UCS BUMP ([#12637](https://github.com/juspay/hyperswitch/pull/12637)) ([`8aae9f2`](https://github.com/juspay/hyperswitch/commit/8aae9f25f19ad4b2d41d2920e651f8e630a64d7c))
+- **core:** Add surcharge support for MIT ([#12715](https://github.com/juspay/hyperswitch/pull/12715)) ([`5489649`](https://github.com/juspay/hyperswitch/commit/54896496bcd986da95aa28d4c056c8755575e53c))
+- **payments:** Restructure v1 session_token vault_details contract ([#12771](https://github.com/juspay/hyperswitch/pull/12771)) ([`914bf6e`](https://github.com/juspay/hyperswitch/commit/914bf6e9b12914129c02cf34e2046daf45387197))
+- **superposition:** Surface account config with SDK vault strategy ([#12739](https://github.com/juspay/hyperswitch/pull/12739)) ([`76e91e3`](https://github.com/juspay/hyperswitch/commit/76e91e3997b582a24ee801701680ba1edf0ff321))
+
+### Bug Fixes
+
+- **connector:** [Paypal] make order status optional in PSync to handle declined captures ([#12783](https://github.com/juspay/hyperswitch/pull/12783)) ([`d223573`](https://github.com/juspay/hyperswitch/commit/d22357305f6759762ffd8d0dfe1f2bec6f98079f))
+- **docs:** Add superposition to scripts ([#12784](https://github.com/juspay/hyperswitch/pull/12784)) ([`163fdec`](https://github.com/juspay/hyperswitch/commit/163fdecfd1f1ad91cbcf61c71f680bc80dd9f08f))
+
+### Testing
+
+- **cypress:** Remove adyen from alipay hk wallet connector list ([#12780](https://github.com/juspay/hyperswitch/pull/12780)) ([`559bda4`](https://github.com/juspay/hyperswitch/commit/559bda4b5e247bb6166cb77a6e32e6d1df92fa39))
+
+**Full Changelog:** [`2026.06.16.0...2026.06.17.0`](https://github.com/juspay/hyperswitch/compare/2026.06.16.0...2026.06.17.0)
+
+- - -
+
 ## 2026.06.16.0
 
 ### Features
