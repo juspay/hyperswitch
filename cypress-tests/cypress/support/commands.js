@@ -5101,7 +5101,7 @@ Cypress.Commands.add(
       );
       nextActionUrl = "https://example.com";
     }
-    
+
     if (isMockServer()) {
       // In MITM replay mode the ThreeDS browser flow is skipped.  Consume one
       // cy.request slot so the Cypress step counter stays aligned with how the
