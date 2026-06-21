@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
         ErrorResponse, RouterData,
     },
     router_flow_types::RSync,
-    router_request_types::ResponseId,
+    router_request_types::{ResponseId, SurchargeDetails},
     router_response_types::{
         ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RedirectForm,
         RefundsResponseData,
@@ -610,6 +610,21 @@ pub struct AuthorizedotnetCustomerResponse {
     pub messages: ResponseMessages,
 }
 
+fn extract_surcharge_amount(
+    surcharge_details: Option<&SurchargeDetails>,
+    currency: common_enums::Currency,
+) -> CustomResult<Option<FloatMajorUnit>, errors::ConnectorError> {
+    surcharge_details
+        .map(|details| {
+            details
+                .get_total_surcharge_amount()
+                .to_major_unit_as_f64(currency)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)
+                .attach_printable("Failed to convert minor unit amount to major unit float")
+        })
+        .transpose()
+}
+
 fn extract_customer_id(text: &str) -> Option<String> {
     let re = Regex::new(r"ID (\d+)").ok()?;
     re.captures(text)
@@ -897,19 +912,10 @@ impl
             String,
         ),
     ) -> Result<Self, Self::Error> {
-        let surcharge_amount = item
-            .router_data
-            .request
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| {
-                surcharge_details
-                    .get_total_surcharge_amount()
-                    .to_major_unit_as_f64(item.router_data.request.currency)
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)
-                    .attach_printable("Failed to convert minor unit amount to major unit float")
-            })
-            .transpose()?;
+        let surcharge_amount = extract_surcharge_amount(
+            item.router_data.request.surcharge_details.as_ref(),
+            item.router_data.request.currency,
+        )?;
 
         let surcharge = surcharge_amount.map(|amount| Surcharge { amount });
 
@@ -1046,19 +1052,10 @@ impl
             .get_connector_mandate_id()
             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
 
-        let surcharge_amount = item
-            .router_data
-            .request
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| {
-                surcharge_details
-                    .get_total_surcharge_amount()
-                    .to_major_unit_as_f64(item.router_data.request.currency)
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)
-                    .attach_printable("Failed to convert minor unit amount to major unit float")
-            })
-            .transpose()?;
+        let surcharge_amount = extract_surcharge_amount(
+            item.router_data.request.surcharge_details.as_ref(),
+            item.router_data.request.currency,
+        )?;
 
         let surcharge = surcharge_amount.map(|amount| Surcharge { amount });
 
@@ -1163,19 +1160,10 @@ impl
             None
         };
 
-        let surcharge_amount = item
-            .router_data
-            .request
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| {
-                surcharge_details
-                    .get_total_surcharge_amount()
-                    .to_major_unit_as_f64(item.router_data.request.currency)
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)
-                    .attach_printable("Failed to convert minor unit amount to major unit float")
-            })
-            .transpose()?;
+        let surcharge_amount = extract_surcharge_amount(
+            item.router_data.request.surcharge_details.as_ref(),
+            item.router_data.request.currency,
+        )?;
 
         let surcharge = surcharge_amount.map(|amount| Surcharge { amount });
 
@@ -1278,19 +1266,10 @@ impl
             None
         };
 
-        let surcharge_amount = item
-            .router_data
-            .request
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| {
-                surcharge_details
-                    .get_total_surcharge_amount()
-                    .to_major_unit_as_f64(item.router_data.request.currency)
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)
-                    .attach_printable("Failed to convert minor unit amount to major unit float")
-            })
-            .transpose()?;
+        let surcharge_amount = extract_surcharge_amount(
+            item.router_data.request.surcharge_details.as_ref(),
+            item.router_data.request.currency,
+        )?;
 
         let surcharge = surcharge_amount.map(|amount| Surcharge { amount });
 
