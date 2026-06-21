@@ -165,11 +165,11 @@ struct TransactionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     user_fields: Option<UserFields>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    surcharge: Option<Surcharge>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     processing_options: Option<ProcessingOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     subsequent_auth_information: Option<SubsequentAuthInformation>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    surcharge: Option<Surcharge>,
 }
 
 #[derive(Debug, Serialize)]
