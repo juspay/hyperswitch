@@ -371,17 +371,22 @@ config! {
     superposition_key = SHOULD_DISABLE_VAULT_TOKENIZATION,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
     targeting_key = id_type::CustomerId
 }
 
 impl DatabaseBackedConfig for ShouldDisableVaultTokenization {
     const KEY: &'static str = "should_disable_vault_tokenization";
 
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        dimensions
-            .get_processor_merchant_id()
-            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    fn db_keys(dimensions: &impl dimension_state::DimensionsBase) -> Vec<Option<String>> {
+        vec![
+            dimensions
+                .get_organization_id()
+                .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr())),
+            dimensions
+                .get_processor_merchant_id()
+                .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr())),
+        ]
     }
 }
 

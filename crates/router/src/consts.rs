@@ -91,6 +91,8 @@ pub const GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX: &str = "GUEST_USER_CARD_BLO
 
 pub const CUSTOMER_ID_BLOCKING_PREFIX: &str = "CUSTOMER_ID_BLOCKING";
 
+pub const GUEST_IP_BLOCKING_CACHE_KEY_PREFIX: &str = "GUEST_IP_BLOCKING";
+
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
 #[cfg(feature = "olap")]
@@ -335,6 +337,10 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
 
 // Rollout percentage config prefix
 pub const UCS_ROLLOUT_PERCENT_CONFIG_PREFIX: &str = "ucs_rollout_config";
+
+// Sentinel value cached when a rollout config key is absent, so subsequent lookups
+// skip the DB entirely instead of hitting it on every cache miss.
+pub const UCS_ROLLOUT_CONFIG_NOT_CONFIGURED: &str = "not_configured";
 
 // UCS feature enabled config
 pub const UCS_ENABLED: &str = "ucs_enabled";

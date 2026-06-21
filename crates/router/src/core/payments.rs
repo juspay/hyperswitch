@@ -714,6 +714,7 @@ where
             &req,
             platform,
             auth_flow,
+            operations::PaymentFlowKind::Standard,
             &header_payload,
             payment_method_fetch_data,
             dimensions,
@@ -1608,6 +1609,7 @@ where
             &req,
             &platform,
             auth_flow,
+            operations::PaymentFlowKind::Standard,
             &header_payload,
             operations::PaymentMethodFetchData::default(),
             dimensions,
@@ -2943,20 +2945,19 @@ where
         mut payment_data,
         business_profile,
         mandate_type,
-    } = operation
-        .to_get_tracker()?
-        .get_trackers(
-            state,
-            &validate_result.payment_id,
-            &req,
-            &platform,
-            auth_flow,
-            &header_payload,
-            payment_method_info,
-            &dimensions,
-            None,
-        )
-        .await?;
+    } = Box::pin(operation.to_get_tracker()?.get_trackers(
+        state,
+        &validate_result.payment_id,
+        &req,
+        &platform,
+        auth_flow,
+        operations::PaymentFlowKind::ExternalVaultProxy,
+        &header_payload,
+        payment_method_info,
+        &dimensions,
+        None,
+    ))
+    .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
 
     core_utils::validate_profile_id_from_auth_layer(
@@ -9842,6 +9843,7 @@ pub async fn get_payment_link_response_from_id(
 pub fn if_not_create_change_operation<'a, Op, F>(
     status: storage_enums::IntentStatus,
     confirm: Option<bool>,
+    flow_kind: operations::PaymentFlowKind,
     current: &'a Op,
 ) -> BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>
 where
@@ -9852,7 +9854,15 @@ where
     &'a PaymentStatus: Operation<F, api::PaymentsRequest, Data = PaymentData<F>>,
 {
     if confirm.unwrap_or(false) {
-        Box::new(PaymentConfirm)
+        // Single-call create+confirm: hand off to the confirm operation matching the core that
+        // invoked create. The external vault proxy core needs the proxy confirm so that the
+        // downstream connector call uses the vault-proxy flow.
+        match flow_kind {
+            operations::PaymentFlowKind::ExternalVaultProxy => {
+                Box::new(PaymentExternalVaultProxyConfirm)
+            }
+            operations::PaymentFlowKind::Standard => Box::new(PaymentConfirm),
+        }
     } else {
         match status {
             storage_enums::IntentStatus::RequiresConfirmation
