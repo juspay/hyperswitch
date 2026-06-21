@@ -120,7 +120,7 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
                     report!(PercentageError::InvalidPercentageValue)
                         .attach_printable("percentage could not be represented as a decimal")
                 })?;
-            // `i64 -> Decimal` is infallible, so there is no error path here.
+            // `Decimal::from(i64)` is infallible for any i64, so there is no error path here.
             let amount_decimal = Decimal::from(amount);
             // `to_i64` returns None only above i64::MAX. Here the percentage is capped at 100%
             // (range-validated) and `amount` is guarded to i64::MAX/10000, so the result =
