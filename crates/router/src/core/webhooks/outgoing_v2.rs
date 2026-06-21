@@ -568,7 +568,9 @@ async fn handle_successful_delivery(
     )
     .await?;
 
-    increment_webhook_outgoing_received_count(merchant_id);
+    increment_webhook_outgoing_received_count(utils::WebhookRecipientData::Merchant {
+        merchant_id,
+    });
 
     match process_tracker {
         Some(process_tracker) => state
@@ -591,7 +593,9 @@ async fn handle_failed_delivery(
     log_message: &'static str,
     _schedule_webhook_retry: types::ScheduleWebhookRetry,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    utils::increment_webhook_outgoing_not_received_count(merchant_id);
+    utils::increment_webhook_outgoing_not_received_count(utils::WebhookRecipientData::Merchant {
+        merchant_id,
+    });
 
     let error = report!(errors::WebhooksFlowError::NotReceivedByMerchant);
     logger::warn!(?error, ?delivery_attempt, status_code, %log_message);
@@ -688,8 +692,38 @@ impl ForeignFrom<storage::EventMetadata> for outgoing_webhook_logs::OutgoingWebh
     }
 }
 
-#[cfg(feature = "v2")]
-impl types::OutgoingWebhookResponseHandler for enums::WebhookDeliveryAttempt {
+struct InitialAttempt;
+struct AutomaticRetry;
+struct ManualRetry;
+
+trait OutgoingWebhookResponseHandler {
+    async fn handle_error_response(
+        &self,
+        state: SessionState,
+        merchant_key_store: domain::MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        event_id: &str,
+        client_error: Report<errors::ApiClientError>,
+    ) -> CustomResult<
+        (domain::Event, Option<Report<errors::WebhooksFlowError>>),
+        errors::WebhooksFlowError,
+    >;
+
+    async fn handle_success_response(
+        &self,
+        state: SessionState,
+        merchant_key_store: domain::MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        event_id: &str,
+        process_tracker: Option<storage::ProcessTracker>,
+        response: reqwest::Response,
+    ) -> CustomResult<
+        (domain::Event, Option<Report<errors::WebhooksFlowError>>),
+        errors::WebhooksFlowError,
+    >;
+}
+
+impl OutgoingWebhookResponseHandler for enums::WebhookDeliveryAttempt {
     async fn handle_error_response(
         &self,
         state: SessionState,
@@ -749,7 +783,7 @@ impl types::OutgoingWebhookResponseHandler for enums::WebhookDeliveryAttempt {
         )
         .await?;
 
-        let webhook_action_handler = types::get_action_handler(*self);
+        let webhook_action_handler = get_action_handler(*self);
         let result = if is_webhook_notified {
             webhook_action_handler
                 .notified_action(
@@ -770,9 +804,27 @@ impl types::OutgoingWebhookResponseHandler for enums::WebhookDeliveryAttempt {
     }
 }
 
-#[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl types::WebhookNotificationHandler for types::InitialAttempt {
+trait WebhookNotificationHandler: Send + Sync {
+    async fn notified_action(
+        &self,
+        state: SessionState,
+        merchant_key_store: domain::MerchantKeyStore,
+        updated_event: &domain::Event,
+        merchant_id: &common_utils::id_type::MerchantId,
+        process_tracker: Option<storage::ProcessTracker>,
+    ) -> Option<Report<errors::WebhooksFlowError>>;
+
+    async fn not_notified_action(
+        &self,
+        state: SessionState,
+        merchant_id: &common_utils::id_type::MerchantId,
+        status_code: u16,
+    ) -> Option<Report<errors::WebhooksFlowError>>;
+}
+
+#[async_trait::async_trait]
+impl WebhookNotificationHandler for types::InitialAttempt {
     async fn notified_action(
         &self,
         state: SessionState,
@@ -814,9 +866,8 @@ impl types::WebhookNotificationHandler for types::InitialAttempt {
     }
 }
 
-#[cfg(feature = "v1")]
 #[async_trait::async_trait]
-impl types::WebhookNotificationHandler for types::AutomaticRetry {
+impl WebhookNotificationHandler for types::AutomaticRetry {
     async fn notified_action(
         &self,
         _state: SessionState,
@@ -838,9 +889,8 @@ impl types::WebhookNotificationHandler for types::AutomaticRetry {
     }
 }
 
-#[cfg(feature = "v1")]
 #[async_trait::async_trait]
-impl types::WebhookNotificationHandler for types::ManualRetry {
+impl WebhookNotificationHandler for types::ManualRetry {
     async fn notified_action(
         &self,
         _state: SessionState,
@@ -849,7 +899,9 @@ impl types::WebhookNotificationHandler for types::ManualRetry {
         merchant_id: &common_utils::id_type::MerchantId,
         _process_tracker: Option<storage::ProcessTracker>,
     ) -> Option<Report<errors::WebhooksFlowError>> {
-        increment_webhook_outgoing_received_count(merchant_id);
+        increment_webhook_outgoing_received_count(utils::WebhookRecipientData::Merchant {
+            merchant_id,
+        });
         None
     }
 
@@ -870,5 +922,15 @@ impl types::WebhookNotificationHandler for types::ManualRetry {
         .await
         .err()
         .map(|error| report!(error))
+    }
+}
+
+fn get_action_handler(
+    attempt: enums::WebhookDeliveryAttempt,
+) -> Box<dyn WebhookNotificationHandler> {
+    match attempt {
+        enums::WebhookDeliveryAttempt::InitialAttempt => Box::new(types::InitialAttempt),
+        enums::WebhookDeliveryAttempt::AutomaticRetry => Box::new(types::AutomaticRetry),
+        enums::WebhookDeliveryAttempt::ManualRetry => Box::new(types::ManualRetry),
     }
 }

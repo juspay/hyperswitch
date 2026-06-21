@@ -5,18 +5,15 @@ use common_utils::{
     consts,
     crypto::{self, GenerateDigest},
     errors::CustomResult,
-    ext_traits::{Encode, ValueExt},
-    fp_utils, type_name,
-    types::keymanager,
+    ext_traits::ValueExt,
+    fp_utils,
 };
-use error_stack::{report, Report, ResultExt};
+use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
-    type_encryption::{crypto_operation, CryptoOperation},
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhook;
-use hyperswitch_masking::{PeekInterface, Secret};
 use redis_interface as redis;
 use router_env::tracing;
 
@@ -253,7 +250,7 @@ pub(crate) fn generate_event_id() -> String {
     common_utils::generate_time_ordered_id("evt")
 }
 
-pub fn increment_webhook_outgoing_received_count(recipient_data: &WebhookRecipientData) {
+pub(crate) fn increment_webhook_outgoing_received_count(recipient_data: &WebhookRecipientData) {
     match recipient_data {
         WebhookRecipientData::Connector {
             merchant_connector_id,
@@ -274,7 +271,7 @@ pub fn increment_webhook_outgoing_received_count(recipient_data: &WebhookRecipie
     }
 }
 
-pub fn increment_webhook_outgoing_not_received_count(recipient_data: &WebhookRecipientData) {
+pub(crate) fn increment_webhook_outgoing_not_received_count(recipient_data: &WebhookRecipientData) {
     match recipient_data {
         WebhookRecipientData::Connector {
             merchant_connector_id,
