@@ -338,6 +338,10 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
 // Rollout percentage config prefix
 pub const UCS_ROLLOUT_PERCENT_CONFIG_PREFIX: &str = "ucs_rollout_config";
 
+// Sentinel value cached when a rollout config key is absent, so subsequent lookups
+// skip the DB entirely instead of hitting it on every cache miss.
+pub const UCS_ROLLOUT_CONFIG_NOT_CONFIGURED: &str = "not_configured";
+
 // UCS feature enabled config
 pub const UCS_ENABLED: &str = "ucs_enabled";
 
