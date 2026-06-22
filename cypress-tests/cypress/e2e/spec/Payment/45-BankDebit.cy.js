@@ -104,19 +104,14 @@ describe("Bank Debit tests", () => {
           "bank_debit_pm"
         ]["Sepa"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
       });
     });
   });
 
   context("ACH Bank Debit Create and Confirm flow test", () => {
-    before(function () {
-      const connectorId = globalState.get("connectorId");
-      const details = getConnectorDetails(connectorId);
-      if (!details?.["bank_debit_pm"]?.["Ach"]) {
-        this.skip();
-      }
-    });
-
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm ACH Bank Debit -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -172,19 +167,14 @@ describe("Bank Debit tests", () => {
           "bank_debit_pm"
         ]["Ach"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
       });
     });
   });
 
   context("BECS Bank Debit Create and Confirm flow test", () => {
-    before(function () {
-      const connectorId = globalState.get("connectorId");
-      const details = getConnectorDetails(connectorId);
-      if (!details?.["bank_debit_pm"]?.["Becs"]) {
-        this.skip();
-      }
-    });
-
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm BECS Bank Debit -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -240,19 +230,14 @@ describe("Bank Debit tests", () => {
           "bank_debit_pm"
         ]["Becs"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
       });
     });
   });
 
   context("BACS Bank Debit Create and Confirm flow test", () => {
-    before(function () {
-      const connectorId = globalState.get("connectorId");
-      const details = getConnectorDetails(connectorId);
-      if (!details?.["bank_debit_pm"]?.["Bacs"]) {
-        this.skip();
-      }
-    });
-
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm BACS Bank Debit -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -308,6 +293,9 @@ describe("Bank Debit tests", () => {
           "bank_debit_pm"
         ]["Bacs"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
       });
     });
   });
