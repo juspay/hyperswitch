@@ -63,9 +63,8 @@ use hyperswitch_domain_models::{
         merchant_connector_webhook_management::{
             ConnectorWebhookGenerateHmac, ConnectorWebhookRegister,
         },
-        AccessTokenAuth,
-        AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, PostAuthenticate,
-        PreAuthenticate, ProcessIncomingWebhook, VerifyWebhookSource,
+        AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
+        PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook, VerifyWebhookSource,
     },
     router_request_types::{
         self,

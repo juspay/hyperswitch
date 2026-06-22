@@ -203,29 +203,30 @@ pub fn construct_connector_webhook_registration_details(
     connector_webhook_register_data: &ConnectorWebhookRegisterData,
     generated_hmac_key: Option<Secret<String>>,
 ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
-    let connector_webhook_registration_details =
-        if let Some(connector_webhook_id) = register_webhook_response.connector_webhook_id.clone() {
-            let webhook_event = connector_webhook_register_data.event_type;
+    let connector_webhook_registration_details = if let Some(connector_webhook_id) =
+        register_webhook_response.connector_webhook_id.clone()
+    {
+        let webhook_event = connector_webhook_register_data.event_type;
 
-            let connector_webhook_value = serde_json::to_value(domain::ConnectorWebhookData {
-                event_type: webhook_event,
-            })
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let connector_webhook_value = serde_json::to_value(domain::ConnectorWebhookData {
+            event_type: webhook_event,
+        })
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-            let mut connector_webhook_registration_details = merchant_connector_account
-                .get_connector_webhook_registration_details()
-                .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
+        let mut connector_webhook_registration_details = merchant_connector_account
+            .get_connector_webhook_registration_details()
+            .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
 
-            let map = connector_webhook_registration_details
-                .as_object_mut()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+        let map = connector_webhook_registration_details
+            .as_object_mut()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
-            map.insert(connector_webhook_id, connector_webhook_value);
+        map.insert(connector_webhook_id, connector_webhook_value);
 
-            Some(connector_webhook_registration_details)
-        } else {
-            None
-        };
+        Some(connector_webhook_registration_details)
+    } else {
+        None
+    };
 
     let connector_webhook_details =
         build_connector_webhook_details_with_hmac(merchant_connector_account, generated_hmac_key)?;

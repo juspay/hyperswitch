@@ -35,7 +35,9 @@ use hyperswitch_domain_models::router_flow_types::{
     dispute::{Accept, Defend, Dsync, Evidence, Fetch},
     files::{Retrieve, Upload},
     mandate_revoke::MandateRevoke,
-    merchant_connector_webhook_management::{ConnectorWebhookGenerateHmac, ConnectorWebhookRegister},
+    merchant_connector_webhook_management::{
+        ConnectorWebhookGenerateHmac, ConnectorWebhookRegister,
+    },
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateSurcharge, CalculateTax,
         Capture, CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge,
