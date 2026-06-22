@@ -90,7 +90,7 @@ describe("Wallet tests", () => {
         "nextActionUrl should be defined before handling wallet redirection"
       ).to.be.a("string");
 
-      cy.handleWalletRedirection(
+      cy.handleBankRedirectRedirection(
         globalState,
         payment_method_type,
         expected_redirection
@@ -188,7 +188,7 @@ describe("Wallet tests", () => {
         "nextActionUrl should be defined before handling wallet redirection"
       ).to.be.a("string");
 
-      cy.handleWalletRedirection(
+      cy.handleBankRedirectRedirection(
         globalState,
         payment_method_type,
         expected_redirection
@@ -592,7 +592,7 @@ describe("Wallet tests", () => {
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
 
-        cy.handleWalletRedirection(
+        cy.handleBankRedirectRedirection(
           globalState,
           payment_method_type,
           expected_redirection
@@ -706,7 +706,7 @@ describe("Wallet tests", () => {
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
 
-        cy.handleWalletRedirection(
+        cy.handleBankRedirectRedirection(
           globalState,
           payment_method_type,
           expected_redirection
