@@ -1721,6 +1721,7 @@ pub async fn payments_cancel(
                             &req,
                             &auth.platform,
                             api::AuthFlow::Merchant,
+                            payments::operations::PaymentFlowKind::Standard,
                             &header_payload,
                             crate::core::payment_methods::transformers::PaymentMethodFetchData::default(),
                             &preliminary_dimensions,
@@ -2579,26 +2580,56 @@ where
                     .unwrap_or(false);
 
                 if should_call_external_vault_proxy {
-                    Box::pin(payments::external_vault_proxy_for_payments_core::<
-                        api_types::ExternalVaultProxy,
-                        payment_types::PaymentsResponse,
-                        _,
-                        _,
-                        _,
-                        payments::PaymentData<api_types::ExternalVaultProxy>,
-                    >(
-                        state,
-                        req_state,
-                        platform,
-                        profile_id,
-                        payments::PaymentExternalVaultProxyConfirm,
-                        req,
-                        auth_flow,
-                        payments::CallConnectorAction::Trigger,
-                        header_payload,
-                        None,
-                    ))
-                    .await
+                    // A single-call create+confirm (the create endpoint with `confirm = true`)
+                    // reaches here before any intent exists, so drive the proxy core with
+                    // `PaymentCreate`: it persists the intent/attempt and swaps to
+                    // `PaymentExternalVaultProxyConfirm` for the downstream connector call. The
+                    // standalone confirm endpoint already has an intent, so it runs the proxy
+                    // confirm operation directly.
+                    let is_payment_create = format!("{operation:?}") == "PaymentCreate";
+                    if is_payment_create {
+                        Box::pin(payments::external_vault_proxy_for_payments_core::<
+                            api_types::ExternalVaultProxy,
+                            payment_types::PaymentsResponse,
+                            _,
+                            _,
+                            _,
+                            payments::PaymentData<api_types::ExternalVaultProxy>,
+                        >(
+                            state,
+                            req_state,
+                            platform,
+                            profile_id,
+                            payments::PaymentCreate,
+                            req,
+                            auth_flow,
+                            payments::CallConnectorAction::Trigger,
+                            header_payload,
+                            None,
+                        ))
+                        .await
+                    } else {
+                        Box::pin(payments::external_vault_proxy_for_payments_core::<
+                            api_types::ExternalVaultProxy,
+                            payment_types::PaymentsResponse,
+                            _,
+                            _,
+                            _,
+                            payments::PaymentData<api_types::ExternalVaultProxy>,
+                        >(
+                            state,
+                            req_state,
+                            platform,
+                            profile_id,
+                            payments::PaymentExternalVaultProxyConfirm,
+                            req,
+                            auth_flow,
+                            payments::CallConnectorAction::Trigger,
+                            header_payload,
+                            None,
+                        ))
+                        .await
+                    }
                 } else {
                     let (payment_data, _req, connector_http_status_code, external_latency) =
                         Box::pin(payments::payments_operation_core::<
