@@ -15,7 +15,7 @@ use transformers as configure_connector_webhook_flow;
 use crate::{
     consts,
     core::{
-        errors::{self, RouterResponse, StorageErrorExt},
+        errors::{self, ConnectorErrorExt, RouterResponse, StorageErrorExt},
         payments::helpers,
         utils as core_utils,
     },
@@ -205,7 +205,8 @@ pub async fn register_connector_webhook(
 
     let registration_plan = connector_data
         .connector
-        .get_webhook_registration_plan(&req.scope, &state.conf.connectors);
+        .get_webhook_registration_plan(&req.scope, &state.conf.connectors)
+        .to_webhook_configuration_failed_response()?;
 
     let scope_type = configure_connector_webhook_flow::determine_scope_type(&req.scope);
     let requested = configure_connector_webhook_flow::extract_requested_identifiers(&req.scope);
@@ -228,7 +229,8 @@ pub async fn register_connector_webhook(
                 &state.base_url,
                 &mca.merchant_id,
                 merchant_connector_id,
-            ),
+            )
+            .into(),
         };
 
         let connector_integration: services::BoxedConnectorWebhookConfigurationInterface<

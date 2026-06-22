@@ -201,7 +201,7 @@ pub enum PayloadPaymentMethodType {
 #[derive(Debug, Clone, Serialize)]
 pub struct PayloadWebhookRegisterRequest {
     pub trigger: PayloadEventType,
-    pub url: String,
+    pub url: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sender_secret: Option<Secret<String>>,
 }

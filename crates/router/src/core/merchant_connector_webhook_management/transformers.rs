@@ -4,7 +4,7 @@ use api_models::merchant_connector_webhook_management::{
     ConnectorWebhookRegisterRequest as ApiConnectorWebhookRegisterRequest,
     RegisterConnectorWebhookResponse, Scope, ScopeIdentifier, ScopeType, WebhookRegistrationResult,
 };
-use error_stack::ResultExt;
+use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     router_request_types::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
@@ -14,7 +14,7 @@ use router_env::tracing::{self, instrument};
 
 use crate::{
     consts,
-    core::errors::RouterResult,
+    core::errors::{ConnectorErrorExt, RouterResult},
     errors, types,
     types::{
         api::ConnectorData, domain,
@@ -26,12 +26,17 @@ use crate::{
 
 fn is_webhook_auto_configuration_supported_from_toml(
     connector_name: types::Connector,
-) -> Option<bool> {
-    connector_configs::connector::ConnectorConfig::get_connector_config(connector_name)
-        .ok()
-        .flatten()
+) -> RouterResult<Option<bool>> {
+    let connector_config =
+        connector_configs::connector::ConnectorConfig::get_connector_config(connector_name)
+            .map_err(|err| {
+                Report::from(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(format!("Failed to retrieve connector configuration: {err}"))
+            })?;
+
+    Ok(connector_config
         .and_then(|toml| toml.connector_webhook_register_details)
-        .map(|details| details.webhook_auto_configuration_supported)
+        .map(|details| details.webhook_auto_configuration_supported))
 }
 
 #[cfg(feature = "v2")]
@@ -40,7 +45,12 @@ pub async fn construct_webhook_register_router_data(
     _merchant_connector_account: domain::MerchantConnectorAccount,
     _webhook_register_request: ConnectorWebhookRegisterRequest,
 ) -> RouterResult<types::ConnectorWebhookRegisterRouterData> {
-    todo!()
+    Err(errors::ApiErrorResponse::NotImplemented {
+        message: errors::NotImplementedMessage::Reason(
+            "Webhook registration not yet implemented for v2".to_string(),
+        ),
+    }
+    .into())
 }
 
 #[cfg(feature = "v1")]
@@ -195,7 +205,7 @@ pub async fn validate_webhook_registration_request(
     let config = connector_data.connector.get_api_webhook_config();
 
     let is_supported =
-        is_webhook_auto_configuration_supported_from_toml(connector_data.connector_name)
+        is_webhook_auto_configuration_supported_from_toml(connector_data.connector_name)?
             .unwrap_or(config.is_webhook_auto_configuration_supported);
 
     if !is_supported {
@@ -208,7 +218,8 @@ pub async fn validate_webhook_registration_request(
 
     let plan = connector_data
         .connector
-        .get_webhook_registration_plan(&webhook_register_request.scope, connectors);
+        .get_webhook_registration_plan(&webhook_register_request.scope, connectors)
+        .to_webhook_configuration_failed_response()?;
 
     if plan.is_empty() {
         return Err(errors::ApiErrorResponse::InvalidRequestData {

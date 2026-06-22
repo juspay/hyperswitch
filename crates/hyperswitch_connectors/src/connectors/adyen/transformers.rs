@@ -7153,7 +7153,7 @@ pub enum CommunicationFormat {
 pub struct WebhookRegister {
     #[serde(rename = "type")]
     webhook_type: WebhookRegisterType,
-    url: String,
+    url: Secret<String>,
     active: bool,
     communication_format: CommunicationFormat,
 }

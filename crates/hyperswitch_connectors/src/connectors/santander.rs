@@ -68,8 +68,7 @@ use crate::{
             SantanderBoletoWebhookRegisterRequest, SantanderMetadataObject,
             SantanderPaymentRequest, SantanderPaymentsCancelRequest,
             SantanderPixAutomaticSolicitationRequest, SantanderRefundRequest, SantanderRouterData,
-            SantanderSetupMandateRequest,
-            SantanderWebhookRegisterRequest,
+            SantanderSetupMandateRequest, SantanderWebhookRegisterRequest,
         },
         responses::{
             SanatanderAccessTokenResponse, SantanderBoletoWebhookRegisterResponse,
@@ -2135,60 +2134,67 @@ impl ConnectorSpecifications for Santander {
         &self,
         scope: &Scope,
         connectors: &Connectors,
-    ) -> Vec<(ScopeIdentifier, String)> {
+    ) -> CustomResult<Vec<(ScopeIdentifier, String)>, errors::ConnectorError> {
         match scope {
-            Scope::PaymentMethodTypes(requested_pmts) => requested_pmts
-                .iter()
-                .flat_map(|pmt| match *pmt {
-                    enums::PaymentMethodType::PixEmv => vec![(
-                        ScopeIdentifier::PaymentMethodType(*pmt),
-                        format!(
-                            "{}api/v1/webhook/{{chaveKey}}",
-                            connectors.santander.base_url
-                        ),
-                    )],
-                    enums::PaymentMethodType::Boleto => vec![(
-                        ScopeIdentifier::PaymentMethodType(*pmt),
-                        format!(
-                            "{}collection_bill_management/v2/workspaces",
-                            connectors
-                                .santander
-                                .secondary_base_url
-                                .clone()
-                                .unwrap_or_default()
-                        ),
-                    )],
-                    enums::PaymentMethodType::PixAutomaticoPush => vec![
-                        (
-                            ScopeIdentifier::PaymentMethodType(*pmt),
-                            format!("{}api/v1/webhookrec", connectors.santander.base_url),
-                        ),
-                        (
-                            ScopeIdentifier::PaymentMethodType(*pmt),
-                            format!("{}api/v1/webhookcobr", connectors.santander.base_url),
-                        ),
-                    ],
-                    enums::PaymentMethodType::PixAutomaticoQr => vec![
-                        (
+            Scope::PaymentMethodTypes(requested_pmts) => {
+                let plan: Vec<(ScopeIdentifier, String)> = requested_pmts
+                    .iter()
+                    .flat_map(|pmt| match *pmt {
+                        enums::PaymentMethodType::PixEmv => vec![(
                             ScopeIdentifier::PaymentMethodType(*pmt),
                             format!(
                                 "{}api/v1/webhook/{{chaveKey}}",
                                 connectors.santander.base_url
                             ),
-                        ),
-                        (
+                        )],
+                        enums::PaymentMethodType::Boleto => vec![(
                             ScopeIdentifier::PaymentMethodType(*pmt),
-                            format!("{}api/v1/webhookrec", connectors.santander.base_url),
-                        ),
-                        (
-                            ScopeIdentifier::PaymentMethodType(*pmt),
-                            format!("{}api/v1/webhookcobr", connectors.santander.base_url),
-                        ),
-                    ],
-                    _ => Vec::new(),
-                })
-                .collect(),
-            _ => Vec::new(),
+                            format!(
+                                "{}collection_bill_management/v2/workspaces",
+                                connectors
+                                    .santander
+                                    .secondary_base_url
+                                    .clone()
+                                    .unwrap_or_default()
+                            ),
+                        )],
+                        enums::PaymentMethodType::PixAutomaticoPush => vec![
+                            (
+                                ScopeIdentifier::PaymentMethodType(*pmt),
+                                format!("{}api/v1/webhookrec", connectors.santander.base_url),
+                            ),
+                            (
+                                ScopeIdentifier::PaymentMethodType(*pmt),
+                                format!("{}api/v1/webhookcobr", connectors.santander.base_url),
+                            ),
+                        ],
+                        enums::PaymentMethodType::PixAutomaticoQr => vec![
+                            (
+                                ScopeIdentifier::PaymentMethodType(*pmt),
+                                format!(
+                                    "{}api/v1/webhook/{{chaveKey}}",
+                                    connectors.santander.base_url
+                                ),
+                            ),
+                            (
+                                ScopeIdentifier::PaymentMethodType(*pmt),
+                                format!("{}api/v1/webhookrec", connectors.santander.base_url),
+                            ),
+                            (
+                                ScopeIdentifier::PaymentMethodType(*pmt),
+                                format!("{}api/v1/webhookcobr", connectors.santander.base_url),
+                            ),
+                        ],
+                        _ => vec![],
+                    })
+                    .collect();
+
+                Ok(plan)
+            }
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "Scope type not supported".to_string(),
+                connector: "Santander",
+            })?,
         }
     }
 

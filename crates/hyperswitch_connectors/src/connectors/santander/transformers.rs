@@ -30,9 +30,8 @@ use hyperswitch_domain_models::{
     },
     types::{
         ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsPreAuthorizeCancelRouterData,
-        PaymentsPushNotificationRouterData, PaymentsSyncRouterData,
-        PaymentsUpdateMetadataRouterData, RefundsRouterData,
+        PaymentsPreAuthorizeCancelRouterData, PaymentsPushNotificationRouterData,
+        PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -2858,10 +2857,6 @@ pub fn decide_access_token_key_suffix(
                     Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }),
                     Some(enums::PaymentMethodType::PixEmv),
                 ) => Some(AccessTokenUrlPath::Leg1),
-                (
-                    Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }),
-                    Some(enums::PaymentMethodType::Boleto),
-                ) => Some(AccessTokenUrlPath::Boleto),
                 // No payment method type or unsupported payment method type
                 (_, None) => None,
                 (_, Some(_)) => None,

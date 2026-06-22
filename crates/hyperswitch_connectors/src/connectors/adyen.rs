@@ -3487,15 +3487,18 @@ impl ConnectorSpecifications for Adyen {
         &self,
         scope: &api_models::merchant_connector_webhook_management::Scope,
         connectors: &Connectors,
-    ) -> Vec<(ScopeIdentifier, String)> {
+    ) -> CustomResult<Vec<(ScopeIdentifier, String)>, errors::ConnectorError> {
         use api_models::merchant_connector_webhook_management::{Scope, ScopeIdentifier};
         let endpoint = connectors.adyen.management_base_url.as_str();
         match scope {
-            Scope::NotSpecific => vec![(
+            Scope::NotSpecific => Ok(vec![(
                 ScopeIdentifier::NotSpecific,
                 format!("{endpoint}v1/merchants/{{merchantId}}/webhooks"),
-            )],
-            _ => Vec::new(),
+            )]),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "Scope type not supported".to_string(),
+                connector: "Adyen",
+            })?,
         }
     }
 }

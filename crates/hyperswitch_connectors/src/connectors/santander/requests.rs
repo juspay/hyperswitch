@@ -606,7 +606,7 @@ pub enum AccessTokenUrlPath {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderWebhookRegisterRequest {
-    pub webhook_url: String,
+    pub webhook_url: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -622,7 +622,7 @@ pub struct SantanderBoletoWebhookRegisterRequest {
     pub description: String,
     pub covenants: Vec<SantanderBoletoCovenant>,
     #[serde(rename = "webhookURL")]
-    pub webhook_url: String,
+    pub webhook_url: Secret<String>,
     #[serde(rename = "bankSlipBillingWebhookActive")]
     pub bank_slip_billing_webhook_active: bool,
     #[serde(rename = "pixBillingWebhookActive")]

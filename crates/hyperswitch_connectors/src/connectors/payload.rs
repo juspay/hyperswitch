@@ -1352,18 +1352,25 @@ impl ConnectorSpecifications for Payload {
         &self,
         scope: &Scope,
         connectors: &Connectors,
-    ) -> Vec<(ScopeIdentifier, String)> {
+    ) -> CustomResult<Vec<(ScopeIdentifier, String)>, errors::ConnectorError> {
         match scope {
-            Scope::EventTypes(requested_events) => requested_events
-                .iter()
-                .map(|evt| {
-                    (
-                        ScopeIdentifier::EventType(*evt),
-                        format!("{}/webhooks/", self.base_url(connectors)),
-                    )
-                })
-                .collect(),
-            _ => Vec::new(),
+            Scope::EventTypes(requested_events) => {
+                let plan: Vec<(ScopeIdentifier, String)> = requested_events
+                    .iter()
+                    .map(|evt| {
+                        (
+                            ScopeIdentifier::EventType(*evt),
+                            format!("{}/webhooks/", self.base_url(connectors)),
+                        )
+                    })
+                    .collect();
+
+                Ok(plan)
+            }
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "Scope type not supported".to_string(),
+                connector: "Payload",
+            })?,
         }
     }
     fn should_call_connector_customer(

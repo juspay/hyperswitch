@@ -852,7 +852,7 @@ impl ConnectorSpecifications for ConnectorEnum {
         &self,
         scope: &Scope,
         connectors: &Connectors,
-    ) -> Vec<(ScopeIdentifier, String)> {
+    ) -> CustomResult<Vec<(ScopeIdentifier, String)>, errors::ConnectorError> {
         match self {
             Self::Old(connector) => connector.get_webhook_registration_plan(scope, connectors),
             Self::New(connector) => connector.get_webhook_registration_plan(scope, connectors),

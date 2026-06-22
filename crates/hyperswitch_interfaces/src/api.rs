@@ -638,8 +638,8 @@ pub trait ConnectorSpecifications {
         &self,
         _scope: &Scope,
         _connectors: &Connectors,
-    ) -> Vec<(ScopeIdentifier, String)> {
-        Vec::new()
+    ) -> CustomResult<Vec<(ScopeIdentifier, String)>, errors::ConnectorError> {
+        Ok(Vec::new())
     }
 }
 
