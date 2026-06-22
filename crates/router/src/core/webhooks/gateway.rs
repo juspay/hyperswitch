@@ -241,10 +241,7 @@ pub async fn get_webhook_event_details_from_ucs(
         .event_type
         .map(IncomingWebhookEvent::from_ucs_event_type);
 
-    (
-        parse_response.reference,
-        event_type,
-    )
+    (parse_response.reference, event_type)
 }
 
 pub struct DirectIncomingWebhookGateway;

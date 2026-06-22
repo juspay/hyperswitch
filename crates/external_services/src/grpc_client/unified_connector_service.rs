@@ -921,7 +921,7 @@ impl UnifiedConnectorServiceClient {
                     grpc_error=?error,
                     method="incoming_webhook_parse_event",
                     connector_name=?connector_name,
-                    "UCS incoming webhook parse event gRPC call failed"
+                    "UCS incoming webhook parse event gRPC call failed. Fallback to Direct flow."
                 )
             })
     }

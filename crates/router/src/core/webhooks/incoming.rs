@@ -290,7 +290,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     &state,
                     platform.get_processor(),
                     &connector_name,
-                    mca_ref.map(|mca| &mca.merchant_connector_id),
                     webhook_flow.clone(),
                 )
                 .await?;

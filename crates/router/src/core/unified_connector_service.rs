@@ -690,7 +690,6 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
     processor: &Processor,
     connector_name: &str,
-    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     webhook_flow: Option<api_models::webhooks::WebhookFlow>,
 ) -> RouterResult<ExecutionPath> {
     // Extract context information
@@ -713,15 +712,11 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         return Ok(ExecutionPath::Direct);
     };
 
-    let connector_key = merchant_connector_id
-        .map(|id| id.get_string_repr().to_owned())
-        .unwrap_or_else(|| connector_name.to_string());
-
     let rollout_key = format!(
         "{}_{}_{}_{}_{}",
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
         merchant_id,
-        connector_key,
+        connector_name,
         webhook_category,
         flow_name
     );
