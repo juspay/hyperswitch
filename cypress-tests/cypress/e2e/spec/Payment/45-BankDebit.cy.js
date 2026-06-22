@@ -103,15 +103,16 @@ describe("Bank Debit tests", () => {
   context("ACH Bank Debit Create and Confirm flow test", () => {
     before(function () {
       const baseUrl = globalState.get("baseUrl");
-      // Skip on localhost unless vault is confirmed running via health check
-      if (isLocalhost(baseUrl)) {
+      // Skip on localhost unless vault is available (CYPRESS_VAULT_AVAILABLE=true)
+      // VAULT_AVAILABLE env var is checked via isVaultAvailable() in RequestBodyUtils
+      if (isLocalhost(baseUrl) && !Cypress.env("VAULT_AVAILABLE")) {
         const vaultUrl = Cypress.env("VAULT_URL") || "http://localhost:3001";
         // Check if vault is actually responding via node task
         cy.task("checkVaultHealth", { vaultUrl }).then((result) => {
           if (!result.healthy) {
             cy.task(
               "cli_log",
-              `Skipping ACH Bank Debit tests - vault not responding at ${vaultUrl}`
+              `Skipping ACH Bank Debit tests - vault not responding at ${vaultUrl}. Set CYPRESS_VAULT_AVAILABLE=true to skip this check.`
             );
             this.skip();
           } else {
@@ -295,6 +296,8 @@ describe("Bank Debit tests", () => {
       let shouldContinue = true;
 
       cy.step("CIT mandate creation for SEPA", () => {
+        // citForMandatesCallTest params: requestBody, data, amount, confirm, capture_method, payment_type, globalState
+        // data contains connector-specific Request (amount, currency, bank details) and Response (expected status)
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["MandateSingleUseSepa"];
@@ -342,6 +345,8 @@ describe("Bank Debit tests", () => {
       let shouldContinue = true;
 
       cy.step("CIT mandate creation for BECS", () => {
+        // citForMandatesCallTest params: requestBody, data, amount, confirm, capture_method, payment_type, globalState
+        // data contains connector-specific Request (amount, currency, bank details) and Response (expected status)
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["MandateSingleUseBecs"];
@@ -412,6 +417,8 @@ describe("Bank Debit tests", () => {
       let shouldContinue = true;
 
       cy.step("CIT mandate creation for ACH", () => {
+        // citForMandatesCallTest params: requestBody, data, amount, confirm, capture_method, payment_type, globalState
+        // data contains connector-specific Request (amount, currency, bank details) and Response (expected status)
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["MandateSingleUseAch"];
