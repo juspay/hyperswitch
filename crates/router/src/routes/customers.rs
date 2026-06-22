@@ -2,6 +2,9 @@ use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
 
+#[cfg(feature = "v2")]
+pub mod migrate;
+
 use super::app::AppState;
 #[cfg(feature = "v1")]
 use crate::core::utils as core_utils;

@@ -34,7 +34,7 @@ pub struct CustomerNew {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
-    pub id: Option<common_utils::id_type::CustomerId>,
+    pub id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -166,7 +166,7 @@ pub struct Customer {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
-    pub id: Option<common_utils::id_type::CustomerId>,
+    pub id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -199,6 +199,15 @@ pub struct Customer {
     #[diesel(deserialize_as = RequiredFromNullableWithDefault<DeleteStatus>)]
     pub status: DeleteStatus,
     pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, diesel::Queryable, serde::Serialize, serde::Deserialize)]
+pub struct CustomerGlobalIdMigrationRow {
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: Option<String>,
+    pub id: Option<String>,
+    pub version: ApiVersion,
 }
 
 #[cfg(feature = "v1")]

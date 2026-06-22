@@ -90,10 +90,11 @@ use strum::IntoEnumIterator;
 
 #[cfg(feature = "v1")]
 pub use self::operations::{
-    PaymentApprove, PaymentCancel, PaymentCancelPostCapture, PaymentCapture, PaymentConfirm,
-    PaymentCreate, PaymentExtendAuthorization, PaymentIncrementalAuthorization,
-    PaymentPostSessionTokens, PaymentReject, PaymentSession, PaymentSessionUpdate, PaymentStatus,
-    PaymentUpdate, PaymentUpdateMetadata,
+    PaymentApprove, PaymentCancel, PaymentCancelPostCapture, PaymentCancelPostCaptureSync,
+    PaymentCapture, PaymentConfirm, PaymentCreate, PaymentExtendAuthorization,
+    PaymentExternalVaultProxyConfirm, PaymentIncrementalAuthorization, PaymentPostSessionTokens,
+    PaymentReject, PaymentSession, PaymentSessionUpdate, PaymentStatus, PaymentUpdate,
+    PaymentUpdateMetadata,
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -101,6 +102,8 @@ use self::{
     gateway::context as gateway_context,
     operations::{BoxedOperation, Operation, PaymentResponse},
 };
+#[cfg(all(feature = "oltp", feature = "v1"))]
+use super::unified_connector_service::call_unified_connector_service_for_surcharge_calculate;
 use super::{
     errors::StorageErrorExt,
     payment_methods::surcharge_decision_configs,
@@ -137,9 +140,7 @@ use crate::{
             DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         },
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{
-            cards, network_tokenization, transformers as pm_transformers, utils as pm_utils,
-        },
+        payment_methods::{cards, network_tokenization, transformers as pm_transformers},
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
@@ -643,6 +644,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
     dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+    payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -698,9 +700,11 @@ where
             &req,
             platform,
             auth_flow,
+            operations::PaymentFlowKind::Standard,
             &header_payload,
             payment_method_fetch_data,
             dimensions,
+            payment_pre_fetched_info,
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -793,7 +797,7 @@ where
     )
     .await?;
 
-    let payment_method_token = get_decrypted_wallet_payment_method_token(
+    let payment_method_token = get_decrypted_wallet_pm_token_and_set_pm_data(
         &operation,
         state,
         platform,
@@ -985,6 +989,7 @@ where
                     )
                     .map_err(|e| logger::error!(routable_connector_error=?e))
                     .unwrap_or_default();
+
                     let schedule_time = if should_add_task_to_process_tracker {
                         let connector_enum = connector
                             .connector_data
@@ -1400,6 +1405,7 @@ where
                         &business_profile,
                         &mut payment_data,
                         header_payload.clone(),
+                        feature_config.is_payment_method_modular_allowed,
                     )
                     .await?;
 
@@ -1587,9 +1593,11 @@ where
             &req,
             &platform,
             auth_flow,
+            operations::PaymentFlowKind::Standard,
             &header_payload,
             operations::PaymentMethodFetchData::default(),
             dimensions,
+            None,
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -1929,7 +1937,7 @@ where
 
     let payment_data = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
-            let (mca_type_details, external_vault_mca_type_details, updated_customer, router_data) =
+            let (mca_type_details, external_vault_mca_type_details, _updated_customer, router_data) =
                 call_connector_service_prerequisites_for_external_vault_proxy(
                     state,
                     req_state.clone(),
@@ -1953,23 +1961,15 @@ where
                 state,
                 req_state.clone(),
                 platform.get_processor(),
-                connector_data.connector_data.clone(),
                 &operation,
                 &mut payment_data,
-                &customer,
-                call_connector_action.clone(),
-                None, // schedule_time is not used in PreDetermined ConnectorCallType
                 header_payload.clone(),
                 #[cfg(feature = "frm")]
                 None,
                 &profile,
-                false,
-                false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
-                req.should_return_raw_response(),
                 mca_type_details,
                 external_vault_mca_type_details,
                 router_data,
-                updated_customer,
                 &dimensions,
             )
             .await?;
@@ -2258,81 +2258,209 @@ where
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-async fn populate_surcharge_details<F>(
+pub async fn populate_surcharge_details<F, D>(
     state: &SessionState,
-    payment_data: &mut PaymentData<F>,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
+    payment_data: &mut D,
 ) -> RouterResult<()>
 where
     F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
 {
-    if payment_data
-        .payment_intent
-        .surcharge_applicable
-        .unwrap_or(false)
-    {
-        logger::debug!("payment_intent.surcharge_applicable = true");
-        if let Some(surcharge_details) = payment_data.payment_attempt.get_surcharge_details() {
-            // if retry payment, surcharge would have been populated from the previous attempt. Use the same surcharge
-            let surcharge_details =
-                types::SurchargeDetails::from((&surcharge_details, &payment_data.payment_attempt));
-            payment_data.surcharge_details = Some(surcharge_details);
+    let surcharge_mode = payment_data
+        .get_payment_intent()
+        .get_surcharge_mode(business_profile);
+
+    if surcharge_mode == Some(domain_payments::SurchargeMode::Internal) {
+        if let Some(attempt_surcharge) = payment_data.get_payment_attempt().get_surcharge_details()
+        {
+            let surcharge_details = types::SurchargeDetails::from((
+                &attempt_surcharge,
+                payment_data.get_payment_attempt(),
+            ));
+            payment_data.set_surcharge_details(Some(surcharge_details));
             return Ok(());
         }
-        let raw_card_key = payment_data
-            .payment_method_data
-            .as_ref()
-            .and_then(helpers::get_key_params_for_surcharge_details)
-            .map(|(payment_method, payment_method_type, card_network)| {
-                types::SurchargeKey::PaymentMethodData(
-                    payment_method,
-                    payment_method_type,
-                    card_network,
-                )
-            });
-        let saved_card_key = payment_data.token.clone().map(types::SurchargeKey::Token);
-
-        let surcharge_key = raw_card_key
-            .or(saved_card_key)
-            .get_required_value("payment_method_data or payment_token")?;
-        logger::debug!(surcharge_key_confirm =? surcharge_key);
-
-        let calculated_surcharge_details =
-            match types::SurchargeMetadata::get_individual_surcharge_detail_from_redis(
-                state,
-                surcharge_key,
-                &payment_data.payment_attempt.attempt_id,
-            )
-            .await
-            {
-                Ok(surcharge_details) => Some(surcharge_details),
-                Err(err) if err.current_context() == &RedisError::NotFound => None,
-                Err(err) => {
-                    Err(err).change_context(errors::ApiErrorResponse::InternalServerError)?
-                }
-            };
-
-        payment_data.surcharge_details = calculated_surcharge_details.clone();
-
-        //Update payment_attempt net_amount with surcharge details
-        payment_data
-            .payment_attempt
-            .net_amount
-            .set_surcharge_details(calculated_surcharge_details);
-    } else {
-        let surcharge_details =
-            payment_data
-                .payment_attempt
-                .get_surcharge_details()
-                .map(|surcharge_details| {
-                    logger::debug!("surcharge sent in payments create request");
-                    types::SurchargeDetails::from((
-                        &surcharge_details,
-                        &payment_data.payment_attempt,
-                    ))
-                });
-        payment_data.surcharge_details = surcharge_details;
     }
+
+    let surcharge_details = match surcharge_mode {
+        Some(domain_payments::SurchargeMode::Internal) => {
+            resolve_internal_surcharge_from_dss(state, payment_data).await?
+        }
+        Some(domain_payments::SurchargeMode::External) => {
+            // MIT off-session computes inline; CIT reads what /eligibility cached in Redis.
+            if payment_data.get_payment_intent().off_session == Some(true) {
+                compute_mit_external_surcharge(state, processor, business_profile, payment_data)
+                    .await
+            } else {
+                resolve_external_surcharge(state, payment_data).await
+            }
+        }
+        None => None,
+    };
+
+    let mut attempt = payment_data.get_payment_attempt().clone();
+    attempt
+        .net_amount
+        .set_surcharge_details(surcharge_details.clone());
+    payment_data.set_payment_attempt(attempt);
+    payment_data.set_surcharge_details(surcharge_details);
     Ok(())
+}
+
+// MIT off-session: compute external surcharge inline via UCS. Decodes the saved-PM billing
+#[cfg(feature = "v1")]
+async fn compute_mit_external_surcharge<F, D>(
+    state: &SessionState,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
+    payment_data: &D,
+) -> Option<types::SurchargeDetails>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F>,
+{
+    let saved_pm_billing = payment_data
+        .get_payment_method_info()
+        .and_then(|pm| pm.payment_method_billing_address.clone())
+        .and_then(|encryptable| {
+            let value = encryptable.into_inner().expose();
+            match value.parse_value::<hyperswitch_domain_models::address::Address>(
+                "payment_method_billing_address",
+            ) {
+                Ok(address) => Some(address),
+                Err(err) => {
+                    logger::warn!(
+                        error=?err,
+                        "MIT confirm: failed to parse saved payment_method_billing_address"
+                    );
+                    None
+                }
+            }
+        });
+    // Request-side PM billing wins; saved-PM billing is the fallback.
+    let mit_billing = payment_data
+        .get_address()
+        .get_payment_method_billing()
+        .or(saved_pm_billing.as_ref());
+    calculate_mit_external_surcharge(
+        state,
+        processor,
+        business_profile,
+        payment_data.get_payment_intent(),
+        payment_data.get_payment_attempt(),
+        payment_data.get_payment_method_data(),
+        mit_billing,
+    )
+    .await
+}
+
+// CIT external surcharge: read whatever /eligibility cached in Redis, if any.
+#[cfg(feature = "v1")]
+async fn resolve_external_surcharge<F, D>(
+    state: &SessionState,
+    payment_data: &D,
+) -> Option<types::SurchargeDetails>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F>,
+{
+    let payment_attempt = payment_data.get_payment_attempt();
+    load_external_surcharge_from_redis(state, payment_attempt)
+        .await
+        .filter(|external| {
+            external.matches_payment_method(
+                payment_attempt.payment_method,
+                payment_attempt.payment_method_type,
+            )
+        })
+        .map(|external| types::SurchargeDetails::from((&external, payment_attempt)))
+}
+
+#[cfg(feature = "v1")]
+async fn resolve_internal_surcharge_from_dss<F, D>(
+    state: &SessionState,
+    payment_data: &D,
+) -> RouterResult<Option<types::SurchargeDetails>>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F>,
+{
+    logger::debug!("payment_intent.surcharge_applicable = true");
+    let raw_card_key = payment_data
+        .get_payment_method_data()
+        .and_then(helpers::get_key_params_for_surcharge_details)
+        .map(|(payment_method, payment_method_type, card_network)| {
+            types::SurchargeKey::PaymentMethodData(
+                payment_method,
+                payment_method_type,
+                card_network,
+            )
+        });
+    let saved_card_key = payment_data
+        .get_token()
+        .map(|token| types::SurchargeKey::Token(token.to_string()));
+
+    let surcharge_key = raw_card_key
+        .or(saved_card_key)
+        .get_required_value("payment_method_data or payment_token")?;
+    logger::debug!(surcharge_key_confirm =? surcharge_key);
+
+    match types::SurchargeMetadata::get_individual_surcharge_detail_from_redis(
+        state,
+        surcharge_key,
+        &payment_data.get_payment_attempt().attempt_id,
+    )
+    .await
+    {
+        Ok(surcharge_details) => Ok(Some(surcharge_details)),
+        Err(err) if err.current_context() == &RedisError::NotFound => Ok(None),
+        Err(err) => Err(err).change_context(errors::ApiErrorResponse::InternalServerError),
+    }
+}
+
+#[cfg(feature = "v1")]
+async fn load_external_surcharge_from_redis(
+    state: &SessionState,
+    payment_attempt: &storage::PaymentAttempt,
+) -> Option<hyperswitch_domain_models::router_request_types::ExternalSurchargeDetails> {
+    let redis_key = payment_attempt
+        .payment_id
+        .get_external_surcharge_redis_key(&payment_attempt.merchant_id);
+    let redis_conn = match state.store.get_redis_conn() {
+        Ok(conn) => conn,
+        Err(err) => {
+            logger::warn!(error=?err, "Could not get redis conn to fetch external surcharge");
+            return None;
+        }
+    };
+    match redis_conn
+        .get_and_deserialize_key::<hyperswitch_domain_models::router_request_types::ExternalSurchargeDetails>(
+            &redis_key.as_str().into(),
+            "ExternalSurchargeDetails",
+        )
+        .await
+    {
+        Ok(surcharge) => {
+            logger::info!(
+                payment_id = %payment_attempt.payment_id.get_string_repr(),
+                "Loaded external surcharge from Redis for confirm"
+            );
+            Some(surcharge)
+        }
+        Err(err) => {
+            if matches!(err.current_context(), RedisError::NotFound) {
+                logger::info!(
+                    payment_id = %payment_attempt.payment_id.get_string_repr(),
+                    "confirm: no external surcharge found in Redis; proceeding without surcharge"
+                );
+            } else {
+                logger::warn!(error=?err, "Failed to fetch external surcharge from Redis");
+            }
+            None
+        }
+    }
 }
 
 /// Calculates the total installment interest to be added to the order amount.
@@ -2604,6 +2732,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     eligible_connectors: Option<Vec<enums::Connector>>,
     header_payload: HeaderPayload,
+    payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -2645,6 +2774,7 @@ where
             eligible_routable_connectors,
             header_payload.clone(),
             &dimensions,
+            payment_pre_fetched_info,
         )
         .await?;
 
@@ -2709,6 +2839,651 @@ where
             header_payload.clone(),
             return_raw_connector_response,
             &dimensions,
+        )
+        .await?;
+
+    Res::generate_response(
+        payment_data,
+        auth_flow,
+        &state.base_url,
+        operation,
+        &state.conf.connector_request_reference_id_config,
+        connector_http_status_code,
+        external_latency,
+        header_payload.x_hs_latency,
+        &platform,
+    )
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+#[instrument(skip_all, fields(payment_id, merchant_id))]
+pub async fn external_vault_proxy_for_payments_operation_core<F, Req, Op, FData, D>(
+    state: &SessionState,
+    req_state: ReqState,
+    platform: domain::Platform,
+    profile_id_from_auth_layer: Option<id_type::ProfileId>,
+    operation: Op,
+    req: Req,
+    call_connector_action: CallConnectorAction,
+    auth_flow: services::AuthFlow,
+    header_payload: HeaderPayload,
+    return_raw_connector_response: Option<bool>,
+    dimensions: DimensionsWithProcessorAndProviderMerchantId,
+) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
+where
+    F: Send + Clone + Sync,
+    Req: Authenticate + Clone,
+    Op: Operation<F, Req, Data = D> + Send + Sync,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+
+    // To create connector flow specific interface data
+    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+
+    // To construct connector flow specific api
+    dyn api::Connector: services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>
+        + Send
+        + Sync,
+
+    // To perform router related operation for PaymentResponse
+    PaymentResponse: Operation<F, FData, Data = D>,
+    FData: Send + Sync + Clone,
+{
+    let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
+
+    tracing::Span::current().record(
+        "merchant_id",
+        platform
+            .get_processor()
+            .get_account()
+            .get_id()
+            .get_string_repr(),
+    );
+    let (operation, validate_result) = operation
+        .to_validate_request()?
+        .validate_request(&req, platform.get_processor())?;
+
+    tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
+
+    // #[cfg(feature = "pm_modular")]
+    let feature_config = core_utils::get_feature_config(state, &platform, &dimensions).await;
+
+    let payment_method_info = operation
+        .to_domain()?
+        .fetch_payment_method(state, &req, &platform, &feature_config)
+        .await?;
+
+    let operations::GetTrackerResponse {
+        operation,
+        customer_details,
+        mut payment_data,
+        business_profile,
+        mandate_type,
+    } = Box::pin(operation.to_get_tracker()?.get_trackers(
+        state,
+        &validate_result.payment_id,
+        &req,
+        &platform,
+        auth_flow,
+        operations::PaymentFlowKind::ExternalVaultProxy,
+        &header_payload,
+        payment_method_info,
+        &dimensions,
+        None,
+    ))
+    .await?;
+    let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
+
+    core_utils::validate_profile_id_from_auth_layer(
+        profile_id_from_auth_layer,
+        &payment_data.get_payment_intent().clone(),
+    )?;
+
+    // Routing parity with `payments_operation_core` (minus debit routing): resolve the connector
+    // call type via `choose_connector` instead of the proxy-specific eligibility helper.
+    let connector = choose_connector(
+        &operation,
+        state,
+        &req,
+        platform.get_processor(),
+        &business_profile,
+        &feature_config,
+        &mut payment_data,
+        None,
+        mandate_type,
+        &dimensions,
+        call_connector_action.clone(),
+    )
+    .await?;
+
+    let locale = header_payload.locale.clone();
+
+    let (operation, _customer) = operation
+        .to_domain()?
+        .get_or_create_customer_details(
+            state,
+            &mut payment_data,
+            customer_details,
+            platform.get_provider(),
+            platform.get_initiator(),
+            &dimensions,
+            None,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Failed while fetching/creating customer")?;
+
+    operation
+        .to_domain()?
+        .create_payment_method(
+            state,
+            &req,
+            &platform,
+            &mut payment_data,
+            &business_profile,
+            &feature_config,
+        )
+        .await?;
+
+    // Dispatch on the resolved connector call type, mirroring `payments_operation_core`: the
+    // prerequisites and the unified-connector-service decision both happen inside the match arm.
+    // The external vault proxy flow currently supports only a single, predetermined connector.
+    let (connector, merchant_connector_account, router_data) = match connector {
+        Some(ConnectorCallType::PreDetermined(connector_routing_data)) => {
+            let connector = connector_routing_data.connector_data;
+
+            // `choose_connector` does not persist the chosen connector in the payment attempt for
+            // this flow, so set it explicitly — the confirm update tracker reads it back.
+            payment_data
+                .set_connector_in_payment_attempt(Some(connector.connector_name.to_string()));
+
+            let (
+                merchant_connector_account,
+                external_vault_merchant_connector_account,
+                router_data,
+            ) = call_connector_service_prerequisites_for_external_vault_proxy_v1(
+                state,
+                &platform,
+                &mut payment_data,
+                &connector,
+                &business_profile,
+                header_payload.clone(),
+            )
+            .await?;
+
+            let router_data = decide_unified_connector_service_call_for_external_vault_proxy_v1(
+                state,
+                req_state.clone(),
+                &platform,
+                &operation,
+                &mut payment_data,
+                &connector,
+                merchant_connector_account.clone(),
+                external_vault_merchant_connector_account,
+                router_data,
+                call_connector_action.clone(),
+                header_payload.clone(),
+                &business_profile,
+                &dimensions,
+                return_raw_connector_response,
+            )
+            .await?;
+
+            (connector, merchant_connector_account, router_data)
+        }
+        Some(ConnectorCallType::Retryable(connectors)) => {
+            // The proxy flow does not retry — use the first eligible connector.
+            let connector = connectors
+                .into_iter()
+                .next()
+                .ok_or_else(|| {
+                    error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("No eligible connector resolved for external vault proxy")
+                })?
+                .connector_data;
+
+            // `choose_connector` does not persist the chosen connector in the payment attempt for
+            // this flow, so set it explicitly — the confirm update tracker reads it back.
+            payment_data
+                .set_connector_in_payment_attempt(Some(connector.connector_name.to_string()));
+
+            let (
+                merchant_connector_account,
+                external_vault_merchant_connector_account,
+                router_data,
+            ) = call_connector_service_prerequisites_for_external_vault_proxy_v1(
+                state,
+                &platform,
+                &mut payment_data,
+                &connector,
+                &business_profile,
+                header_payload.clone(),
+            )
+            .await?;
+
+            let router_data = decide_unified_connector_service_call_for_external_vault_proxy_v1(
+                state,
+                req_state.clone(),
+                &platform,
+                &operation,
+                &mut payment_data,
+                &connector,
+                merchant_connector_account.clone(),
+                external_vault_merchant_connector_account,
+                router_data,
+                call_connector_action.clone(),
+                header_payload.clone(),
+                &business_profile,
+                &dimensions,
+                return_raw_connector_response,
+            )
+            .await?;
+
+            (connector, merchant_connector_account, router_data)
+        }
+        Some(ConnectorCallType::SessionMultiple(_)) => {
+            return Err(
+                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                    "SessionMultiple connector call type is not supported for external vault proxy",
+                ),
+            )
+        }
+        None => {
+            return Err(
+                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("No eligible connector resolved for external vault proxy"),
+            )
+        }
+    };
+
+    let op_ref = &operation;
+    let should_trigger_post_processing_flows = is_operation_confirm(&operation);
+
+    let operation = Box::new(PaymentResponse);
+
+    let connector_http_status_code = router_data.connector_http_status_code;
+    let external_latency = router_data.external_latency;
+
+    add_connector_http_status_code_metrics(connector_http_status_code);
+
+    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    let routable_connectors =
+        convert_connector_data_to_routable_connectors(&[connector.clone().into()])
+            .map_err(|e| logger::error!(routable_connector_error=?e))
+            .unwrap_or_default();
+
+    let router_data_for_pm_mandate = router_data.clone();
+
+    handle_pm_and_mandate_post_update(
+        state,
+        operation.as_ref(),
+        &router_data_for_pm_mandate,
+        &platform,
+        &mut payment_data,
+        &business_profile,
+        req.get_payment_method_data(),
+        &feature_config,
+    )
+    .await?;
+
+    let mut payment_data = operation
+        .to_post_update_tracker()?
+        .update_tracker(
+            state,
+            platform.get_processor(),
+            payment_data,
+            router_data,
+            &locale,
+            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+            routable_connectors,
+            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+            &business_profile,
+        )
+        .await?;
+
+    if should_trigger_post_processing_flows {
+        complete_postprocessing_steps_if_required(
+            state,
+            platform.get_processor(),
+            &merchant_connector_account,
+            &connector,
+            &mut payment_data,
+            op_ref,
+            Some(header_payload.clone()),
+        )
+        .await?;
+    }
+
+    let cloned_payment_data = payment_data.clone();
+
+    utils::trigger_payments_webhook(
+        &platform,
+        business_profile,
+        cloned_payment_data,
+        state,
+        operation,
+    )
+    .await
+    .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
+    .ok();
+
+    Ok((
+        payment_data,
+        req,
+        connector_http_status_code,
+        external_latency,
+    ))
+}
+
+/// Prerequisites for the external vault proxy connector call (v1): resolve the payment MCA and the
+/// external vault MCA, and construct the connector router data. Mirrors the v2
+/// `call_connector_service_prerequisites_for_external_vault_proxy`.
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn call_connector_service_prerequisites_for_external_vault_proxy_v1<F, FData, D>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_data: &mut D,
+    connector: &api::ConnectorData,
+    business_profile: &domain::Profile,
+    header_payload: HeaderPayload,
+) -> RouterResult<(
+    helpers::MerchantConnectorAccountType,
+    helpers::MerchantConnectorAccountType,
+    RouterData<F, FData, router_types::PaymentsResponseData>,
+)>
+where
+    F: Send + Clone + Sync,
+    FData: Send + Sync + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+{
+    // Fetch the payment MCA
+    let merchant_connector_account = construct_profile_id_and_get_mca(
+        state,
+        platform.get_processor(),
+        payment_data,
+        &connector.connector_name.to_string(),
+        connector.merchant_connector_id.as_ref(),
+        false,
+    )
+    .await?;
+
+    if payment_data
+        .get_payment_attempt()
+        .merchant_connector_id
+        .is_none()
+    {
+        payment_data.set_merchant_connector_id_in_attempt(merchant_connector_account.get_mca_id());
+    }
+
+    // Fetch the external vault MCA from business_profile
+    let external_vault_mca_id = business_profile
+        .external_vault_details
+        .get_vault_connector_id()
+        .ok_or_else(|| {
+            error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("external vault is not enabled for this business profile")
+        })?;
+
+    let profile_id = payment_data
+        .get_payment_intent()
+        .profile_id
+        .as_ref()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?
+        .clone();
+
+    let external_vault_merchant_connector_account = helpers::get_merchant_connector_account(
+        state,
+        platform.get_processor(),
+        None,
+        &profile_id,
+        &connector.connector_name.to_string(),
+        Some(&external_vault_mca_id),
+    )
+    .await?;
+
+    let router_data = payment_data
+        .construct_router_data(
+            state,
+            connector.connector.id(),
+            platform.get_processor(),
+            &merchant_connector_account,
+            None,
+            Some(header_payload),
+            payment_data.get_payment_attempt().payment_method,
+            payment_data.get_payment_attempt().payment_method_type,
+        )
+        .await?;
+
+    Ok((
+        merchant_connector_account,
+        external_vault_merchant_connector_account,
+        router_data,
+    ))
+}
+
+/// Decide and perform the external vault proxy connector call (v1): pick the execution path
+/// (UCS vs direct), update trackers, and invoke the connector. Mirrors the v2
+/// `call_unified_connector_service_for_external_proxy`.
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn decide_unified_connector_service_call_for_external_vault_proxy_v1<F, Req, FData, D>(
+    state: &SessionState,
+    req_state: ReqState,
+    platform: &domain::Platform,
+    operation: &BoxedOperation<'_, F, Req, D>,
+    payment_data: &mut D,
+    connector: &api::ConnectorData,
+    merchant_connector_account: helpers::MerchantConnectorAccountType,
+    external_vault_merchant_connector_account: helpers::MerchantConnectorAccountType,
+    mut router_data: RouterData<F, FData, router_types::PaymentsResponseData>,
+    call_connector_action: CallConnectorAction,
+    header_payload: HeaderPayload,
+    business_profile: &domain::Profile,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    return_raw_connector_response: Option<bool>,
+) -> RouterResult<RouterData<F, FData, router_types::PaymentsResponseData>>
+where
+    F: Send + Clone + Sync,
+    FData: Send + Sync + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData> + Send,
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+{
+    let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
+
+    let (execution_path, updated_state) = should_call_unified_connector_service(
+        state,
+        platform.get_processor(),
+        &router_data,
+        previous_gateway,
+        call_connector_action.clone(),
+        None,
+        common_enums::TransactionType::Payment,
+    )
+    .await?;
+
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+
+    let execution_mode = match execution_path {
+        ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
+        ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+        ExecutionPath::Direct => ExecutionMode::NotApplicable,
+    };
+
+    update_gateway_system_in_feature_metadata(
+        payment_data,
+        match execution_path {
+            ExecutionPath::UnifiedConnectorService => GatewaySystem::UnifiedConnectorService,
+            ExecutionPath::ShadowUnifiedConnectorService | ExecutionPath::Direct => {
+                GatewaySystem::Direct
+            }
+        },
+    )?;
+
+    // Update trackers before calling connector
+    (_, *payment_data) = operation
+        .to_update_tracker()?
+        .update_trackers(
+            &updated_state,
+            req_state,
+            platform.get_processor(),
+            payment_data.clone(),
+            None,
+            header_payload.clone(),
+            &dimensions.without_profile_id(),
+        )
+        .await?;
+
+    let router_data = match execution_path {
+        ExecutionPath::UnifiedConnectorService => {
+            router_data
+                .call_unified_connector_service_with_external_vault_proxy_v1(
+                    &updated_state,
+                    &header_payload,
+                    lineage_ids,
+                    &merchant_connector_account,
+                    &external_vault_merchant_connector_account,
+                    platform.get_processor(),
+                    execution_mode,
+                )
+                .await?;
+            router_data
+        }
+        ExecutionPath::Direct | ExecutionPath::ShadowUnifiedConnectorService => {
+            // Fallback: direct connector call via decide_flows
+            let add_access_token_result = router_data
+                .add_access_token(
+                    &updated_state,
+                    connector,
+                    platform.get_processor(),
+                    payment_data.get_creds_identifier(),
+                    &gateway_context::RouterGatewayContext {
+                        creds_identifier: payment_data
+                            .get_creds_identifier()
+                            .map(|id| id.to_string()),
+                        processor: platform.get_processor().clone(),
+                        header_payload: header_payload.clone(),
+                        lineage_ids: lineage_ids.clone(),
+                        merchant_connector_account: merchant_connector_account.clone(),
+                        execution_path,
+                        execution_mode,
+                    },
+                )
+                .await?;
+
+            let should_continue_further = access_token::update_router_data_with_access_token_result(
+                &add_access_token_result,
+                &mut router_data,
+                &call_connector_action,
+            );
+
+            let gateway_ctx = gateway_context::RouterGatewayContext {
+                creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
+                processor: platform.get_processor().clone(),
+                header_payload: header_payload.clone(),
+                lineage_ids,
+                merchant_connector_account: merchant_connector_account.clone(),
+                execution_path,
+                execution_mode,
+            };
+
+            let (connector_request, should_continue) = if should_continue_further {
+                router_data
+                    .build_flow_specific_connector_request(
+                        &updated_state,
+                        connector,
+                        call_connector_action.clone(),
+                    )
+                    .await?
+            } else {
+                (None, false)
+            };
+
+            if should_continue {
+                router_data.status = payment_data.get_payment_attempt().status;
+                router_data
+                    .decide_flows(
+                        &updated_state,
+                        connector,
+                        call_connector_action,
+                        connector_request,
+                        business_profile,
+                        header_payload.clone(),
+                        return_raw_connector_response,
+                        gateway_ctx,
+                    )
+                    .await?
+            } else {
+                router_data
+            }
+        }
+    };
+
+    Ok(router_data)
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn external_vault_proxy_for_payments_core<F, Res, Req, Op, FData, D>(
+    state: SessionState,
+    req_state: ReqState,
+    platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
+    operation: Op,
+    req: Req,
+    auth_flow: services::AuthFlow,
+    call_connector_action: CallConnectorAction,
+    header_payload: HeaderPayload,
+    return_raw_connector_response: Option<bool>,
+) -> RouterResponse<Res>
+where
+    F: Send + Clone + Sync,
+    FData: Send + Sync + Clone,
+    Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
+    Req: Debug + Authenticate + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    Res: transformers::ToResponse<F, D, Op>,
+    // To create connector flow specific interface data
+    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+
+    // To perform router related operation for PaymentResponse
+    PaymentResponse: Operation<F, FData, Data = D>,
+{
+    let dimensions = Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+    let (payment_data, _req, connector_http_status_code, external_latency) =
+        external_vault_proxy_for_payments_operation_core::<_, _, _, _, _>(
+            &state,
+            req_state,
+            platform.clone(),
+            profile_id,
+            operation.clone(),
+            req,
+            call_connector_action,
+            auth_flow,
+            header_payload.clone(),
+            return_raw_connector_response,
+            dimensions,
         )
         .await?;
 
@@ -3781,6 +4556,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             None,
             None,
             HeaderPayload::default(),
+            None,
         ))
         .await?;
         let payments_response = match response {
@@ -3974,6 +4750,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 None,
                 None,
                 HeaderPayload::default(),
+                None,
             ),
         )
         .await?;
@@ -4280,20 +5057,9 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing authentication_id in payment_attempt")?;
-        let key_manager_state = &(state).into();
-        let authentication = state
-            .store
-            .find_authentication_by_merchant_id_authentication_id(
-                platform.get_processor().get_account().get_id(),
-                &authentication_id,
-                platform.get_processor().get_key_store(),
-                key_manager_state,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
-                id: authentication_id.get_string_repr().to_string(),
-            })?;
+
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
+
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
             state,
             platform.get_processor(),
@@ -4316,8 +5082,30 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     .get_metadata()
                     .map(|metadata| metadata.expose()),
             );
+
+        let payment_external_authentication_type =
+            if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), state)
+                .await?
+            {
+                payment_attempt.external_threeds_authentication_type
+            } else {
+                let key_manager_state = &(state).into();
+                let authentication = state
+                    .store
+                    .find_authentication_by_merchant_id_authentication_id(
+                        platform.get_processor().get_account().get_id(),
+                        &authentication_id,
+                        platform.get_processor().get_key_store(),
+                        key_manager_state,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
+                        id: authentication_id.get_string_repr().to_string(),
+                    })?;
+                authentication.authentication_type
+            };
         let response = if is_pull_mechanism_enabled
-            || authentication.authentication_type
+            || payment_external_authentication_type
                 != Some(common_enums::DecoupledAuthenticationType::Challenge)
         {
             let payment_confirm_req = api::PaymentsRequest {
@@ -4360,6 +5148,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                    None,
                 ))
                 .await?
             } else {
@@ -4382,6 +5171,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                    None,
                 ))
                 .await?
             }
@@ -4416,6 +5206,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::default(),
+                    None,
                 ),
             )
             .await?
@@ -4519,8 +5310,47 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
     }
 }
 
+fn set_decrypted_wallet_payment_method_data<F, D>(token: &PaymentMethodToken, payment_data: &mut D)
+where
+    F: Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F>,
+{
+    let wallet_data = payment_data
+        .get_payment_method_data()
+        .and_then(|pmd| pmd.get_wallet_data());
+
+    if let Some(wallet_data) = wallet_data {
+        let updated_pmd = match (token, wallet_data) {
+            (
+                PaymentMethodToken::ApplePayDecrypt(decrypted_data),
+                domain::WalletData::ApplePay(apple_pay_data),
+            ) => Some(domain::PaymentMethodData::Wallet(
+                domain::WalletData::ApplePay(domain::ApplePayWalletData {
+                    payment_data: common_payments_types::ApplePayPaymentData::Decrypted(
+                        (**decrypted_data).clone(),
+                    ),
+                    ..apple_pay_data.clone()
+                }),
+            )),
+            (
+                PaymentMethodToken::GooglePayDecrypt(decrypted_data),
+                domain::WalletData::GooglePay(google_pay_data),
+            ) => Some(domain::PaymentMethodData::Wallet(
+                domain::WalletData::GooglePay(domain::GooglePayWalletData {
+                    tokenization_data: common_payments_types::GpayTokenizationData::Decrypted(
+                        (**decrypted_data).clone(),
+                    ),
+                    ..google_pay_data.clone()
+                }),
+            )),
+            _ => None,
+        };
+        updated_pmd.map(|pmd| payment_data.set_payment_method_data(Some(pmd)));
+    }
+}
+
 #[cfg(feature = "v1")]
-pub async fn get_decrypted_wallet_payment_method_token<F, Req, D>(
+pub async fn get_decrypted_wallet_pm_token_and_set_pm_data<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
     state: &SessionState,
     platform: &domain::Platform,
@@ -4529,7 +5359,7 @@ pub async fn get_decrypted_wallet_payment_method_token<F, Req, D>(
 ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse>
 where
     F: Send + Clone + Sync,
-    D: OperationSessionGetters<F> + Send + Sync + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     if is_operation_confirm(operation)
         && payment_data.get_payment_attempt().payment_method
@@ -4566,18 +5396,25 @@ where
             return Ok(Some(predecrypted_token));
         }
 
-        let decide_wallet_flow = &wallet
+        let decide_wallet_flow = wallet
             .decide_wallet_flow(state, payment_data, &merchant_connector_account)
-            .attach_printable("Failed to decide wallet flow")?
-            .async_map(|payment_price_data| async move {
-                wallet
+            .attach_printable("Failed to decide wallet flow")?;
+
+        let payment_method_token = match decide_wallet_flow {
+            Some(payment_price_data) => {
+                let token = wallet
                     .decrypt_wallet_token(&payment_price_data, payment_data)
                     .await
-            })
-            .await
-            .transpose()
-            .attach_printable("Failed to decrypt Wallet token")?;
-        Ok(decide_wallet_flow.clone())
+                    .attach_printable("Failed to decrypt Wallet token")?;
+
+                set_decrypted_wallet_payment_method_data(&token, payment_data);
+
+                Some(token)
+            }
+            None => None,
+        };
+
+        Ok(payment_method_token)
     } else {
         Ok(None)
     }
@@ -5087,6 +5924,15 @@ where
             &connector,
         )
         .await?;
+
+    // Unified external-surcharge population for CIT and MIT.
+    populate_surcharge_details(
+        state,
+        platform.get_processor(),
+        business_profile,
+        payment_data,
+    )
+    .await?;
 
     let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
         state,
@@ -5970,22 +6816,14 @@ pub async fn call_unified_connector_service_for_external_proxy<F, RouterDReq, Ap
     state: &SessionState,
     req_state: ReqState,
     processor: &domain::Processor,
-    _connector: api::ConnectorData,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
-    customer: &Option<domain::Customer>,
-    _call_connector_action: CallConnectorAction,
-    _schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
-    _is_retry_payment: bool,
-    _should_retry_with_pan: bool,
-    _return_raw_connector_response: Option<bool>,
     merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     external_vault_merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    _updated_customer: Option<storage::CustomerUpdate>,
     dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
@@ -6380,141 +7218,6 @@ where
     Ok(router_data)
 }
 
-#[cfg(feature = "v2")]
-#[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
-pub async fn call_connector_service_for_external_vault_proxy<F, RouterDReq, ApiRequest, D>(
-    state: &SessionState,
-    req_state: ReqState,
-    platform: &domain::Platform,
-    connector: api::ConnectorData,
-    operation: &BoxedOperation<'_, F, ApiRequest, D>,
-    payment_data: &mut D,
-    call_connector_action: CallConnectorAction,
-    header_payload: HeaderPayload,
-    business_profile: &domain::Profile,
-    return_raw_connector_response: Option<bool>,
-) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
-where
-    F: Send + Clone + Sync,
-    RouterDReq: Send + Sync,
-
-    // To create connector flow specific interface data
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
-    // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
-{
-    let stime_connector = Instant::now();
-
-    let dimensions = Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
-
-    let merchant_connector_account =
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-            helpers::get_merchant_connector_account_v2(
-                state,
-                platform.get_processor(),
-                connector.merchant_connector_id.as_ref(),
-            )
-            .await?,
-        ));
-    operation
-        .to_domain()?
-        .populate_payment_data(
-            state,
-            payment_data,
-            platform.get_processor(),
-            business_profile,
-            &connector,
-        )
-        .await?;
-
-    let mut router_data = payment_data
-        .construct_router_data(
-            state,
-            connector.connector.id(),
-            platform.get_processor(),
-            &None,
-            &merchant_connector_account,
-            None,
-            Some(header_payload.clone()),
-        )
-        .await?;
-
-    // let add_access_token_result = router_data
-    //     .add_access_token(
-    //         state,
-    //         &connector,
-    //         platform,
-    //         payment_data.get_creds_identifier(),
-    //     )
-    //     .await?;
-
-    // router_data = router_data.add_session_token(state, &connector).await?;
-
-    // let mut should_continue_further = access_token::update_router_data_with_access_token_result(
-    //     &add_access_token_result,
-    //     &mut router_data,
-    //     &call_connector_action,
-    // );
-    let should_continue_further = true;
-
-    let (connector_request, should_continue_further) = if should_continue_further {
-        router_data
-            .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
-            .await?
-    } else {
-        (None, false)
-    };
-
-    (_, *payment_data) = operation
-        .to_update_tracker()?
-        .update_trackers(
-            state,
-            req_state,
-            platform.get_processor(),
-            payment_data.clone(),
-            None,
-            header_payload.clone(),
-            &dimensions,
-        )
-        .await?;
-
-    let gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.get_processor().clone(),
-        merchant_connector_account.clone(),
-        business_profile.merchant_id.clone(),
-        business_profile.get_id().clone(),
-        payment_data.get_creds_identifier().map(|id| id.to_string()),
-    );
-
-    let router_data = if should_continue_further {
-        router_data
-            .decide_flows(
-                state,
-                &connector,
-                call_connector_action,
-                connector_request,
-                business_profile,
-                header_payload.clone(),
-                return_raw_connector_response,
-                gateway_context,
-            )
-            .await
-    } else {
-        Ok(router_data)
-    }?;
-
-    let etime_connector = Instant::now();
-    let duration_connector = etime_connector.saturating_duration_since(stime_connector);
-    tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
-
-    Ok(router_data)
-}
 struct ApplePayWallet;
 struct PazeWallet;
 struct GooglePayWallet;
@@ -8781,6 +9484,8 @@ where
     pub is_l2_l3_enabled: bool,
     pub external_authentication_data: Option<api_models::payments::ExternalThreeDsData>,
     pub client_session_id: Option<id_type::ClientSessionId>,
+    pub external_vault_pmd:
+        Option<hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData>,
 }
 
 #[cfg(feature = "v1")]
@@ -8796,7 +9501,7 @@ impl PaymentEligibilityData {
     pub async fn from_request(
         state: &SessionState,
         platform: &domain::Platform,
-        payments_eligibility_request: &api_models::payments::PaymentsEligibilityRequest,
+        payments_eligibility_request: &api_models::payments::PaymentsEligibilityCheckRequest,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
         payments_eligibility_request
             .validate_payment_method_input()
@@ -8857,8 +9562,11 @@ impl PaymentEligibilityData {
         })
     }
 
-    /// Resolves a `payment_token` to raw card data for blocklist checks.
-    /// Uses modular PM service if enabled for the org, otherwise falls back to locker.
+    /// Resolves a `payment_token` to raw card data for blocklist checks: modular
+    /// organizations fetch from the PM Modular Service directly; legacy organizations
+    /// resolve the Redis token to the payment method DB record, escalating to the
+    /// modular service when the record itself is modular, and reading raw card data
+    /// from the locker otherwise.
     async fn resolve_payment_token_to_method_data(
         state: &SessionState,
         platform: &domain::Platform,
@@ -8866,29 +9574,37 @@ impl PaymentEligibilityData {
         payment_method_type: common_enums::PaymentMethod,
         profile_id: &id_type::ProfileId,
     ) -> CustomResult<Option<domain::EligibilityPaymentMethodData>, errors::ApiErrorResponse> {
-        let pm_modular_dimensions = Dimensions::new().with_organization_id(
-            platform
-                .get_processor()
-                .get_account()
-                .organization_id
-                .clone(),
-        );
+        let dimensions = Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+        let feature_config = core_utils::get_feature_config(state, platform, &dimensions).await;
 
-        let is_modular_flow = pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-            state,
-            &pm_modular_dimensions,
-        )
-        .await;
-
-        if is_modular_flow {
-            // Modular path: payment_token IS the payment_method_id in the modular service.
+        if feature_config.is_payment_method_modular_allowed {
             logger::info!("Resolving payment token via PM Modular Service for eligibility check");
+            // Permanent tokens carry the underlying payment_method_id; any other token
+            // type (or a Redis miss) is treated as the payment_method_id itself.
+            let payment_token = payment_token.peek();
+            let payment_method_id = match helpers::retrieve_payment_token_data(
+                state,
+                payment_token.clone(),
+                Some(payment_method_type),
+            )
+            .await
+            {
+                Ok(storage::PaymentTokenData::Permanent(card_token_data))
+                | Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => card_token_data
+                    .payment_method_id
+                    .unwrap_or_else(|| payment_token.clone()),
+                _ => payment_token.clone(),
+            };
+
             let pm_response = pm_transformers::fetch_payment_method_from_modular_service(
                 state,
                 platform,
                 profile_id,
-                payment_token.clone().expose().as_str(),
-                None, // CVC token data is not passed in create api
+                payment_method_id.as_str(),
+                None, // CVC is not collected during the eligibility check
+                true, // fetch raw card detail from the internal vault
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -8898,40 +9614,75 @@ impl PaymentEligibilityData {
                 .raw_payment_method_data
                 .map(domain::EligibilityPaymentMethodData::from))
         } else {
-            // Legacy path: resolve via Redis token → DB → locker.
-            Self::resolve_payment_token_via_db(state, platform, payment_token, payment_method_type)
-                .await
+            let token_data = helpers::retrieve_payment_token_data(
+                state,
+                payment_token.peek().clone(),
+                Some(payment_method_type),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Invalid or expired payment token".to_string(),
+            })
+            .attach_printable("Failed to retrieve payment token data from storage")?;
+
+            let payment_method_record = helpers::retrieve_payment_method_from_db_with_token_data(
+                state,
+                platform.get_provider().get_key_store(),
+                &token_data,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .attach_printable("Failed to retrieve payment method from DB")?;
+
+            match payment_method_record {
+                Some(payment_method)
+                    if feature_config.should_use_modular_pm_path(
+                        Some(payment_method.version),
+                        payment_method.compatibility_updated_at,
+                        Some(payment_method.last_modified),
+                    ) =>
+                {
+                    logger::debug!(
+                        "Payment method is modular, fetching payment method from PM Modular Service"
+                    );
+                    let pm_response = pm_transformers::fetch_payment_method_from_modular_service(
+                        state,
+                        platform,
+                        profile_id,
+                        payment_method.get_id(),
+                        None, // CVC is not collected during the eligibility check
+                        true, // fetch raw card detail from the internal vault
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+                    .attach_printable("Failed to fetch payment method from modular service")?;
+
+                    Ok(pm_response
+                        .raw_payment_method_data
+                        .map(domain::EligibilityPaymentMethodData::from))
+                }
+                payment_method_record => {
+                    Self::read_payment_method_data_from_locker(
+                        state,
+                        platform,
+                        &token_data,
+                        payment_method_record,
+                    )
+                    .await
+                }
+            }
         }
     }
 
-    /// Legacy token resolution: Redis → DB → locker.
-    async fn resolve_payment_token_via_db(
+    /// Reads raw card data from the locker for permanent card tokens using the
+    /// prefetched token data and payment method DB record.
+    async fn read_payment_method_data_from_locker(
         state: &SessionState,
         platform: &domain::Platform,
-        payment_token: &Secret<String>,
-        payment_method_type: common_enums::PaymentMethod,
+        token_data: &storage::PaymentTokenData,
+        payment_method_record: Option<domain::PaymentMethod>,
     ) -> CustomResult<Option<domain::EligibilityPaymentMethodData>, errors::ApiErrorResponse> {
-        let token_data = helpers::retrieve_payment_token_data(
-            state,
-            payment_token.clone().expose(),
-            Some(payment_method_type),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::UnprocessableEntity {
-            message: "Invalid or expired payment token".to_string(),
-        })
-        .attach_printable("Failed to retrieve payment token data from storage")?;
-
-        let payment_method_record = helpers::retrieve_payment_method_from_db_with_token_data(
-            state,
-            platform.get_provider().get_key_store(),
-            &token_data,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await
-        .attach_printable("Failed to retrieve payment method from DB")?;
-
-        let payment_method_data = match &token_data {
+        let payment_method_data = match token_data {
             storage::PaymentTokenData::PermanentCard(card_token) => {
                 // Read full card data from the locker using the DB record.
                 let pm_record = payment_method_record
@@ -8970,16 +9721,11 @@ impl PaymentEligibilityData {
                 ))
             }
             // Wallet and other token types: no raw card data available via this path.
-            #[cfg(feature = "v1")]
             storage::PaymentTokenData::Temporary(_)
             | storage::PaymentTokenData::TemporaryGeneric(_)
             | storage::PaymentTokenData::Permanent(_)
             | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::WalletToken(_)
-            | storage::PaymentTokenData::BankDebit(_) => None,
-            #[cfg(feature = "v2")]
-            storage::PaymentTokenData::TemporaryGeneric(_)
-            | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::BankDebit(_) => None,
         };
 
@@ -9071,6 +9817,7 @@ pub async fn get_payment_link_response_from_id(
 pub fn if_not_create_change_operation<'a, Op, F>(
     status: storage_enums::IntentStatus,
     confirm: Option<bool>,
+    flow_kind: operations::PaymentFlowKind,
     current: &'a Op,
 ) -> BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>
 where
@@ -9081,7 +9828,15 @@ where
     &'a PaymentStatus: Operation<F, api::PaymentsRequest, Data = PaymentData<F>>,
 {
     if confirm.unwrap_or(false) {
-        Box::new(PaymentConfirm)
+        // Single-call create+confirm: hand off to the confirm operation matching the core that
+        // invoked create. The external vault proxy core needs the proxy confirm so that the
+        // downstream connector call uses the vault-proxy flow.
+        match flow_kind {
+            operations::PaymentFlowKind::ExternalVaultProxy => {
+                Box::new(PaymentExternalVaultProxyConfirm)
+            }
+            operations::PaymentFlowKind::Standard => Box::new(PaymentConfirm),
+        }
     } else {
         match status {
             storage_enums::IntentStatus::RequiresConfirmation
@@ -9121,6 +9876,7 @@ where
 {
     match format!("{operation:?}").as_str() {
         "PaymentConfirm" => true,
+        "PaymentExternalVaultProxyConfirm" => true,
         "PaymentStart" => {
             !matches!(
                 payment_data.get_payment_intent().status,
@@ -9162,17 +9918,30 @@ where
                 || (in_progress && force_sync)
                 || capture_failure_webhook_over_success_payment
         }
-        "PaymentCancel" => matches!(
-            payment_data.get_payment_intent().status,
-            storage_enums::IntentStatus::RequiresCapture
-                | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
-        ),
+        "PaymentCancel" => {
+            let flow_name = core_utils::get_flow_name::<F>().unwrap_or_default();
+            match flow_name.as_str() {
+                "Void" => matches!(
+                    payment_data.get_payment_intent().status,
+                    storage_enums::IntentStatus::RequiresCapture
+                        | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
+                ),
+                "PreAuthorizeVoid" => matches!(
+                    payment_data.get_payment_intent().status,
+                    storage_enums::IntentStatus::RequiresCustomerAction
+                ),
+                _ => false,
+            }
+        }
         "PaymentCancelPostCapture" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::Succeeded
                 | storage_enums::IntentStatus::PartiallyCaptured
                 | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
         ),
+        "PaymentCancelPostCaptureSync" => payment_data
+            .get_payment_intent()
+            .is_post_capture_void_pending(),
         "PaymentCapture" => {
             matches!(
                 payment_data.get_payment_intent().status,
@@ -9787,6 +10556,43 @@ pub async fn add_process_sync_task(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
+pub async fn add_process_post_capture_void_sync_task(
+    db: &dyn StorageInterface,
+    payment_attempt: &storage::PaymentAttempt,
+    schedule_time: time::PrimitiveDateTime,
+    application_source: enums::ApplicationSource,
+) -> CustomResult<(), errors::StorageError> {
+    let tracking_data = api::PaymentsPostCaptureVoidSyncTrackingData {
+        payment_id: payment_attempt.payment_id.clone(),
+        merchant_id: payment_attempt.merchant_id.clone(),
+    };
+    let runner = storage::ProcessTrackerRunner::PaymentsPostCaptureVoidSyncWorkflow;
+    let task = "PAYMENTS_POST_CAPTURE_VOID_SYNC";
+    let tag = ["POST_CAPTURE_VOID_SYNC", "PAYMENT"];
+    let process_tracker_id = pt_utils::get_process_tracker_id(
+        runner,
+        task,
+        payment_attempt.get_id(),
+        &payment_attempt.merchant_id,
+    );
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        None,
+        schedule_time,
+        common_types::consts::API_VERSION,
+        application_source,
+    )
+    .map_err(errors::StorageError::from)?;
+
+    db.insert_process(process_tracker_entry).await?;
+    Ok(())
+}
+
 #[cfg(feature = "v2")]
 pub async fn reset_process_sync_task(
     db: &dyn StorageInterface,
@@ -9801,9 +10607,9 @@ pub async fn reset_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
+    task: &str,
+    runner: storage::ProcessTrackerRunner,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let runner = storage::ProcessTrackerRunner::PaymentsSyncWorkflow;
-    let task = "PAYMENTS_SYNC";
     let process_tracker_id = pt_utils::get_process_tracker_id(
         runner,
         task,
@@ -10100,6 +10906,44 @@ pub fn get_proxy_connector_filters(
     }
 }
 
+async fn get_eligible_connector_for_vault_card_proxy<
+    T: core_routing::GetRoutableConnectorsForChoice,
+    F,
+    D,
+>(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &mut D,
+    connector_choice: T,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    business_profile: &domain::Profile,
+) -> RouterResult<api::ConnectorData>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    // Vault-card proxy flow: no recurring/NTI details, skip the MIT-specific proxy filter
+    // and use standard routing eligibility analysis.
+    let eligible_connector_data_list = connector_choice
+        .get_routable_connectors(state, dimensions, business_profile, payment_data)
+        .await?
+        .construct_dsl_and_perform_eligibility_analysis(
+            state,
+            key_store,
+            payment_data,
+            business_profile,
+        )
+        .await
+        .attach_printable("Failed to fetch eligible connector data for vault card proxy")?;
+
+    let eligible_connector_data = eligible_connector_data_list
+        .first()
+        .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+        .attach_printable("No eligible connector found for the vault card proxy flow")?;
+
+    Ok(eligible_connector_data.clone())
+}
+
 pub async fn set_eligible_connector_for_proxy_in_payment_data<F, D>(
     state: &SessionState,
     business_profile: &domain::Profile,
@@ -10112,28 +10956,56 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
+    // If there are no recurring details this is a direct vault-card proxy payment
+    // (not an MIT flow), so skip the NTI/recurring-based connector filter.
+    let is_vault_card_flow = payment_data.get_recurring_details().is_none();
+
     let eligible_connector_data = match connector_choice {
         api::ConnectorChoice::StraightThrough(straight_through) => {
-            get_eligible_connector_for_proxy(
-                state,
-                key_store,
-                payment_data,
-                core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
-                dimensions,
-                business_profile,
-            )
-            .await?
+            if is_vault_card_flow {
+                get_eligible_connector_for_vault_card_proxy(
+                    state,
+                    key_store,
+                    payment_data,
+                    core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
+                    dimensions,
+                    business_profile,
+                )
+                .await?
+            } else {
+                get_eligible_connector_for_proxy(
+                    state,
+                    key_store,
+                    payment_data,
+                    core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
+                    dimensions,
+                    business_profile,
+                )
+                .await?
+            }
         }
         api::ConnectorChoice::Decide => {
-            get_eligible_connector_for_proxy(
-                state,
-                key_store,
-                payment_data,
-                core_routing::DecideConnector,
-                dimensions,
-                business_profile,
-            )
-            .await?
+            if is_vault_card_flow {
+                get_eligible_connector_for_vault_card_proxy(
+                    state,
+                    key_store,
+                    payment_data,
+                    core_routing::DecideConnector,
+                    dimensions,
+                    business_profile,
+                )
+                .await?
+            } else {
+                get_eligible_connector_for_proxy(
+                    state,
+                    key_store,
+                    payment_data,
+                    core_routing::DecideConnector,
+                    dimensions,
+                    business_profile,
+                )
+                .await?
+            }
         }
         api::ConnectorChoice::SessionMultiple(_) => {
             Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
@@ -11850,25 +12722,25 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("missing authentication_id in payment_attempt")?;
 
-            let auth_config = &state.conf.micro_services.authentication_service;
-
-            let req_identifier = router_env::RequestIdentifier::new("x-request-id");
-            let client = crate::core::authentication_client::AuthenticationServiceClient::new(
-                auth_config,
-                &req_identifier,
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to create auth client")?;
-
             let authenticate_req = api_models::authentication::AuthenticationAuthenticateRequest {
-                authentication_id,
+                authentication_id: authentication_id.clone(),
                 client_secret: None,
                 sdk_information: req.sdk_information.clone(),
                 device_channel: req.device_channel,
                 threeds_method_comp_ind: req.threeds_method_comp_ind,
             };
+            // If micro service is enabled we do api call else do internal function call
+            let response = if let Some(auth_config) =
+                &state.conf.micro_services.authentication_service
+            {
+                let req_identifier = router_env::RequestIdentifier::new("x-request-id");
+                let client = crate::core::authentication_client::AuthenticationServiceClient::new(
+                    auth_config,
+                    &req_identifier,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to create auth client")?;
 
-            let response =
                 crate::core::authentication_client::AuthenticationAuthenticateFlow::call(
                     &state,
                     &client,
@@ -11876,7 +12748,54 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to call authentication authenticate flow")?;
+                .attach_printable("Failed to call authentication authenticate flow")?
+            } else {
+                crate::core::unified_authentication_service::authentication_authenticate_core(
+                    state.clone(),
+                    platform.clone(),
+                    authenticate_req,
+                    services::api::AuthFlow::Client,
+                )
+                .await?
+                .get_json_body()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to get json body from authentication authenticate response",
+                )?
+            };
+
+            let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
+                status: payment_attempt.status,
+                external_three_ds_authentication_attempted: Some(true),
+                external_threeds_authentication_type: response
+                    .transaction_status
+                    .as_ref()
+                    .and_then(|transaction_status| {
+                        match transaction_status {
+                    common_enums::TransactionStatus::ChallengeRequired
+                    | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
+                        Some(common_enums::DecoupledAuthenticationType::Challenge)
+                    }
+                    common_enums::TransactionStatus::Success => {
+                        Some(common_enums::DecoupledAuthenticationType::Frictionless)
+                    }
+                    _ => None,
+                }
+                    }),
+                authentication_connector: response.authentication_connector.map(|c| c.to_string()),
+                authentication_id: Some(response.authentication_id.clone()),
+                updated_by: storage_scheme.to_string(),
+            };
+
+            db.update_payment_attempt_with_attempt_id(
+                payment_attempt.clone(),
+                attempt_update,
+                storage_scheme,
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable("Error while updating the payment_attempt")?;
 
             authentication::AuthenticationResponse {
                 trans_status: response
@@ -12360,6 +13279,7 @@ impl From<CheckResult> for Option<api_models::payments::SdkNextAction> {
             CheckResult::Allow => None,
             CheckResult::Deny { message } => Some(api_models::payments::SdkNextAction {
                 next_action: api_models::payments::NextActionCall::Deny { message },
+                should_block_confirm: None,
             }),
         }
     }
@@ -12541,15 +13461,34 @@ impl EligibilityHandler {
             false => None,
         })
     }
+
+    // Run all eligibility checks in sequence, short-circuiting on the first deny.
+    // Returns Confirm if no check denies.
+    async fn run_all_eligiblity_checks(
+        &self,
+    ) -> CustomResult<api_models::payments::SdkNextAction, errors::ApiErrorResponse> {
+        let sdk_next_action = self
+            .run_check(BlockListCheck)
+            .await
+            .transpose()
+            .async_or_else(|| async { self.run_check(CardTestingCheck).await.transpose() })
+            .await
+            .transpose()?
+            .unwrap_or(api_models::payments::SdkNextAction {
+                next_action: api_models::payments::NextActionCall::Confirm,
+                should_block_confirm: None,
+            });
+        Ok(sdk_next_action)
+    }
 }
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
-pub async fn payments_submit_eligibility(
+pub async fn payments_submit_eligibility_check(
     state: SessionState,
     platform: domain::Platform,
-    req: api_models::payments::PaymentsEligibilityRequest,
+    req: api_models::payments::PaymentsEligibilityCheckRequest,
     payment_id: id_type::PaymentId,
-) -> RouterResponse<api_models::payments::PaymentsEligibilityResponse> {
+) -> RouterResponse<api_models::payments::PaymentsEligibilityCheckResponse> {
     let payment_eligibility_data = Box::pin(PaymentEligibilityData::from_request(
         &state, &platform, &req,
     ))
@@ -12569,26 +13508,502 @@ pub async fn payments_submit_eligibility(
         })?;
     let eligibility_handler =
         EligibilityHandler::new(state, platform, payment_eligibility_data, business_profile);
-    // Run the checks in sequence, short-circuiting on the first that returns a next action
-    let sdk_next_action = eligibility_handler
-        .run_check(BlockListCheck)
+    let sdk_next_action = eligibility_handler.run_all_eligiblity_checks().await?;
+    Ok(services::ApplicationResponse::Json(
+        api_models::payments::PaymentsEligibilityCheckResponse {
+            payment_id,
+            sdk_next_action,
+        },
+    ))
+}
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+struct SurchargeCalculationInputs {
+    amount: MinorUnit,
+    currency: Option<storage_enums::Currency>,
+    external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    active_attempt_id: String,
+    card_iin: Option<String>,
+    billing_address: Option<hyperswitch_domain_models::address::Address>,
+    payment_method: common_enums::PaymentMethod,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+}
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+impl SurchargeCalculationInputs {
+    fn from_eligibility_data(
+        data: &PaymentEligibilityData,
+        req: &api_models::payments::PaymentsEligibilityCheckRequest,
+    ) -> Self {
+        let pi_billing_address: Option<hyperswitch_domain_models::address::Address> =
+            data.payment_intent.billing_details.as_ref().and_then(|b| {
+                match b
+                    .clone()
+                    .deserialize_inner_value(|value| value.parse_value("Address"))
+                {
+                    Ok(enc) => Some(enc.into_inner()),
+                    Err(err) => {
+                        logger::warn!(
+                            error=?err,
+                            "eligibility: failed to deserialize payment_intent billing_details; proceeding without PI billing fallback"
+                        );
+                        None
+                    }
+                }
+            });
+        let req_billing_address: Option<hyperswitch_domain_models::address::Address> = req
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.billing.clone())
+            .map(Into::into);
+        let billing_address = match req_billing_address {
+            Some(req_billing) => Some(req_billing.unify_address(pi_billing_address.as_ref())),
+            None => pi_billing_address,
+        };
+        let card_iin = data
+            .payment_method_data
+            .as_ref()
+            .and_then(domain::EligibilityPaymentMethodData::get_card_iin);
+        Self {
+            amount: data.payment_intent.amount,
+            currency: data.payment_intent.currency,
+            external_surcharge_strategy: data.payment_intent.external_surcharge_strategy,
+            active_attempt_id: data.payment_intent.active_attempt.get_id().clone(),
+            card_iin,
+            billing_address,
+            payment_method: req.payment_method_type,
+            payment_method_type: req.payment_method_subtype,
+        }
+    }
+}
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+async fn previous_connector_surcharge_id(
+    state: &SessionState,
+    payment_id: &id_type::PaymentId,
+    merchant_id: &id_type::MerchantId,
+    attempt_id: &str,
+    storage_scheme: storage_enums::MerchantStorageScheme,
+    key_store: &domain::MerchantKeyStore,
+) -> Option<String> {
+    match state
+        .store
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            payment_id,
+            merchant_id,
+            attempt_id,
+            storage_scheme,
+            key_store,
+        )
         .await
-        .transpose()
-        .async_or_else(|| async {
-            eligibility_handler
-                .run_check(CardTestingCheck)
-                .await
-                .transpose()
-        })
+    {
+        Ok(attempt) => attempt
+            .external_surcharge_details
+            .as_ref()
+            .filter(|surcharge_details| !surcharge_details.sale_notified)
+            .map(|surcharge_details| surcharge_details.external_surcharge_id.clone()),
+        Err(err) => {
+            logger::warn!(error=?err, "Failed to fetch payment_attempt before surcharge calc; proceeding without previous_id");
+            None
+        }
+    }
+}
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+async fn store_external_surcharge_in_redis(
+    state: &SessionState,
+    payment_id: &id_type::PaymentId,
+    merchant_id: &id_type::MerchantId,
+    surcharge_amount: MinorUnit,
+    payment_method: common_enums::PaymentMethod,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+) -> RouterResult<()> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection for surcharge")?;
+    let redis_key = payment_id.get_external_surcharge_redis_key(merchant_id);
+    let surcharge_to_store =
+        hyperswitch_domain_models::router_request_types::ExternalSurchargeDetails {
+            surcharge_amount,
+            tax_amount: None,
+            payment_method,
+            payment_method_type,
+        };
+    redis_conn
+        .serialize_and_set_key_with_expiry(
+            &redis_key.as_str().into(),
+            &surcharge_to_store,
+            consts::EXTERNAL_SURCHARGE_TTL,
+        )
         .await
-        .transpose()?
-        .unwrap_or(api_models::payments::SdkNextAction {
-            next_action: api_models::payments::NextActionCall::Confirm,
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to store external surcharge in redis")?;
+    logger::info!(
+        redis_key = %redis_key,
+        "eligibility: stored surcharge in Redis"
+    );
+    Ok(())
+}
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+fn build_surcharge_response(
+    surcharge_amount: MinorUnit,
+    currency: storage_enums::Currency,
+) -> api_models::payment_methods::SurchargeDetailsResponse {
+    let surcharge_f64 = currency
+        .to_currency_base_unit_asf64(surcharge_amount.get_amount_as_i64())
+        .unwrap_or_default();
+    api_models::payment_methods::SurchargeDetailsResponse {
+        surcharge: api_models::payment_methods::SurchargeResponse::Fixed(surcharge_amount),
+        tax_on_surcharge: None,
+        display_surcharge_amount: surcharge_f64,
+        display_tax_on_surcharge_amount: 0.0,
+        display_total_surcharge_amount: surcharge_f64,
+    }
+}
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+async fn calculate_external_surcharge(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_id: &id_type::PaymentId,
+    profile_id: &id_type::ProfileId,
+    surcharge_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    payment_intent: storage::PaymentIntent,
+    inputs: SurchargeCalculationInputs,
+) -> RouterResult<Option<api_models::payment_methods::SurchargeDetailsResponse>> {
+    let surcharge_details = match (
+        surcharge_connector_id,
+        inputs.card_iin.clone(),
+        inputs.currency,
+    ) {
+        (Some(surcharge_connector_id), Some(card_iin), Some(currency)) => {
+            let processor = platform.get_processor();
+            match run_external_surcharge_ucs(
+                state,
+                processor,
+                payment_id,
+                profile_id,
+                &surcharge_connector_id,
+                card_iin,
+                currency,
+                &inputs,
+            )
+            .await?
+            {
+                Some(resp) => {
+                    let surcharge_amount = resp.surcharge_amount;
+                    let merchant_id = processor.get_account().get_id().clone();
+                    let storage_scheme = processor.get_account().storage_scheme;
+                    let key_store = processor.get_key_store().clone();
+                    // Both writes must succeed: without Redis the cached surcharge can't be
+                    // applied on /confirm, and without the flag /confirm wouldn't even try.
+                    store_external_surcharge_in_redis(
+                        state,
+                        payment_id,
+                        &merchant_id,
+                        surcharge_amount,
+                        inputs.payment_method,
+                        inputs.payment_method_type,
+                    )
+                    .await
+                    .attach_printable("eligibility: failed to write surcharge to Redis")?;
+                    state
+                        .store
+                        .update_payment_intent(
+                            payment_intent,
+                            storage::PaymentIntentUpdate::ExternalSurchargeApplicableUpdate {
+                                external_surcharge_applicable: true,
+                                updated_by: storage_scheme.to_string(),
+                            },
+                            &key_store,
+                            storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "eligibility: failed to set external_surcharge_applicable on payment_intent",
+                        )?;
+                    Some(build_surcharge_response(surcharge_amount, currency))
+                }
+                None => None,
+            }
+        }
+        _ => None,
+    };
+    Ok(surcharge_details)
+}
+
+// Shared UCS surcharge call for /eligibility and MIT /confirm.
+#[cfg(all(feature = "oltp", feature = "v1"))]
+#[allow(clippy::too_many_arguments)]
+async fn run_external_surcharge_ucs(
+    state: &SessionState,
+    processor: &domain::Processor,
+    payment_id: &id_type::PaymentId,
+    profile_id: &id_type::ProfileId,
+    surcharge_connector_id: &id_type::MerchantConnectorAccountId,
+    card_iin: String,
+    currency: storage_enums::Currency,
+    inputs: &SurchargeCalculationInputs,
+) -> RouterResult<
+    Option<hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData>,
+> {
+    let merchant_id = processor.get_account().get_id().clone();
+    let storage_scheme = processor.get_account().storage_scheme;
+    let key_store = processor.get_key_store();
+
+    let surcharge_mca = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &merchant_id,
+            surcharge_connector_id,
+            key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: surcharge_connector_id.get_string_repr().to_string(),
+        })?;
+
+    let previous_connector_surcharge_id = previous_connector_surcharge_id(
+        state,
+        payment_id,
+        &merchant_id,
+        &inputs.active_attempt_id,
+        storage_scheme,
+        key_store,
+    )
+    .await;
+
+    let billing_details = inputs
+        .billing_address
+        .as_ref()
+        .and_then(|addr| addr.address.as_ref());
+    let surcharge_data =
+        hyperswitch_domain_models::router_request_types::PaymentsSurchargeCalculationData {
+            amount: inputs.amount,
+            currency,
+            postal_code: billing_details.and_then(|det| det.zip.clone()),
+            card_iin,
+            previous_connector_surcharge_id,
+            country: billing_details.and_then(|det| det.country),
+            external_surcharge_strategy: inputs.external_surcharge_strategy,
+        };
+    let connector_name = surcharge_mca.connector_name.clone();
+    let mca_type = helpers::MerchantConnectorAccountType::DbVal(Box::new(surcharge_mca));
+
+    match call_unified_connector_service_for_surcharge_calculate(
+        state,
+        processor,
+        mca_type,
+        surcharge_data,
+        payment_id,
+        profile_id,
+        connector_name,
+    )
+    .await
+    {
+        Ok(resp) => Ok(Some(resp)),
+        Err(err) => {
+            logger::warn!(
+                error=?err,
+                "External surcharge calculation failed; proceeding without surcharge"
+            );
+            Ok(None)
+        }
+    }
+}
+
+// MIT /confirm has no prior /eligibility call, so compute surcharge inline.
+// Best-effort: any failure returns None and confirm proceeds with the original amount.
+#[cfg(feature = "v1")]
+async fn calculate_mit_external_surcharge(
+    state: &SessionState,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
+    payment_intent: &storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_method_data: Option<&domain::PaymentMethodData>,
+    payment_method_billing: Option<&hyperswitch_domain_models::address::Address>,
+) -> Option<types::SurchargeDetails> {
+    let surcharge_connector_id = business_profile
+        .surcharge_connector_details
+        .as_ref()
+        .and_then(|details| details.surcharge_connector_id.clone());
+    let card_iin = payment_method_data
+        .and_then(domain::PaymentMethodData::get_card_iin)
+        .or_else(|| {
+            payment_attempt
+                .payment_method_data
+                .as_ref()
+                .and_then(|pmd| {
+                    pmd.clone()
+                        .parse_value::<payments_api::AdditionalPaymentData>(
+                            "additional_payment_method_data",
+                        )
+                        .inspect_err(|err| {
+                            logger::warn!(
+                                error=?err,
+                                "MIT confirm: failed to parse payment_attempt.payment_method_data as AdditionalPaymentData"
+                            );
+                        })
+                        .ok()
+                })
+                .and_then(|additional| additional.get_additional_card_info())
+                .and_then(|card_info| card_info.card_isin)
         });
+    let currency = payment_intent.currency;
+    let payment_method = payment_attempt.payment_method;
+    let payment_method_type = payment_attempt.payment_method_type;
+    let profile_id = payment_intent.profile_id.clone();
+
+    match (
+        surcharge_connector_id,
+        card_iin,
+        currency,
+        payment_method,
+        profile_id,
+    ) {
+        (
+            Some(surcharge_connector_id),
+            Some(card_iin),
+            Some(currency),
+            Some(payment_method),
+            Some(profile_id),
+        ) => {
+            let pi_billing_address: Option<hyperswitch_domain_models::address::Address> =
+                payment_intent.billing_details.as_ref().and_then(|billing| {
+                    match billing
+                        .clone()
+                        .deserialize_inner_value(|value| value.parse_value("Address"))
+                    {
+                        Ok(enc) => Some(enc.into_inner()),
+                        Err(err) => {
+                            logger::warn!(
+                                error=?err,
+                                "MIT confirm: failed to deserialize payment_intent billing_details"
+                            );
+                            None
+                        }
+                    }
+                });
+            let billing_address = pi_billing_address
+                .map(|address| address.unify_address(payment_method_billing))
+                .or_else(|| payment_method_billing.cloned());
+
+            let inputs = SurchargeCalculationInputs {
+                amount: payment_intent.amount,
+                currency: Some(currency),
+                external_surcharge_strategy: payment_intent.external_surcharge_strategy,
+                active_attempt_id: payment_attempt.attempt_id.clone(),
+                card_iin: None,
+                billing_address,
+                payment_method,
+                payment_method_type,
+            };
+
+            let ucs_response = run_external_surcharge_ucs(
+                state,
+                processor,
+                &payment_attempt.payment_id,
+                &profile_id,
+                &surcharge_connector_id,
+                card_iin,
+                currency,
+                &inputs,
+            )
+            .await;
+
+            match ucs_response {
+                Ok(Some(resp)) => Some(types::SurchargeDetails {
+                    original_amount: payment_attempt.net_amount.get_order_amount(),
+                    surcharge: Surcharge::Fixed(resp.surcharge_amount),
+                    tax_on_surcharge: None,
+                    surcharge_amount: resp.surcharge_amount,
+                    tax_on_surcharge_amount: MinorUnit::new(0),
+                }),
+                Ok(None) => None,
+                Err(err) => {
+                    logger::warn!(
+                        error=?err,
+                        "MIT confirm: external surcharge calc failed; proceeding without surcharge"
+                    );
+                    None
+                }
+            }
+        }
+        _ => None,
+    }
+}
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+pub async fn payments_submit_eligibility(
+    state: SessionState,
+    platform: domain::Platform,
+    req: api_models::payments::PaymentsEligibilityRequest,
+    payment_id: id_type::PaymentId,
+) -> RouterResponse<api_models::payments::PaymentsEligibilityResponse> {
+    let eligibility_req: api_models::payments::PaymentsEligibilityCheckRequest = req.into();
+    let payment_eligibility_data = Box::pin(PaymentEligibilityData::from_request(
+        &state,
+        &platform,
+        &eligibility_req,
+    ))
+    .await?;
+    let profile_id = payment_eligibility_data
+        .payment_intent
+        .profile_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("'profile_id' not set in payment intent")?;
+    let business_profile = state
+        .store
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+    // Capture surcharge inputs and clone state/platform before the handler takes ownership.
+    let surcharge_inputs = SurchargeCalculationInputs::from_eligibility_data(
+        &payment_eligibility_data,
+        &eligibility_req,
+    );
+    let surcharge_connector_id = business_profile
+        .surcharge_connector_details
+        .as_ref()
+        .and_then(|details| details.surcharge_connector_id.clone());
+    let payment_intent_for_surcharge = payment_eligibility_data.payment_intent.clone();
+    let state_for_surcharge = state.clone();
+    let platform_for_surcharge = platform.clone();
+
+    let eligibility_handler =
+        EligibilityHandler::new(state, platform, payment_eligibility_data, business_profile);
+    let sdk_next_action = eligibility_handler.run_all_eligiblity_checks().await?;
+
+    let surcharge_details = match sdk_next_action.next_action {
+        api_models::payments::NextActionCall::Deny { .. } => None,
+        _ => {
+            calculate_external_surcharge(
+                &state_for_surcharge,
+                &platform_for_surcharge,
+                &payment_id,
+                &profile_id,
+                surcharge_connector_id,
+                payment_intent_for_surcharge,
+                surcharge_inputs,
+            )
+            .await?
+        }
+    };
+
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsEligibilityResponse {
             payment_id,
             sdk_next_action,
+            surcharge_details,
         },
     ))
 }
@@ -12701,6 +14116,11 @@ pub trait OperationSessionGetters<F> {
 
     #[cfg(feature = "v1")]
     fn get_installment_details(&self) -> Option<&common_types::payments::InstallmentData>;
+
+    #[cfg(feature = "v1")]
+    fn get_external_vault_pmd(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData>;
 }
 
 pub trait OperationSessionSetters<F> {
@@ -12784,6 +14204,14 @@ pub trait OperationSessionSetters<F> {
     );
     #[cfg(feature = "v2")]
     fn set_cancellation_reason(&mut self, cancellation_reason: Option<String>);
+
+    #[cfg(feature = "v1")]
+    fn set_external_vault_pmd(
+        &mut self,
+        external_vault_pmd: Option<
+            hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+        >,
+    );
 }
 
 #[cfg(feature = "v1")]
@@ -12960,15 +14388,12 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.vault_session_details.clone()
     }
 
-    // #[cfg(feature = "v2")]
-    // fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
-    //     Some(self.payment_intent.capture_method)
-    // }
-
-    // #[cfg(feature = "v2")]
-    // fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
-    //     todo!();
-    // }
+    fn get_external_vault_pmd(
+        &self,
+    ) -> Option<&hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData>
+    {
+        self.external_vault_pmd.as_ref()
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -13155,6 +14580,15 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         connector_request_reference_id: String,
     ) {
         self.payment_attempt.connector_request_reference_id = Some(connector_request_reference_id);
+    }
+
+    fn set_external_vault_pmd(
+        &mut self,
+        external_vault_pmd: Option<
+            hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+        >,
+    ) {
+        self.external_vault_pmd = external_vault_pmd;
     }
 }
 
