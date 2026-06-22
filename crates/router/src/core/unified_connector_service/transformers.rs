@@ -2141,6 +2141,9 @@ impl
             browser_info,
             test_mode: router_data.test_mode,
             payment_method_type,
+            auth_type: Some(
+                payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)?.into(),
+            ),
             state,
             return_url: router_data.request.router_return_url.clone(),
             description: router_data.description.clone(),
@@ -5857,6 +5860,9 @@ impl transformers::ForeignTryFrom<common_types::payments::CustomerAcceptance>
 impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateDetails {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
+    // MandateAmountData::{amount,currency} are deprecated in favour of `amount_money`, but are
+    // still populated below for backward compatibility with readers that haven't migrated yet.
+    #[allow(deprecated)]
     fn foreign_try_from(mandate_data: &MandateData) -> Result<Self, Self::Error> {
         let customer_acceptance = mandate_data
             .customer_acceptance
@@ -5886,6 +5892,14 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                             end_date: amount_data.end_date.map(|dt: time::PrimitiveDateTime| {
                                 dt.assume_utc().unix_timestamp()
                             }),
+                            amount_money: Some(payments_grpc::Money {
+                                minor_amount: amount_data.amount.get_amount_as_i64(),
+                                currency: payments_grpc::Currency::foreign_try_from(
+                                    amount_data.currency,
+                                )
+                                .unwrap_or(payments_grpc::Currency::Unspecified)
+                                .into(),
+                            }),
                         },
                     )),
                 },
@@ -5907,6 +5921,14 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                 end_date: amount_data.end_date.map(
                                     |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
                                 ),
+                                amount_money: Some(payments_grpc::Money {
+                                    minor_amount: amount_data.amount.get_amount_as_i64(),
+                                    currency: payments_grpc::Currency::foreign_try_from(
+                                        amount_data.currency,
+                                    )
+                                    .unwrap_or(payments_grpc::Currency::Unspecified)
+                                    .into(),
+                                }),
                             },
                         )
                     }),
