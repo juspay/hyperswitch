@@ -1,7 +1,9 @@
 use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
 use api_models::{self, enums as api_enums, payments};
-use common_enums::{enums, AttemptStatus, PaymentChargeType, StripeChargeType};
+use common_enums::{
+    enums, AttemptStatus, AttemptStatusDomain, PaymentChargeType, StripeChargeType,
+};
 use common_types::{
     payments::{AcceptanceType, SplitPaymentsRequest},
     primitive_wrappers,
@@ -2755,24 +2757,41 @@ pub enum StripePaymentStatus {
     Chargeable,
     Consumed,
     Pending,
+    /// Catch-all for unknown Stripe statuses to prevent deserialization failures
+    #[serde(other)]
+    Unknown,
 }
 
+impl From<StripePaymentStatus> for AttemptStatusDomain {
+    fn from(item: StripePaymentStatus) -> Self {
+        use common_enums::AttemptStatusDomain;
+        match item {
+            StripePaymentStatus::Succeeded => AttemptStatusDomain::Charged,
+            StripePaymentStatus::Failed => AttemptStatusDomain::Failure,
+            StripePaymentStatus::Processing => AttemptStatusDomain::Authorizing,
+            StripePaymentStatus::RequiresCustomerAction => {
+                AttemptStatusDomain::AuthenticationPending
+            }
+            StripePaymentStatus::RequiresPaymentMethod => AttemptStatusDomain::Failure,
+            StripePaymentStatus::RequiresConfirmation => AttemptStatusDomain::ConfirmationAwaited,
+            StripePaymentStatus::Canceled => AttemptStatusDomain::Voided,
+            StripePaymentStatus::RequiresCapture => AttemptStatusDomain::Authorized,
+            StripePaymentStatus::Chargeable => AttemptStatusDomain::Authorizing,
+            StripePaymentStatus::Consumed => AttemptStatusDomain::Authorizing,
+            StripePaymentStatus::Pending => AttemptStatusDomain::Pending,
+            StripePaymentStatus::Unknown => AttemptStatusDomain::Unknown,
+        }
+    }
+}
+
+// Keep backward compatibility: convert to AttemptStatus via domain
 impl From<StripePaymentStatus> for AttemptStatus {
     fn from(item: StripePaymentStatus) -> Self {
-        match item {
-            StripePaymentStatus::Succeeded => Self::Charged,
-            StripePaymentStatus::Failed => Self::Failure,
-            StripePaymentStatus::Processing => Self::Authorizing,
-            StripePaymentStatus::RequiresCustomerAction => Self::AuthenticationPending,
-            // Make the payment attempt status as failed
-            StripePaymentStatus::RequiresPaymentMethod => Self::Failure,
-            StripePaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
-            StripePaymentStatus::Canceled => Self::Voided,
-            StripePaymentStatus::RequiresCapture => Self::Authorized,
-            StripePaymentStatus::Chargeable => Self::Authorizing,
-            StripePaymentStatus::Consumed => Self::Authorizing,
-            StripePaymentStatus::Pending => Self::Pending,
-        }
+        // For backward compatibility, use Pending as fallback for Unknown
+        // Production code should prefer AttemptStatusDomain and use resolve_or_keep
+        AttemptStatusDomain::from(item)
+            .to_storage()
+            .unwrap_or(AttemptStatus::Pending)
     }
 }
 
