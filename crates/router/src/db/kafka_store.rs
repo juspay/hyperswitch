@@ -24,6 +24,7 @@ use hyperswitch_domain_models::payouts::{
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::platform::Initiator;
 use hyperswitch_domain_models::{
+    authentication::AuthenticationInterface,
     cards_info::CardsInfoInterface,
     disputes,
     invoice::{Invoice as DomainInvoice, InvoiceInterface, InvoiceUpdate as DomainInvoiceUpdate},
@@ -66,7 +67,6 @@ use crate::{
         self,
         address::AddressInterface,
         api_keys::ApiKeyInterface,
-        authentication::AuthenticationInterface,
         authorization::AuthorizationInterface,
         business_profile::ProfileInterface,
         callback_mapper::CallbackMapperInterface,
@@ -4105,16 +4105,21 @@ impl AuthorizationInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl AuthenticationInterface for KafkaStore {
+    type Error = errors::StorageError;
+
     async fn insert_authentication(
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         authentication: hyperswitch_domain_models::authentication::Authentication,
-    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
-    {
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
         let auth = self
             .diesel_store
-            .insert_authentication(state, key_store, authentication)
+            .insert_authentication(state, key_store, authentication, storage_scheme)
             .await?;
 
         if let Err(er) = self
@@ -4134,14 +4139,18 @@ impl AuthenticationInterface for KafkaStore {
         authentication_id: &id_type::AuthenticationId,
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
-    {
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
         self.diesel_store
             .find_authentication_by_merchant_id_authentication_id(
                 merchant_id,
                 authentication_id,
                 key_store,
                 state,
+                storage_scheme,
             )
             .await
     }
@@ -4152,14 +4161,18 @@ impl AuthenticationInterface for KafkaStore {
         connector_authentication_id: String,
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
-    {
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
         self.diesel_store
             .find_authentication_by_merchant_id_connector_authentication_id(
                 merchant_id,
                 connector_authentication_id,
                 key_store,
                 state,
+                storage_scheme,
             )
             .await
     }
@@ -4170,8 +4183,11 @@ impl AuthenticationInterface for KafkaStore {
         authentication_update: hyperswitch_domain_models::authentication::AuthenticationUpdate,
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
-    {
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
         let auth = self
             .diesel_store
             .update_authentication_by_merchant_id_authentication_id(
@@ -4179,6 +4195,7 @@ impl AuthenticationInterface for KafkaStore {
                 authentication_update,
                 key_store,
                 state,
+                storage_scheme,
             )
             .await?;
 

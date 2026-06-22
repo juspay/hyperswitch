@@ -1,10 +1,11 @@
 use std::{collections::HashMap, str::FromStr};
 
 use api_models::payments::{
-    AmountInfo, ApplePayAddressParameters, ApplePayPaymentRequest, ApplePaySessionResponse,
-    ApplepaySessionTokenResponse, GooglePaySessionResponse, GpayAllowedMethodsParameters,
-    GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayBillingAddressParameters,
-    GpayMerchantInfo, GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
+    AdditionalCardInfo, AdditionalPaymentData, AmountInfo, ApplePayAddressParameters,
+    ApplePayPaymentRequest, ApplePaySessionResponse, ApplepaySessionTokenResponse,
+    GooglePaySessionResponse, GpayAllowedMethodsParameters, GpayAllowedPaymentMethods,
+    GpayBillingAddressFormat, GpayBillingAddressParameters, GpayMerchantInfo,
+    GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
     GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall, PaypalFlow,
     PaypalSessionTokenResponse, PaypalTransactionInfo, SdkNextAction, SecretInfoToInitiateSdk,
     SessionToken, ThirdPartySdkSessionResponse,
@@ -1982,6 +1983,13 @@ impl
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
 
+        let additional_payment_data = router_data
+            .request
+            .additional_payment_method_data
+            .clone()
+            .map(|additional_payment_data| {
+                payments_grpc::AdditionalPaymentData::foreign_from(additional_payment_data)
+            });
         Ok(Self {
             merchant_charge_id: Some(router_data.connector_request_reference_id.clone()),
             payment_method,
@@ -2078,6 +2086,7 @@ impl
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
             }),
+            additional_payment_data,
         })
     }
 }
@@ -6016,13 +6025,17 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
     }
 }
 
-/// Transform UCS RefundResponse into Result<RefundsResponseData, ErrorResponse>
-impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
+/// Transform UCS RefundResponse into Result<RefundsResponseData, ErrorResponse>.
+/// prev_status is the refund status prior to the UCS call; it is used as a fallback when UCS
+/// returns Unspecified (i.e. an unknown connector refund status) so the DB state is not corrupted.
+impl transformers::ForeignTryFrom<(payments_grpc::RefundResponse, RefundStatus)>
     for Result<RefundsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from(response: payments_grpc::RefundResponse) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        (response, prev_status): (payments_grpc::RefundResponse, RefundStatus),
+    ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if let Some(error_info) = response.error.as_ref() {
@@ -6076,7 +6089,7 @@ impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
                 connector_metadata: None,
             })
         } else {
-            let refund_status = RefundStatus::foreign_try_from(response.status())?;
+            let refund_status = RefundStatus::foreign_try_from((response.status(), prev_status))?;
 
             Ok(RefundsResponseData {
                 connector_refund_id: response.connector_refund_id,
@@ -6188,12 +6201,20 @@ impl
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::RefundStatus> for RefundStatus {
+impl transformers::ForeignTryFrom<(payments_grpc::RefundStatus, Self)> for RefundStatus {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from(grpc_status: payments_grpc::RefundStatus) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        (grpc_status, prev_status): (payments_grpc::RefundStatus, Self),
+    ) -> Result<Self, Self::Error> {
         match grpc_status {
-            payments_grpc::RefundStatus::Unspecified => Ok(Self::Pending),
+            payments_grpc::RefundStatus::Unspecified => {
+                router_env::logger::warn!(
+                    "Received Unspecified refund status from UCS; retaining previous status {:?}",
+                    prev_status
+                );
+                Ok(prev_status)
+            }
             payments_grpc::RefundStatus::RefundFailure => Ok(Self::Failure),
             payments_grpc::RefundStatus::RefundManualReview => Ok(Self::ManualReview),
             payments_grpc::RefundStatus::RefundPending => Ok(Self::Pending),
@@ -7532,5 +7553,38 @@ impl transformers::ForeignTryFrom<payments_grpc::SurchargeServiceCalculateRespon
                     .and_then(|cd| cd.message.clone())
             }),
         })
+    }
+}
+
+impl ForeignFrom<AdditionalCardInfo> for payments_grpc::AdditionalCardInfo {
+    fn foreign_from(value: AdditionalCardInfo) -> Self {
+        Self {
+            card_issuer: value.card_issuer,
+            last4: value.last4,
+            card_isin: value.card_isin,
+            card_extended_bin: value.card_extended_bin,
+            card_exp_month: value.card_exp_month,
+            card_exp_year: value.card_exp_year,
+            card_holder_name: value.card_holder_name,
+        }
+    }
+}
+
+impl ForeignFrom<AdditionalPaymentData> for payments_grpc::AdditionalPaymentData {
+    fn foreign_from(value: AdditionalPaymentData) -> Self {
+        match value {
+            AdditionalPaymentData::Card(card_info) => {
+                Self {
+                    payment_method_data: Some(
+                        payments_grpc::additional_payment_data::PaymentMethodData::Card(
+                            ForeignFrom::<AdditionalCardInfo>::foreign_from(*card_info),
+                        ),
+                    ),
+                }
+            }
+            _ => Self {
+                payment_method_data: None,
+            },
+        }
     }
 }
