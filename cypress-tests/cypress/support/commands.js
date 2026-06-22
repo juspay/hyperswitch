@@ -4807,14 +4807,14 @@ Cypress.Commands.add("verifyAchMicrodepositCallTest", (globalState) => {
     }
 
     if (!providerConfig) {
-      cy.task("cli_log", "Provider credentials not found, skipping verification");
+      cy.task(
+        "cli_log",
+        "Provider credentials not found, skipping verification"
+      );
       return;
     }
 
-    cy.task(
-      "cli_log",
-      `Fetching payment intent for microdeposit verification`
-    );
+    cy.task("cli_log", `Fetching payment intent for microdeposit verification`);
 
     cy.task("fetchPaymentIntent", {
       authApiKey: providerConfig.apiKey,
@@ -4827,7 +4827,8 @@ Cypress.Commands.add("verifyAchMicrodepositCallTest", (globalState) => {
       }
 
       const hostedVerificationUrl =
-        result.body.next_action?.verify_with_microdeposits?.hosted_verification_url;
+        result.body.next_action?.verify_with_microdeposits
+          ?.hosted_verification_url;
 
       if (!hostedVerificationUrl) {
         cy.task("cli_log", "No verification required or already verified");
