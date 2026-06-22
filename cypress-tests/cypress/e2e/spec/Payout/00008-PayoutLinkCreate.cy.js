@@ -45,18 +45,6 @@ describe("Payout Link", () => {
     }
   });
 
-  beforeEach(function () {
-    if (
-      Cypress.browser.isHeadless &&
-      this.currentTest.title.startsWith("Visit payout page")
-    ) {
-      cy.log(
-        "Skipping payout link UI test in headless mode - SDK requires headed browser"
-      );
-      this.skip();
-    }
-  });
-
   context("Payout Link - Basic creation and retrieval", () => {
     let shouldContinue = true;
 

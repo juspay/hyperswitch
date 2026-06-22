@@ -10450,14 +10450,6 @@ Cypress.Commands.add(
       return;
     }
 
-    if (RequestBodyUtils.isCI()) {
-      cy.task(
-        "cli_log",
-        "Skipping bank UI interaction in CI - payout link SDK iframe automation not supported in headless mode"
-      );
-      return;
-    }
-
     const connectorId = globalState.get("connectorId") || "stripe";
     const redirectionUrl = new URL(payoutLinkUrl);
     const expectedUrl = new URL("https://example.com/return");
