@@ -1055,6 +1055,10 @@ impl webhooks::IncomingWebhook for Authorizedotnet {
                     ),
                 ))
             }
+            authorizedotnet::AuthorizedotnetWebhookEvent::Unknown => {
+                router_env::logger::warn!("Unknown authorizedotnet webhook event type received");
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
         }
     }
 

@@ -1674,6 +1674,8 @@ pub enum PaypalIncrementalStatus {
     PARTIALLYCAPTURED,
     VOIDED,
     PENDING,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1685,6 +1687,8 @@ pub enum PaypalExtendedAuthorizationStatus {
     PartiallyCaptured,
     Voided,
     Pending,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1712,6 +1716,7 @@ impl From<PaypalIncrementalStatus> for common_enums::AuthorizationStatus {
             | PaypalIncrementalStatus::PARTIALLYCAPTURED => Self::Success,
             PaypalIncrementalStatus::PENDING => Self::Processing,
             PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Self::Failure,
+            PaypalIncrementalStatus::Unknown => Self::Processing,
         }
     }
 }
@@ -1724,6 +1729,7 @@ impl From<PaypalIncrementalStatus> for common_enums::AttemptStatus {
             | PaypalIncrementalStatus::PARTIALLYCAPTURED => Self::Authorized,
             PaypalIncrementalStatus::PENDING => Self::Pending,
             PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Self::Failure,
+            PaypalIncrementalStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -1984,6 +1990,10 @@ pub(crate) fn get_order_status(
         PaypalOrderStatus::PayerActionRequired => {
             storage_enums::AttemptStatus::AuthenticationPending
         }
+        PaypalOrderStatus::Unknown => {
+            router_env::logger::warn!("Received unknown PayPal order status; treating as Pending");
+            storage_enums::AttemptStatus::Pending
+        }
     }
 }
 
@@ -2185,6 +2195,7 @@ pub struct ThreeDsCheck {
 pub enum LiabilityShift {
     Possible,
     No,
+    #[serde(other)]
     Unknown,
 }
 
@@ -3077,6 +3088,8 @@ pub enum PaypalFulfillStatus {
     Failed,
     Refunded,
     Returned,
+    #[serde(other)]
+    Unknown,
 }
 
 #[cfg(feature = "payouts")]
@@ -3334,6 +3347,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsCancelResponse, T, Paymen
     ) -> Result<Self, Self::Error> {
         let status = match item.response.status {
             PaypalCancelStatus::Voided => storage_enums::AttemptStatus::Voided,
+            PaypalCancelStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Received unknown PayPal cancel status; treating as Voided"
+                );
+                storage_enums::AttemptStatus::Voided
+            }
         };
         Ok(Self {
             status,
@@ -3631,6 +3650,8 @@ pub enum OutcomeCode {
     ACCEPTED,
     DENIED,
     NONE,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -3743,6 +3764,12 @@ impl From<OutcomeCode> for IncomingWebhookEvent {
             OutcomeCode::DENIED => Self::DisputeCancelled,
             OutcomeCode::NONE => Self::DisputeCancelled,
             OutcomeCode::ResolvedWithPayout => Self::EventNotSupported,
+            OutcomeCode::Unknown => {
+                router_env::logger::warn!(
+                    "Received unknown PayPal dispute outcome code; treating as EventNotSupported"
+                );
+                Self::EventNotSupported
+            }
         }
     }
 }

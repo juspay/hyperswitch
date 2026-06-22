@@ -190,6 +190,8 @@ pub enum LoonioTransactionStatus {
     Rollback,
     Returned,
     Nsf,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<LoonioTransactionStatus> for enums::AttemptStatus {
@@ -204,6 +206,7 @@ impl From<LoonioTransactionStatus> for enums::AttemptStatus {
             | LoonioTransactionStatus::Returned
             | LoonioTransactionStatus::Nsf => Self::Failure,
             LoonioTransactionStatus::Rollback => Self::Voided,
+            LoonioTransactionStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -239,6 +242,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
     ) -> Result<Self, Self::Error> {
         match item.response {
             LoonioPaymentResponseData::Sync(sync_response) => {
+                if matches!(sync_response.state, LoonioTransactionStatus::Unknown) {
+                    router_env::logger::warn!(
+                        "Received unknown transaction status from Loonio; preserving existing status"
+                    );
+                    return Ok(item.data);
+                }
                 let connector_response =
                     sync_response
                         .customer_bank_info
@@ -336,6 +345,8 @@ pub enum RefundStatus {
     Failed,
     #[default]
     Processing,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
@@ -344,7 +355,7 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Succeeded => Self::Success,
             RefundStatus::Failed => Self::Failure,
             RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            RefundStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -361,6 +372,12 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
     fn try_from(
         item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
+        if matches!(item.response.status, RefundStatus::Unknown) {
+            router_env::logger::warn!(
+                "Received unknown refund status from Loonio; preserving existing status"
+            );
+            return Ok(item.data);
+        }
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
@@ -376,6 +393,12 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     fn try_from(
         item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
+        if matches!(item.response.status, RefundStatus::Unknown) {
+            router_env::logger::warn!(
+                "Received unknown refund sync status from Loonio; preserving existing status"
+            );
+            return Ok(item.data);
+        }
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
@@ -417,6 +440,8 @@ pub enum LoonioWebhookEventCode {
     TransactionWrongDestination,
     #[serde(rename = "TRANSACTION_NSF")]
     TransactionNsf,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -426,6 +451,8 @@ pub enum LoonioWebhookTransactionType {
     OutgoingVerified,
     OutgoingNotVerified,
     OutgoingCustomerDefined,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -625,6 +652,8 @@ pub enum LoonioPayoutStatus {
     Nsf,
     Returned,
     Rollback,
+    #[serde(other)]
+    Unknown,
 }
 
 #[cfg(feature = "payouts")]
@@ -642,6 +671,7 @@ impl From<LoonioPayoutStatus> for enums::PayoutStatus {
             | LoonioPayoutStatus::Nsf
             | LoonioPayoutStatus::Returned
             | LoonioPayoutStatus::Rollback => Self::Failed,
+            LoonioPayoutStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -654,6 +684,12 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, LoonioPayoutFulfillResponse>>
     fn try_from(
         item: PayoutsResponseRouterData<F, LoonioPayoutFulfillResponse>,
     ) -> Result<Self, Self::Error> {
+        if matches!(item.response.state, LoonioPayoutStatus::Unknown) {
+            router_env::logger::warn!(
+                "Received unknown payout fulfill status from Loonio; preserving existing status"
+            );
+            return Ok(item.data);
+        }
         Ok(Self {
             response: Ok(PayoutsResponseData {
                 status: Some(enums::PayoutStatus::from(item.response.state)),
@@ -682,6 +718,12 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, LoonioPayoutSyncResponse>> for Payo
     fn try_from(
         item: PayoutsResponseRouterData<F, LoonioPayoutSyncResponse>,
     ) -> Result<Self, Self::Error> {
+        if matches!(item.response.state, LoonioPayoutStatus::Unknown) {
+            router_env::logger::warn!(
+                "Received unknown payout sync status from Loonio; preserving existing status"
+            );
+            return Ok(item.data);
+        }
         Ok(Self {
             response: Ok(PayoutsResponseData {
                 status: Some(enums::PayoutStatus::from(item.response.state)),
