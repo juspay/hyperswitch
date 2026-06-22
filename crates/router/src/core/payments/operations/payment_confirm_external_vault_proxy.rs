@@ -4,6 +4,8 @@ use api_models::{enums::FrmSuggestion, payments::PaymentsRequest};
 use async_trait::async_trait;
 use common_enums;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payment_methods::VaultPaymentMethodData;
+use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -30,6 +32,86 @@ use crate::{
 
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentExternalVaultProxyConfirm;
+
+/// Derives the external vault payment method data for the proxy flow from the confirm request
+/// and the vault tokens fetched from the modular PM service:
+///  - `ProxyCard`: inline vault card data carried directly on the request.
+///  - `VaultCardTokenData`: a saved card referenced by `payment_token`; its vault tokens come
+///    from `payment_method_wrapper.vault_payment_method_token_data`, combined with the CVC /
+///    card holder name supplied on the request.
+///
+/// Shared by `PaymentExternalVaultProxyConfirm::get_trackers` (two-step confirm) and
+/// `PaymentCreate::get_trackers` (single-call create+confirm) so both populate
+/// `PaymentData::external_vault_pmd` identically.
+pub(crate) fn build_external_vault_payment_method_data(
+    request: &PaymentsRequest,
+    payment_method_wrapper: Option<
+        &hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData,
+    >,
+) -> RouterResult<
+    Option<hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData>,
+> {
+    let external_vault_pmd = match request
+        .payment_method_data
+        .as_ref()
+        .and_then(|pmd| pmd.payment_method_data.as_ref())
+    {
+        Some(api_models::payments::PaymentMethodData::ProxyCard(card)) => Some(
+            hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+                Box::new(
+                    hyperswitch_domain_models::payment_method_data::ExternalVaultCard::from(
+                        (**card).clone(),
+                    ),
+                ),
+            ),
+        ),
+        Some(api_models::payments::PaymentMethodData::VaultCardTokenData(token_data)) => {
+            match payment_method_wrapper
+                .and_then(|wrapper| wrapper.vault_payment_method_token_data.as_ref())
+            {
+                Some(VaultPaymentMethodData::VaultCardData(vault_card)) => {
+                    // Card expiry is carried on the vault tokens and the CVC on the request.
+                    // Both are required to authorize through the external vault proxy, so error
+                    // out explicitly rather than forwarding empty strings that fail downstream
+                    // connector validation.
+                    let card_exp_month = vault_card
+                        .card_exp_month
+                        .clone()
+                        .get_required_value("card_exp_month")?;
+                    let card_exp_year = vault_card
+                        .card_exp_year
+                        .clone()
+                        .get_required_value("card_exp_year")?;
+                    let card_cvc = token_data.card_cvc.clone().get_required_value("card_cvc")?;
+
+                    Some(
+                        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+                            Box::new(hyperswitch_domain_models::payment_method_data::ExternalVaultCard {
+                                card_number: vault_card.card_number.clone(),
+                                card_exp_month,
+                                card_exp_year,
+                                card_cvc,
+                                bin_number: None,
+                                last_four: None,
+                                card_issuer: None,
+                                card_network: None,
+                                card_type: None,
+                                card_issuing_country: None,
+                                bank_code: None,
+                                nick_name: None,
+                                card_holder_name: token_data.card_holder_name.clone(),
+                                co_badged_card_data: None,
+                            }),
+                        ),
+                    )
+                }
+                None => None,
+            }
+        }
+        _ => None,
+    };
+    Ok(external_vault_pmd)
+}
 
 impl<F: Send + Clone + Sync> Operation<F, PaymentsRequest> for PaymentExternalVaultProxyConfirm {
     type Data = PaymentData<F>;
@@ -89,9 +171,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
         request: &PaymentsRequest,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
+        _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsRequest, PaymentData<F>>> {
         let db = &*state.store;
         let payment_method_wrapper = payment_method_fetch_data.payment_method_with_raw_data;
@@ -191,33 +275,34 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             ..CustomerDetails::default()
         };
 
-        // The external vault proxy flow is non-PCI: the confirm request carries vault card data
-        // as `PaymentMethodData::ProxyCard`. Derive the external vault payment method data
-        // from it. Any other payment method data variant is not routed here (see the route layer).
-        let external_vault_pmd = request
-            .payment_method_data
-            .as_ref()
-            .and_then(|pmd| pmd.payment_method_data.as_ref())
-            .and_then(|pmd| match pmd {
-                api_models::payments::PaymentMethodData::ProxyCard(card) => Some(
-                    hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
-                        Box::new(
-                            hyperswitch_domain_models::payment_method_data::ExternalVaultCard::from(
-                                (**card).clone(),
-                            ),
-                        ),
-                    ),
-                ),
-                _ => None,
-            });
+        // The external vault proxy flow is non-PCI. Derive the external vault payment method data:
+        //  - `VaultDataCard`: inline vault card data carried directly on the confirm request.
+        //  - `VaultCardTokenData`: a saved card referenced by `payment_token`; its vault tokens
+        //    were retrieved from the modular PM service in `fetch_payment_method` (available here
+        //    as `payment_method_wrapper.vault_payment_method_token_data`). We combine those tokens
+        //    with the CVC / card holder name supplied on the request.
+        let external_vault_pmd =
+            build_external_vault_payment_method_data(request, payment_method_wrapper.as_ref())?;
 
-        // `payment_method` / `payment_method_type` are optional on the confirm request but
-        // required for the external vault proxy flow so the routing engine can match connectors.
+        // `payment_method` / `payment_method_type` are optional on the confirm request but required
+        // for the external vault proxy flow so the routing engine can match connectors. When the
+        // request omits them, fall back to the stored payment method fetched from the modular PM
+        // service (`payment_method_wrapper`).
         let payment_method = request
             .payment_method
+            .or_else(|| {
+                payment_method_wrapper
+                    .as_ref()
+                    .and_then(|wrapper| wrapper.payment_method.payment_method)
+            })
             .get_required_value("payment_method")?;
         let payment_method_subtype = request
             .payment_method_type
+            .or_else(|| {
+                payment_method_wrapper
+                    .as_ref()
+                    .and_then(|wrapper| wrapper.payment_method.payment_method_type)
+            })
             .get_required_value("payment_method_type")?;
 
         payment_attempt.payment_method = Some(payment_method);
@@ -355,6 +440,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                     updated_by: storage_scheme.to_string(),
                     merchant_connector_id,
                     external_three_ds_authentication_attempted: None,
+                    external_threeds_authentication_type: None,
                     authentication_connector: None,
                     authentication_id: None,
                     payment_method_billing_address_id: payment_data
@@ -449,15 +535,95 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
     #[instrument(skip_all)]
     async fn fetch_payment_method(
         &self,
-        _state: &SessionState,
-        _req: &PaymentsRequest,
-        _platform: &domain::Platform,
-        _feature_config: &core_utils::FeatureConfig,
+        state: &SessionState,
+        req: &PaymentsRequest,
+        platform: &domain::Platform,
+        feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<PaymentMethodFetchData> {
-        // The external vault proxy flow only supports inline `ProxyCard`, so there is no
-        // stored payment method to fetch up front. The vault card is parsed from the request
-        // in `get_trackers`.
-        Ok(PaymentMethodFetchData::default())
+        // Only the saved-card token flow (`VaultCardTokenData`) needs an up-front fetch. The inline
+        // `VaultDataCard` flow carries the card on the request and is parsed in `get_trackers`.
+        let card_token = req
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.as_ref())
+            .and_then(|pmd| match pmd {
+                api_models::payments::PaymentMethodData::VaultCardTokenData(token_data) => {
+                    Some(domain::CardToken {
+                        card_cvc: token_data.card_cvc.clone(),
+                        card_holder_name: token_data.card_holder_name.clone(),
+                    })
+                }
+                _ => None,
+            });
+
+        // A fetch is only needed for the saved-card token flow, and only when the org is eligible
+        // for the modular PM service. Every other case has nothing to fetch up front.
+        let fetch_data = match card_token {
+            Some(card_token) if feature_config.is_payment_method_modular_allowed => {
+                // 1. Resolve the payment_token to the actual stored payment_method_id via Redis.
+                //    This uses the same key construction as the regular Confirm flow's
+                //    fetch_payment_method (`pm_token_{token}_{payment_method}_hyperswitch`).
+                let payment_token = req
+                    .payment_token
+                    .clone()
+                    .get_required_value("payment_token")
+                    .attach_printable("payment_token is required for the vault card token flow")?;
+
+                let token_data =
+                    helpers::retrieve_payment_token_data(state, payment_token, req.payment_method)
+                        .await?;
+
+                let payment_method_id = match token_data {
+                    storage::PaymentTokenData::Permanent(card_token_data)
+                    | storage::PaymentTokenData::PermanentCard(card_token_data) => {
+                        card_token_data.payment_method_id
+                    }
+                    _ => None,
+                }
+                .get_required_value("payment_method_id")
+                .attach_printable("could not resolve a payment_method_id from the payment_token")?;
+
+                // 2. Retrieve the external vault tokens for that payment method from the modular PM
+                //    service.
+                let profile_id = platform
+                    .get_processor()
+                    .get_account()
+                    .get_default_profile()
+                    .clone()
+                    .get_required_value("profile_id")
+                    .attach_printable(
+                        "profile_id is required to fetch external vault tokens from the modular service",
+                    )?;
+
+                let payment_method_with_raw_data =
+                    pm_transformers::fetch_payment_method_from_modular_service(
+                        state,
+                        platform,
+                        &profile_id,
+                        &payment_method_id,
+                        Some(card_token),
+                        // External vault proxy cards are not in the internal vault; requesting raw
+                        // detail fails. The external vault token reference is returned without it.
+                        false,
+                    )
+                    .await
+                    .attach_printable(
+                        "Failed to fetch external vault token data from the modular PM service",
+                    )?;
+
+                PaymentMethodFetchData::from_modular(payment_method_with_raw_data)
+            }
+            Some(_) => {
+                router_env::logger::info!(
+                    "Organization is not eligible for PM Modular Service; skipping external vault token fetch."
+                );
+                PaymentMethodFetchData::default()
+            }
+            // Not a token flow — nothing to fetch up front.
+            None => PaymentMethodFetchData::default(),
+        };
+
+        Ok(fetch_data)
     }
 
     #[cfg(feature = "v1")]
@@ -477,7 +643,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             return Ok(());
         }
         // Only create for ExternalVaultCard (proxy card flow)
-        let vault_card = match payment_data.external_vault_pmd.clone() {
+        let mut vault_card = match payment_data.external_vault_pmd.clone() {
             Some(
                 hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
                     card,
@@ -502,6 +668,64 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             .payment_method
             .unwrap_or(common_enums::PaymentMethod::Card);
         let payment_method_type = payment_data.payment_attempt.payment_method_type;
+
+        // When the external vault is the hyperswitch vault, the `card_number` carried on the request
+        // is a *temporary* vault token. Exchange it for the permanent payment method id (served by
+        // the external SaaS PM service) and persist that as the token in the PM entry. The external
+        // service is a separate deployment, so authenticate with the external vault connector
+        // account's credentials (api-key + profile id) fetched from the profile's vault MCA. For any
+        // other vault, the request token is stored as-is.
+        if business_profile
+            .external_vault_details
+            .is_hyperswitch_vault()
+        {
+            let vault_connector_id = business_profile
+                .external_vault_details
+                .get_vault_connector_id()
+                .get_required_value("external vault connector id")?;
+
+            let vault_mca = state
+                .store
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    platform.get_processor().get_account().get_id(),
+                    &vault_connector_id,
+                    platform.get_processor().get_key_store(),
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: vault_connector_id.get_string_repr().to_string(),
+                    },
+                )?;
+
+            let (api_key, vault_profile_id) = match vault_mca
+                .get_connector_account_details()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse external vault connector auth")?
+            {
+                hyperswitch_domain_models::router_data::ConnectorAuthType::SignatureKey {
+                    api_key,
+                    api_secret,
+                    ..
+                } => Ok((api_key, api_secret)),
+                _ => Err(error_stack::report!(
+                    errors::ApiErrorResponse::InternalServerError
+                )
+                .attach_printable(
+                    "Unexpected auth type for hyperswitch external vault connector; expected SignatureKey",
+                )),
+            }?;
+
+            let temporary_token = vault_card.card_number.clone().expose();
+            let permanent_pm_id = pm_transformers::get_permanent_pm_id_from_temporary_token(
+                state,
+                api_key,
+                vault_profile_id,
+                temporary_token,
+            )
+            .await?;
+            vault_card.card_number = Secret::new(permanent_pm_id);
+        }
 
         match pm_transformers::create_proxy_card_payment_method_in_modular_service(
             state,

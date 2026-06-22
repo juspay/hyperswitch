@@ -545,7 +545,7 @@ impl ConnectorValidation for ConnectorEnum {
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id_or_connector_name: String,
         current_flow: Option<CurrentFlowInfo>,
-        payment_method_type: Option<common_enums::enums::PaymentMethodType>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
         is_mit_payment: Option<bool>,
     ) -> CustomResult<String, errors::ConnectorError> {
         match self {
@@ -654,6 +654,21 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.get_connector_about(),
             Self::New(connector) => connector.get_connector_about(),
+        }
+    }
+
+    /// Check if connector supports pre-authorize cancel
+    fn is_pre_authorize_cancel_supported(
+        &self,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+    ) -> bool {
+        match self {
+            Self::Old(connector) => {
+                connector.is_pre_authorize_cancel_supported(payment_method_type)
+            }
+            Self::New(connector) => {
+                connector.is_pre_authorize_cancel_supported(payment_method_type)
+            }
         }
     }
 

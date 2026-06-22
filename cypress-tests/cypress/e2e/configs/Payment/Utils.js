@@ -459,7 +459,14 @@ export const CONNECTOR_LISTS = {
       "mollie",
       "zift",
     ],
-    MANDATE_ID_TEST: ["airwallex", "payload", "gigadat", "loonio", "redsys"],
+    MANDATE_ID_TEST: [
+      "airwallex",
+      "payload",
+      "gigadat",
+      "loonio",
+      "redsys",
+      "worldpayxml",
+    ],
     // Add more exclusion lists
   },
 
@@ -538,7 +545,7 @@ export const CONNECTOR_LISTS = {
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen"],
     BLUECODE_WALLET: ["calida"],
-    ALIPAY_HK_WALLET: ["adyen"],
+    ALIPAY_HK_WALLET: [""],
     PAYPAL_WALLET: [
       "airwallex",
       "globalpay",
@@ -553,6 +560,12 @@ export const CONNECTOR_LISTS = {
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
     PAYPAL_MANDATE: ["globalpay", "paypal"],
+    PAYPAL_WALLET_MANDATE: ["adyen"],
+    KAKAO_PAY_WALLET_MANDATE: ["adyen"],
+    GCASH_WALLET_MANDATE: ["adyen"],
+    TWINT_WALLET_MANDATE: ["adyen"],
+    DANA_WALLET_MANDATE: ["adyen"],
+    GOPAY_WALLET_MANDATE: ["adyen"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
@@ -561,6 +574,7 @@ export const CONNECTOR_LISTS = {
       "nuvei",
       "trustpay",
       "finix",
+      "payload",
     ],
     BILLING_DESCRIPTOR_INVALID_PHONE: ["nuvei"],
     FEATURE_METADATA: ["bankofamerica"],
@@ -649,6 +663,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
+    CLIENT_SESSION_VALIDATION: ["stripe"],
     // Add more inclusion lists
   },
 };

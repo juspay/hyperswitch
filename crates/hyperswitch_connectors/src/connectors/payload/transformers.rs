@@ -392,11 +392,6 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentMethodRequest 
                     },
                     account_holder,
                     payment_method_type: requests::PayloadPaymentMethodType::BankAccount,
-                    description: item.description.clone(),
-                    descriptor: get_description_from_billing_descriptor(
-                        item.request.billing_descriptor.as_ref(),
-                    ),
-                    attrs: item.request.metadata.clone().expose_option(),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented(
