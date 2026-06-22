@@ -85,7 +85,9 @@ fn fetch_payment_instrument(
                 card_number: card.card_number,
             },
             cvc: card.card_cvc,
-            card_holder_name: billing_address.and_then(|address| address.get_optional_full_name()),
+            card_holder_name: billing_address
+                .and_then(|address| address.get_optional_full_name())
+                .map(normalize_cardholder_name),
             billing_address: billing_address
                 .and_then(|addr| addr.address.clone())
                 .and_then(|address| {
@@ -263,6 +265,16 @@ trait WorldpayPaymentsRequestData {
     fn get_payment_method_type(&self) -> Option<enums::PaymentMethodType>;
     fn get_connector_request_reference_id(&self) -> String;
     fn get_is_mandate_payment(&self) -> bool;
+    /// Shopper email used to populate `riskData.account.email`.
+    fn get_optional_email(&self) -> Option<pii::Email>;
+    /// Phone number (home/mobile/work) used to populate
+    /// `riskData.transaction.phoneNumber`.
+    fn get_optional_phone_number(&self) -> Option<Secret<String>>;
+    /// Shipping address line 1 used to populate
+    /// `riskData.shipping.address.address1`.
+    fn get_optional_shipping_address_line1(&self) -> Option<Secret<String>>;
+    /// Shopper IP address used to populate `deviceData.ipAddress`.
+    fn get_optional_ip_address(&self) -> Option<Secret<String, pii::IpAddress>>;
     fn get_settlement_info(&self, _amount: i64) -> Option<AutoSettlement> {
         None
     }
@@ -326,6 +338,30 @@ impl WorldpayPaymentsRequestData
     fn get_is_mandate_payment(&self) -> bool {
         true
     }
+
+    fn get_optional_email(&self) -> Option<pii::Email> {
+        self.request
+            .email
+            .clone()
+            .or_else(|| self.get_optional_billing_email())
+    }
+
+    fn get_optional_phone_number(&self) -> Option<Secret<String>> {
+        self.get_optional_billing_phone_number()
+            .or_else(|| self.get_optional_shipping_phone_number())
+    }
+
+    fn get_optional_shipping_address_line1(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_line1()
+    }
+
+    fn get_optional_ip_address(&self) -> Option<Secret<String, pii::IpAddress>> {
+        self.request
+            .browser_info
+            .as_ref()
+            .and_then(|browser_info| browser_info.ip_address)
+            .map(|ip| Secret::new(ip.to_string()))
+    }
 }
 
 impl WorldpayPaymentsRequestData
@@ -387,6 +423,30 @@ impl WorldpayPaymentsRequestData
         self.request.is_mandate_payment()
     }
 
+    fn get_optional_email(&self) -> Option<pii::Email> {
+        self.request
+            .email
+            .clone()
+            .or_else(|| self.get_optional_billing_email())
+    }
+
+    fn get_optional_phone_number(&self) -> Option<Secret<String>> {
+        self.get_optional_billing_phone_number()
+            .or_else(|| self.get_optional_shipping_phone_number())
+    }
+
+    fn get_optional_shipping_address_line1(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_line1()
+    }
+
+    fn get_optional_ip_address(&self) -> Option<Secret<String, pii::IpAddress>> {
+        self.request
+            .browser_info
+            .as_ref()
+            .and_then(|browser_info| browser_info.ip_address)
+            .map(|ip| Secret::new(ip.to_string()))
+    }
+
     fn get_settlement_info(&self, amount: i64) -> Option<AutoSettlement> {
         match (self.request.capture_method.unwrap_or_default(), amount) {
             (_, 0) => None,
@@ -397,6 +457,38 @@ impl WorldpayPaymentsRequestData
             }
             _ => None,
         }
+    }
+}
+
+// Mastercard requires the cardholder name to contain only English (ASCII)
+// characters and to match the name exactly as printed on the card. Accented
+// characters are transliterated to their closest ASCII equivalent.
+fn normalize_cardholder_name(name: Secret<String>) -> Secret<String> {
+    Secret::new(unidecode::unidecode(&name.expose()))
+}
+
+// Dangling helper function to build optional Mastercard risk data.
+// Returns `None` when none of the underlying fields are available so that the
+// `riskData` object is omitted entirely from the request.
+fn create_risk_data(
+    email: Option<pii::Email>,
+    phone_number: Option<Secret<String>>,
+    shipping_address_line1: Option<Secret<String>>,
+) -> Option<RiskData> {
+    let account = email.map(|email| RiskDataAccount { email });
+    let transaction = phone_number.map(|phone_number| RiskDataTransaction { phone_number });
+    let shipping = shipping_address_line1.map(|address1| RiskDataShipping {
+        address: RiskDataShippingAddress { address1 },
+    });
+
+    if account.is_some() || transaction.is_some() || shipping.is_some() {
+        Some(RiskData {
+            account,
+            transaction,
+            shipping,
+        })
+    } else {
+        None
     }
 }
 
@@ -544,6 +636,17 @@ impl<T: WorldpayPaymentsRequestData> TryFrom<(&WorldpayRouterData<&T>, &Secret<S
             item.router_data.get_mandate_id(),
         );
 
+        // Additional Mastercard authentication data, forwarded whenever available.
+        let risk_data = create_risk_data(
+            item.router_data.get_optional_email(),
+            item.router_data.get_optional_phone_number(),
+            item.router_data.get_optional_shipping_address_line1(),
+        );
+        let device_data = item
+            .router_data
+            .get_optional_ip_address()
+            .map(|ip_address| DeviceData { ip_address });
+
         Ok(Self {
             instruction: Instruction {
                 settlement: item.router_data.get_settlement_info(item.amount),
@@ -574,6 +677,8 @@ impl<T: WorldpayPaymentsRequestData> TryFrom<(&WorldpayRouterData<&T>, &Secret<S
             },
             transaction_reference: item.router_data.get_connector_request_reference_id(),
             customer: None,
+            risk_data,
+            device_data,
         })
     }
 }

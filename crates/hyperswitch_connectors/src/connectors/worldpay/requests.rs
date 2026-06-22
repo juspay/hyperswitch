@@ -1,3 +1,4 @@
+use common_utils::pii;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +10,11 @@ pub struct WorldpayPaymentsRequest {
     pub instruction: Instruction,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer: Option<Customer>,
+    /// Additional Mastercard authentication data (email, phone number and shipping address)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub risk_data: Option<RiskData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_data: Option<DeviceData>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -159,6 +165,51 @@ pub struct BillingAddress {
     pub state: Option<Secret<String>>,
     pub postal_code: Secret<String>,
     pub country_code: common_enums::CountryAlpha2,
+}
+
+/// Additional Mastercard authentication data, sent whenever available.
+/// As per Worldpay's updated Mastercard requirements (effective 1 April 2026)
+/// the request should contain, when available, the shopper's email, a phone
+/// number and the shipping address.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RiskData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account: Option<RiskDataAccount>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction: Option<RiskDataTransaction>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping: Option<RiskDataShipping>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RiskDataAccount {
+    pub email: pii::Email,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RiskDataTransaction {
+    pub phone_number: Secret<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RiskDataShipping {
+    pub address: RiskDataShippingAddress,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RiskDataShippingAddress {
+    pub address1: Secret<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceData {
+    pub ip_address: Secret<String, pii::IpAddress>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]

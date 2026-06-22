@@ -51,7 +51,7 @@ use crate::{
     utils::{
         self as connector_utils, AddressDetailsData, BrowserInformationData, CardData,
         ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsSyncRequestData, RouterData as _,
+        PaymentsSyncRequestData, PhoneDetailsData, RouterData as _,
     },
 };
 
@@ -461,6 +461,8 @@ struct WorldpayxmlAddressData {
     #[serde(skip_serializing_if = "Option::is_none")]
     state: Option<Secret<String>>,
     country_code: common_enums::CountryAlpha2,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    telephone_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -777,7 +779,10 @@ impl TryFrom<(&Card, Option<enums::CaptureMethod>, Option<Session>)> for Payment
                         year: card_data.get_expiry_year_4_digit(),
                     },
                 },
-                card_holder_name: card_data.card_holder_name.to_owned(),
+                card_holder_name: card_data
+                    .card_holder_name
+                    .as_ref()
+                    .map(|name| normalize_cardholder_name(name.clone())),
                 cvc: Some(card_data.card_cvc.to_owned()),
             }),
             session,
@@ -1132,6 +1137,13 @@ impl
     }
 }
 
+// Mastercard requires the cardholder name to contain only English (ASCII)
+// characters and to match the name exactly as printed on the card. Accented
+// characters are transliterated to their closest ASCII equivalent.
+fn normalize_cardholder_name(name: Secret<String>) -> Secret<String> {
+    Secret::new(unidecode::unidecode(&name.expose()))
+}
+
 fn get_address_details(data: &Address) -> Option<WorldpayxmlPayinAddress> {
     let address1_option = data
         .address
@@ -1149,6 +1161,12 @@ fn get_address_details(data: &Address) -> Option<WorldpayxmlPayinAddress> {
         .address
         .as_ref()
         .and_then(|address| address.get_optional_city());
+    let telephone_number = data.phone.as_ref().and_then(|phone| {
+        phone
+            .get_number_with_country_code()
+            .or_else(|_| phone.get_number())
+            .ok()
+    });
 
     if let (Some(address1), Some(postal_code), Some(country_code), Some(city), Some(address_data)) = (
         address1_option,
@@ -1168,6 +1186,7 @@ fn get_address_details(data: &Address) -> Option<WorldpayxmlPayinAddress> {
                 city,
                 state: address_data.get_optional_state(),
                 country_code,
+                telephone_number,
             },
         })
     } else {
