@@ -601,6 +601,7 @@ export const CONNECTOR_LISTS = {
     REVOLUTPAY_WALLET: ["stripe"],
     WECHATPAY_WALLET: ["stripe", "multisafepay"],
     MBWAY_WALLET: ["multisafepay"],
+    STRIPE_WALLET_INVALID_CURRENCY: ["stripe"],
     PAY_LATER: [
       "klarna",
       "adyen",

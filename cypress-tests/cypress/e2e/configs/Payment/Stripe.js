@@ -1497,7 +1497,6 @@ export const connectorDetails = {
             ali_pay_redirect: {},
           },
         },
-        currency: "USD",
         billing: null,
       },
       Response: {
@@ -1519,7 +1518,6 @@ export const connectorDetails = {
             amazon_pay_redirect: {},
           },
         },
-        currency: "USD",
         billing: null,
       },
       Response: {
@@ -1580,7 +1578,6 @@ export const connectorDetails = {
             cashapp_qr: {},
           },
         },
-        currency: "USD",
         billing: null,
       },
       Response: {
@@ -1641,7 +1638,6 @@ export const connectorDetails = {
             revolut_pay: {},
           },
         },
-        currency: "EUR",
         billing: null,
         mandate_data: null,
         setup_future_usage: null,
@@ -1706,7 +1702,6 @@ export const connectorDetails = {
             we_chat_pay_qr: {},
           },
         },
-        currency: "USD",
         billing: null,
         mandate_data: null,
         setup_future_usage: null,
