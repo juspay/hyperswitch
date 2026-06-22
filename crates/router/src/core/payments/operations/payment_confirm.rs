@@ -2627,9 +2627,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_fingerprint_id = payment_data.payment_attempt.fingerprint_id.clone();
         let m_db = state.clone().store;
         let surcharge_amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.surcharge_amount);
+            .payment_attempt
+            .net_amount
+            .get_surcharge_amount();
         let tax_amount = payment_data
             .surcharge_details
             .as_ref()
@@ -2743,6 +2743,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .request_extended_authorization,
                         tokenization: payment_data.payment_attempt.get_tokenization_strategy(),
                         installment_data,
+                        external_surcharge_details: payment_data
+                            .payment_attempt
+                            .external_surcharge_details
+                            .clone(),
                     },
                     storage_scheme,
                     &cloned_key_store,

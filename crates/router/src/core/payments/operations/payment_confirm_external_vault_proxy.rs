@@ -465,6 +465,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                     tokenization: payment_data.payment_attempt.get_tokenization_strategy(),
                     installment_data: None,
                     network_transaction_link_id: None,
+                    external_surcharge_details: payment_data
+                        .payment_attempt
+                        .external_surcharge_details
+                        .clone(),
                 },
                 storage_scheme,
                 key_store,
