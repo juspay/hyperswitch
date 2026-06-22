@@ -35,7 +35,7 @@ use hyperswitch_domain_models::router_flow_types::{
     dispute::{Accept, Defend, Dsync, Evidence, Fetch},
     files::{Retrieve, Upload},
     mandate_revoke::MandateRevoke,
-    merchant_connector_webhook_management::ConnectorWebhookRegister,
+    merchant_connector_webhook_management::{ConnectorWebhookGenerateHmac, ConnectorWebhookRegister},
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateSurcharge, CalculateTax,
         Capture, CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge,
@@ -61,7 +61,9 @@ pub use hyperswitch_domain_models::{
         RefundFlowData, RouterDataV2, UasFlowData, WebhookSourceVerifyData,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateHmacRequest, ConnectorWebhookRegisterRequest,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -92,7 +94,9 @@ pub use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateHmacResponse, ConnectorWebhookRegisterResponse,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
@@ -294,6 +298,12 @@ pub type ConnectorWebhookRegisterRouterData = RouterData<
     ConnectorWebhookRegister,
     ConnectorWebhookRegisterRequest,
     ConnectorWebhookRegisterResponse,
+>;
+
+pub type ConnectorWebhookGenerateHmacRouterData = RouterData<
+    ConnectorWebhookGenerateHmac,
+    ConnectorWebhookGenerateHmacRequest,
+    ConnectorWebhookGenerateHmacResponse,
 >;
 
 #[cfg(feature = "payouts")]

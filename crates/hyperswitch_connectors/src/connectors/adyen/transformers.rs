@@ -29,22 +29,30 @@ use hyperswitch_domain_models::{
         PaymentMethodBalance, PaymentMethodToken, RouterData,
     },
     router_flow_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegister, GiftCardBalanceCheck,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateHmac, ConnectorWebhookRegister,
+        },
+        GiftCardBalanceCheck,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateHmacRequest, ConnectorWebhookRegisterRequest,
+        },
         GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateHmacResponse, ConnectorWebhookRegisterResponse,
+        },
         AcceptDisputeResponse, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
         SubmitEvidenceResponse,
     },
     types::{
-        ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsExtendAuthorizationRouterData,
-        PaymentsGiftCardBalanceCheckRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
+        ConnectorWebhookGenerateHmacRouterData, ConnectorWebhookRegisterRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
+        PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -5566,7 +5574,8 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AdyenRefundResponse>> for RefundsRo
 pub struct AdyenErrorResponse {
     pub status: i32,
     pub error_code: String,
-    pub message: String,
+    pub message: Option<String>,
+    pub title: Option<String>,
     pub psp_reference: Option<String>,
 }
 
@@ -7179,7 +7188,7 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
         let webhook_type: WebhookRegisterType = WebhookRegisterType::try_from(&webhook_type)?;
         Ok(Self {
             webhook_type,
-            url: item.request.webhook_url.clone(),
+            url: "https://4bed-219-65-110-2.ngrok-free.app/webhooks/merchant_1781856491/mca_MRvzMKxBVbumw55t8BTt".to_string(),
             active: true,
             communication_format: CommunicationFormat::Json,
         })
@@ -7220,6 +7229,48 @@ impl
             response: Ok(ConnectorWebhookRegisterResponse {
                 connector_webhook_id: Some(item.response.id.clone()),
                 status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenGenerateHmacResponse {
+    hmac_key: Secret<String>,
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookGenerateHmac,
+            AdyenGenerateHmacResponse,
+            ConnectorWebhookGenerateHmacRequest,
+            ConnectorWebhookGenerateHmacResponse,
+        >,
+    >
+    for RouterData<
+        ConnectorWebhookGenerateHmac,
+        ConnectorWebhookGenerateHmacRequest,
+        ConnectorWebhookGenerateHmacResponse,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookGenerateHmac,
+            AdyenGenerateHmacResponse,
+            ConnectorWebhookGenerateHmacRequest,
+            ConnectorWebhookGenerateHmacResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(ConnectorWebhookGenerateHmacRouterData {
+            response: Ok(ConnectorWebhookGenerateHmacResponse {
+                hmac_key: Some(item.response.hmac_key),
+                status: common_enums::WebhookHmacGenerationStatus::Success,
                 error_code: None,
                 error_message: None,
             }),

@@ -60,13 +60,18 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::{
         mandate_revoke::MandateRevoke,
-        merchant_connector_webhook_management::ConnectorWebhookRegister, AccessTokenAuth,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateHmac, ConnectorWebhookRegister,
+        },
+        AccessTokenAuth,
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, PostAuthenticate,
         PreAuthenticate, ProcessIncomingWebhook, VerifyWebhookSource,
     },
     router_request_types::{
         self,
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateHmacRequest, ConnectorWebhookRegisterRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -76,7 +81,10 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        self, merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        self,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateHmacResponse, ConnectorWebhookRegisterResponse,
+        },
         ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
         VerifyWebhookSourceResponseData,
     },
@@ -124,6 +132,8 @@ pub trait Connector:
     + ExternalVault
     + Subscriptions
     + WebhookRegister
+    + WebhookGenerateHmac
+    + ConfigureConnectorWebhook
 {
 }
 
@@ -134,6 +144,8 @@ impl<
             + Send
             + webhooks::IncomingWebhook
             + WebhookRegister
+            + WebhookGenerateHmac
+            + ConfigureConnectorWebhook
             + ConnectorAccessToken
             + ConnectorAuthenticationToken
             + disputes::Dispute
@@ -832,6 +844,17 @@ pub trait WebhookRegisterV2:
     ConnectorWebhookConfigurationFlowData,
     ConnectorWebhookRegisterRequest,
     ConnectorWebhookRegisterResponse,
+>
+{
+}
+
+/// trait WebhookGenerateHmacV2
+pub trait WebhookGenerateHmacV2:
+    ConnectorIntegrationV2<
+    ConnectorWebhookGenerateHmac,
+    ConnectorWebhookConfigurationFlowData,
+    ConnectorWebhookGenerateHmacRequest,
+    ConnectorWebhookGenerateHmacResponse,
 >
 {
 }

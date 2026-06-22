@@ -3,8 +3,10 @@ use std::marker::PhantomData;
 use api_models::merchant_connector_webhook_management::{
     ConnectorWebhookRegisterRequest, RegisterConnectorWebhookResponse,
 };
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::api::ConnectorSpecifications;
+use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::tracing::{self, instrument};
 
 use crate::{
@@ -13,6 +15,8 @@ use crate::{
     errors, types,
     types::{
         api::ConnectorData, domain,
+        ConnectorWebhookGenerateHmacRequest as ConnectorWebhookGenerateHmacData,
+        ConnectorWebhookGenerateHmacResponse, ConnectorWebhookGenerateHmacRouterData,
         ConnectorWebhookRegisterRequest as ConnectorWebhookRegisterData,
         ConnectorWebhookRegisterResponse, ConnectorWebhookRegisterRouterData, ErrorResponse,
     },
@@ -115,43 +119,158 @@ pub async fn construct_webhook_register_router_data<'a>(
 }
 
 #[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn construct_generate_hmac_router_data<'a>(
+    state: &'a SessionState,
+    merchant_connector_account: &domain::MerchantConnectorAccount,
+    connector_webhook_id: String,
+) -> RouterResult<ConnectorWebhookGenerateHmacRouterData> {
+    let request = ConnectorWebhookGenerateHmacData {
+        connector_webhook_id,
+    };
+
+    let auth_type = merchant_connector_account
+        .get_connector_account_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    Ok(types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_connector_account.merchant_id.clone(),
+        customer_id: None,
+        connector_customer: None,
+        connector: merchant_connector_account.connector_name.clone(),
+        payment_id: consts::IRRELEVANT_PAYMENT_INTENT_ID.to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
+        attempt_id: consts::IRRELEVANT_PAYMENT_ATTEMPT_ID.to_owned(),
+        status: common_enums::AttemptStatus::default(),
+        payment_method: common_enums::PaymentMethod::default(),
+        payment_method_type: None,
+        connector_auth_type: auth_type,
+        description: None,
+        address: types::PaymentAddress::default(),
+        auth_type: common_enums::AuthenticationType::default(),
+        connector_meta_data: merchant_connector_account.get_metadata().clone(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
+        amount_captured: None,
+        minor_amount_captured: None,
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        recurring_mandate_payment_data: None,
+        preprocessing_id: None,
+        payment_method_balance: None,
+        connector_api_version: None,
+        request,
+        response: Err(ErrorResponse::default()),
+        connector_request_reference_id: consts::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID
+            .to_owned(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        dispute_id: None,
+        refund_id: None,
+        payment_method_status: None,
+        connector_response: None,
+        integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
+        authorized_amount: None,
+        payout_id: None,
+        customer_document_details: None,
+        feature_data: None,
+        sender_payment_instrument_id: None,
+    })
+}
+
+#[cfg(feature = "v1")]
 pub fn construct_connector_webhook_registration_details(
     register_webhook_response: &ConnectorWebhookRegisterResponse,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     connector_webhook_register_data: &ConnectorWebhookRegisterData,
+    generated_hmac_key: Option<Secret<String>>,
 ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
-    if let Some(connector_webhook_id) = register_webhook_response.connector_webhook_id.clone() {
-        let webhook_event = connector_webhook_register_data.event_type;
+    let connector_webhook_registration_details =
+        if let Some(connector_webhook_id) = register_webhook_response.connector_webhook_id.clone() {
+            let webhook_event = connector_webhook_register_data.event_type;
 
-        let connector_webhook_value = serde_json::to_value(domain::ConnectorWebhookData {
-            event_type: webhook_event,
-        })
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            let connector_webhook_value = serde_json::to_value(domain::ConnectorWebhookData {
+                event_type: webhook_event,
+            })
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        let mut connector_webhook_registration_details = merchant_connector_account
-            .get_connector_webhook_registration_details()
-            .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
+            let mut connector_webhook_registration_details = merchant_connector_account
+                .get_connector_webhook_registration_details()
+                .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
 
-        let map = connector_webhook_registration_details
-            .as_object_mut()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+            let map = connector_webhook_registration_details
+                .as_object_mut()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
-        map.insert(connector_webhook_id, connector_webhook_value);
+            map.insert(connector_webhook_id, connector_webhook_value);
 
-        Ok(
-            domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
-                connector_webhook_registration_details: Some(
-                    connector_webhook_registration_details,
-                ),
-            },
-        )
-    } else {
-        Ok(
-            domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
-                connector_webhook_registration_details: None,
-            },
-        )
-    }
+            Some(connector_webhook_registration_details)
+        } else {
+            None
+        };
+
+    let connector_webhook_details =
+        build_connector_webhook_details_with_hmac(merchant_connector_account, generated_hmac_key)?;
+
+    Ok(
+        domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+            connector_webhook_registration_details,
+            connector_webhook_details,
+        },
+    )
+}
+
+#[cfg(feature = "v1")]
+fn build_connector_webhook_details_with_hmac(
+    merchant_connector_account: &domain::MerchantConnectorAccount,
+    generated_hmac_key: Option<Secret<String>>,
+) -> RouterResult<Option<common_utils::pii::SecretSerdeValue>> {
+    let Some(hmac_key) = generated_hmac_key else {
+        return Ok(None);
+    };
+
+    let existing_additional_secret = merchant_connector_account
+        .connector_webhook_details
+        .as_ref()
+        .and_then(|details| {
+            details
+                .clone()
+                .expose()
+                .parse_value::<api_models::admin::MerchantConnectorWebhookDetails>(
+                    "MerchantConnectorWebhookDetails",
+                )
+                .ok()
+                .and_then(|parsed| parsed.additional_secret)
+        });
+
+    let merged = api_models::admin::MerchantConnectorWebhookDetails {
+        merchant_secret: hmac_key,
+        additional_secret: existing_additional_secret,
+    };
+
+    let serialized = serde_json::to_value(merged)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize MerchantConnectorWebhookDetails with HMAC key")?;
+
+    Ok(Some(Secret::new(serialized)))
 }
 
 #[cfg(feature = "v1")]
@@ -205,13 +324,27 @@ pub async fn validate_webhook_registration_request(
 pub fn construct_connector_webhook_registration_response(
     register_webhook_response: &ConnectorWebhookRegisterResponse,
     connector_webhook_register_data: &ConnectorWebhookRegisterData,
+    generate_hmac_response: Option<&ConnectorWebhookGenerateHmacResponse>,
 ) -> RouterResult<RegisterConnectorWebhookResponse> {
+    let (hmac_generation_status, hmac_error_code, hmac_error_message) = generate_hmac_response
+        .map(|resp| {
+            (
+                Some(resp.status),
+                resp.error_code.clone(),
+                resp.error_message.clone(),
+            )
+        })
+        .unwrap_or((None, None, None));
+
     Ok(RegisterConnectorWebhookResponse {
         event_type: connector_webhook_register_data.event_type,
         connector_webhook_id: register_webhook_response.connector_webhook_id.clone(),
         webhook_registration_status: register_webhook_response.status,
         error_code: register_webhook_response.error_code.clone(),
         error_message: register_webhook_response.error_message.clone(),
+        hmac_generation_status,
+        hmac_error_code,
+        hmac_error_message,
     })
 }
 #[cfg(feature = "v1")]

@@ -3,8 +3,12 @@ use common_utils::id_type;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccountUpdate,
-    router_request_types::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
-    router_response_types::merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+    router_request_types::merchant_connector_webhook_management::{
+        ConnectorWebhookGenerateHmacRequest, ConnectorWebhookRegisterRequest,
+    },
+    router_response_types::merchant_connector_webhook_management::{
+        ConnectorWebhookGenerateHmacResponse, ConnectorWebhookRegisterResponse,
+    },
 };
 use transformers as configure_connector_webhook_flow;
 
@@ -65,20 +69,20 @@ pub async fn register_connector_webhook(
     )
     .await?;
 
-    let connector_integration: services::BoxedConnectorWebhookConfigurationInterface<
+    let register_integration: services::BoxedConnectorWebhookConfigurationInterface<
         api::ConnectorWebhookRegister,
         ConnectorWebhookRegisterRequest,
         ConnectorWebhookRegisterResponse,
     > = connector_data.connector.get_connector_integration();
 
-    let router_data =
+    let register_router_data =
         configure_connector_webhook_flow::construct_webhook_register_router_data(&state, &mca, req)
             .await?;
 
-    let response = services::execute_connector_processing_step(
+    let register_router_data = services::execute_connector_processing_step(
         &state,
-        connector_integration,
-        &router_data,
+        register_integration,
+        &register_router_data,
         common_enums::CallConnectorAction::Trigger,
         None,
         None,
@@ -87,7 +91,7 @@ pub async fn register_connector_webhook(
     .to_webhook_configuration_failed_response()
     .attach_printable("Failed while calling register webhook connector api")?;
 
-    let register_webhook_response = response.response.as_ref().map_err(|err| {
+    let register_webhook_response = register_router_data.response.as_ref().map_err(|err| {
         errors::ApiErrorResponse::ExternalConnectorError {
             code: err.code.clone(),
             message: err.message.clone(),
@@ -97,29 +101,86 @@ pub async fn register_connector_webhook(
         }
     })?;
 
-    let connector_webhook_registration_details =
-        configure_connector_webhook_flow::construct_connector_webhook_registration_details(
-            register_webhook_response,
-            &mca,
-            &router_data.request,
-        )?;
+    // Conditionally run the GenerateHmac flow for connectors that need it (e.g. Adyen). If the
+    // register step succeeded but generateHmac fails, we still surface register success and
+    // report the hmac failure in the response.
+    let generate_hmac_response =
+        if connector_data.connector.requires_webhook_hmac_generation() {
+            let connector_webhook_id =
+                register_webhook_response.connector_webhook_id.clone().ok_or(
+                    errors::ApiErrorResponse::InternalServerError,
+                ).attach_printable(
+                    "Connector reported successful webhook registration but did not return a connector_webhook_id",
+                )?;
+
+            let generate_hmac_integration: services::BoxedConnectorWebhookConfigurationInterface<
+                api::ConnectorWebhookGenerateHmac,
+                ConnectorWebhookGenerateHmacRequest,
+                ConnectorWebhookGenerateHmacResponse,
+            > = connector_data.connector.get_connector_integration();
+
+            let generate_hmac_router_data =
+                configure_connector_webhook_flow::construct_generate_hmac_router_data(
+                    &state,
+                    &mca,
+                    connector_webhook_id,
+                )
+                .await?;
+
+            let generate_hmac_router_data = services::execute_connector_processing_step(
+                &state,
+                generate_hmac_integration,
+                &generate_hmac_router_data,
+                common_enums::CallConnectorAction::Trigger,
+                None,
+                None,
+            )
+            .await
+            .to_webhook_configuration_failed_response()
+            .attach_printable("Failed while calling generate HMAC connector api")?;
+
+            Some(match generate_hmac_router_data.response {
+                Ok(success) => success,
+                Err(err) => ConnectorWebhookGenerateHmacResponse {
+                    hmac_key: None,
+                    status: common_enums::WebhookHmacGenerationStatus::Failure,
+                    error_code: Some(err.code),
+                    error_message: Some(err.message),
+                },
+            })
+        } else {
+            None
+        };
+
+    let generated_hmac_key = generate_hmac_response
+        .as_ref()
+        .and_then(|resp| resp.hmac_key.clone());
+
+    let mca_update = configure_connector_webhook_flow::construct_connector_webhook_registration_details(
+        register_webhook_response,
+        &mca,
+        &register_router_data.request,
+        generated_hmac_key,
+    )?;
 
     let should_update_db = matches!(
-        connector_webhook_registration_details,
+        mca_update,
         MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
-            connector_webhook_registration_details: Some(_)
+            connector_webhook_registration_details: Some(_),
+            ..
+        } | MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+            connector_webhook_details: Some(_),
+            ..
         }
     );
 
     if should_update_db {
-        db.update_merchant_connector_account(mca.clone(), connector_webhook_registration_details.into(), &key_store)
+        db.update_merchant_connector_account(mca.clone(), mca_update.into(), &key_store)
             .await
-            .change_context(
-                errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
-                    profile_id,
-                    connector_label: connector_name.to_owned(),
-                },
-            )
+            .change_context(errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
+                profile_id,
+                connector_label: connector_name.to_owned(),
+            })
             .attach_printable_lazy(|| {
                 format!(
                     "Failed while updating MerchantConnectorAccount: id: {merchant_connector_id:?}",
@@ -127,11 +188,11 @@ pub async fn register_connector_webhook(
             })?;
     };
 
-    let response =
-        configure_connector_webhook_flow::construct_connector_webhook_registration_response(
-            register_webhook_response,
-            &router_data.request,
-        )?;
+    let response = configure_connector_webhook_flow::construct_connector_webhook_registration_response(
+        register_webhook_response,
+        &register_router_data.request,
+        generate_hmac_response.as_ref(),
+    )?;
 
     Ok(service_api::ApplicationResponse::Json(response))
 }

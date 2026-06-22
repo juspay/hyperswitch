@@ -8,7 +8,9 @@ use hyperswitch_domain_models::{
         dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateHmac, ConnectorWebhookRegister,
+        },
         payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateSurcharge, CalculateTax, Capture,
             CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
@@ -35,7 +37,9 @@ use hyperswitch_domain_models::{
         ProcessIncomingWebhook,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateHmacRequest, ConnectorWebhookRegisterRequest,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -68,7 +72,9 @@ use hyperswitch_domain_models::{
         VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateHmacResponse, ConnectorWebhookRegisterResponse,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
@@ -114,6 +120,13 @@ pub type ConnectorWebhookRegisterType = dyn ConnectorIntegration<
     ConnectorWebhookRegister,
     ConnectorWebhookRegisterRequest,
     ConnectorWebhookRegisterResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<ConnectorWebhookGenerateHmac, ConnectorWebhookGenerateHmacRequest, ConnectorWebhookGenerateHmacResponse>`
+pub type ConnectorWebhookGenerateHmacType = dyn ConnectorIntegration<
+    ConnectorWebhookGenerateHmac,
+    ConnectorWebhookGenerateHmacRequest,
+    ConnectorWebhookGenerateHmacResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>`
@@ -329,6 +342,13 @@ pub type WebhookRegisterType = dyn ConnectorIntegration<
     ConnectorWebhookRegister,
     ConnectorWebhookRegisterRequest,
     ConnectorWebhookRegisterResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<ConnectorWebhookGenerateHmac, ConnectorWebhookGenerateHmacRequest, ConnectorWebhookGenerateHmacResponse>`
+pub type WebhookGenerateHmacType = dyn ConnectorIntegration<
+    ConnectorWebhookGenerateHmac,
+    ConnectorWebhookGenerateHmacRequest,
+    ConnectorWebhookGenerateHmacResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>`

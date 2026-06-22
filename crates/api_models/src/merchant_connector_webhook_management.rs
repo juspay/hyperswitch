@@ -19,6 +19,17 @@ pub struct RegisterConnectorWebhookResponse {
     pub webhook_registration_status: common_enums::WebhookRegistrationStatus,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
+    /// Status of the HMAC key generation. `None` when the connector does not require a
+    /// separate HMAC generation step after registration.
+    #[schema(value_type = Option<WebhookHmacGenerationStatus>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hmac_generation_status: Option<common_enums::WebhookHmacGenerationStatus>,
+    /// Connector error code when the HMAC generation step fails.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hmac_error_code: Option<String>,
+    /// Connector error message when the HMAC generation step fails.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hmac_error_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
