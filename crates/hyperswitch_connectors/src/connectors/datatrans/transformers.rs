@@ -517,6 +517,10 @@ impl From<SyncResponse> for enums::AttemptStatus {
                 TransactionStatus::Canceled => Self::Voided,
                 TransactionStatus::Failed => Self::Failure,
                 TransactionStatus::Initialized | TransactionStatus::Authenticated => Self::Pending,
+                TransactionStatus::Unknown => {
+                    logger::warn!("Unknown TransactionStatus variant received in sync");
+                    Self::Pending
+                }
             },
             TransactionType::CardCheck => match item.status {
                 TransactionStatus::Settled
@@ -528,8 +532,16 @@ impl From<SyncResponse> for enums::AttemptStatus {
                 TransactionStatus::Canceled => Self::Voided,
                 TransactionStatus::Failed => Self::Failure,
                 TransactionStatus::Initialized | TransactionStatus::Authenticated => Self::Pending,
+                TransactionStatus::Unknown => {
+                    logger::warn!("Unknown TransactionStatus variant received in sync");
+                    Self::Pending
+                }
             },
             TransactionType::Credit => Self::Failure,
+            TransactionType::Unknown => {
+                logger::warn!("Unknown TransactionType variant received in sync");
+                Self::Pending
+            }
         }
     }
 }
