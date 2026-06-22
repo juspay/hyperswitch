@@ -204,17 +204,126 @@ function cryptoRedirection(
     } else if (connectorId === "coingate") {
       cy.document().should("have.property", "readyState", "complete");
       cy.title({ timeout: CONSTANTS.WAIT_TIME }).should("include", "CoinGate");
-      cy.log("Coingate payment page loaded successfully");
+      cy.log("Coingate payment page loaded");
+
+      // Wait for Next.js app to render the currency selection dropdown
+      cy.contains(/Select currency/i, { timeout: CONSTANTS.WAIT_TIME }).should(
+        "be.visible"
+      );
+      cy.log("Coingate currency selection screen rendered");
+
+      // Open the currency dropdown
+      cy.contains(/Select currency/i).click();
+      cy.log("Opened currency selector dropdown");
+
+      // Step 1: Select Bitcoin from the currency dropdown
+      cy.contains(/Bitcoin/i, { timeout: CONSTANTS.WAIT_TIME })
+        .first()
+        .should("be.visible")
+        .click();
+      cy.log("Selected Bitcoin as payment currency");
+
+      // Step 2: Wait briefly for any network selection modal to appear,
+      // then select Bitcoin mainchain if the modal is present.
+      cy.wait(2000);
+      cy.get("body").then(($body) => {
+        if ($body.text().includes("Select network")) {
+          cy.log(
+            "Network selection modal appeared - selecting Bitcoin mainchain"
+          );
+          cy.contains(/^Bitcoin$/i, { timeout: CONSTANTS.WAIT_TIME })
+            .should("be.visible")
+            .click();
+          cy.log("Selected Bitcoin mainchain network");
+        } else {
+          cy.log("No network selection modal - proceeding to Continue");
+        }
+      });
+
+      // Click Continue to proceed to the payment address screen
+      cy.contains(/Continue/i, { timeout: CONSTANTS.WAIT_TIME })
+        .should("be.visible")
+        .click();
+      cy.log("Clicked Continue on Coingate payment page");
 
       handleFlow(
         redirectionUrl,
         expectedUrl,
         connectorId,
-        ({ paymentMethodType }) => {
+        // NOTE: this callback runs inside cy.origin — CONSTANTS is not in scope.
+        // Use `constants` from the destructured args instead.
+        ({ paymentMethodType, constants }) => {
           switch (paymentMethodType) {
-            case "crypto_currency":
-              cy.log("Handling crypto currency payment redirection");
+            case "crypto_currency": {
+              cy.log("Coingate Bitcoin payment: checking for KYC billing form");
+
+              cy.document().should("have.property", "readyState", "complete");
+
+              // Coingate may require billing details (KYC) before showing
+              // the BTC payment address. Fill the form if it appears.
+              cy.get("body").then(($body) => {
+                const bodyText = $body.text();
+                if (
+                  bodyText.includes("Billing details") ||
+                  bodyText.includes("First name")
+                ) {
+                  cy.log("Billing details form detected - filling KYC fields");
+
+                  // Email (optional, but fill it)
+                  cy.get('input[type="email"]').then(($el) => {
+                    if ($el.length > 0) {
+                      cy.wrap($el.first())
+                        .clear()
+                        .type("test@example.com");
+                    }
+                  });
+
+                  // First name + Last name (inputs with latin-characters placeholder)
+                  cy.get('input[placeholder*="latin"]').then(($inputs) => {
+                    if ($inputs.length >= 1) {
+                      cy.wrap($inputs.eq(0)).clear().type("Jan");
+                    }
+                    if ($inputs.length >= 2) {
+                      cy.wrap($inputs.eq(1)).clear().type("Jansen");
+                    }
+                  });
+
+                  // Date of birth — select Month=January, Day=1, Year=1990
+                  // Use jQuery .find() instead of cy.get("select") to avoid
+                  // Cypress retry timeout when no <select> elements exist on
+                  // the Coingate billing form.
+                  const $selects = $body.find("select");
+                  if ($selects.length >= 1) {
+                    cy.wrap($selects.eq(0)).select("1");
+                  }
+                  if ($selects.length >= 2) {
+                    cy.wrap($selects.eq(1)).select("1");
+                  }
+                  if ($selects.length >= 3) {
+                    cy.wrap($selects.eq(2)).select("1990");
+                  }
+
+                  cy.wait(500);
+
+                  // Submit the billing form
+                  cy.contains(/Continue/i, { timeout: constants.WAIT_TIME })
+                    .last()
+                    .click();
+                  cy.log("Billing form submitted");
+                  cy.wait(3000);
+                } else {
+                  cy.log("No billing form - proceeding to payment address");
+                }
+              });
+
+              // After the billing form (or if skipped), the BTC payment
+              // address screen should appear.
+              cy.contains(/Amount|BTC|address|0\./i, {
+                timeout: constants.WAIT_TIME,
+              }).should("be.visible");
+              cy.log("Coingate Bitcoin payment details displayed successfully");
               break;
+            }
 
             default:
               throw new Error(
