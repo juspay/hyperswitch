@@ -143,7 +143,7 @@ export function handleRedirection(
       );
       break;
     case "payout_link_init":
-      payoutLinkInitRedirection(urls.redirectionUrl, handlerMetadata);
+      payoutLinkInitRedirection(urls.redirectionUrl);
       break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
@@ -3442,7 +3442,7 @@ function paymentLinkCardRedirection(
  * @param {URL} redirectionUrl - The payout link URL to visit
  * @param {Object} handlerMetadata - Optional metadata (unused but kept for consistency)
  */
-function payoutLinkInitRedirection(redirectionUrl, handlerMetadata) {
+function payoutLinkInitRedirection(redirectionUrl) {
   if (!redirectionUrl || !redirectionUrl.href) {
     cy.log("Skipping payout link init - no valid redirect URL provided");
     return;
