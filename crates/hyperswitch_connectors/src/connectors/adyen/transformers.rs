@@ -1616,7 +1616,7 @@ impl FromStr for AdyenRefundRequestReason {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenRefundResponse {
-    merchant_account: Secret<serde_json::Value>,
+    merchant_account: Secret<String>,
     psp_reference: String,
     payment_psp_reference: Option<String>,
     reference: Option<String>,
@@ -5490,12 +5490,12 @@ impl TryFrom<&AdyenRouterData<&PaymentsCaptureRouterData>> for AdyenCaptureReque
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCaptureResponse {
-    merchant_account: Secret<serde_json::Value>,
+    merchant_account: Secret<String>,
     payment_psp_reference: String,
     psp_reference: String,
     reference: String,
     status: Option<String>,
-    amount: serde_json::Value,
+    amount: Amount,
     merchant_reference: Option<String>,
     store: Option<String>,
     splits: Option<Vec<AdyenSplitData>>,
