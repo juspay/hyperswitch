@@ -5057,7 +5057,6 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing authentication_id in payment_attempt")?;
-
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
 
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
@@ -5097,6 +5096,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                         &authentication_id,
                         platform.get_processor().get_key_store(),
                         key_manager_state,
+                        platform.get_processor().get_account().storage_scheme,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
@@ -12821,6 +12821,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                         .attach_printable("missing authentication_id in payment_attempt")?,
                     platform.get_processor().get_key_store(),
                     key_manager_state,
+                    storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -12855,6 +12856,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 payment_intent.payment_id,
                 payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
                 platform.get_processor().get_key_store(),
+                storage_scheme,
             ))
             .await?
         };
