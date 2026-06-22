@@ -84,7 +84,8 @@ function normalizeRequestArgs(args) {
 function isProxyAdminUrl(url) {
   if (!url) return false;
   if (PROXY_ADMIN_URL && url.startsWith(PROXY_ADMIN_URL)) return true;
-  if (REDIRECT_PROXY_ADMIN_URL && url.startsWith(REDIRECT_PROXY_ADMIN_URL)) return true;
+  if (REDIRECT_PROXY_ADMIN_URL && url.startsWith(REDIRECT_PROXY_ADMIN_URL))
+    return true;
   return false;
 }
 

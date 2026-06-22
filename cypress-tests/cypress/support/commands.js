@@ -5267,9 +5267,12 @@ Cypress.Commands.add(
             followRedirect: false,
           }); // step N+2
         } else if (Cypress._buildRequestId) {
-          // No redirect body — connector doesn't use redirect/complete or recording
-          // predates redirect proxy. Consume N+2 slot to keep step alignment.
-          cy.then(() => { Cypress._buildRequestId(); });
+          // No redirect body captured (connector doesn't use redirect/complete, or
+          // recording predates redirect proxy). Consume the N+2 slot so retrieve
+          // lands on N+3, matching how the cassette was recorded.
+          cy.then(() => {
+            Cypress._buildRequestId();
+          });
         }
       });
       return;
