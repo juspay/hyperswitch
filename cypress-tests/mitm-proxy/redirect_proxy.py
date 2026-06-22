@@ -43,7 +43,9 @@ ADMIN_PORT = int(os.environ.get("REDIRECT_PROXY_ADMIN_PORT", "9002"))
 UPSTREAM_HOST = os.environ.get("REDIRECT_PROXY_UPSTREAM_HOST", "localhost")
 UPSTREAM_PORT = int(os.environ.get("REDIRECT_PROXY_UPSTREAM_PORT", "8080"))
 
-_REDIRECT_COMPLETE_RE = re.compile(r".*/redirect/complete/[^/?]+")
+# Matches both /redirect/complete/{connector} (ACS form POST / GET, e.g. Redsys, Cybersource)
+# and /redirect/response/{connector} (JS iframe return URL, e.g. Stripe).
+_REDIRECT_COMPLETE_RE = re.compile(r".*/redirect/(complete|response)/[^/?]+")
 
 _lock = threading.Lock()
 # testIdHash → rid reserved for the next redirect/complete POST
@@ -53,19 +55,31 @@ _reserved: dict[str, str] = {}
 def _save_redirect(
     test_id_hash: str,
     method: str,
+    path_only: str,
     query_string: str,
     body: bytes,
     content_type: str,
 ) -> None:
-    """Persist the redirect/complete request so cy.task('readFileOrNull') can replay it.
+    """Persist the redirect/complete or redirect/response request for replay.
 
-    GET connectors (e.g. Cybersource DDC): saves {"__redirect_method": "GET", "__query": {...}}.
+    GET connectors (e.g. Cybersource DDC, Stripe 3DS): saves
+      {"__redirect_method": "GET", "__redirect_segment": "redirect/response/stripe", "__query": {...}}.
     POST connectors (e.g. Redsys ACS form): saves the decoded form fields directly
     (no wrapper, for backwards compat with existing cassettes).
     """
     if method == "GET":
         query_params = dict(urllib.parse.parse_qsl(query_string)) if query_string else {}
-        data = {"__redirect_method": "GET", "__query": query_params}
+        # Extract the redirect segment (redirect/complete/foo or redirect/response/foo)
+        # from a path like /payments/{payId}/{merchantId}/redirect/response/stripe.
+        parts = path_only.split("/")
+        try:
+            idx = parts.index("redirect")
+            redirect_segment = "/".join(parts[idx:])
+        except ValueError:
+            redirect_segment = None
+        data: dict = {"__redirect_method": "GET", "__query": query_params}
+        if redirect_segment:
+            data["__redirect_segment"] = redirect_segment
     else:
         if not body:
             return
@@ -123,6 +137,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 _save_redirect(
                     test_id_hash,
                     self.command,
+                    path_only,
                     query_string,
                     body,
                     self.headers.get("Content-Type", ""),
