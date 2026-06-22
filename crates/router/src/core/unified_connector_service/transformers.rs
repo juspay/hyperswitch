@@ -1054,6 +1054,7 @@ impl
                 .transpose()?,
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
+            webhook_url: None,
         })
     }
 }
@@ -1238,6 +1239,7 @@ impl
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
+            merchant_transaction_id: None,
         })
     }
 }
@@ -2146,6 +2148,9 @@ impl
             browser_info,
             test_mode: router_data.test_mode,
             payment_method_type,
+            auth_type: Some(
+                payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)?.into(),
+            ),
             state,
             return_url: router_data.request.router_return_url.clone(),
             description: router_data.description.clone(),
@@ -5763,6 +5768,14 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                                 dt.assume_utc().unix_timestamp()
                                             },
                                         ),
+                                        initial_billing_amount: None,
+                                        external_subscription_id: None,
+                                        status: None,
+                                        next_billing_date: None,
+                                        billing_cycle: None,
+                                        description: None,
+                                        mandate_status: payments_grpc::MandateStatus::default()
+                                            .into(),
                                     },
                                 ),
                             ),
@@ -5799,6 +5812,14 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                                     dt.assume_utc().unix_timestamp()
                                                 },
                                             ),
+                                            initial_billing_amount: None,
+                                            external_subscription_id: None,
+                                            status: None,
+                                            next_billing_date: None,
+                                            billing_cycle: None,
+                                            description: None,
+                                            mandate_status:
+                                                payments_grpc::MandateStatus::default().into(),
                                         },
                                     ),
                                 )
