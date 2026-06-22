@@ -4,6 +4,7 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
+use api_models::merchant_connector_webhook_management::{Scope, ScopeIdentifier};
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -22,6 +23,7 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
+        merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::{
             Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken,
             PostCaptureVoid, Session, SetupMandate, Void,
@@ -29,33 +31,36 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
     },
     router_request_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
         SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse, ConnectorInfo,
+        PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt,
     },
     types::{
-        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData,
-        PaymentsCancelPostCaptureRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
+        ConnectorCustomerRouterData, ConnectorWebhookRegisterRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelPostCaptureRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorCustomerAction, ConnectorIntegration,
-        ConnectorSpecifications, ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation, WebhookRegister,
     },
     configs::Connectors,
     disputes::DisputePayload,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        self, ConnectorCustomerType, PaymentsPostCaptureVoidType, PaymentsVoidType, Response,
-        SetupMandateType,
+        self, ConnectorCustomerType, ConnectorWebhookRegisterType, PaymentsPostCaptureVoidType,
+        PaymentsVoidType, Response, SetupMandateType,
     },
     webhooks,
 };
@@ -95,6 +100,7 @@ impl api::RefundExecute for Payload {}
 impl api::RefundSync for Payload {}
 impl api::PaymentToken for Payload {}
 impl api::ConnectorCustomer for Payload {}
+impl WebhookRegister for Payload {}
 
 impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
     for Payload
@@ -986,6 +992,102 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
     }
 }
 
+impl
+    ConnectorIntegration<
+        ConnectorWebhookRegister,
+        ConnectorWebhookRegisterRequest,
+        ConnectorWebhookRegisterResponse,
+    > for Payload
+{
+    fn get_headers(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            "application/x-www-form-urlencoded".to_string().into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_url(
+        &self,
+        _req: &ConnectorWebhookRegisterRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/webhooks/", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = requests::PayloadWebhookRegisterRequest {
+            trigger: requests::PayloadEventType::try_from(req.request.scope.clone())?,
+            url: req.request.webhook_url.clone(),
+            sender_secret: None,
+        };
+
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&ConnectorWebhookRegisterType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(ConnectorWebhookRegisterType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(ConnectorWebhookRegisterType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &ConnectorWebhookRegisterRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<ConnectorWebhookRegisterRouterData, errors::ConnectorError> {
+        let response: responses::PayloadWebhookRegisterResponse = res
+            .response
+            .parse_struct("PayloadWebhookRegisterResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Payload {
     fn get_webhook_source_verification_algorithm(
@@ -1244,6 +1346,25 @@ impl ConnectorSpecifications for Payload {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&PAYLOAD_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn get_webhook_registration_plan(
+        &self,
+        scope: &Scope,
+        connectors: &Connectors,
+    ) -> Vec<(ScopeIdentifier, String)> {
+        match scope {
+            Scope::EventTypes(requested_events) => requested_events
+                .iter()
+                .map(|evt| {
+                    (
+                        ScopeIdentifier::EventType(*evt),
+                        format!("{}/webhooks/", self.base_url(connectors)),
+                    )
+                })
+                .collect(),
+            _ => Vec::new(),
+        }
     }
     fn should_call_connector_customer(
         &self,

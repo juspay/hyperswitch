@@ -514,6 +514,10 @@ placeholder = "Enter Live endpoint prefix"
 required = true
 type = "Text"
 
+[adyen.connector_webhook_register_details]
+label="Webhook Registration"
+webhook_auto_configuration_supported=true 
+
 [adyenplatform_payout]
 [[adyenplatform_payout.credit]]
 payment_method_type = "Mastercard"
@@ -7448,6 +7452,11 @@ placeholder="Enter the covenant code"
 required=true
 type="Text"
 
+[santander.connector_webhook_register_details]
+label="Webhook Registration & Workspace Creation"
+webhook_auto_configuration_supported=true 
+payment_method_types=["pix_emv", "pix_automatico_push", "pix_automatico_qr", "boleto"]
+
 [blackhawknetwork]
 [[blackhawknetwork.gift_card]]
   payment_method_type = "bhn_card_network"
@@ -7484,6 +7493,31 @@ processing_account_id = "processing_account_id"
 api_key = "API Key"
 [payload.connector_webhook_details]
 merchant_secret = "Source verification key"
+
+[payload.connector_webhook_register_details]
+label="Webhook Registration"
+webhook_auto_configuration_supported=true 
+event_types=[
+    "payment_processing",
+    "payment_authorized",
+    "payment_partially_authorized",
+    "payment_succeeded",
+    "payment_captured",
+    "payment_failed",
+    "refund_failed",
+    "payment_cancelled",
+    "payment_cancelled_post_capture",
+    "refund_succeeded",
+    "dispute_opened",
+    "dispute_accepted",
+    "dispute_lost",
+    "payout_initiated",
+    "payout_processing",
+    "payout_success",
+    "payout_failed",
+    "payout_cancelled",
+    "payout_reversed"
+]
 
 [silverflow]
 [[silverflow.credit]]

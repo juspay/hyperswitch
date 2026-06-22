@@ -200,3 +200,25 @@ impl PayloadVerificationStatus {
         matches!(self, Self::Verified | Self::OwnerVerified)
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayloadEventType {
+    Payment,
+    Authorized,
+    Processed,
+    Decline,
+    Void,
+    Reversal,
+    Refund,
+    Reject,
+    Credit,
+    Deposit,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadWebhookRegisterResponse {
+    pub id: String,
+    pub trigger: String,
+    pub url: String,
+}

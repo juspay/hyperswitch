@@ -1,6 +1,7 @@
 pub mod transformers;
 use std::sync::LazyLock;
 
+use api_models::merchant_connector_webhook_management::ScopeIdentifier;
 use base64::Engine;
 use common_enums::enums::{self, PaymentMethodType};
 use common_utils::{
@@ -153,11 +154,13 @@ impl ConnectorCommon for Adyen {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let error_message = response.message;
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
-            message: response.message.to_owned(),
-            reason: Some(response.message),
+            message: error_message.clone(),
+            reason: Some(error_message),
             attempt_status: None,
             connector_transaction_id: response.psp_reference,
             connector_response_reference_id: None,
@@ -2555,13 +2558,12 @@ impl
     fn get_url(
         &self,
         req: &ConnectorWebhookRegisterRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let endpoint = connectors.adyen.management_base_url.as_str();
         let auth = adyen::AdyenAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let merchant_id = auth.merchant_account.expose();
-        Ok(format!("{endpoint}/v3/merchants/{merchant_id}/webhooks",))
+        Ok(req.request.base_url.replace("{merchantId}", &merchant_id))
     }
 
     fn get_request_body(
@@ -2597,13 +2599,15 @@ impl
     fn handle_response(
         &self,
         data: &ConnectorWebhookRegisterRouterData,
-        _event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<ConnectorWebhookRegisterRouterData, errors::ConnectorError> {
         let response: adyen::AdyenWebhookRegisterResponse = res
             .response
             .parse_struct("AdyenWebhookRegisterResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -3444,6 +3448,7 @@ impl ConnectorSpecifications for Adyen {
                 matches!(&request_data.payment_method_data, Some(payment_method_data::PaymentMethodData::GiftCard(giftcard_data)) if giftcard_data.is_givex())
             }
             api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -3476,5 +3481,21 @@ impl ConnectorSpecifications for Adyen {
         &self,
     ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
         &ADYEN_WEBHOOK_SETUP_CAPABILITIES
+    }
+
+    fn get_webhook_registration_plan(
+        &self,
+        scope: &api_models::merchant_connector_webhook_management::Scope,
+        connectors: &Connectors,
+    ) -> Vec<(ScopeIdentifier, String)> {
+        use api_models::merchant_connector_webhook_management::{Scope, ScopeIdentifier};
+        let endpoint = connectors.adyen.management_base_url.as_str();
+        match scope {
+            Scope::NotSpecific => vec![(
+                ScopeIdentifier::NotSpecific,
+                format!("{endpoint}v1/merchants/{{merchantId}}/webhooks"),
+            )],
+            _ => Vec::new(),
+        }
     }
 }

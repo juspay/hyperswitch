@@ -200,3 +200,26 @@ pub struct PayloadBankAccountData {
 pub enum PayloadPaymentMethodType {
     BankAccount,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PayloadWebhookRegisterRequest {
+    pub trigger: PayloadEventType,
+    pub url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sender_secret: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayloadEventType {
+    Payment,
+    Processed,
+    Authorized,
+    Credit,
+    Refund,
+    Reversal,
+    Void,
+    Decline,
+    Deposit,
+    Reject,
+}

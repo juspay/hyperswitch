@@ -4,6 +4,7 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
+use api_models::merchant_connector_webhook_management::{Scope, ScopeIdentifier};
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -16,6 +17,7 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
+        merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::{
             Authorize, Capture, GenerateQr, PSync, PaymentMethodToken, PushNotification, Session,
             SetupMandate, Void,
@@ -24,18 +26,21 @@ use hyperswitch_domain_models::{
         AuthorizeSessionToken, UpdateMetadata,
     },
     router_request_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         AccessTokenRequestData, AuthorizeSessionTokenData, GenerateQrRequestData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, PaymentsUpdateMetadataData,
         PushNotificationRequestData, RefundsData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse, ConnectorInfo,
+        PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsAuthorizeSessionTokenRouterData,
-        PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsGenerateQrRouterData,
+        ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData,
+        PaymentsAuthorizeSessionTokenRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsGenerateQrRouterData,
         PaymentsPushNotificationRouterData, PaymentsSyncRouterData,
         PaymentsUpdateMetadataRouterData, RefundSyncRouterData, RefundsRouterData,
     },
@@ -43,13 +48,13 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation, CurrentFlowInfo,
+        ConnectorValidation, CurrentFlowInfo, WebhookRegister,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, RefreshTokenType, Response},
+    types::{self, ConnectorWebhookRegisterType, RefreshTokenType, Response},
     webhooks,
 };
 use hyperswitch_masking::{Maskable, PeekInterface};
@@ -57,16 +62,19 @@ use hyperswitch_masking::{Maskable, PeekInterface};
 use crate::{
     connectors::santander::{
         requests::{
-            AccessTokenUrlPath, SantanderAuthRequest, SantanderAuthType, SantanderMetadataObject,
+            AccessTokenUrlPath, SantanderAuthRequest, SantanderAuthType,
+            SantanderBoletoWebhookRegisterRequest, SantanderMetadataObject,
             SantanderPaymentRequest, SantanderPixAutomaticSolicitationRequest,
             SantanderRefundRequest, SantanderRouterData, SantanderSetupMandateRequest,
+            SantanderWebhookRegisterRequest,
         },
         responses::{
-            SanatanderAccessTokenResponse, SantanderCreatePixPayloadLocationResponse,
+            SanatanderAccessTokenResponse, SantanderBoletoWebhookRegisterResponse,
+            SantanderCreatePixPayloadLocationResponse, SantanderEmptyResponse,
             SantanderErrorResponse, SantanderGenericErrorResponse, SantanderPaymentsResponse,
             SantanderPaymentsSyncResponse, SantanderPixAutomaticRecResponse,
-            SantanderPixAutomaticSolicitationResponse, SantanderRefundResponse,
-            SantanderUpdateMetadataResponse, SantanderVoidResponse,
+            SantanderPixAutomaticSolicitationResponse, SantanderPixWebhookRegisterResponse,
+            SantanderRefundResponse, SantanderUpdateMetadataResponse, SantanderVoidResponse,
         },
     },
     constants::headers,
@@ -111,6 +119,7 @@ impl api::PaymentToken for Santander {}
 impl api::PaymentUpdateMetadata for Santander {}
 impl api::PaymentsPushNotification for Santander {}
 impl api::PaymentsGenerateQr for Santander {}
+impl WebhookRegister for Santander {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Santander
@@ -2090,6 +2099,67 @@ impl ConnectorSpecifications for Santander {
         Some(&SANTANDER_SUPPORTED_WEBHOOK_FLOWS)
     }
 
+    fn get_webhook_registration_plan(
+        &self,
+        scope: &Scope,
+        connectors: &Connectors,
+    ) -> Vec<(ScopeIdentifier, String)> {
+        match scope {
+            Scope::PaymentMethodTypes(requested_pmts) => requested_pmts
+                .iter()
+                .flat_map(|pmt| match *pmt {
+                    enums::PaymentMethodType::PixEmv => vec![(
+                        ScopeIdentifier::PaymentMethodType(*pmt),
+                        format!(
+                            "{}api/v1/webhook/{{chaveKey}}",
+                            connectors.santander.base_url
+                        ),
+                    )],
+                    enums::PaymentMethodType::Boleto => vec![(
+                        ScopeIdentifier::PaymentMethodType(*pmt),
+                        format!(
+                            "{}collection_bill_management/v2/workspaces",
+                            connectors
+                                .santander
+                                .secondary_base_url
+                                .clone()
+                                .unwrap_or_default()
+                        ),
+                    )],
+                    enums::PaymentMethodType::PixAutomaticoPush => vec![
+                        (
+                            ScopeIdentifier::PaymentMethodType(*pmt),
+                            format!("{}api/v1/webhookrec", connectors.santander.base_url),
+                        ),
+                        (
+                            ScopeIdentifier::PaymentMethodType(*pmt),
+                            format!("{}api/v1/webhookcobr", connectors.santander.base_url),
+                        ),
+                    ],
+                    enums::PaymentMethodType::PixAutomaticoQr => vec![
+                        (
+                            ScopeIdentifier::PaymentMethodType(*pmt),
+                            format!(
+                                "{}api/v1/webhook/{{chaveKey}}",
+                                connectors.santander.base_url
+                            ),
+                        ),
+                        (
+                            ScopeIdentifier::PaymentMethodType(*pmt),
+                            format!("{}api/v1/webhookrec", connectors.santander.base_url),
+                        ),
+                        (
+                            ScopeIdentifier::PaymentMethodType(*pmt),
+                            format!("{}api/v1/webhookcobr", connectors.santander.base_url),
+                        ),
+                    ],
+                    _ => Vec::new(),
+                })
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
     #[cfg(feature = "v1")]
     fn generate_connector_request_reference_id(
         &self,
@@ -2144,6 +2214,7 @@ impl ConnectorSpecifications for Santander {
             | Some(CurrentFlowInfo::Authorize { .. })
             | Some(CurrentFlowInfo::Psync { .. })
             | None => false,
+            Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }) => false,
         }
     }
     fn is_push_notification_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
@@ -2156,7 +2227,8 @@ impl ConnectorSpecifications for Santander {
             }
             CurrentFlowInfo::Authorize { .. }
             | CurrentFlowInfo::CompleteAuthorize { .. }
-            | CurrentFlowInfo::Psync { .. } => false,
+            | CurrentFlowInfo::Psync { .. }
+            | CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
     fn is_generate_qr_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
@@ -2169,7 +2241,8 @@ impl ConnectorSpecifications for Santander {
             }
             CurrentFlowInfo::Authorize { .. }
             | CurrentFlowInfo::CompleteAuthorize { .. }
-            | CurrentFlowInfo::Psync { .. } => false,
+            | CurrentFlowInfo::Psync { .. }
+            | CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
 }
@@ -2258,6 +2331,180 @@ impl ConnectorIntegration<GenerateQr, GenerateQrRequestData, PaymentsResponseDat
             data: data.clone(),
             http_code: res.status_code,
         })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        ConnectorWebhookRegister,
+        ConnectorWebhookRegisterRequest,
+        ConnectorWebhookRegisterResponse,
+    > for Santander
+{
+    fn get_headers(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let base_url = req.request.base_url.clone();
+
+        if base_url.contains("{chaveKey}") {
+            let santander_mca_metadata =
+                SantanderMetadataObject::try_from(&req.connector_meta_data)?;
+            let pix_key = match req.payment_method_type {
+                Some(enums::PaymentMethodType::PixEmv) => santander_mca_metadata
+                    .pix_emv
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?
+                    .pix_key_value
+                    .peek()
+                    .to_owned(),
+                Some(enums::PaymentMethodType::PixAutomaticoQr) => santander_mca_metadata
+                    .pix_automatico_qr
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?
+                    .pix_key_value
+                    .peek()
+                    .to_owned(),
+                _ => {
+                    return Err(errors::ConnectorError::NotSupported {
+                        message: req.payment_method.to_string(),
+                        connector: "Santander",
+                    }
+                    .into());
+                }
+            };
+            Ok(base_url.replace("{chaveKey}", &pix_key))
+        } else {
+            Ok(base_url)
+        }
+    }
+
+    fn get_request_body(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let base_url = &req.request.base_url;
+
+        if base_url.contains("workspaces") {
+            let connector_req = SantanderBoletoWebhookRegisterRequest::try_from(req)?;
+            Ok(RequestContent::Json(Box::new(connector_req)))
+        } else {
+            let connector_req = SantanderWebhookRegisterRequest::try_from(req)?;
+            Ok(RequestContent::Json(Box::new(connector_req)))
+        }
+    }
+
+    fn build_request(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
+
+        let method = if req.request.base_url.contains("workspaces") {
+            Method::Post
+        } else {
+            Method::Put
+        };
+
+        Ok(Some(
+            RequestBuilder::new()
+                .method(method)
+                .url(&ConnectorWebhookRegisterType::get_url(
+                    self, req, connectors,
+                )?)
+                .add_certificate(Some(auth_details.client_id))
+                .add_certificate_key(Some(auth_details.client_secret))
+                .attach_default_headers()
+                .headers(ConnectorWebhookRegisterType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(ConnectorWebhookRegisterType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &ConnectorWebhookRegisterRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<ConnectorWebhookRegisterRouterData, errors::ConnectorError> {
+        let base_url = &data.request.base_url;
+
+        if base_url.contains("workspaces") {
+            let response: SantanderBoletoWebhookRegisterResponse = res
+                .response
+                .parse_struct("SantanderBoletoWebhookRegisterResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        } else if base_url.contains("webhookrec") || base_url.contains("webhookcobr") {
+            let response: SantanderEmptyResponse = res
+                .response
+                .parse_struct("SantanderEmptyResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        } else {
+            let response: SantanderPixWebhookRegisterResponse = res
+                .response
+                .parse_struct("SantanderPixWebhookRegisterResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        }
     }
 
     fn get_error_response(

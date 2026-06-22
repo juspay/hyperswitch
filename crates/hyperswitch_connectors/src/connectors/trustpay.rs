@@ -1495,8 +1495,10 @@ impl ConnectorSpecifications for Trustpay {
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&TRUSTPAY_CONNECTOR_INFO)
     }

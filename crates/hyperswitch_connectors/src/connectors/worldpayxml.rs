@@ -1565,6 +1565,7 @@ impl ConnectorSpecifications for Worldpayxml {
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
 

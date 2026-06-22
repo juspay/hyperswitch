@@ -1,4 +1,7 @@
-use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
+use api_models::{
+    merchant_connector_webhook_management::{Scope, ScopeIdentifier},
+    webhooks::{IncomingWebhookEvent, ObjectReferenceId},
+};
 use common_enums::PaymentAction;
 use common_utils::{crypto, errors::CustomResult, request::Request};
 use hyperswitch_domain_models::{
@@ -827,6 +830,17 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.get_api_webhook_config(),
             Self::New(connector) => connector.get_api_webhook_config(),
+        }
+    }
+
+    fn get_webhook_registration_plan(
+        &self,
+        scope: &Scope,
+        connectors: &Connectors,
+    ) -> Vec<(ScopeIdentifier, String)> {
+        match self {
+            Self::Old(connector) => connector.get_webhook_registration_plan(scope, connectors),
+            Self::New(connector) => connector.get_webhook_registration_plan(scope, connectors),
         }
     }
 }
