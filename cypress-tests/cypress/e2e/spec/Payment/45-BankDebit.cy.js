@@ -37,7 +37,7 @@ describe("Bank Debit tests", () => {
   });
 
   context("SEPA Bank Debit Create and Confirm flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm SEPA Bank Debit -> Handle Redirect -> Retrieve Payment", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm SEPA Bank Debit -> Retrieve Payment", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent for SEPA", () => {
@@ -66,7 +66,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm SEPA Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm SEPA Bank Debit");
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -141,7 +141,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm ACH Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm ACH Bank Debit");
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -204,7 +204,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm BECS Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm BECS Bank Debit");
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -267,7 +267,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm BACS Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm BACS Bank Debit");
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
