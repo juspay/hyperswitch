@@ -642,6 +642,23 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             router_env::logger::info!("Skipping PM creation: customer_acceptance is None");
             return Ok(());
         }
+        // A repeat payment that reuses a saved card (the `VaultCardTokenData` / `payment_token`
+        // flow) already had its existing payment method resolved into `payment_method_info` during
+        // `get_trackers`. Creating again here would insert a duplicate `payment_methods` record for
+        // the same card on every off-session repeat, so reuse the existing one — just record its id
+        // on the attempt. The PM was fetched from the modular service (already `version: V2`), so the
+        // post-payment update still takes the modular acknowledgement path, not the legacy save path.
+        if let Some(existing_pm_id) = payment_data
+            .payment_method_info
+            .as_ref()
+            .map(|existing_pm| existing_pm.get_id().clone())
+        {
+            router_env::logger::info!(
+                "Reusing existing payment method resolved from payment_token; skipping duplicate PM creation"
+            );
+            payment_data.set_payment_method_id_in_attempt(Some(existing_pm_id));
+            return Ok(());
+        }
         // Only create for ExternalVaultCard (proxy card flow)
         let mut vault_card = match payment_data.external_vault_pmd.clone() {
             Some(
