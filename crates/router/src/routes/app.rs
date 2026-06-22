@@ -192,18 +192,10 @@ impl SessionState {
             ExecutionMode::Shadow => Some("shadow"),
             ExecutionMode::NotApplicable => None,
         };
-        // For shadow mode, disable event publishing in UCS
-        let config_override = match unified_connector_service_execution_mode {
-            ExecutionMode::Shadow => Some(
-                serde_json::json!({
-                    "events": {
-                        "enabled": false
-                    }
-                })
-                .to_string(),
-            ),
-            _ => None,
-        };
+        // UCS keeps emitting events in every mode; shadow and primary are
+        // distinguished downstream by `execution_mode`, so there is no need to
+        // suppress UCS events in shadow.
+        let config_override: Option<String> = None;
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
