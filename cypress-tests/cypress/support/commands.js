@@ -10428,18 +10428,6 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("initiatePayoutLinkTest", (data, globalState) => {
-  const payoutLinkUrl = globalState.get("payoutLinkUrl");
-
-  if (!payoutLinkUrl) {
-    cy.task("cli_log", "Skipping: No payout link URL available");
-    return;
-  }
-
-  const redirectionUrl = new URL(payoutLinkUrl);
-  handleRedirection("payout_link_init", { redirectionUrl }, null, null, {});
-});
-
 Cypress.Commands.add(
   "handlePayoutLinkBankRedirection",
   (globalState, bankData, expectedOutcome = "success") => {

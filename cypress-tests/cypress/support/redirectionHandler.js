@@ -142,9 +142,6 @@ export function handleRedirection(
         handlerMetadata
       );
       break;
-    case "payout_link_init":
-      payoutLinkInitRedirection(urls.redirectionUrl, handlerMetadata);
-      break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
@@ -3431,39 +3428,6 @@ function paymentLinkCardRedirection(
       }
     });
   }
-}
-
-/**
- * Handles the initial visit to a payout link page.
- * Visits the payout link URL, waits for the SDK to load, and verifies
- * that the #payout-link container has rendered content and the SDK
- * iframe is present.
- *
- * @param {URL} redirectionUrl - The payout link URL to visit
- * @param {Object} handlerMetadata - Optional metadata (unused but kept for consistency)
- */
-function payoutLinkInitRedirection(redirectionUrl, handlerMetadata) {
-  if (!redirectionUrl || !redirectionUrl.href) {
-    cy.log("Skipping payout link init - no valid redirect URL provided");
-    return;
-  }
-
-  cy.visit(redirectionUrl.href, { failOnStatusCode: false });
-
-  cy.get("body", { timeout: 30000 }).should("exist");
-
-  // Payout link pages use #payout-link as the SDK mount container, not
-  // #unified-checkout or #payment-form.  There is no #sdk-spinner element on
-  // these pages — waiting for it causes a 60-second timeout that makes the
-  // page appear blank.  Instead, wait for the SDK to render content inside
-  // #payout-link and for the iframe to appear.
-  cy.get("#payout-link", { timeout: 60000 }).should("not.be.empty");
-  cy.task("cli_log", "Payout Link SDK initialized");
-
-  cy.get("#payout-link iframe", { timeout: 30000 }).should(
-    "have.length.at.least",
-    1
-  );
 }
 
 function payoutLinkRedirection(
