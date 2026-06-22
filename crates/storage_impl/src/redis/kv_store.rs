@@ -101,9 +101,7 @@ impl std::fmt::Display for PartitionKey<'_> {
             #[cfg(feature = "v2")]
             PartitionKey::GlobalId { id } => f.write_str(&id.to_string()),
             #[cfg(feature = "v2")]
-            PartitionKey::GlobalPaymentId { id } => {
-                f.write_str(&id.get_string_repr().to_string())
-            }
+            PartitionKey::GlobalPaymentId { id } => f.write_str(&id.get_string_repr().to_string()),
         }
     }
 }
