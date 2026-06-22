@@ -2445,6 +2445,7 @@ pub struct RolloutConfig {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
     pub execution_mode: ExecutionMode,
+    pub webhook_flows: Option<Vec<api::WebhookFlow>>,
 }
 
 impl Default for RolloutConfig {
@@ -2454,6 +2455,7 @@ impl Default for RolloutConfig {
             http_url: None,
             https_url: None,
             execution_mode: ExecutionMode::NotApplicable,
+            webhook_flows: None,
         }
     }
 }
@@ -2466,6 +2468,7 @@ pub struct RolloutExecutionResult {
     pub should_execute: bool,
     pub proxy_override: Option<ProxyOverride>,
     pub execution_mode: ExecutionMode,
+    pub webhook_flows: Option<Vec<api::WebhookFlow>>,
 }
 
 impl Default for RolloutExecutionResult {
@@ -2474,6 +2477,7 @@ impl Default for RolloutExecutionResult {
             should_execute: false,
             proxy_override: None,
             execution_mode: ExecutionMode::NotApplicable,
+            webhook_flows: None,
         }
     }
 }
@@ -2555,6 +2559,7 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                             should_execute: true,
                             proxy_override,
                             execution_mode: config.execution_mode,
+                            webhook_flows: config.webhook_flows,
                         }
                     }
                     false => {

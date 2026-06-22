@@ -690,8 +690,10 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
     processor: &Processor,
     connector_name: &str,
-    webhook_flow: Option<api_models::webhooks::WebhookFlow>,
-) -> RouterResult<ExecutionPath> {
+) -> RouterResult<(
+    ExecutionPath,
+    Option<Vec<api_models::webhooks::WebhookFlow>>,
+)> {
     // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
 
@@ -704,20 +706,11 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     // Check UCS availability using idiomatic helper
     let ucs_availability = check_ucs_availability(state).await;
 
-    let Some(webhook_category) = webhook_flow else {
-        router_env::logger::info!(
-            connector = connector_name,
-            "Webhook flow not found, using Direct gateway"
-        );
-        return Ok(ExecutionPath::Direct);
-    };
-
     let rollout_key = format!(
-        "{}_{}_{}_{}_{}",
+        "{}_{}_{}_{}",
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
         merchant_id,
         connector_name,
-        webhook_category,
         flow_name
     );
 
@@ -745,16 +738,15 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     };
 
     router_env::logger::info!(
-        "Webhook gateway decision: gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}, category={:?}",
+        "Webhook gateway decision: gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}",
         gateway_system,
         execution_path,
         merchant_id,
         connector_name,
         flow_name,
-        webhook_category
     );
 
-    Ok(execution_path)
+    Ok((execution_path, rollout_result.webhook_flows))
 }
 
 pub fn build_unified_connector_service_payment_method(

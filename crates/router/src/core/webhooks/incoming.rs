@@ -272,33 +272,43 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             let connector_name = mca_data.connector_name.clone();
             let mca_ref = mca_data.merchant_connector_account.as_ref();
 
-            let (ucs_event_reference, ucs_event_type) =
-                super::gateway::get_webhook_event_details_from_ucs(
-                    &state,
-                    &platform,
-                    connector.clone(),
-                    &connector_name,
-                    mca_ref,
-                    &request_details,
-                )
-                .await;
-
-            let webhook_flow = ucs_event_type.map(api::WebhookFlow::from);
-
-            let execution_path =
+            let (mut execution_path, supported_webhook_flows) =
                 unified_connector_service::should_call_unified_connector_service_for_webhooks(
                     &state,
                     platform.get_processor(),
                     &connector_name,
-                    webhook_flow.clone(),
                 )
                 .await?;
             logger::info!(
                 connector = %connector_name,
                 ?execution_path,
-                ?webhook_flow,
                 "Selected webhook execution path"
             );
+
+            let (ucs_event_reference, ucs_event_type) = match execution_path {
+                common_enums::ExecutionPath::UnifiedConnectorService
+                | common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
+                    super::gateway::get_webhook_event_details_from_ucs(
+                        &state,
+                        &platform,
+                        connector.clone(),
+                        &connector_name,
+                        mca_ref,
+                        &request_details,
+                    )
+                    .await
+                }
+                _ => (None, None),
+            };
+
+            let webhook_flow = ucs_event_type.map(api::WebhookFlow::from);
+
+            match (&webhook_flow, &supported_webhook_flows) {
+                (Some(flow), Some(flows)) if !flows.is_empty() && flows.contains(flow) => {}
+                _ => {
+                    execution_path = common_enums::ExecutionPath::Direct;
+                }
+            }
 
             let execution_mode = match execution_path {
                 common_enums::ExecutionPath::UnifiedConnectorService => {
