@@ -192,63 +192,6 @@ describe("PayLater tests", () => {
     });
   });
 
-  context("Capture on wrong status - Error test", () => {
-    it("Create Payment Intent -> Confirm Payment -> Attempt Capture on requires_customer_action status", () => {
-      let shouldContinue = true;
-
-      cy.step("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "pay_later_pm"
-        ]["PaymentIntent"];
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "manual",
-          globalState
-        );
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
-        cy.paymentMethodsCallTest(globalState);
-      });
-
-      cy.step("Confirm Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment");
-          return;
-        }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "pay_later_pm"
-        ]["Klarna"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-      });
-
-      cy.step("Attempt Capture on wrong status", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Attempt Capture on wrong status");
-          return;
-        }
-        const captureData = getConnectorDetails(globalState.get("connectorId"))[
-          "pay_later_pm"
-        ]["CaptureOnWrongStatus"];
-        cy.captureCallTest(fixtures.captureBody, captureData, globalState);
-      });
-    });
-  });
-
   context("Confirm without payment_method_data - Error test", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment without payment_method_data", () => {
       let shouldContinue = true;

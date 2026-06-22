@@ -3023,6 +3023,22 @@ export const connectorDetails = {
         },
       },
     }),
+    CaptureOnWrongStatus: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially_captured_and_capturable, processing",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
     ConfirmSuccessfulPayment: getCustomExchange({
       Request: {
         payment_method: "card",

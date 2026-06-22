@@ -362,6 +362,67 @@ describe("Corner cases", () => {
     });
   });
 
+  context("[Payment] Capture on wrong status", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    it("Create payment intent and confirm -> Retrieve payment -> Capture call", () => {
+      let shouldContinue = true;
+
+      cy.step("Create payment intent and confirm", () => {
+        const paymentCreateConfirmBody = Cypress._.cloneDeep(
+          fixtures.createConfirmPaymentBody
+        );
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["3DSManualCapture"];
+
+        cy.createConfirmPaymentTest(
+          paymentCreateConfirmBody,
+          data,
+          "three_ds",
+          "manual",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["3DSManualCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      cy.step("Capture call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Capture call");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["CaptureOnWrongStatus"];
+
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
+      });
+    });
+  });
+
   context("[Payment] Confirm successful payment", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
