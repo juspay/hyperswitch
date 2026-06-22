@@ -32,7 +32,6 @@ import getConnectorDetails, {
   getValueByKey,
   setNormalizedValue,
 } from "../e2e/configs/Payment/Utils";
-import * as fixtures from "../fixtures/imports";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
