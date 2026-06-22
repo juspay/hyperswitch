@@ -5211,7 +5211,11 @@ Cypress.Commands.add(
         const hyperswitchUrl =
           Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
         cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
-          if (saved && saved.__redirect_method === "GET" && saved.__redirect_segment) {
+          if (
+            saved &&
+            saved.__redirect_method === "GET" &&
+            saved.__redirect_segment
+          ) {
             // New-style proxy-bodies: use the saved segment and real query params.
             const segment = saved.__redirect_segment;
             const url = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${segment}`;
@@ -5238,7 +5242,9 @@ Cypress.Commands.add(
                 followRedirect: false,
               }); // step N+2
             } else if (Cypress._buildRequestId) {
-              cy.then(() => { Cypress._buildRequestId(); });
+              cy.then(() => {
+                Cypress._buildRequestId();
+              });
             }
           }
         });
