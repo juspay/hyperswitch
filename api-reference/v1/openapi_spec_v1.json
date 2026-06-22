@@ -40223,6 +40223,24 @@
           "error_message": {
             "type": "string",
             "nullable": true
+          },
+          "hmac_generation_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookHmacGenerationStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "hmac_error_code": {
+            "type": "string",
+            "description": "Connector error code when the HMAC generation step fails.",
+            "nullable": true
+          },
+          "hmac_error_message": {
+            "type": "string",
+            "description": "Connector error message when the HMAC generation step fails.",
+            "nullable": true
           }
         },
         "additionalProperties": false
