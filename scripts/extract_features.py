@@ -1108,7 +1108,7 @@ BUCKET_3_FEATURES = [
     ("Manual Retry", "Manual payment retry by merchant", "POST /payments/{id}/retry", "business_profile.rs:is_manual_retry_enabled", "covered", "Cypress spec 33-ManualRetry"),
     ("Requires CVV", "CVV requirement for saved card payments", "POST /payments (card_cvc required/optional)", "configs table:requires_cvv", "not_covered", ""),
     ("Implicit Customer Update", "Implicit customer record update behavior", "POST /payments (internal customer update)", "configs table:implicit_customer_update", "not_covered", ""),
-    ("Client Session Validation", "Client session token validation", "POST /payments (client_secret validation)", "superposition:client_session_validation_enabled", "not_covered", ""),
+    ("Client Session Validation", "Client session token validation", "POST /payments (client_secret validation)", "superposition:client_session_validation_enabled", "covered", "Cypress spec ClientSessionValidation (PR #12465)"),
     ("Payment Update Via Client Auth", "Allow payment updates via client authentication", "PUT /payments/{id} (client auth)", "configs table:payment_update_enabled_for_client_auth", "not_covered", ""),
     ("Raw PM Details Return", "Return raw payment method details in response", "GET /payment_methods (response format)", "configs table:should_return_raw_payment_method_details", "not_covered", ""),
     ("MIT With Limited Card Data", "Enable MIT with limited card data", "POST /payments (MIT with limited data)", "configs table:should_enable_mit_with_limited_card_data", "not_covered", ""),
