@@ -283,19 +283,21 @@ function cryptoRedirection(
                   // Email (optional, but fill it)
                   cy.get('input[type="email"]').then(($el) => {
                     if ($el.length > 0) {
-                      cy.wrap($el.first())
-                        .clear()
-                        .type(coingateBilling.email);
+                      cy.wrap($el.first()).clear().type(coingateBilling.email);
                     }
                   });
 
                   // First name + Last name (inputs with latin-characters placeholder)
                   cy.get('input[placeholder*="latin"]').then(($inputs) => {
                     if ($inputs.length >= 1) {
-                      cy.wrap($inputs.eq(0)).clear().type(coingateBilling.firstName);
+                      cy.wrap($inputs.eq(0))
+                        .clear()
+                        .type(coingateBilling.firstName);
                     }
                     if ($inputs.length >= 2) {
-                      cy.wrap($inputs.eq(1)).clear().type(coingateBilling.lastName);
+                      cy.wrap($inputs.eq(1))
+                        .clear()
+                        .type(coingateBilling.lastName);
                     }
                   });
 
