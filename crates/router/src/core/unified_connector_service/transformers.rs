@@ -2082,7 +2082,12 @@ impl
             address: Some(address),
             auth_type: auth_type.into(),
             enrolled_for_3ds: false,
-            authentication_data: None,
+            authentication_data: router_data
+                .request
+                .authentication_data
+                .clone()
+                .map(payments_grpc::AuthenticationData::foreign_try_from)
+                .transpose()?,
             metadata: router_data
                 .request
                 .metadata
@@ -4450,6 +4455,7 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
                 .cb_network_params
                 .map(payments_grpc::NetworkParams::foreign_try_from)
                 .transpose()?,
+            created_at: Some(authentication_data.created_at.assume_utc().unix_timestamp()),
         })
     }
 }
@@ -4479,6 +4485,7 @@ impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
             ucaf_collection_indicator: authentication_data.ucaf_collection_indicator,
             exemption_indicator: None,
             network_params: None,
+            created_at: None,
         })
     }
 }
@@ -4662,6 +4669,7 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             ucaf_collection_indicator,
             exemption_indicator: _,
             network_params: _,
+            created_at: _,
         } = response;
         let trans_status = trans_status
             .map(payments_grpc::TransactionStatus::try_from)
