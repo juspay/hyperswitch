@@ -575,6 +575,7 @@ impl WebhookTrigger for types::ConnectorWebhook {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn trigger_webhook_to_connector(
     state: SessionState,
     business_profile: domain::Profile,
@@ -605,7 +606,7 @@ async fn trigger_webhook_to_connector(
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &provider_merchant_id,
-            &merchant_connector_id,
+            merchant_connector_id,
             &merchant_key_store,
         )
         .await;
@@ -786,6 +787,7 @@ async fn update_payment_attempt_from_webhook_response(
     logger::info!("Successfully updated payment attempt");
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn trigger_webhook_to_merchant(
     state: SessionState,
     business_profile: domain::Profile,
@@ -894,7 +896,7 @@ async fn raise_webhooks_analytics_event(
     fallback_event: domain::Event,
 ) {
     let (updated_event, optional_error) = match trigger_webhook_result {
-        Ok((updated_event, error)) => (updated_event, error.map(|e| e.into())),
+        Ok((updated_event, error)) => (updated_event, error),
         Err(error) => (fallback_event, Some(error)),
     };
     let error = optional_error.and_then(|error| {
@@ -1156,6 +1158,7 @@ async fn update_event_if_client_error(
         .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn api_client_error_handler(
     state: SessionState,
     merchant_key_store: domain::MerchantKeyStore,
@@ -1291,7 +1294,7 @@ pub(crate) async fn success_response_handler(
     process_tracker: Option<storage::ProcessTracker>,
     business_status: &'static str,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    utils::increment_webhook_outgoing_received_count(&recipient_data);
+    utils::increment_webhook_outgoing_received_count(recipient_data);
 
     match process_tracker {
         Some(process_tracker) => state
@@ -1430,6 +1433,7 @@ async fn handle_successful_delivery(
 
 #[cfg(feature = "v1")]
 trait OutgoingWebhookResponseHandlerV1 {
+    #[allow(clippy::too_many_arguments)]
     async fn handle_success_response<R: WebhookDeliveryResponse>(
         &self,
         state: SessionState,
@@ -1444,6 +1448,7 @@ trait OutgoingWebhookResponseHandlerV1 {
         errors::WebhooksFlowError,
     >;
 
+    #[allow(clippy::too_many_arguments)]
     async fn handle_error_response(
         &self,
         state: SessionState,

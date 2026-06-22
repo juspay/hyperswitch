@@ -124,6 +124,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         is_overall_delivery_successful: Some(false),
         processor_merchant_id: Some(processor_merchant_id.clone()),
         initiator_merchant_id: Some(webhook_recipient.key_store.merchant_id.clone()),
+        recipient: None,
     };
 
     let event_insert_result = state
@@ -568,8 +569,8 @@ async fn handle_successful_delivery(
     )
     .await?;
 
-    increment_webhook_outgoing_received_count(utils::WebhookRecipientData::Merchant {
-        merchant_id,
+    increment_webhook_outgoing_received_count(&utils::WebhookRecipientData::Merchant {
+        merchant_id: merchant_id.clone(),
     });
 
     match process_tracker {
@@ -593,8 +594,8 @@ async fn handle_failed_delivery(
     log_message: &'static str,
     _schedule_webhook_retry: types::ScheduleWebhookRetry,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    utils::increment_webhook_outgoing_not_received_count(utils::WebhookRecipientData::Merchant {
-        merchant_id,
+    utils::increment_webhook_outgoing_not_received_count(&utils::WebhookRecipientData::Merchant {
+        merchant_id: merchant_id.clone(),
     });
 
     let error = report!(errors::WebhooksFlowError::NotReceivedByMerchant);
@@ -899,8 +900,8 @@ impl WebhookNotificationHandler for types::ManualRetry {
         merchant_id: &common_utils::id_type::MerchantId,
         _process_tracker: Option<storage::ProcessTracker>,
     ) -> Option<Report<errors::WebhooksFlowError>> {
-        increment_webhook_outgoing_received_count(utils::WebhookRecipientData::Merchant {
-            merchant_id,
+        increment_webhook_outgoing_received_count(&utils::WebhookRecipientData::Merchant {
+            merchant_id: merchant_id.clone(),
         });
         None
     }
