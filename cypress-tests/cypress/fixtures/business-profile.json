@@ -9,5 +9,33 @@
     "collect_billing_details_from_wallet_connector": true,
     "always_collect_billing_details_from_wallet_connector": true,
     "always_collect_shipping_details_from_wallet_connector": true
+  },
+
+  "bpWithPayoutLink": {
+    "payout_link_config": {
+      "domain_name": "checkout.example.com",
+      "allowed_domains": ["*.example.com", "trusted-site.com"],
+      "ui_config": {
+        "logo": "https://example.com/logo.png",
+        "merchant_name": "Test Merchant",
+        "theme": "#4285F4"
+      },
+      "form_layout": "tabs",
+      "payout_test_mode": true
+    }
+  },
+
+  "bpWithPayoutLinkNoDomains": {
+    "payout_link_config": {
+      "domain_name": "checkout.example.com",
+      "allowed_domains": [],
+      "ui_config": {
+        "logo": "https://example.com/logo.png",
+        "merchant_name": "Test Merchant",
+        "theme": "#4285F4"
+      },
+      "form_layout": "tabs",
+      "payout_test_mode": false
+    }
   }
 }

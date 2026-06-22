@@ -1,7 +1,6 @@
 {
   "amount": 100,
   "currency": "USD",
-  "customer_id": "payout_customer",
   "email": "payout_customer@example.com",
   "name": "John Doe",
   "phone": "999999999",

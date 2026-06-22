@@ -32,7 +32,6 @@ import getConnectorDetails, {
   getValueByKey,
   setNormalizedValue,
 } from "../e2e/configs/Payment/Utils";
-import * as fixtures from "../fixtures/imports";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
@@ -10368,10 +10367,10 @@ Cypress.Commands.add(
       profile_id: profileId,
     };
 
+    // Use the real customer ID from global state unless the test config
+    // explicitly sets customer_id (e.g. null for validation error tests).
     if (!("customer_id" in reqData)) {
       requestBody.customer_id = globalState.get("customerId");
-    } else if (reqData.customer_id === null) {
-      delete requestBody.customer_id;
     }
 
     cy.request({
@@ -10390,7 +10389,7 @@ Cypress.Commands.add(
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
 
-        if (resData.status === 200 || response.status === 200) {
+        if (response.status === 200) {
           expect(response.status).to.equal(200);
           expect(response.body).to.have.property("payout_id");
           expect(response.body).to.have.property("payout_link");
@@ -10437,69 +10436,8 @@ Cypress.Commands.add("initiatePayoutLinkTest", (data, globalState) => {
     return;
   }
 
-  cy.visit(payoutLinkUrl, { failOnStatusCode: false });
-
-  cy.get("body", { timeout: 30000 }).should("exist");
-
-  cy.get("#sdk-spinner", { timeout: 60000 }).should("have.class", "hidden");
-  cy.task("cli_log", "Payout Link SDK initialized");
-
-  cy.get("#unified-checkout", { timeout: 30000 }).should("be.visible");
-  cy.get("#payment-form", { timeout: 30000 }).should("exist");
-
-  cy.get("#unified-checkout iframe", { timeout: 30000 }).should(
-    "have.length.at.least",
-    1
-  );
-});
-
-Cypress.Commands.add("retrievePayoutLinkTest", (data, globalState) => {
-  const payoutId = globalState.get("payoutID");
-  const apiKey = globalState.get("apiKey");
-  const baseUrl = globalState.get("baseUrl");
-
-  if (!payoutId) {
-    cy.task("cli_log", "Skipping: No payout ID available");
-    return;
-  }
-
-  cy.request({
-    method: "GET",
-    url: `${baseUrl}/payouts/${payoutId}`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": apiKey,
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-
-    cy.wrap(response).then(() => {
-      expect(response.status).to.equal(200);
-      expect(response.headers["content-type"]).to.include("application/json");
-      expect(response.body).to.have.property("payout_link");
-
-      if (
-        response.body.payout_link === null ||
-        response.body.payout_link === undefined
-      ) {
-        cy.task(
-          "cli_log",
-          `WARNING: payout_link is null/undefined in retrieve response for ${payoutId}. ` +
-            `Backend may not be persisting payout_link_id during create.`
-        );
-        return;
-      }
-
-      expect(response.body.payout_link).to.have.property("payout_link_id");
-      expect(response.body.payout_link).to.have.property("link");
-
-      cy.task(
-        "cli_log",
-        `Payout Link retrieved: ${response.body.payout_link.payout_link_id}`
-      );
-    });
-  });
+  const redirectionUrl = new URL(payoutLinkUrl);
+  handleRedirection("payout_link_init", { redirectionUrl }, null, null, {});
 });
 
 Cypress.Commands.add(
@@ -10531,40 +10469,6 @@ Cypress.Commands.add(
       null,
       { bankData, expectedOutcome, payoutLinkType: "bank" }
     );
-  }
-);
-
-/**
- * Updates the business profile with payout link configuration.
- * Enables profile-level payout link settings (domain_name, theme, etc.)
- * so subsequent payout link creations inherit these defaults.
- */
-Cypress.Commands.add(
-  "updateBusinessProfileWithPayoutLinkConfigTest",
-  (globalState) => {
-    const profileBody = fixtures.businessProfileWithPayoutLink.bpWithPayoutLink;
-    const profileId =
-      globalState.get("profileId") || globalState.get("defaultProfileId");
-
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/business_profile/${profileId}`,
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
-      body: profileBody,
-      failOnStatusCode: false,
-    }).then((response) => {
-      expect(response.status).to.equal(200);
-      expect(response.body.profile_id).to.equal(profileId);
-      if (response.body.payout_link_config) {
-        expect(response.body.payout_link_config).to.have.property(
-          "domain_name"
-        );
-      }
-    });
   }
 );
 

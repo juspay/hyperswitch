@@ -133,6 +133,9 @@ export function handleRedirection(
         handlerMetadata
       );
       break;
+    case "payout_link_init":
+      payoutLinkInitRedirection(urls.redirectionUrl, handlerMetadata);
+      break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
@@ -3288,6 +3291,39 @@ function paymentLinkCardRedirection(
   }
 }
 
+/**
+ * Handles the initial visit to a payout link page.
+ * Visits the payout link URL, waits for the SDK to load, and verifies
+ * that the #payout-link container has rendered content and the SDK
+ * iframe is present.
+ *
+ * @param {URL} redirectionUrl - The payout link URL to visit
+ * @param {Object} handlerMetadata - Optional metadata (unused but kept for consistency)
+ */
+function payoutLinkInitRedirection(redirectionUrl, handlerMetadata) {
+  if (!redirectionUrl || !redirectionUrl.href) {
+    cy.log("Skipping payout link init - no valid redirect URL provided");
+    return;
+  }
+
+  cy.visit(redirectionUrl.href, { failOnStatusCode: false });
+
+  cy.get("body", { timeout: 30000 }).should("exist");
+
+  // Payout link pages use #payout-link as the SDK mount container, not
+  // #unified-checkout or #payment-form.  There is no #sdk-spinner element on
+  // these pages — waiting for it causes a 60-second timeout that makes the
+  // page appear blank.  Instead, wait for the SDK to render content inside
+  // #payout-link and for the iframe to appear.
+  cy.get("#payout-link", { timeout: 60000 }).should("not.be.empty");
+  cy.task("cli_log", "Payout Link SDK initialized");
+
+  cy.get("#payout-link iframe", { timeout: 30000 }).should(
+    "have.length.at.least",
+    1
+  );
+}
+
 function payoutLinkRedirection(
   redirectionUrl,
   expectedUrl,
@@ -3306,8 +3342,9 @@ function payoutLinkRedirection(
   }
 
   const expectedOutcome = handlerMetadata?.expectedOutcome || "success";
-  const IBAN = "NL46TEST0136169112";
-  const BIC = "ABNANL2A";
+  const bankData = handlerMetadata?.bankData || {};
+  const IBAN = bankData.iban || "NL46TEST0136169112";
+  const BIC = bankData.bic || "ABNANL2A";
 
   cy.on("uncaught:exception", () => false);
 
@@ -3321,14 +3358,29 @@ function payoutLinkRedirection(
   cy.visit(redirectionUrl.href, { failOnStatusCode: false });
   cy.get("body", { timeout: 30000 }).should("exist");
 
+  // Payout link pages use #payout-link as the SDK mount container, not
+  // #unified-checkout or #payment-form.  There is no #sdk-spinner element on
+  // these pages — waiting for it causes a 60-second timeout that makes the
+  // page appear blank.  Instead, wait for the SDK to render content inside
+  // #payout-link and for the iframe to appear.
+  cy.get("#payout-link", { timeout: 60000 }).should("not.be.empty");
+  cy.task("cli_log", "Payout Link SDK initialized");
+
+  // The SEPA IBAN/BIC inputs and the Save/Submit buttons are rendered inside
+  // a same-origin iframe by the SDK.  Wait for that iframe to appear.
+  cy.get("#payout-link iframe", { timeout: 30000 }).should(
+    "have.length.at.least",
+    1
+  );
+
   cy.task(
     "cli_log",
-    "Payout link page loaded — looking for SEPA IBAN and BIC inputs directly"
+    "Payout link page loaded — looking for SEPA IBAN and BIC inputs"
   );
 
   // Strategy: look for input#sepa.iban and input#sepa.bic. They may be on the
-  // main page or inside an iframe.  Do NOT wait for #unified-checkout or
-  // #payment-form containers — the payout page is already rendered.
+  // main page or inside an iframe.  We use a retry-based approach that waits
+  // for the element to appear rather than a one-shot synchronous jQuery scan.
   function fillInputById(selector, value, desc) {
     // Try the top-level page first
     cy.get("body").then(($body) => {
@@ -3371,7 +3423,37 @@ function payoutLinkRedirection(
       });
 
       if (!found) {
-        cy.task("cli_log", `${desc} not found on page or in any iframe`);
+        // The iframe exists but the input may not have rendered yet.
+        // Retry by entering the iframe via Cypress's built-in iframe support
+        // and using cy.get() with a timeout so Cypress retries automatically.
+        cy.task(
+          "cli_log",
+          `${desc} not found synchronously — retrying with Cypress iframe wait`
+        );
+        cy.get("#payout-link iframe")
+          .first()
+          .its("0.contentDocument.body")
+          .should("not.be.empty")
+          .then((iframeBody) => {
+            const $inner = Cypress.$(iframeBody).find(selector);
+            if ($inner.length > 0) {
+              cy.wrap($inner)
+                .should("be.visible")
+                .clear({ force: true })
+                .type(value, { delay: 30, force: true });
+              cy.task("cli_log", `${desc} filled via Cypress iframe retry`);
+            } else {
+              // Final fallback: use cy.get inside the iframe document with
+              // a timeout so Cypress retries until the element appears.
+              cy.wrap(iframeBody)
+                .find(selector)
+                .should("exist")
+                .and("be.visible")
+                .clear({ force: true })
+                .type(value, { delay: 30, force: true });
+              cy.task("cli_log", `${desc} filled via iframe cy.get retry`);
+            }
+          });
       }
     });
   }
@@ -3380,9 +3462,6 @@ function payoutLinkRedirection(
   fillInputById('input[id="sepa.bic"]', BIC, "BIC");
 
   // Click Save (first submission)
-  // The payout-link SDK may render the button inside an iframe, so try the
-  // main page first; if the element isn’t there, search inside every
-  // same-origin iframe.
   // The payout-link SDK may render the button inside an iframe, so try the
   // main page first; if the element isn't there, search inside every
   // same-origin iframe.
@@ -3427,10 +3506,31 @@ function payoutLinkRedirection(
       });
 
       if (!found) {
+        // Retry via Cypress iframe support with automatic retry/timeout
         cy.task(
           "cli_log",
-          `"${text}" button not found on page or in any iframe`
+          `"${text}" button not found synchronously — retrying with Cypress iframe wait`
         );
+        cy.get("#payout-link iframe")
+          .first()
+          .its("0.contentDocument.body")
+          .should("not.be.empty")
+          .then((iframeBody) => {
+            const $inner = Cypress.$(iframeBody)
+              .find("button")
+              .filter((i, el) => el.textContent.trim() === text);
+            if ($inner.length > 0) {
+              cy.wrap($inner).should("be.visible").click({ force: true });
+              cy.task("cli_log", `Clicked "${text}" via Cypress iframe retry`);
+            } else {
+              cy.wrap(iframeBody)
+                .find("button")
+                .contains(text)
+                .should("be.visible")
+                .click({ force: true });
+              cy.task("cli_log", `Clicked "${text}" via iframe cy.get retry`);
+            }
+          });
       }
     });
   }
@@ -3522,13 +3622,15 @@ function payoutLinkCardRedirection(
 
   cy.get("body", { timeout: 30000 }).should("exist");
 
-  cy.get("#sdk-spinner", { timeout: 60000 }).should("have.class", "hidden");
+  // Payout link pages use #payout-link as the SDK mount container, not
+  // #unified-checkout or #payment-form.  There is no #sdk-spinner element on
+  // these pages — waiting for it causes a 60-second timeout that makes the
+  // page appear blank.  Instead, wait for the SDK to render content inside
+  // #payout-link and for the iframe to appear.
+  cy.get("#payout-link", { timeout: 60000 }).should("not.be.empty");
   cy.task("cli_log", "Payout Link SDK initialized successfully");
 
-  cy.get("#unified-checkout", { timeout: 30000 }).should("be.visible");
-  cy.get("#payment-form", { timeout: 30000 }).should("exist");
-
-  cy.get("#unified-checkout iframe", { timeout: 30000 }).should(
+  cy.get("#payout-link iframe", { timeout: 30000 }).should(
     "have.length.at.least",
     1
   );
@@ -3611,8 +3713,8 @@ function payoutLinkCardRedirection(
       });
   }
 
-  cy.get("#unified-checkout iframe").then(($iframes) => {
-    cy.task("cli_log", `Found ${$iframes.length} iframes in unified-checkout`);
+  cy.get("#payout-link iframe").then(($iframes) => {
+    cy.task("cli_log", `Found ${$iframes.length} iframes in payout-link`);
 
     $iframes.each((index, iframe) => {
       fillCardInputInIframe(iframe, index);

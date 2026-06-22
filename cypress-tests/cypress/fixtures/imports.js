@@ -1,5 +1,4 @@
 import businessProfile from "./business-profile.json";
-import businessProfileWithPayoutLink from "./business-profile-with-payout-link.json";
 import captureBody from "./capture-flow-body.json";
 import configs from "./configs.json";
 import confirmBody from "./confirm-body.json";
@@ -48,7 +47,6 @@ export {
   apiKeyUpdateBody,
   blocklistCreateBody,
   businessProfile,
-  businessProfileWithPayoutLink,
   captureBody,
   cardLimitedDataMITBody,
   citConfirmBody,

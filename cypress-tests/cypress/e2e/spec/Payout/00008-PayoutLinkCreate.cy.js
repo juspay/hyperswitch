@@ -79,7 +79,7 @@ describe("Payout Link", () => {
     });
 
     it("retrieve-payout-link-test", () => {
-      cy.retrievePayoutLinkTest({}, globalState);
+      cy.retrievePayoutCallTest(globalState);
     });
 
     it("list-payout-links-test", () => {
@@ -304,7 +304,15 @@ describe("Payout Link", () => {
     });
 
     it("update-business-profile-with-payout-link-config-test", () => {
-      cy.updateBusinessProfileWithPayoutLinkConfigTest(globalState);
+      cy.UpdateBusinessProfileTest(
+        fixtures.businessProfile.bpWithPayoutLink,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        globalState
+      );
     });
 
     it("create-payout-link-using-profile-config-test", () => {
@@ -320,7 +328,7 @@ describe("Payout Link", () => {
     });
 
     it("retrieve-payout-link-profile-config-test", () => {
-      cy.retrievePayoutLinkTest({}, globalState);
+      cy.retrievePayoutCallTest(globalState);
     });
   });
 });
