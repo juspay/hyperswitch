@@ -140,7 +140,7 @@ mod helpers {
     #[inline(always)]
     pub fn f64_histogram_buckets() -> Vec<f64> {
         let mut init = 0.000_001;
-        let mut buckets: [f64; 60] = [0.0; 60];
+        let mut buckets: [f64; 30] = [0.0; 30];
 
         for bucket in &mut buckets {
             init *= 2.0;
