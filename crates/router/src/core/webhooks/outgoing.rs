@@ -75,7 +75,6 @@ pub(crate) async fn get_webhook_events(
         .as_ref()
         .and_then(|details| details.surcharge_connector_id.clone())
     {
-        println!("ssssss: check1");
         match get_surcharge_webhook_event(
             state,
             platform,
@@ -87,14 +86,12 @@ pub(crate) async fn get_webhook_events(
         {
             Ok(Some(event_data)) => webhook_events.push(event_data),
             Ok(None) => {
-                println!("ssssss: check2");
                 logger::debug!(
                     "No surcharge webhook event generated for primary event type {}",
                     primary_event_type
                 );
             }
             Err(error) => {
-                println!("ssssss: check3");
                 logger::error!(
                     ?error,
                     "Failed to fetch surcharge connector or build surcharge webhook event"
@@ -102,7 +99,6 @@ pub(crate) async fn get_webhook_events(
             }
         }
     }
-    println!("ssssss: check4");
 
     Ok(webhook_events)
 }
@@ -130,28 +126,20 @@ async fn get_surcharge_webhook_event(
                 .to_string(),
         })?;
 
-    println!("ssssss: check5");
-
     let connector_name =
         api::enums::SurchargeConnectors::from_str(&merchant_surcharge_connector.connector_name)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "connector",
             })?;
 
-    println!("ssssss: check6: {:?}", primary_event_type);
-
     let surcharge_event = match primary_event_type.to_surcharge_event() {
         Some(event) => event,
         None => return Ok(None),
     };
 
-    println!("ssssss: check7");
-
     if !connector_name.should_notify_connector(primary_event_type) {
         return Ok(None);
     }
-
-    println!("ssssss: check8 {:?}", webhook_resource_data);
 
     let resource = match webhook_resource_data {
         Some(r) => r,
