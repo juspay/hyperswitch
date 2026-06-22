@@ -22,6 +22,7 @@ import { connectorDetails as cashtocodeConnectorDetails } from "./Cashtocode.js"
 import { connectorDetails as celeroConnectorDetails } from "./Celero.js";
 import { connectorDetails as checkbookConnectorDetails } from "./Checkbook.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
+import { connectorDetails as coingateConnectorDetails } from "./Coingate.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cryptopayConnectorDetails } from "./Cryptopay.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
@@ -104,6 +105,7 @@ const connectorDetails = {
   checkout: checkoutConnectorDetails,
   checkbook: checkbookConnectorDetails,
   commons: commonConnectorDetails,
+  coingate: coingateConnectorDetails,
   cryptopay: cryptopayConnectorDetails,
   cybersource: cybersourceConnectorDetails,
   dlocal: dlocalConnectorDetails,
@@ -652,6 +654,7 @@ export const CONNECTOR_LISTS = {
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
     REFUND_TYPE: ["stripe", "adyen", "checkout"],
     MANUAL_PAYMENT_UPDATE: ["stripe"],
+    CRYPTO_PAYMENT: ["bitpay", "coingate", "cryptopay"],
     STEP_UP_RETRY: [
       "cybersource",
       "checkout",
