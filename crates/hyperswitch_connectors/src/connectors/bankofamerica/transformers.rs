@@ -1323,7 +1323,8 @@ pub enum BankofamericaPaymentStatus {
     PendingReview,
     Accepted,
     Cancelled,
-    //PartialAuthorized, not being consumed yet.
+    #[serde(other)]
+    Unknown,
 }
 
 fn map_boa_attempt_status(
@@ -1364,6 +1365,10 @@ fn map_boa_attempt_status(
         BankofamericaPaymentStatus::PendingReview
         | BankofamericaPaymentStatus::Challenge
         | BankofamericaPaymentStatus::Accepted => enums::AttemptStatus::Pending,
+        BankofamericaPaymentStatus::Unknown => {
+            logger::warn!("Unknown BankofamericaPaymentStatus variant received");
+            enums::AttemptStatus::Pending
+        }
     }
 }
 
@@ -1372,6 +1377,7 @@ fn map_boa_attempt_status(
 pub enum BankOfAmericaPaymentsResponse {
     ClientReferenceInformation(Box<BankOfAmericaClientReferenceResponse>),
     ErrorInformation(Box<BankOfAmericaErrorInformationResponse>),
+    Unknown(serde_json::Value),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1379,6 +1385,7 @@ pub enum BankOfAmericaPaymentsResponse {
 pub enum BankOfAmericaSetupMandatesResponse {
     ClientReferenceInformation(Box<BankOfAmericaClientReferenceResponse>),
     ErrorInformation(Box<BankOfAmericaErrorInformationResponse>),
+    Unknown(serde_json::Value),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -1736,6 +1743,12 @@ impl TryFrom<PaymentsResponseRouterData<BankOfAmericaPaymentsResponse>>
                     Some(enums::AttemptStatus::Failure),
                 ))
             }
+            BankOfAmericaPaymentsResponse::Unknown(_) => {
+                logger::warn!(
+                    "Unknown BankOfAmericaPaymentsResponse variant received in authorize"
+                );
+                Ok(item.data)
+            }
         }
     }
 }
@@ -1790,6 +1803,10 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BankOfAmericaPaymentsResponse>>
             BankOfAmericaPaymentsResponse::ErrorInformation(ref error_response) => {
                 Ok(map_error_response(&error_response.clone(), item, None))
             }
+            BankOfAmericaPaymentsResponse::Unknown(_) => {
+                logger::warn!("Unknown BankOfAmericaPaymentsResponse variant received in capture");
+                Ok(item.data)
+            }
         }
     }
 }
@@ -1814,6 +1831,10 @@ impl TryFrom<PaymentsCancelResponseRouterData<BankOfAmericaPaymentsResponse>>
             }
             BankOfAmericaPaymentsResponse::ErrorInformation(ref error_response) => {
                 Ok(map_error_response(&error_response.clone(), item, None))
+            }
+            BankOfAmericaPaymentsResponse::Unknown(_) => {
+                logger::warn!("Unknown BankOfAmericaPaymentsResponse variant received in cancel");
+                Ok(item.data)
             }
         }
     }
@@ -2098,6 +2119,10 @@ impl From<BankOfAmericaRefundResponse> for enums::RefundStatus {
                     Self::Pending
                 }
             }
+            BankofamericaRefundStatus::Unknown => {
+                logger::warn!("Unknown BankofamericaRefundStatus variant received");
+                Self::Pending
+            }
         }
     }
 }
@@ -2152,6 +2177,8 @@ pub enum BankofamericaRefundStatus {
     Cancelled,
     #[serde(rename = "201")]
     TwoZeroOne,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2199,6 +2226,12 @@ impl TryFrom<RefundsResponseRouterData<RSync, BankOfAmericaRsyncResponse>>
                         } else {
                             enums::RefundStatus::Pending
                         }
+                    }
+                    BankofamericaRefundStatus::Unknown => {
+                        logger::warn!(
+                            "Unknown BankofamericaRefundStatus variant received in refund sync"
+                        );
+                        enums::RefundStatus::Pending
                     }
                 };
                 if utils::is_refund_failure(refund_status) {

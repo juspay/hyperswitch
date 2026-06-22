@@ -821,6 +821,12 @@ impl FinixWebhookBody {
                     FinixDisputeState::INQUIRY => Ok(IncomingWebhookEvent::DisputeChallenged),
                     FinixDisputeState::LOST => Ok(IncomingWebhookEvent::DisputeLost),
                     FinixDisputeState::WON => Ok(IncomingWebhookEvent::DisputeWon),
+                    FinixDisputeState::Unknown => {
+                        router_env::logger::warn!(
+                            "Received unknown Finix dispute state in webhook"
+                        );
+                        Ok(IncomingWebhookEvent::EventNotSupported)
+                    }
                 }
             }
         }
