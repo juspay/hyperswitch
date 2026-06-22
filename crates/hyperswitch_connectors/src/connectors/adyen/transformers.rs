@@ -4516,7 +4516,8 @@ pub fn get_adyen_response(
     pmt: Option<storage_enums::PaymentMethodType>,
     prev_status: storage_enums::AttemptStatus,
 ) -> CustomResult<AdyenPaymentsResponseData, errors::ConnectorError> {
-    let status = get_adyen_payment_status(is_capture_manual, response.result_code, pmt, prev_status);
+    let status =
+        get_adyen_payment_status(is_capture_manual, response.result_code, pmt, prev_status);
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == storage_enums::AttemptStatus::Failure
@@ -4740,7 +4741,12 @@ pub fn get_redirection_response(
     pmt: Option<storage_enums::PaymentMethodType>,
     prev_status: storage_enums::AttemptStatus,
 ) -> CustomResult<AdyenPaymentsResponseData, errors::ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt, prev_status);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        prev_status,
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == storage_enums::AttemptStatus::Failure
@@ -4845,7 +4851,12 @@ pub fn get_present_to_shopper_response(
     pmt: Option<storage_enums::PaymentMethodType>,
     prev_status: storage_enums::AttemptStatus,
 ) -> CustomResult<AdyenPaymentsResponseData, errors::ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt, prev_status);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        prev_status,
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == storage_enums::AttemptStatus::Failure
@@ -4919,7 +4930,12 @@ pub fn get_qr_code_response(
     pmt: Option<storage_enums::PaymentMethodType>,
     prev_status: storage_enums::AttemptStatus,
 ) -> CustomResult<AdyenPaymentsResponseData, errors::ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt, prev_status);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        prev_status,
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == storage_enums::AttemptStatus::Failure
@@ -4993,7 +5009,8 @@ pub fn get_redirection_error_response(
     pmt: Option<storage_enums::PaymentMethodType>,
     prev_status: storage_enums::AttemptStatus,
 ) -> CustomResult<AdyenPaymentsResponseData, errors::ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code, pmt, prev_status);
+    let status =
+        get_adyen_payment_status(is_manual_capture, response.result_code, pmt, prev_status);
     let error = {
         let (network_decline_code, network_error_message) = response
             .additional_data
@@ -5323,20 +5340,42 @@ impl<F, Req>
         let is_manual_capture = is_manual_capture(capture_method);
         let prev_status = item.data.status;
         let adyen_payments_response_data = match item.response {
-            AdyenPaymentResponse::Response(response) => {
-                get_adyen_response(*response, is_manual_capture, item.http_code, pmt, prev_status)?
-            }
-            AdyenPaymentResponse::PresentToShopper(response) => {
-                get_present_to_shopper_response(*response, is_manual_capture, item.http_code, pmt, prev_status)?
-            }
-            AdyenPaymentResponse::QrCodeResponse(response) => {
-                get_qr_code_response(*response, is_manual_capture, item.http_code, pmt, prev_status)?
-            }
-            AdyenPaymentResponse::RedirectionResponse(response) => {
-                get_redirection_response(*response, is_manual_capture, item.http_code, pmt, prev_status)?
-            }
+            AdyenPaymentResponse::Response(response) => get_adyen_response(
+                *response,
+                is_manual_capture,
+                item.http_code,
+                pmt,
+                prev_status,
+            )?,
+            AdyenPaymentResponse::PresentToShopper(response) => get_present_to_shopper_response(
+                *response,
+                is_manual_capture,
+                item.http_code,
+                pmt,
+                prev_status,
+            )?,
+            AdyenPaymentResponse::QrCodeResponse(response) => get_qr_code_response(
+                *response,
+                is_manual_capture,
+                item.http_code,
+                pmt,
+                prev_status,
+            )?,
+            AdyenPaymentResponse::RedirectionResponse(response) => get_redirection_response(
+                *response,
+                is_manual_capture,
+                item.http_code,
+                pmt,
+                prev_status,
+            )?,
             AdyenPaymentResponse::RedirectionErrorResponse(response) => {
-                get_redirection_error_response(*response, is_manual_capture, item.http_code, pmt, prev_status)?
+                get_redirection_error_response(
+                    *response,
+                    is_manual_capture,
+                    item.http_code,
+                    pmt,
+                    prev_status,
+                )?
             }
             AdyenPaymentResponse::WebhookResponse(response) => get_webhook_response(
                 *response,
