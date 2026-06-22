@@ -345,8 +345,18 @@ describe("Bank Debit tests", () => {
       let shouldContinue = true;
 
       cy.step("CIT mandate creation for BECS", () => {
-        // citForMandatesCallTest params: requestBody, data, amount, confirm, capture_method, payment_type, globalState
-        // data contains connector-specific Request (amount, currency, bank details) and Response (expected status)
+        // citForMandatesCallTest parameter mapping:
+        // 1. fixtures.citConfirmBody -> requestBody (base template with default mandate fields)
+        // 2. data -> data object from connector config containing Request and Response
+        // 3. data.Request.amount -> amount (payment amount in cents, e.g., 8000 = $80.00)
+        // 4. true -> confirm (whether to confirm payment immediately)
+        // 5. "automatic" -> capture_method (how to capture funds: automatic/manual)
+        // 6. "new_mandate" -> payment_type (creates new mandate for bank debit)
+        // 7. globalState -> globalState (shared state to store payment_id, mandate_id)
+        //
+        // data structure comes from Adyen.js/Stripe.js bank_debit_pm config:
+        // data.Request: {payment_method, payment_method_type, payment_method_data, billing, mandate_data, ...}
+        // data.Response: {status: "processing"} - expected API response status
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["MandateSingleUseBecs"];
