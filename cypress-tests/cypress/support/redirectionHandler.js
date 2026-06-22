@@ -201,6 +201,29 @@ function cryptoRedirection(
         .click();
 
       cy.log("Submitted Bitpay login credentials");
+    } else if (connectorId === "coingate") {
+      cy.document().should("have.property", "readyState", "complete");
+      cy.title({ timeout: CONSTANTS.WAIT_TIME }).should("include", "CoinGate");
+      cy.log("Coingate payment page loaded successfully");
+
+      handleFlow(
+        redirectionUrl,
+        expectedUrl,
+        connectorId,
+        ({ paymentMethodType }) => {
+          switch (paymentMethodType) {
+            case "crypto_currency":
+              cy.log("Handling crypto currency payment redirection");
+              break;
+
+            default:
+              throw new Error(
+                `Unsupported crypto payment method type: ${paymentMethodType}`
+              );
+          }
+        },
+        { paymentMethodType }
+      );
     } else {
       cy.get("canvas.BbpsQr__canvas", { timeout: 5000 })
         .should("exist")
