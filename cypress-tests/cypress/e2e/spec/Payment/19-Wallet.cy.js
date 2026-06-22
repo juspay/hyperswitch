@@ -90,7 +90,7 @@ describe("Wallet tests", () => {
         "nextActionUrl should be defined before handling wallet redirection"
       ).to.be.a("string");
 
-      cy.handleBankRedirectRedirection(
+      cy.handleWalletRedirection(
         globalState,
         payment_method_type,
         expected_redirection
@@ -188,7 +188,7 @@ describe("Wallet tests", () => {
         "nextActionUrl should be defined before handling wallet redirection"
       ).to.be.a("string");
 
-      cy.handleBankRedirectRedirection(
+      cy.handleWalletRedirection(
         globalState,
         payment_method_type,
         expected_redirection
