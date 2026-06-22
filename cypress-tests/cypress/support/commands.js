@@ -32,6 +32,7 @@ import getConnectorDetails, {
   getValueByKey,
   setNormalizedValue,
 } from "../e2e/configs/Payment/Utils";
+import * as fixtures from "../fixtures/imports";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
@@ -10427,6 +10428,18 @@ Cypress.Commands.add(
     });
   }
 );
+
+Cypress.Commands.add("initiatePayoutLinkTest", (data, globalState) => {
+  const payoutLinkUrl = globalState.get("payoutLinkUrl");
+
+  if (!payoutLinkUrl) {
+    cy.task("cli_log", "Skipping: No payout link URL available");
+    return;
+  }
+
+  const redirectionUrl = new URL(payoutLinkUrl);
+  handleRedirection("payout_link_init", { redirectionUrl }, null, null, {});
+});
 
 Cypress.Commands.add(
   "handlePayoutLinkBankRedirection",
