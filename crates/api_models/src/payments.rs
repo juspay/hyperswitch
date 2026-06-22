@@ -3498,7 +3498,8 @@ pub enum PaymentMethodData {
     NetworkToken(NetworkTokenData),
     /// Vault card data used for external vault proxy payments.
     /// When this variant is used, the payment will be routed through the external vault proxy flow.
-    #[schema(title = "ProxyCard")]
+    #[schema(title = "VaultDataCard")]
+    #[serde(rename = "vault_data_card")]
     ProxyCard(Box<ProxyCardData>),
     /// Vault card token data used for external vault proxy payments with an already-saved card.
     /// The top-level `payment_token` resolves to a stored payment method whose external vault
@@ -10211,6 +10212,62 @@ pub struct HyperswitchVaultSessionDetails {
     pub sdk_authorization: Secret<String>,
 }
 
+/// V1-facing vault details for the session-tokens response, serialized as a tagged
+/// `{ "vault_type": ..., "vault_data": { ... } }` object. Exactly one variant is returned:
+/// external vault details when configured, otherwise the internal Hyperswitch vault session.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(tag = "vault_type", content = "vault_data", rename_all = "snake_case")]
+pub enum VaultDetailsResponse {
+    /// Internal/default Hyperswitch vault session
+    Hyperswitch(HyperswitchVaultData),
+    /// External VGS vault session
+    Vgs(VgsVaultData),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct HyperswitchVaultData {
+    /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
+    #[schema(value_type = String)]
+    pub sdk_authorization: Secret<String>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct VgsVaultData {
+    /// The identifier of the external vault
+    #[schema(value_type = String)]
+    pub vault_id: Secret<String>,
+    /// The environment for the external vault initiation
+    pub environment: String,
+}
+
+#[cfg(feature = "v1")]
+impl From<VaultDetails> for Option<VaultDetailsResponse> {
+    fn from(details: VaultDetails) -> Self {
+        match details.external_vault_details {
+            // An external vault is configured: surface it as-is (VGS or Hyperswitch Vault).
+            Some(VaultSessionDetails::Vgs(vgs)) => Some(VaultDetailsResponse::Vgs(VgsVaultData {
+                vault_id: vgs.external_vault_id,
+                environment: vgs.sdk_env,
+            })),
+            Some(VaultSessionDetails::HyperswitchVault(hs)) => {
+                Some(VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
+                    sdk_authorization: hs.sdk_authorization,
+                }))
+            }
+            // No external vault configured (the SaaS default): fall back to the internal
+            // Hyperswitch vault SDK authorization.
+            None => details.internal_vault.map(|internal| {
+                VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
+                    sdk_authorization: Secret::new(internal.sdk_authorization),
+                })
+            }),
+        }
+    }
+}
+
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
 )]
@@ -10939,8 +10996,8 @@ pub struct PaymentsSessionResponse {
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
-    /// Vault details containing internal vault (SDK auth) and external vault info
-    pub vault_details: Option<VaultDetails>,
+    /// Vault details for the session, returned as a tagged `{ vault_type, vault_data }` object
+    pub vault_details: Option<VaultDetailsResponse>,
 }
 
 #[cfg(feature = "v2")]
