@@ -6,9 +6,13 @@ import * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Connector Account Create flow test", () => {
+  let isStripeConnector = false;
+
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      // Check if this is a stripe connector (connector_3,4,5 only needed for Stripe bank debit)
+      isStripeConnector = globalState.get("connectorId") === "stripe";
     });
   });
 
@@ -51,6 +55,7 @@ describe("Connector Account Create flow test", () => {
 
   // Create connector_3, connector_4, connector_5 with hardcoded profile names
   // These profile names (profile2, profile3, profile4) are used by bank debit tests
+  // ONLY for Stripe connector - other connectors don't need these extra credentials
   [
     { num: 3, profileName: "profile2", mcaName: "merchantConnector2" },
     { num: 4, profileName: "profile3", mcaName: "merchantConnector3" },
@@ -59,6 +64,13 @@ describe("Connector Account Create flow test", () => {
     context(
       `Create business profile and merchant connector account for connector_${num}`,
       () => {
+        beforeEach(function () {
+          // Skip for non-Stripe connectors - they don't need connector_3/4/5
+          if (!isStripeConnector) {
+            this.skip();
+          }
+        });
+
         it(`Create business profile for connector_${num}`, () => {
           cy.createBusinessProfileTest(
             fixtures.businessProfile.bpCreate,
