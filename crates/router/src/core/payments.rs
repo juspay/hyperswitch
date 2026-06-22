@@ -9034,7 +9034,7 @@ async fn decide_payment_method_tokenize_action(
     ) {
         match pm_parent_token {
             None => Ok(TokenizationAction::TokenizeInConnector),
-            Some(_) => Ok(TokenizationAction::TokenizeInConnectorAndRouter), 
+            Some(_) => Ok(TokenizationAction::TokenizeInConnectorAndRouter),
         }
     } else {
         match pm_parent_token {
