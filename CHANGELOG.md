@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.22.0
+
+### Features
+
+- **connector:** [airwallex] add extended authorization ([#12825](https://github.com/juspay/hyperswitch/pull/12825)) ([`9e41693`](https://github.com/juspay/hyperswitch/commit/9e41693371fff6b0c37c5ef4322c08de256be51a))
+- **ucs:** Add org-level rollout config with precedence hierarchy ([#12057](https://github.com/juspay/hyperswitch/pull/12057)) ([`a828fb2`](https://github.com/juspay/hyperswitch/commit/a828fb20f862e7bbc4ef4f5c367a7ccf2ee0a00d))
+
+### Bug Fixes
+
+- **connector:** Add payconex to ucs_only_connectors in env_specific config ([#12856](https://github.com/juspay/hyperswitch/pull/12856)) ([`806d13d`](https://github.com/juspay/hyperswitch/commit/806d13d04e85d554d41f44e80f9ba8055bd6314d))
+- **payments:** Support single-call create+confirm for external vault proxy ([#12862](https://github.com/juspay/hyperswitch/pull/12862)) ([`78b7227`](https://github.com/juspay/hyperswitch/commit/78b7227e97f4534397c34b5d70aee8fa04ee05e8))
+- **ucs:** Retain previous refund status when UCS returns Unspecified ([#12842](https://github.com/juspay/hyperswitch/pull/12842)) ([`c7cf0c5`](https://github.com/juspay/hyperswitch/commit/c7cf0c5c9e35e0d1b1fd0201e07348ba0e408e11))
+
+**Full Changelog:** [`2026.06.19.0...2026.06.22.0`](https://github.com/juspay/hyperswitch/compare/2026.06.19.0...2026.06.22.0)
+
+- - -
+
 ## 2026.06.19.0
 
 ### Features
