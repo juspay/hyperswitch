@@ -538,7 +538,7 @@ export const CONNECTOR_LISTS = {
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen"],
     BLUECODE_WALLET: ["calida"],
-    ALIPAY_HK_WALLET: ["adyen"],
+    ALIPAY_HK_WALLET: [""],
     PAYPAL_WALLET: [
       "airwallex",
       "globalpay",
@@ -567,6 +567,7 @@ export const CONNECTOR_LISTS = {
       "nuvei",
       "trustpay",
       "finix",
+      "payload",
     ],
     BILLING_DESCRIPTOR_INVALID_PHONE: ["nuvei"],
     FEATURE_METADATA: ["bankofamerica"],
