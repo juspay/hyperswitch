@@ -26,6 +26,15 @@ const CONSTANTS = {
   ],
 };
 
+const COINGATE_BILLING = {
+  email: "test@example.com",
+  firstName: "Jan",
+  lastName: "Jansen",
+  dobMonth: "1",
+  dobDay: "1",
+  dobYear: "1990",
+};
+
 function normalizeConnectorForRedirect(connectorId) {
   return connectorId === "stripeconnect" ? "stripe" : connectorId;
 }
@@ -250,9 +259,10 @@ function cryptoRedirection(
         redirectionUrl,
         expectedUrl,
         connectorId,
-        // NOTE: this callback runs inside cy.origin — CONSTANTS is not in scope.
-        // Use `constants` from the destructured args instead.
-        ({ paymentMethodType, constants }) => {
+        // NOTE: this callback runs inside cy.origin — CONSTANTS and
+        // COINGATE_BILLING are not in scope. Use `constants` and
+        // `coingateBilling` from the destructured args instead.
+        ({ paymentMethodType, constants, coingateBilling }) => {
           switch (paymentMethodType) {
             case "crypto_currency": {
               cy.log("Coingate Bitcoin payment: checking for KYC billing form");
@@ -274,17 +284,17 @@ function cryptoRedirection(
                     if ($el.length > 0) {
                       cy.wrap($el.first())
                         .clear()
-                        .type("test@example.com");
+                        .type(coingateBilling.email);
                     }
                   });
 
                   // First name + Last name (inputs with latin-characters placeholder)
                   cy.get('input[placeholder*="latin"]').then(($inputs) => {
                     if ($inputs.length >= 1) {
-                      cy.wrap($inputs.eq(0)).clear().type("Jan");
+                      cy.wrap($inputs.eq(0)).clear().type(coingateBilling.firstName);
                     }
                     if ($inputs.length >= 2) {
-                      cy.wrap($inputs.eq(1)).clear().type("Jansen");
+                      cy.wrap($inputs.eq(1)).clear().type(coingateBilling.lastName);
                     }
                   });
 
@@ -294,13 +304,13 @@ function cryptoRedirection(
                   // the Coingate billing form.
                   const $selects = $body.find("select");
                   if ($selects.length >= 1) {
-                    cy.wrap($selects.eq(0)).select("1");
+                    cy.wrap($selects.eq(0)).select(coingateBilling.dobMonth);
                   }
                   if ($selects.length >= 2) {
-                    cy.wrap($selects.eq(1)).select("1");
+                    cy.wrap($selects.eq(1)).select(coingateBilling.dobDay);
                   }
                   if ($selects.length >= 3) {
-                    cy.wrap($selects.eq(2)).select("1990");
+                    cy.wrap($selects.eq(2)).select(coingateBilling.dobYear);
                   }
 
                   cy.wait(500);
@@ -331,7 +341,7 @@ function cryptoRedirection(
               );
           }
         },
-        { paymentMethodType }
+        { paymentMethodType, coingateBilling: COINGATE_BILLING }
       );
     } else {
       cy.get("canvas.BbpsQr__canvas", { timeout: 5000 })

@@ -629,7 +629,7 @@ export const CONNECTOR_LISTS = {
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
     REFUND_TYPE: ["stripe", "adyen", "checkout"],
     MANUAL_PAYMENT_UPDATE: ["stripe"],
-    CRYPTO_PAYMENT: ["bitpay", "coingate"],
+    CRYPTO_PAYMENT: ["bitpay", "coingate", "cryptopay"],
     STEP_UP_RETRY: [
       "cybersource",
       "checkout",

@@ -55,6 +55,10 @@ export const connectorDetails = {
         },
       },
     }),
+    // Coingate does not support manual capture for crypto payments.
+    // The IR_19 error response causes should_continue_further() to return false
+    // (because Response.body contains an `error` object), which skips the
+    // redirect-handling and retrieve-payment steps in the spec.
     CryptoCurrencyManualCapture: getCustomExchange({
       Request: {
         payment_method: "crypto",

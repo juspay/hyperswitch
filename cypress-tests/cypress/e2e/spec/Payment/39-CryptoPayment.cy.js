@@ -104,6 +104,9 @@ describe("Crypto Payment", () => {
     });
   });
 
+  // Manual capture is not supported by all crypto connectors (e.g. Coingate returns IR_19).
+  // The error response in the connector config causes should_continue_further() to return false,
+  // which skips the redirect-handling and retrieve-payment steps for unsupported connectors.
   context("Crypto Currency manual capture flow", () => {
     it("Create Payment Intent -> Payment Methods Call Test -> Confirm Crypto Currency Payment -> Handle redirection -> Retrieve Payment Call Test", () => {
       let shouldContinue = true;
