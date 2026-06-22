@@ -1113,7 +1113,7 @@ pub async fn clone_connector(
             user_core::clone_connector(state, user_from_token, req)
         },
         &auth::JWTAuth {
-            permission: Permission::ProfileConnectorWrite,
+            permission: Permission::MerchantCloneConnectorWrite,
             allow_connected: true,
             allow_platform: true,
         },

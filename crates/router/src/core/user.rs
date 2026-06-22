@@ -3896,20 +3896,8 @@ pub async fn clone_connector(
         .into());
     };
 
-    // Restricted to predefined org/merchant admins
-    let is_allowed_role = matches!(
-        user_from_token.role_id.as_str(),
-        common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN
-            | consts::user_role::ROLE_ID_MERCHANT_ADMIN
-    );
-    fp_utils::when(is_allowed_role.not(), || {
-        Err(UserErrors::InvalidCloneConnectorOperation(
-            "Connector cloning is restricted to organization and merchant admins".to_string(),
-        ))
-    })?;
-
     fp_utils::when(
-        request.source_profile_id == request.destination_profile_id,
+        user_from_token.profile_id == request.destination_profile_id,
         || {
             Err(UserErrors::InvalidCloneConnectorOperation(
                 "Source and destination profiles cannot be the same".to_string(),
@@ -3940,9 +3928,9 @@ pub async fn clone_connector(
             "Source merchant connector account not found".to_string(),
         ))?;
 
-    fp_utils::when(source_mca.profile_id != request.source_profile_id, || {
+    fp_utils::when(source_mca.profile_id != user_from_token.profile_id, || {
         Err(UserErrors::InvalidCloneConnectorOperation(
-            "Source connector does not belong to the provided source profile".to_string(),
+            "Source connector does not belong to the current profile".to_string(),
         ))
     })?;
 
