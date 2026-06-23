@@ -1,10 +1,11 @@
 use std::{collections::HashMap, str::FromStr};
 
 use api_models::payments::{
-    AmountInfo, ApplePayAddressParameters, ApplePayPaymentRequest, ApplePaySessionResponse,
-    ApplepaySessionTokenResponse, GooglePaySessionResponse, GpayAllowedMethodsParameters,
-    GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayBillingAddressParameters,
-    GpayMerchantInfo, GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
+    AdditionalCardInfo, AdditionalPaymentData, AmountInfo, ApplePayAddressParameters,
+    ApplePayPaymentRequest, ApplePaySessionResponse, ApplepaySessionTokenResponse,
+    GooglePaySessionResponse, GpayAllowedMethodsParameters, GpayAllowedPaymentMethods,
+    GpayBillingAddressFormat, GpayBillingAddressParameters, GpayMerchantInfo,
+    GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
     GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall, PaypalFlow,
     PaypalSessionTokenResponse, PaypalTransactionInfo, SdkNextAction, SecretInfoToInitiateSdk,
     SessionToken, ThirdPartySdkSessionResponse,
@@ -877,6 +878,8 @@ impl
             }),
             metadata: None,
             browser_info: None,
+            address: None,
+            customer: None,
         };
 
         Ok(Self {
@@ -1244,6 +1247,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
+            order_tax_amount: None,
         })
     }
 }
@@ -2135,7 +2139,7 @@ impl
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
             }),
-            additional_payment_data,
+            additional_payment_data: None,
             partner_merchant_identifier_details: router_data
                 .request
                 .partner_merchant_identifier_details
@@ -6150,6 +6154,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .map(|id| id.get_string_repr().to_string()),
             merchant_request_id: None,
             connector_order_id: None,
+            payment_method: None,
         })
     }
 }
@@ -6509,6 +6514,7 @@ impl
             metadata: None,
             connector_feature_data: None,
             test_mode: router_data.test_mode,
+            merchant_request_id: None,
         })
     }
 }
