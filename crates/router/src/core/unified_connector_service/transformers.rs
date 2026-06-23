@@ -84,6 +84,97 @@ pub fn build_upi_wait_screen_data(
         .attach_printable("Failed to serialize WaitScreenInstructions to JSON value")
 }
 
+/// Convert the domain `SplitPaymentsRequest` into the gRPC `SplitPaymentsRequest`.
+/// Only the Stripe Connect variant is represented in the UCS contract today; the
+/// Adyen / Xendit variants have no gRPC mapping yet and are dropped (None).
+fn build_unified_connector_service_split_payments(
+    split: Option<&common_types::payments::SplitPaymentsRequest>,
+) -> Option<payments_grpc::SplitPaymentsRequest> {
+    match split? {
+        common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe) => {
+            let charge_type = match &stripe.charge_type {
+                common_enums::PaymentChargeType::Stripe(charge) => match charge {
+                    common_enums::StripeChargeType::Destination => {
+                        payments_grpc::StripeChargeType::Destination
+                    }
+                    common_enums::StripeChargeType::Direct => {
+                        payments_grpc::StripeChargeType::Direct
+                    }
+                },
+            };
+            Some(payments_grpc::SplitPaymentsRequest {
+                split_payment: Some(
+                    payments_grpc::split_payments_request::SplitPayment::StripeSplitPayment(
+                        payments_grpc::StripeSplitPaymentRequest {
+                            charge_type: i32::from(charge_type),
+                            application_fees: stripe
+                                .application_fees
+                                .map(MinorUnit::get_amount_as_i64),
+                            transfer_account_id: stripe.transfer_account_id.clone(),
+                        },
+                    ),
+                ),
+            })
+        }
+        _ => None,
+    }
+}
+
+/// Map the domain split-refund routing (Stripe Connect) into the UCS gRPC
+/// `SplitRefundsRequest` so UCS can refund the charge and emit the `Stripe-Account`
+/// header (Direct charges) instead of refunding the payment_intent. Non-Stripe split
+/// refunds (Adyen/Xendit) are routed via their own request bodies and yield None here.
+fn build_unified_connector_service_split_refunds(
+    split: Option<&router_request_types::SplitRefundsRequest>,
+) -> Option<payments_grpc::SplitRefundsRequest> {
+    match split? {
+        router_request_types::SplitRefundsRequest::StripeSplitRefund(stripe) => {
+            let charge_type = match &stripe.charge_type {
+                common_enums::PaymentChargeType::Stripe(charge) => match charge {
+                    common_enums::StripeChargeType::Destination => {
+                        payments_grpc::StripeChargeType::Destination
+                    }
+                    common_enums::StripeChargeType::Direct => {
+                        payments_grpc::StripeChargeType::Direct
+                    }
+                },
+            };
+            let options = match &stripe.options {
+                router_request_types::ChargeRefundsOptions::Destination(d) => {
+                    payments_grpc::charge_refunds_options::Options::Destination(
+                        payments_grpc::DestinationChargeRefund {
+                            revert_platform_fee: d.revert_platform_fee,
+                            revert_transfer: d.revert_transfer,
+                        },
+                    )
+                }
+                router_request_types::ChargeRefundsOptions::Direct(d) => {
+                    payments_grpc::charge_refunds_options::Options::Direct(
+                        payments_grpc::DirectChargeRefund {
+                            revert_platform_fee: d.revert_platform_fee,
+                        },
+                    )
+                }
+            };
+            Some(payments_grpc::SplitRefundsRequest {
+                split_refund: Some(
+                    payments_grpc::split_refunds_request::SplitRefund::StripeSplitRefund(
+                        payments_grpc::StripeSplitRefundRequest {
+                            charge_id: stripe.charge_id.clone(),
+                            transfer_account_id: stripe.transfer_account_id.clone(),
+                            charge_type: i32::from(charge_type),
+                            options: Some(payments_grpc::ChargeRefundsOptions {
+                                options: Some(options),
+                            }),
+                        },
+                    ),
+                ),
+            })
+        }
+        _ => None,
+    }
+}
+
 impl ForeignFrom<common_types::customers::DocumentKind> for payments_grpc::DocumentKind {
     fn foreign_from(document_kind: common_types::customers::DocumentKind) -> Self {
         match document_kind {
@@ -182,6 +273,9 @@ impl
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         Ok(Self {
+            split_payments: build_unified_connector_service_split_payments(
+                router_data.request.split_payments.as_ref(),
+            ),
             merchant_payment_method_id: Some(router_data.connector_request_reference_id.clone()),
             amount: router_data
                 .request
@@ -292,6 +386,9 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            split_payments: build_unified_connector_service_split_payments(
+                router_data.request.split_payments.as_ref(),
+            ),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -515,6 +612,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            split_payments: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -673,6 +771,9 @@ impl
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         Ok(Self {
+            split_payments: build_unified_connector_service_split_payments(
+                router_data.request.split_payments.as_ref(),
+            ),
             merchant_customer_id: router_data
                 .customer_id
                 .as_ref()
@@ -1217,6 +1318,9 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
             order_tax_amount: None,
+            split_payments: build_unified_connector_service_split_payments(
+                router_data.request.split_payments.as_ref(),
+            ),
         })
     }
 }
@@ -1288,6 +1392,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            split_payments: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -1437,6 +1542,9 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            split_payments: build_unified_connector_service_split_payments(
+                router_data.request.split_payments.as_ref(),
+            ),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -1613,6 +1721,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            split_payments: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -5952,6 +6061,9 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             merchant_request_id: None,
             connector_order_id: None,
             payment_method: None,
+            split_refunds: build_unified_connector_service_split_refunds(
+                router_data.request.split_refunds.as_ref(),
+            ),
         })
     }
 }
