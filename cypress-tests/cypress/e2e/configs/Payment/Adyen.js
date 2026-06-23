@@ -2886,6 +2886,7 @@ export const connectorDetails = {
           },
         },
         payment_type: "new_mandate",
+        currency: "USD",
       },
       Response: {
         status: 200,
@@ -2931,6 +2932,7 @@ export const connectorDetails = {
           },
         },
         payment_type: "new_mandate",
+        currency: "GBP",
       },
       Response: {
         status: 200,
