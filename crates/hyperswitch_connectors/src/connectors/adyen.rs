@@ -2047,7 +2047,34 @@ impl IncomingWebhook for Adyen {
         _connector_account_details: common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(true)
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_label,
+                connector_webhook_details,
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let message = self
+            .get_webhook_source_verification_message(
+                request,
+                merchant_id,
+                &connector_webhook_secrets,
+            )
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let raw_key = hex::decode(connector_webhook_secrets.secret)
+            .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)?;
+
+        let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &raw_key);
+        let signed_messaged = hmac::sign(&signing_key, &message);
+        let payload_sign = consts::BASE64_ENGINE.encode(signed_messaged.as_ref());
+        Ok(payload_sign.as_bytes().eq(&signature))
     }
 
     fn get_webhook_object_reference_id(
@@ -2447,10 +2474,6 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::Evidence::try_from(req)?;
-        println!(
-            "Request Body defence: {:#?}",
-            serde_json::to_string_pretty(&connector_req).unwrap()
-        );
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
