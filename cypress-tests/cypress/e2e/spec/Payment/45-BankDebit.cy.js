@@ -304,7 +304,7 @@ describe("Bank Debit tests", () => {
     it("sepa-bank-debit-mandate-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_debit_pm"
-      ]["Sepa"];
+      ]["SepaMandate"];
 
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,

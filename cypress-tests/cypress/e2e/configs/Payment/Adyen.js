@@ -2791,6 +2791,40 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SepaMandate: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "John Doe",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Amsterdam",
+            state: "North Holland",
+            zip: "1012",
+            country: "NL",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        customer_acceptance: customerAcceptance,
         setup_future_usage: "off_session",
         mandate_data: {
           customer_acceptance: customerAcceptance,
@@ -2801,6 +2835,7 @@ export const connectorDetails = {
             },
           },
         },
+        payment_type: "new_mandate",
         currency: "EUR",
       },
       Response: {
@@ -2886,7 +2921,6 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: customerAcceptance,
-        setup_future_usage: "off_session",
         mandate_data: {
           customer_acceptance: customerAcceptance,
           mandate_type: {
@@ -2897,7 +2931,6 @@ export const connectorDetails = {
           },
         },
         payment_type: "new_mandate",
-        currency: "GBP",
       },
       Response: {
         status: 200,
