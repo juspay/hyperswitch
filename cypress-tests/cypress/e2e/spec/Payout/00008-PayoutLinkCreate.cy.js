@@ -2,6 +2,20 @@ import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import * as utils from "../../configs/Payout/Utils";
 
+const bpWithPayoutLink = {
+  payout_link_config: {
+    domain_name: "checkout.example.com",
+    allowed_domains: ["*.example.com", "trusted-site.com"],
+    ui_config: {
+      logo: "https://example.com/logo.png",
+      merchant_name: "Test Merchant",
+      theme: "#4285F4",
+    },
+    form_layout: "tabs",
+    payout_test_mode: true,
+  },
+};
+
 let globalState;
 
 describe("Payout Link", () => {
@@ -293,7 +307,7 @@ describe("Payout Link", () => {
 
     it("update-business-profile-with-payout-link-config-test", () => {
       cy.UpdateBusinessProfileTest(
-        fixtures.businessProfile.bpWithPayoutLink,
+        bpWithPayoutLink,
         undefined,
         undefined,
         undefined,

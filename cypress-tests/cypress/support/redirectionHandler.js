@@ -3502,195 +3502,85 @@ function payoutLinkRedirection(
   cy.visit(redirectionUrl.href, { failOnStatusCode: false });
   cy.get("body", { timeout: 30000 }).should("exist");
 
-  // Payout link pages use #payout-link as the SDK mount container, not
-  // #unified-checkout or #payment-form.  There is no #sdk-spinner element on
-  // these pages — waiting for it causes a 60-second timeout that makes the
-  // page appear blank.  Instead, wait for the SDK to render content inside
-  // #payout-link and for the iframe to appear.
+  // Payout link pages use #payout-link as the SDK mount container.
+  // Wait for the SDK to render content and for the iframe to appear.
   cy.get("#payout-link", { timeout: 60000 }).should("not.be.empty");
   cy.task("cli_log", "Payout Link SDK initialized");
 
-  // The SEPA IBAN/BIC inputs and the Save/Submit buttons are rendered inside
-  // a same-origin iframe by the SDK.  Wait for that iframe to appear.
   cy.get("#payout-link iframe", { timeout: 30000 }).should(
     "have.length.at.least",
     1
   );
-
   cy.task(
     "cli_log",
     "Payout link page loaded — looking for SEPA IBAN and BIC inputs"
   );
 
-  // Strategy: look for input#sepa.iban and input#sepa.bic. They may be on the
-  // main page or inside an iframe.  We use a retry-based approach that waits
-  // for the element to appear rather than a one-shot synchronous jQuery scan.
-  function fillInputById(selector, value, desc) {
-    // Try the top-level page first
-    cy.get("body").then(($body) => {
-      const $input = $body.find(selector);
-      if ($input.length > 0) {
-        cy.wrap($input)
-          .should("be.visible")
-          .clear({ force: true })
-          .type(value, { delay: 30, force: true });
-        cy.task("cli_log", `${desc} filled directly on page body`);
-        return;
-      }
-
-      // Not on the main page — search inside every iframe
-      const $iframes = $body.find("iframe");
-      if ($iframes.length === 0) {
-        cy.task("cli_log", `No iframes found — ${desc} not located`);
-        return;
-      }
-
-      let found = false;
-      $iframes.each((idx, iframe) => {
-        if (found) return;
-        try {
-          const doc = iframe.contentDocument || iframe.contentWindow?.document;
-          if (doc && doc.body) {
-            const $inner = Cypress.$(doc.body).find(selector);
-            if ($inner.length > 0) {
-              found = true;
-              cy.wrap($inner)
-                .should("be.visible")
-                .clear({ force: true })
-                .type(value, { delay: 30, force: true });
-              cy.task("cli_log", `${desc} filled inside iframe index ${idx}`);
-            }
-          }
-        } catch {
-          // cross-origin iframe — skip
-        }
-      });
-
-      if (!found) {
-        // The iframe exists but the input may not have rendered yet.
-        // Retry by entering the iframe via Cypress's built-in iframe support
-        // and using cy.get() with a timeout so Cypress retries automatically.
-        cy.task(
-          "cli_log",
-          `${desc} not found synchronously — retrying with Cypress iframe wait`
-        );
-        cy.get("#payout-link iframe")
-          .first()
-          .its("0.contentDocument.body")
-          .should("not.be.empty")
-          .then((iframeBody) => {
-            const $inner = Cypress.$(iframeBody).find(selector);
-            if ($inner.length > 0) {
-              cy.wrap($inner)
-                .should("be.visible")
-                .clear({ force: true })
-                .type(value, { delay: 30, force: true });
-              cy.task("cli_log", `${desc} filled via Cypress iframe retry`);
-            } else {
-              // Final fallback: use cy.get inside the iframe document with
-              // a timeout so Cypress retries until the element appears.
-              cy.wrap(iframeBody)
-                .find(selector)
-                .should("exist")
-                .and("be.visible")
-                .clear({ force: true })
-                .type(value, { delay: 30, force: true });
-              cy.task("cli_log", `${desc} filled via iframe cy.get retry`);
-            }
-          });
-      }
-    });
+  // Helper: get a fresh reference to the iframe body each time.
+  // Re-fetching handles iframe re-renders between actions (e.g. after
+  // clicking Save the SDK may transition to a confirmation view).
+  function getIframeBody() {
+    return cy
+      .get("#payout-link iframe")
+      .first()
+      .its("0.contentDocument.body")
+      .should("not.be.empty");
   }
 
-  fillInputById('input[id="sepa.iban"]', IBAN, "IBAN");
-  fillInputById('input[id="sepa.bic"]', BIC, "BIC");
+  // Fill IBAN input inside the iframe.
+  // .find().should("exist") retries until the element appears and FAILS
+  // if it never does — no silent skipping like the old approach.
+  /* eslint-disable cypress/no-force */
+  getIframeBody().then((iframeBody) => {
+    cy.wrap(iframeBody)
+      .find('input[id="sepa.iban"]')
+      .should("exist")
+      .and("be.visible")
+      .clear({ force: true })
+      .type(IBAN, { delay: 30, force: true });
+    cy.task("cli_log", "IBAN filled");
+  });
 
-  // Click Save (first submission)
-  // The payout-link SDK may render the button inside an iframe, so try the
-  // main page first; if the element isn't there, search inside every
-  // same-origin iframe.
-  function clickButtonByText(text) {
-    cy.get("body").then(($body) => {
-      const $btn = $body.find("button").filter((i, el) => {
-        return el.textContent.trim() === text;
-      });
-      if ($btn.length > 0) {
-        cy.wrap($btn).should("be.visible").click({ force: true });
-        cy.task("cli_log", `Clicked "${text}" button on page body`);
-        return;
-      }
+  // Fill BIC input inside the iframe
+  getIframeBody().then((iframeBody) => {
+    cy.wrap(iframeBody)
+      .find('input[id="sepa.bic"]')
+      .should("exist")
+      .and("be.visible")
+      .clear({ force: true })
+      .type(BIC, { delay: 30, force: true });
+    cy.task("cli_log", "BIC filled");
+  });
 
-      const $iframes = $body.find("iframe");
-      if ($iframes.length === 0) {
-        cy.task("cli_log", `No iframes found — "${text}" button not located`);
-        return;
-      }
+  // Click Save button inside the iframe.
+  // .contains("button", "Save") retries until the button appears and
+  // FAILS if it never does — no silent skipping.
+  getIframeBody().then((iframeBody) => {
+    cy.wrap(iframeBody)
+      .contains("button", "Save")
+      .should("be.visible")
+      .click({ force: true });
+    cy.task("cli_log", "Save button clicked (first submission)");
+  });
 
-      let found = false;
-      $iframes.each((idx, iframe) => {
-        if (found) return;
-        try {
-          const doc = iframe.contentDocument || iframe.contentWindow?.document;
-          if (doc && doc.body) {
-            const $inner = Cypress.$(doc.body)
-              .find("button")
-              .filter((i, el) => el.textContent.trim() === text);
-            if ($inner.length > 0) {
-              found = true;
-              cy.wrap($inner).should("be.visible").click({ force: true });
-              cy.task(
-                "cli_log",
-                `Clicked "${text}" button inside iframe index ${idx}`
-              );
-            }
-          }
-        } catch {
-          // cross-origin iframe — skip
-        }
-      });
+  // Brief wait for the SDK to process Save and transition to the
+  // confirmation step where the Submit button appears.
+  /* eslint-disable cypress/no-unnecessary-waiting */
+  cy.wait(2000);
+  /* eslint-enable cypress/no-unnecessary-waiting */
 
-      if (!found) {
-        // Retry via Cypress iframe support with automatic retry/timeout
-        cy.task(
-          "cli_log",
-          `"${text}" button not found synchronously — retrying with Cypress iframe wait`
-        );
-        cy.get("#payout-link iframe")
-          .first()
-          .its("0.contentDocument.body")
-          .should("not.be.empty")
-          .then((iframeBody) => {
-            const $inner = Cypress.$(iframeBody)
-              .find("button")
-              .filter((i, el) => el.textContent.trim() === text);
-            if ($inner.length > 0) {
-              cy.wrap($inner).should("be.visible").click({ force: true });
-              cy.task("cli_log", `Clicked "${text}" via Cypress iframe retry`);
-            } else {
-              cy.wrap(iframeBody)
-                .find("button")
-                .contains(text)
-                .should("be.visible")
-                .click({ force: true });
-              cy.task("cli_log", `Clicked "${text}" via iframe cy.get retry`);
-            }
-          });
-      }
-    });
-  }
+  // Click Submit button inside the iframe.
+  // .contains("button", "Submit") retries until the button appears.
+  getIframeBody().then((iframeBody) => {
+    cy.wrap(iframeBody)
+      .contains("button", "Submit")
+      .should("be.visible")
+      .click({ force: true });
+    cy.task("cli_log", "Submit button clicked (second submission)");
+  });
+  /* eslint-enable cypress/no-force */
 
-  clickButtonByText("Save");
-  cy.task("cli_log", "Save button clicked (first submission)");
-
-  cy.wait(10000);
-
-  clickButtonByText("Submit");
-  cy.task("cli_log", "Submit button clicked (second submission)");
-
-  // The confirm API call is asynchronous; give the UI time to update
-  // before asserting on the result.
-  cy.wait(5000);
-
+  // Assert on the result
   if (expectedOutcome === "error") {
     cy.get("body", { timeout: 30000 }).should(($body) => {
       const bodyText = $body.text().toLowerCase();
@@ -3704,37 +3594,25 @@ function payoutLinkRedirection(
     });
     cy.task("cli_log", "Payout page shows error indicator as expected");
   } else {
-    // Board requirement: after Submit, screen must show "Payout Processing"
-    // and the payout status must be "requires_fulfillment".
-    // These indicators may appear in the main document or inside the
-    // same-origin iframe after the confirm call completes.
-    cy.get("body", { timeout: 30000 }).should(($body) => {
-      const mainText = $body.text().toLowerCase();
-
-      let iframeText = "";
-      $body.find("iframe").each((_idx, iframe) => {
-        try {
-          const doc = iframe.contentDocument || iframe.contentWindow?.document;
-          if (doc && doc.body) {
-            iframeText += " " + doc.body.innerText.toLowerCase();
-          }
-        } catch {
-          // cross-origin iframe — skip
-        }
-      });
-
-      const allText = mainText + " " + iframeText;
+    // After successful submission, the page must show a specific
+    // success/processing indicator.  We check both the iframe content
+    // and the main page text using a retry-able .should() callback
+    // so Cypress waits for the indicator to appear (up to 30s).
+    //
+    // Only specific phrases are checked — NOT generic "success" which
+    // can appear on the page without actual form submission.
+    getIframeBody().should((iframeBody) => {
+      const iframeText = (iframeBody.innerText || "").toLowerCase();
+      const mainText = (Cypress.$("body").text() || "").toLowerCase();
+      const allText = iframeText + " " + mainText;
       const hasPayoutProcessing = allText.includes("payout processing");
       const hasRequiresFulfillment = allText.includes("requires_fulfillment");
-      const hasSuccess =
-        allText.includes("success") || allText.includes("succeeded");
-
+      const hasPayoutSuccessful = allText.includes("payout successful");
       expect(
-        hasPayoutProcessing || hasRequiresFulfillment || hasSuccess,
-        `Expected "Payout Processing" or "requires_fulfillment" after payout confirm. Page text: ${allText.substring(0, 400)}`
+        hasPayoutProcessing || hasRequiresFulfillment || hasPayoutSuccessful,
+        `Expected "payout processing", "requires_fulfillment", or "payout successful" after payout confirm. Page text: ${allText.substring(0, 400)}`
       ).to.be.true;
     });
-
     cy.task("cli_log", "Payout submission success/processing indicator found");
   }
 }
