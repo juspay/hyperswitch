@@ -2632,6 +2632,53 @@ pub fn build_webhook_secrets_from_merchant_connector_account(
     }
 }
 
+/// Emit the connector event for a Hyperswitch -> UCS gRPC call, tagged
+/// `destination = unified_connector_service` (same `connector_events` stream as a direct call).
+#[allow(clippy::too_many_arguments)]
+fn emit_ucs_connector_event(
+    state: &SessionState,
+    flow_type: &'static str,
+    connector_name: String,
+    payment_id: String,
+    merchant_id: id_type::MerchantId,
+    refund_id: Option<String>,
+    dispute_id: Option<String>,
+    payout_id: Option<String>,
+    grpc_request_body: serde_json::Value,
+    status_code: u16,
+    response_body: Option<serde_json::Value>,
+    external_latency: u128,
+    execution_mode: ExecutionMode,
+) {
+    let mut connector_event = ConnectorEvent::new(
+        state.tenant.tenant_id.clone(),
+        connector_name,
+        flow_type,
+        grpc_request_body,
+        "grpc://unified-connector-service".to_string(),
+        Method::Post,
+        payment_id,
+        merchant_id,
+        state.request_id.as_ref(),
+        external_latency,
+        refund_id,
+        dispute_id,
+        payout_id,
+        status_code,
+        common_enums::EventDestination::UnifiedConnectorService,
+        common_enums::EventExecutionMode::from(execution_mode),
+    );
+
+    if let Some(body) = response_body {
+        match status_code {
+            400..=599 => connector_event.set_error_response_body(&body),
+            _ => connector_event.set_response_body(&body),
+        }
+    }
+
+    state.event_handler.log_event(&connector_event);
+}
+
 /// UCS Event Logging Wrapper Function
 /// This function wraps UCS calls with comprehensive event logging.
 /// It logs the actual gRPC request/response data, timing, and error information.
@@ -2733,40 +2780,24 @@ where
         }
     };
 
-    // Only emit connector event during primary mode
-    if let ExecutionMode::Primary = execution_mode {
-        let mut connector_event = ConnectorEvent::new(
-            state.tenant.tenant_id.clone(),
-            connector_name,
-            std::any::type_name::<T>(),
-            grpc_request_body,
-            "grpc://unified-connector-service".to_string(),
-            Method::Post,
-            payment_id,
-            merchant_id,
-            state.request_id.as_ref(),
-            external_latency,
-            refund_id,
-            dispute_id,
-            payout_id,
-            status_code,
-        );
-
-        // Set response body based on status code
-        if let Some(body) = response_body {
-            match status_code {
-                400..=599 => {
-                    connector_event.set_error_response_body(&body);
-                }
-                _ => {
-                    connector_event.set_response_body(&body);
-                }
-            }
-        }
-
-        // Emit event
-        state.event_handler.log_event(&connector_event);
-    }
+    // Emit the Hyperswitch -> UCS connector event (shared with the other wrapper); it lands in
+    // connector_events with `destination = unified_connector_service`, `execution_mode` primary
+    // or shadow.
+    emit_ucs_connector_event(
+        state,
+        std::any::type_name::<T>(),
+        connector_name,
+        payment_id,
+        merchant_id,
+        refund_id,
+        dispute_id,
+        payout_id,
+        grpc_request_body,
+        status_code,
+        response_body,
+        external_latency,
+        execution_mode,
+    );
 
     // Set external latency on router data
     router_result.map(|mut router_data| {
@@ -2881,40 +2912,24 @@ where
         }
     };
 
-    // Only emit connector event during primary mode
-    if let ExecutionMode::Primary = execution_mode {
-        let mut connector_event = ConnectorEvent::new(
-            state.tenant.tenant_id.clone(),
-            connector_name,
-            std::any::type_name::<T>(),
-            grpc_request_body,
-            "grpc://unified-connector-service".to_string(),
-            Method::Post,
-            payment_id,
-            merchant_id,
-            state.request_id.as_ref(),
-            external_latency,
-            refund_id,
-            dispute_id,
-            payout_id,
-            status_code,
-        );
-
-        // Set response body based on status code
-        if let Some(body) = response_body {
-            match status_code {
-                400..=599 => {
-                    connector_event.set_error_response_body(&body);
-                }
-                _ => {
-                    connector_event.set_response_body(&body);
-                }
-            }
-        }
-
-        // Emit event
-        state.event_handler.log_event(&connector_event);
-    }
+    // Emit the Hyperswitch -> UCS connector event (shared with the other wrapper); it lands in
+    // connector_events with `destination = unified_connector_service`, `execution_mode` primary
+    // or shadow.
+    emit_ucs_connector_event(
+        state,
+        std::any::type_name::<T>(),
+        connector_name,
+        payment_id,
+        merchant_id,
+        refund_id,
+        dispute_id,
+        payout_id,
+        grpc_request_body,
+        status_code,
+        response_body,
+        external_latency,
+        execution_mode,
+    );
 
     // Set external latency on router data
     router_result.map(|mut router_data| {
