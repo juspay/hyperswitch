@@ -700,6 +700,7 @@ where
             &req,
             platform,
             auth_flow,
+            operations::PaymentFlowKind::Standard,
             &header_payload,
             payment_method_fetch_data,
             dimensions,
@@ -1592,6 +1593,7 @@ where
             &req,
             &platform,
             auth_flow,
+            operations::PaymentFlowKind::Standard,
             &header_payload,
             operations::PaymentMethodFetchData::default(),
             dimensions,
@@ -2918,20 +2920,19 @@ where
         mut payment_data,
         business_profile,
         mandate_type,
-    } = operation
-        .to_get_tracker()?
-        .get_trackers(
-            state,
-            &validate_result.payment_id,
-            &req,
-            &platform,
-            auth_flow,
-            &header_payload,
-            payment_method_info,
-            &dimensions,
-            None,
-        )
-        .await?;
+    } = Box::pin(operation.to_get_tracker()?.get_trackers(
+        state,
+        &validate_result.payment_id,
+        &req,
+        &platform,
+        auth_flow,
+        operations::PaymentFlowKind::ExternalVaultProxy,
+        &header_payload,
+        payment_method_info,
+        &dimensions,
+        None,
+    ))
+    .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
 
     core_utils::validate_profile_id_from_auth_layer(
@@ -5056,7 +5057,6 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing authentication_id in payment_attempt")?;
-
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
 
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
@@ -5096,6 +5096,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                         &authentication_id,
                         platform.get_processor().get_key_store(),
                         key_manager_state,
+                        platform.get_processor().get_account().storage_scheme,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
@@ -9816,6 +9817,7 @@ pub async fn get_payment_link_response_from_id(
 pub fn if_not_create_change_operation<'a, Op, F>(
     status: storage_enums::IntentStatus,
     confirm: Option<bool>,
+    flow_kind: operations::PaymentFlowKind,
     current: &'a Op,
 ) -> BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>
 where
@@ -9826,7 +9828,15 @@ where
     &'a PaymentStatus: Operation<F, api::PaymentsRequest, Data = PaymentData<F>>,
 {
     if confirm.unwrap_or(false) {
-        Box::new(PaymentConfirm)
+        // Single-call create+confirm: hand off to the confirm operation matching the core that
+        // invoked create. The external vault proxy core needs the proxy confirm so that the
+        // downstream connector call uses the vault-proxy flow.
+        match flow_kind {
+            operations::PaymentFlowKind::ExternalVaultProxy => {
+                Box::new(PaymentExternalVaultProxyConfirm)
+            }
+            operations::PaymentFlowKind::Standard => Box::new(PaymentConfirm),
+        }
     } else {
         match status {
             storage_enums::IntentStatus::RequiresConfirmation
@@ -12811,6 +12821,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                         .attach_printable("missing authentication_id in payment_attempt")?,
                     platform.get_processor().get_key_store(),
                     key_manager_state,
+                    storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -12845,6 +12856,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 payment_intent.payment_id,
                 payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
                 platform.get_processor().get_key_store(),
+                storage_scheme,
             ))
             .await?
         };
