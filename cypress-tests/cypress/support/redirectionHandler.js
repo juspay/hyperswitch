@@ -3508,22 +3508,25 @@ function handleFlow(
 //   - inputSelector: CSS selector for the input field
 //   - verificationCode: The code to enter (e.g., "11AA")
 //   - submitKey: Key to press to submit (e.g., "{enter}")
-Cypress.Commands.add("handleMicrodepositVerification", ({
-  hostedUrl,
-  origin,
-  inputSelector,
-  verificationCode,
-  submitKey = "{enter}",
-}) => {
-  cy.origin(
+Cypress.Commands.add(
+  "handleMicrodepositVerification",
+  ({
+    hostedUrl,
     origin,
-    { args: { hostedUrl, inputSelector, verificationCode, submitKey } },
-    ({ hostedUrl, inputSelector, verificationCode, submitKey }) => {
-      cy.visit(hostedUrl);
-      cy.get(inputSelector).type(`${verificationCode}${submitKey}`, {
-        force: true,
-      });
-      cy.wait(5000);
-    }
-  );
-});
+    inputSelector,
+    verificationCode,
+    submitKey = "{enter}",
+  }) => {
+    cy.origin(
+      origin,
+      { args: { hostedUrl, inputSelector, verificationCode, submitKey } },
+      ({ hostedUrl, inputSelector, verificationCode, submitKey }) => {
+        cy.visit(hostedUrl);
+        cy.get(inputSelector).type(`${verificationCode}${submitKey}`, {
+          force: true,
+        });
+        cy.wait(5000);
+      }
+    );
+  }
+);
