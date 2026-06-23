@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.23.0
+
+### Features
+
+- **authentication:** Kv flow introduction for authentication ([#12611](https://github.com/juspay/hyperswitch/pull/12611)) ([`ce7e778`](https://github.com/juspay/hyperswitch/commit/ce7e77892515952b24c3280e704ac858cd155237))
+- **connector:** [Authorizedotnet] Pass surcharge in payments request ([#12851](https://github.com/juspay/hyperswitch/pull/12851)) ([`2d275c9`](https://github.com/juspay/hyperswitch/commit/2d275c97c19e834443275de6621f4e5f29d2663f))
+
+### Bug Fixes
+
+- **cypress:** Exclude worldpayxml from card mandate tests ([#12860](https://github.com/juspay/hyperswitch/pull/12860)) ([`d33f8b3`](https://github.com/juspay/hyperswitch/commit/d33f8b3bfce065a8f026989a90f361195316f58b))
+- **external_vault:** Reuse saved PM on repeat & populate /client card scheme ([#12882](https://github.com/juspay/hyperswitch/pull/12882)) ([`1e381c1`](https://github.com/juspay/hyperswitch/commit/1e381c1687855b0320751a1ec23598f8918bd6a2))
+
+### Testing
+
+- **cypress:**
+  - Add billing descriptor coverage for payload ([#12692](https://github.com/juspay/hyperswitch/pull/12692)) ([`c4c46c6`](https://github.com/juspay/hyperswitch/commit/c4c46c69f3b5d398a63e0bd649408a368b9d4e60))
+  - Add coingate crypto payment coverage ([#12699](https://github.com/juspay/hyperswitch/pull/12699)) ([`15c5c15`](https://github.com/juspay/hyperswitch/commit/15c5c15b55ca5be83c28ab3fa639e5fa2546bd1e))
+
+**Full Changelog:** [`2026.06.22.0...2026.06.23.0`](https://github.com/juspay/hyperswitch/compare/2026.06.22.0...2026.06.23.0)
+
+- - -
+
 ## 2026.06.22.0
 
 ### Features
