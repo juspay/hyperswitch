@@ -331,10 +331,8 @@ pub struct ListAuditLogsQuery {
     dimension_params: Vec<(String, String)>,
 }
 
-impl TryFrom<Vec<(String, String)>> for ListAuditLogsQuery {
-    type Error = HttpResponse;
-
-    fn try_from(params: Vec<(String, String)>) -> Result<Self, Self::Error> {
+impl From<Vec<(String, String)>> for ListAuditLogsQuery {
+    fn from(params: Vec<(String, String)>) -> Self {
         let first_value = |name: &str| {
             params
                 .iter()
@@ -349,24 +347,15 @@ impl TryFrom<Vec<(String, String)>> for ListAuditLogsQuery {
                 .flat_map(|(_, v)| v.split(',').map(|s| s.trim().to_owned()))
                 .collect::<Vec<_>>()
         };
-        let parse_date = |name: &str| {
-            first_value(name)
-                .map(|v| {
-                    parse_datetime(&v).map_err(|_| {
-                        HttpResponse::BadRequest().json(serde_json::json!({
-                            "error": { "message": format!("invalid {name} format: {v}") }
-                        }))
-                    })
-                })
-                .transpose()
-        };
+        // Dates are parsed leniently: malformed values are ignored rather than rejected.
+        let parse_date = |name: &str| first_value(name).and_then(|v| parse_datetime(&v).ok());
 
-        Ok(Self {
+        Self {
             count: first_value("count").and_then(|v| v.parse().ok()),
             page: first_value("page").and_then(|v| v.parse().ok()),
             all: first_value("all").and_then(|v| v.parse().ok()),
-            from_date: parse_date("from_date")?,
-            to_date: parse_date("to_date")?,
+            from_date: parse_date("from_date"),
+            to_date: parse_date("to_date"),
             table: csv_values("table"),
             action: csv_values("action"),
             username: first_value("username"),
@@ -376,7 +365,7 @@ impl TryFrom<Vec<(String, String)>> for ListAuditLogsQuery {
                 .filter(|(k, _)| k.starts_with("dimension["))
                 .cloned()
                 .collect(),
-        })
+        }
     }
 }
 

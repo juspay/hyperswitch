@@ -210,10 +210,7 @@ pub async fn list_audit_logs(
         Ok(headers) => headers,
         Err(response) => return response,
     };
-    let params = match ListAuditLogsQuery::try_from(query.into_inner()) {
-        Ok(params) => params,
-        Err(response) => return response,
-    };
+    let params = ListAuditLogsQuery::from(query.into_inner());
     let input = params.into_input(org_id, workspace_id);
 
     Box::pin(api::server_wrap(
