@@ -3500,14 +3500,27 @@ function handleFlow(
   });
 }
 
-// Handle Stripe ACH microdeposit verification
-Cypress.Commands.add("handleStripeAchVerification", ({ hostedUrl }) => {
+// Generic microdeposit verification handler for bank debit mandates
+// Works with any provider that has a hosted verification page
+// Parameters:
+//   - hostedUrl: The URL of the hosted verification page
+//   - origin: The origin domain (e.g., "https://payments.stripe.com")
+//   - inputSelector: CSS selector for the input field
+//   - verificationCode: The code to enter (e.g., "11AA")
+//   - submitKey: Key to press to submit (e.g., "{enter}")
+Cypress.Commands.add("handleMicrodepositVerification", ({
+  hostedUrl,
+  origin,
+  inputSelector,
+  verificationCode,
+  submitKey = "{enter}",
+}) => {
   cy.origin(
-    "https://payments.stripe.com",
-    { args: { hostedUrl } },
-    ({ hostedUrl }) => {
+    origin,
+    { args: { hostedUrl, inputSelector, verificationCode, submitKey } },
+    ({ hostedUrl, inputSelector, verificationCode, submitKey }) => {
       cy.visit(hostedUrl);
-      cy.get("input.p-CodePuncher-controllingInput").type("11AA{enter}", {
+      cy.get(inputSelector).type(`${verificationCode}${submitKey}`, {
         force: true,
       });
       cy.wait(5000);

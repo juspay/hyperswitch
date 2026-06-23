@@ -4836,7 +4836,13 @@ Cypress.Commands.add("verifyAchMicrodepositCallTest", (globalState) => {
       }
 
       cy.task("cli_log", `Verifying microdeposit at: ${hostedVerificationUrl}`);
-      cy.handleStripeAchVerification({ hostedUrl: hostedVerificationUrl });
+      // Use generic microdeposit handler with Stripe-specific parameters
+      cy.handleMicrodepositVerification({
+        hostedUrl: hostedVerificationUrl,
+        origin: "https://payments.stripe.com",
+        inputSelector: "input.p-CodePuncher-controllingInput",
+        verificationCode: "11AA",
+      });
     });
   });
 });
