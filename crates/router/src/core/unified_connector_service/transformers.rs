@@ -3027,7 +3027,13 @@ impl transformers::ForeignTryFrom<payments_grpc::CustomerServiceCreateResponse>
                     .as_ref()
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
-                attempt_status: None,
+                // CustomerServiceCreateResponse carries no top-level status field, so the
+                // create-customer gateway derives the attempt status from `attempt_status`
+                // here. A connector-customer creation error is terminal for the attempt, so
+                // mark it Failure to match HS-native (which sets status = Failure on a
+                // createCustomerProfile error). The gateway applies this to
+                // `router_data.status` and then clears it from the stored response.
+                attempt_status: Some(AttemptStatus::Failure),
                 connector_transaction_id: None,
                 connector_response_reference_id: None,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
