@@ -934,7 +934,7 @@ jobs:
           # replay store finds them at cypress-tests/mitm-proxy/captures/{connector}/.
           # We accept tarballs created either way (with or without a leading
           # {connector}/ component) and normalise the on-disk layout here so
-          # a misformed tarball doesn't silently produce zero cassettes.
+          # a malformed tarball doesn't silently produce zero cassettes.
           set -euo pipefail
           mkdir -p "cypress-tests/mitm-proxy/captures"
 

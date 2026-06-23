@@ -2824,7 +2824,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .convert()
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while construcing diesel attempt model")?;
+        .attach_printable("Error while constructing diesel attempt model")?;
 
     let payment_attempt = payment_attempt_update
         .map(|payment_attempt_update| {
@@ -2841,7 +2841,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while construcing domain attempt model")
+            .attach_printable("Error while constructing domain attempt model")
         })
         .await
         .transpose()?

@@ -122,6 +122,17 @@ unsuccess = "unsuccess" # Used in cryptopay request
 automatico = "automatico" # Pix Automático (Portuguese for Automatic) - payment method name
 IOF = "IOF" # Brazilian Imposto sobre Operações Financeiras (Financial Operations Tax)
 iof = "iof" # Brazilian IOF tax abbreviation, used in iof_percentage field name
+UNSUPPORT = "UNSUPPORT" # PayPal API error code prefix (UNSUPPORT_REFUND_ON_PENDING_BC, etc.)
+validade = "validade" # Portuguese: validade_apos_vencimento (Santander API field)
+inicial = "inicial" # Portuguese: data_inicial (Santander API field)
+participante = "participante" # Portuguese: ispb_participante (Santander API field)
+Anual = "Anual" # Portuguese: Annual (Santander enum variant)
+threed = "threed" # Abbreviation for 3D Secure (info_threed_secure field in worldpayxml)
+tak = "tak" # Thai province name
+Tak = "Tak" # Thai province name
+addtional = "addtional" # Typo in variable name from main, can't rename without breaking code
+eligiblity = "eligiblity" # Typo in function name from main, can't rename without breaking code
+connetors = "connetors" # Typo in variable name from main, can't rename without breaking code
 
 [files]
 extend-exclude = [
