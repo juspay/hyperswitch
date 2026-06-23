@@ -5102,12 +5102,10 @@ Cypress.Commands.add(
       nextActionUrl = "https://example.com";
     }
 
-    // Gate redirect-proxy record/replay on REDIRECT_PROXY_ADMIN_URL being set.
-    // That URL is only present when redirect_proxy.py is actually running locally.
-    // CI sets IS_PROXY_ENABLED=true (for mitmproxy) but never sets
-    // REDIRECT_PROXY_ADMIN_URL, so this block is skipped there entirely and the
-    // original isMockServer() fallback below handles CI replay.
+    // Recording: redirect_proxy.py must be running (REDIRECT_PROXY_ADMIN_URL set).
+    // Replay:    only needs IS_PROXY_ENABLED + isMockServer — no redirect proxy.
     const redirectProxyActive = !!Cypress.env("REDIRECT_PROXY_ADMIN_URL");
+    const isProxyEnabled = String(Cypress.env("IS_PROXY_ENABLED")) === "true";
 
     // Connectors that complete 3DS via a JS iframe cannot be handled by a simple
     // cy.request — the challenge requires real browser JS execution. We instead
@@ -5135,72 +5133,63 @@ Cypress.Commands.add(
       },
     };
 
-    if (redirectProxyActive) {
+    if (redirectProxyActive && !isMockServer()) {
+      // ── RECORDING path ────────────────────────────────────────────────────
+      const paymentId = globalState.get("paymentID");
+      const merchantId = globalState.get("merchantId");
+      const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
+      const redirectProxyAdminUrl = Cypress.env("REDIRECT_PROXY_ADMIN_URL");
+
+      // Step layout (all connectors):
+      //   step N+1 = cy.request(nextActionUrl)
+      //   step N+2 = redirect/response or redirect/complete call
+      //   step N+3 = next Cypress cy.request (retrieve, etc.)
+      if (redirectProxyAdminUrl) {
+        const currentStep = Cypress._getStepCounter
+          ? Cypress._getStepCounter()
+          : 0;
+        const redirectStep = currentStep + 2;
+        const redirectRid = `${testIdHash}-${String(redirectStep).padStart(3, "0")}`;
+
+        cy.request({
+          method: "POST",
+          url: `${redirectProxyAdminUrl}/reserve`,
+          body: { rid: redirectRid, testIdHash },
+          failOnStatusCode: false,
+          timeout: 2000,
+        });
+      }
+
+      const expectedUrl = new URL(expectedRedirection);
+      const redirectionUrl = new URL(nextActionUrl);
+      handleRedirection(
+        "three_ds",
+        { redirectionUrl, expectedUrl },
+        connectorId,
+        globalState.get("paymentMethodType")
+      );
+
+      cy.then(() => {
+        if (Cypress._buildRequestId) {
+          Cypress._buildRequestId();
+        }
+      });
+      return;
+    }
+
+    if (isProxyEnabled && isMockServer()) {
+      // ── REPLAY path ───────────────────────────────────────────────────────
+      // Mirrors the recording step layout so cassette RIDs stay aligned.
+      // Step N+1 = cy.request(nextActionUrl).
+      // Step N+2 = replay the redirect/response or redirect/complete call.
       const paymentId = globalState.get("paymentID");
       const merchantId = globalState.get("merchantId");
       const baseUrl = globalState.get("baseUrl");
       const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
-
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
       const redirectBodyFile = `cypress/fixtures/proxy-bodies/${testIdHash}-redirect-body.json`;
-      const redirectProxyAdminUrl = Cypress.env("REDIRECT_PROXY_ADMIN_URL");
-
       const jsConnector = JS_3DS_CONNECTORS[connectorId];
 
-      if (!isMockServer()) {
-        // RECORDING path.
-        //
-        // Step layout (all connectors):
-        //   step N+1 = cy.request(nextActionUrl)
-        //   step N+2 = redirect/response or redirect/complete call
-        //   step N+3 = next Cypress cy.request (retrieve, etc.)
-
-        // JS-based connectors (e.g. Stripe) use the same recording flow as non-JS:
-        // pre-reserve the RID then let threeDsRedirection() open the real browser
-        // challenge (cy.visit + connector-specific click).  The redirect proxy now
-        // intercepts redirect/response/{connector} just like redirect/complete/.
-        // Non-JS connector (Redsys, Cybersource, etc.): browser will POST/GET
-        // redirect/complete out-of-band. Pre-register the RID so the redirect
-        // proxy can inject it into the browser request (which has no Cypress RID).
-        if (redirectProxyAdminUrl) {
-          const currentStep = Cypress._getStepCounter
-            ? Cypress._getStepCounter()
-            : 0;
-          const redirectStep = currentStep + 2;
-          const redirectRid = `${testIdHash}-${String(redirectStep).padStart(3, "0")}`;
-
-          // Admin call: excluded from step counting (isProxyAdminUrl guard in e2e.js)
-          cy.request({
-            method: "POST",
-            url: `${redirectProxyAdminUrl}/reserve`,
-            body: { rid: redirectRid, testIdHash },
-            failOnStatusCode: false,
-            timeout: 2000,
-          });
-        }
-
-        const expectedUrl = new URL(expectedRedirection);
-        const redirectionUrl = new URL(nextActionUrl);
-        handleRedirection(
-          "three_ds",
-          { redirectionUrl, expectedUrl },
-          connectorId,
-          globalState.get("paymentMethodType")
-        );
-
-        // Consume the step slot that the browser POST used so the next
-        // cy.request (retrieve) gets step N+3 instead of N+2.
-        cy.then(() => {
-          if (Cypress._buildRequestId) {
-            Cypress._buildRequestId(); // increments counter, RID not sent anywhere
-          }
-        });
-        return;
-      }
-
-      // REPLAY path — mirrors recording step layout.
-      // Step N+1 = cy.request(nextActionUrl).
-      // Step N+2 = replay the redirect/response or redirect/complete call.
       cy.request({
         url: nextActionUrl,
         failOnStatusCode: false,
@@ -5208,11 +5197,6 @@ Cypress.Commands.add(
       });
 
       if (jsConnector) {
-        // JS-based connector replay.
-        // Prefer proxy-bodies saved by the redirect proxy (contains the real params
-        // from the actual Stripe redirect, including __redirect_segment so we call
-        // the correct path).  Fall back to synthesizing from globalState for old
-        // cassettes recorded before the proxy intercepted redirect/response.
         const hyperswitchUrl =
           Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
         cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
@@ -5221,7 +5205,6 @@ Cypress.Commands.add(
             saved.__redirect_method === "GET" &&
             saved.__redirect_segment
           ) {
-            // New-style proxy-bodies: use the saved segment and real query params.
             const segment = saved.__redirect_segment;
             const url = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${segment}`;
             const qs = new URLSearchParams(saved.__query || {}).toString();
@@ -5230,9 +5213,8 @@ Cypress.Commands.add(
               url: qs ? `${url}?${qs}` : url,
               failOnStatusCode: false,
               followRedirect: false,
-            }); // step N+2
+            });
           } else {
-            // Fallback: synthesize from globalState (old cassettes).
             const returnUrl = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${jsConnector.path}/${connectorId}`;
             const params = jsConnector.params(globalState);
             const hasValues = Object.values(params).every(
@@ -5245,7 +5227,7 @@ Cypress.Commands.add(
                 url: `${returnUrl}?${qs}`,
                 failOnStatusCode: false,
                 followRedirect: false,
-              }); // step N+2
+              });
             } else if (Cypress._buildRequestId) {
               cy.then(() => {
                 Cypress._buildRequestId();
@@ -5258,9 +5240,6 @@ Cypress.Commands.add(
 
       cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
         if (saved && saved.__redirect_method === "GET") {
-          // Connector uses a browser GET for redirect/complete (e.g. Cybersource DDC)
-          // or redirect/response (e.g. Adyen 3DS). Prefer __redirect_segment so we
-          // call the exact path that was captured; fall back to notificationUrl.
           const hyperswitchUrl =
             Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
           const qs = new URLSearchParams(saved.__query || {}).toString();
@@ -5273,7 +5252,7 @@ Cypress.Commands.add(
             url,
             failOnStatusCode: false,
             followRedirect: false,
-          }); // step N+2
+          });
         } else if (saved) {
           // Connector uses a browser form POST for redirect/complete (e.g. Redsys ACS).
           cy.request({
@@ -5283,11 +5262,9 @@ Cypress.Commands.add(
             body: saved,
             failOnStatusCode: false,
             followRedirect: false,
-          }); // step N+2
+          });
         } else if (Cypress._buildRequestId) {
-          // No redirect body captured (connector doesn't use redirect/complete, or
-          // recording predates redirect proxy). Consume the N+2 slot so retrieve
-          // lands on N+3, matching how the cassette was recorded.
+          // No redirect body for this connector — burn the step slot.
           cy.then(() => {
             Cypress._buildRequestId();
           });
@@ -5297,12 +5274,7 @@ Cypress.Commands.add(
     }
 
     if (isMockServer()) {
-      // In MITM replay mode the ThreeDS browser flow is skipped.  Consume one
-      // cy.request slot so the Cypress step counter stays aligned with how the
-      // cassettes were recorded (threeDsRedirection() always issues one request
-      // before starting browser navigation).  The force_sync Retrieve that
-      // follows will call Stripe PSync, receive "requires_capture" from the
-      // cassette, and HS transitions the payment state automatically.
+      // Fallback for connectors that were never recorded with the redirect proxy.
       if (Cypress.env("PROXY_ADMIN_URL")) {
         cy.request({
           url: nextActionUrl,
@@ -5332,9 +5304,10 @@ Cypress.Commands.add(
     const nextActionUrl = globalState.get("nextActionUrl");
 
     const redirectProxyActive = !!Cypress.env("REDIRECT_PROXY_ADMIN_URL");
+    const isProxyEnabled = String(Cypress.env("IS_PROXY_ENABLED")) === "true";
 
-    // When redirect_proxy.py is NOT running, preserve the original behaviour exactly.
-    if (!redirectProxyActive) {
+    // When neither recording nor replay mode is active, use original behaviour.
+    if (!redirectProxyActive && !isProxyEnabled) {
       if (skipRedirectionInMockServer("handleBankRedirectRedirection")) {
         return;
       }
@@ -5353,13 +5326,12 @@ Cypress.Commands.add(
       return;
     }
 
-    // Proxy mode (IS_PROXY_ENABLED=true): record/replay logic below.
     // adyen sofort is excluded — it blocks other tests.
     if (connectorId === "adyen" && paymentMethodType === "sofort") {
       return;
     }
 
-    if (redirectProxyActive) {
+    if (redirectProxyActive && !isMockServer()) {
       const paymentId = globalState.get("paymentID");
       const merchantId = globalState.get("merchantId");
       const baseUrl = globalState.get("baseUrl");
@@ -5500,6 +5472,69 @@ Cypress.Commands.add(
       });
       return;
     }
+
+    if (isProxyEnabled && isMockServer()) {
+      // ── REPLAY path ───────────────────────────────────────────────────────
+      const paymentId = globalState.get("paymentID");
+      const merchantId = globalState.get("merchantId");
+      const baseUrl = globalState.get("baseUrl");
+      const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
+      const redirectBodyFile = `cypress/fixtures/proxy-bodies/${testIdHash}-redirect-body.json`;
+      const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
+      const hyperswitchUrl =
+        Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
+
+      cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
+        if (saved && saved.__redirect_method === "GET" && saved.__redirect_segment) {
+          const url = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`;
+          const qs = new URLSearchParams(saved.__query || {}).toString();
+          cy.request({
+            method: "GET",
+            url: qs ? `${url}?${qs}` : url,
+            failOnStatusCode: false,
+            followRedirect: false,
+          });
+        } else if (saved && saved.__redirect_method === "GET") {
+          const qs = new URLSearchParams(saved.__query || {}).toString();
+          cy.request({
+            method: "GET",
+            url: qs ? `${notificationUrl}?${qs}` : notificationUrl,
+            failOnStatusCode: false,
+            followRedirect: false,
+          });
+        } else if (saved) {
+          cy.request({
+            method: "POST",
+            url: notificationUrl,
+            form: true,
+            body: saved,
+            failOnStatusCode: false,
+            followRedirect: false,
+          });
+        } else if (Cypress._buildRequestId) {
+          cy.then(() => {
+            Cypress._buildRequestId();
+          });
+        }
+      });
+      return;
+    }
+
+    // Fallback: original non-proxy behaviour.
+    if (skipRedirectionInMockServer("handleBankRedirectRedirection")) {
+      return;
+    }
+    if (connectorId === "adyen" && paymentMethodType === "sofort") {
+      return;
+    }
+    const expectedUrlFallback = new URL(expectedRedirection);
+    const redirectionUrlFallback = new URL(nextActionUrl);
+    handleRedirection(
+      "bank_redirect",
+      { redirectionUrl: redirectionUrlFallback, expectedUrl: expectedUrlFallback },
+      connectorId,
+      paymentMethodType
+    );
   }
 );
 
