@@ -397,7 +397,7 @@ async fn fetch_access_token_from_ucs(
     let create_request =
         payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
             merchant_access_token_id: Some(relay_id.get_string_repr().to_string()),
-            // deprecated field we have to remove this/ Default to unspecified connector
+            // depricated field we have to remove this/ Default to unspecified connector
             connector: 0_i32,
             metadata: None,
             connector_feature_data: None,

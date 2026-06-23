@@ -343,7 +343,7 @@ pub fn generate_emv_string(
 
     // Format subfield 05 with the actual TXID
     // This is an optional field to be sent while creating the copy-and-paste data for Pix QR Code
-    // If sent, pass the first 25 or last 25 letters, if not passed then pass 3 asterisks
+    // If sent, pass the first 25 or last 25 letters, if not passed then pass 3 astericks
     let reference_label = format_field("05", &transaction_id.chars().take(25).collect::<String>());
 
     // Wrap it inside ID 62

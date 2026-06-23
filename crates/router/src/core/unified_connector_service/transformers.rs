@@ -6319,7 +6319,7 @@ impl
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             merchant_access_token_id: Some(router_data.connector_request_reference_id.clone()),
-            // deprecated field we have to remove this/ Default to unspecified connector
+            // depricated field we have to remove this/ Default to unspecified connector
             connector: 0_i32,
             metadata: None,
             connector_feature_data: None,

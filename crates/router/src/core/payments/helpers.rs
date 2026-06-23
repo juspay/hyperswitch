@@ -3175,7 +3175,7 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
             .find_payment_method(merchant_key_store, &data.payment_method_id, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-            .attach_printable("error retrieving payment method from DB")
+            .attach_printable("error retrieveing payment method from DB")
             .map(Some),
 
         storage::PaymentTokenData::Temporary(_)
@@ -6459,7 +6459,7 @@ pub fn is_apple_pay_simplified_flow(
 }
 
 // This function will return the encrypted connector wallets details with Apple Pay certificates
-// Currently apple pay certificates are stored in the metadata which is not encrypted.
+// Currently apple pay certifiactes are stored in the metadata which is not encrypted.
 // In future we want those certificates to be encrypted and stored in the connector_wallets_details.
 // As part of migration fallback this function checks apple pay details are present in connector_wallets_details
 // If yes, it will encrypt connector_wallets_details and store it in the database.
