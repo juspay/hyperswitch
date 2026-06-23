@@ -532,6 +532,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::Card,
         api_models::payments::CardRedirectData,
         api_models::payments::CardToken,
+        api_models::payments::VaultCardToken,
         api_models::payments::ConnectorTokenDetails,
         api_models::payments::PaymentsRequest,
         api_models::payments::PaymentsResponse,

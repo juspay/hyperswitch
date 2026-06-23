@@ -57,7 +57,9 @@ describe("Clear PAN Retry Tests", function () {
           /* collect_shipping_details_from_wallet_connector */ false,
           /* always_collect_billing_details_from_wallet_connector */ false,
           /* always_collect_shipping_details_from_wallet_connector */ false,
-          globalState
+          globalState,
+          "profile",
+          /* use_billing_as_payment_method_billing */ true
         );
 
         globalState.set("max_auto_retries_enabled", 2);
@@ -146,7 +148,9 @@ describe("Clear PAN Retry Tests", function () {
           /* collect_shipping_details_from_wallet_connector */ false,
           /* always_collect_billing_details_from_wallet_connector */ false,
           /* always_collect_shipping_details_from_wallet_connector */ false,
-          globalState
+          globalState,
+          "profile",
+          /* use_billing_as_payment_method_billing */ true
         );
 
         globalState.set("max_auto_retries_enabled", 2);

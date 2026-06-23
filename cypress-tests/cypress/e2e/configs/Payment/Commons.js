@@ -1376,6 +1376,38 @@ export const connectorDetails = {
         },
       },
     }),
+    BankdebitMIT: {
+      Request: {
+        currency: "EUR",
+        off_session: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SepaMandate: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "DE",
+          },
+          email: "test@example.com",
+        },
+      },
+    }),
   },
   wallet_pm: {
     PaymentIntent: (paymentMethodType) =>
@@ -1742,6 +1774,47 @@ export const connectorDetails = {
           status: "requires_payment_method",
           shipping_cost: 50,
           amount: 6000,
+        },
+      },
+    }),
+    PaymentIntentWithBillingDescriptor: getCustomExchange({
+      Request: {
+        currency: "USD",
+        billing_descriptor: {
+          name: "Test Business",
+          city: "San Francisco",
+          phone: "1234567890",
+          statement_descriptor: "Test Descriptor",
+          statement_descriptor_suffix: "Suffix",
+          reference: "REF123",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    PaymentConfirmWithBillingDescriptor: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        billing_descriptor: {
+          name: "Test Business",
+          city: "San Francisco",
+          phone: "1234567890",
+          statement_descriptor: "Test Descriptor",
+          statement_descriptor_suffix: "Suffix",
+          reference: "REF123",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     }),

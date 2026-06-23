@@ -222,6 +222,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Surcharge Calculate from gRPC Server
     #[error("Failed to perform Surcharge Calculate from gRPC Server")]
     SurchargeCalculateFailure,
+
+    /// Failed to perform Notify Connector via gRPC Server
+    #[error("Failed to perform Notify Connector from gRPC Server")]
+    NotifyConnectorFailure,
 }
 
 /// Inner data for [`UnifiedConnectorServiceError::ConnectorError`].
@@ -977,7 +981,12 @@ impl UnifiedConnectorServiceError {
         let status_code = u16::try_from(connector_error.http_status_code?).ok()?;
 
         Some(Self::ConnectorError(Box::new(ConnectorErrorInner {
-            code: connector_error.error_code,
+            code: connector_error
+                .error_info
+                .as_ref()
+                .and_then(|error_info| error_info.connector_details.as_ref())
+                .and_then(|connector_details| connector_details.code.clone())
+                .unwrap_or_else(|| connector_error.error_code.clone()),
             message: connector_error.error_message,
             status_code,
             reason: connector_error
@@ -1123,7 +1132,8 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             | Self::PayoutStageFailure
             | Self::PayoutCreateRecipientFailure
             | Self::SurchargeCalculateFailure
-            | Self::PayoutEnrollDisburseAccountFailure => ConnectorError::ResponseHandlingFailed,
+            | Self::PayoutEnrollDisburseAccountFailure
+            | Self::NotifyConnectorFailure => ConnectorError::ResponseHandlingFailed,
         }
     }
 }

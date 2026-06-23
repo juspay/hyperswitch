@@ -94,6 +94,7 @@ export const CONNECTOR_LISTS = {
     ENTITY_TYPE: ["wise"],
     // Payout recurring feature - only verified connectors
     PAYOUT_RECURRING: ["wise"],
+    PAYOUT_LINK: ["wise"],
   },
 };
 

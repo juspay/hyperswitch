@@ -542,4 +542,119 @@ export const connectorDetails = {
       },
     },
   },
+  payout_link_pm: {
+    PayoutLinkBase: {
+      Request: {
+        payout_link: true,
+        currency: "EUR",
+        payout_type: "bank",
+        payout_link_config: {
+          test_mode: true,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payout_method_data",
+          payout_link: {
+            payout_link_id: ".*",
+            link: ".*",
+          },
+        },
+      },
+    },
+    PayoutLinkBankTransfer: {
+      Request: {
+        payout_link: true,
+        currency: "EUR",
+        amount: 100,
+        description: "Test Payout Link Bank Transfer",
+        payout_link_config: {
+          test_mode: true,
+          enabled_payment_methods: [
+            {
+              payment_method: "bank_transfer",
+              payment_method_types: ["sepa_bank_transfer"],
+            },
+          ],
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payout_method_data",
+          payout_link: {
+            payout_link_id: ".*",
+            link: ".*",
+          },
+        },
+      },
+      // BankData holds the test bank credentials (IBAN, BIC) required by the
+      // handlePayoutLinkBankRedirection command to simulate a user filling
+      // the SEPA bank transfer form on the hosted payout link page.
+      // It is placed outside Request/Response because it is neither sent in
+      // the API payload nor asserted in the API response.
+      BankData: {
+        iban: "NL46TEST0136169112",
+        bic: "ABNANL2A",
+        bank_name: "Test Bank",
+        bank_country_code: "NL",
+        bank_city: "Amsterdam",
+      },
+    },
+    PayoutLinkValidationError: {
+      Request: {
+        payout_link: true,
+        currency: "EUR",
+        amount: 100,
+        customer_id: null,
+        payout_link_config: {
+          test_mode: true,
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+            message:
+              "Missing required param: customer or customer_id when payout_link is true",
+          },
+        },
+      },
+    },
+    PayoutLinkConfirmConflict: {
+      Request: {
+        payout_link: true,
+        currency: "EUR",
+        amount: 100,
+        confirm: true,
+        payout_link_config: {
+          test_mode: true,
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "cannot confirm a payout while creating a payout link",
+            code: "IR_06",
+          },
+        },
+      },
+    },
+    PayoutLinkWithoutLink: {
+      Request: {
+        payout_link: false,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payout_method_data",
+        },
+      },
+    },
+  },
 };
