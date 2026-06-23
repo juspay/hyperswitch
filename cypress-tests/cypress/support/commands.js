@@ -5102,7 +5102,12 @@ Cypress.Commands.add(
       nextActionUrl = "https://example.com";
     }
 
-    const isProxyEnabled = String(Cypress.env("IS_PROXY_ENABLED")) === "true";
+    // Gate redirect-proxy record/replay on REDIRECT_PROXY_ADMIN_URL being set.
+    // That URL is only present when redirect_proxy.py is actually running locally.
+    // CI sets IS_PROXY_ENABLED=true (for mitmproxy) but never sets
+    // REDIRECT_PROXY_ADMIN_URL, so this block is skipped there entirely and the
+    // original isMockServer() fallback below handles CI replay.
+    const redirectProxyActive = !!Cypress.env("REDIRECT_PROXY_ADMIN_URL");
 
     // Connectors that complete 3DS via a JS iframe cannot be handled by a simple
     // cy.request — the challenge requires real browser JS execution. We instead
@@ -5130,7 +5135,7 @@ Cypress.Commands.add(
       },
     };
 
-    if (isProxyEnabled) {
+    if (redirectProxyActive) {
       const paymentId = globalState.get("paymentID");
       const merchantId = globalState.get("merchantId");
       const baseUrl = globalState.get("baseUrl");
@@ -5326,10 +5331,10 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
-    const isProxyEnabled = String(Cypress.env("IS_PROXY_ENABLED")) === "true";
+    const redirectProxyActive = !!Cypress.env("REDIRECT_PROXY_ADMIN_URL");
 
-    // In non-proxy mode, preserve the original behaviour exactly.
-    if (!isProxyEnabled) {
+    // When redirect_proxy.py is NOT running, preserve the original behaviour exactly.
+    if (!redirectProxyActive) {
       if (skipRedirectionInMockServer("handleBankRedirectRedirection")) {
         return;
       }
@@ -5354,7 +5359,7 @@ Cypress.Commands.add(
       return;
     }
 
-    if (isProxyEnabled) {
+    if (redirectProxyActive) {
       const paymentId = globalState.get("paymentID");
       const merchantId = globalState.get("merchantId");
       const baseUrl = globalState.get("baseUrl");
