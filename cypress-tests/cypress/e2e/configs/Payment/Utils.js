@@ -667,6 +667,7 @@ export const CONNECTOR_LISTS = {
     ],
     POLL_CONFIG: ["stripe"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
+    REQUIRES_CVV: ["bankofamerica"],
     // Add more inclusion lists
   },
 };
@@ -678,7 +679,7 @@ export const shouldExcludeConnector = (connectorId, list) => {
 
 export const shouldIncludeConnector = (connectorId, list) => {
   if (!Array.isArray(list)) return true;
-  return !list.includes(connectorId);
+  return list.includes(connectorId);
 };
 
 export function setNormalizedValue(

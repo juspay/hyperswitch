@@ -844,6 +844,193 @@ export const connectorDetails = {
         },
       },
     },
+    RequiresCVVOnSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    RequiresCVVOffSessionMandate: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    RequiresCVVSavedCardWithCVV: {
+      Request: {
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    RequiresCVVSavedCardWithoutCVV: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    RequiresCVVInvalidCVVShort: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_holder_name: "Test User",
+            card_cvc: "12",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_16",
+            message: "Invalid card_cvc length",
+          },
+        },
+      },
+    },
+    RequiresCVVInvalidCVVLong: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_holder_name: "Test User",
+            card_cvc: "12345",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_16",
+            message: "Invalid card_cvc length",
+          },
+        },
+      },
+    },
+    RequiresCVVInvalidCVVNonNumeric: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_holder_name: "Test User",
+            card_cvc: "abc",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_07",
+            message: "Invalid value provided: card_cvc",
+          },
+        },
+      },
+    },
+    RequiresCVVListPMOnSession: {
+      Response: { status: 200, body: { requires_cvv: true } },
+    },
+    RequiresCVVListPMOffSession: {
+      Response: { status: 200, body: { requires_cvv: false } },
+    },
+    RequiresCVVFalsePaymentIntent: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    RequiresCVVFalseSavedCardWithoutCVV: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_39",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+          },
+        },
+      },
+    },
+    RequiresCVVPaymentIntent: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
     CardTestingGuard: {
       FailConfirm: {
         Request: {
