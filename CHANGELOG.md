@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.10.0-hotfix7
+
+### Features
+
+- **connector:** [worldpayxml] Googlepay predecrypt | hyperswitch decrypt ([#12890](https://github.com/juspay/hyperswitch/pull/12890)) ([`ffc823d`](https://github.com/juspay/hyperswitch/commit/ffc823d2a5596568b541d43549e6efc6f0ee2a18))
+
+### Bug Fixes
+
+- **connector:** [WorldpayWPG] Add Mastercard in WASM for Payouts ([#12893](https://github.com/juspay/hyperswitch/pull/12893)) ([`e6c41aa`](https://github.com/juspay/hyperswitch/commit/e6c41aa018571ddc1d17910a341e9db20bd303f6))
+
+**Full Changelog:** [`2026.06.10.0-hotfix6...2026.06.10.0-hotfix7`](https://github.com/juspay/hyperswitch/compare/2026.06.10.0-hotfix6...2026.06.10.0-hotfix7)
+
+- - -
+
 ## 2026.06.10.0-hotfix6
 
 ### Features
