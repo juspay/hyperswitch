@@ -107,8 +107,9 @@ const ADYEN_API_VERSION: &str = "v68";
 
 const ADYEN_IMAGE_MAX_SIZE: i32 = 10_000_000;
 const ADYEN_PDF_MAX_SIZE: i32 = 2_000_000;
+const ADYEN_PDF_FORMAT: &str = "application/pdf";
 const ADYEN_SUPPORTED_DISPUTE_EVIDENCE_FILE_TYPES: [&str; 4] =
-    ["image/jpeg", "image/jpg", "image/tiff", "application/pdf"];
+    ["image/jpeg", "image/jpg", "image/tiff", ADYEN_PDF_FORMAT];
 const ADYEN_IMAGE_FILE_TYPES: [&str; 3] = ["image/jpeg", "image/jpg", "image/tiff"];
 
 #[derive(Clone)]
@@ -2543,7 +2544,7 @@ impl FileUpload for Adyen {
                             .to_owned(),
                     })?
                 }
-                if file_type_str.as_str() == "application/pdf" && file_size > ADYEN_PDF_MAX_SIZE {
+                if file_type_str.as_str() == ADYEN_PDF_FORMAT && file_size > ADYEN_PDF_MAX_SIZE {
                     Err(errors::ConnectorError::FileValidationFailed {
                         reason: "file_size exceeded the max file size of 2MB for PDF format"
                             .to_owned(),
