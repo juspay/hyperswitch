@@ -73,49 +73,5 @@ export const connectorDetails = {
         },
       },
     }),
-    FRMDecline: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        email: "testdeclined@signifyd.com",
-        frm_metadata: frmMetadata,
-        order_details: orderDetails,
-        shipping: shippingAddress,
-        billing: billingAddress,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
-    FRMHold: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        email: "testpending@signifyd.com",
-        frm_metadata: frmMetadata,
-        order_details: orderDetails,
-        shipping: shippingAddress,
-        billing: billingAddress,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
   },
 };

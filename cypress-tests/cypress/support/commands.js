@@ -1842,6 +1842,73 @@ Cypress.Commands.add("connectorDeleteCall", (globalState) => {
   });
 });
 
+Cypress.Commands.add("setFrmRoutingAlgorithm", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+  const adminApiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/accounts/${merchantId}`,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "api-key": adminApiKey,
+    },
+    body: {
+      merchant_id: merchantId,
+      frm_routing_algorithm: {
+        data: "signifyd",
+        type: "single",
+      },
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.task(
+      "cli_log",
+      "Set frm_routing_algorithm status: " +
+        response.status +
+        " body: " +
+        JSON.stringify(response.body)
+    );
+    expect(
+      [200, 400],
+      "frm_routing_algorithm update should return 200 (success) or 400 (already set)"
+    ).to.include(response.status);
+  });
+});
+
+Cypress.Commands.add("deleteFrmConnector", (globalState) => {
+  const frmMcaId = globalState.get("frmConnectorId");
+
+  if (!frmMcaId) {
+    cy.task("cli_log", "No frmConnectorId found, skipping delete");
+    return;
+  }
+
+  const merchantId = globalState.get("merchantId");
+  const baseUrl = globalState.get("baseUrl");
+  const adminApiKey = globalState.get("adminApiKey");
+
+  cy.request({
+    method: "DELETE",
+    url: `${baseUrl}/account/${merchantId}/connectors/${frmMcaId}`,
+    headers: {
+      Accept: "application/json",
+      "api-key": adminApiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    cy.task(
+      "cli_log",
+      "FRM Signifyd connector delete status: " + response.status
+    );
+  });
+});
+
 Cypress.Commands.add(
   "connectorUpdateCall",
   (connectorType, updateConnectorBody, globalState) => {
