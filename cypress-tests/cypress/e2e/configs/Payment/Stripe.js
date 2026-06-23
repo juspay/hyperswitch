@@ -1543,7 +1543,6 @@ export const connectorDetails = {
         },
         currency: "USD",
         billing: null,
-        setup_future_usage: "off_session",
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "offline",
@@ -1604,7 +1603,6 @@ export const connectorDetails = {
         },
         currency: "USD",
         billing: null,
-        setup_future_usage: "off_session",
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "offline",
@@ -1668,7 +1666,6 @@ export const connectorDetails = {
         },
         currency: "EUR",
         billing: null,
-        setup_future_usage: "off_session",
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "offline",
