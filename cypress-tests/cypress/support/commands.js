@@ -37,49 +37,6 @@ import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import { handleRedirection } from "./redirectionHandler";
 
-function injectRandomHelcimCard(body, globalState) {
-  if (globalState.get("connectorId") !== "helcim") return;
-  if (!body.payment_method_data?.card) return;
-
-  const cards = [
-    "4111111111111111",
-    "4000000000000002",
-    "4242424242424242",
-    "4012888888881881",
-    "4000056655665556",
-    "4532015112830366",
-    "4000000000000127",
-    "4000000000000119",
-    "4111111111111129",
-    "4111111111111137",
-    "4111111111111145",
-    "4111111111111152",
-    "4000000000000259",
-    "4000000000003238",
-    "5555555555554444",
-    "5105105105105100",
-    "5200828282828210",
-    "5100000000000008",
-    "4111111111111160",
-    "4000000000000340",
-  ];
-
-  // Rotate both card number (sequential round-robin) and card_holder_name
-  // (unique) to avoid Helcim's duplicate detection. Helcim checks
-  // cardNumber + amount (+ IP) within a 5-minute window — cardholder name
-  // is NOT part of the check, so Math.random() can still collide.
-  const testOffset = globalState.get("helcimCardIndex") ?? 0;
-  const timeOffset = Math.floor(Date.now() / 1000) % cards.length;
-  const idx = (timeOffset + testOffset) % cards.length;
-  globalState.set("helcimCardIndex", testOffset + 1);
-
-  const ts = Date.now();
-  const rnd = Math.floor(Math.random() * 100000);
-  const uniqueSuffix = `${ts.toString(36)}_${rnd}`;
-  body.payment_method_data.card.card_number = cards[idx];
-  body.payment_method_data.card.card_holder_name = `HelcimTest ${uniqueSuffix}`;
-}
-
 // In MITM replay mode (MOCK_SERVER=true) there is no live browser redirection
 // to drive. Cypress.env may return a boolean or a string, hence String().
 function isMockServer() {
@@ -2785,8 +2742,6 @@ Cypress.Commands.add(
       confirmBody.split_payments = reqData.split_payments;
     }
 
-    injectRandomHelcimCard(confirmBody, globalState);
-
     const headers = {
       "Content-Type": "application/json",
       "api-key": apiKey,
@@ -3556,8 +3511,6 @@ Cypress.Commands.add(
     if (reqData?.split_payments && isStripeConnect(globalState)) {
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
-
-    injectRandomHelcimCard(createConfirmPaymentBody, globalState);
 
     const headers = {
       "Content-Type": "application/json",
