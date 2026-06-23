@@ -215,6 +215,7 @@ impl
                 .access_token
                 .as_ref()
                 .map(ConnectorState::foreign_from),
+            split_payments: None,
         })
     }
 }
@@ -403,6 +404,11 @@ impl
                 .map(Into::into),
             l2_l3_data: None,
             merchant_request_id: None,
+            domain_data: None,
+            split_payments: None,
+            mit_category: None,
+            surcharge_amount: None,
+            partner_merchant_identifier_details: None,
         })
     }
 }
@@ -599,6 +605,11 @@ impl
             l2_l3_data: None,
             connector_order_id: None,
             merchant_request_id: None,
+            domain_data: None,
+            split_payments: None,
+            mit_category: None,
+            surcharge_amount: None,
+            partner_merchant_identifier_details: None,
         })
     }
 }
@@ -687,15 +698,12 @@ impl
                 .email
                 .clone()
                 .map(|e| e.expose().expose().into()),
-            phone_number: router_data
-                .request
-                .phone
-                .as_ref()
-                .map(|phone| phone.peek().to_string()),
+            phone_number: router_data.request.phone.clone(),
             address: Some(address),
             metadata: None,
             connector_feature_data: None,
             test_mode: router_data.test_mode,
+            split_payments: None,
         })
     }
 }
@@ -783,6 +791,7 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 .map(payments_grpc::PaymentMethodType::foreign_try_from)
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
+            split_payments: None,
         })
     }
 }
@@ -1364,6 +1373,11 @@ impl
             connector_order_id: None,
             l2_l3_data: None,
             merchant_request_id: None,
+            domain_data: None,
+            split_payments: None,
+            mit_category: None,
+            surcharge_amount: None,
+            partner_merchant_identifier_details: None,
         })
     }
 }
@@ -1548,6 +1562,11 @@ impl
             connector_order_id: None,
             l2_l3_data: None,
             merchant_request_id: None,
+            domain_data: None,
+            split_payments: None,
+            mit_category: None,
+            surcharge_amount: None,
+            partner_merchant_identifier_details: None,
         })
     }
 }
@@ -1712,6 +1731,11 @@ impl
             connector_order_id: None,
             l2_l3_data: None,
             merchant_request_id: None,
+            domain_data: None,
+            split_payments: None,
+            mit_category: None,
+            surcharge_amount: None,
+            partner_merchant_identifier_details: None,
         })
     }
 }
@@ -1858,6 +1882,7 @@ impl
                 .map(|data| Secret::new(data.peek().to_string())),
             l2_l3_data: None,
             setup_mandate_details: None,
+            mit_category: None,
         })
     }
 }
@@ -2087,6 +2112,8 @@ impl
                 customer_document_details: to_grpc_customer_document_details(router_data),
             }),
             additional_payment_data,
+            split_payments: None,
+            partner_merchant_identifier_details: None,
         })
     }
 }
@@ -5952,6 +5979,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             merchant_request_id: None,
             connector_order_id: None,
             payment_method: None,
+            split_refunds: None,
         })
     }
 }
@@ -6021,6 +6049,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             connector_feature_data: None,
             merchant_request_id: None,
             connector_order_id: None,
+            split_refunds: None,
         })
     }
 }
@@ -6395,7 +6424,7 @@ impl ForeignFrom<&router_request_types::CustomerDetails> for payments_grpc::Cust
             connector_customer_id: None,
             name: customer.name.clone().map(|s| s.expose()),
             email: customer.email.clone().map(|e| e.expose().expose().into()),
-            phone_number: customer.phone.clone().map(|s| s.expose()),
+            phone_number: customer.phone.clone(),
             phone_country_code: customer.phone_country_code.clone(),
             first_name: None,
             last_name: None,
