@@ -36,4 +36,15 @@ impl ReverseLookup {
         )
         .await
     }
+
+    pub async fn generate_drainer_delete_query(
+        conn: &mut PgPooledConn,
+        lookup_id: String,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_delete_query_with_predicate::<<Self as HasTable>::Table, _, ReverseLookupNew>(
+            conn,
+            dsl::lookup_id.eq(lookup_id),
+        )
+        .await
+    }
 }
