@@ -1271,6 +1271,7 @@ pub async fn call_connector_payout(
     Box::pin(complete_payout_eligibility(
         state,
         platform,
+        header_payload.clone(),
         connector_data,
         payout_data,
     ))
@@ -1641,6 +1642,7 @@ pub async fn create_recipient(
 pub async fn complete_payout_eligibility(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -1655,6 +1657,7 @@ pub async fn complete_payout_eligibility(
         Box::pin(check_payout_eligibility(
             state,
             platform,
+            header_payload,
             connector_data,
             payout_data,
         ))
@@ -1680,6 +1683,7 @@ pub async fn complete_payout_eligibility(
 pub async fn check_payout_eligibility(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -1688,21 +1692,34 @@ pub async fn check_payout_eligibility(
         core_utils::construct_payout_router_data(state, connector_data, platform, payout_data)
             .await?;
 
-    // 2. Fetch connector integration details
+    // 2. Decide UCS vs Direct execution path for this flow.
+    let (gateway_context, updated_state) = decide_unified_connector_service_payout(
+        state,
+        platform,
+        header_payload,
+        &router_data,
+        connector_data,
+        payout_data,
+    )
+    .await?;
+
+    // 3. Fetch connector integration details
     let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
         api::PoEligibility,
         types::PayoutsData,
         types::PayoutsResponseData,
     > = connector_data.connector.get_connector_integration();
 
-    // 3. Call connector service
-    let router_data_resp = services::execute_connector_processing_step(
-        state,
+    // 4. Dispatch through the gateway (UCS for connectors that route there,
+    //    Direct connector integration otherwise).
+    let router_data_resp = payout_gateway::execute_payout_gateway(
+        &updated_state,
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        gateway_context.clone(),
     )
     .await
     .to_payout_failed_response()?;

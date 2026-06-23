@@ -226,6 +226,7 @@ impl Connector {
                 | (Self::Worldpay, Some(PayoutType::Wallet))
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
                 | (Self::Itaubank, Some(PayoutType::Bank))
+                | (Self::Deutschebank, Some(PayoutType::Bank))
         )
     }
     #[cfg(feature = "payouts")]
@@ -237,7 +238,10 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn supports_payout_eligibility(self, payout_method: Option<PayoutType>) -> bool {
-        matches!((self, payout_method), (_, Some(PayoutType::Card)))
+        matches!(
+            (self, payout_method),
+            (_, Some(PayoutType::Card)) | (Self::Deutschebank, Some(PayoutType::Bank))
+        )
     }
     #[cfg(feature = "payouts")]
     pub fn is_payout_quote_call_required(self) -> bool {

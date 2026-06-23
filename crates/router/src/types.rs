@@ -814,6 +814,12 @@ pub struct UcsPayoutTransferResponseData {
 }
 
 #[cfg(feature = "payouts")]
+pub struct UcsPayoutEligibilityResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
 pub struct UcsPayoutGetResponseData {
     pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
     pub status_code: u16,
