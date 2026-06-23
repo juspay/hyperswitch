@@ -26,14 +26,9 @@ describe("Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.AMAZONPAY_WALLET
+              CONNECTOR_LISTS.INCLUDE.BLUECODE_WALLET
             )
           ) {
-            skip = true;
-            return;
-          }
-          const details = getConnectorDetails(connector);
-          if (!details?.wallet_pm?.AmazonPayInvalidCurrency) {
             skip = true;
             return;
           }
@@ -129,14 +124,9 @@ describe("Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.CASHAPP_WALLET
+              CONNECTOR_LISTS.INCLUDE.ALIPAY_HK_WALLET
             )
           ) {
-            skip = true;
-            return;
-          }
-          const details = getConnectorDetails(connector);
-          if (!details?.wallet_pm?.CashappInvalidCurrency) {
             skip = true;
             return;
           }
@@ -232,14 +222,9 @@ describe("Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.REVOLUTPAY_WALLET
+              CONNECTOR_LISTS.INCLUDE.MIFINITY_WALLET
             )
           ) {
-            skip = true;
-            return;
-          }
-          const details = getConnectorDetails(connector);
-          if (!details?.wallet_pm?.RevolutPayInvalidCurrency) {
             skip = true;
             return;
           }
@@ -342,14 +327,9 @@ describe("Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.WECHATPAY_WALLET
+              CONNECTOR_LISTS.INCLUDE.PAYPAL_WALLET
             )
           ) {
-            skip = true;
-            return;
-          }
-          const details = getConnectorDetails(connector);
-          if (!details?.wallet_pm?.WeChatPayInvalidCurrency) {
             skip = true;
             return;
           }
