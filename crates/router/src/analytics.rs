@@ -2288,7 +2288,6 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-
                 let (user_email, optional_emails) = match user_id {
                     Some(user_id) => {
                         let user = state
@@ -2338,7 +2337,6 @@ pub mod routes {
                     .get_id()
                     .clone();
 
-            
                 let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
                 let hash_key = match &payload.return_url {
                     Some(_) => {
@@ -2362,7 +2360,6 @@ pub mod routes {
 
                 let json_bytes =
                     serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
-
 
                 let lambda_result = invoke_lambda(
                     &state.conf.report_download_config.relay_function,
