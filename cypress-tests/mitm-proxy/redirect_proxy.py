@@ -86,13 +86,22 @@ def _save_redirect(
         ct = content_type.lower()
         try:
             if "json" in ct:
-                data = json.loads(body)
+                form_data = json.loads(body)
             elif "form" in ct or "x-www-form-urlencoded" in ct:
-                data = dict(urllib.parse.parse_qsl(body.decode("utf-8")))
+                form_data = dict(urllib.parse.parse_qsl(body.decode("utf-8")))
             else:
-                data = body.decode("utf-8", errors="replace")
+                form_data = body.decode("utf-8", errors="replace")
         except Exception:
-            data = body.decode("utf-8", errors="replace")
+            form_data = body.decode("utf-8", errors="replace")
+        parts = path_only.split("/")
+        try:
+            idx = parts.index("redirect")
+            redirect_segment = "/".join(parts[idx:])
+        except ValueError:
+            redirect_segment = None
+        data = {"__redirect_method": "POST", "__body": form_data}
+        if redirect_segment:
+            data["__redirect_segment"] = redirect_segment
 
     os.makedirs(FIXTURES_DIR, exist_ok=True)
     path = os.path.join(FIXTURES_DIR, f"{test_id_hash}-redirect-body.json")

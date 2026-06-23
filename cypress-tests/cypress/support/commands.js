@@ -5255,11 +5255,21 @@ Cypress.Commands.add(
           });
         } else if (saved) {
           // Connector uses a browser form POST for redirect/complete (e.g. Redsys ACS).
+          const hyperswitchUrl =
+            Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
+          const postBody =
+            saved.__redirect_method === "POST" && saved.__body
+              ? saved.__body
+              : saved;
+          const postUrl =
+            saved.__redirect_segment
+              ? `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`
+              : notificationUrl;
           cy.request({
             method: "POST",
-            url: notificationUrl,
+            url: postUrl,
             form: true,
-            body: saved,
+            body: postBody,
             failOnStatusCode: false,
             followRedirect: false,
           });
@@ -5456,11 +5466,18 @@ Cypress.Commands.add(
             followRedirect: false,
           }); // step N+1
         } else if (saved) {
+          const postBody =
+            saved.__redirect_method === "POST" && saved.__body
+              ? saved.__body
+              : saved;
+          const postUrl = saved.__redirect_segment
+            ? `${Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080"}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`
+            : notificationUrl;
           cy.request({
             method: "POST",
-            url: notificationUrl,
+            url: postUrl,
             form: true,
-            body: saved,
+            body: postBody,
             failOnStatusCode: false,
             followRedirect: false,
           }); // step N+1
@@ -5503,11 +5520,18 @@ Cypress.Commands.add(
             followRedirect: false,
           });
         } else if (saved) {
+          const postBody2 =
+            saved.__redirect_method === "POST" && saved.__body
+              ? saved.__body
+              : saved;
+          const postUrl2 = saved.__redirect_segment
+            ? `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`
+            : notificationUrl;
           cy.request({
             method: "POST",
-            url: notificationUrl,
+            url: postUrl2,
             form: true,
-            body: saved,
+            body: postBody2,
             failOnStatusCode: false,
             followRedirect: false,
           });
