@@ -5086,6 +5086,29 @@ Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
   });
 });
 
+Cypress.Commands.add("mandateGETCallTest", (globalState) => {
+  const mandateId = globalState.get("mandateId");
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/mandates/${mandateId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.status, "status_code").to.equal(200);
+      expect(response.body).to.have.property("mandate_id", mandateId);
+      expect(response.body).to.have.property("status", "active");
+      expect(response.body).to.have.property("payment_method", "bank_debit");
+    });
+  });
+});
+
 Cypress.Commands.add(
   "handleRedirection",
   (globalState, expectedRedirection) => {
