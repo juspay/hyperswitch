@@ -1900,12 +1900,9 @@ mod tests {
                 webhook_version: None,
                 webhook_username: None,
                 webhook_password: None,
-<<<<<<< HEAD
-=======
                 webhook_url: Some(hyperswitch_masking::Secret::new(
                     "https://example.com/webhooks".to_string(),
                 )),
->>>>>>> 82b270a997267605e79606004b94933f3165172f
                 payment_created_enabled: None,
                 payment_succeeded_enabled: Some(true),
                 payment_failed_enabled: None,
@@ -1978,12 +1975,9 @@ mod tests {
                 webhook_version: None,
                 webhook_username: None,
                 webhook_password: None,
-<<<<<<< HEAD
-=======
                 webhook_url: Some(hyperswitch_masking::Secret::new(
                     "https://example.com/webhooks".to_string(),
                 )),
->>>>>>> 82b270a997267605e79606004b94933f3165172f
                 payment_created_enabled: None,
                 payment_succeeded_enabled: Some(true),
                 payment_failed_enabled: None,
