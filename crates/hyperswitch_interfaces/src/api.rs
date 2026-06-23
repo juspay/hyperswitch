@@ -625,13 +625,6 @@ pub trait ConnectorSpecifications {
         false
     }
 
-    /// Get connector's API webhook configuration object
-    fn get_api_webhook_config(
-        &self,
-    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
-        &consts::DEFAULT_WEBHOOK_SETUP_CAPABILITIES
-    }
-
     /// Returns the webhook registration plan for this connector.
     /// Given the requested scope returns a list of (identifier, webhook_url)` tuples. Each tuple corresponds to one connector integration call.
     fn get_webhook_registration_plan(

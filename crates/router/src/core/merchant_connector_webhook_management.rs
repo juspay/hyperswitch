@@ -3,7 +3,6 @@ use api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterR
 use common_utils::id_type;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    merchant_connector_account::MerchantConnectorAccountUpdate,
     router_request_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterRequest, CurrentFlowInfo,
     },
@@ -212,6 +211,7 @@ pub async fn register_connector_webhook(
     let requested = configure_connector_webhook_flow::extract_requested_identifiers(&req.scope);
 
     let mut results = Vec::new();
+    let mut registration_entries = Vec::new();
 
     for (identifier, base_url) in registration_plan {
         router_env::logger::info!(
@@ -332,32 +332,20 @@ pub async fn register_connector_webhook(
             },
         };
 
-        let connector_webhook_registration_details =
-            configure_connector_webhook_flow::construct_connector_webhook_registration_details(
-                &ConnectorWebhookRegisterResponse {
-                    identifier: identifier.clone(),
-                    status: result.status,
-                    connector_webhook_id: result.connector_webhook_id.clone(),
-                    error_code: result.error.as_ref().map(|e| e.code.clone()),
-                    error_message: result.error.as_ref().map(|e| e.message.clone()),
-                },
-                &mca,
-                &router_data.request,
-            )?;
+        if let Some(ref webhook_id) = result.connector_webhook_id {
+            registration_entries.push((webhook_id.clone(), identifier.clone()));
+        }
 
-        let should_update_db = matches!(
-            connector_webhook_registration_details,
-            MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
-                connector_webhook_registration_details: Some(_)
-            }
-        );
+        results.push(result);
+    }
 
-        if should_update_db {
-            db.update_merchant_connector_account(
-                mca.clone(),
-                connector_webhook_registration_details.into(),
-                &key_store,
-            )
+    if let Some(update) =
+        configure_connector_webhook_flow::construct_connector_webhook_registration_details(
+            &mca,
+            registration_entries,
+        )?
+    {
+        db.update_merchant_connector_account(mca.clone(), update.into(), &key_store)
             .await
             .change_context(
                 errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
@@ -370,9 +358,6 @@ pub async fn register_connector_webhook(
                     "Failed while updating MerchantConnectorAccount: id: {merchant_connector_id:?}",
                 )
             })?;
-        }
-
-        results.push(result);
     }
 
     let response =

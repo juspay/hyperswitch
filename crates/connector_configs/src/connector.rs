@@ -219,6 +219,7 @@ pub struct ConnectorWebhookRegisterDetailsConfig {
     pub label: String,
     pub webhook_auto_configuration_supported: bool,
     pub payment_method_types: Option<Vec<String>>,
+    pub event_types: Option<Vec<String>>,
 }
 
 #[serde_with::skip_serializing_none]

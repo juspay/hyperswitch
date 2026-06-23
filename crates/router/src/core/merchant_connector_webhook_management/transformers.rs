@@ -19,7 +19,7 @@ use crate::{
     types::{
         api::ConnectorData, domain,
         ConnectorWebhookRegisterRequest as ConnectorWebhookRegisterData,
-        ConnectorWebhookRegisterResponse, ConnectorWebhookRegisterRouterData, ErrorResponse,
+        ConnectorWebhookRegisterRouterData, ErrorResponse,
     },
     SessionState,
 };
@@ -149,20 +149,23 @@ pub enum ConnectorWebhookRegistrationEntry {
 
 #[cfg(feature = "v1")]
 pub fn construct_connector_webhook_registration_details(
-    register_webhook_response: &ConnectorWebhookRegisterResponse,
     merchant_connector_account: &domain::MerchantConnectorAccount,
-    connector_webhook_register_data: &ConnectorWebhookRegisterData,
-) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
-    if let Some(connector_webhook_id) = register_webhook_response.connector_webhook_id.clone() {
-        let mut connector_webhook_registration_details = merchant_connector_account
-            .get_connector_webhook_registration_details()
-            .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
+    registration_entries: Vec<(String, ScopeIdentifier)>,
+) -> RouterResult<Option<domain::MerchantConnectorAccountUpdate>> {
+    if registration_entries.is_empty() {
+        return Ok(None);
+    }
 
-        let map = connector_webhook_registration_details
-            .as_object_mut()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+    let mut connector_webhook_registration_details = merchant_connector_account
+        .get_connector_webhook_registration_details()
+        .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
 
-        let entry_value = match &connector_webhook_register_data.scope {
+    let map = connector_webhook_registration_details
+        .as_object_mut()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
+    for (connector_webhook_id, scope) in registration_entries {
+        let entry_value = match &scope {
             ScopeIdentifier::NotSpecific => {
                 serde_json::to_value(ConnectorWebhookRegistrationEntry::NotSpecific)
             }
@@ -178,21 +181,13 @@ pub fn construct_connector_webhook_registration_details(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         map.insert(connector_webhook_id, entry_value);
-
-        Ok(
-            domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
-                connector_webhook_registration_details: Some(
-                    connector_webhook_registration_details,
-                ),
-            },
-        )
-    } else {
-        Ok(
-            domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
-                connector_webhook_registration_details: None,
-            },
-        )
     }
+
+    Ok(Some(
+        domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+            connector_webhook_registration_details: Some(connector_webhook_registration_details),
+        },
+    ))
 }
 
 #[cfg(feature = "v1")]
@@ -202,11 +197,8 @@ pub async fn validate_webhook_registration_request(
     webhook_register_request: ApiConnectorWebhookRegisterRequest,
     connectors: &Connectors,
 ) -> RouterResult<()> {
-    let config = connector_data.connector.get_api_webhook_config();
-
     let is_supported =
-        is_webhook_auto_configuration_supported_from_toml(connector_data.connector_name)?
-            .unwrap_or(config.is_webhook_auto_configuration_supported);
+        is_webhook_auto_configuration_supported_from_toml(connector_data.connector_name)?;
 
     if !is_supported {
         return Err(errors::ApiErrorResponse::FlowNotSupported {

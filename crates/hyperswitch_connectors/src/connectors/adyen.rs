@@ -3409,16 +3409,6 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
     adyen_supported_payment_methods
 });
 
-static ADYEN_WEBHOOK_SETUP_CAPABILITIES:
-    common_types::connector_webhook_configuration::WebhookSetupCapabilities =
-    common_types::connector_webhook_configuration::WebhookSetupCapabilities {
-        is_webhook_auto_configuration_supported: true,
-        requires_webhook_secret: Some(false),
-        config_type: Some(
-            common_types::connector_webhook_configuration::WebhookConfigType::AllEvents,
-        ),
-    };
-
 static ADYEN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Adyen",
         description: "Adyen is a Dutch payment company with the status of an acquiring bank that allows businesses to accept e-commerce, mobile, and point-of-sale payments. It is listed on the stock exchange Euronext Amsterdam",
@@ -3475,12 +3465,6 @@ impl ConnectorSpecifications for Adyen {
                 cid.get_string_repr()
             )
         })
-    }
-
-    fn get_api_webhook_config(
-        &self,
-    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
-        &ADYEN_WEBHOOK_SETUP_CAPABILITIES
     }
 
     fn get_webhook_registration_plan(

@@ -119,12 +119,14 @@ pub struct WebhookRegistrationError {
 pub struct ConnectorWebhookRegisterRequest {
     #[schema(value_type = Option<Scope>)]
     pub scope: Scope,
+    #[deprecated(note = "Use `scope` instead to specify the event type for registration.")]
     #[schema(value_type = Option<ConnectorWebhookEventType>)]
-    pub event_type: common_enums::ConnectorWebhookEventType,
+    pub event_type: Option<common_enums::ConnectorWebhookEventType>,
 }
 
 /// Response for registering connector webhooks.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RegisterConnectorWebhookResponse {
     /// The type of scope used for this registration.
     pub scope_type: ScopeType,
