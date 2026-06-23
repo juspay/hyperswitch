@@ -671,10 +671,12 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        // Box the authorize future: the merged UCS proto request types are large enough
-        // to trip clippy::large_futures when this is awaited inline.
-        Box::pin(self.payment_service_client.clone().authorize(request))
-            .await
+        Box::pin(
+            self.payment_service_client
+                .clone()
+                .authorize(request),
+        )
+        .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
                     &error,
