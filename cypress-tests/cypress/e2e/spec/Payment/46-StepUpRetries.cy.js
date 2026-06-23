@@ -5,12 +5,6 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Step-Up Retry Tests", () => {
-  before("skip in proxy mode", function () {
-    if (Cypress.env("IS_PROXY_ENABLED") === "true") {
-      // Router panics with stack overflow in MITM record mode; skip until fixed.
-      this.skip();
-    }
-  });
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);

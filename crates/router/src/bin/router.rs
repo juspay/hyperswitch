@@ -6,27 +6,8 @@ use router::{
     routes::metrics,
 };
 
-fn main() -> ApplicationResult<()> {
-    // RUST_MIN_STACK applies to every thread spawned without an explicit stack
-    // size — including actix-web worker threads (spawned by actix-rt).  The
-    // default 2 MB overflows when the payments-retry path fires while outbound
-    // connector calls are routed through an HTTP CONNECT proxy (MITM recording
-    // mode).  Set this before the tokio runtime or actix workers are created.
-    // Safe to set unconditionally: it only raises the floor, never lowers it.
-    if std::env::var("RUST_MIN_STACK").is_err() {
-        // 4 MB — only override if the caller has not already set a value.
-        std::env::set_var("RUST_MIN_STACK", "4194304");
-    }
-
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .thread_stack_size(4 * 1024 * 1024)
-        .build()
-        .expect("Failed to build tokio runtime")
-        .block_on(run())
-}
-
-async fn run() -> ApplicationResult<()> {
+#[tokio::main]
+async fn main() -> ApplicationResult<()> {
     // get commandline config before initializing config
     let cmd_line = <CmdLineConf as clap::Parser>::parse();
 
