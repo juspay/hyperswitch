@@ -2332,22 +2332,24 @@ pub fn extract_connector_response_from_ucs(
 
 pub fn handle_unified_connector_service_response_for_payment_refund(
     response: payments_grpc::RefundResponse,
+    prev_status: common_enums::RefundStatus,
 ) -> UnifiedConnectorServiceRefundResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response: Result<RefundsResponseData, ErrorResponse> =
-        Result::<RefundsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<RefundsResponseData, ErrorResponse>::foreign_try_from((response, prev_status))?;
 
     Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_refund_get(
     response: payments_grpc::RefundResponse,
+    prev_status: common_enums::RefundStatus,
 ) -> UnifiedConnectorServiceRefundResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<RefundsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<RefundsResponseData, ErrorResponse>::foreign_try_from((response, prev_status))?;
 
     Ok((router_data_response, status_code))
 }
@@ -3056,6 +3058,8 @@ pub async fn call_unified_connector_service_for_refund_execute(
         .merchant_reference_id(merchant_reference_id)
         .resource_id(resource_id);
 
+    let prev_refund_status = router_data.request.refund_status;
+
     // Make UCS refund call with logging wrapper
     Box::pin(ucs_logging_wrapper(
         router_data,
@@ -3113,9 +3117,12 @@ pub async fn call_unified_connector_service_for_refund_execute(
 
             // Transform UCS response back to RouterData
             let (refund_response_data, status_code) =
-                handle_unified_connector_service_response_for_payment_refund(grpc_response.clone())
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to transform UCS refund response")?;
+                handle_unified_connector_service_response_for_payment_refund(
+                    grpc_response.clone(),
+                    prev_refund_status,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to transform UCS refund response")?;
 
             router_data.response = refund_response_data;
             router_data.connector_http_status_code = Some(status_code);
@@ -3186,6 +3193,8 @@ pub async fn call_unified_connector_service_for_refund_sync(
         .merchant_reference_id(merchant_reference_id)
         .resource_id(resource_id);
 
+    let prev_refund_status = router_data.request.refund_status;
+
     // Make UCS refund sync call with logging wrapper
     Box::pin(ucs_logging_wrapper(
         router_data,
@@ -3243,9 +3252,12 @@ pub async fn call_unified_connector_service_for_refund_sync(
 
             // Transform UCS response back to RouterData
             let (refund_response_data, status_code) =
-                handle_unified_connector_service_response_for_refund_get(grpc_response.clone())
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to transform UCS refund get response")?;
+                handle_unified_connector_service_response_for_refund_get(
+                    grpc_response.clone(),
+                    prev_refund_status,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to transform UCS refund get response")?;
 
             router_data.response = refund_response_data;
             router_data.connector_http_status_code = Some(status_code);
