@@ -140,6 +140,11 @@ workng = "workng" # Typo in euclid/graph.rs from main merge
 Calcultion = "Calcultion" # Typo in router_env logger from main merge
 mutlithreading = "mutlithreading" # Typo in router_env formatter from main merge
 resonse = "resonse" # Typo in subscriptions/core.rs from main merge
+Rounting = "Rounting" # Typo in router/src/core/routing.rs from main merge
+dimesnions = "dimesnions" # Typo in router/src/core/payouts.rs from main merge
+updator = "updator" # Typo in router/src/core/user_role.rs from main merge
+cutomer = "cutomer" # Typo in router/src/routes/app.rs from main merge
+parmas = "parmas" # Typo in router/src/middleware.rs from main merge
 
 [files]
 extend-exclude = [
