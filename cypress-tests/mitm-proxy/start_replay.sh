@@ -98,9 +98,19 @@ fi
 #   a permissive live-MISS still connects just-in-time.
 # upstream_cert=false: generate the client-facing cert from the SNI instead
 #   of fetching the real one, so replay never touches the network for certs.
-exec uv run --with-requirements "${SCRIPT_DIR}/requirements.txt" \
-  mitmdump \
-  -s "${SCRIPT_DIR}/mitm_replay.py" \
-  --listen-port "${PROXY_PORT}" \
-  --set connection_strategy=lazy \
-  --set upstream_cert=false
+# If mitmdump is already on PATH (e.g. CI pre-installed venv), use it directly.
+# Otherwise fall back to uv run so local dev works without a pre-built venv.
+if command -v mitmdump >/dev/null 2>&1 && mitmdump --version >/dev/null 2>&1; then
+  exec mitmdump \
+    -s "${SCRIPT_DIR}/mitm_replay.py" \
+    --listen-port "${PROXY_PORT}" \
+    --set connection_strategy=lazy \
+    --set upstream_cert=false
+else
+  exec uv run --with-requirements "${SCRIPT_DIR}/requirements.txt" \
+    mitmdump \
+    -s "${SCRIPT_DIR}/mitm_replay.py" \
+    --listen-port "${PROXY_PORT}" \
+    --set connection_strategy=lazy \
+    --set upstream_cert=false
+fi
