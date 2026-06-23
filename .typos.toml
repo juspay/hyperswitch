@@ -100,6 +100,7 @@ Haute-Corse = "Haute-Corse" # Is a state in France
 Fram = "Fram" # Is a state in Slovenia
 typ = "typ" # Token.io JWT header required parameter
 fo = "fo" # Rust match arm variable binding in gateway.rs
+nd = "nd" # Rust closure parameter for network_details in transformers.rs
 
 
 [default.extend-words]
