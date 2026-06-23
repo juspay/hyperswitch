@@ -3741,7 +3741,5 @@ export function handleQRCodeRedirection(nextActionUrl) {
     "nextActionUrl should be a data URI containing a QR code image"
   ).to.match(/^data:/);
 
-  cy.log(
-    "Inline QR code verified via data URI — no redirect expected"
-  );
+  cy.log("Inline QR code verified via data URI — no redirect expected");
 }
