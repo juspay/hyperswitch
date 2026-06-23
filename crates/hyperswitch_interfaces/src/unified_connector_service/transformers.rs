@@ -365,9 +365,7 @@ impl ForeignTryFrom<payments_grpc::MandateReference>
                             .map(hyperswitch_masking::Secret::new)
                     })
                     .transpose()
-                    .change_context(
-                        UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                    )
+                    .change_context(UnifiedConnectorServiceError::ResponseDeserializationFailed)
                     .attach_printable("Failed to deserialize mandate_metadata from UCS")?,
                 connector_mandate_request_reference_id: connector_mandate_id
                     .connector_mandate_request_reference_id,
