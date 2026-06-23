@@ -746,7 +746,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::ExpiredJwtToken => AER::Unauthorized(ApiError::new("IR", 48, "Access forbidden, expired JWT token was used", None)),
             Self::PaymentSessionExpired => AER::BadRequest(ApiError::new(
                 "IR",
-                8,
+                52,
                 "The provided payment session has expired", None
             )),
         }
