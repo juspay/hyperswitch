@@ -358,7 +358,10 @@ impl ForeignTryFrom<payments_grpc::MandateReference>
             )) => Ok(Self {
                 connector_mandate_id: connector_mandate_id.connector_mandate_id,
                 payment_method_id: connector_mandate_id.payment_method_id,
-                mandate_metadata: None,
+                mandate_metadata: connector_mandate_id
+                    .mandate_metadata
+                    .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                    .map(hyperswitch_masking::Secret::new),
                 connector_mandate_request_reference_id: connector_mandate_id
                     .connector_mandate_request_reference_id,
             }),
