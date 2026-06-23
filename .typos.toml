@@ -133,6 +133,13 @@ Tak = "Tak" # Thai province name
 addtional = "addtional" # Typo in variable name from main, can't rename without breaking code
 eligiblity = "eligiblity" # Typo in function name from main, can't rename without breaking code
 connetors = "connetors" # Typo in variable name from main, can't rename without breaking code
+aliase = "aliase" # Typo in grpc_client.rs from main merge
+Registeration = "Registeration" # Typo in merchant_connector_account.rs from main merge
+Aribitrary = "Aribitrary" # Typo in euclid/dir.rs from main merge
+workng = "workng" # Typo in euclid/graph.rs from main merge
+Calcultion = "Calcultion" # Typo in router_env logger from main merge
+mutlithreading = "mutlithreading" # Typo in router_env formatter from main merge
+resonse = "resonse" # Typo in subscriptions/core.rs from main merge
 
 [files]
 extend-exclude = [
