@@ -517,8 +517,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         let connector_router_data = adyen::AdyenRouterData::try_from((amount, &authorize_req))?;
         let connector_req = adyen::AdyenPaymentRequest::try_from(&connector_router_data)?;
 
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
         &self,
@@ -633,8 +632,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
         let connector_router_data = adyen::AdyenRouterData::try_from((amount_to_capture, req))?;
         let connector_req = adyen::AdyenCaptureRequest::try_from(&connector_router_data)?;
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
         &self,
@@ -750,9 +748,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ady
                 }),
             },
         };
-
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn get_url(
@@ -897,8 +893,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
         let connector_router_data = adyen::AdyenRouterData::try_from((amount, req))?;
         let connector_req = adyen::AdyenPaymentRequest::try_from(&connector_router_data)?;
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1004,8 +999,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::AdyenBalanceRequest::try_from(req)?;
 
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1136,8 +1130,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ad
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::AdyenCancelRequest::try_from(req)?;
 
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
         &self,
@@ -1235,8 +1228,7 @@ impl
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::AdyenBalanceRequest::try_from(req)?;
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1378,8 +1370,7 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Adyen 
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::AdyenPayoutCancelRequest::try_from(req)?;
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1477,8 +1468,7 @@ impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Adyen 
         )?;
         let connector_router_data = adyen::AdyenRouterData::try_from((amount, req))?;
         let connector_req = adyen::AdyenPayoutCreateRequest::try_from(&connector_router_data)?;
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1577,8 +1567,7 @@ impl ConnectorIntegration<PoEligibility, PayoutsData, PayoutsResponseData> for A
 
         let connector_router_data = adyen::AdyenRouterData::try_from((amount, req))?;
         let connector_req = adyen::AdyenPayoutEligibilityRequest::try_from(&connector_router_data)?;
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1688,8 +1677,7 @@ impl
         let connector_router_data = adyen::AdyenRouterData::try_from((amount, req))?;
         let connector_req =
             adyen::AdyenExtendAuthorizationRequest::try_from(&connector_router_data)?;
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1817,8 +1805,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Adyen
 
         let connector_router_data = adyen::AdyenRouterData::try_from((amount, req))?;
         let connector_req = adyen::AdyenPayoutFulfillRequest::try_from(&connector_router_data)?;
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1922,8 +1909,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Adyen {
         let connector_router_data = adyen::AdyenRouterData::try_from((refund_amount, req))?;
         let connector_req = adyen::AdyenRefundRequest::try_from(&connector_router_data)?;
 
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -2318,8 +2304,7 @@ impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeRespons
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::AdyenAcceptDisputeRequest::try_from(req)?;
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn handle_response(
@@ -2398,8 +2383,7 @@ impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeRespons
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::AdyenDefendDisputeRequest::try_from(req)?;
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn handle_response(
@@ -2467,9 +2451,7 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
             "Request Body defence: {:#?}",
             serde_json::to_string_pretty(&connector_req).unwrap()
         );
-        let req_content = RequestContent::Json(Box::new(connector_req));
-
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -2592,8 +2574,7 @@ impl
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::WebhookRegister::try_from(req)?;
-        let req_content = RequestContent::Json(Box::new(connector_req));
-        Ok(req_content)
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
