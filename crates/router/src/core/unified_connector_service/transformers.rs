@@ -403,6 +403,25 @@ impl
                 .map(Into::into),
             l2_l3_data: None,
             merchant_request_id: None,
+            partner_merchant_identifier_details: router_data
+                .request
+                .partner_merchant_identifier_details
+                .as_ref()
+                .map(|details| payments_grpc::PartnerMerchantIdentifierDetails {
+                    partner_details: details.partner_details.as_ref().map(|partner| {
+                        payments_grpc::PartnerApplicationDetails {
+                            name: partner.name.clone(),
+                            version: partner.version.clone(),
+                            integrator: partner.integrator.clone(),
+                        }
+                    }),
+                    merchant_details: details.merchant_details.as_ref().map(|merchant| {
+                        payments_grpc::MerchantApplicationDetails {
+                            name: merchant.name.clone(),
+                            version: merchant.version.clone(),
+                        }
+                    }),
+                }),
         })
     }
 }
@@ -599,6 +618,7 @@ impl
             l2_l3_data: None,
             connector_order_id: None,
             merchant_request_id: None,
+            partner_merchant_identifier_details: None,
         })
     }
 }
@@ -1364,6 +1384,7 @@ impl
             connector_order_id: None,
             l2_l3_data: None,
             merchant_request_id: None,
+            partner_merchant_identifier_details: None,
         })
     }
 }
@@ -1548,6 +1569,25 @@ impl
             connector_order_id: None,
             l2_l3_data: None,
             merchant_request_id: None,
+            partner_merchant_identifier_details: router_data
+                .request
+                .partner_merchant_identifier_details
+                .as_ref()
+                .map(|details| payments_grpc::PartnerMerchantIdentifierDetails {
+                    partner_details: details.partner_details.as_ref().map(|partner| {
+                        payments_grpc::PartnerApplicationDetails {
+                            name: partner.name.clone(),
+                            version: partner.version.clone(),
+                            integrator: partner.integrator.clone(),
+                        }
+                    }),
+                    merchant_details: details.merchant_details.as_ref().map(|merchant| {
+                        payments_grpc::MerchantApplicationDetails {
+                            name: merchant.name.clone(),
+                            version: merchant.version.clone(),
+                        }
+                    }),
+                }),
         })
     }
 }
@@ -1712,6 +1752,7 @@ impl
             connector_order_id: None,
             l2_l3_data: None,
             merchant_request_id: None,
+            partner_merchant_identifier_details: None,
         })
     }
 }
