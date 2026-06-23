@@ -1058,6 +1058,75 @@ describe("Stripe AliPay Wallet tests", () => {
       });
     });
   });
+
+  context("Stripe AliPay - Invalid Currency error test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.ALIPAY_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("confirm-alipay-with-invalid-currency-should-fail", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["PaymentIntent"]("AliPay", "INR");
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm AliPay with invalid currency", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["AliPayInvalidCurrency"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+  });
 });
 
 describe("Stripe AmazonPay Wallet tests", () => {
@@ -1263,6 +1332,75 @@ describe("Stripe AmazonPay Wallet tests", () => {
       });
     });
   });
+
+  context("Stripe AmazonPay - Invalid Currency error test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.AMAZONPAY_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("confirm-amazonpay-with-invalid-currency-should-fail", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["PaymentIntent"]("AmazonPay", "INR");
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm AmazonPay with invalid currency", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["AmazonPayInvalidCurrency"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+  });
 });
 
 describe("Stripe Cashapp Wallet tests", () => {
@@ -1452,6 +1590,75 @@ describe("Stripe Cashapp Wallet tests", () => {
         data,
         expectedIntentStatus: "requires_customer_action",
       });
+    });
+  });
+
+  context("Stripe Cashapp - Invalid Currency error test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.CASHAPP_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("confirm-cashapp-with-invalid-currency-should-fail", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["PaymentIntent"]("Cashapp", "INR");
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm Cashapp with invalid currency", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["CashappInvalidCurrency"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = should_continue_further(data);
     });
   });
 });
@@ -1659,6 +1866,75 @@ describe("Stripe RevolutPay Wallet tests", () => {
       });
     });
   });
+
+  context("Stripe RevolutPay - Invalid Currency error test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.REVOLUTPAY_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("confirm-revolutpay-with-invalid-currency-should-fail", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["PaymentIntent"]("RevolutPay", "INR");
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm RevolutPay with invalid currency", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["RevolutPayInvalidCurrency"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+  });
 });
 
 describe("Stripe WeChatPay Wallet tests", () => {
@@ -1763,6 +2039,75 @@ describe("Stripe WeChatPay Wallet tests", () => {
         data,
         expectedIntentStatus: "requires_customer_action",
       });
+    });
+  });
+
+  context("Stripe WeChatPay - Invalid Currency error test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.WECHATPAY_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("confirm-wechatpay-with-invalid-currency-should-fail", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["PaymentIntent"]("WeChatPay", "INR");
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm WeChatPay with invalid currency", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["WeChatPayInvalidCurrency"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = should_continue_further(data);
     });
   });
 });
