@@ -54,6 +54,10 @@ entity_type! {
     "reverse_lookup" => {
         crate::reverse_lookup::ReverseLookupNew,
     }
+    "authentication" => {
+        crate::authentication::AuthenticationNew,
+        crate::authentication::AuthenticationUpdateInternal,
+    }
     "capture" => {
         crate::capture::CaptureNew,
         crate::capture::CaptureUpdateInternal,
