@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     types as recovery_router_data_types,
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -299,7 +299,8 @@ impl TryFrom<enums::AttemptStatus> for RecurlyRecordStatus {
             | enums::AttemptStatus::ConfirmationAwaited
             | enums::AttemptStatus::DeviceDataCollectionPending
             | enums::AttemptStatus::IntegrityFailure
-            | enums::AttemptStatus::Expired => Err(errors::ConnectorError::NotSupported {
+            | enums::AttemptStatus::Expired
+            | enums::AttemptStatus::CaptureReview => Err(errors::ConnectorError::NotSupported {
                 message: "Record back flow is only supported for terminal status".to_string(),
                 connector: "recurly",
             }

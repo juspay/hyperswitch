@@ -16,7 +16,7 @@ pub enum ApplicationResponse<R> {
     Form(Box<RedirectionFormData>),
     PaymentLinkForm(Box<PaymentLinkAction>),
     FileData((Vec<u8>, mime::Mime)),
-    JsonWithHeaders((R, Vec<(String, masking::Maskable<String>)>)),
+    JsonWithHeaders((R, Vec<(String, hyperswitch_masking::Maskable<String>)>)),
     GenericLinkForm(Box<GenericLinks>),
 }
 

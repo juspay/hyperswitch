@@ -55,8 +55,9 @@ pub async fn initiate_payout_link(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
     let payout_attempt = db
-        .find_payout_attempt_by_merchant_id_payout_attempt_id(
+        .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
             merchant_id,
+            &req.payout_id,
             &get_payout_attempt_id(payout.payout_id.get_string_repr(), payout.attempt_count),
             platform.get_processor().get_account().storage_scheme,
         )
@@ -216,7 +217,7 @@ pub async fn initiate_payout_link(
             ));
 
             let js_data = payouts::PayoutLinkDetails {
-                publishable_key: masking::Secret::new(
+                publishable_key: hyperswitch_masking::Secret::new(
                     platform
                         .get_processor()
                         .get_account()
@@ -331,7 +332,7 @@ pub async fn filter_payout_methods(
     payout: &hyperswitch_domain_models::payouts::payouts::Payouts,
     address: Option<&domain::Address>,
 ) -> errors::RouterResult<Vec<link_utils::EnabledPaymentMethod>> {
-    use masking::ExposeInterface;
+    use hyperswitch_masking::ExposeInterface;
 
     let db = &*state.store;
     //Fetch all merchant connector accounts

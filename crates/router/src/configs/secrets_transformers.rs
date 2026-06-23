@@ -570,9 +570,12 @@ pub(crate) async fn fetch_raw_secrets(
         oidc,
         mandates: conf.mandates,
         zero_mandates: conf.zero_mandates,
+        installments: conf.installments,
+        installment_config: conf.installment_config,
         network_transaction_id_supported_connectors: conf
             .network_transaction_id_supported_connectors,
         card_only_mit_supported_connectors: conf.card_only_mit_supported_connectors,
+        notify_iframe_exit_and_redirect: conf.notify_iframe_exit_and_redirect,
         list_dispute_supported_connectors: conf.list_dispute_supported_connectors,
         required_fields: conf.required_fields,
         delayed_session_response: conf.delayed_session_response,
@@ -614,10 +617,11 @@ pub(crate) async fn fetch_raw_secrets(
         locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
         grpc_client: conf.grpc_client,
         crm: conf.crm,
-        #[cfg(feature = "v2")]
         cell_information: conf.cell_information,
         network_tokenization_supported_card_networks: conf
             .network_tokenization_supported_card_networks,
+        alt_id_required_card_networks_and_connector: conf
+            .alt_id_required_card_networks_and_connector,
         network_tokenization_service,
         network_tokenization_supported_connectors: conf.network_tokenization_supported_connectors,
         theme: conf.theme,

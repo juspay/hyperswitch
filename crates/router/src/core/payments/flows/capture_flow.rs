@@ -130,6 +130,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }

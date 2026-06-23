@@ -22,7 +22,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -881,6 +881,8 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
@@ -1102,6 +1104,7 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                                 )?),
                                 connector_metadata: Some(connector_metadata),
                                 network_txn_id: None,
+                                network_txn_link_id: None,
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
@@ -1146,6 +1149,7 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                                 mandate_reference: Box::new(None),
                                 connector_metadata: Some(connector_metadata),
                                 network_txn_id: None,
+                                network_txn_link_id: None,
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
@@ -1282,6 +1286,7 @@ impl<F>
                             )?),
                             connector_metadata: Some(connector_metadata),
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -1416,6 +1421,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                                     )?),
                                     connector_metadata: None,
                                     network_txn_id: None,
+                                    network_txn_link_id: None,
                                     connector_response_reference_id: None,
                                     incremental_authorization_allowed: None,
                                     authentication_data: None,
@@ -1457,6 +1463,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                                 mandate_reference: Box::new(None),
                                 connector_metadata: None,
                                 network_txn_id: None,
+                                network_txn_link_id: None,
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
@@ -1560,6 +1567,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                                     mandate_reference: Box::new(None),
                                     connector_metadata: None,
                                     network_txn_id: None,
+                                    network_txn_link_id: None,
                                     connector_response_reference_id: None,
                                     incremental_authorization_allowed: None,
                                     authentication_data: None,
@@ -1601,6 +1609,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                                 mandate_reference: Box::new(None),
                                 connector_metadata: None,
                                 network_txn_id: None,
+                                network_txn_link_id: None,
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
@@ -2003,6 +2012,7 @@ impl<F> TryFrom<ResponseRouterData<F, TesouroSyncResponse, PaymentsSyncData, Pay
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             authentication_data: None,

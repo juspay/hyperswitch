@@ -1,11 +1,6 @@
 pub mod transformers;
 
-use std::{
-    any::type_name,
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    sync::LazyLock,
-};
+use std::{any::type_name, borrow::Cow, collections::HashMap, sync::LazyLock};
 
 use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
@@ -17,7 +12,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -49,7 +43,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::multipart::Form;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -58,7 +52,7 @@ use transformers::{self as fiuu, ExtraParameters, FiuuWebhooksResponse};
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, PaymentMethodDataType},
+    utils::{self},
 };
 
 pub fn parse_and_log_keys_in_url_encoded_response<T>(data: &[u8]) {
@@ -197,7 +191,8 @@ where
         &self,
         _req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -274,17 +269,7 @@ pub fn build_form_from_struct<T: Serialize + Send + 'static>(
     Ok(RequestContent::FormData((form, Box::new(data))))
 }
 
-impl ConnectorValidation for Fiuu {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd: HashSet<PaymentMethodDataType> =
-            HashSet::from([PaymentMethodDataType::Card]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Fiuu {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Fiuu {
     //TODO: implement sessions flow
@@ -299,7 +284,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -414,7 +400,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fiu
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
     fn get_url(
@@ -941,7 +928,8 @@ impl webhooks::IncomingWebhook for Fiuu {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
             parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);

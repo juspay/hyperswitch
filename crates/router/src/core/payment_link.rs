@@ -12,7 +12,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use futures::future;
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
 use time::PrimitiveDateTime;
 
@@ -25,7 +25,7 @@ use crate::{
         self, DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
         DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY, DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
         DEFAULT_HIDE_CARD_NICKNAME_FIELD, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG,
-        DEFAULT_SDK_LAYOUT, DEFAULT_SHOW_CARD_FORM,
+        DEFAULT_SDK_LAYOUT, DEFAULT_SHOW_CARD_FORM, DEFAULT_SHOW_MERCHANT_NAME,
     },
     errors::RouterResponse,
     get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
@@ -66,7 +66,7 @@ pub async fn retrieve_payment_link(
 #[cfg(feature = "v2")]
 pub async fn form_payment_link_data(
     state: &SessionState,
-    platform: domain::Platform,
+    processor: domain::Processor,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
@@ -76,7 +76,7 @@ pub async fn form_payment_link_data(
 #[cfg(feature = "v1")]
 pub async fn form_payment_link_data(
     state: &SessionState,
-    platform: domain::Platform,
+    processor: domain::Processor,
     processor_merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
@@ -86,8 +86,8 @@ pub async fn form_payment_link_data(
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
             &processor_merchant_id,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            processor.get_key_store(),
+            processor.get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -97,8 +97,7 @@ pub async fn form_payment_link_data(
         .get_required_value("payment_link_id")
         .change_context(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let merchant_name_from_merchant_account = platform
-        .get_processor()
+    let merchant_name_from_merchant_account = processor
         .get_account()
         .merchant_name
         .clone()
@@ -143,6 +142,7 @@ pub async fn form_payment_link_data(
                 show_card_terms: None,
                 is_setup_mandate_flow: None,
                 color_icon_card_cvc_error: None,
+                show_merchant_name: Some(DEFAULT_SHOW_MERCHANT_NAME),
             }
         };
 
@@ -154,7 +154,7 @@ pub async fn form_payment_link_data(
         .attach_printable("Profile id missing in payment link and payment intent")?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
+        .find_business_profile_by_profile_id(processor.get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -215,8 +215,8 @@ pub async fn form_payment_link_data(
             &payment_intent.payment_id,
             &processor_merchant_id,
             &attempt_id.clone(),
-            platform.get_processor().get_account().storage_scheme,
-            platform.get_processor().get_key_store(),
+            processor.get_account().storage_scheme,
+            processor.get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -249,8 +249,8 @@ pub async fn form_payment_link_data(
                 &payment_intent.payment_id,
                 &processor_merchant_id,
                 &attempt_id.clone(),
-                platform.get_processor().get_account().storage_scheme,
-                platform.get_processor().get_key_store(),
+                processor.get_account().storage_scheme,
+                processor.get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -290,11 +290,7 @@ pub async fn form_payment_link_data(
         order_details,
         return_url,
         session_expiry,
-        pub_key: platform
-            .get_processor()
-            .get_account()
-            .publishable_key
-            .to_owned(),
+        pub_key: processor.get_account().publishable_key.to_owned(),
         client_secret,
         merchant_logo: payment_link_config.logo.clone(),
         max_items_visible_after_collapse: 3,
@@ -328,6 +324,7 @@ pub async fn form_payment_link_data(
         color_icon_card_cvc_error: payment_link_config.color_icon_card_cvc_error.clone(),
         capture_method: payment_attempt.capture_method,
         setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
+        show_merchant_name: payment_link_config.show_merchant_name,
     };
 
     Ok((
@@ -339,13 +336,13 @@ pub async fn form_payment_link_data(
 
 pub async fn initiate_secure_payment_link_flow(
     state: SessionState,
-    platform: domain::Platform,
+    processor: domain::Processor,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let (payment_link, payment_link_details, payment_link_config) =
-        form_payment_link_data(&state, platform, merchant_id, payment_id).await?;
+        form_payment_link_data(&state, processor, merchant_id, payment_id).await?;
 
     validator::validate_secure_payment_link_render_request(
         request_headers,
@@ -444,12 +441,12 @@ pub async fn initiate_secure_payment_link_flow(
 
 pub async fn initiate_payment_link_flow(
     state: SessionState,
-    platform: domain::Platform,
+    processor: domain::Processor,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let (_, payment_details, payment_link_config) =
-        form_payment_link_data(&state, platform, merchant_id, payment_id).await?;
+        form_payment_link_data(&state, processor, merchant_id, payment_id).await?;
 
     let css_script = get_payment_link_css_script(&payment_link_config)?;
     let js_script = get_js_script(&payment_details)?;
@@ -524,7 +521,7 @@ pub async fn list_payment_link(
 ) -> RouterResponse<Vec<api_models::payments::RetrievePaymentLinkResponse>> {
     let db = state.store.as_ref();
     let payment_link = db
-        .list_payment_link_by_merchant_id(merchant.get_id(), constraints)
+        .list_payment_link_by_processor_merchant_id(merchant.get_id(), constraints)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve payment link")?;
@@ -699,6 +696,7 @@ pub fn get_payment_link_config_based_on_priority(
         show_card_terms,
         is_setup_mandate_flow,
         color_icon_card_cvc_error,
+        show_merchant_name,
     ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
@@ -719,6 +717,7 @@ pub fn get_payment_link_config_based_on_priority(
         (show_card_terms),
         (is_setup_mandate_flow),
         (color_icon_card_cvc_error),
+        (show_merchant_name),
     );
 
     let payment_link_config =
@@ -753,6 +752,7 @@ pub fn get_payment_link_config_based_on_priority(
             show_card_terms,
             is_setup_mandate_flow,
             color_icon_card_cvc_error,
+            show_merchant_name,
         };
 
     Ok((payment_link_config, domain_name))
@@ -791,7 +791,7 @@ pub async fn get_payment_link_status(
 #[cfg(feature = "v1")]
 pub async fn get_payment_link_status(
     state: SessionState,
-    platform: domain::Platform,
+    processor: domain::Processor,
     processor_merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResponse<services::PaymentLinkFormData> {
@@ -801,8 +801,8 @@ pub async fn get_payment_link_status(
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
             &processor_merchant_id,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            processor.get_key_store(),
+            processor.get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -813,8 +813,8 @@ pub async fn get_payment_link_status(
             &payment_intent.payment_id,
             &processor_merchant_id,
             &attempt_id.clone(),
-            platform.get_processor().get_account().storage_scheme,
-            platform.get_processor().get_key_store(),
+            processor.get_account().storage_scheme,
+            processor.get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -824,8 +824,7 @@ pub async fn get_payment_link_status(
         .get_required_value("payment_link_id")
         .change_context(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let merchant_name_from_merchant_account = platform
-        .get_processor()
+    let merchant_name_from_merchant_account = processor
         .get_account()
         .merchant_name
         .clone()
@@ -869,6 +868,7 @@ pub async fn get_payment_link_status(
             show_card_terms: None,
             is_setup_mandate_flow: None,
             color_icon_card_cvc_error: None,
+            show_merchant_name: Some(DEFAULT_SHOW_MERCHANT_NAME),
         }
     };
 
@@ -898,7 +898,7 @@ pub async fn get_payment_link_status(
         .attach_printable("Profile id missing in payment link and payment intent")?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
+        .find_business_profile_by_profile_id(processor.get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),

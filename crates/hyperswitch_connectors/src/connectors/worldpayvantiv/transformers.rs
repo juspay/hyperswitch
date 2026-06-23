@@ -5,6 +5,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::PaymentMethodData,
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
@@ -16,8 +17,8 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsSyncData, ResponseId, RetrieveFileRequestData,
-        SetupMandateRequestData, UploadFileRequestData,
+        PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData, PaymentsSyncData,
+        ResponseId, RetrieveFileRequestData, SetupMandateRequestData, UploadFileRequestData,
     },
     router_response_types::{
         DisputeSyncResponse, FetchDisputesResponse, MandateReference, PaymentsResponseData,
@@ -29,7 +30,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
@@ -250,6 +251,8 @@ pub struct Authorization {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<TokenizationData>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub cardholder_authentication: Option<CardholderAuthentication>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub enhanced_data: Option<EnhancedData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_type: Option<VantivProcessingType>,
@@ -259,8 +262,6 @@ pub struct Authorization {
     pub allow_partial_auth: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fraud_filter_override: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cardholder_authentication: Option<CardholderAuthentication>,
 }
 
 #[derive(Debug, Serialize)]
@@ -289,6 +290,8 @@ pub struct Sale {
     pub card: Option<WorldpayvantivCardData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<TokenizationData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cardholder_authentication: Option<CardholderAuthentication>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enhanced_data: Option<EnhancedData>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -394,6 +397,36 @@ pub enum OrderSource {
 pub struct TokenizationData {
     cnp_token: Secret<String>,
     exp_date: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayvantivMandateMetadata {
+    pub network_transaction_id: Option<Secret<String>>,
+}
+
+impl WorldpayvantivMandateMetadata {
+    fn create_mandate_reference(
+        token_data: &TokenResponse,
+        network_transaction_id: Option<Secret<String>>,
+    ) -> Option<MandateReference> {
+        let mandate_metadata = network_transaction_id.map(|ntid| {
+            let metadata = Self {
+                network_transaction_id: Some(ntid),
+            };
+            serde_json::to_value(&metadata)
+                .ok()
+                .map(pii::SecretSerdeValue::new)
+                .unwrap_or_else(|| pii::SecretSerdeValue::new(serde_json::Value::Null))
+        });
+
+        Some(MandateReference {
+            connector_mandate_id: Some(token_data.cnp_token.peek().clone()),
+            payment_method_id: None,
+            mandate_metadata,
+            connector_mandate_request_reference_id: None,
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -523,6 +556,56 @@ impl TryFrom<&connector_utils::CardIssuer> for WorldpayvativCardType {
     }
 }
 
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            VantivSyncResponse,
+            PaymentsCancelPostCaptureSyncData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            VantivSyncResponse,
+            PaymentsCancelPostCaptureSyncData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let status = match item.response.payment_status {
+            PaymentStatus::ProcessedSuccessfully => common_enums::PostCaptureVoidStatus::Succeeded,
+            PaymentStatus::TransactionDeclined => common_enums::PostCaptureVoidStatus::Failed,
+            PaymentStatus::PaymentStatusNotFound
+            | PaymentStatus::NotYetProcessed
+            | PaymentStatus::StatusUnavailable => common_enums::PostCaptureVoidStatus::Pending,
+        };
+        let connector_reference_id = item
+            .response
+            .payment_detail
+            .as_ref()
+            .and_then(|detail| detail.payment_id.map(|id| id.to_string()));
+
+        let description = item
+            .response
+            .payment_detail
+            .as_ref()
+            .and_then(|detail| detail.response_reason_message.clone())
+            .filter(|_| connector_utils::is_post_capture_void_failure(status));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status: status,
+                connector_reference_id,
+                description,
+            }),
+            ..item.data
+        })
+    }
+}
+
 impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, PaymentsResponseData>>
     for RouterData<F, PaymentsSyncData, PaymentsResponseData>
 {
@@ -600,6 +683,7 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -790,6 +874,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                             .and_then(|enable_partial_authorization| {
                                 enable_partial_authorization.then_some(true)
                             }),
+                        cardholder_authentication,
                     }),
                 )
             } else {
@@ -969,6 +1054,11 @@ impl From<(PaymentMethodData, Option<common_enums::PaymentChannel>)> for OrderSo
         {
             return Self::AndroidPay;
         }
+        if let PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) =
+            payment_method_data
+        {
+            return Self::Ecommerce;
+        }
 
         match payment_channel {
             Some(common_enums::PaymentChannel::Ecommerce)
@@ -1073,29 +1163,40 @@ fn get_processing_info(
             .as_ref()
             .and_then(|mandate| mandate.mandate_reference_id.clone())
         {
-            Some(api_models::payments::MandateReferenceId::NetworkMandateId(
-                network_transaction_id,
-            )) => Ok(VantivMandateDetail {
-                processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
-                network_transaction_id: Some(network_transaction_id.into()),
-                token: None,
-            }),
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+            Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                Ok(VantivMandateDetail {
+                    processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
+                    network_transaction_id: Some(
+                        network_transaction_id.network_transaction_id.into(),
+                    ),
+                    token: None,
+                })
+            }
+            Some(mandates::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+                let network_transaction_id =
+                    mandate_data
+                        .get_mandate_metadata()
+                        .as_ref()
+                        .and_then(|metadata| {
+                            serde_json::from_value::<WorldpayvantivMandateMetadata>(
+                                metadata.peek().clone(),
+                            )
+                            .ok()
+                            .and_then(|meta| meta.network_transaction_id)
+                        });
+
                 let card_mandate_data = request.get_card_mandate_info()?;
+                let exp_date = card_mandate_data.get_expiry_date_as_mmyy()?;
+
                 Ok(VantivMandateDetail {
                     processing_type: None,
-                    network_transaction_id: None,
+                    network_transaction_id,
                     token: Some(TokenizationData {
                         cnp_token: mandate_data
                             .get_connector_mandate_id()
                             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?
                             .into(),
-                        exp_date: format!(
-                            "{}{}",
-                            card_mandate_data.card_exp_month.peek(),
-                            card_mandate_data.card_exp_year.peek()
-                        )
-                        .into(),
+                        exp_date,
                     }),
                 })
             }
@@ -1526,6 +1627,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -1642,6 +1744,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCa
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -1712,61 +1815,25 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response.void_response {
             Some(void_response) => {
-                let status =
-                    get_attempt_status(WorldpayvantivPaymentFlow::VoidPC, void_response.response)?;
-                if connector_utils::is_payment_failure(status) {
-                    Ok(Self {
-                        status,
-                        response: Err(ErrorResponse {
-                            code: void_response.response.to_string(),
-                            message: void_response.message.clone(),
-                            reason: Some(void_response.message.clone()),
-                            status_code: item.http_code,
-                            attempt_status: None,
-                            connector_transaction_id: Some(void_response.cnp_txn_id),
-                            connector_response_reference_id: None,
-                            network_advice_code: None,
-                            network_decline_code: None,
-                            network_error_message: None,
-                            connector_metadata: None,
-                        }),
-                        ..item.data
-                    })
-                } else {
-                    Ok(Self {
-                        status,
-                        response: Ok(PaymentsResponseData::TransactionResponse {
-                            resource_id: ResponseId::ConnectorTransactionId(
-                                void_response.cnp_txn_id,
-                            ),
-                            redirection_data: Box::new(None),
-                            mandate_reference: Box::new(None),
-                            connector_metadata: None,
-                            network_txn_id: None,
-                            connector_response_reference_id: None,
-                            incremental_authorization_allowed: None,
-                            authentication_data: None,
-                            charges: None,
-                        }),
-                        ..item.data
-                    })
-                }
+                let post_capture_void_status =
+                    get_post_capture_void_status(void_response.response)?;
+                let description = post_capture_void_status
+                    .is_post_capture_void_failure()
+                    .then_some(void_response.message.clone());
+                Ok(Self {
+                    response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                        post_capture_void_status,
+                        connector_reference_id: Some(void_response.cnp_txn_id),
+                        description,
+                    }),
+                    ..item.data
+                })
             }
             None => Ok(Self {
-                // Incase of API failure
-                status: common_enums::AttemptStatus::VoidFailed,
-                response: Err(ErrorResponse {
-                    code: item.response.response_code,
-                    message: item.response.message.clone(),
-                    reason: Some(item.response.message.clone()),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    connector_response_reference_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    connector_metadata: None,
+                response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                    post_capture_void_status: common_enums::PostCaptureVoidStatus::Failed,
+                    connector_reference_id: None,
+                    description: Some(item.response.message.clone()),
                 }),
                 ..item.data
             }),
@@ -1973,14 +2040,24 @@ impl<F>
                         } else {
                             sale_response
                                 .token_response
-                                .clone()
-                                .map(MandateReference::from)
+                                .as_ref()
+                                .and_then(|token_data| {
+                                    WorldpayvantivMandateMetadata::create_mandate_reference(
+                                        token_data,
+                                        sale_response.network_transaction_id.clone(),
+                                    )
+                                })
                         }
                     }
                     false => sale_response
                         .token_response
-                        .clone()
-                        .map(MandateReference::from)
+                        .as_ref()
+                        .and_then(|token_data| {
+                            WorldpayvantivMandateMetadata::create_mandate_reference(
+                                token_data,
+                                sale_response.network_transaction_id.clone(),
+                            )
+                        })
                 };
 
 
@@ -2055,6 +2132,7 @@ impl<F>
                             mandate_reference: Box::new(mandate_reference_data),
                             connector_metadata,
                             network_txn_id: sale_response.network_transaction_id.clone().map(|network_transaction_id| network_transaction_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(sale_response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -2131,7 +2209,15 @@ impl<F>
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
-                    let mandate_reference_data = auth_response.token_response.clone().map(MandateReference::from);
+                    let mandate_reference_data = auth_response
+                        .token_response
+                        .as_ref()
+                        .and_then(|token_data| {
+                            WorldpayvantivMandateMetadata::create_mandate_reference(
+                                token_data,
+                                auth_response.network_transaction_id.clone(),
+                            )
+                        });
                     let connector_response = auth_response.fraud_result.as_ref().map(get_connector_response);
 
                     Ok(Self {
@@ -2142,6 +2228,7 @@ impl<F>
                             mandate_reference: Box::new(mandate_reference_data),
                             connector_metadata,
                             network_txn_id: auth_response.network_transaction_id.clone().map(|network_transaction_id| network_transaction_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(auth_response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -2265,10 +2352,16 @@ impl<F>
                             .encode_to_value()
                             .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                     );
-                    let mandate_reference_data = auth_response
-                        .token_response
-                        .clone()
-                        .map(MandateReference::from);
+                    let mandate_reference_data =
+                        auth_response
+                            .token_response
+                            .as_ref()
+                            .and_then(|token_data| {
+                                WorldpayvantivMandateMetadata::create_mandate_reference(
+                                    token_data,
+                                    auth_response.network_transaction_id.clone(),
+                                )
+                            });
                     let connector_response = auth_response
                         .fraud_result
                         .as_ref()
@@ -2287,6 +2380,7 @@ impl<F>
                                 .network_transaction_id
                                 .clone()
                                 .map(|network_transaction_id| network_transaction_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(auth_response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -2329,7 +2423,7 @@ impl From<TokenResponse> for MandateReference {
     }
 }
 
-impl From<&AccountUpdaterCardTokenInfo> for api_models::payments::UpdatedMandateDetails {
+impl From<&AccountUpdaterCardTokenInfo> for mandates::UpdatedMandateDetails {
     fn from(token_data: &AccountUpdaterCardTokenInfo) -> Self {
         let card_exp_month = token_data
             .exp_date
@@ -2371,7 +2465,7 @@ impl From<WorldpayvativCardType> for common_enums::CardNetwork {
 
 impl From<AccountUpdaterCardTokenInfo> for MandateReference {
     fn from(token_data: AccountUpdaterCardTokenInfo) -> Self {
-        let mandate_metadata = api_models::payments::UpdatedMandateDetails::from(&token_data);
+        let mandate_metadata = mandates::UpdatedMandateDetails::from(&token_data);
 
         let mandate_metadata_json = serde_json::to_value(&mandate_metadata)
             .inspect_err(|_| {
@@ -3604,6 +3698,373 @@ fn get_payment_flow_type(input: &str) -> Result<WorldpayvantivPaymentFlow, error
     }
 }
 
+fn get_post_capture_void_status(
+    response: WorldpayvantivResponseCode,
+) -> Result<common_enums::PostCaptureVoidStatus, errors::ConnectorError> {
+    match response {
+        WorldpayvantivResponseCode::Approved
+            | WorldpayvantivResponseCode::PartiallyApproved
+            | WorldpayvantivResponseCode::OfflineApproval
+            | WorldpayvantivResponseCode::OfflineApprovalUnableToGoOnline
+            | WorldpayvantivResponseCode::ConsumerNonReloadablePrepaidCardApproved
+            | WorldpayvantivResponseCode::ConsumerSingleUseVirtualCardNumberApproved
+            | WorldpayvantivResponseCode::ScheduledRecurringPaymentProcessed
+            | WorldpayvantivResponseCode::ApprovedRecurringSubscriptionCreated
+            | WorldpayvantivResponseCode::PendingShopperCheckoutCompletion
+            | WorldpayvantivResponseCode::TransactionReceived
+            | WorldpayvantivResponseCode::AccountNumberWasSuccessfullyRegistered
+            | WorldpayvantivResponseCode::AccountNumberWasPreviouslyRegistered
+            | WorldpayvantivResponseCode::ValidToken
+             => Ok(common_enums::PostCaptureVoidStatus::Succeeded),
+        WorldpayvantivResponseCode::ShopperCheckoutExpired
+            | WorldpayvantivResponseCode::ProcessingNetworkUnavailable
+            | WorldpayvantivResponseCode::IssuerUnavailable
+            | WorldpayvantivResponseCode::ReSubmitTransaction
+            | WorldpayvantivResponseCode::TryAgainLater
+            | WorldpayvantivResponseCode::InsufficientFunds
+            | WorldpayvantivResponseCode::AuthorizationAmountHasAlreadyBeenDepleted
+            | WorldpayvantivResponseCode::InsufficientFundsRetryAfter1Hour
+            | WorldpayvantivResponseCode::InsufficientFundsRetryAfter24Hour
+            | WorldpayvantivResponseCode::InsufficientFundsRetryAfter2Days
+            | WorldpayvantivResponseCode::InsufficientFundsRetryAfter4Days
+            | WorldpayvantivResponseCode::InsufficientFundsRetryAfter6Days
+            | WorldpayvantivResponseCode::InsufficientFundsRetryAfter8Days
+            | WorldpayvantivResponseCode::InsufficientFundsRetryAfter10Days
+            | WorldpayvantivResponseCode::CallIssuer
+            | WorldpayvantivResponseCode::CallAmex
+            | WorldpayvantivResponseCode::CallDinersClub
+            | WorldpayvantivResponseCode::CallDiscover
+            | WorldpayvantivResponseCode::CallJbs
+            | WorldpayvantivResponseCode::CallVisaMastercard
+            | WorldpayvantivResponseCode::CallIssuerUpdateCardholderData
+            | WorldpayvantivResponseCode::ExceedsApprovalAmountLimit
+            | WorldpayvantivResponseCode::CallIndicatedNumber
+            | WorldpayvantivResponseCode::UnacceptablePinTransactionDeclinedRetry
+            | WorldpayvantivResponseCode::PinNotChanged
+            | WorldpayvantivResponseCode::ConsumerMultiUseVirtualCardNumberSoftDecline
+            | WorldpayvantivResponseCode::ConsumerNonReloadablePrepaidCardSoftDecline
+            | WorldpayvantivResponseCode::ConsumerSingleUseVirtualCardNumberSoftDecline
+            | WorldpayvantivResponseCode::UpdateCardholderData
+            | WorldpayvantivResponseCode::MerchantDoesntQualifyForProductCode
+            | WorldpayvantivResponseCode::Lifecycle
+            | WorldpayvantivResponseCode::Policy
+            | WorldpayvantivResponseCode::FraudSecurity
+            | WorldpayvantivResponseCode::InvalidOrExpiredCardContactCardholderToUpdate
+            | WorldpayvantivResponseCode::InvalidTransactionOrCardRestrictionVerifyInformationAndResubmit
+            | WorldpayvantivResponseCode::AtLeastOneOfOrigIdOrOrigCnpTxnIdIsRequired
+            | WorldpayvantivResponseCode::OrigCnpTxnIdIsRequiredWhenShowStatusOnlyIsUsed
+            | WorldpayvantivResponseCode::IncrementalAuthNotSupported
+            | WorldpayvantivResponseCode::SetAuthIndicatorToIncremental
+            | WorldpayvantivResponseCode::IncrementalValueForAuthIndicatorNotAllowedInThisAuthStructure
+            | WorldpayvantivResponseCode::CannotRequestAnIncrementalAuthIfOriginalAuthNotSetToEstimated
+            | WorldpayvantivResponseCode::TransactionMustReferenceTheEstimatedAuth
+            | WorldpayvantivResponseCode::IncrementedAuthExceedsMaxTransactionAmount
+            | WorldpayvantivResponseCode::SubmittedMccNotAllowed
+            | WorldpayvantivResponseCode::MerchantNotCertifiedEnabledForIias
+            | WorldpayvantivResponseCode::IssuerGeneratedError
+            | WorldpayvantivResponseCode::PickupCardOtherThanLostStolen
+            | WorldpayvantivResponseCode::InvalidAmountHardDecline
+            | WorldpayvantivResponseCode::ReversalUnsuccessful
+            | WorldpayvantivResponseCode::MissingData
+            | WorldpayvantivResponseCode::PickupCardLostCard
+            | WorldpayvantivResponseCode::PickupCardStolenCard
+            | WorldpayvantivResponseCode::RestrictedCard
+            | WorldpayvantivResponseCode::InvalidDeactivate
+            | WorldpayvantivResponseCode::CardAlreadyActive
+            | WorldpayvantivResponseCode::CardNotActive
+            | WorldpayvantivResponseCode::CardAlreadyDeactivate
+            | WorldpayvantivResponseCode::OverMaxBalance
+            | WorldpayvantivResponseCode::InvalidActivate
+            | WorldpayvantivResponseCode::NoTransactionFoundForReversal
+            | WorldpayvantivResponseCode::IncorrectCvv
+            | WorldpayvantivResponseCode::IllegalTransaction
+            | WorldpayvantivResponseCode::DuplicateTransaction
+            | WorldpayvantivResponseCode::SystemError
+            | WorldpayvantivResponseCode::DeconvertedBin
+            | WorldpayvantivResponseCode::MerchantDepleted
+            | WorldpayvantivResponseCode::GiftCardEscheated
+            | WorldpayvantivResponseCode::InvalidReversalTypeForCreditCardTransaction
+            | WorldpayvantivResponseCode::SystemErrorMessageFormatError
+            | WorldpayvantivResponseCode::SystemErrorCannotProcess
+            | WorldpayvantivResponseCode::RefundRejectedDueToPendingDepositStatus
+            | WorldpayvantivResponseCode::RefundRejectedDueToDeclinedDepositStatus
+            | WorldpayvantivResponseCode::RefundRejectedByTheProcessingNetwork
+            | WorldpayvantivResponseCode::CaptureCreditAndAuthReversalTagsCannotBeUsedForGiftCardTransactions
+            | WorldpayvantivResponseCode::InvalidAccountNumber
+            | WorldpayvantivResponseCode::AccountNumberDoesNotMatchPaymentType
+            | WorldpayvantivResponseCode::PickUpCard
+            | WorldpayvantivResponseCode::LostStolenCard
+            | WorldpayvantivResponseCode::ExpiredCard
+            | WorldpayvantivResponseCode::AuthorizationHasExpiredNoNeedToReverse
+            | WorldpayvantivResponseCode::RestrictedCardSoftDecline
+            | WorldpayvantivResponseCode::RestrictedCardChargeback
+            | WorldpayvantivResponseCode::RestrictedCardPrepaidCardFilteringService
+            | WorldpayvantivResponseCode::InvalidTrackData
+            | WorldpayvantivResponseCode::DepositIsAlreadyReferencedByAChargeback
+            | WorldpayvantivResponseCode::RestrictedCardInternationalCardFilteringService
+            | WorldpayvantivResponseCode::InternationalFilteringForIssuingCardCountry
+            | WorldpayvantivResponseCode::RestrictedCardAuthFraudVelocityFilteringService
+            | WorldpayvantivResponseCode::AutomaticRefundAlreadyIssued
+            | WorldpayvantivResponseCode::RestrictedCardAuthFraudAdviceFilteringService
+            | WorldpayvantivResponseCode::RestrictedCardFraudAvsFilteringService
+            |  WorldpayvantivResponseCode::InvalidExpirationDate
+            | WorldpayvantivResponseCode::InvalidMerchant
+            | WorldpayvantivResponseCode::InvalidTransaction
+            | WorldpayvantivResponseCode::NoSuchIssuer
+            | WorldpayvantivResponseCode::InvalidPin
+            | WorldpayvantivResponseCode::TransactionNotAllowedAtTerminal
+            | WorldpayvantivResponseCode::ExceedsNumberOfPinEntries
+            | WorldpayvantivResponseCode::CardholderTransactionNotPermitted
+            | WorldpayvantivResponseCode::CardholderRequestedThatRecurringOrInstallmentPaymentBeStopped
+            | WorldpayvantivResponseCode::InvalidPaymentType
+            | WorldpayvantivResponseCode::InvalidPosCapabilityForCardholderAuthorizedTerminalTransaction
+            | WorldpayvantivResponseCode::InvalidPosCardholderIdForCardholderAuthorizedTerminalTransaction
+            | WorldpayvantivResponseCode::ThisMethodOfPaymentDoesNotSupportAuthorizationReversals
+            | WorldpayvantivResponseCode::ReversalAmountDoesNotMatchAuthorizationAmount
+            | WorldpayvantivResponseCode::TransactionDidNotConvertToPinless
+            | WorldpayvantivResponseCode::InvalidAmountSoftDecline
+            | WorldpayvantivResponseCode::InvalidHealthcareAmounts
+            | WorldpayvantivResponseCode::InvalidBillingDescriptorPrefix
+            | WorldpayvantivResponseCode::InvalidBillingDescriptor
+            | WorldpayvantivResponseCode::InvalidReportGroup
+            | WorldpayvantivResponseCode::DoNotHonor
+            | WorldpayvantivResponseCode::GenericDecline
+            | WorldpayvantivResponseCode::DeclineRequestPositiveId
+            | WorldpayvantivResponseCode::DeclineCvv2CidFail
+            | WorldpayvantivResponseCode::ThreeDSecureTransactionNotSupportedByMerchant
+            | WorldpayvantivResponseCode::InvalidPurchaseLevelIiiTheTransactionContainedBadOrMissingData
+            | WorldpayvantivResponseCode::MissingHealthcareIiasTagForAnFsaTransaction
+            | WorldpayvantivResponseCode::RestrictedByVantivDueToSecurityCodeMismatch
+            | WorldpayvantivResponseCode::NoTransactionFoundWithSpecifiedTransactionId
+            | WorldpayvantivResponseCode::AuthorizationNoLongerAvailable
+            | WorldpayvantivResponseCode::TransactionNotVoidedAlreadySettled
+            | WorldpayvantivResponseCode::AutoVoidOnRefund
+            | WorldpayvantivResponseCode::InvalidAccountNumberOriginalOrNocUpdatedECheckAccountRequired
+            | WorldpayvantivResponseCode::TotalCreditAmountExceedsCaptureAmount
+            | WorldpayvantivResponseCode::ExceedTheThresholdForSendingRedeposits
+            | WorldpayvantivResponseCode::DepositHasNotBeenReturnedForInsufficientNonSufficientFunds
+            | WorldpayvantivResponseCode::InvalidCheckNumber
+            | WorldpayvantivResponseCode::RedepositAgainstInvalidTransactionType
+            | WorldpayvantivResponseCode::InternalSystemErrorCallVantiv
+            | WorldpayvantivResponseCode::OriginalTransactionHasBeenProcessedFutureRedepositsCanceled
+            | WorldpayvantivResponseCode::SoftDeclineAutoRecyclingInProgress
+            | WorldpayvantivResponseCode::HardDeclineAutoRecyclingComplete
+            | WorldpayvantivResponseCode::RestrictedCardCardUnderSanction
+            | WorldpayvantivResponseCode::MerchantIsNotEnabledForSurcharging
+            | WorldpayvantivResponseCode::ThisMethodOfPaymentDoesNotSupportSurcharging
+            | WorldpayvantivResponseCode::SurchargeIsNotValidForDebitOrPrepaidCards
+            | WorldpayvantivResponseCode::SurchargeCannotExceedsTheMaximumAllowedLimit
+            | WorldpayvantivResponseCode::TransactionDeclinedByTheProcessingNetwork
+            | WorldpayvantivResponseCode::SecondaryAmountCannotExceedTheSaleAmount
+            | WorldpayvantivResponseCode::ThisMethodOfPaymentDoesNotSupportSecondaryAmount
+            | WorldpayvantivResponseCode::SecondaryAmountCannotBeLessThanZero
+            | WorldpayvantivResponseCode::PartialTransactionIsNotSupportedWhenIncludingASecondaryAmount
+            | WorldpayvantivResponseCode::SecondaryAmountRequiredOnPartialRefundWhenUsedOnDeposit
+            | WorldpayvantivResponseCode::SecondaryAmountNotAllowedOnRefundIfNotIncludedOnDeposit
+            | WorldpayvantivResponseCode::ProcessingNetworkError
+            | WorldpayvantivResponseCode::InvalidEMail
+            | WorldpayvantivResponseCode::InvalidCombinationOfAccountFundingTransactionTypeAndMcc
+            | WorldpayvantivResponseCode::InvalidAccountFundingTransactionTypeForThisMethodOfPayment
+            | WorldpayvantivResponseCode::MissingOneOrMoreReceiverFieldsForAccountFundingTransaction
+            | WorldpayvantivResponseCode::InvalidRecurringRequestSeeRecurringResponseForDetails
+            | WorldpayvantivResponseCode::ParentTransactionDeclinedRecurringSubscriptionNotCreated
+            | WorldpayvantivResponseCode::InvalidPlanCode
+            | WorldpayvantivResponseCode::InvalidSubscriptionId
+            | WorldpayvantivResponseCode::AddOnCodeAlreadyExists
+            | WorldpayvantivResponseCode::DuplicateAddOnCodesInRequests
+            | WorldpayvantivResponseCode::NoMatchingAddOnCodeForTheSubscription
+            | WorldpayvantivResponseCode::NoMatchingDiscountCodeForTheSubscription
+            | WorldpayvantivResponseCode::DuplicateDiscountCodesInRequest
+            | WorldpayvantivResponseCode::InvalidStartDate
+            | WorldpayvantivResponseCode::MerchantNotRegisteredForRecurringEngine
+            | WorldpayvantivResponseCode::InsufficientDataToUpdateSubscription
+            | WorldpayvantivResponseCode::InvalidBillingDate
+            | WorldpayvantivResponseCode::DiscountCodeAlreadyExists
+            | WorldpayvantivResponseCode::PlanCodeAlreadyExists
+            | WorldpayvantivResponseCode::TheAccountNumberWasChanged
+            | WorldpayvantivResponseCode::TheAccountWasClosed
+            | WorldpayvantivResponseCode::TheExpirationDateWasChanged
+            | WorldpayvantivResponseCode::TheIssuingBankDoesNotParticipateInTheUpdateProgram
+            | WorldpayvantivResponseCode::ContactTheCardholderForUpdatedInformation
+            | WorldpayvantivResponseCode::TheCardholderHasOptedOutOfTheUpdateProgram
+            | WorldpayvantivResponseCode::SoftDeclineCardReaderDecryptionServiceIsNotAvailable
+            | WorldpayvantivResponseCode::SoftDeclineDecryptionFailed
+            | WorldpayvantivResponseCode::HardDeclineInputDataIsInvalid
+            | WorldpayvantivResponseCode::ApplePayKeyMismatch
+            | WorldpayvantivResponseCode::ApplePayDecryptionFailed
+            | WorldpayvantivResponseCode::HardDeclineDecryptionFailed
+            | WorldpayvantivResponseCode::MerchantNotConfiguredForProcessingAtThisSite
+            | WorldpayvantivResponseCode::AdvancedFraudFilterScoreBelowThreshold
+            | WorldpayvantivResponseCode::SuspectedFraud
+            | WorldpayvantivResponseCode::SystemErrorContactWorldpayRepresentative
+            | WorldpayvantivResponseCode::AmazonPayAmazonUnavailable
+            | WorldpayvantivResponseCode::AmazonPayAmazonDeclined
+            | WorldpayvantivResponseCode::AmazonPayInvalidToken
+            | WorldpayvantivResponseCode::MerchantNotEnabledForAmazonPay
+            | WorldpayvantivResponseCode::TransactionNotSupportedBlockedByIssuer
+            | WorldpayvantivResponseCode::BlockedByCardholderContactCardholder
+            | WorldpayvantivResponseCode::SoftDeclinePrimaryFundingSourceFailed
+            | WorldpayvantivResponseCode::SoftDeclineBuyerHasAlternateFundingSource
+            | WorldpayvantivResponseCode::HardDeclineInvalidBillingAgreementId
+            | WorldpayvantivResponseCode::HardDeclinePrimaryFundingSourceFailed
+            | WorldpayvantivResponseCode::HardDeclineIssueWithPaypalAccount
+            | WorldpayvantivResponseCode::HardDeclinePayPalAuthorizationIdMissing
+            | WorldpayvantivResponseCode::HardDeclineConfirmedEmailAddressIsNotAvailable
+            | WorldpayvantivResponseCode::HardDeclinePayPalBuyerAccountDenied
+            | WorldpayvantivResponseCode::HardDeclinePayPalBuyerAccountRestricted
+            | WorldpayvantivResponseCode::HardDeclinePayPalOrderHasBeenVoidedExpiredOrCompleted
+            | WorldpayvantivResponseCode::HardDeclineIssueWithPayPalRefund
+            | WorldpayvantivResponseCode::HardDeclinePayPalCredentialsIssue
+            | WorldpayvantivResponseCode::HardDeclinePayPalAuthorizationVoidedOrExpired
+            | WorldpayvantivResponseCode::HardDeclineRequiredPayPalParameterMissing
+            | WorldpayvantivResponseCode::HardDeclinePayPalTransactionIdOrAuthIdIsInvalid
+            | WorldpayvantivResponseCode::HardDeclineExceededMaximumNumberOfPayPalAuthorizationAttempts
+            | WorldpayvantivResponseCode::HardDeclineTransactionAmountExceedsMerchantsPayPalAccountLimit
+            | WorldpayvantivResponseCode::HardDeclinePayPalFundingSourcesUnavailable
+            | WorldpayvantivResponseCode::HardDeclineIssueWithPayPalPrimaryFundingSource
+            | WorldpayvantivResponseCode::HardDeclinePayPalProfileDoesNotAllowThisTransactionType
+            | WorldpayvantivResponseCode::InternalSystemErrorWithPayPalContactVantiv
+            | WorldpayvantivResponseCode::HardDeclineContactPayPalConsumerForAnotherPaymentMethod
+            | WorldpayvantivResponseCode::InvalidTerminalId
+            | WorldpayvantivResponseCode::PinlessDebitProcessingNotSupportedForNonRecurringTransactions
+            | WorldpayvantivResponseCode::PinlessDebitProcessingNotSupportedForPartialAuths
+            | WorldpayvantivResponseCode::MerchantNotConfiguredForPinlessDebitProcessing
+            | WorldpayvantivResponseCode::DeclineCustomerCancellation
+            | WorldpayvantivResponseCode::DeclineReTryTransaction
+            | WorldpayvantivResponseCode::DeclineUnableToLocateRecordOnFile
+            | WorldpayvantivResponseCode::DeclineFileUpdateFieldEditError
+            | WorldpayvantivResponseCode::RemoteFunctionUnknown
+            | WorldpayvantivResponseCode::DeclinedExceedsWithdrawalFrequencyLimit
+            | WorldpayvantivResponseCode::DeclineCardRecordNotAvailable
+            | WorldpayvantivResponseCode::InvalidAuthorizationCode
+            | WorldpayvantivResponseCode::ReconciliationError
+            | WorldpayvantivResponseCode::PreferredDebitRoutingDenialCreditTransactionCanBeDebit
+            | WorldpayvantivResponseCode::DeclinedCurrencyConversionCompleteNoAuthPerformed
+            | WorldpayvantivResponseCode::DeclinedMultiCurrencyDccFail
+            | WorldpayvantivResponseCode::DeclinedMultiCurrencyInvertFail
+            | WorldpayvantivResponseCode::Invalid3DSecurePassword
+            | WorldpayvantivResponseCode::InvalidSocialSecurityNumber
+            | WorldpayvantivResponseCode::InvalidMothersMaidenName
+            | WorldpayvantivResponseCode::EnrollmentInquiryDeclined
+            | WorldpayvantivResponseCode::SocialSecurityNumberNotAvailable
+            | WorldpayvantivResponseCode::MothersMaidenNameNotAvailable
+            | WorldpayvantivResponseCode::PinAlreadyExistsOnDatabase
+            | WorldpayvantivResponseCode::Under18YearsOld
+            | WorldpayvantivResponseCode::BillToOutsideUsa
+            | WorldpayvantivResponseCode::BillToAddressIsNotEqualToShipToAddress
+            | WorldpayvantivResponseCode::DeclinedForeignCurrencyMustBeUsd
+            | WorldpayvantivResponseCode::OnNegativeFile
+            | WorldpayvantivResponseCode::BlockedAgreement
+            | WorldpayvantivResponseCode::InsufficientBuyingPower
+            | WorldpayvantivResponseCode::InvalidData
+            | WorldpayvantivResponseCode::InvalidDataDataElementsMissing
+            | WorldpayvantivResponseCode::InvalidDataDataFormatError
+            | WorldpayvantivResponseCode::InvalidDataInvalidTCVersion
+            | WorldpayvantivResponseCode::DuplicateTransactionPaypalCredit
+            | WorldpayvantivResponseCode::VerifyBillingAddress
+            | WorldpayvantivResponseCode::InactiveAccount
+            | WorldpayvantivResponseCode::InvalidAuth
+            | WorldpayvantivResponseCode::AuthorizationAlreadyExistsForTheOrder
+            | WorldpayvantivResponseCode::LodgingTransactionsAreNotAllowedForThisMcc
+            | WorldpayvantivResponseCode::DurationCannotBeNegative
+            | WorldpayvantivResponseCode::HotelFolioNumberCannotBeBlank
+            | WorldpayvantivResponseCode::InvalidCheckInDate
+            | WorldpayvantivResponseCode::InvalidCheckOutDate
+            | WorldpayvantivResponseCode::InvalidCheckInOrCheckOutDate
+            | WorldpayvantivResponseCode::CheckOutDateCannotBeBeforeCheckInDate
+            | WorldpayvantivResponseCode::NumberOfAdultsCannotBeNegative
+            | WorldpayvantivResponseCode::RoomRateCannotBeNegative
+            | WorldpayvantivResponseCode::RoomTaxCannotBeNegative
+            | WorldpayvantivResponseCode::DurationCanOnlyBeFrom0To99ForVisa
+            | WorldpayvantivResponseCode::MerchantIsNotAuthorizedForTokens
+            | WorldpayvantivResponseCode::CreditCardNumberWasInvalid
+        | WorldpayvantivResponseCode::TokenWasNotFound
+        | WorldpayvantivResponseCode::TokenInvalid
+        | WorldpayvantivResponseCode::MerchantNotAuthorizedForECheckTokens
+        | WorldpayvantivResponseCode::CheckoutIdWasInvalid
+        | WorldpayvantivResponseCode::CheckoutIdWasNotFound
+        | WorldpayvantivResponseCode::GenericCheckoutIdError
+        | WorldpayvantivResponseCode::CaptureAmountCanNotBeMoreThanAuthorizedAmount
+        | WorldpayvantivResponseCode::TaxBillingOnlyAllowedForMcc9311
+        | WorldpayvantivResponseCode::Mcc9311RequiresTaxTypeElement
+        | WorldpayvantivResponseCode::DebtRepaymentOnlyAllowedForViTransactionsOnMccs6012And6051
+        | WorldpayvantivResponseCode::RoutingNumberDidNotMatchOneOnFileForToken
+        | WorldpayvantivResponseCode::InvalidPayPageRegistrationId
+        | WorldpayvantivResponseCode::ExpiredPayPageRegistrationId
+        | WorldpayvantivResponseCode::MerchantIsNotAuthorizedForPayPage
+        | WorldpayvantivResponseCode::MaximumNumberOfUpdatesForThisTokenExceeded
+        | WorldpayvantivResponseCode::TooManyTokensCreatedForExistingNamespace
+        | WorldpayvantivResponseCode::PinValidationNotPossible
+        | WorldpayvantivResponseCode::GenericTokenRegistrationError
+        | WorldpayvantivResponseCode::GenericTokenUseError
+        | WorldpayvantivResponseCode::InvalidBankRoutingNumber
+        | WorldpayvantivResponseCode::MissingName
+        | WorldpayvantivResponseCode::InvalidName
+        | WorldpayvantivResponseCode::MissingBillingCountryCode
+        | WorldpayvantivResponseCode::InvalidIban
+        | WorldpayvantivResponseCode::MissingEmailAddress
+        | WorldpayvantivResponseCode::MissingMandateReference
+        | WorldpayvantivResponseCode::InvalidMandateReference
+        | WorldpayvantivResponseCode::MissingMandateUrl
+        | WorldpayvantivResponseCode::InvalidMandateUrl
+        | WorldpayvantivResponseCode::MissingMandateSignatureDate
+        | WorldpayvantivResponseCode::InvalidMandateSignatureDate
+        | WorldpayvantivResponseCode::RecurringMandateAlreadyExists
+        | WorldpayvantivResponseCode::RecurringMandateWasNotFound
+        | WorldpayvantivResponseCode::FinalRecurringWasAlreadyReceivedUsingThisMandate
+        | WorldpayvantivResponseCode::IbanDidNotMatchOneOnFileForMandate
+        | WorldpayvantivResponseCode::InvalidBillingCountry
+        | WorldpayvantivResponseCode::ExpirationDateRequiredForInteracTransaction
+        | WorldpayvantivResponseCode::TransactionTypeIsNotSupportedWithThisMethodOfPayment
+        | WorldpayvantivResponseCode::UnreferencedOrphanRefundsAreNotAllowed
+        | WorldpayvantivResponseCode::UnableToVoidATransactionWithAHeldState
+        | WorldpayvantivResponseCode::ThisFundingInstructionResultsInANegativeAccountBalance
+        | WorldpayvantivResponseCode::AccountBalanceInformationUnavailableAtThisTime
+        | WorldpayvantivResponseCode::TheSubmittedCardIsNotEligibleForFastAccessFunding
+        | WorldpayvantivResponseCode::TransactionCannotUseBothCcdPaymentInformationAndCtxPaymentInformation
+        | WorldpayvantivResponseCode::ProcessingError
+        | WorldpayvantivResponseCode::ThisFundingInstructionTypeIsInvalidForCanadianMerchants
+        | WorldpayvantivResponseCode::CtxAndCcdRecordsAreNotAllowedForCanadianMerchants
+        | WorldpayvantivResponseCode::CanadianAccountNumberCannotExceed12Digits
+        | WorldpayvantivResponseCode::ThisFundingInstructionTypeIsInvalid
+        | WorldpayvantivResponseCode::DeclineNegativeInformationOnFile
+        | WorldpayvantivResponseCode::AbsoluteDecline
+        | WorldpayvantivResponseCode::TheMerchantProfileDoesNotAllowTheRequestedOperation
+        | WorldpayvantivResponseCode::TheAccountCannotAcceptAchTransactions
+        | WorldpayvantivResponseCode::TheAccountCannotAcceptAchTransactionsOrSiteDrafts
+        | WorldpayvantivResponseCode::AmountGreaterThanLimitSpecifiedInTheMerchantProfile
+        | WorldpayvantivResponseCode::MerchantIsNotAuthorizedToPerformECheckVerificationTransactions
+        | WorldpayvantivResponseCode::FirstNameAndLastNameRequiredForECheckVerifications
+        | WorldpayvantivResponseCode::CompanyNameRequiredForCorporateAccountForECheckVerifications
+        | WorldpayvantivResponseCode::PhoneNumberRequiredForECheckVerifications
+        | WorldpayvantivResponseCode::CardBrandTokenNotSupported
+        | WorldpayvantivResponseCode::PrivateLabelCardNotSupported
+        | WorldpayvantivResponseCode::AllowedDailyDirectDebitCaptureECheckSaleLimitExceeded
+        | WorldpayvantivResponseCode::AllowedDailyDirectDebitCreditECheckCreditLimitExceeded
+        | WorldpayvantivResponseCode::AccountNotEligibleForRtp
+        | WorldpayvantivResponseCode::SoftDeclineCustomerAuthenticationRequired
+        | WorldpayvantivResponseCode::TransactionNotReversedVoidWorkflowNeedToBeInvoked
+        | WorldpayvantivResponseCode::TransactionReversalNotSupportedForTheCoreMerchants
+        | WorldpayvantivResponseCode::NoValidParentDepositOrParentRefundFound
+        | WorldpayvantivResponseCode::TransactionReversalNotEnabledForVisa
+        | WorldpayvantivResponseCode::TransactionReversalNotEnabledForMastercard
+        | WorldpayvantivResponseCode::TransactionReversalNotEnabledForAmEx
+        | WorldpayvantivResponseCode::TransactionReversalNotEnabledForDiscover
+        | WorldpayvantivResponseCode::TransactionReversalNotSupported
+        | WorldpayvantivResponseCode::FundingInstructionHeldPleaseContactYourRelationshipManager
+        | WorldpayvantivResponseCode::MissingAddressInformation
+        | WorldpayvantivResponseCode::CryptographicFailure
+        | WorldpayvantivResponseCode::InvalidRegionCode
+        | WorldpayvantivResponseCode::InvalidCountryCode
+        | WorldpayvantivResponseCode::InvalidCreditAccount
+        | WorldpayvantivResponseCode::InvalidCheckingAccount
+        | WorldpayvantivResponseCode::InvalidSavingsAccount
+        | WorldpayvantivResponseCode::InvalidUseOfMccCorrectAndReattempt
+        | WorldpayvantivResponseCode::ExceedsRtpTransactionLimit
+            => Ok(common_enums::PostCaptureVoidStatus::Failed)
+    }
+}
+
 fn get_attempt_status(
     flow: WorldpayvantivPaymentFlow,
     response: WorldpayvantivResponseCode,
@@ -3623,13 +4084,12 @@ fn get_attempt_status(
             | WorldpayvantivResponseCode::AccountNumberWasPreviouslyRegistered
             | WorldpayvantivResponseCode::ValidToken
              => match flow {
-                WorldpayvantivPaymentFlow::Sale => Ok(common_enums::AttemptStatus::Pending),
-                WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::Authorizing),
-                WorldpayvantivPaymentFlow::Capture => Ok(common_enums::AttemptStatus::CaptureInitiated),
-                WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::VoidInitiated),
-                WorldpayvantivPaymentFlow::VoidPC => {
-                    Ok(common_enums::AttemptStatus::VoidInitiated)
-                }
+                // For synchronous behaviour: mark approved/partially approved as terminal
+                WorldpayvantivPaymentFlow::Sale => Ok(common_enums::AttemptStatus::Charged),
+                WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::Authorized),
+                WorldpayvantivPaymentFlow::Capture => Ok(common_enums::AttemptStatus::Charged),
+                WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::Voided),
+                WorldpayvantivPaymentFlow::VoidPC => Ok(common_enums::AttemptStatus::VoidedPostCharge),
             },
         WorldpayvantivResponseCode::ShopperCheckoutExpired
             | WorldpayvantivResponseCode::ProcessingNetworkUnavailable
@@ -3994,7 +4454,7 @@ fn get_refund_status(
             | WorldpayvantivResponseCode::PartiallyApproved
             | WorldpayvantivResponseCode::OfflineApproval
             | WorldpayvantivResponseCode::OfflineApprovalUnableToGoOnline => {
-                Ok(common_enums::RefundStatus::Pending)
+                Ok(common_enums::RefundStatus::Success)
             },
         WorldpayvantivResponseCode::TransactionReceived => Ok(common_enums::RefundStatus::Pending),
         WorldpayvantivResponseCode::ProcessingNetworkUnavailable
@@ -4172,6 +4632,24 @@ fn get_vantiv_card_data(
                 Some(WorldpayvantivCardData {
                     card_type,
                     number: card_data.card_number.clone(),
+                    exp_date,
+                    card_validation_num: None,
+                }),
+                None,
+            ))
+        }
+        PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(dw_token) => {
+            let card_type = match dw_token.card_network.clone() {
+                Some(card_type) => WorldpayvativCardType::try_from(card_type)?,
+                None => WorldpayvativCardType::try_from(&dw_token.get_card_issuer()?)?,
+            };
+
+            let exp_date = dw_token.get_expiry_date_as_mmyy()?;
+
+            Ok((
+                Some(WorldpayvantivCardData {
+                    card_type,
+                    number: cards::CardNumber::from(dw_token.decrypted_token.clone()),
                     exp_date,
                     card_validation_num: None,
                 }),

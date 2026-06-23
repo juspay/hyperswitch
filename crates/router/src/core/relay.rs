@@ -2,19 +2,28 @@ use std::marker::PhantomData;
 
 use api_models::relay as relay_api_models;
 use async_trait::async_trait;
+use bytes::Bytes;
 use common_enums::RelayStatus;
 use common_utils::{
     self, fp_utils,
     id_type::{self, GenerateId},
 };
 use error_stack::ResultExt;
+use hyperswitch_connectors::connector_relay::RelayConnectors;
 use hyperswitch_domain_models::relay;
+use hyperswitch_interfaces::{
+    api_client::call_connector_api,
+    relay::{ConnectorRelayIntegration, UnreferencedRefundRouterData},
+};
+use hyperswitch_masking::Secret;
+use router_env::tracing::{self, instrument};
 
 use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
 use crate::{
-    core::payments,
+    connector::utils::RouterData,
+    core::payments::{self, access_token as access_token_core},
     routes::SessionState,
-    services,
+    services::{self, api::ConnectorValidation},
     types::{
         api::{self},
         domain,
@@ -96,11 +105,13 @@ pub trait RelayInterface {
         relay_request: RelayRequestInner<Self>,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<common_utils::types::CreatedBy>,
     ) -> relay::Relay;
 
     async fn process_relay(
         state: &SessionState,
-        platform: domain::Platform,
+        processor: domain::Processor,
         connector_account: domain::MerchantConnectorAccount,
         relay_record: &relay::Relay,
     ) -> RouterResult<relay::RelayUpdate>;
@@ -127,6 +138,7 @@ impl RelayRequestInner<RelayRefund> {
             Some(relay_api_models::RelayData::Capture(_))
             | Some(relay_api_models::RelayData::Void(_))
             | Some(relay_api_models::RelayData::IncrementalAuthorization(_))
+            | Some(relay_api_models::RelayData::UnreferencedRefund(_))
             | None => Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Relay data is required for relay type refund".to_string(),
             })?,
@@ -144,6 +156,8 @@ impl RelayInterface for RelayRefund {
         relay_request: RelayRequestInner<Self>,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<common_utils::types::CreatedBy>,
     ) -> relay::Relay {
         let relay_id = id_type::RelayId::generate();
         let relay_refund: relay::RelayRefundData = relay_request.data.into();
@@ -162,18 +176,20 @@ impl RelayInterface for RelayRefund {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             response_data: None,
+            processor_merchant_id,
+            created_by,
         }
     }
 
     async fn process_relay(
         state: &SessionState,
-        platform: domain::Platform,
+        processor: domain::Processor,
         connector_account: domain::MerchantConnectorAccount,
         relay_record: &relay::Relay,
     ) -> RouterResult<relay::RelayUpdate> {
         let connector_id = &relay_record.connector_id;
 
-        let merchant_id = platform.get_processor().get_account().get_id();
+        let merchant_id = processor.get_account().get_id();
 
         let connector_name = &connector_account.get_connector_name_as_string();
 
@@ -254,6 +270,7 @@ impl RelayRequestInner<RelayCapture> {
             Some(relay_api_models::RelayData::Refund(_))
             | Some(relay_api_models::RelayData::Void(_))
             | Some(relay_api_models::RelayData::IncrementalAuthorization(_))
+            | Some(relay_api_models::RelayData::UnreferencedRefund(_))
             | None => Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Relay data is required for relay type capture".to_string(),
             })?,
@@ -271,6 +288,8 @@ impl RelayInterface for RelayCapture {
         relay_request: RelayRequestInner<Self>,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<common_utils::types::CreatedBy>,
     ) -> relay::Relay {
         let relay_id = id_type::RelayId::generate();
         let relay_capture: relay::RelayCaptureData = relay_request.data.into();
@@ -289,18 +308,20 @@ impl RelayInterface for RelayCapture {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             response_data: None,
+            processor_merchant_id,
+            created_by,
         }
     }
 
     async fn process_relay(
         state: &SessionState,
-        platform: domain::Platform,
+        processor: domain::Processor,
         connector_account: domain::MerchantConnectorAccount,
         relay_record: &relay::Relay,
     ) -> RouterResult<relay::RelayUpdate> {
         let connector_id = &relay_record.connector_id;
 
-        let merchant_id = platform.get_processor().get_account().get_id();
+        let merchant_id = processor.get_account().get_id();
 
         let connector_name = &connector_account.get_connector_name_as_string();
 
@@ -384,8 +405,10 @@ impl RelayRequestInner<RelayIncrementalAuthorization> {
             Some(relay_api_models::RelayData::Refund(_))
             | Some(relay_api_models::RelayData::Void(_))
             | Some(relay_api_models::RelayData::Capture(_))
+            | Some(relay_api_models::RelayData::UnreferencedRefund(_))
             | None => Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Relay data is required for relay type capture".to_string(),
+                message: "Relay data is required for relay type incremental_authorization"
+                    .to_string(),
             })?,
         }
     }
@@ -401,6 +424,8 @@ impl RelayInterface for RelayIncrementalAuthorization {
         relay_request: RelayRequestInner<Self>,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<common_utils::types::CreatedBy>,
     ) -> relay::Relay {
         let relay_id = id_type::RelayId::generate();
         let relay_incremental_authorization: relay::RelayIncrementalAuthorizationData =
@@ -422,18 +447,20 @@ impl RelayInterface for RelayIncrementalAuthorization {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             response_data: None,
+            processor_merchant_id,
+            created_by,
         }
     }
 
     async fn process_relay(
         state: &SessionState,
-        platform: domain::Platform,
+        processor: domain::Processor,
         connector_account: domain::MerchantConnectorAccount,
         relay_record: &relay::Relay,
     ) -> RouterResult<relay::RelayUpdate> {
         let connector_id = &relay_record.connector_id;
 
-        let merchant_id = platform.get_processor().get_account().get_id();
+        let merchant_id = processor.get_account().get_id();
 
         let connector_name = &connector_account.get_connector_name_as_string();
 
@@ -515,6 +542,7 @@ impl RelayRequestInner<RelayVoid> {
             Some(relay_api_models::RelayData::Refund(_))
             | Some(relay_api_models::RelayData::IncrementalAuthorization(_))
             | Some(relay_api_models::RelayData::Capture(_))
+            | Some(relay_api_models::RelayData::UnreferencedRefund(_))
             | None => Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Relay data is required for relay type void".to_string(),
             })?,
@@ -532,6 +560,8 @@ impl RelayInterface for RelayVoid {
         relay_request: RelayRequestInner<Self>,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<common_utils::types::CreatedBy>,
     ) -> relay::Relay {
         let relay_id = id_type::RelayId::generate();
         let relay_void: relay::RelayVoidData = relay_request.data.into();
@@ -550,18 +580,20 @@ impl RelayInterface for RelayVoid {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             response_data: None,
+            processor_merchant_id,
+            created_by,
         }
     }
 
     async fn process_relay(
         state: &SessionState,
-        platform: domain::Platform,
+        processor: domain::Processor,
         connector_account: domain::MerchantConnectorAccount,
         relay_record: &relay::Relay,
     ) -> RouterResult<relay::RelayUpdate> {
         let connector_id = &relay_record.connector_id;
 
-        let merchant_id = platform.get_processor().get_account().get_id();
+        let merchant_id = processor.get_account().get_id();
 
         let connector_name = &connector_account.get_connector_name_as_string();
 
@@ -665,6 +697,26 @@ pub async fn relay_flow_decider(
                 RelayRequestInner::<RelayVoid>::from_relay_request(request)?;
             relay(state, platform, profile_id_optional, relay_capture_request).await
         }
+        common_enums::RelayType::UnreferencedRefund => {
+            let profile_id = profile_id_optional.get_required_value("ProfileId")?;
+            let connector_resource_id = request.connector_resource_id.clone();
+            let unreferenced_refund_request =
+                api_models::unreferenced_refund::UnreferencedRefundRequest::try_from(request)
+                    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Invalid relay request for unreferenced refund".to_string(),
+                    })?;
+            let (updated_relay, _, _) = process_relay_unreferenced_refund(
+                &state,
+                &platform,
+                &profile_id,
+                connector_resource_id,
+                &unreferenced_refund_request,
+            )
+            .await?;
+            Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+                relay_api_models::RelayResponse::from(updated_relay),
+            ))
+        }
     }
 }
 
@@ -675,15 +727,20 @@ pub async fn relay<T: RelayInterface>(
     req: RelayRequestInner<T>,
 ) -> RouterResponse<relay_api_models::RelayResponse> {
     let db = state.store.as_ref();
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let merchant_id = platform.get_provider().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
     let connector_id = &req.connector_id;
+
+    let created_by = platform
+        .get_initiator()
+        .and_then(|initiator| initiator.to_created_by());
 
     let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
 
     let profile = db
         .find_business_profile_by_merchant_id_profile_id(
             platform.get_processor().get_key_store(),
-            merchant_id,
+            processor_merchant_id,
             &profile_id_from_auth_layer,
         )
         .await
@@ -694,7 +751,7 @@ pub async fn relay<T: RelayInterface>(
     #[cfg(feature = "v1")]
     let connector_account = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            merchant_id,
+            processor_merchant_id,
             connector_id,
             platform.get_processor().get_key_store(),
         )
@@ -716,7 +773,13 @@ pub async fn relay<T: RelayInterface>(
 
     T::validate_relay_request(&req.data)?;
 
-    let relay_domain = T::get_domain_models(req, merchant_id, profile.get_id());
+    let relay_domain = T::get_domain_models(
+        req,
+        merchant_id,
+        profile.get_id(),
+        Some(processor_merchant_id.clone()),
+        created_by,
+    );
 
     let relay_record = db
         .insert_relay(platform.get_processor().get_key_store(), relay_domain)
@@ -724,10 +787,14 @@ pub async fn relay<T: RelayInterface>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert a relay record in db")?;
 
-    let relay_response =
-        T::process_relay(&state, platform.clone(), connector_account, &relay_record)
-            .await
-            .attach_printable("Failed to process relay")?;
+    let relay_response = T::process_relay(
+        &state,
+        platform.get_processor().clone(),
+        connector_account,
+        &relay_record,
+    )
+    .await
+    .attach_printable("Failed to process relay")?;
 
     let relay_update_record = db
         .update_relay(
@@ -815,7 +882,7 @@ pub async fn relay_retrieve(
             if should_call_connector_for_relay_refund_status(&relay_record, req.force_sync) {
                 let relay_response = sync_relay_refund_with_gateway(
                     &state,
-                    &platform,
+                    platform.get_processor(),
                     &relay_record,
                     connector_account,
                 )
@@ -835,12 +902,12 @@ pub async fn relay_retrieve(
         }
         common_enums::RelayType::Capture => {
             if should_call_connector_for_relay_capture_status(&relay_record, req.force_sync) {
-                let relay_response = sync_relay_capture_with_gateway(
+                let relay_response = Box::pin(sync_relay_capture_with_gateway(
                     &state,
-                    &platform,
+                    platform.get_processor(),
                     &relay_record,
                     connector_account,
-                )
+                ))
                 .await?;
 
                 db.update_relay(
@@ -855,9 +922,9 @@ pub async fn relay_retrieve(
                 relay_record
             }
         }
-        common_enums::RelayType::IncrementalAuthorization | common_enums::RelayType::Void => {
-            relay_record
-        }
+        common_enums::RelayType::IncrementalAuthorization
+        | common_enums::RelayType::Void
+        | common_enums::RelayType::UnreferencedRefund => relay_record,
     };
 
     let response = relay_api_models::RelayResponse::from(relay_response);
@@ -881,12 +948,11 @@ fn should_call_connector_for_relay_capture_status(relay: &relay::Relay, force_sy
 
 pub async fn sync_relay_refund_with_gateway(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     relay_record: &relay::Relay,
     connector_account: domain::MerchantConnectorAccount,
 ) -> RouterResult<relay::RelayUpdate> {
     let connector_id = &relay_record.connector_id;
-    let merchant_id = platform.get_processor().get_account().get_id();
 
     let connector_name = &connector_account.get_connector_name_as_string();
 
@@ -901,7 +967,7 @@ pub async fn sync_relay_refund_with_gateway(
 
     let router_data = utils::construct_relay_refund_router_data(
         state,
-        merchant_id,
+        processor.get_account().get_id(),
         &connector_account,
         relay_record,
     )
@@ -929,14 +995,258 @@ pub async fn sync_relay_refund_with_gateway(
     Ok(relay_response)
 }
 
-pub async fn sync_relay_capture_with_gateway(
+#[instrument(skip_all)]
+async fn process_unreferenced_refund(
     state: &SessionState,
     platform: &domain::Platform,
+    profile_id: &id_type::ProfileId,
+    connector_resource_id: String,
+    request: &api_models::unreferenced_refund::UnreferencedRefundRequest,
+) -> RouterResult<(relay::Relay, String, Option<Secret<serde_json::Value>>)> {
+    let db = state.store.as_ref();
+    let merchant_id = platform.get_provider().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
+    let connector_id: &id_type::MerchantConnectorAccountId = &request.connector_id;
+
+    #[cfg(feature = "v1")]
+    let connector_account = db
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            processor_merchant_id,
+            connector_id,
+            platform.get_processor().get_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: connector_id.get_string_repr().to_string(),
+        })?;
+
+    #[cfg(feature = "v2")]
+    let connector_account = db
+        .find_merchant_connector_account_by_id(
+            connector_id,
+            platform.get_processor().get_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: connector_id.get_string_repr().to_string(),
+        })?;
+
+    let connector_name = connector_account.get_connector_name_as_string();
+    let auth_type = connector_account
+        .get_connector_account_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse connector auth type")?;
+
+    let relay_connector = RelayConnectors::from_connector_name(&connector_name).change_context(
+        errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("Connector {connector_name} does not support unreferenced refund"),
+        },
+    )?;
+
+    let base_url = relay_connector.base_url(&state.conf.connectors);
+
+    let relay_id = id_type::RelayId::generate();
+
+    let access_token = if relay_connector.supports_access_token() {
+        access_token_core::get_access_token_for_relay(
+            state,
+            &connector_name,
+            processor_merchant_id,
+            profile_id,
+            &connector_account,
+            platform.get_processor(),
+            &relay_id,
+        )
+        .await?
+    } else {
+        None
+    };
+
+    let created_by = platform
+        .get_initiator()
+        .and_then(|initiator| initiator.to_created_by());
+
+    let relay_domain = relay::Relay {
+        id: relay_id,
+        connector_resource_id: connector_resource_id.clone(),
+        connector_id: connector_id.clone(),
+        profile_id: profile_id.clone(),
+        merchant_id: merchant_id.clone(),
+        relay_type: common_enums::RelayType::UnreferencedRefund,
+        request_data: Some(relay::RelayData::UnreferencedRefund(
+            relay::RelayUnreferencedRefundData {
+                amount: request.amount,
+                currency: request.currency,
+                customer_id: request.customer_id.clone(),
+            },
+        )),
+        status: RelayStatus::Created,
+        connector_reference_id: None,
+        error_code: None,
+        error_message: None,
+        created_at: common_utils::date_time::now(),
+        modified_at: common_utils::date_time::now(),
+        response_data: None,
+        processor_merchant_id: Some(processor_merchant_id.clone()),
+        created_by,
+    };
+
+    let relay_record = db
+        .insert_relay(platform.get_processor().get_key_store(), relay_domain)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to insert unreferenced refund relay record")?;
+
+    let relay_router_data = UnreferencedRefundRouterData {
+        request,
+        access_token,
+        auth_type: &auth_type,
+        base_url,
+    };
+
+    let connector_request = relay_connector
+        .build_relay_request(&relay_router_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to build relay request")?;
+
+    let api_response =
+        call_connector_api(state, connector_request, "relay_unreferenced_refund").await;
+
+    let (response_bytes, relay_update) = match api_response {
+        Ok(resp) => {
+            let (status, bytes) = match resp {
+                Ok(r) => (r.status_code, r.response),
+                Err(r) => (r.status_code, r.response),
+            };
+            let connector_resp = relay_connector
+                .handle_relay_response(bytes.clone(), status)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to handle relay response")?;
+            let relay_status = RelayStatus::from(connector_resp.refund_status);
+            let relay_update = relay::RelayUpdate::UnreferencedRefundUpdate {
+                connector_reference_id: connector_resp.connector_refund_id,
+                status: relay_status,
+                error_code: connector_resp.error_code,
+                error_message: connector_resp.error_message,
+                response_data: None,
+            };
+            (bytes, relay_update)
+        }
+        Err(err) => {
+            let (error_code, error_message) = if err.current_context().is_upstream_timeout() {
+                (
+                    hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                    hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                )
+            } else {
+                ("CONNECTOR_UNREACHABLE".to_string(), err.to_string())
+            };
+            let relay_update = relay::RelayUpdate::ErrorUpdate {
+                error_code,
+                error_message,
+                status: RelayStatus::Pending,
+            };
+            (Bytes::new(), relay_update)
+        }
+    };
+
+    let updated_relay = db
+        .update_relay(
+            platform.get_processor().get_key_store(),
+            relay_record,
+            relay_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update unreferenced refund relay record")?;
+
+    let raw_connector_response = serde_json::from_slice::<serde_json::Value>(&response_bytes)
+        .ok()
+        .map(Secret::new);
+
+    Ok((updated_relay, connector_name, raw_connector_response))
+}
+
+async fn process_relay_unreferenced_refund(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile_id: &id_type::ProfileId,
+    connector_resource_id: String,
+    request: &api_models::unreferenced_refund::UnreferencedRefundRequest,
+) -> RouterResult<(relay::Relay, String, Option<Secret<serde_json::Value>>)> {
+    fp_utils::when(!request.amount.is_greater_than(0), || {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Amount must be greater than 0".to_string(),
+        })
+    })?;
+
+    let db = state.store.as_ref();
+    let merchant_id = platform.get_processor().get_account().get_id();
+
+    db.find_business_profile_by_merchant_id_profile_id(
+        platform.get_processor().get_key_store(),
+        merchant_id,
+        profile_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
+
+    process_unreferenced_refund(state, platform, profile_id, connector_resource_id, request).await
+}
+
+pub async fn relay_unreferenced_refund(
+    state: SessionState,
+    platform: domain::Platform,
+    profile_id: id_type::ProfileId,
+    request: api_models::unreferenced_refund::UnreferencedRefundRequest,
+) -> RouterResponse<api_models::unreferenced_refund::UnreferencedRefundResponse> {
+    let connector_resource_id = request
+        .connector_resource_id
+        .clone()
+        .unwrap_or_else(|| format!("internal_{}", uuid::Uuid::now_v7()));
+
+    let (updated_relay, connector_name, raw_connector_response) =
+        process_relay_unreferenced_refund(
+            &state,
+            &platform,
+            &profile_id,
+            connector_resource_id.clone(),
+            &request,
+        )
+        .await?;
+
+    let error = updated_relay
+        .error_code
+        .zip(updated_relay.error_message)
+        .map(|(code, message)| api_models::relay::RelayError { code, message });
+
+    let response = api_models::unreferenced_refund::UnreferencedRefundResponse {
+        id: updated_relay.id,
+        status: updated_relay.status,
+        connector: connector_name,
+        connector_id: updated_relay.connector_id,
+        connector_resource_id,
+        connector_reference_id: updated_relay.connector_reference_id,
+        profile_id,
+        error,
+        raw_connector_response,
+    };
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
+}
+
+pub async fn sync_relay_capture_with_gateway(
+    state: &SessionState,
+    processor: &domain::Processor,
     relay_record: &relay::Relay,
     connector_account: domain::MerchantConnectorAccount,
 ) -> RouterResult<relay::RelayUpdate> {
     let connector_id = &relay_record.connector_id;
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let merchant_id = processor.get_account().get_id();
 
     let connector_name = &connector_account.get_connector_name_as_string();
 
@@ -971,16 +1281,34 @@ pub async fn sync_relay_capture_with_gateway(
     )
     .await?;
 
-    let router_data_res = services::execute_connector_processing_step(
-        state,
-        connector_integration,
-        &router_data,
-        payments::CallConnectorAction::Trigger,
-        None,
-        None,
-    )
-    .await
-    .to_payment_failed_response()?;
+    //validate_psync_reference_id if call_connector_action is trigger
+    let router_data_res = if connector_data
+        .connector
+        .validate_psync_reference_id(
+            &router_data.request,
+            router_data.is_three_ds(),
+            router_data.status,
+            router_data.connector_meta_data.clone(),
+        )
+        .is_err()
+    {
+        router_env::logger::warn!(
+            "validate_psync_reference_id failed, hence skipping call to connector"
+        );
+
+        router_data
+    } else {
+        services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+            None,
+        )
+        .await
+        .to_payment_failed_response()?
+    };
 
     let relay_response = relay::RelayUpdate::try_from_capture_response((
         router_data_res.status,

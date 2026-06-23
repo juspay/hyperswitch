@@ -4,7 +4,7 @@ use common_utils::{
     id_type,
     types::user::{EmailThemeConfig, ThemeLineage},
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize)]

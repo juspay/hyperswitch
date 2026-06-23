@@ -5,15 +5,15 @@ use csv::Reader;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse, errors::api_error_response as errors,
-    payment_methods::PaymentMethodUpdate, platform,
+    payment_methods::StoragePaymentMethodUpdate as PaymentMethodUpdate, platform,
 };
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use payment_methods::core::migration::MerchantConnectorValidator;
 use rdkafka::message::ToBytes;
 use router_env::logger;
 
 use crate::{
-    core::{errors::StorageErrorExt, payment_methods::cards::create_encrypted_data},
+    core::{errors::StorageErrorExt, utils::create_encrypted_data},
     routes::SessionState,
 };
 type PmMigrationResult<T> = CustomResult<ApplicationResponse<T>, errors::ApiErrorResponse>;
@@ -104,6 +104,9 @@ pub async fn update_payment_method_record(
                                 &key_manager_state,
                                 platform.get_provider().get_key_store(),
                                 pm_api::PaymentMethodsData::Card(card_data),
+                                common_utils::type_name!(
+                                    diesel_models::payment_method::PaymentMethod
+                                ),
                             )
                             .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -250,9 +253,13 @@ pub async fn update_payment_method_record(
                     connector_mandate_details_value,
                 )),
                 network_transaction_id,
+                network_transaction_link_id: None,
                 status,
                 payment_method_data: updated_payment_method_data.clone(),
-                last_modified_by: None,
+                last_modified_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             }
         }
         // Case: Only connector_customer_id provided
@@ -336,22 +343,33 @@ pub async fn update_payment_method_record(
                     connector_mandate_details_value,
                 )),
                 network_transaction_id,
+                network_transaction_link_id: None,
                 status,
                 payment_method_data: updated_payment_method_data.clone(),
-                last_modified_by: None,
+                last_modified_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             }
         }
         _ => {
             if updated_payment_method_data.is_some() {
                 PaymentMethodUpdate::PaymentMethodDataUpdate {
                     payment_method_data: updated_payment_method_data,
-                    last_modified_by: None,
+                    last_modified_by: platform
+                        .get_initiator()
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|last_modified_by| last_modified_by.to_string()),
                 }
             } else {
                 PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                     network_transaction_id,
+                    network_transaction_link_id: None,
                     status,
-                    last_modified_by: None,
+                    last_modified_by: platform
+                        .get_initiator()
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|last_modified_by| last_modified_by.to_string()),
                 }
             }
         }

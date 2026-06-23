@@ -21,7 +21,7 @@ use diesel_models::{
     merchant_connector_account::{self as storage, MerchantConnectorAccountUpdateInternal},
 };
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 
@@ -361,7 +361,6 @@ pub struct RevenueRecoveryMetadata {
     pub mca_reference: AccountReferenceMap,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct ExternalVaultConnectorMetadata {
     pub proxy_url: common_utils::types::Url,

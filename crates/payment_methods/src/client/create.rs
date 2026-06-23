@@ -1,17 +1,21 @@
 //! Create payment method flow types and dummy models.
-
-use api_models::payments;
+use api_models::{payment_methods::BankRedirectDetail, payments};
 use cards::CardNumber;
 use common_utils::{
     id_type, pii,
     request::{Method, RequestContent},
     types::MinorUnit,
 };
-use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
+use hyperswitch_domain_models::payment_method_data::{
+    BankDebitData, BankRedirectData, PaymentMethodData,
+};
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
+
+use crate::types::{BankDebitDetail, PaymentMethodResponseData};
+
 /// V1-facing create flow type.
 #[derive(Debug)]
 pub struct CreatePaymentMethod;
@@ -20,25 +24,28 @@ pub struct CreatePaymentMethod;
 pub struct CreatePaymentMethodV1Request {
     pub merchant_id: id_type::MerchantId,
     pub payment_method: common_enums::PaymentMethod,
-    pub payment_method_type: common_enums::PaymentMethodType,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub customer_id: id_type::CustomerId, // Payment method data will be saved when customer acceptance is given, hence customer id will always be present
-    pub payment_method_data: PaymentMethodData,
+    /// The payment method data for the normal create flow. `None` for the external vault proxy
+    /// flow, where `proxy_card_data` is set instead.
+    pub payment_method_data: Option<PaymentMethodData>,
     pub billing: Option<hyperswitch_domain_models::address::Address>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub storage_type: Option<common_enums::StorageType>,
     pub modular_service_prefix: String,
+    /// When set, overrides `payment_method_data` and creates a ProxyCard payment method.
+    pub proxy_card_data: Option<hyperswitch_domain_models::payment_method_data::ExternalVaultCard>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModularPMCreateRequest {
     pub payment_method_type: common_enums::PaymentMethod,
-    pub payment_method_subtype: common_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub customer_id: id_type::CustomerId, // Payment method data will be saved when customer acceptance is given, hence customer id will always be present
     pub payment_method_data: PaymentMethodCreateData,
     pub billing: Option<payments::Address>,
-    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub storage_type: Option<common_enums::StorageType>,
 }
@@ -61,8 +68,36 @@ pub struct CardDetail {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub enum WalletPaymentMethodData {
+    ApplePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
+    GooglePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
+    PayPal(Box<payments::PaypalRedirection>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
+    ProxyCard(ProxyCardDetail),
+    BankDebit(BankDebitDetail),
+    Wallet(WalletPaymentMethodData),
+    BankRedirect(BankRedirectDetail),
+}
+
+/// Tokenized card data for external vault proxy PM creation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProxyCardDetail {
+    pub card_number: Secret<String>,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub bin_number: Option<String>,
+    pub last_four: Option<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_type: Option<common_enums::CardType>,
+    pub card_issuing_country: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -85,12 +120,6 @@ pub struct ModularPaymentMethodResponse {
     pub billing: Option<hyperswitch_domain_models::address::Address>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-#[serde(rename_all = "snake_case")]
-pub enum PaymentMethodResponseData {
-    Card(api_models::payment_methods::CardDetailFromLocker),
-}
-
 #[derive(Clone, Debug)]
 pub struct CreatePaymentMethodResponse {
     //payment method id
@@ -106,6 +135,7 @@ pub struct CreatePaymentMethodResponse {
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
     pub network_token: Option<api_models::payment_methods::NetworkTokenResponse>,
     pub billing: Option<hyperswitch_domain_models::address::Address>,
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -117,6 +147,7 @@ pub struct ConnectorTokenDetails {
     pub original_payment_authorized_amount: Option<MinorUnit>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_customer_id: Option<String>,
     pub token: Secret<String>,
 }
 
@@ -140,6 +171,107 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                 };
                 Ok(Self::Card(card_detail))
             }
+            PaymentMethodData::BankDebit(bank_debit) => match bank_debit {
+                BankDebitData::AchBankDebit {
+                    account_number,
+                    routing_number,
+                    bank_account_holder_name,
+                    bank_type,
+                    bank_holder_type,
+                    bank_name,
+                    ..
+                } => {
+                    let bank_debit_detail = BankDebitDetail::Ach {
+                        account_number,
+                        routing_number,
+                        bank_account_holder_name,
+                        bank_type,
+                        bank_holder_type,
+                        bank_name,
+                    };
+                    Ok(Self::BankDebit(bank_debit_detail))
+                }
+                _ => Err(MicroserviceClientError {
+                    operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest".to_string(),
+                    kind: MicroserviceClientErrorKind::InvalidRequest(
+                        "Only ACH bank debit is supported for modular PM creation".to_string(),
+                    ),
+                }),
+            },
+            PaymentMethodData::BankRedirect(bank_redirect) => match bank_redirect {
+                BankRedirectData::BancontactCard {
+                    card_number: _,
+                    card_exp_month: _,
+                    card_exp_year: _,
+                    card_holder_name: _,
+                } => {
+                    let bank_redirect_detail = BankRedirectDetail::BancontactCard {};
+                    Ok(Self::BankRedirect(bank_redirect_detail))
+                }
+                _ => Err(MicroserviceClientError {
+                    operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest".to_string(),
+                    kind: MicroserviceClientErrorKind::InvalidRequest(
+                        "Only BancontactCard bank redirect is supported for modular PM creation"
+                            .to_string(),
+                    ),
+                }),
+            },
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(apple_pay) => {
+                    let wallet_info = api_models::payment_methods::PaymentMethodDataWalletInfo {
+                        last4: Some(
+                            apple_pay
+                                .payment_method
+                                .display_name
+                                .chars()
+                                .rev()
+                                .take(4)
+                                .collect::<Vec<_>>()
+                                .into_iter()
+                                .rev()
+                                .collect(),
+                        ),
+                        card_network: Some(apple_pay.payment_method.network.clone()),
+                        card_type: Some(apple_pay.payment_method.pm_type.clone()),
+                        card_exp_month: None,
+                        card_exp_year: None,
+                        auth_code: None,
+                        email: None,
+                    };
+                    Ok(Self::Wallet(WalletPaymentMethodData::ApplePay(Box::new(
+                        wallet_info,
+                    ))))
+                }
+                hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
+                    google_pay,
+                ) => {
+                    let wallet_info = api_models::payment_methods::PaymentMethodDataWalletInfo {
+                        last4: Some(google_pay.info.card_details.clone()),
+                        card_network: Some(google_pay.info.card_network.clone()),
+                        card_type: Some(google_pay.pm_type.clone()),
+                        card_exp_month: None,
+                        card_exp_year: None,
+                        auth_code: None,
+                        email: None,
+                    };
+                    Ok(Self::Wallet(WalletPaymentMethodData::GooglePay(Box::new(
+                        wallet_info,
+                    ))))
+                }
+                hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(
+                    paypal,
+                ) => Ok(Self::Wallet(WalletPaymentMethodData::PayPal(Box::new(
+                    payments::PaypalRedirection {
+                        email: paypal.email,
+                    },
+                )))),
+                _ => Err(MicroserviceClientError {
+                    operation: "PaymentMethodCreateData::try_from".to_string(),
+                    kind: MicroserviceClientErrorKind::InvalidRequest(
+                        "Unsupported wallet type for modular PM creation".to_string(),
+                    ),
+                }),
+            },
             _ => Err(MicroserviceClientError {
                 operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest".to_string(),
                 kind: MicroserviceClientErrorKind::InvalidRequest(
@@ -150,12 +282,47 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
     }
 }
 
+impl From<hyperswitch_domain_models::payment_method_data::ExternalVaultCard>
+    for PaymentMethodCreateData
+{
+    fn from(vault_card: hyperswitch_domain_models::payment_method_data::ExternalVaultCard) -> Self {
+        Self::ProxyCard(ProxyCardDetail {
+            card_number: vault_card.card_number,
+            card_exp_month: vault_card.card_exp_month,
+            card_exp_year: vault_card.card_exp_year,
+            bin_number: vault_card.bin_number,
+            last_four: vault_card.last_four,
+            card_issuer: vault_card.card_issuer,
+            card_network: vault_card.card_network,
+            card_type: None,
+            card_issuing_country: vault_card.card_issuing_country,
+            nick_name: vault_card.nick_name,
+            card_holder_name: vault_card.card_holder_name,
+        })
+    }
+}
+
 impl TryFrom<&CreatePaymentMethodV1Request> for ModularPMCreateRequest {
     type Error = MicroserviceClientError;
 
     fn try_from(request: &CreatePaymentMethodV1Request) -> Result<Self, Self::Error> {
-        let payment_method_data =
-            PaymentMethodCreateData::try_from(request.payment_method_data.clone())?;
+        let payment_method_data = if let Some(proxy_card) = request.proxy_card_data.clone() {
+            PaymentMethodCreateData::from(proxy_card)
+        } else {
+            let payment_method_data =
+                request
+                    .payment_method_data
+                    .clone()
+                    .ok_or_else(|| MicroserviceClientError {
+                        operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest"
+                            .to_string(),
+                        kind: MicroserviceClientErrorKind::InvalidRequest(
+                            "payment_method_data is required when proxy_card_data is not provided"
+                                .to_string(),
+                        ),
+                    })?;
+            PaymentMethodCreateData::try_from(payment_method_data)?
+        };
         Ok(Self {
             payment_method_type: request.payment_method,
             payment_method_subtype: request.payment_method_type,
@@ -166,7 +333,6 @@ impl TryFrom<&CreatePaymentMethodV1Request> for ModularPMCreateRequest {
                 .billing
                 .as_ref()
                 .map(|billing| billing.clone().into()),
-            psp_tokenization: None,
             network_tokenization: request.network_tokenization.clone(),
             storage_type: request.storage_type,
         })
@@ -190,6 +356,7 @@ impl TryFrom<ModularPaymentMethodResponse> for CreatePaymentMethodResponse {
             connector_tokens: response.connector_tokens,
             network_token: response.network_token,
             billing: response.billing,
+            storage_type: response.storage_type,
         })
     }
 }

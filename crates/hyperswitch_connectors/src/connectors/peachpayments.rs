@@ -38,19 +38,16 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask, Secret};
+use hyperswitch_masking::{ExposeInterface, Mask, Secret};
 use transformers as peachpayments;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{self, RefundsRequestData},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 const REFUND: &str = "Refund";
 #[derive(Clone)]
@@ -93,7 +90,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -125,7 +123,8 @@ impl ConnectorCommon for Peachpayments {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = peachpayments::PeachpaymentsAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![
@@ -167,7 +166,17 @@ impl ConnectorCommon for Peachpayments {
     }
 }
 
-impl ConnectorValidation for Peachpayments {}
+impl ConnectorValidation for Peachpayments {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: enums::AttemptStatus,
+        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
+    }
+}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Peachpayments {
     //TODO: implement sessions flow
@@ -197,7 +206,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -299,7 +309,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pea
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -312,15 +323,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pea
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_transaction_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let reference_id = req.connector_request_reference_id.clone();
         Ok(format!(
-            "{}/transactions/{}",
+            "{}/transactions/by-reference/{}",
             self.base_url(connectors),
-            connector_transaction_id
+            reference_id
         ))
     }
 
@@ -372,7 +379,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -456,6 +464,73 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: peachpayments::Peachpayments5xxErrorResponse = res
+            .response
+            .parse_struct("Peachpayments5xxErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        match response {
+            peachpayments::Peachpayments5xxErrorResponse::Standard(error_response) => {
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: error_response.error_ref.clone(),
+                    message: error_response.message.clone(),
+                    reason: Some(error_response.message.clone()),
+                    attempt_status: Some(enums::AttemptStatus::Authorized),
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            peachpayments::Peachpayments5xxErrorResponse::Detailed(decline_response) => {
+                let (code, message, reason) = match &decline_response.response.response_code {
+                    Some(peachpayments::ResponseCode::Text(text)) => {
+                        (text.clone(), text.clone(), Some(text.clone()))
+                    }
+                    Some(peachpayments::ResponseCode::Structured {
+                        value,
+                        description,
+                        explanation,
+                        ..
+                    }) => (value.clone(), description.clone(), explanation.clone()),
+                    None => (
+                        NO_ERROR_CODE.to_string(),
+                        NO_ERROR_MESSAGE.to_string(),
+                        None,
+                    ),
+                };
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code,
+                    message,
+                    reason,
+                    attempt_status: Some(enums::AttemptStatus::Authorized),
+                    connector_transaction_id: Some(
+                        decline_response.response.transaction_id.clone(),
+                    ),
+                    connector_response_reference_id: Some(
+                        decline_response.response.reference_id.clone(),
+                    ),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+        }
+    }
 }
 
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Peachpayments {
@@ -463,7 +538,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pe
         &self,
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -554,6 +630,34 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pe
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: peachpayments::PeachpaymentsErrorResponse = res
+            .response
+            .parse_struct("PeachpaymentsErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_ref.clone(),
+            message: response.message.clone(),
+            reason: Some(response.message.clone()),
+            attempt_status: Some(enums::AttemptStatus::Authorized),
+            connector_transaction_id: None,
+            connector_response_reference_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
+    }
 }
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Peachpayments {
@@ -561,7 +665,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Peachpa
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -642,7 +747,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Peachpaym
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -651,11 +757,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Peachpaym
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_refund_id = req.request.get_connector_refund_id()?;
+        let refund_id = req.request.refund_id.clone();
         Ok(format!(
-            "{}/transactions/{}",
+            "{}/transactions/by-reference/{}",
             self.base_url(connectors),
-            connector_refund_id
+            refund_id
         ))
     }
 
@@ -718,23 +824,19 @@ impl webhooks::IncomingWebhook for Peachpayments {
             .as_ref()
             .map(|txn| txn.transaction_type.description.clone());
 
+        let reference_id = webhook_body
+            .transaction
+            .as_ref()
+            .map(|txn| txn.reference_id.clone())
+            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
         if description == Some(REFUND.to_string()) {
-            let refund_id = webhook_body
-                .transaction
-                .as_ref()
-                .map(|txn| txn.transaction_id.clone())
-                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
             Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(refund_id),
+                api_models::webhooks::RefundIdType::RefundId(reference_id),
             ))
         } else {
-            let transaction_id = webhook_body
-                .transaction
-                .as_ref()
-                .map(|txn| txn.transaction_id.clone())
-                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
             Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(transaction_id),
+                api_models::payments::PaymentIdType::PaymentAttemptId(reference_id),
             ))
         }
     }
@@ -768,8 +870,12 @@ impl webhooks::IncomingWebhook for Peachpayments {
                                 Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
                             }
                         }
+                        // `FailedRetry` is returned by PeachPayments for 5xx capture failures.
+                        // In this state, the transaction remains retryable and Capture/Void
+                        // operations can be re-attempted.
                         peachpayments::PeachpaymentsPaymentStatus::Authorized
-                        | peachpayments::PeachpaymentsPaymentStatus::Approved => {
+                        | peachpayments::PeachpaymentsPaymentStatus::Approved
+                        | peachpayments::PeachpaymentsPaymentStatus::FailedRetry => {
                             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
                         }
                         peachpayments::PeachpaymentsPaymentStatus::Pending => {
@@ -803,7 +909,8 @@ impl webhooks::IncomingWebhook for Peachpayments {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let webhook_body: peachpayments::PeachpaymentsIncomingWebhook = request
             .body
             .parse_struct("PeachpaymentsIncomingWebhook")
@@ -846,7 +953,7 @@ static PEACHPAYMENTS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
+                            three_ds: common_enums::FeatureStatus::NotSupported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
@@ -865,7 +972,7 @@ static PEACHPAYMENTS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
+                            three_ds: common_enums::FeatureStatus::NotSupported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
@@ -895,8 +1002,8 @@ static PEACHPAYMENTS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
-static PEACHPAYMENTS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] =
-    [enums::EventClass::Payments];
+static PEACHPAYMENTS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Peachpayments {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

@@ -33,14 +33,16 @@ pub use hyperswitch_interfaces::{
     },
     types::{ComparisonServiceConfig, Proxy},
 };
-use masking::{Maskable, Secret};
-pub use payment_methods::configs::settings::{
-    BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
-    Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal, RequiredFields,
-    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
-    SupportedPaymentMethodsForMandate, ZeroMandates,
+use hyperswitch_masking::{Maskable, Secret};
+pub use payment_methods::configs::{
+    settings::{
+        BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields,
+        EligiblePaymentMethods, InstallmentConfig, Installments, Mandates, PaymentMethodAuth,
+        PaymentMethodType, RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
+        SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+    },
+    AuthenticationServiceConfig, MicroServicesConfig,
 };
-use payment_methods::configs::MicroServicesConfig;
 use rand::seq::IteratorRandom;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
@@ -117,8 +119,11 @@ pub struct Settings<S: SecretState> {
     pub cors: CorsSettings,
     pub mandates: Mandates,
     pub zero_mandates: ZeroMandates,
+    pub installments: Installments,
+    pub installment_config: InstallmentConfig,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub card_only_mit_supported_connectors: CardOnlyMitSupportedConnectors,
+    pub notify_iframe_exit_and_redirect: NotifyIframeExitAndRedirectConnectors,
     pub list_dispute_supported_connectors: ListDiputeSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
@@ -161,9 +166,9 @@ pub struct Settings<S: SecretState> {
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
     pub grpc_client: GrpcClientSettings,
-    #[cfg(feature = "v2")]
     pub cell_information: CellInformation,
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
+    pub alt_id_required_card_networks_and_connector: AltIdRequiredCardNetworksAndConnector,
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
@@ -587,6 +592,12 @@ pub struct CardOnlyMitSupportedConnectors {
     pub connector_list: HashSet<enums::Connector>,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NotifyIframeExitAndRedirectConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
 /// Connectors that support only dispute list API for syncing disputes with Hyperswitch
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListDiputeSupportedConnectors {
@@ -598,6 +609,11 @@ pub struct ListDiputeSupportedConnectors {
 pub struct NetworkTokenizationSupportedCardNetworks {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub card_networks: HashSet<enums::CardNetwork>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct AltIdRequiredCardNetworksAndConnector {
+    pub networks: HashMap<enums::CardNetwork, HashSet<enums::Connector>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -612,6 +628,7 @@ pub struct NetworkTokenizationService {
     pub delete_token_url: url::Url,
     pub check_token_status_url: url::Url,
     pub webhook_source_verification_key: Secret<String>,
+    pub fetch_altid_url: url::Url,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1051,7 +1068,7 @@ pub struct NetworkTokenizationSupportedConnectors {
 #[derive(Debug, Deserialize, Clone)]
 pub struct MerchantAdviceCodeConfig {
     pub recommended_action: common_enums::RecommendedAction,
-    pub description: Option<String>,
+    pub description: String,
 }
 
 /// Domain type for merchant advice code mappings
@@ -1364,6 +1381,20 @@ pub struct CellInformation {
     pub id: id_type::CellId,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct CellInformation {
+    pub id: String,
+}
+#[cfg(feature = "v1")]
+impl Default for CellInformation {
+    fn default() -> Self {
+        Self {
+            id: String::from("00"),
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 impl Default for CellInformation {
     fn default() -> Self {
@@ -1373,7 +1404,7 @@ impl Default for CellInformation {
         // And a panic at application startup is considered acceptable.
         #[allow(clippy::expect_used)]
         let cell_id =
-            id_type::CellId::from_string("defid").expect("Failed to create a default for Cell Id");
+            id_type::CellId::from_string("00").expect("Failed to create a default for Cell Id");
         Self { id: cell_id }
     }
 }

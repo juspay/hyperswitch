@@ -39,6 +39,8 @@ pub struct KafkaPayout<'a> {
     pub business_label: Option<&'a String>,
     pub merchant_connector_id: Option<&'a id_type::MerchantConnectorAccountId>,
     pub organization_id: Option<&'a id_type::OrganizationId>,
+    pub processor_merchant_id: Option<&'a id_type::MerchantId>,
+    pub created_by: Option<&'a common_utils::types::CreatedBy>,
 }
 
 impl<'a> KafkaPayout<'a> {
@@ -75,6 +77,8 @@ impl<'a> KafkaPayout<'a> {
             business_label: payout_attempt.business_label.as_ref(),
             merchant_connector_id: payout_attempt.merchant_connector_id.as_ref(),
             organization_id: payouts.organization_id.as_ref(),
+            processor_merchant_id: payout_attempt.processor_merchant_id.as_ref(),
+            created_by: payout_attempt.created_by.as_ref(),
         }
     }
 }

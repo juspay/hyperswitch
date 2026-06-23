@@ -16,12 +16,13 @@ use hyperswitch_domain_models::{
     payments::payment_intent::{PaymentIntentUpdate, PaymentIntentUpdateFields},
     ApiModelToDieselModelConvertor,
 };
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, RouterResult},
         payments::{
             self, helpers,
@@ -64,7 +65,8 @@ impl ValidateStatusForOperation for PaymentUpdateIntent {
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
-            | common_enums::IntentStatus::Expired => {
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
@@ -201,8 +203,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             domain_types::CryptoOperation::BatchEncrypt(
                 hyperswitch_domain_models::payments::FromRequestEncryptablePaymentIntent::to_encryptable(
                     hyperswitch_domain_models::payments::FromRequestEncryptablePaymentIntent {
-                        shipping_address: shipping.map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode shipping address")?.map(masking::Secret::new),
-                        billing_address: billing.map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode billing address")?.map(masking::Secret::new),
+                        shipping_address: shipping.map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode shipping address")?.map(hyperswitch_masking::Secret::new),
+                        billing_address: billing.map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode billing address")?.map(hyperswitch_masking::Secret::new),
                         customer_details: None,
                     },
                 ),
@@ -224,7 +226,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             order_details
                 .into_iter()
                 .map(|order_detail| {
-                    masking::Secret::new(
+                    hyperswitch_masking::Secret::new(
                         diesel_models::types::OrderDetailsWithAmount::convert_from(order_detail),
                     )
                 })
@@ -333,6 +335,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
         mut payment_data: payments::PaymentIntentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentsUpdateIntentOperation<'b, F>,
         payments::PaymentIntentData<F>,
@@ -377,7 +380,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to serialize connector_metadata")?
-                    .map(masking::Secret::new),
+                    .map(hyperswitch_masking::Secret::new),
                 feature_metadata: intent.feature_metadata,
                 payment_link_config: intent.payment_link_config,
                 request_incremental_authorization: Some(intent.request_incremental_authorization),
@@ -394,6 +397,9 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 enable_partial_authorization: Some(intent.enable_partial_authorization),
                 active_attempts_group_id: intent.active_attempts_group_id,
                 active_attempt_id_type: Some(intent.active_attempt_id_type),
+                profile_acquirer_id: intent.profile_acquirer_id,
+                external_surcharge_strategy: intent.external_surcharge_strategy,
+                external_surcharge_applicable: intent.external_surcharge_applicable,
             }));
 
         let new_payment_intent = db
@@ -485,7 +491,9 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentIn
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut payments::PaymentIntentData<F>,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }

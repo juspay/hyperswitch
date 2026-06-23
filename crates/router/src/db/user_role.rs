@@ -20,6 +20,7 @@ pub struct ListUserRolesByOrgIdPayload<'a> {
     pub org_id: &'a id_type::OrganizationId,
     pub merchant_id: Option<&'a id_type::MerchantId>,
     pub profile_id: Option<&'a id_type::ProfileId>,
+    pub entity_type: Option<EntityType>,
     pub version: Option<enums::UserRoleVersion>,
     pub limit: Option<u32>,
 }
@@ -263,6 +264,7 @@ impl UserRoleInterface for Store {
             payload.org_id.to_owned(),
             payload.merchant_id.cloned(),
             payload.profile_id.cloned(),
+            payload.entity_type,
             payload.version,
             payload.limit,
         )
@@ -630,6 +632,13 @@ impl UserRoleInterface for MockDb {
             payload
                 .version
                 .inspect(|ver| filter_condition = filter_condition && ver == &role.version);
+
+            payload
+                .entity_type
+                .zip(role.entity_type)
+                .inspect(|(payload_et, role_et)| {
+                    filter_condition = filter_condition && payload_et == role_et
+                });
 
             if filter_condition {
                 filtered_roles.push(role.clone())

@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
     errors::api_error_response,
     router_data::{ErrorResponse, RouterData},
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use reqwest::multipart::Form;
 use router_env::{instrument, logger, tracing, RequestId};
 use serde_json::json;
@@ -80,8 +80,8 @@ where
         &self,
         method: Method,
         url: String,
-        certificate: Option<masking::Secret<String>>,
-        certificate_key: Option<masking::Secret<String>>,
+        certificate: Option<hyperswitch_masking::Secret<String>>,
+        certificate_key: Option<hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError>;
 
     /// Send a request and return the response
@@ -156,18 +156,17 @@ where
     logger::debug!(connector_request=?connector_request);
     let mut router_data = req.clone();
     match call_connector_action {
-        common_enums::CallConnectorAction::HandleResponse(res) => {
+        common_enums::CallConnectorAction::HandleResponse{ resource_object, event_type: _ } => {
             let response = types::Response {
                 headers: None,
-                response: res.into(),
+                response: resource_object.into(),
                 status_code: 200,
             };
             connector_integration.handle_response(req, None, response)
         }
-        common_enums::CallConnectorAction::UCSConsumeResponse(_)
-        | common_enums::CallConnectorAction::UCSHandleResponse(_) => {
+        common_enums::CallConnectorAction::UCSConsumeResponse(_) => {
             Err(ConnectorError::ProcessingStepFailed(Some(
-                "CallConnectorAction UCSHandleResponse/UCSConsumeResponse used in Direct gateway system flow. These actions are only valid in UCS gateway system"
+                "CallConnectorAction UCSConsumeResponse used in Direct gateway system flow. This action is only valid in UCS gateway system"
                     .to_string()
                     .into(),
             ))
@@ -199,6 +198,14 @@ where
             };
             router_data.response = error_response.map(Err).unwrap_or(router_data.response);
             Ok(router_data)
+        }
+        common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest => {
+            let response = types::Response {
+                headers: None,
+                response: Vec::new().into(),
+                status_code: 200,
+            };
+            connector_integration.handle_response(req, None, response)
         }
         common_enums::CallConnectorAction::Trigger => {
             metrics::CONNECTOR_CALL_COUNT.add(
@@ -239,7 +246,7 @@ where
                         Some(request) => match request {
                             RequestContent::Json(i)
                             | RequestContent::FormUrlEncoded(i)
-                            | RequestContent::Xml(i) => i
+                            | RequestContent::Xml(i, _) => i
                                 .masked_serialize()
                                 .unwrap_or(json!({ "error": "failed to mask serialize"})),
                             RequestContent::FormData((_, i)) => i
@@ -253,12 +260,12 @@ where
                         get_flow_name::<T>().unwrap_or_else(|_| "UnknownFlow".to_string());
                     request.headers.insert((
                         X_FLOW_NAME.to_string(),
-                        Maskable::Masked(masking::Secret::new(flow_name.to_string())),
+                        Maskable::Masked(hyperswitch_masking::Secret::new(flow_name.to_string())),
                     ));
                     let connector_name = req.connector.clone();
                     request.headers.insert((
                         X_CONNECTOR_NAME.to_string(),
-                        Maskable::Masked(masking::Secret::new(connector_name.clone().to_string())),
+                        Maskable::Masked(hyperswitch_masking::Secret::new(connector_name.clone().to_string())),
                     ));
                     state.get_request_id().as_ref().map(|id| {
                         let request_id = id.to_string();
@@ -585,7 +592,7 @@ where
         if decoded.starts_with('\u{feff}') {
             decoded = decoded.trim_start_matches('\u{feff}').to_string();
         }
-        router_data.raw_connector_response = Some(masking::Secret::new(decoded));
+        router_data.raw_connector_response = Some(hyperswitch_masking::Secret::new(decoded));
     }
     Ok(())
 }

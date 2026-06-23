@@ -43,6 +43,8 @@ pub struct KafkaAuthenticationEvent<'a> {
     pub directory_server_id: Option<&'a String>,
     pub acquirer_country_code: Option<&'a String>,
     pub organization_id: &'a common_utils::id_type::OrganizationId,
+    pub processor_merchant_id: Option<&'a common_utils::id_type::MerchantId>,
+    pub created_by: Option<&'a common_utils::types::CreatedBy>,
 }
 
 impl<'a> KafkaAuthenticationEvent<'a> {
@@ -87,6 +89,8 @@ impl<'a> KafkaAuthenticationEvent<'a> {
             directory_server_id: authentication.directory_server_id.as_ref(),
             acquirer_country_code: authentication.acquirer_country_code.as_ref(),
             organization_id: &authentication.organization_id,
+            processor_merchant_id: authentication.processor_merchant_id.as_ref(),
+            created_by: authentication.created_by.as_ref(),
         }
     }
 }

@@ -11,7 +11,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -50,7 +49,7 @@ use hyperswitch_interfaces::{
     },
     webhooks,
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use transformers as authorizedotnet;
 
 use crate::{
@@ -58,8 +57,8 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        self as connector_utils, convert_amount, ForeignTryFrom, PaymentMethodDataType,
-        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        convert_amount, ForeignTryFrom, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData,
     },
 };
 
@@ -110,20 +109,7 @@ impl ConnectorCommon for Authorizedotnet {
     }
 }
 
-impl ConnectorValidation for Authorizedotnet {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::ApplePay,
-        ]);
-        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Authorizedotnet {}
 
 impl api::Payment for Authorizedotnet {}
 impl api::PaymentAuthorize for Authorizedotnet {}
@@ -1089,7 +1075,8 @@ impl webhooks::IncomingWebhook for Authorizedotnet {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let payload: authorizedotnet::AuthorizedotnetWebhookObjectId = request
             .body
             .parse_struct("AuthorizedotnetWebhookObjectId")
@@ -1309,8 +1296,9 @@ impl ConnectorSpecifications for Authorizedotnet {
 
     fn should_call_connector_customer(
         &self,
+        #[cfg(feature = "v1")]
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> bool {
-        true
+    ) -> api::ConnectorCustomerAction {
+        api::ConnectorCustomerAction::CallConnectorCustomer
     }
 }

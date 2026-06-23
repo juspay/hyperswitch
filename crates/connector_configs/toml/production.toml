@@ -39,6 +39,12 @@ payment_method_type = "UnionPay"
 payment_method_type = "ali_pay"
 [[aci.wallet]]
 payment_method_type = "mb_way"
+[[aci.wallet]]
+payment_method_type = "apple_pay"
+[[aci.wallet]]
+payment_method_type = "google_pay"
+[[aci.wallet]]
+payment_method_type = "samsung_pay"
 [[aci.bank_redirect]]
 payment_method_type = "ideal"
 [[aci.bank_redirect]]
@@ -56,6 +62,150 @@ api_key = "API Key"
 key1 = "Entity ID"
 [aci.connector_webhook_details]
 merchant_secret = "Source verification key"
+[[aci.metadata.apple_pay]]
+name = "certificate"
+label = "Merchant Certificate (Base64 Encoded)"
+placeholder = "Enter Merchant Certificate (Base64 Encoded)"
+required = true
+type = "Text"
+[[aci.metadata.apple_pay]]
+name = "certificate_keys"
+label = "Merchant PrivateKey (Base64 Encoded)"
+placeholder = "Enter Merchant PrivateKey (Base64 Encoded)"
+required = true
+type = "Text"
+[[aci.metadata.apple_pay]]
+name = "merchant_identifier"
+label = "Apple Merchant Identifier"
+placeholder = "Enter Apple Merchant Identifier"
+required = true
+type = "Text"
+[[aci.metadata.apple_pay]]
+name = "display_name"
+label = "Display Name"
+placeholder = "Enter Display Name"
+required = true
+type = "Text"
+[[aci.metadata.apple_pay]]
+name = "initiative"
+label = "Domain"
+placeholder = "Enter Domain"
+required = true
+type = "Text"
+[[aci.metadata.apple_pay]]
+name = "initiative_context"
+label = "Domain Name"
+placeholder = "Enter Domain Name"
+required = true
+type = "Text"
+[[aci.metadata.apple_pay]]
+name = "merchant_business_country"
+label = "Merchant Business Country"
+placeholder = "Enter Merchant Business Country"
+required = true
+type = "Select"
+options = []
+[[aci.metadata.apple_pay]]
+name = "payment_processing_details_at"
+label = "Payment Processing Details At"
+placeholder = "Enter Payment Processing Details At"
+required = true
+type = "Radio"
+options = ["Connector", "Hyperswitch"]
+[[aci.metadata.google_pay]]
+name = "merchant_name"
+label = "Google Pay Merchant Name"
+placeholder = "Enter Google Pay Merchant Name"
+required = true
+type = "Text"
+[[aci.metadata.google_pay]]
+name = "merchant_id"
+label = "Google Pay Merchant Id"
+placeholder = "Enter Google Pay Merchant Id"
+required = true
+type = "Text"
+[[aci.metadata.google_pay]]
+name = "gateway_merchant_id"
+label = "Google Pay Merchant Key"
+placeholder = "Enter Google Pay Merchant Key"
+required = true
+type = "Text"
+[[aci.metadata.google_pay]]
+name = "allowed_auth_methods"
+label = "Allowed Auth Methods"
+placeholder = "Enter Allowed Auth Methods"
+required = true
+type = "MultiSelect"
+options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+[[aci.connector_wallets_details.google_pay]]
+name = "merchant_name"
+label = "Google Pay Merchant Name"
+placeholder = "Enter Google Pay Merchant Name"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.google_pay]]
+name = "merchant_id"
+label = "Google Pay Merchant Id"
+placeholder = "Enter Google Pay Merchant Id"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.google_pay]]
+name = "gateway_merchant_id"
+label = "Google Pay Merchant Key"
+placeholder = "Enter Google Pay Merchant Key"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.google_pay]]
+name = "public_key"
+label = "Google Pay Public Key"
+placeholder = "Enter Google Pay Public Key"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.google_pay]]
+name = "private_key"
+label = "Google Pay Private Key"
+placeholder = "Enter Google Pay Private Key"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.google_pay]]
+name = "recipient_id"
+label = "Recipient Id"
+placeholder = "Enter Recipient Id"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.google_pay]]
+name = "allowed_auth_methods"
+label = "Allowed Auth Methods"
+placeholder = "Enter Allowed Auth Methods"
+required = true
+type = "MultiSelect"
+options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+[[aci.connector_wallets_details.samsung_pay]]
+name = "service_id"
+label = "Samsung Pay Service Id"
+placeholder = "Enter Samsung Pay Service Id"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.samsung_pay]]
+name = "merchant_display_name"
+label = "Display Name"
+placeholder = "Enter Display Name"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.samsung_pay]]
+name = "merchant_business_country"
+label = "Merchant Business Country"
+placeholder = "Enter Merchant Business Country"
+required = true
+type = "Select"
+options = []
+[[aci.connector_wallets_details.samsung_pay]]
+name = "allowed_brands"
+label = "Allowed Brands"
+placeholder = "Enter Allowed Brands"
+required = true
+type = "MultiSelect"
+options = ["visa", "masterCard", "amex", "discover"]
 
 [adyen]
 [[adyen.credit]]
@@ -1916,6 +2066,24 @@ payment_method_type = "CartesBancaires"
 payment_method_type = "UnionPay"
 [[dlocal.voucher]]
   payment_method_type = "oxxo"
+[[dlocal.voucher]]
+  payment_method_type = "boleto"
+[[dlocal.voucher]]
+  payment_method_type = "efecty"
+[[dlocal.voucher]]
+  payment_method_type = "pago_efectivo"
+[[dlocal.voucher]]
+  payment_method_type = "red_pagos"
+[[dlocal.voucher]]
+  payment_method_type = "indomaret"
+[[dlocal.wallet]]
+  payment_method_type = "gcash"
+[[dlocal.wallet]]
+  payment_method_type = "dana"
+[[dlocal.bank_transfer]]
+  payment_method_type = "pix"
+[[dlocal.bank_transfer]]
+  payment_method_type = "pse"
 [dlocal.connector_auth.SignatureKey]
 api_key = "X Login"
 key1 = "X Trans Key"
@@ -2157,6 +2325,49 @@ payment_method_type = "UnionPay"
 [fiservemea.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "Secret Key"
+
+[fiservcommercehub]
+[[fiservcommercehub.credit]]
+  payment_method_type = "Mastercard"
+[[fiservcommercehub.credit]]
+  payment_method_type = "Visa"
+[[fiservcommercehub.credit]]
+  payment_method_type = "Interac"
+[[fiservcommercehub.credit]]
+  payment_method_type = "AmericanExpress"
+[[fiservcommercehub.credit]]
+  payment_method_type = "JCB"
+[[fiservcommercehub.credit]]
+  payment_method_type = "DinersClub"
+[[fiservcommercehub.credit]]
+  payment_method_type = "Discover"
+[[fiservcommercehub.credit]]
+  payment_method_type = "CartesBancaires"
+[[fiservcommercehub.credit]]
+  payment_method_type = "UnionPay"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Mastercard"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Visa"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Interac"
+[[fiservcommercehub.debit]]
+  payment_method_type = "AmericanExpress"
+[[fiservcommercehub.debit]]
+  payment_method_type = "JCB"
+[[fiservcommercehub.debit]]
+  payment_method_type = "DinersClub"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Discover"
+[[fiservcommercehub.debit]]
+  payment_method_type = "CartesBancaires"
+[[fiservcommercehub.debit]]
+  payment_method_type = "UnionPay"
+[fiservcommercehub.connector_auth.MultiAuthKey]
+api_key="API Key"
+key1="Merchant ID"
+api_secret="API Secret"
+key2="Terminal ID"
 
 [forte]
 [[forte.credit]]
@@ -2949,6 +3160,186 @@ placeholder="Enter Acquirer Country Code"
 required=false
 type="Text"
 
+[noon]
+[[noon.credit]]
+  payment_method_type = "Mastercard"
+[[noon.credit]]
+  payment_method_type = "Visa"
+[[noon.credit]]
+  payment_method_type = "Interac"
+[[noon.credit]]
+  payment_method_type = "AmericanExpress"
+[[noon.credit]]
+  payment_method_type = "JCB"
+[[noon.credit]]
+  payment_method_type = "DinersClub"
+[[noon.credit]]
+  payment_method_type = "Discover"
+[[noon.credit]]
+  payment_method_type = "CartesBancaires"
+[[noon.credit]]
+  payment_method_type = "UnionPay"
+[[noon.debit]]
+  payment_method_type = "Mastercard"
+[[noon.debit]]
+  payment_method_type = "Visa"
+[[noon.debit]]
+  payment_method_type = "Interac"
+[[noon.debit]]
+  payment_method_type = "AmericanExpress"
+[[noon.debit]]
+  payment_method_type = "JCB"
+[[noon.debit]]
+  payment_method_type = "DinersClub"
+[[noon.debit]]
+  payment_method_type = "Discover"
+[[noon.debit]]
+  payment_method_type = "CartesBancaires"
+[[noon.debit]]
+  payment_method_type = "UnionPay"
+[[noon.wallet]]
+  payment_method_type = "apple_pay"
+[[noon.wallet]]
+  payment_method_type = "google_pay"
+[[noon.wallet]]
+  payment_method_type = "paypal"
+[noon.connector_auth.SignatureKey]
+api_key="API Key"
+key1="Business Identifier"
+api_secret="Application Identifier"
+[noon.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[noon.metadata.region]
+name="region"
+label="Region of your Noon Merchant Account"
+placeholder="Enter Region of your Noon Merchant Account"
+required=false
+type="Select"
+options=["Global","Ksa","Egypt"]
+
+[[noon.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[noon.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[noon.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[noon.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[noon.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Select"
+options=["web","ios"]
+[[noon.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[noon.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[noon.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector"]
+
+[[noon.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[noon.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[noon.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[noon.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[noon.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[noon.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[noon.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[noon.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[noon.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[noon.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[noon.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
 [novalnet]
 [[novalnet.credit]]
 payment_method_type = "Mastercard"
@@ -3352,6 +3743,19 @@ api_key = "Wise API Key"
 key1 = "Wise Account Id"
 [wise_payout.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[itaubank_payout]
+[[itaubank_payout.bank_transfer]]
+  payment_method_type = "pix"
+[[itaubank_payout.bank_transfer]]
+  payment_method_type = "pix_key"
+[[itaubank_payout.bank_transfer]]
+  payment_method_type = "pix_emv"
+[itaubank_payout.connector_auth.MultiAuthKey]
+key1="Client Id"
+api_key="Client Secret"
+api_secret="Certificates"
+key2="Certificate Key"
 
 [paystack]
 [[paystack.bank_redirect]]
@@ -5764,7 +6168,7 @@ options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
   placeholder="Enter Payment Processing Details At"
   required=true
   type="Radio"
-  options=["Connector"]
+  options=["Connector","Hyperswitch"]
 
 [worldpayxml.connector_auth.SignatureKey]
 api_secret = "Merchant Code"
@@ -5792,10 +6196,16 @@ type="Text"
 [worldpayxml_payout]
 [[worldpayxml_payout.wallet]]
   payment_method_type = "apple_pay"
+[[worldpayxml_payout.wallet]]
+  payment_method_type = "google_pay"
 [[worldpayxml_payout.credit]]
   payment_method_type = "Visa"
+[[worldpayxml_payout.credit]]
+  payment_method_type = "Mastercard"
 [[worldpayxml_payout.debit]]
   payment_method_type = "Visa"
+[[worldpayxml_payout.debit]]
+  payment_method_type = "Mastercard"
 [worldpayxml_payout.metadata.purpose_of_payment]
 name="purpose_of_payment"
 label="Purpose of Payment"
@@ -5907,49 +6317,142 @@ type = "Text"
 
 [santander]
 [[santander.bank_transfer]]
-payment_method_type = "pix"
+payment_method_type = "pix_emv"
+[[santander.bank_transfer]]
+payment_method_type = "pix_automatico_push"
+[[santander.bank_transfer]]
+payment_method_type = "pix_automatico_qr"
 [[santander.voucher]]
 payment_method_type = "boleto"
 [santander.connector_auth.CertificateAuth]
 certificate="Base64 encoded PEM formatted certificate chain"
 private_key="Base64 encoded PEM formatted private key"
   
-[[santander.metadata.pix]]
+[[santander.metadata.pix_emv]]
 name="client_id"
 label="Client ID"
 placeholder="Enter your Client Id"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_emv]]
 name="client_secret"
 label="Client Secret"
 placeholder="Enter your Client Secret"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_emv]]
 name="pix_key_type"
 label="Chave Key Type"
 placeholder="Enter your Chave/Pix Key Type"
 required=true
 type="Select"
 options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
-[[santander.metadata.pix]]
+[[santander.metadata.pix_emv]]
 name="pix_key_value"
 label="Chave Key"
 placeholder="Enter your Chave/Pix Key"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_emv]]
 name="merchant_city"
 label="Merchant City"
 placeholder="Enter the city the merchant is based in"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_emv]]
 name="merchant_name"
 label="Merchant Name"
 placeholder="Enter the merchant name"
 required=true
+type="Text"
+
+[[santander.metadata.pix_automatico_push]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_push]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
+required=true
+type="Text"
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
+required=true
+type="Select"
+options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
+[[santander.metadata.pix_automatico_push]]
+name="pix_key_value"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_push]]
+name="account_number"
+label="Account Number"
+placeholder="Enter your Account Number"
+required=false
+type="Text"
+[[santander.metadata.pix_automatico_push]]
+name="account_type"
+label="Account Type"
+placeholder="Enter your Account Type"
+required=false
+type="Select"
+options=["current", "savings", "payment"]
+[[santander.metadata.pix_automatico_push]]
+name="branch_code"
+label="Branch Code"
+placeholder="Enter your branch code"
+required=false
+type="Text"
+
+[[santander.metadata.pix_automatico_qr]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_qr]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_qr]]
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
+required=true
+type="Select"
+options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
+[[santander.metadata.pix_automatico_qr]]
+name="pix_key_value"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_qr]]
+name="account_number"
+label="Account Number"
+placeholder="Enter your Account Number"
+required=false
+type="Text"
+[[santander.metadata.pix_automatico_qr]]
+name="account_type"
+label="Account Type"
+placeholder="Enter your Account Type"
+required=false
+type="Select"
+options=["current", "savings", "payment"]
+[[santander.metadata.pix_automatico_qr]]
+name="branch_code"
+label="Branch Code"
+placeholder="Enter your branch code"
+required=false
 type="Text"
 
 [[santander.metadata.boleto]]
@@ -6024,6 +6527,8 @@ api_key = "API Key"
 [payload.connector_auth.CurrencyAuthKey.auth_key_map.CAD]
 processing_account_id = "processing_account_id"
 api_key = "API Key"
+[payload.connector_webhook_details]
+merchant_secret = "Source verification key"
 
 [silverflow]
 [[silverflow.credit]]
@@ -6045,8 +6550,8 @@ merchant_secret="Source verification key"
 [[affirm.pay_later]]
   payment_method_type = "affirm"
 [affirm.connector_auth.BodyKey]
-api_key = "API Key"
-key1 = "API Secret"
+api_key = "Public Key"
+key1 = "Private Key"
 
 
 [trustpayments]
@@ -6851,9 +7356,17 @@ key1 = "Merchant Account Id"
   payment_method_type = "payjustnow"
 
 
-[envoy]
-[envoy.connector_auth.HeaderKey]
-api_key = "API Key"
+[envoy_payout]
+[envoy_payout.connector_auth.BodyKey]
+api_key = "Password"
+key1 = "Username"
+[[envoy_payout.bank_transfer]]
+  payment_method_type = "sepa_bank_transfer"
+[[envoy_payout.bank_transfer]]
+  payment_method_type = "bacs"
+[[envoy_payout.bank_transfer]]
+  payment_method_type = "ach"
+  
 [vgs]
 [vgs.connector_auth.SignatureKey]
   api_key="Client Id"
@@ -7011,3 +7524,190 @@ options=["Connector"]
   key1 = "Merchant Terminal Id"
 [[payjustnowinstore.pay_later]]
   payment_method_type = "payjustnow"
+
+[truelayer_payout]
+[truelayer_payout.connector_auth.BodyKey]
+api_key = "Client ID"
+key1 = "Client Secret"
+[[truelayer_payout.bank_transfer]]
+payment_method_type = "open_banking"
+
+[truelayer_payout.metadata.kid]
+name = "kid"
+label = "KID"
+placeholder = "Enter your KID"
+required = true
+type = "Text"
+[truelayer_payout.metadata.merchant_account_id]
+name = "merchant_account_id"
+label = "Merchant Account ID"
+placeholder = "Enter your Merchant Account ID"
+required = true
+type = "Text"
+[truelayer_payout.metadata.account_holder_name]
+name = "account_holder_name"
+label = "Account Holder Name"
+placeholder = "Enter your Account Holder Name"
+required = true
+type = "Text"
+[truelayer_payout.metadata.private_key]
+name = "private_key"
+label = "Private Key (Base64 encoded)"
+placeholder = "Enter your Private Key(Base64 encoded)"
+required = true
+type = "Text"
+
+[truelayer]
+[truelayer.connector_auth.BodyKey]
+api_key = "Client ID"
+key1 = "Client Secret"
+[[truelayer.bank_redirect]]
+payment_method_type = "open_banking"
+
+[truelayer.metadata.kid]
+name = "kid"
+label = "KID"
+placeholder = "Enter your KID"
+required = true
+type = "Text"
+[truelayer.metadata.merchant_account_id]
+name = "merchant_account_id"
+label = "Merchant Account ID"
+placeholder = "Enter your Merchant Account ID"
+required = true
+type = "Text"
+[truelayer.metadata.account_holder_name]
+name = "account_holder_name"
+label = "Account Holder Name"
+placeholder = "Enter your Account Holder Name"
+required = true
+type = "Text"
+[truelayer.metadata.private_key]
+name = "private_key"
+label = "Private Key (Base64 encoded)"
+placeholder = "Enter your Private Key(Base64 encoded)"
+required = true
+type = "Text"
+
+[trustly_payout]
+[trustly_payout.connector_auth.SignatureKey]
+api_key = "Username"
+key1 = "Password"
+api_secret = "Private Key(Base64 encoded)"
+[[trustly_payout.bank_transfer]]
+payment_method_type = "trustly"
+[trustly_payout.connector_webhook_details]
+merchant_secret="Trustly's public key(Base64 encoded)"
+
+[revolv3]
+[[revolv3.credit]]
+payment_method_type = "Mastercard"
+[[revolv3.credit]]
+payment_method_type = "Visa"
+[[revolv3.credit]]
+payment_method_type = "Interac"
+[[revolv3.credit]]
+payment_method_type = "AmericanExpress"
+[[revolv3.credit]]
+payment_method_type = "JCB"
+[[revolv3.credit]]
+payment_method_type = "DinersClub"
+[[revolv3.credit]]
+payment_method_type = "Discover"
+[[revolv3.credit]]
+payment_method_type = "CartesBancaires"
+[[revolv3.credit]]
+payment_method_type = "UnionPay"
+[[revolv3.debit]]
+payment_method_type = "Mastercard"
+[[revolv3.debit]]
+payment_method_type = "Visa"
+[[revolv3.debit]]
+payment_method_type = "Interac"
+[[revolv3.debit]]
+payment_method_type = "AmericanExpress"
+[[revolv3.debit]]
+payment_method_type = "JCB"
+[[revolv3.debit]]
+payment_method_type = "DinersClub"
+[[revolv3.debit]]
+payment_method_type = "Discover"
+[[revolv3.debit]]
+payment_method_type = "CartesBancaires"
+[[revolv3.debit]]
+payment_method_type = "UnionPay"
+[revolv3.connector_auth.HeaderKey]
+api_key = "Static Tokens"
+
+[trustly]
+[trustly.connector_auth.SignatureKey]
+api_key = "Username"
+key1 = "Password"
+api_secret = "Private Key(Base64 encoded)"
+[[trustly.bank_redirect]]
+payment_method_type = "trustly"
+[trustly.connector_webhook_details]
+merchant_secret="Trustly's public key(Base64 encoded)"
+
+[imerchantsolutions]
+[imerchantsolutions.connector_auth.HeaderKey]
+api_key = "API Key"
+[imerchantsolutions.connector_webhook_details]
+merchant_secret="Source verification key"
+[[imerchantsolutions.credit]]
+payment_method_type = "Mastercard"
+[[imerchantsolutions.credit]]
+payment_method_type = "Visa"
+[[imerchantsolutions.credit]]
+payment_method_type = "AmericanExpress"
+[[imerchantsolutions.credit]]
+payment_method_type = "JCB"
+[[imerchantsolutions.credit]]
+payment_method_type = "Discover"
+[[imerchantsolutions.credit]]
+payment_method_type = "UnionPay"
+[[imerchantsolutions.debit]]
+payment_method_type = "Mastercard"
+[[imerchantsolutions.debit]]
+payment_method_type = "Visa"
+[[imerchantsolutions.debit]]
+payment_method_type = "AmericanExpress"
+[[imerchantsolutions.debit]]
+payment_method_type = "JCB"
+[[imerchantsolutions.debit]]
+payment_method_type = "Discover"
+[[imerchantsolutions.debit]]
+payment_method_type = "UnionPay"
+
+[absa_sanlam]
+[absa_sanlam.connector_auth.BodyKey]
+api_key = "API Key"
+key1 = "Merchant Id"
+[[absa_sanlam.bank_debit]]
+payment_method_type = "eft_debit_order"
+[absa_sanlam.connector_webhook_details]
+merchant_secret="Source verification key"
+[interpayments]
+[interpayments.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[payconex]
+[[payconex.credit]]
+  payment_method_type = "Visa"
+[[payconex.credit]]
+  payment_method_type = "Mastercard"
+[[payconex.credit]]
+  payment_method_type = "AmericanExpress"
+[[payconex.credit]]
+  payment_method_type = "Discover"
+[[payconex.debit]]
+  payment_method_type = "Visa"
+[[payconex.debit]]
+  payment_method_type = "Mastercard"
+[[payconex.debit]]
+  payment_method_type = "AmericanExpress"
+[[payconex.debit]]
+  payment_method_type = "Discover"
+[payconex.connector_auth.BodyKey]
+api_key = "API Key"
+key1 = "Account Id"

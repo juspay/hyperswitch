@@ -89,7 +89,7 @@ impl From<refunds::RefundResponse> for StripeRefundResponse {
             created: res.created_at.map(|t| t.assume_utc().unix_timestamp()),
             metadata: res
                 .metadata
-                .unwrap_or_else(|| masking::Secret::new(serde_json::json!({}))),
+                .unwrap_or_else(|| hyperswitch_masking::Secret::new(serde_json::json!({}))),
         }
     }
 }

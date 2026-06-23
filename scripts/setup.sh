@@ -178,7 +178,7 @@ check_prerequisites() {
     echo ""
 
     # Check ports
-    required_ports=(8080 9000 9050 5432 6379 9060)
+    required_ports=(8080 8081 9000 9050 5432 6379 9060)
     unavailable_ports=()
 
     for port in "${required_ports[@]}"; do
@@ -238,7 +238,7 @@ select_profile() {
     printf "   Services included: ${BLUE}Everything in Standard, Monitoring and Scheduler${NC}\n"
     printf "\n"
     printf "3) ${YELLOW}Standalone App Server${NC}: Ideal for API-first integration testing.\n"
-    printf "   Services included: ${BLUE}App Server, PostgreSQL and Redis)${NC}\n"
+    printf "   Services included: ${BLUE}App Server, PostgreSQL, Redis and Superposition${NC}\n"
     echo ""
     local profile_selected=false
     while [ "${profile_selected}" = "false" ]; do
@@ -284,7 +284,7 @@ start_services() {
 
     case $PROFILE in
     standalone)
-        $DOCKER_COMPOSE --env-file .oneclick-setup.env up -d pg redis-standalone migration_runner hyperswitch-server
+        $DOCKER_COMPOSE --env-file .oneclick-setup.env up -d pg redis-standalone migration_runner superposition superposition-init hyperswitch-server
         ;;
     standard)
         $DOCKER_COMPOSE --env-file .oneclick-setup.env up -d
@@ -335,6 +335,8 @@ print_access_info() {
     fi
 
     printf "  • ${GREEN}${BOLD}App Server${NC}: ${BLUE}${BOLD}http://localhost:8080${NC}\n"
+
+    printf "  • ${GREEN}${BOLD}Superposition${NC}: ${BLUE}${BOLD}http://localhost:8081${NC}\n"
 
     if [ "$PROFILE" = "full" ]; then
         printf "  • ${GREEN}${BOLD}Monitoring (Grafana)${NC}: ${BLUE}${BOLD}http://localhost:3000${NC}\n"

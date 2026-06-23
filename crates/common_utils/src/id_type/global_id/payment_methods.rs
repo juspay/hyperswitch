@@ -6,16 +6,7 @@ use crate::{
 };
 
 /// A global id that can be used to identify a payment method
-#[derive(
-    Debug,
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    diesel::expression::AsExpression,
-)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, diesel::expression::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Text)]
 pub struct GlobalPaymentMethodId(GlobalId);
 
@@ -63,6 +54,14 @@ impl GlobalPaymentMethodSessionId {
     pub fn get_redis_key(&self) -> String {
         format!("payment_method_session:{}", self.get_string_repr())
     }
+
+    /// Create a new GlobalPaymentMethodSessionId without validation
+    /// WARNING: This should only be used when the input is already trusted/validated
+    pub fn new_unchecked(input_string: String) -> Self {
+        let alphanumeric_id = crate::id_type::AlphaNumericId::new_unchecked(input_string);
+        let length_id = crate::id_type::LengthId::new_unchecked(alphanumeric_id);
+        Self(GlobalId(length_id))
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -86,9 +85,9 @@ impl crate::events::ApiEventMetric for GlobalPaymentMethodId {
 
 impl GlobalPaymentMethodId {
     /// Create a new GlobalPaymentMethodId from cell id information
-    pub fn generate(cell_id: &CellId) -> error_stack::Result<Self, GlobalPaymentMethodIdError> {
+    pub fn generate(cell_id: &CellId) -> Self {
         let global_id = GlobalId::generate(cell_id, GlobalEntity::PaymentMethod);
-        Ok(Self(global_id))
+        Self(global_id)
     }
 
     /// Get string representation of the id
@@ -97,10 +96,27 @@ impl GlobalPaymentMethodId {
     }
 
     /// Construct a new GlobalPaymentMethodId from a string
-    pub fn generate_from_string(value: String) -> CustomResult<Self, GlobalPaymentMethodIdError> {
-        let id = GlobalId::from_string(value.into())
-            .change_context(GlobalPaymentMethodIdError::ConstructionError)?;
-        Ok(Self(id))
+    pub fn generate_from_string(value: String) -> Self {
+        Self::new_unchecked(value)
+    }
+
+    /// Create a new GlobalPaymentMethodId without validation
+    /// WARNING: This should only be used when the input is already trusted/validated,
+    /// such as when reading a V1 payment method id from the database
+    pub fn new_unchecked(input_string: String) -> Self {
+        let alphanumeric_id = crate::id_type::AlphaNumericId::new_unchecked(input_string);
+        let length_id = crate::id_type::LengthId::new_unchecked(alphanumeric_id);
+        Self(GlobalId(length_id))
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for GlobalPaymentMethodId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let deserialized_string = String::deserialize(deserializer)?;
+        Ok(Self::new_unchecked(deserialized_string))
     }
 }
 
@@ -131,11 +147,11 @@ where
 impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Text, DB> for GlobalPaymentMethodId
 where
     DB: diesel::backend::Backend,
-    GlobalId: diesel::deserialize::FromSql<diesel::sql_types::Text, DB>,
+    String: diesel::deserialize::FromSql<diesel::sql_types::Text, DB>,
 {
     fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
-        let global_id = GlobalId::from_sql(value)?;
-        Ok(Self(global_id))
+        let string_val = String::from_sql(value)?;
+        Ok(Self::new_unchecked(string_val))
     }
 }
 

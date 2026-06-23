@@ -12,7 +12,7 @@ use crate::schema::payment_methods::dsl;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_methods::dsl::{self, id as pm_id};
 use crate::{
-    enums as storage_enums, errors,
+    enums as storage_enums, errors, kv,
     payment_method::{self, PaymentMethod, PaymentMethodNew},
     PgPooledConn, StorageResult,
 };
@@ -20,6 +20,13 @@ use crate::{
 impl PaymentMethodNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentMethod> {
         generics::generic_insert(conn, self).await
+    }
+
+    pub async fn generate_drainer_insert_query(
+        self,
+        conn: &mut PgPooledConn,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_insert_query(conn, self).await
     }
 }
 
@@ -196,6 +203,28 @@ impl PaymentMethod {
         .await
     }
 
+    pub async fn find_by_customer_id_merchant_id_status_pm_type(
+        conn: &PgPooledConn,
+        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        status: storage_enums::PaymentMethodStatus,
+        payment_method_type: storage_enums::PaymentMethodType,
+        limit: Option<i64>,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::customer_id
+                .eq(customer_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .and(dsl::status.eq(status))
+                .and(dsl::payment_method_type.eq(payment_method_type)),
+            limit,
+            None,
+            Some(dsl::last_used_at.desc()),
+        )
+        .await
+    }
+
     pub async fn update_with_payment_method_id(
         self,
         conn: &PgPooledConn,
@@ -220,6 +249,17 @@ impl PaymentMethod {
             result => result,
         }
     }
+
+    pub async fn find_by_fingerprint_id(
+        conn: &PgPooledConn,
+        fingerprint_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::locker_fingerprint_id.eq(fingerprint_id.to_owned()),
+        )
+        .await
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -230,6 +270,26 @@ impl PaymentMethod {
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, pm_id.eq(id.to_owned()))
             .await
+    }
+
+    pub async fn find_by_global_customer_id_merchant_id_statuses(
+        conn: &PgPooledConn,
+        customer_id: &common_utils::id_type::GlobalCustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        statuses: Vec<storage_enums::PaymentMethodStatus>,
+        limit: Option<i64>,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::customer_id
+                .eq(customer_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .and(dsl::status.eq_any(statuses)),
+            limit,
+            None,
+            Some(dsl::last_used_at.desc()),
+        )
+        .await
     }
 
     pub async fn find_by_global_customer_id_merchant_id_status(
@@ -319,5 +379,43 @@ impl PaymentMethod {
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Failed to get a count of payment methods")
+    }
+
+    pub async fn find_by_locker_id(conn: &PgPooledConn, locker_id: &str) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::locker_id.eq(locker_id.to_owned()),
+        )
+        .await
+    }
+}
+
+impl payment_method::PaymentMethodUpdateInternal {
+    #[cfg(feature = "v1")]
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        payment_method_id: String,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_with_predicate::<<PaymentMethod as HasTable>::Table, _, _>(
+            conn,
+            dsl::payment_method_id.eq(payment_method_id),
+            self,
+        )
+        .await
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        id: common_utils::id_type::GlobalPaymentMethodId,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_with_predicate::<<PaymentMethod as HasTable>::Table, _, _>(
+            conn,
+            pm_id.eq(id),
+            self,
+        )
+        .await
     }
 }

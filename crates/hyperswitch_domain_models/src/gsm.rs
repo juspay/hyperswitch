@@ -68,6 +68,8 @@ impl TryFrom<GatewayStatusMap> for diesel_models::gsm::GatewayStatusMappingNew {
             standardised_code: value.standardised_code,
             description: value.description,
             user_guidance_message: value.user_guidance_message,
+            created_at: common_utils::date_time::now(),
+            last_modified: common_utils::date_time::now(),
         })
     }
 }

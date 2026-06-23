@@ -23,39 +23,43 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, Session,
-            SetupMandate, Void,
+            Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken,
+            PostCaptureVoid, Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
     },
     router_request_types::{
         AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
-        SetupMandateRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData,
+        PaymentsCancelPostCaptureRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorCustomerAction, ConnectorIntegration,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     disputes::DisputePayload,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, ConnectorCustomerType, PaymentsVoidType, Response, SetupMandateType},
+    types::{
+        self, ConnectorCustomerType, PaymentsPostCaptureVoidType, PaymentsVoidType, Response,
+        SetupMandateType,
+    },
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use hyperswitch_masking::{ExposeInterface, Mask};
 use transformers as payload;
 
 use crate::{
@@ -85,6 +89,7 @@ impl api::PaymentAuthorize for Payload {}
 impl api::PaymentSync for Payload {}
 impl api::PaymentCapture for Payload {}
 impl api::PaymentVoid for Payload {}
+impl api::PaymentPostCaptureVoid for Payload {}
 impl api::Refund for Payload {}
 impl api::RefundExecute for Payload {}
 impl api::RefundSync for Payload {}
@@ -98,7 +103,8 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         &self,
         req: &ConnectorCustomerRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             "application/json".to_string().into(),
@@ -186,7 +192,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             Self::common_get_content_type(self).to_string().into(),
@@ -207,7 +214,7 @@ impl ConnectorCommon for Payload {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -217,7 +224,8 @@ impl ConnectorCommon for Payload {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = payload::PayloadAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         // The API key is the same for all currencies, so we can take any.
@@ -252,11 +260,8 @@ impl ConnectorCommon for Payload {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_type,
-            message: response.error_description,
-            reason: response
-                .details
-                .as_ref()
-                .map(|details_value| details_value.to_string()),
+            message: response.error_description.clone(),
+            reason: Some(response.error_description),
             attempt_status: None,
             connector_transaction_id: None,
             connector_response_reference_id: None,
@@ -268,19 +273,7 @@ impl ConnectorCommon for Payload {
     }
 }
 
-impl ConnectorValidation for Payload {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            utils::PaymentMethodDataType::Card,
-            utils::PaymentMethodDataType::AchBankDebit,
-        ]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Payload {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Payload {}
 
@@ -291,7 +284,8 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         &self,
         req: &SetupMandateRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -328,11 +322,11 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                 },
             ) => {
                 let connector_req = requests::PayloadPaymentMethodRequest::try_from(req)?;
-                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+                Ok(RequestContent::Json(Box::new(connector_req)))
             }
             _ => {
                 let connector_req = requests::PayloadPaymentRequestData::try_from(req)?;
-                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+                Ok(RequestContent::Json(Box::new(connector_req)))
             }
         }
     }
@@ -410,7 +404,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -440,7 +435,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let connector_router_data = payload::PayloadRouterData::from((amount, req));
         let connector_req = requests::PayloadPaymentsRequest::try_from(&connector_router_data)?;
 
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -500,7 +495,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         &self,
         req: &PaymentsSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = Vec::new();
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -572,7 +568,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -607,7 +604,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         let connector_router_data = payload::PayloadRouterData::from((amount, req));
         let connector_req = requests::PayloadCaptureRequest::try_from(&connector_router_data)?;
 
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -663,7 +660,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
         &self,
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -691,7 +689,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = payload::PayloadRouterData::from((Default::default(), req));
         let connector_req = requests::PayloadCancelRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -743,12 +741,105 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
     }
 }
 
+impl ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>
+    for Payload
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelPostCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsCancelPostCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let payment_id = &req.request.connector_transaction_id;
+        Ok(format!(
+            "{}/transactions/{}",
+            self.base_url(connectors),
+            payment_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &PaymentsCancelPostCaptureRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = requests::PayloadCancelRequest {
+            status: responses::PayloadPaymentStatus::Voided,
+        };
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCancelPostCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Put)
+                .url(&PaymentsPostCaptureVoidType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(PaymentsPostCaptureVoidType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(PaymentsPostCaptureVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelPostCaptureRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelPostCaptureRouterData, errors::ConnectorError> {
+        let response: responses::PayloadPostCaptureVoidResponse = res
+            .response
+            .parse_struct("PayloadPostCaptureVoidResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -777,7 +868,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload
 
         let connector_router_data = payload::PayloadRouterData::from((refund_amount, req));
         let connector_req = requests::PayloadRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -834,7 +925,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
         &self,
         req: &RefundSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.get_auth_header(&req.connector_auth_type)
     }
 
@@ -1051,7 +1143,8 @@ impl webhooks::IncomingWebhook for Payload {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let webhook_body: responses::PayloadWebhookEvent = request
             .body
             .parse_struct("PayloadWebhookEvent")
@@ -1154,12 +1247,21 @@ impl ConnectorSpecifications for Payload {
     }
     fn should_call_connector_customer(
         &self,
-        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> bool {
         #[cfg(feature = "v1")]
-        return payment_attempt.customer_acceptance.is_some()
-            && payment_attempt.setup_future_usage_applied == Some(enums::FutureUsage::OffSession);
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> ConnectorCustomerAction {
+        #[cfg(feature = "v1")]
+        {
+            if payment_attempt.customer_acceptance.is_some()
+                && payment_attempt.setup_future_usage_applied
+                    == Some(enums::FutureUsage::OffSession)
+            {
+                ConnectorCustomerAction::CallConnectorCustomer
+            } else {
+                ConnectorCustomerAction::NoAction
+            }
+        }
         #[cfg(feature = "v2")]
-        return false;
+        ConnectorCustomerAction::NoAction
     }
 }

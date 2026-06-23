@@ -28,10 +28,6 @@ pub struct AuthenticationCreateRequest {
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
 
-    /// Customer details.
-    #[schema(value_type = Option<CustomerDetails>)]
-    pub customer: Option<CustomerDetails>,
-
     /// The amount for the transaction, required.
     #[schema(value_type = MinorUnit, example = 1000)]
     pub amount: common_utils::types::MinorUnit,
@@ -99,7 +95,7 @@ pub struct AuthenticationResponse {
 
     /// The client secret for this authentication, to be used for client-side operations.
     #[schema(value_type = Option<String>, example = "auth_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo")]
-    pub client_secret: Option<masking::Secret<String>>,
+    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
 
     /// The amount for the transaction.
     #[schema(value_type = MinorUnit, example = 1000)]
@@ -206,7 +202,7 @@ impl ApiEventMetric for AuthenticationRetrieveEligibilityCheckResponse {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationEligibilityRequest {
     /// Payment method-specific data such as card details, wallet info, etc.
     /// This holds the raw information required to process the payment method.
@@ -225,7 +221,7 @@ pub struct AuthenticationEligibilityRequest {
     /// Optional secret value used to identify and authorize the client making the request.
     /// This can help ensure that the payment session is secure and valid.
     #[schema(value_type = Option<String>)]
-    pub client_secret: Option<masking::Secret<String>>,
+    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
 
     /// Optional identifier for the business profile associated with the payment.
     /// This determines which configurations, rules, and branding are applied to the transaction.
@@ -281,7 +277,7 @@ impl AuthenticationEligibilityRequest {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationEligibilityResponse {
     /// The unique identifier for this authentication.
     #[schema(value_type = String, example = "auth_mbabizu24mvu3mela5njyhpit4")]
@@ -328,6 +324,21 @@ pub struct AuthenticationEligibilityResponse {
 }
 
 #[cfg(feature = "v1")]
+impl AuthenticationEligibilityResponse {
+    pub fn is_separate_authn_required(&self) -> bool {
+        match &self.eligibility_response_params {
+            Some(params) => match params {
+                EligibilityResponseParams::ThreeDsData(threeds) => threeds
+                    .maximum_supported_3ds_version
+                    .as_ref()
+                    .is_some_and(|version| version.get_major() == 2),
+            },
+            None => false,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationEligibilityCheckRequest {
     /// The unique identifier for this authentication.
@@ -337,7 +348,7 @@ pub struct AuthenticationEligibilityCheckRequest {
     /// Optional secret value used to identify and authorize the client making the request.
     /// This can help ensure that the payment session is secure and valid.
     #[schema(value_type = Option<String>)]
-    pub client_secret: Option<masking::Secret<String>>,
+    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
     /// The data for this authentication eligibility check.
     pub eligibility_check_data: AuthenticationEligibilityCheckData,
 }
@@ -453,12 +464,12 @@ pub struct MasterCardEligibilityCheckData {
     pub last_used_card_timestamp: Option<String>,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub enum EligibilityResponseParams {
     ThreeDsData(ThreeDsData),
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ThreeDsData {
     /// The unique identifier for this authentication from the 3DS server.
     #[schema(value_type = String)]
@@ -483,7 +494,7 @@ pub struct ThreeDsData {
     pub directory_server_id: Option<String>,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct NextAction {
     /// The URL for authenticatating the user.
     #[schema(value_type = String)]
@@ -516,7 +527,7 @@ pub struct AuthenticationAuthenticateRequest {
     pub authentication_id: id_type::AuthenticationId,
     /// Client secret for the authentication
     #[schema(value_type = String)]
-    pub client_secret: Option<masking::Secret<String>>,
+    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
     /// SDK Information if request is from SDK
     pub sdk_information: Option<SdkInformation>,
     /// Device Channel indicating whether request is coming from App or Browser
@@ -565,7 +576,7 @@ pub struct AuthenticationAuthenticateResponse {
     pub error_code: Option<String>,
     /// The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.
     #[schema(value_type = String)]
-    pub authentication_value: Option<masking::Secret<String>>,
+    pub authentication_value: Option<hyperswitch_masking::Secret<String>>,
 
     /// The current status of the authentication (e.g., Started).
     #[schema(value_type = AuthenticationStatus)]
@@ -597,7 +608,7 @@ impl ApiEventMetric for AuthenticationAuthenticateResponse {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationSyncResponse {
     // Core Authentication Fields (from AuthenticationResponse)
     /// The unique identifier for this authentication.
@@ -614,7 +625,7 @@ pub struct AuthenticationSyncResponse {
 
     /// The client secret for this authentication.
     #[schema(value_type = Option<String>)]
-    pub client_secret: Option<masking::Secret<String>>,
+    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
 
     /// The amount for the transaction.
     #[schema(value_type = MinorUnit, example = 1000)]
@@ -688,6 +699,10 @@ pub struct AuthenticationSyncResponse {
     /// The tokens for vaulted data
     pub vault_token_data: Option<AuthenticationVaultTokenData>,
 
+    /// The authentication details after external authentication
+    #[schema(value_type = Option<AuthenticationDetails>)]
+    pub authentication_details: Option<AuthenticationDetails>,
+
     /// Billing address.
     #[schema(value_type = Option<Address>)]
     pub billing: Option<Address>,
@@ -747,75 +762,112 @@ pub struct AuthenticationSyncResponse {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct AuthenticationDetails {
+    // Three Ds Data after external authentication
+    pub three_ds_data: Option<ExternalThreeDsData>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ExternalThreeDsData {
+    /// Contains the authentication cryptogram data (CAVV or TAVV).
+    #[schema(value_type = Option<Cryptogram>)]
+    pub authentication_cryptogram: Option<Cryptogram>,
+    /// Directory Server Transaction ID generated during the 3DS process.
+    #[schema(value_type = Option<String>)]
+    pub ds_trans_id: Option<String>,
+    /// The version of the 3DS protocol used (e.g., "2.1.0" or "2.2.0").
+    #[schema(value_type = Option<String>)]
+    pub version: Option<common_utils::types::SemanticVersion>,
+    /// Electronic Commerce Indicator (ECI) value representing the 3DS authentication result.
+    #[schema(value_type = Option<String>)]
+    pub eci: Option<String>,
+    /// Indicates the transaction status from the 3DS authentication flow.
+    #[schema(value_type = TransactionStatus)]
+    pub transaction_status: common_enums::TransactionStatus,
+}
+
+/// Represents the 3DS cryptogram data returned after authentication.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Cryptogram {
+    /// Cardholder Authentication Verification Value (CAVV) cryptogram.
+    Cavv {
+        /// The authentication cryptogram provided by the issuer or ACS.
+        #[schema(value_type = Option<String>)]
+        authentication_cryptogram: hyperswitch_masking::Secret<String>,
+    },
+}
+
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AuthenticationPaymentMethodDataResponse {
     CardData {
         /// card expiry year
         #[schema(value_type = Option<String>)]
-        card_expiry_year: Option<masking::Secret<String>>,
+        card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
 
         /// card expiry month
         #[schema(value_type = Option<String>)]
-        card_expiry_month: Option<masking::Secret<String>>,
+        card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
     },
     NetworkTokenData {
         /// network token expiry month
         #[schema(value_type = Option<String>)]
-        network_token_expiry_month: Option<masking::Secret<String>>,
+        network_token_expiry_month: Option<hyperswitch_masking::Secret<String>>,
 
         /// network token expiry year
         #[schema(value_type = Option<String>)]
-        network_token_expiry_year: Option<masking::Secret<String>>,
+        network_token_expiry_year: Option<hyperswitch_masking::Secret<String>>,
     },
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AuthenticationVaultTokenData {
     CardData {
         /// token representing card_number
         #[schema(value_type = Option<String>)]
         #[serde(rename = "card_number")]
-        tokenized_card_number: Option<masking::Secret<String>>,
+        tokenized_card_number: Option<hyperswitch_masking::Secret<String>>,
 
         /// token representing card_expiry_year
         #[schema(value_type = Option<String>)]
         #[serde(rename = "card_expiry_year")]
-        tokenized_card_expiry_year: Option<masking::Secret<String>>,
+        tokenized_card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
 
         /// token representing card_expiry_month
         #[schema(value_type = Option<String>)]
         #[serde(rename = "card_expiry_month")]
-        tokenized_card_expiry_month: Option<masking::Secret<String>>,
+        tokenized_card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
 
         /// token representing card_cvc
         #[schema(value_type = Option<String>)]
         #[serde(rename = "card_cvc")]
-        tokenized_card_cvc: Option<masking::Secret<String>>,
+        tokenized_card_cvc: Option<hyperswitch_masking::Secret<String>>,
     },
     NetworkTokenData {
         /// token representing payment_token
         #[schema(value_type = Option<String>)]
         #[serde(rename = "network_token")]
-        tokenized_network_token: Option<masking::Secret<String>>,
+        tokenized_network_token: Option<hyperswitch_masking::Secret<String>>,
 
         /// token representing token_expiry_year
         #[schema(value_type = Option<String>)]
         #[serde(rename = "network_token_expiry_year")]
-        tokenized_expiry_year: Option<masking::Secret<String>>,
+        tokenized_expiry_year: Option<hyperswitch_masking::Secret<String>>,
 
         /// token representing token_expiry_month
         #[schema(value_type = Option<String>)]
         #[serde(rename = "network_token_expiry_month")]
-        tokenized_expiry_month: Option<masking::Secret<String>>,
+        tokenized_expiry_month: Option<hyperswitch_masking::Secret<String>>,
 
         /// token representing token_cryptogram
         #[schema(value_type = Option<String>)]
         #[serde(rename = "network_token_cryptogram")]
-        tokenized_cryptogram: Option<masking::Secret<String>>,
+        tokenized_cryptogram: Option<hyperswitch_masking::Secret<String>>,
     },
 }
 
@@ -832,7 +884,7 @@ impl ApiEventMetric for AuthenticationSyncResponse {
 pub struct AuthenticationSyncRequest {
     /// The client secret for this authentication.
     #[schema(value_type = String)]
-    pub client_secret: Option<masking::Secret<String>>,
+    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
     /// Payment method data for Post Authentication sync
     pub payment_method_details: Option<PostAuthenticationRequestPaymentMethodData>,
     /// Authentication ID for the authentication
@@ -879,7 +931,7 @@ pub struct ClickToPayDetails {
     pub provider: Option<super::enums::CtpServiceProvider>,
     /// Encrypted payload
     #[schema(value_type = Option<String>)]
-    pub encrypted_payload: Option<masking::Secret<String>>,
+    pub encrypted_payload: Option<hyperswitch_masking::Secret<String>>,
 }
 
 impl ApiEventMetric for AuthenticationSyncRequest {
@@ -912,7 +964,7 @@ pub struct AuthenticationSessionTokenRequest {
     pub authentication_id: id_type::AuthenticationId,
     /// Client Secret for the authentication
     #[schema(value_type = String)]
-    pub client_secret: Option<masking::Secret<String>>,
+    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]

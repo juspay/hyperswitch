@@ -6,7 +6,7 @@ use common_utils::{
     types::keymanager::{self, KeyManagerState},
 };
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
 use crate::{errors::api_error_response::ApiErrorResponse, merchant_key_store::MerchantKeyStore};

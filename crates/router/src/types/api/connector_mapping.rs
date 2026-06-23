@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use error_stack::{report, ResultExt};
-use hyperswitch_connectors::connectors::{Paytm, Phonepe};
+use hyperswitch_connectors::connectors::{Payconex, Paytm, Phonepe};
 
 use crate::{
     configs::settings::Connectors,
@@ -103,6 +103,9 @@ impl ConnectorData {
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match enums::Connector::from_str(connector_name) {
             Ok(name) => match name {
+                enums::Connector::AbsaSanlam => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::AbsaSanlam::new())))
+                }
                 enums::Connector::Aci => Ok(ConnectorEnum::Old(Box::new(connector::Aci::new()))),
                 enums::Connector::Adyen => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Adyen::new())))
@@ -252,6 +255,9 @@ impl ConnectorData {
                 enums::Connector::Elavon => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Elavon::new())))
                 }
+                enums::Connector::Envoy => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Envoy::new())))
+                }
                 enums::Connector::Facilitapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Facilitapay::new())))
                 }
@@ -264,6 +270,9 @@ impl ConnectorData {
                 enums::Connector::Fiservemea => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea::new())))
                 }
+                enums::Connector::Fiservcommercehub => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Fiservcommercehub::new(),
+                ))),
                 enums::Connector::Fiuu => Ok(ConnectorEnum::Old(Box::new(connector::Fiuu::new()))),
                 enums::Connector::Flexiti => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Flexiti::new())))
@@ -301,9 +310,15 @@ impl ConnectorData {
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
+                enums::Connector::Imerchantsolutions => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Imerchantsolutions::new(),
+                ))),
                 enums::Connector::Inespay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Inespay::new())))
                 }
+                enums::Connector::Interpayments => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Interpayments::new(),
+                ))),
                 enums::Connector::Itaubank => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
                 }
@@ -393,6 +408,9 @@ impl ConnectorData {
                 enums::Connector::Redsys => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Redsys::new())))
                 }
+                enums::Connector::Revolv3 => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Revolv3::new())))
+                }
                 enums::Connector::Santander => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Santander::new())))
                 }
@@ -461,6 +479,12 @@ impl ConnectorData {
                 enums::Connector::Tokenio => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Tokenio::new())))
                 }
+                enums::Connector::Truelayer => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Truelayer::new())))
+                }
+                enums::Connector::Trustly => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Trustly::new())))
+                }
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
@@ -498,6 +522,7 @@ impl ConnectorData {
                 }
                 enums::Connector::Phonepe => Ok(ConnectorEnum::Old(Box::new(Phonepe::new()))),
                 enums::Connector::Paytm => Ok(ConnectorEnum::Old(Box::new(Paytm::new()))),
+                enums::Connector::Payconex => Ok(ConnectorEnum::Old(Box::new(Payconex::new()))),
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))

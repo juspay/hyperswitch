@@ -4,8 +4,7 @@ use api_models::{
     payments::{
         AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
         ApplepayCombinedSessionTokenData, ApplepaySessionTokenData, ApplepaySessionTokenMetadata,
-        ApplepaySessionTokenResponse, NextActionCall, NoThirdPartySdkSessionResponse,
-        SdkNextAction, SessionToken,
+        ApplepaySessionTokenResponse, NextActionCall, SdkNextAction, SessionToken,
     },
     webhooks::IncomingWebhookEvent,
 };
@@ -29,7 +28,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -244,6 +243,8 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -425,6 +426,8 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -524,8 +527,8 @@ impl
             .decode(response.wallet_token.clone().expose())
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
-        let session_response: NoThirdPartySdkSessionResponse = wallet_token
-            .parse_struct("NoThirdPartySdkSessionResponse")
+        let session_response: Value = wallet_token
+            .parse_struct("serde_json::Value")
             .change_context(errors::ConnectorError::ParsingFailed)?;
 
         let metadata = item.data.get_connector_meta()?.expose();
@@ -583,6 +586,7 @@ impl
                     sdk_next_action: {
                         SdkNextAction {
                             next_action: NextActionCall::Confirm,
+                            should_block_confirm: None,
                         }
                     },
                     connector_reference_id: None,
@@ -897,6 +901,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BluesnapPaymentsResponse, T, PaymentsRe
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,

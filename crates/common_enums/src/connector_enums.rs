@@ -28,6 +28,7 @@ pub use crate::PaymentMethodType;
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum Connector {
+    AbsaSanlam,
     Authipay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
@@ -102,11 +103,13 @@ pub enum Connector {
     Dlocal,
     Dwolla,
     Ebanx,
+    Envoy,
     Elavon,
     Facilitapay,
     Finix,
     Fiserv,
     Fiservemea,
+    Fiservcommercehub,
     Fiuu,
     Flexiti,
     Forte,
@@ -121,8 +124,10 @@ pub enum Connector {
     Hyperpg,
     HyperswitchVault,
     // Hyperwallet, added as template code for future usage
+    Interpayments,
     Inespay,
     Iatapay,
+    Imerchantsolutions,
     Itaubank,
     Jpmorgan,
     Juspaythreedsserver,
@@ -152,6 +157,7 @@ pub enum Connector {
     Paysafe,
     Paystack,
     Paytm,
+    Payconex,
     Payu,
     Peachpayments,
     Payjustnow,
@@ -164,6 +170,7 @@ pub enum Connector {
     Razorpay,
     Recurly,
     Redsys,
+    Revolv3,
     Santander,
     Shift4,
     Silverflow,
@@ -178,6 +185,8 @@ pub enum Connector {
     Tesouro,
     Tokenex,
     Tokenio,
+    Trustly,
+    Truelayer,
     Trustpay,
     Trustpayments,
     Tsys,
@@ -207,17 +216,24 @@ impl Connector {
         matches!(
             (self, payout_method),
             (Self::Paypal, Some(PayoutType::Wallet))
+                | (Self::Envoy, _)
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
                 | (Self::Nomupay, _)
                 | (Self::Loonio, _)
+                | (Self::Truelayer, _)
+                | (Self::Trustly, _)
                 | (Self::Worldpay, Some(PayoutType::Wallet))
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
+                | (Self::Itaubank, Some(PayoutType::Bank))
         )
     }
     #[cfg(feature = "payouts")]
     pub fn supports_create_recipient(self, payout_method: Option<PayoutType>) -> bool {
-        matches!((self, payout_method), (_, Some(PayoutType::Bank)))
+        matches!(
+            (self, payout_method),
+            (_, Some(PayoutType::Bank)) | (Self::Trustly, _)
+        )
     }
     #[cfg(feature = "payouts")]
     pub fn supports_payout_eligibility(self, payout_method: Option<PayoutType>) -> bool {
@@ -229,7 +245,10 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
-        matches!((self, payout_method), (Self::Paypal, _))
+        matches!(
+            (self, payout_method),
+            (Self::Paypal, _) | (Self::Truelayer, _) | (Self::Itaubank, _)
+        )
     }
     #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_external_vault(self) -> bool {
@@ -261,12 +280,14 @@ impl Connector {
                 | (Self::Facilitapay, _)
                 | (Self::Dwolla, _)
                 | (Self::Santander, _)
+                | (Self::Truelayer, _)
+                | (Self::Fiservcommercehub, _)
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
         matches!(
             (self, payment_method),
-            (Self::Razorpay, PaymentMethod::Upi) | (Self::Airwallex, _) //ordercreation required for all flows in airwallex
+            (Self::Razorpay, _) | (Self::Airwallex, _)
         )
     }
     pub fn supports_file_storage_module(self) -> bool {
@@ -289,6 +310,7 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+            | Self::AbsaSanlam
 			| Self::Authipay
             | Self::Affirm
             | Self::Adyenplatform
@@ -319,12 +341,14 @@ impl Connector {
             | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Dwolla
+            | Self::Envoy
             | Self::Ebanx
             | Self::Elavon
             | Self::Facilitapay
             | Self::Finix
             | Self::Fiserv
             | Self::Fiservemea
+            | Self::Fiservcommercehub
             | Self::Fiuu
             | Self::Flexiti
             | Self::Forte
@@ -370,6 +394,7 @@ impl Connector {
             | Self::Rapyd
             | Self::Recurly
             | Self::Redsys
+            | Self::Revolv3
             | Self::Santander
             | Self::Shift4
             | Self::Silverflow
@@ -377,8 +402,11 @@ impl Connector {
             | Self::Stax
             | Self::Stripebilling
             | Self::Taxjar
+            | Self::Interpayments
             | Self::Tesouro
             // | Self::Thunes
+            | Self::Truelayer
+            | Self::Trustly
             | Self::Trustpay
             | Self::Trustpayments
             // | Self::Tokenio
@@ -409,13 +437,14 @@ impl Connector {
             | Self::Noon
             | Self::Tokenex
             | Self::Tokenio
-            | Self::Stripe
             | Self::Datatrans
             | Self::Paytm
+            | Self::Payconex
             | Self::Payjustnow
             | Self::Payjustnowinstore
-            | Self::Phonepe => false,
-            Self::Checkout |Self::Zift| Self::Nmi |Self::Braintree|
+            | Self::Phonepe
+            | Self::Imerchantsolutions => false,
+            Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
         }
     }

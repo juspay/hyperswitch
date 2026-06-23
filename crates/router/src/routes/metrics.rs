@@ -20,6 +20,8 @@ counter_metric!(SUCCESSFUL_PAYMENT, GLOBAL_METER);
 //TODO: This can be removed, added for payment list debugging
 histogram_metric_f64!(PAYMENT_LIST_LATENCY, GLOBAL_METER);
 
+histogram_metric_f64!(PAYMENT_LIST_OPENSEARCH_LATENCY, GLOBAL_METER);
+
 counter_metric!(REFUND_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_REFUND, GLOBAL_METER);
 
@@ -143,6 +145,7 @@ histogram_metric_f64!(GENERATE_NETWORK_TOKEN_TIME, GLOBAL_METER);
 histogram_metric_f64!(FETCH_NETWORK_TOKEN_TIME, GLOBAL_METER);
 histogram_metric_f64!(DELETE_NETWORK_TOKEN_TIME, GLOBAL_METER);
 histogram_metric_f64!(CHECK_NETWORK_TOKEN_STATUS_TIME, GLOBAL_METER);
+histogram_metric_f64!(FETCH_ALTID_TIME, GLOBAL_METER);
 
 // A counter to indicate allowed payment method types mismatch
 counter_metric!(PAYMENT_METHOD_TYPES_MISCONFIGURATION_METRIC, GLOBAL_METER);

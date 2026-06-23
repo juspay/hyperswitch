@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     vault::{PaymentMethodCustomVaultingData, PaymentMethodVaultingData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::types::ResponseRouterData;

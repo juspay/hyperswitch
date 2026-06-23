@@ -1,5 +1,5 @@
 use hyperswitch_domain_models::payment_method_data::{Card, PaymentMethodData};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, api, storage::enums};
 use test_utils::connector_auth;
 
@@ -419,5 +419,3 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
 // Connector dependent test cases goes here
 
 // [#478]: add unit tests for non 3DS, wallets & webhooks in connector tests
-
-impl hyperswitch_interfaces::api::ConnectorAccessTokenSuffix for CybersourcedecisionmanagerTest {}

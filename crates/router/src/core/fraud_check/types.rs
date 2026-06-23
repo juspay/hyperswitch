@@ -13,7 +13,7 @@ pub use hyperswitch_domain_models::{
     },
     types::OrderDetailsWithAmount,
 };
-use masking::Serialize;
+use hyperswitch_masking::Serialize;
 use serde::Deserialize;
 use utoipa::ToSchema;
 

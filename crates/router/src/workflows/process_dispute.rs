@@ -1,9 +1,8 @@
-use common_utils::ext_traits::{StringExt, ValueExt};
+use common_utils::ext_traits::ValueExt;
 use diesel_models::process_tracker::business_status;
-use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{
-    consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
+    consumer::{self, workflows::ProcessTrackerWorkflow},
     errors as sch_errors, utils as scheduler_utils,
 };
 
@@ -42,29 +41,43 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
             .tracking_data
             .clone()
             .parse_value("ProcessDisputePTData")?;
-        let key_store = db
+
+        let provider_key_store = db
             .get_merchant_key_store_by_merchant_id(
                 &tracking_data.merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
+        let provider_account = db
+            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &provider_key_store)
+            .await?;
 
-        let merchant_account = db
-            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
+        let processor_merchant_id = tracking_data
+            .processor_merchant_id
+            .as_ref()
+            .unwrap_or(&tracking_data.merchant_id);
+        let processor_key_store = db
+            .get_merchant_key_store_by_merchant_id(
+                processor_merchant_id,
+                &db.get_master_key().to_vec().into(),
+            )
+            .await?;
+        let processor_account = db
+            .find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
             .await?;
 
         let platform = domain::Platform::new(
-            merchant_account.clone(),
-            key_store.clone(),
-            merchant_account,
-            key_store,
+            provider_account,
+            provider_key_store,
+            processor_account,
+            processor_key_store,
             None,
         );
 
         let payment_attempt = get_payment_attempt_from_object_reference_id(
             state,
             tracking_data.dispute_payload.object_reference_id.clone(),
-            &platform,
+            platform.get_processor(),
         )
         .await?;
 
@@ -79,7 +92,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
         // Check if the dispute already exists
         let dispute = state
             .store
-            .find_by_merchant_id_payment_id_connector_dispute_id(
+            .find_by_processor_merchant_id_payment_id_connector_dispute_id(
                 platform.get_processor().get_account().get_id(),
                 &payment_attempt.payment_id,
                 &tracking_data.dispute_payload.connector_dispute_id,
@@ -96,8 +109,9 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
                 .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
                 .await?;
         } else {
+            let payment_id = payment_attempt.payment_id.clone();
             // Update dispute data
-            let response = disputes::update_dispute_data(
+            let response = Box::pin(disputes::update_dispute_data(
                 state,
                 platform,
                 business_profile,
@@ -105,7 +119,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
                 tracking_data.dispute_payload,
                 payment_attempt,
                 tracking_data.connector_name.as_str(),
-            )
+            ))
             .await
             .map_err(|error| logger::error!("Dispute update failed: {error}"));
 
@@ -123,8 +137,12 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
                 Err(_) => {
                     retry_sync_task(
                         db,
+                        state.superposition_service.as_ref(),
                         tracking_data.connector_name,
-                        tracking_data.merchant_id,
+                        tracking_data
+                            .processor_merchant_id
+                            .unwrap_or_else(|| tracking_data.merchant_id.clone()),
+                        Some(payment_id),
                         process,
                     )
                     .await?;
@@ -146,30 +164,15 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
 
 pub async fn get_sync_process_schedule_time(
     db: &dyn StorageInterface,
-    connector: &str,
-    merchant_id: &common_utils::id_type::MerchantId,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     retry_count: i32,
+    payment_id: Option<&common_utils::id_type::PaymentId>,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let mapping: common_utils::errors::CustomResult<
-        process_data::ConnectorPTMapping,
-        errors::StorageError,
-    > = db
-        .find_config_by_key(&format!("pt_mapping_{connector}"))
-        .await
-        .map(|value| value.config)
-        .and_then(|config| {
-            config
-                .parse_struct("ConnectorPTMapping")
-                .change_context(errors::StorageError::DeserializationFailed)
-        });
-    let mapping = match mapping {
-        Ok(x) => x,
-        Err(error) => {
-            logger::info!(?error, "Redis Mapping Error");
-            process_data::ConnectorPTMapping::default()
-        }
-    };
-    let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count);
+    let mapping = dimensions
+        .get_pt_mapping_dispute_sync(db, superposition_client, payment_id)
+        .await;
+    let time_delta = scheduler_utils::get_schedule_time(mapping, retry_count);
 
     Ok(scheduler_utils::get_time_from_delta(time_delta))
 }
@@ -179,12 +182,26 @@ pub async fn get_sync_process_schedule_time(
 /// Returns bool which indicates whether this was the last retry or not
 pub async fn retry_sync_task(
     db: &dyn StorageInterface,
+    superposition_client: &external_services::superposition::SuperpositionClient,
     connector: String,
-    merchant_id: common_utils::id_type::MerchantId,
+    processor_merchant_id: common_utils::id_type::MerchantId,
+    payment_id: Option<common_utils::id_type::PaymentId>,
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
-    let schedule_time =
-        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
+    let connector_enum = connector
+        .parse::<common_enums::connector_enums::Connector>()
+        .map_err(|_| sch_errors::ProcessTrackerError::UnexpectedFlow)?;
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor_merchant_id.into())
+        .with_connector(connector_enum);
+    let schedule_time = get_sync_process_schedule_time(
+        db,
+        superposition_client,
+        &dimensions,
+        pt.retry_count + 1,
+        payment_id.as_ref(),
+    )
+    .await?;
 
     match schedule_time {
         Some(s_time) => {

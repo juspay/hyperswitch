@@ -18,33 +18,33 @@ const MAX_LIMIT: usize = 100;
 #[async_trait::async_trait]
 pub trait RefundInterface {
     #[cfg(feature = "v1")]
-    async fn find_refund_by_internal_reference_id_merchant_id(
+    async fn find_refund_by_internal_reference_id_processor_merchant_id(
         &self,
         internal_reference_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<diesel_refund::Refund, errors::StorageError>;
 
     #[cfg(feature = "v1")]
-    async fn find_refund_by_payment_id_merchant_id(
+    async fn find_refund_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &common_utils::id_type::PaymentId,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError>;
 
     #[cfg(feature = "v1")]
-    async fn find_refund_by_merchant_id_refund_id(
+    async fn find_refund_by_processor_merchant_id_refund_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<diesel_refund::Refund, errors::StorageError>;
 
     #[cfg(feature = "v1")]
-    async fn find_refund_by_merchant_id_connector_refund_id_connector(
+    async fn find_refund_by_processor_merchant_id_connector_refund_id_connector(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
         storage_scheme: enums::MerchantStorageScheme,
@@ -57,9 +57,9 @@ pub trait RefundInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<diesel_refund::Refund, errors::StorageError>;
 
-    async fn find_refund_by_merchant_id_connector_transaction_id(
+    async fn find_refund_by_processor_merchant_id_connector_transaction_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_transaction_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError>;
@@ -80,7 +80,7 @@ pub trait RefundInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_refund_by_constraints(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_details: &refunds::RefundListConstraints,
         storage_scheme: enums::MerchantStorageScheme,
         limit: i64,
@@ -100,7 +100,7 @@ pub trait RefundInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_refund_by_meta_constraints(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_details: &common_utils::types::TimeRange,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError>;
@@ -108,7 +108,7 @@ pub trait RefundInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_refund_status_with_count(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         constraints: &common_utils::types::TimeRange,
         storage_scheme: enums::MerchantStorageScheme,
@@ -117,7 +117,7 @@ pub trait RefundInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_total_count_of_refunds(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_details: &refunds::RefundListConstraints,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError>;
@@ -149,20 +149,42 @@ mod storage {
     impl RefundInterface for Store {
         #[cfg(feature = "v1")]
         #[instrument(skip_all)]
-        async fn find_refund_by_internal_reference_id_merchant_id(
+        async fn find_refund_by_internal_reference_id_processor_merchant_id(
             &self,
             internal_reference_id: &str,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            diesel_refund::Refund::find_by_internal_reference_id_merchant_id(
-                &conn,
-                internal_reference_id,
-                merchant_id,
-            )
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+            // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
+            let result =
+                diesel_refund::Refund::find_by_internal_reference_id_processor_merchant_id(
+                    &conn,
+                    internal_reference_id,
+                    processor_merchant_id,
+                )
+                .await;
+
+            match result {
+                Ok(refund) => Ok(refund),
+                Err(error) => {
+                    if matches!(
+                        error.current_context(),
+                        diesel_models::errors::DatabaseError::NotFound
+                    ) {
+                        diesel_refund::Refund::find_by_internal_reference_id_merchant_id(
+                            &conn,
+                            internal_reference_id,
+                            processor_merchant_id,
+                        )
+                        .await
+                        .map_err(|error| report!(errors::StorageError::from(error)))
+                    } else {
+                        Err(report!(errors::StorageError::from(error)))
+                    }
+                }
+            }
         }
 
         #[instrument(skip_all)]
@@ -178,16 +200,16 @@ mod storage {
         }
 
         #[instrument(skip_all)]
-        async fn find_refund_by_merchant_id_connector_transaction_id(
+        async fn find_refund_by_processor_merchant_id_connector_transaction_id(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             connector_transaction_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            diesel_refund::Refund::find_by_merchant_id_connector_transaction_id(
+            diesel_refund::Refund::find_by_processor_merchant_id_connector_transaction_id(
                 &conn,
-                merchant_id,
+                processor_merchant_id,
                 connector_transaction_id,
             )
             .await
@@ -215,9 +237,25 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            this.update(&conn, refund)
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+            // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+            // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
+            let result = this.clone().update(&conn, refund.clone()).await;
+
+            match result {
+                Ok(refund) => Ok(refund),
+                Err(error) => {
+                    if matches!(
+                        error.current_context(),
+                        diesel_models::errors::DatabaseError::NotFound
+                    ) {
+                        this.update_by_merchant_id(&conn, refund)
+                            .await
+                            .map_err(|error| report!(errors::StorageError::from(error)))
+                    } else {
+                        Err(report!(errors::StorageError::from(error)))
+                    }
+                }
+            }
         }
 
         #[cfg(feature = "v2")]
@@ -236,57 +274,109 @@ mod storage {
 
         #[cfg(feature = "v1")]
         #[instrument(skip_all)]
-        async fn find_refund_by_merchant_id_refund_id(
+        async fn find_refund_by_processor_merchant_id_refund_id(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             refund_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            diesel_refund::Refund::find_by_merchant_id_refund_id(&conn, merchant_id, refund_id)
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+            // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+            // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
+            let result = diesel_refund::Refund::find_by_processor_merchant_id_refund_id(
+                &conn,
+                processor_merchant_id,
+                refund_id,
+            )
+            .await;
+
+            match result {
+                Ok(refund) => Ok(refund),
+                Err(error) => {
+                    if matches!(
+                        error.current_context(),
+                        diesel_models::errors::DatabaseError::NotFound
+                    ) {
+                        diesel_refund::Refund::find_by_merchant_id_refund_id(
+                            &conn,
+                            processor_merchant_id,
+                            refund_id,
+                        )
+                        .await
+                        .map_err(|error| report!(errors::StorageError::from(error)))
+                    } else {
+                        Err(report!(errors::StorageError::from(error)))
+                    }
+                }
+            }
         }
 
         #[cfg(feature = "v1")]
         #[instrument(skip_all)]
-        async fn find_refund_by_merchant_id_connector_refund_id_connector(
+        async fn find_refund_by_processor_merchant_id_connector_refund_id_connector(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             connector_refund_id: &str,
             connector: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            diesel_refund::Refund::find_by_merchant_id_connector_refund_id_connector(
-                &conn,
-                merchant_id,
-                connector_refund_id,
-                connector,
-            )
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+            // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
+            let result =
+                diesel_refund::Refund::find_by_processor_merchant_id_connector_refund_id_connector(
+                    &conn,
+                    processor_merchant_id,
+                    connector_refund_id,
+                    connector,
+                )
+                .await;
+
+            match result {
+                Ok(refund) => Ok(refund),
+                Err(error) => {
+                    if matches!(
+                        error.current_context(),
+                        diesel_models::errors::DatabaseError::NotFound
+                    ) {
+                        diesel_refund::Refund::find_by_merchant_id_connector_refund_id_connector(
+                            &conn,
+                            processor_merchant_id,
+                            connector_refund_id,
+                            connector,
+                        )
+                        .await
+                        .map_err(|error| report!(errors::StorageError::from(error)))
+                    } else {
+                        Err(report!(errors::StorageError::from(error)))
+                    }
+                }
+            }
         }
 
         #[cfg(feature = "v1")]
         #[instrument(skip_all)]
-        async fn find_refund_by_payment_id_merchant_id(
+        async fn find_refund_by_payment_id_processor_merchant_id(
             &self,
             payment_id: &common_utils::id_type::PaymentId,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            diesel_refund::Refund::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+            diesel_refund::Refund::find_by_payment_id_processor_merchant_id(
+                &conn,
+                payment_id,
+                processor_merchant_id,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[cfg(all(feature = "v1", feature = "olap"))]
         #[instrument(skip_all)]
         async fn filter_refund_by_constraints(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
             limit: i64,
@@ -295,7 +385,7 @@ mod storage {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
                 &conn,
-                merchant_id,
+                processor_merchant_id,
                 refund_details,
                 limit,
                 offset,
@@ -330,14 +420,14 @@ mod storage {
         #[instrument(skip_all)]
         async fn filter_refund_by_meta_constraints(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &api_models::payments::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(
                 &conn,
-                merchant_id,
+                processor_merchant_id,
                 refund_details,
             )
             .await
@@ -348,13 +438,13 @@ mod storage {
         #[instrument(skip_all)]
         async fn get_refund_status_with_count(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
             time_range: &api_models::payments::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, merchant_id,profile_id_list, time_range)
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, processor_merchant_id,profile_id_list, time_range)
             .await
             .map_err(|error|report!(errors::StorageError::from(error)))
         }
@@ -363,14 +453,14 @@ mod storage {
         #[instrument(skip_all)]
         async fn get_total_count_of_refunds(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refunds_count(
                 &conn,
-                merchant_id,
+                processor_merchant_id,
                 refund_details,
             )
             .await
@@ -399,9 +489,7 @@ mod storage {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::{
-        ext_traits::Encode, fallback_reverse_lookup_not_found, types::ConnectorTransactionIdTrait,
-    };
+    use common_utils::{ext_traits::Encode, fallback_reverse_lookup_not_found};
     use diesel_models::refund as diesel_refund;
     use error_stack::{report, ResultExt};
     use hyperswitch_domain_models::refunds;
@@ -417,28 +505,50 @@ mod storage {
         core::errors::{self, utils::RedisErrorExt, CustomResult},
         db::reverse_lookup::ReverseLookupInterface,
         services::Store,
-        types::storage::{self as storage_types, enums, kv},
+        types::storage::{self as storage_types, enums},
         utils::db_utils,
     };
     #[async_trait::async_trait]
     impl RefundInterface for Store {
         #[cfg(feature = "v1")]
         #[instrument(skip_all)]
-        async fn find_refund_by_internal_reference_id_merchant_id(
+        async fn find_refund_by_internal_reference_id_processor_merchant_id(
             &self,
             internal_reference_id: &str,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
+            // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+            // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
             let database_call = || async {
                 let conn = connection::pg_connection_read(self).await?;
-                diesel_refund::Refund::find_by_internal_reference_id_merchant_id(
-                    &conn,
-                    internal_reference_id,
-                    merchant_id,
-                )
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                let result =
+                    diesel_refund::Refund::find_by_internal_reference_id_processor_merchant_id(
+                        &conn,
+                        internal_reference_id,
+                        processor_merchant_id,
+                    )
+                    .await;
+
+                match result {
+                    Ok(refund) => Ok(refund),
+                    Err(error) => {
+                        if matches!(
+                            error.current_context(),
+                            diesel_models::errors::DatabaseError::NotFound
+                        ) {
+                            diesel_refund::Refund::find_by_internal_reference_id_merchant_id(
+                                &conn,
+                                internal_reference_id,
+                                processor_merchant_id,
+                            )
+                            .await
+                            .map_err(|error| report!(errors::StorageError::from(error)))
+                        } else {
+                            Err(report!(errors::StorageError::from(error)))
+                        }
+                    }
+                }
             };
             let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_refund::Refund>(
                 self,
@@ -449,10 +559,7 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!(
-                        "ref_inter_ref_{}_{internal_reference_id}",
-                        merchant_id.get_string_repr()
-                    );
+                    let lookup_id = diesel_refund::Refund::construct_lookup_id_processor_merchant_id_internal_reference_id(processor_merchant_id, internal_reference_id);
                     let lookup = fallback_reverse_lookup_not_found!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
@@ -545,6 +652,8 @@ mod storage {
                         processor_transaction_data: new.processor_transaction_data.clone(),
                         issuer_error_code: None,
                         issuer_error_message: None,
+                        processor_merchant_id: new.processor_merchant_id.clone(),
+                        created_by: new.created_by.clone(),
                         // Below fields are deprecated. Please add any new fields above this line.
                         connector_refund_data: None,
                         connector_transaction_data: None,
@@ -555,19 +664,12 @@ mod storage {
                         &created_refund.attempt_id, &created_refund.refund_id
                     );
 
-                    let redis_entry = kv::TypedSql {
-                        op: kv::DBOperation::Insert {
-                            insertable: Box::new(kv::Insertable::Refund(new)),
-                        },
-                    };
-
                     let mut reverse_lookups = vec![
                         storage_types::ReverseLookupNew {
                             sk_id: field.clone(),
-                            lookup_id: format!(
-                                "ref_ref_id_{}_{}",
-                                created_refund.merchant_id.get_string_repr(),
-                                created_refund.refund_id
+                            lookup_id: diesel_refund::Refund::construct_lookup_id_processor_merchant_id_refund_id(
+                                &created_refund.merchant_id,
+                                &created_refund.refund_id
                             ),
                             pk_id: key_str.clone(),
                             source: "refund".to_string(),
@@ -576,27 +678,24 @@ mod storage {
                         // [#492]: A discussion is required on whether this is required?
                         storage_types::ReverseLookupNew {
                             sk_id: field.clone(),
-                            lookup_id: format!(
-                                "ref_inter_ref_{}_{}",
-                                created_refund.merchant_id.get_string_repr(),
-                                created_refund.internal_reference_id
+                            lookup_id: diesel_refund::Refund::construct_lookup_id_processor_merchant_id_internal_reference_id(
+                                &created_refund.merchant_id,
+                                &created_refund.internal_reference_id
                             ),
                             pk_id: key_str.clone(),
                             source: "refund".to_string(),
                             updated_by: storage_scheme.to_string(),
                         },
                     ];
-                    if let Some(connector_refund_id) =
-                        created_refund.to_owned().get_optional_connector_refund_id()
-                    {
+                    if let Some(connector_refund_id) = &created_refund.connector_refund_id {
+                        let lookup_id = diesel_refund::Refund::construct_lookup_id_processor_merchant_id_connector_refund_id_connector(
+                            &created_refund.merchant_id,
+                            connector_refund_id.get_id(),
+                            &created_refund.connector
+                        );
                         reverse_lookups.push(storage_types::ReverseLookupNew {
                             sk_id: field.clone(),
-                            lookup_id: format!(
-                                "ref_connector_{}_{}_{}",
-                                created_refund.merchant_id.get_string_repr(),
-                                connector_refund_id,
-                                created_refund.connector
-                            ),
+                            lookup_id,
                             pk_id: key_str.clone(),
                             source: "refund".to_string(),
                             updated_by: storage_scheme.to_string(),
@@ -608,12 +707,19 @@ mod storage {
 
                     futures::future::try_join_all(rev_look).await?;
 
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let drainer_query = new
+                        .generate_drainer_insert_query(&mut query_gen_conn)
+                        .await
+                        .change_context(errors::StorageError::KVError)
+                        .attach_printable("Failed to generate refund insert query")?;
+
                     match Box::pin(kv_wrapper::<diesel_refund::Refund, _, _>(
                         self,
                         KvOperation::<diesel_refund::Refund>::HSetNx(
                             &field,
                             &created_refund,
-                            redis_entry,
+                            drainer_query,
                         ),
                         key,
                     ))
@@ -648,17 +754,17 @@ mod storage {
 
         #[cfg(feature = "v1")]
         #[instrument(skip_all)]
-        async fn find_refund_by_merchant_id_connector_transaction_id(
+        async fn find_refund_by_processor_merchant_id_connector_transaction_id(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             connector_transaction_id: &str,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
             let database_call = || async {
                 let conn = connection::pg_connection_read(self).await?;
-                diesel_refund::Refund::find_by_merchant_id_connector_transaction_id(
+                diesel_refund::Refund::find_by_processor_merchant_id_connector_transaction_id(
                     &conn,
-                    merchant_id,
+                    processor_merchant_id,
                     connector_transaction_id,
                 )
                 .await
@@ -675,7 +781,7 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!(
                         "pa_conn_trans_{}_{connector_transaction_id}",
-                        merchant_id.get_string_repr()
+                        processor_merchant_id.get_string_repr()
                     );
                     let lookup = fallback_reverse_lookup_not_found!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
@@ -708,16 +814,16 @@ mod storage {
 
         #[cfg(feature = "v2")]
         #[instrument(skip_all)]
-        async fn find_refund_by_merchant_id_connector_transaction_id(
+        async fn find_refund_by_processor_merchant_id_connector_transaction_id(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             connector_transaction_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             diesel_refund::Refund::find_by_merchant_id_connector_transaction_id(
                 &conn,
-                merchant_id,
+                processor_merchant_id,
                 connector_transaction_id,
             )
             .await
@@ -748,34 +854,98 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
-                    this.update(&conn, refund)
-                        .await
-                        .map_err(|error| report!(errors::StorageError::from(error)))
+                    // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+                    // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
+                    let result = this.clone().update(&conn, refund.clone()).await;
+
+                    match result {
+                        Ok(refund) => Ok(refund),
+                        Err(error) => {
+                            if matches!(
+                                error.current_context(),
+                                diesel_models::errors::DatabaseError::NotFound
+                            ) {
+                                this.update_by_merchant_id(&conn, refund)
+                                    .await
+                                    .map_err(|error| report!(errors::StorageError::from(error)))
+                            } else {
+                                Err(report!(errors::StorageError::from(error)))
+                            }
+                        }
+                    }
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let key_str = key.to_string();
                     let updated_refund = refund.clone().apply_changeset(this.clone());
 
+                    let old_connector_refund_id_option = this.connector_refund_id.clone();
+                    let new_connector_refund_id_option = updated_refund.connector_refund_id.clone();
+
+                    match (
+                        old_connector_refund_id_option,
+                        new_connector_refund_id_option,
+                    ) {
+                        (None, Some(new_connector_refund_id)) => {
+                            // No connector_refund_id existed before
+                            let lookup_id = diesel_refund::Refund::construct_lookup_id_processor_merchant_id_connector_refund_id_connector(
+                                &updated_refund.merchant_id,
+                                new_connector_refund_id.get_id(),
+                                &updated_refund.connector
+                            );
+                            let reverse_lookup = storage_types::ReverseLookupNew {
+                                sk_id: field.clone(),
+                                lookup_id,
+                                pk_id: key_str.clone(),
+                                source: "refund".to_string(),
+                                updated_by: storage_scheme.to_string(),
+                            };
+                            self.insert_reverse_lookup(reverse_lookup, storage_scheme)
+                                .await?;
+                        }
+                        (Some(old_connector_refund_id), Some(new_connector_refund_id))
+                            if old_connector_refund_id.ne(&new_connector_refund_id) =>
+                        {
+                            // connector_refund_id existed before but it is being updated in this update call
+                            let lookup_id = diesel_refund::Refund::construct_lookup_id_processor_merchant_id_connector_refund_id_connector(
+                                &updated_refund.merchant_id,
+                                new_connector_refund_id.get_id(),
+                                &updated_refund.connector
+                            );
+                            let reverse_lookup = storage_types::ReverseLookupNew {
+                                sk_id: field.clone(),
+                                lookup_id,
+                                pk_id: key_str.clone(),
+                                source: "refund".to_string(),
+                                updated_by: storage_scheme.to_string(),
+                            };
+                            self.insert_reverse_lookup(reverse_lookup, storage_scheme)
+                                .await?;
+                        }
+                        (_, _) => {}
+                    }
+
                     let redis_value = updated_refund
                         .encode_to_string_of_json()
                         .change_context(errors::StorageError::SerializationFailed)?;
 
-                    let redis_entry = kv::TypedSql {
-                        op: kv::DBOperation::Update {
-                            updatable: Box::new(kv::Updateable::RefundUpdate(Box::new(
-                                kv::RefundUpdateMems {
-                                    orig: this,
-                                    update_data: refund,
-                                },
-                            ))),
-                        },
-                    };
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let drainer_query = refund
+                        .generate_drainer_update_query(
+                            &mut query_gen_conn,
+                            this.refund_id.clone(),
+                            this.processor_merchant_id
+                                .clone()
+                                .unwrap_or_else(|| merchant_id.clone()),
+                        )
+                        .await
+                        .change_context(errors::StorageError::KVError)
+                        .attach_printable("Failed to generate refund update query")?;
 
                     Box::pin(kv_wrapper::<(), _, _>(
                         self,
                         KvOperation::Hset::<diesel_refund::Refund>(
                             (&field, redis_value),
-                            redis_entry,
+                            drainer_query,
                         ),
                         key,
                     ))
@@ -805,17 +975,42 @@ mod storage {
 
         #[cfg(feature = "v1")]
         #[instrument(skip_all)]
-        async fn find_refund_by_merchant_id_refund_id(
+        async fn find_refund_by_processor_merchant_id_refund_id(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             refund_id: &str,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
+            // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+            // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
             let database_call = || async {
                 let conn = connection::pg_connection_read(self).await?;
-                diesel_refund::Refund::find_by_merchant_id_refund_id(&conn, merchant_id, refund_id)
-                    .await
-                    .map_err(|error| report!(errors::StorageError::from(error)))
+                let result = diesel_refund::Refund::find_by_processor_merchant_id_refund_id(
+                    &conn,
+                    processor_merchant_id,
+                    refund_id,
+                )
+                .await;
+
+                match result {
+                    Ok(refund) => Ok(refund),
+                    Err(error) => {
+                        if matches!(
+                            error.current_context(),
+                            diesel_models::errors::DatabaseError::NotFound
+                        ) {
+                            diesel_refund::Refund::find_by_merchant_id_refund_id(
+                                &conn,
+                                processor_merchant_id,
+                                refund_id,
+                            )
+                            .await
+                            .map_err(|error| report!(errors::StorageError::from(error)))
+                        } else {
+                            Err(report!(errors::StorageError::from(error)))
+                        }
+                    }
+                }
             };
             let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_refund::Refund>(
                 self,
@@ -827,7 +1022,10 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id =
-                        format!("ref_ref_id_{}_{refund_id}", merchant_id.get_string_repr());
+                        diesel_refund::Refund::construct_lookup_id_processor_merchant_id_refund_id(
+                            processor_merchant_id,
+                            refund_id,
+                        );
                     let lookup = fallback_reverse_lookup_not_found!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
@@ -856,23 +1054,46 @@ mod storage {
 
         #[cfg(feature = "v1")]
         #[instrument(skip_all)]
-        async fn find_refund_by_merchant_id_connector_refund_id_connector(
+        async fn find_refund_by_processor_merchant_id_connector_refund_id_connector(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             connector_refund_id: &str,
             connector: &str,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
+            // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+            // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
             let database_call = || async {
                 let conn = connection::pg_connection_read(self).await?;
-                diesel_refund::Refund::find_by_merchant_id_connector_refund_id_connector(
-                    &conn,
-                    merchant_id,
-                    connector_refund_id,
-                    connector,
-                )
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                let result =
+                    diesel_refund::Refund::find_by_processor_merchant_id_connector_refund_id_connector(
+                        &conn,
+                        processor_merchant_id,
+                        connector_refund_id,
+                        connector,
+                    )
+                    .await;
+
+                match result {
+                    Ok(refund) => Ok(refund),
+                    Err(error) => {
+                        if matches!(
+                            error.current_context(),
+                            diesel_models::errors::DatabaseError::NotFound
+                        ) {
+                            diesel_refund::Refund::find_by_merchant_id_connector_refund_id_connector(
+                                &conn,
+                                processor_merchant_id,
+                                connector_refund_id,
+                                connector,
+                            )
+                            .await
+                            .map_err(|error| report!(errors::StorageError::from(error)))
+                        } else {
+                            Err(report!(errors::StorageError::from(error)))
+                        }
+                    }
+                }
             };
             let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_refund::Refund>(
                 self,
@@ -883,9 +1104,10 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!(
-                        "ref_connector_{}_{connector_refund_id}_{connector}",
-                        merchant_id.get_string_repr()
+                    let lookup_id = diesel_refund::Refund::construct_lookup_id_processor_merchant_id_connector_refund_id_connector(
+                        processor_merchant_id,
+                        connector_refund_id,
+                        connector,
                     );
                     let lookup = fallback_reverse_lookup_not_found!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
@@ -915,18 +1137,18 @@ mod storage {
 
         #[cfg(feature = "v1")]
         #[instrument(skip_all)]
-        async fn find_refund_by_payment_id_merchant_id(
+        async fn find_refund_by_payment_id_processor_merchant_id(
             &self,
             payment_id: &common_utils::id_type::PaymentId,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
             let database_call = || async {
                 let conn = connection::pg_connection_read(self).await?;
-                diesel_refund::Refund::find_by_payment_id_merchant_id(
+                diesel_refund::Refund::find_by_payment_id_processor_merchant_id(
                     &conn,
                     payment_id,
-                    merchant_id,
+                    processor_merchant_id,
                 )
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
@@ -941,7 +1163,7 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdPaymentId {
-                        merchant_id,
+                        merchant_id: processor_merchant_id,
                         payment_id,
                     };
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
@@ -978,7 +1200,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn filter_refund_by_constraints(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
             limit: i64,
@@ -987,7 +1209,7 @@ mod storage {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
                 &conn,
-                merchant_id,
+                processor_merchant_id,
                 refund_details,
                 limit,
                 offset,
@@ -1022,12 +1244,12 @@ mod storage {
         #[instrument(skip_all)]
         async fn filter_refund_by_meta_constraints(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &common_utils::types::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(&conn, merchant_id, refund_details)
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(&conn, processor_merchant_id, refund_details)
                         .await
                         .map_err(|error|report!(errors::StorageError::from(error)))
         }
@@ -1036,13 +1258,13 @@ mod storage {
         #[instrument(skip_all)]
         async fn get_refund_status_with_count(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
             constraints: &common_utils::types::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, merchant_id,profile_id_list, constraints)
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, processor_merchant_id,profile_id_list, constraints)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -1051,14 +1273,14 @@ mod storage {
         #[instrument(skip_all)]
         async fn get_total_count_of_refunds(
             &self,
-            merchant_id: &common_utils::id_type::MerchantId,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refunds_count(
                 &conn,
-                merchant_id,
+                processor_merchant_id,
                 refund_details,
             )
             .await
@@ -1088,18 +1310,26 @@ mod storage {
 #[async_trait::async_trait]
 impl RefundInterface for MockDb {
     #[cfg(feature = "v1")]
-    async fn find_refund_by_internal_reference_id_merchant_id(
+    async fn find_refund_by_internal_reference_id_processor_merchant_id(
         &self,
         internal_reference_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
         let refunds = self.refunds.lock().await;
+        // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+        // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
         refunds
             .iter()
             .find(|refund| {
-                refund.merchant_id == *merchant_id
+                refund.processor_merchant_id.as_ref() == Some(processor_merchant_id)
                     && refund.internal_reference_id == internal_reference_id
+            })
+            .or_else(|| {
+                refunds.iter().find(|refund| {
+                    refund.merchant_id == *processor_merchant_id
+                        && refund.internal_reference_id == internal_reference_id
+                })
             })
             .cloned()
             .ok_or_else(|| {
@@ -1152,6 +1382,8 @@ impl RefundInterface for MockDb {
             processor_transaction_data: new.processor_transaction_data.clone(),
             issuer_error_code: None,
             issuer_error_message: None,
+            processor_merchant_id: new.processor_merchant_id.clone(),
+            created_by: new.created_by.clone(),
             // Below fields are deprecated. Please add any new fields above this line.
             connector_refund_data: None,
             connector_transaction_data: None,
@@ -1203,14 +1435,16 @@ impl RefundInterface for MockDb {
             unified_message: None,
             processor_refund_data: new.processor_refund_data.clone(),
             processor_transaction_data: new.processor_transaction_data.clone(),
+            processor_merchant_id: new.processor_merchant_id.clone(),
+            created_by: new.created_by.clone(),
         };
         refunds.push(refund.clone());
         Ok(refund)
     }
 
-    async fn find_refund_by_merchant_id_connector_transaction_id(
+    async fn find_refund_by_processor_merchant_id_connector_transaction_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_transaction_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
@@ -1218,8 +1452,10 @@ impl RefundInterface for MockDb {
 
         Ok(refunds
             .iter()
-            .take_while(|refund| {
-                refund.merchant_id == *merchant_id
+            .filter(|refund| {
+                (refund.processor_merchant_id.as_ref() == Some(processor_merchant_id)
+                    || (refund.processor_merchant_id.is_none()
+                        && refund.merchant_id == *processor_merchant_id))
                     && refund.get_connector_transaction_id() == connector_transaction_id
             })
             .cloned()
@@ -1233,16 +1469,33 @@ impl RefundInterface for MockDb {
         refund: diesel_refund::RefundUpdate,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
-        self.refunds
-            .lock()
-            .await
-            .iter_mut()
-            .find(|refund| this.refund_id == refund.refund_id)
-            .map(|r| {
-                let refund_updated =
-                    diesel_refund::RefundUpdateInternal::from(refund).create_refund(r.clone());
-                *r = refund_updated.clone();
-                refund_updated
+        let mut refunds = self.refunds.lock().await;
+        // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+        // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
+        let processor_merchant_id = this
+            .processor_merchant_id
+            .clone()
+            .unwrap_or_else(|| this.merchant_id.clone());
+        let index = refunds
+            .iter()
+            .position(|r| {
+                r.refund_id == this.refund_id
+                    && r.processor_merchant_id.as_ref() == Some(&processor_merchant_id)
+            })
+            .or_else(|| {
+                refunds.iter().position(|r| {
+                    r.refund_id == this.refund_id && r.merchant_id == processor_merchant_id
+                })
+            });
+
+        index
+            .and_then(|idx| {
+                refunds.get_mut(idx).map(|r| {
+                    let refund_updated =
+                        diesel_refund::RefundUpdateInternal::from(refund).create_refund(r.clone());
+                    *r = refund_updated.clone();
+                    refund_updated
+                })
             })
             .ok_or_else(|| {
                 errors::StorageError::ValueNotFound("cannot find refund to update".to_string())
@@ -1275,17 +1528,26 @@ impl RefundInterface for MockDb {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_refund_by_merchant_id_refund_id(
+    async fn find_refund_by_processor_merchant_id_refund_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
         let refunds = self.refunds.lock().await;
-
+        // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+        // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
         refunds
             .iter()
-            .find(|refund| refund.merchant_id == *merchant_id && refund.refund_id == refund_id)
+            .find(|refund| {
+                refund.processor_merchant_id.as_ref() == Some(processor_merchant_id)
+                    && refund.refund_id == refund_id
+            })
+            .or_else(|| {
+                refunds.iter().find(|refund| {
+                    refund.merchant_id == *processor_merchant_id && refund.refund_id == refund_id
+                })
+            })
             .cloned()
             .ok_or_else(|| {
                 errors::StorageError::DatabaseError(DatabaseError::NotFound.into()).into()
@@ -1293,25 +1555,36 @@ impl RefundInterface for MockDb {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_refund_by_merchant_id_connector_refund_id_connector(
+    async fn find_refund_by_processor_merchant_id_connector_refund_id_connector(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
         let refunds = self.refunds.lock().await;
-
+        // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+        // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
         refunds
             .iter()
             .find(|refund| {
-                refund.merchant_id == *merchant_id
+                refund.processor_merchant_id.as_ref() == Some(processor_merchant_id)
                     && refund
                         .get_optional_connector_refund_id()
                         .map(|refund_id| refund_id.as_str())
                         == Some(connector_refund_id)
                     && refund.connector == connector
             })
+            .or_else(|| {
+                refunds.iter().find(|refund| {
+                    refund.merchant_id == *processor_merchant_id
+                        && refund
+                            .get_optional_connector_refund_id()
+                            .map(|refund_id| refund_id.as_str())
+                            == Some(connector_refund_id)
+                        && refund.connector == connector
+                })
+            })
             .cloned()
             .ok_or_else(|| {
                 errors::StorageError::DatabaseError(DatabaseError::NotFound.into()).into()
@@ -1319,17 +1592,22 @@ impl RefundInterface for MockDb {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_refund_by_payment_id_merchant_id(
+    async fn find_refund_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &common_utils::id_type::PaymentId,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
         let refunds = self.refunds.lock().await;
 
         Ok(refunds
             .iter()
-            .filter(|refund| refund.merchant_id == *merchant_id && refund.payment_id == *payment_id)
+            .filter(|refund| {
+                (refund.processor_merchant_id.as_ref() == Some(processor_merchant_id)
+                    || (refund.processor_merchant_id.is_none()
+                        && refund.merchant_id == *processor_merchant_id))
+                    && refund.payment_id == *payment_id
+            })
             .cloned()
             .collect::<Vec<_>>())
     }
@@ -1354,7 +1632,7 @@ impl RefundInterface for MockDb {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_refund_by_constraints(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_details: &refunds::RefundListConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
         limit: i64,
@@ -1400,7 +1678,11 @@ impl RefundInterface for MockDb {
         let refunds = self.refunds.lock().await;
         let filtered_refunds = refunds
             .iter()
-            .filter(|refund| refund.merchant_id == *merchant_id)
+            .filter(|refund| {
+                refund.processor_merchant_id.as_ref() == Some(processor_merchant_id)
+                    || (refund.processor_merchant_id.is_none()
+                        && refund.merchant_id == *processor_merchant_id)
+            })
             .filter(|refund| {
                 refund_details
                     .payment_id
@@ -1570,7 +1852,7 @@ impl RefundInterface for MockDb {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_refund_by_meta_constraints(
         &self,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_details: &common_utils::types::TimeRange,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
@@ -1617,7 +1899,7 @@ impl RefundInterface for MockDb {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_refund_status_with_count(
         &self,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
         _storage_scheme: enums::MerchantStorageScheme,
@@ -1663,7 +1945,7 @@ impl RefundInterface for MockDb {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_total_count_of_refunds(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_details: &refunds::RefundListConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
@@ -1707,7 +1989,11 @@ impl RefundInterface for MockDb {
         let refunds = self.refunds.lock().await;
         let filtered_refunds = refunds
             .iter()
-            .filter(|refund| refund.merchant_id == *merchant_id)
+            .filter(|refund| {
+                refund.processor_merchant_id.as_ref() == Some(processor_merchant_id)
+                    || (refund.processor_merchant_id.is_none()
+                        && refund.merchant_id == *processor_merchant_id)
+            })
             .filter(|refund| {
                 refund_details
                     .payment_id

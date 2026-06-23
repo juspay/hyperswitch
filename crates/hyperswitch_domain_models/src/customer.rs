@@ -17,7 +17,7 @@ use diesel_models::{
     customers as storage_types, customers::CustomerUpdateInternal, query::customers as query,
 };
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -28,6 +28,7 @@ use crate::merchant_connector_account::MerchantConnectorAccountTypeDetails;
 use crate::{
     behaviour,
     merchant_key_store::MerchantKeyStore,
+    platform,
     type_encryption::{self as types, AsyncLift},
 };
 
@@ -57,6 +58,7 @@ pub struct Customer {
     pub document_details: OptionalEncryptableValue,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
+    key: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -78,8 +80,8 @@ pub struct Customer {
     pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
     pub merchant_reference_id: Option<id_type::CustomerId>,
-    pub default_billing_address: Option<Encryption>,
-    pub default_shipping_address: Option<Encryption>,
+    pub default_billing_address: OptionalEncryptableValue,
+    pub default_shipping_address: OptionalEncryptableValue,
     pub id: id_type::GlobalCustomerId,
     pub version: common_enums::ApiVersion,
     pub status: DeleteStatus,
@@ -91,6 +93,50 @@ pub struct Customer {
 }
 
 impl Customer {
+    #[cfg(feature = "v1")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        customer_id: id_type::CustomerId,
+        merchant_id: id_type::MerchantId,
+        name: Option<Encryptable<Secret<String>>>,
+        email: Option<Encryptable<Secret<String, pii::EmailStrategy>>>,
+        phone: Option<Encryptable<Secret<String>>>,
+        phone_country_code: Option<String>,
+        description: Option<Description>,
+        metadata: Option<pii::SecretSerdeValue>,
+        connector_customer: Option<pii::SecretSerdeValue>,
+        address_id: Option<String>,
+        tax_registration_id: Option<Encryptable<Secret<String>>>,
+        document_details: OptionalEncryptableValue,
+        created_by: Option<CreatedBy>,
+        last_modified_by: Option<CreatedBy>,
+        key: String,
+    ) -> Self {
+        let now = date_time::now();
+        Self {
+            customer_id,
+            merchant_id,
+            name,
+            email,
+            phone,
+            phone_country_code,
+            description,
+            created_at: now,
+            metadata,
+            modified_at: now,
+            connector_customer,
+            address_id,
+            default_payment_method_id: None,
+            updated_by: None,
+            version: common_enums::ApiVersion::V1,
+            tax_registration_id,
+            document_details,
+            created_by,
+            last_modified_by,
+            key: Some(key),
+        }
+    }
+
     /// Get the unique identifier of Customer
     #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &id_type::CustomerId {
@@ -108,7 +154,7 @@ impl Customer {
     pub fn get_connector_customer_map(
         &self,
     ) -> FxHashMap<id_type::MerchantConnectorAccountId, String> {
-        use masking::PeekInterface;
+        use hyperswitch_masking::PeekInterface;
         if let Some(connector_customer_value) = &self.connector_customer {
             connector_customer_value
                 .peek()
@@ -123,7 +169,7 @@ impl Customer {
     /// Get the connector customer ID for the specified connector label, if present
     #[cfg(feature = "v1")]
     pub fn get_connector_customer_id(&self, connector_label: &str) -> Option<&str> {
-        use masking::PeekInterface;
+        use hyperswitch_masking::PeekInterface;
 
         self.connector_customer
             .as_ref()
@@ -150,6 +196,11 @@ impl Customer {
             MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
         }
     }
+
+    #[cfg(feature = "v1")]
+    pub fn get_global_customer_id(&self) -> &Option<String> {
+        &self.key
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -159,7 +210,7 @@ impl behaviour::Conversion for Customer {
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::customers::Customer {
-            customer_id: self.customer_id,
+            customer_id: self.customer_id.clone(),
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),
             email: self.email.map(Encryption::from),
@@ -180,6 +231,7 @@ impl behaviour::Conversion for Customer {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
+            id: self.key,
         })
     }
 
@@ -264,12 +316,14 @@ impl behaviour::Conversion for Customer {
             last_modified_by: item
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
+            key: item.id,
         })
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(diesel_models::customers::CustomerNew {
+            id: self.key,
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),
@@ -317,8 +371,8 @@ impl behaviour::Conversion for Customer {
             connector_customer: self.connector_customer,
             default_payment_method_id: self.default_payment_method_id,
             updated_by: self.updated_by,
-            default_billing_address: self.default_billing_address,
-            default_shipping_address: self.default_shipping_address,
+            default_billing_address: self.default_billing_address.map(Encryption::from),
+            default_shipping_address: self.default_shipping_address.map(Encryption::from),
             version: self.version,
             status: self.status,
             tax_registration_id: self.tax_registration_id.map(Encryption::from),
@@ -364,6 +418,60 @@ impl behaviour::Conversion for Customer {
             },
         )?;
 
+        let default_billing_address = item
+            .default_billing_address
+            .async_lift(|inner| async {
+                types::crypto_operation(
+                    state,
+                    common_utils::type_name!(Self),
+                    types::CryptoOperation::DecryptOptional(inner),
+                    keymanager::Identifier::Merchant(item.merchant_id.clone()),
+                    key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            })
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed to decrypt default billing address".to_string(),
+            })?;
+
+        let default_shipping_address = item
+            .default_shipping_address
+            .async_lift(|inner| async {
+                types::crypto_operation(
+                    state,
+                    common_utils::type_name!(Self),
+                    types::CryptoOperation::DecryptOptional(inner),
+                    keymanager::Identifier::Merchant(item.merchant_id.clone()),
+                    key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            })
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed to decrypt default shipping address".to_string(),
+            })?;
+
+        let document_details = item
+            .document_details
+            .async_lift(|inner| async {
+                types::crypto_operation(
+                    state,
+                    common_utils::type_name!(Self),
+                    types::CryptoOperation::DecryptOptional(inner),
+                    keymanager::Identifier::Merchant(item.merchant_id.clone()),
+                    key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            })
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed to decrypt document details".to_string(),
+            })?;
+
         Ok(Self {
             id: item.id,
             merchant_reference_id: item.merchant_reference_id,
@@ -385,12 +493,12 @@ impl behaviour::Conversion for Customer {
             connector_customer: item.connector_customer,
             default_payment_method_id: item.default_payment_method_id,
             updated_by: item.updated_by,
-            default_billing_address: item.default_billing_address,
-            default_shipping_address: item.default_shipping_address,
+            default_billing_address,
+            default_shipping_address,
             version: item.version,
             status: item.status,
             tax_registration_id: encryptable_customer.tax_registration_id,
-            document_details: None,
+            document_details,
             created_by: item
                 .created_by
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
@@ -417,8 +525,8 @@ impl behaviour::Conversion for Customer {
             modified_at: now,
             connector_customer: self.connector_customer,
             updated_by: self.updated_by,
-            default_billing_address: self.default_billing_address,
-            default_shipping_address: self.default_shipping_address,
+            default_billing_address: self.default_billing_address.map(Encryption::from),
+            default_shipping_address: self.default_shipping_address.map(Encryption::from),
             version: common_types::consts::API_VERSION,
             status: self.status,
             tax_registration_id: self.tax_registration_id.map(Encryption::from),
@@ -443,8 +551,8 @@ pub struct CustomerGeneralUpdate {
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_customer: Box<Option<common_types::customers::ConnectorCustomerMap>>,
-    pub default_billing_address: Option<Encryption>,
-    pub default_shipping_address: Option<Encryption>,
+    pub default_billing_address: OptionalEncryptableValue,
+    pub default_shipping_address: OptionalEncryptableValue,
     pub default_payment_method_id: Option<Option<id_type::GlobalPaymentMethodId>>,
     pub status: Option<DeleteStatus>,
     pub tax_registration_id: crypto::OptionalEncryptableSecretString,
@@ -496,8 +604,8 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                     metadata,
                     connector_customer: *connector_customer,
                     modified_at: date_time::now(),
-                    default_billing_address,
-                    default_shipping_address,
+                    default_billing_address: default_billing_address.map(Encryption::from),
+                    default_shipping_address: default_shipping_address.map(Encryption::from),
                     default_payment_method_id,
                     updated_by: None,
                     status,
@@ -715,6 +823,21 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<Customer>, Self::Error>;
 
+    #[cfg(feature = "v2")]
+    async fn find_customer_for_global_id_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> CustomResult<storage_types::CustomerGlobalIdMigrationRow, Self::Error>;
+
+    #[cfg(feature = "v2")]
+    async fn update_customer_global_id_for_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        new_id: id_type::GlobalCustomerId,
+    ) -> CustomResult<storage_types::CustomerGlobalIdMigrationRow, Self::Error>;
+
     #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_customer_id_merchant_id(
@@ -801,6 +924,7 @@ pub async fn update_connector_customer_in_customers(
     connector_label: &str,
     connector_customer_map: Option<&pii::SecretSerdeValue>,
     connector_customer_id: Option<String>,
+    initiator: Option<&platform::Initiator>,
 ) -> Option<CustomerUpdate> {
     let mut connector_customer_map = connector_customer_map
         .and_then(|connector_customer| connector_customer.clone().expose().as_object().cloned())
@@ -817,7 +941,9 @@ pub async fn update_connector_customer_in_customers(
         .map(
             |connector_customer_value| CustomerUpdate::ConnectorCustomer {
                 connector_customer: Some(pii::SecretSerdeValue::new(connector_customer_value)),
-                last_modified_by: None,
+                last_modified_by: initiator
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             },
         )
 }
@@ -828,6 +954,7 @@ pub async fn update_connector_customer_in_customers(
     merchant_connector_account: &MerchantConnectorAccountTypeDetails,
     customer: Option<&Customer>,
     connector_customer_id: Option<String>,
+    initiator: Option<&platform::Initiator>,
 ) -> Option<CustomerUpdate> {
     match merchant_connector_account {
         MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(account) => {
@@ -839,7 +966,9 @@ pub async fn update_connector_customer_in_customers(
                 connector_customer_map.insert(connector_account_id, new_conn_cust_id);
                 CustomerUpdate::ConnectorCustomer {
                     connector_customer: Some(connector_customer_map),
-                    last_modified_by: None,
+                    last_modified_by: initiator
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|last_modified_by| last_modified_by.to_string()),
                 }
             })
         }

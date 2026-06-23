@@ -14,7 +14,7 @@ use diesel_models::{
 };
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 
 use crate::{
     core::{errors, routing},

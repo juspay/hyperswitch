@@ -1,7 +1,7 @@
 //! Customer related types
 
 use common_utils::errors::ValidationError;
-use error_stack::Report;
+use cpf_cnpj::{cnpj, cpf};
 use utoipa::ToSchema;
 /// HashMap containing MerchantConnectorAccountId and corresponding customer id
 #[cfg(feature = "v2")]
@@ -52,6 +52,12 @@ pub enum DocumentKind {
     Cpf,
     /// Cadastro Nacional da Pessoa Jurídica - The Brazilian business identifier.
     Cnpj,
+    /// Philippine PhilSys Number (PSN) — a randomly-generated 12-digit national ID,
+    /// required by dLocal for GCash.
+    Psn,
+    /// Generic / other non-Brazilian national document. Carried through to the connector
+    /// without a Brazil-specific checksum; the connector/PSP validates the value per country.
+    Other,
 }
 
 impl DocumentKind {
@@ -63,6 +69,23 @@ impl DocumentKind {
         match self {
             Self::Cpf => self.validate_cpf(doc_number),
             Self::Cnpj => self.validate_cnpj(doc_number),
+            Self::Psn => self.validate_psn(doc_number),
+            Self::Other => Ok(()),
+        }
+    }
+
+    /// The Philippine PhilSys Number (PSN) is a randomly-generated 12-digit national ID
+    /// with no checksum; validate that it is exactly 12 numeric digits.
+    fn validate_psn(
+        self,
+        doc_number: &str,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        if doc_number.len() == 12 && doc_number.bytes().all(|b| b.is_ascii_digit()) {
+            Ok(())
+        } else {
+            Err(error_stack::Report::new(ValidationError::InvalidValue {
+                message: "Invalid PSN: expected exactly 12 digits".to_string(),
+            }))
         }
     }
 
@@ -70,32 +93,25 @@ impl DocumentKind {
         self,
         doc_number: &str,
     ) -> common_utils::errors::CustomResult<(), ValidationError> {
-        (doc_number.len() == common_utils::consts::CPF_LENGTH)
-            .then_some(())
-            .ok_or_else(|| {
-                self.length_error("CPF", common_utils::consts::CPF_LENGTH, doc_number.len())
-            })?;
-
-        Ok(())
+        if cpf::validate(doc_number) {
+            Ok(())
+        } else {
+            Err(error_stack::Report::new(ValidationError::InvalidValue {
+                message: "Invalid CPF".to_string(),
+            }))
+        }
     }
 
     fn validate_cnpj(
         self,
         doc_number: &str,
     ) -> common_utils::errors::CustomResult<(), ValidationError> {
-        (doc_number.len() == common_utils::consts::CNPJ_LENGTH)
-            .then_some(())
-            .ok_or_else(|| {
-                self.length_error("CNPJ", common_utils::consts::CNPJ_LENGTH, doc_number.len())
-            })?;
-
-        Ok(())
-    }
-
-    fn length_error(self, name: &str, expected: usize, actual: usize) -> Report<ValidationError> {
-        let message = format!("{name} document_number (expected {expected}, got {actual})");
-        Report::new(ValidationError::IncorrectValueProvided {
-            field_name: Box::leak(message.into_boxed_str()),
-        })
+        if cnpj::validate(doc_number) {
+            Ok(())
+        } else {
+            Err(error_stack::Report::new(ValidationError::InvalidValue {
+                message: "Invalid CNPJ".to_string(),
+            }))
+        }
     }
 }

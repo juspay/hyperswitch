@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -43,7 +43,7 @@ use error_stack::ResultExt;
 #[derive(Debug, Serialize)]
 pub struct UnifiedAuthenticationServicePreAuthenticateRequest {
     pub authenticate_by: String,
-    pub session_id: common_utils::id_type::AuthenticationId,
+    pub session_id: String,
     pub source_authentication_id: common_utils::id_type::AuthenticationId,
     pub authentication_info: Option<AuthenticationInfo>,
     pub service_details: Option<CtpServiceDetails>,
@@ -258,7 +258,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
             UnifiedAuthenticationServiceAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
             authenticate_by: item.router_data.connector.clone(),
-            session_id: authentication_id.clone(),
+            session_id: item.router_data.payment_id.clone(),
             source_authentication_id: authentication_id,
             authentication_info,
             service_details: Some(CtpServiceDetails {
@@ -283,7 +283,69 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
                             .and_then(|service_session_ids| service_session_ids.x_src_flow_id),
                     },
                 ),
-                merchant_details: None,
+                merchant_details: Some(MerchantDetails {
+                    merchant_id: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.merchant_id.clone()),
+                    merchant_name: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.merchant_name.clone()),
+                    merchant_category_code: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.merchant_category_code.clone()),
+                    configuration_id: None,
+                    endpoint_prefix: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.endpoint_prefix.clone()),
+                    three_ds_requestor_url: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.three_ds_requestor_url.clone()),
+                    three_ds_requestor_id: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.three_ds_requestor_id.clone()),
+                    three_ds_requestor_name: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.three_ds_requestor_name.clone()),
+                    merchant_country_code: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.merchant_country_code.clone()),
+                    notification_url: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.notification_url.clone()),
+                    webhook_url: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.webhook_url.clone()),
+                }),
             }),
             customer_details: None,
             pmt_details: None,
@@ -648,7 +710,7 @@ impl TryFrom<&UasPreAuthenticationRouterData>
         let authentication_info = item.request.authentication_info.clone();
         Ok(Self {
             authenticate_by: item.connector.clone(),
-            session_id: authentication_id.clone(),
+            session_id: item.payment_id.clone(),
             source_authentication_id: authentication_id,
             authentication_info,
             service_details,

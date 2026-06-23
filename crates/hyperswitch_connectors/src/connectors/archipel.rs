@@ -10,7 +10,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -45,18 +44,14 @@ use hyperswitch_interfaces::{
     types::Response,
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use router_env::{error, info};
 use transformers::{
     self as archipel, ArchipelCardAuthorizationRequest, ArchipelIncrementalAuthorizationRequest,
     ArchipelPaymentsCancelRequest, ArchipelRefundRequest, ArchipelWalletAuthorizationRequest,
 };
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{is_mandate_supported, PaymentMethodDataType, PaymentsAuthorizeRequestData},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils::PaymentsAuthorizeRequestData};
 
 pub mod transformers;
 
@@ -186,17 +181,7 @@ impl ConnectorCommon for Archipel {
     }
 }
 
-impl ConnectorValidation for Archipel {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Archipel {}
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Archipel {
     fn get_headers(
@@ -1060,7 +1045,8 @@ impl IncomingWebhook for Archipel {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

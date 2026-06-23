@@ -177,3 +177,14 @@ key1="Tenant ID"
 [payjustnowinstore]
 api_key="Merchant API Key"
 key1 = "Merchant Terminal Id"
+
+[truelayer]
+api_key="Client ID"
+key1="Client Secret"
+
+[imerchantsolutions]
+api_key = "API Key"
+
+[absa_sanlam]
+api_key = "API Key"
+key1 = "Merchant Id"

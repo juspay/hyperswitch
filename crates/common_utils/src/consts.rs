@@ -46,6 +46,9 @@ pub fn default_payouts_list_limit() -> u32 {
 /// surcharge percentage maximum precision length
 pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 
+/// installment interest rate maximum precision length
+pub const INSTALLMENT_INTEREST_RATE_PRECISION_LENGTH: u8 = 2;
+
 /// Header Key for application overhead of a request
 pub const X_HS_LATENCY: &str = "x-hs-latency";
 
@@ -89,7 +92,7 @@ pub const MAX_GLOBAL_ID_LENGTH: u8 = 64;
 pub const MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 1;
 
 /// Length of a cell identifier in a distributed system
-pub const CELL_IDENTIFIER_LENGTH: u8 = 5;
+pub const CELL_IDENTIFIER_LENGTH: u8 = 2;
 
 /// General purpose base64 engine
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
@@ -123,6 +126,9 @@ pub const WILDCARD_DOMAIN_REGEX: &str = r"^((\*|https?)?://)?((\*\.|[A-Za-z0-9][
 
 /// Maximum allowed length for MerchantName
 pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;
+
+/// Maximum allowed length for CardIssuerName
+pub const MAX_ALLOWED_CARD_ISSUER_NAME_LENGTH: usize = 255;
 
 /// Default locale
 pub const DEFAULT_LOCALE: &str = "en";
@@ -172,6 +178,9 @@ pub const X_SUB_FLOW_NAME: &str = "x-sub-flow";
 /// Unified Connector Service Mode
 pub const X_UNIFIED_CONNECTOR_SERVICE_MODE: &str = "x-shadow-mode";
 
+/// Proxy name for UCS to select the proxy to route the request through
+pub const X_PROXY_NAME: &str = "x-proxy-name";
+
 /// Config Override Header for UCS
 pub const X_CONFIG_OVERRIDE: &str = "x-config-override";
 
@@ -205,6 +214,12 @@ pub const DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD: i32 = 5;
 /// Default Card Testing Guard Redis Expiry in seconds
 pub const DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS: i32 = 3600;
 
+/// Default status of Guest IP Blocking
+pub const DEFAULT_GUEST_IP_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Guest IP Blocking
+pub const DEFAULT_GUEST_IP_BLOCKING_THRESHOLD: i32 = 10;
+
 /// SOAP 1.1 Envelope Namespace
 pub const SOAP_ENV_NAMESPACE: &str = "http://schemas.xmlsoap.org/soap/envelope/";
 
@@ -227,8 +242,8 @@ pub const DEFAULT_LIST_LIMIT: i64 = 100;
 /// Default offset for list operations (can be used across different entities)
 pub const DEFAULT_LIST_OFFSET: i64 = 0;
 
-/// Length of CPF document number, used in Brazil commonly
-pub const CPF_LENGTH: usize = 11;
+/// Default number of card issuers returned in a list request
+pub const DEFAULT_CARD_ISSUER_LIST_LIMIT: u8 = 30;
 
-/// Length of CNPJ document number, used in Brazil commonly
-pub const CNPJ_LENGTH: usize = 14;
+/// Length of a generated card issuer ID
+pub const CARD_ISSUER_ID_LENGTH: u8 = 5;

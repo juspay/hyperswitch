@@ -14,7 +14,7 @@ tracing-actix-web = []
 
 [dependencies]
 common_utils = { version = "0.1.0", path = "../common_utils" }
-masking = { version = "0.1.0", path = "../masking" }
+hyperswitch_masking = "0.0.1"
 router_env = { version = "0.1.0", path = "../router_env" }
 
 async-trait = { version = "0.1.88" }

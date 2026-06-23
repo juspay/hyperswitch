@@ -79,6 +79,40 @@ impl TryFrom<customer::Customer> for CustomerResponse {
                     })
             })
             .transpose()?;
+
+        let default_billing_address = cust
+            .default_billing_address
+            .as_ref()
+            .map(|encryptable| {
+                encryptable
+                    .clone()
+                    .into_inner()
+                    .parse_value::<api_models::payments::AddressDetails>("AddressDetails")
+                    .map_err(|err| {
+                        router_env::logger::error!(?err, "Failed to parse default_billing_address");
+                        err
+                    })
+            })
+            .transpose()?;
+
+        let default_shipping_address = cust
+            .default_shipping_address
+            .as_ref()
+            .map(|encryptable| {
+                encryptable
+                    .clone()
+                    .into_inner()
+                    .parse_value::<api_models::payments::AddressDetails>("AddressDetails")
+                    .map_err(|err| {
+                        router_env::logger::error!(
+                            ?err,
+                            "Failed to parse default_shipping_address"
+                        );
+                        err
+                    })
+            })
+            .transpose()?;
+
         Ok(Self(customers::CustomerResponse {
             id: cust.id,
             merchant_reference_id: cust.merchant_reference_id,
@@ -90,8 +124,8 @@ impl TryFrom<customer::Customer> for CustomerResponse {
             description: cust.description,
             created_at: cust.created_at,
             metadata: cust.metadata,
-            default_billing_address: None,
-            default_shipping_address: None,
+            default_billing_address,
+            default_shipping_address,
             default_payment_method_id: cust.default_payment_method_id,
             tax_registration_id: cust.tax_registration_id,
             document_details,

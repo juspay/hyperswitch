@@ -44,6 +44,7 @@ async fn payments_create_core() {
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
 
@@ -102,7 +103,7 @@ async fn payments_create_core() {
                 card_number: "4242424242424242".to_string().try_into().unwrap(),
                 card_exp_month: "10".to_string().into(),
                 card_exp_year: "35".to_string().into(),
-                card_holder_name: Some(masking::Secret::new("Arun Raj".to_string())),
+                card_holder_name: Some(hyperswitch_masking::Secret::new("Arun Raj".to_string())),
                 card_cvc: "123".to_string().into(),
                 card_issuer: None,
                 card_network: None,
@@ -110,7 +111,7 @@ async fn payments_create_core() {
                 card_issuing_country: None,
                 card_issuing_country_code: None,
                 bank_code: None,
-                nick_name: Some(masking::Secret::new("nick_name".into())),
+                nick_name: Some(hyperswitch_masking::Secret::new("nick_name".into())),
             })),
             billing: None,
         }),
@@ -230,6 +231,7 @@ async fn payments_create_core() {
         whole_connector_response: None,
         payment_channel: None,
         network_transaction_id: None,
+        network_transaction_link_id: None,
         enable_partial_authorization: None,
         is_overcapture_enabled: None,
         enable_overcapture: None,
@@ -240,6 +242,12 @@ async fn payments_create_core() {
         partner_merchant_identifier_details: None,
         payment_method_tokenization_details: None,
         error_details: None,
+        installment_options: None,
+        installment_data: None,
+        state_metadata: None,
+        connector_response_metadata: None,
+        connector_customer_id: None,
+        sender_payment_instrument_id: None,
     };
 
     let expected_response =
@@ -263,6 +271,7 @@ async fn payments_create_core() {
         None,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None,
     ))
     .await
     .unwrap();
@@ -350,6 +359,7 @@ async fn payments_create_core_adyen_no_redirect() {
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
     let state = Arc::new(app_state)
@@ -407,7 +417,7 @@ async fn payments_create_core_adyen_no_redirect() {
                 card_number: "5555 3412 4444 1115".to_string().try_into().unwrap(),
                 card_exp_month: "03".to_string().into(),
                 card_exp_year: "2030".to_string().into(),
-                card_holder_name: Some(masking::Secret::new("JohnDoe".to_string())),
+                card_holder_name: Some(hyperswitch_masking::Secret::new("JohnDoe".to_string())),
                 card_cvc: "737".to_string().into(),
                 bank_code: None,
                 card_issuer: None,
@@ -415,7 +425,7 @@ async fn payments_create_core_adyen_no_redirect() {
                 card_type: None,
                 card_issuing_country: None,
                 card_issuing_country_code: None,
-                nick_name: Some(masking::Secret::new("nick_name".into())),
+                nick_name: Some(hyperswitch_masking::Secret::new("nick_name".into())),
             })),
             billing: None,
         }),
@@ -547,6 +557,13 @@ async fn payments_create_core_adyen_no_redirect() {
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
             error_details: None,
+            installment_options: None,
+            installment_data: None,
+            state_metadata: None,
+            connector_response_metadata: None,
+            network_transaction_link_id: None,
+            connector_customer_id: None,
+            sender_payment_instrument_id: None,
         },
         vec![],
     ));
@@ -569,6 +586,7 @@ async fn payments_create_core_adyen_no_redirect() {
         None,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None,
     ))
     .await
     .unwrap();

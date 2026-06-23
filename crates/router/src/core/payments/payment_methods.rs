@@ -60,6 +60,7 @@ pub async fn list_payment_methods(
                 &state,
                 platform.get_provider(),
                 customer_id,
+                false, // include_new field is false because we want to fetch saved payment methods for the customer, and not fetch new payment methods based on the current request
             )
             .await?,
         ),
@@ -791,7 +792,8 @@ fn validate_payment_status_for_payment_method_list(
         | common_enums::IntentStatus::PartiallyCapturedAndProcessing
         | common_enums::IntentStatus::RequiresConfirmation
         | common_enums::IntentStatus::PartiallyCapturedAndCapturable
-        | common_enums::IntentStatus::Expired => {
+        | common_enums::IntentStatus::Expired
+        | common_enums::IntentStatus::Review => {
             Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                 current_flow: "list_payment_methods".to_string(),
                 field_name: "status".to_string(),

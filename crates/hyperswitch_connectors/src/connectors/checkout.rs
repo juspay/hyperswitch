@@ -14,7 +14,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -59,7 +58,7 @@ use hyperswitch_interfaces::{
     },
     webhooks,
 };
-use masking::{Mask, Maskable, PeekInterface};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use transformers::CheckoutErrorResponse;
 
 use self::transformers as checkout;
@@ -69,9 +68,7 @@ use crate::{
         AcceptDisputeRouterData, DefendDisputeRouterData, ResponseRouterData,
         SubmitEvidenceRouterData, UploadFileRouterData,
     },
-    utils::{
-        self, is_mandate_supported, ConnectorErrorType, PaymentMethodDataType, RefundsRequestData,
-    },
+    utils::{self, ConnectorErrorType, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -199,19 +196,6 @@ impl ConnectorCommon for Checkout {
 }
 
 impl ConnectorValidation for Checkout {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::NetworkTransactionIdAndCardDetails,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::ApplePay,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
     fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
@@ -1360,7 +1344,8 @@ impl webhooks::IncomingWebhook for Checkout {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let event_type_data: checkout::CheckoutWebhookEventTypeBody = request
             .body
             .parse_struct("CheckoutWebhookBody")
@@ -1628,6 +1613,17 @@ static CHECKOUT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         checkout_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::ApplePay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        checkout_supported_payment_methods.add(
+            enums::PaymentMethod::NetworkToken,
+            enums::PaymentMethodType::NetworkToken,
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,

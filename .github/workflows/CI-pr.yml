@@ -1,5 +1,8 @@
 name: CI-pr
 
+permissions:
+  contents: read
+
 on:
   pull_request:
 
@@ -43,7 +46,7 @@ jobs:
 
       - name: Checkout repository with token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -51,7 +54,7 @@ jobs:
 
       - name: Checkout repository for fork
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -97,7 +100,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -157,11 +160,11 @@ jobs:
 
       - name: Checkout repository for fork
         if: ${{ (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout repository with token
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -195,9 +198,17 @@ jobs:
           tool: just
           checksum: true
 
-      - name: Run clippy
+      - name: Run clippy (redis-rs backend)
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 3
         run: just clippy
+
+      - name: Run clippy (fred backend)
+        shell: bash
+        env:
+          CARGO_BUILD_JOBS: 3
+        run: just clippy fred
 
       - name: Check Cargo.lock changed
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
@@ -220,10 +231,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Spell check
         uses: crate-ci/typos@master
+
+  typos-required:
+    name: Spell check specific critical directories
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Spell check specific directories
+        uses: crate-ci/typos@v1.45.0
+        with:
+          files: |
+            api-reference/
+            crates/api_models/
+            crates/common_utils/
+            crates/common_enums/
+            crates/diesel_models/
+            migrations/
+            v2_migrations/
+            v2_compatible_migrations/
+            config/
+            docs/
 
   check-v2:
     name: Check compilation for V2 features
@@ -231,7 +264,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -261,14 +294,26 @@ jobs:
           tool: just
           checksum: true
 
-      - name: Run cargo clippy with v2 features enabled
+      - name: Run cargo clippy with v2 features enabled (redis-rs backend)
         shell: bash
         env:
           CARGO_BUILD_JOBS: 3
         run: just clippy_v2
 
-      - name: Run cargo check enabling only the release and v2 features
+      - name: Run cargo clippy with v2 features enabled (fred backend)
+        shell: bash
+        env:
+          CARGO_BUILD_JOBS: 3
+        run: just clippy_v2 fred
+
+      - name: Run cargo check enabling only the release and v2 features (redis-rs backend)
         shell: bash
         env:
           RUSTFLAGS: "-A warnings"
-        run: cargo check --no-default-features --features "release,v2"
+        run: cargo check --no-default-features --features "release,v2,redis-rs"
+
+      - name: Run cargo check enabling only the release and v2 features (fred backend)
+        shell: bash
+        env:
+          RUSTFLAGS: "-A warnings"
+        run: cargo check --no-default-features --features "release,v2,fred"

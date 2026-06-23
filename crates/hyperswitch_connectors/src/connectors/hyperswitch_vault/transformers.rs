@@ -1,4 +1,5 @@
-use common_utils::pii::Email;
+use common_utils::{ext_traits::OptionExt, pii::Email};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::vault::ExternalVaultCreateFlow,
@@ -8,25 +9,25 @@ use hyperswitch_domain_models::{
     types::{ConnectorCustomerRouterData, VaultRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{types::ResponseRouterData, utils};
+use crate::types::ResponseRouterData;
 
 #[derive(Default, Debug, Serialize)]
 pub struct HyperswitchVaultCreateRequest {
-    customer_id: String,
+    // Optional so the guest flow (no customer) can send `customer_id: null`.
+    customer_id: Option<String>,
+    storage_type: common_enums::StorageType,
 }
 
 impl TryFrom<&VaultRouterData<ExternalVaultCreateFlow>> for HyperswitchVaultCreateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &VaultRouterData<ExternalVaultCreateFlow>) -> Result<Self, Self::Error> {
-        let customer_id = item
-            .request
-            .connector_customer_id
-            .clone()
-            .ok_or_else(utils::missing_field_err("connector_customer"))?;
-        Ok(Self { customer_id })
+        Ok(Self {
+            customer_id: item.request.connector_customer_id.clone(),
+            storage_type: item.request.storage_type.unwrap_or_default(),
+        })
     }
 }
 
@@ -77,7 +78,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, HyperswitchVaultCreateResponse, T, Vaul
 
 #[derive(Default, Debug, Serialize)]
 pub struct HyperswitchVaultCustomerCreateRequest {
-    name: Option<Secret<String>>,
+    name: Secret<String>,
     email: Option<Email>,
 }
 
@@ -85,7 +86,14 @@ impl TryFrom<&ConnectorCustomerRouterData> for HyperswitchVaultCustomerCreateReq
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            name: item.request.name.clone(),
+            name: item
+                .request
+                .name
+                .clone()
+                .get_required_value("customer name")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "customer name",
+                })?,
             email: item.request.email.clone(),
         })
     }

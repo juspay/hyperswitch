@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -615,6 +615,7 @@ impl
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -690,6 +691,7 @@ impl
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -765,6 +767,7 @@ impl
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -840,6 +843,7 @@ impl
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,

@@ -1,0 +1,14 @@
+{
+  "PaymentInformation": {
+    "CreditDebitIndicator": "CRDT",
+    "References": {
+      "MerchantReference": "{{connector_transaction_id}}"
+    },
+    "Status": "Paid",
+    "Amount": {
+      "Amount": 60.0,
+      "Currency": "USD"
+    }
+  },
+  "Signature": "dummysignature"
+}

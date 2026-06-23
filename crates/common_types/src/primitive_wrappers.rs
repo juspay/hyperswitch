@@ -499,7 +499,7 @@ mod safe_string {
     use std::ops::Deref;
 
     use common_utils::validation::contains_potential_xss_or_sqli;
-    use masking::SerializableSecret;
+    use hyperswitch_masking::SerializableSecret;
     use serde::{de::Error, Deserialize, Serialize};
 
     /// String wrapper that prevents XSS and SQLi attacks

@@ -1,5 +1,5 @@
 use common_utils::ext_traits::ConfigExt;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use storage_impl::errors::ApplicationError;
 
 impl super::settings::Secrets {
@@ -200,6 +200,19 @@ impl super::settings::GenericLinkEnvConfig {
 impl super::settings::CellInformation {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::{fp_utils::when, id_type};
+
+        when(self == &Self::default(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "CellId cannot be set to a default".into(),
+            ))
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl super::settings::CellInformation {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
 
         when(self == &Self::default(), || {
             Err(ApplicationError::InvalidConfigurationValueError(

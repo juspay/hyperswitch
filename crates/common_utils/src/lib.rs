@@ -1,7 +1,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 pub mod access_token;
 pub mod consts;
@@ -13,6 +13,7 @@ pub mod errors;
 #[allow(missing_docs)] // Todo: add docs
 pub mod events;
 pub mod ext_traits;
+pub mod external_service;
 pub mod fp_utils;
 /// Used for hashing
 pub mod hashing;
@@ -48,7 +49,7 @@ pub mod date_time {
     use std::time::Instant;
     use std::{marker::PhantomData, num::NonZeroU8};
 
-    use masking::{Deserialize, Serialize};
+    use hyperswitch_masking::{Deserialize, Serialize};
     use time::{
         format_description::{
             well_known::iso8601::{Config, EncodedConfig, Iso8601, TimePrecision},

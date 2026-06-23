@@ -1,7 +1,7 @@
 use common_enums::MerchantStorageScheme;
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::mandate};
@@ -37,6 +37,7 @@ pub struct Mandate {
     pub updated_by: Option<String>,
     // This is the extended version of customer user agent that can store string upto 2048 characters unlike customer user agent that can store 255 characters at max
     pub customer_user_agent_extended: Option<String>,
+    pub network_transaction_link_id: Option<String>,
 }
 
 #[derive(
@@ -76,6 +77,7 @@ pub struct MandateNew {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub updated_by: Option<String>,
     pub customer_user_agent_extended: Option<String>,
+    pub network_transaction_link_id: Option<String>,
 }
 
 impl Mandate {
@@ -255,6 +257,7 @@ impl From<&MandateNew> for Mandate {
             updated_by: mandate_new.updated_by.clone(),
             // Using customer_user_agent as a fallback
             customer_user_agent_extended: mandate_new.get_customer_user_agent_extended(),
+            network_transaction_link_id: mandate_new.network_transaction_link_id.clone(),
         }
     }
 }

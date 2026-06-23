@@ -10,7 +10,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -150,6 +150,8 @@ impl TryFrom<&ForteRouterData<&types::PaymentsAuthorizeRouterData>> for FortePay
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -312,6 +314,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FortePaymentsResponse, T, PaymentsRespo
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -370,6 +373,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FortePaymentsSyncResponse, T, PaymentsR
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -440,6 +444,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.to_string()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -509,6 +514,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ForteCancelResponse, T, PaymentsRespons
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,

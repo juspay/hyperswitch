@@ -7,6 +7,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
 
     fn foreign_try_from(from: api_enums::Connector) -> Result<Self, Self::Error> {
         Ok(match from {
+            api_enums::Connector::AbsaSanlam => Self::AbsaSanlam,
             api_enums::Connector::Aci => Self::Aci,
             api_enums::Connector::Adyen => Self::Adyen,
             api_enums::Connector::Affirm => Self::Affirm,
@@ -60,10 +61,12 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Dwolla => Self::Dwolla,
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Elavon => Self::Elavon,
+            api_enums::Connector::Envoy => Self::Envoy,
             api_enums::Connector::Facilitapay => Self::Facilitapay,
             api_enums::Connector::Finix => Self::Finix,
             api_enums::Connector::Fiserv => Self::Fiserv,
             api_enums::Connector::Fiservemea => Self::Fiservemea,
+            api_enums::Connector::Fiservcommercehub => Self::Fiservcommercehub,
             api_enums::Connector::Fiuu => Self::Fiuu,
             api_enums::Connector::Flexiti => Self::Flexiti,
             api_enums::Connector::Forte => Self::Forte,
@@ -86,7 +89,9 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
                 })?
             }
             api_enums::Connector::Iatapay => Self::Iatapay,
+            api_enums::Connector::Imerchantsolutions => Self::Imerchantsolutions,
             api_enums::Connector::Inespay => Self::Inespay,
+            api_enums::Connector::Interpayments => Self::Interpayments,
             api_enums::Connector::Itaubank => Self::Itaubank,
             api_enums::Connector::Jpmorgan => Self::Jpmorgan,
             api_enums::Connector::Juspaythreedsserver => {
@@ -133,6 +138,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Razorpay => Self::Razorpay,
             api_enums::Connector::Recurly => Self::Recurly,
             api_enums::Connector::Redsys => Self::Redsys,
+            api_enums::Connector::Revolv3 => Self::Revolv3,
             api_enums::Connector::Santander => Self::Santander,
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Zift => Self::Zift,
@@ -164,6 +170,8 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
                 })?
             }
             api_enums::Connector::Tokenio => Self::Tokenio,
+            api_enums::Connector::Truelayer => Self::Truelayer,
+            api_enums::Connector::Trustly => Self::Trustly,
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Trustpayments => Self::Trustpayments,
             api_enums::Connector::Tsys => Self::Tsys,
@@ -217,8 +225,10 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
                     message: "Taxjar is not a routable connector".to_string(),
                 })?
             }
+
             api_enums::Connector::Phonepe => Self::Phonepe,
             api_enums::Connector::Paytm => Self::Paytm,
+            api_enums::Connector::Payconex => Self::Payconex,
         })
     }
 }

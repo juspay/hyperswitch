@@ -1,4 +1,3 @@
-use api_models::payments;
 use base64::Engine;
 use common_enums::{enums, FutureUsage};
 use common_types::payments::ApplePayPredecryptData;
@@ -8,6 +7,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::{
         ApplePayWalletData, BankDebitData, GooglePayWalletData, PaymentMethodData, WalletData,
     },
@@ -29,7 +29,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{api, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -259,6 +259,8 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -648,7 +650,7 @@ impl
                 .clone()
                 .and_then(|mandate_id| mandate_id.mandate_reference_id)
             {
-                Some(payments::MandateReferenceId::ConnectorMandateId(_)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(_)) => {
                     let original_amount = item
                         .router_data
                         .get_recurring_mandate_payment_data()?
@@ -674,7 +676,7 @@ impl
                         }),
                     )
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
                     let (original_amount, original_currency) = match network
                         .clone()
                         .map(|network| network.to_lowercase())
@@ -735,13 +737,15 @@ impl
                             merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                                 reason: Some("7".to_string()),
                                 original_authorized_amount,
-                                previous_transaction_id: Some(Secret::new(network_transaction_id)),
+                                previous_transaction_id: Some(Secret::new(
+                                    network_transaction_id.network_transaction_id.clone(),
+                                )),
                             }),
                         }),
                     )
                 }
-                Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None => (None, None, None),
             }
         } else {
@@ -902,16 +906,13 @@ fn build_bill_to(
 fn convert_metadata_to_merchant_defined_info(metadata: Value) -> Vec<MerchantDefinedInformation> {
     let hashmap: std::collections::BTreeMap<String, Value> =
         serde_json::from_str(&metadata.to_string()).unwrap_or(std::collections::BTreeMap::new());
-    let mut vector = Vec::new();
-    let mut iter = 1;
-    for (key, value) in hashmap {
-        vector.push(MerchantDefinedInformation {
+    (1..)
+        .zip(hashmap)
+        .map(|(iter, (key, value))| MerchantDefinedInformation {
             key: iter,
             value: format!("{key}={value}"),
-        });
-        iter += 1;
-    }
-    vector
+        })
+        .collect()
 }
 
 impl
@@ -1180,6 +1181,7 @@ impl
             ))),
             BankDebitData::SepaBankDebit { .. }
             | BankDebitData::BacsBankDebit { .. }
+            | BankDebitData::EftDebitOrder { .. }
             | BankDebitData::BecsBankDebit { .. }
             | BankDebitData::SepaGuarenteedBankDebit { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -1371,6 +1373,8 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -1806,6 +1810,7 @@ fn get_payment_response(
                 network_txn_id: info_response.processor_information.as_ref().and_then(
                     |processor_information| processor_information.network_transaction_id.clone(),
                 ),
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     info_response
                         .client_reference_information
@@ -1996,6 +2001,7 @@ impl
                             processor_information.network_transaction_id.clone()
                         },
                     ),
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(
                         item.response
                             .client_reference_information
@@ -2107,6 +2113,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<WellsfargoTransactionResponse>>
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: item
                                 .response
                                 .client_reference_information
@@ -2128,6 +2135,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<WellsfargoTransactionResponse>>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     authentication_data: None,

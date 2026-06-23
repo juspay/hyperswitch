@@ -11,7 +11,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{
-        AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMinorUnit,
+        AmountConvertor, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,
         StringMinorUnitForConnector,
     },
 };
@@ -48,7 +48,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::{ExposeInterface, Mask, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use router_env::logger;
@@ -62,13 +62,13 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Rapyd {
-    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
     amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 impl Rapyd {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &FloatMajorUnitForConnector,
+            amount_converter: &StringMajorUnitForConnector,
             amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
@@ -120,7 +120,8 @@ impl ConnectorCommon for Rapyd {
     fn get_auth_header(
         &self,
         _auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![])
     }
 
@@ -182,7 +183,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         _req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsAuthorizeType::get_content_type(self)
@@ -306,7 +308,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ra
         &self,
         _req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsVoidType::get_content_type(self)
@@ -395,7 +398,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Rap
         &self,
         _req: &PaymentsSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsSyncType::get_content_type(self)
@@ -491,7 +495,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         _req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsCaptureType::get_content_type(self)
@@ -615,7 +620,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Rapyd {
         &self,
         _req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::RefundExecuteType::get_content_type(self)
@@ -898,7 +904,8 @@ impl IncomingWebhook for Rapyd {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let webhook: transformers::RapydIncomingWebhook = request
             .body
             .parse_struct("RapydIncomingWebhook")

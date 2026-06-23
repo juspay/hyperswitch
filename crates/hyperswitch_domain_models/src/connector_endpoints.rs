@@ -1,7 +1,7 @@
 //! Configs interface
 use common_enums::{connector_enums, ApplicationError};
 use common_utils::errors::CustomResult;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::Deserialize;
 
 use crate::errors::api_error_response;
@@ -10,6 +10,7 @@ use crate::errors::api_error_response;
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct Connectors {
+    pub absa_sanlam: ConnectorParams,
     pub aci: ConnectorParams,
     pub authipay: ConnectorParams,
     pub adyen: AdyenParamsWithThreeBaseUrls,
@@ -58,6 +59,7 @@ pub struct Connectors {
     pub facilitapay: ConnectorParams,
     pub finix: ConnectorParams,
     pub fiserv: ConnectorParams,
+    pub fiservcommercehub: ConnectorParams,
     pub fiservemea: ConnectorParams,
     pub fiuu: ConnectorParamsWithThreeUrls,
     pub flexiti: ConnectorParams,
@@ -74,7 +76,9 @@ pub struct Connectors {
     pub hyperswitch_vault: ConnectorParams,
     pub hyperwallet: ConnectorParams,
     pub iatapay: ConnectorParams,
+    pub imerchantsolutions: ConnectorParams,
     pub inespay: ConnectorParams,
+    pub interpayments: ConnectorParams,
     pub itaubank: ConnectorParams,
     pub jpmorgan: ConnectorParams,
     pub juspaythreedsserver: ConnectorParams,
@@ -90,6 +94,7 @@ pub struct Connectors {
     pub netcetera: ConnectorParams,
     pub nexinets: ConnectorParams,
     pub nexixpay: ConnectorParams,
+    pub payconex: ConnectorParams,
     pub nmi: ConnectorParams,
     pub nomupay: ConnectorParams,
     pub noon: ConnectorParamsWithModeType,
@@ -120,6 +125,7 @@ pub struct Connectors {
     pub razorpay: ConnectorParamsWithKeys,
     pub recurly: ConnectorParams,
     pub redsys: ConnectorParams,
+    pub revolv3: ConnectorParams,
     pub riskified: ConnectorParams,
     pub santander: ConnectorParams,
     pub shift4: ConnectorParams,
@@ -136,6 +142,8 @@ pub struct Connectors {
     pub thunes: ConnectorParams,
     pub tokenex: ConnectorParams,
     pub tokenio: ConnectorParams,
+    pub truelayer: ConnectorParamsWithSecondaryBaseUrl,
+    pub trustly: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub trustpayments: ConnectorParams,
     pub tsys: ConnectorParams,

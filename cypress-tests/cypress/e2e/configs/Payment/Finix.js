@@ -36,25 +36,26 @@ const failedNo3DSCardDetails = {
   card_cvc: "123",
 };
 
+// auth code is dynamic hence ignoring intest cases
 // Payment method data for non-3DS
-const payment_method_data_no3ds = {
-  card: {
-    last4: "1111",
-    card_type: "DEBIT",
-    card_network: "Visa",
-    card_issuer: "Conotoxia Sp Z Oo",
-    card_issuing_country: "POLAND",
-    card_isin: "411111",
-    card_extended_bin: null,
-    card_exp_month: "10",
-    card_exp_year: "2050",
-    card_holder_name: "Test User",
-    payment_checks: null,
-    authentication_data: null,
-    auth_code: null,
-  },
-  billing: null,
-};
+// const payment_method_data_no3ds = {
+//   card: {
+//     last4: "1111",
+//     card_type: "DEBIT",
+//     card_network: "Visa",
+//     card_issuer: "CONOTOXIA SP Z O.O.",
+//     card_issuing_country: "POLAND",
+//     card_isin: "411111",
+//     card_extended_bin: null,
+//     card_exp_month: "10",
+//     card_exp_year: "2050",
+//     card_holder_name: "Test User",
+//     payment_checks: { address_verification: "POSTAL_CODE_AND_STREET_MATCH" },
+//     authentication_data: null,
+//     auth_code: "826685",
+//   },
+//   billing: null,
+// };
 
 const requiredFields = {
   payment_methods: [
@@ -149,7 +150,7 @@ export const connectorDetails = {
           status: "requires_capture",
           payment_method: "card",
           attempt_count: 1,
-          payment_method_data: payment_method_data_no3ds,
+          // payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -466,7 +467,7 @@ export const connectorDetails = {
           status: "succeeded",
           payment_method: "card",
           attempt_count: 1,
-          payment_method_data: payment_method_data_no3ds,
+          // payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -636,6 +637,125 @@ export const connectorDetails = {
         },
       },
     },
+    ManualRetryPaymentDisabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment because it has status failed, you can enable `manual_retry` in profile to try this payment again",
+          code: "IR_16",
+        },
+      },
+    },
+    ManualRetryPaymentEnabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 2,
+        },
+      },
+    },
+    ManualRetryPaymentCutoffExpired: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
+          code: "IR_16",
+        },
+      },
+    },
+    PaymentIntentWithBillingDescriptor: {
+      Request: {
+        currency: "USD",
+        amount: 6540,
+        authentication_type: "no_three_ds",
+        capture_method: "automatic",
+        billing_descriptor: {
+          statement_descriptor: "QA-BillingDesc",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulNo3DSCardDetails },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    external_three_ds: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        authentication_type: "no_three_ds",
+        request_external_three_ds_authentication: true,
+        three_ds_data: {
+          authentication_cryptogram: {
+            cavv: {
+              authentication_cryptogram: "3q2+78r+ur7erb7vyv66vv////8=",
+            },
+          },
+          ds_trans_id: "c4e59ceb-a382-4d6a-bc87-385d591fa09d",
+          version: "2.1.0",
+          eci: "AUTHENTICATED",
+          transaction_status: "Y",
+          exemption_indicator: "low_value",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          authentication_type: "no_three_ds",
+        },
+      },
+    },
   },
   pm_list: {
     PmListResponse: {
@@ -646,6 +766,19 @@ export const connectorDetails = {
       pmListDynamicFieldWithBilling: requiredFields,
       pmListDynamicFieldWithNames: requiredFields,
       pmListDynamicFieldWithEmail: requiredFields,
+    },
+  },
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "_embedded.authorizations.0.id",
+      // Type of payment reference ID
+      type: "string",
+    },
+    RefundIdConfig: {
+      // Finix refund (REVERSAL) webhooks carry the connector refund ID in the transfers array
+      path: "_embedded.transfers.0.id",
+      type: "string",
     },
   },
 };

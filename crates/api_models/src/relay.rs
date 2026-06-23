@@ -2,7 +2,7 @@ use common_utils::types::MinorUnit;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::enums as api_enums;
+use crate::{enums as api_enums, unreferenced_refund};
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RelayRequest {
@@ -28,6 +28,19 @@ pub enum RelayData {
     Capture(RelayCaptureRequestData),
     IncrementalAuthorization(RelayIncrementalAuthorizationRequestData),
     Void(RelayVoidRequestData),
+    UnreferencedRefund(RelayUnreferencedRefundData),
+}
+
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+pub struct RelayUnreferencedRefundData {
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: MinorUnit,
+    #[schema(value_type = Currency)]
+    pub currency: api_enums::Currency,
+    #[schema(value_type = String)]
+    pub customer_id: Option<String>,
+    #[schema(value_type = RecipientPaymentMethodData)]
+    pub recipient_payment_method_data: Option<unreferenced_refund::RecipientPaymentMethodData>,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
@@ -54,6 +67,9 @@ pub struct RelayCaptureRequestData {
     /// The currency in which the amount is being captured
     #[schema(value_type = Currency)]
     pub currency: api_enums::Currency,
+    /// type of capture for the relay
+    #[schema(value_type = Option<CaptureMethod>)]
+    pub capture_method: Option<api_enums::CaptureMethod>,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]

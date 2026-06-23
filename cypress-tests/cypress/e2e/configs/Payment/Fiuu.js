@@ -1,4 +1,11 @@
-import { cardRequiredField, customerAcceptance } from "./Commons";
+import {
+  cardRequiredField,
+  customerAcceptance,
+  blockedPaymentErrorBodyForIssuingCountry,
+  blockedPaymentErrorBodyForDebitCard,
+  blockedPaymentErrorBodyForCardSubtype,
+  blockedPaymentErrorBodyForBinUnavailable,
+} from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "5105105105105100",
@@ -81,6 +88,9 @@ const requiredFields = {
 export const connectorDetails = {
   real_time_payment_pm: {
     DuitNow: {
+      Configs: {
+        TRIGGER_SKIP: true, //Since fiuu follows a qr flow we are skipping the qr handling
+      },
       Request: {
         payment_method: "real_time_payment",
         payment_method_type: "duit_now",
@@ -432,10 +442,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -458,10 +466,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -600,10 +606,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -616,10 +620,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -732,10 +734,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -764,6 +764,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        currency: "MYR",
         billing: billingAddress,
         mandate_data: null,
         customer_acceptance: customerAcceptance,
@@ -902,6 +903,65 @@ export const connectorDetails = {
         },
       },
     },
+    ManualRetryPaymentDisabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment because it has status failed, you can enable `manual_retry` in profile to try this payment again",
+          code: "IR_16",
+        },
+      },
+    },
+    ManualRetryPaymentEnabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 2,
+        },
+      },
+    },
+    ManualRetryPaymentCutoffExpired: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
+          code: "IR_16",
+        },
+      },
+    },
   },
   pm_list: {
     PmListResponse: {
@@ -912,6 +972,95 @@ export const connectorDetails = {
       pmListDynamicFieldWithBilling: requiredFields,
       pmListDynamicFieldWithNames: requiredFields,
       pmListDynamicFieldWithEmail: requiredFields,
+    },
+  },
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "orderid",
+      // Type of payment reference ID
+      type: "string",
+      // Fiuu webhook handler uses PaymentAttemptId for lookup, not ConnectorTransactionId
+      source: "paymentAttemptID",
+    },
+    RefundIdConfig: {
+      // Fiuu refund webhooks carry the connector refund ID in the RefundID field
+      path: "RefundID",
+      type: "string",
+    },
+  },
+  payment_method_blocking_pm: {
+    BlockIssuingCountry: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000000002",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingAddress,
+        currency: "MYR",
+      },
+      Response: blockedPaymentErrorBodyForIssuingCountry,
+    },
+    BlockCardType: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingAddress,
+        currency: "MYR",
+      },
+      Response: blockedPaymentErrorBodyForDebitCard,
+    },
+    BlockCardSubtype: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "378282246310005",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        currency: "MYR",
+        billing: billingAddress,
+      },
+      Response: blockedPaymentErrorBodyForCardSubtype,
+    },
+    BlockIfBinInfoUnavailable: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "6304000000000000",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingAddress,
+        currency: "MYR",
+      },
+      Response: blockedPaymentErrorBodyForBinUnavailable,
     },
   },
 };

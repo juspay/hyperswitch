@@ -8,15 +8,16 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
+    mandates, payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use super::{Domain, GetTracker, Operation, PostUpdateTracker, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{self, PaymentMethodExt},
         payments::{
@@ -60,7 +61,8 @@ impl ValidateStatusForOperation for ExternalVaultProxyPaymentIntent {
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Expired => {
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
@@ -234,7 +236,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
                     cell_id,
                     storage_scheme,
                     request,
-                    encrypted_data
+                    encrypted_data,
+                    platform.get_initiator(),
                 )
                 .await?;
                 db.insert_payment_attempt(
@@ -268,11 +271,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
         );
 
         // TODO: Implement external vault specific mandate data handling
-        let mandate_data_input = api_models::payments::MandateIds {
+        let mandate_data_input = mandates::MandateIds {
             mandate_id: None,
             mandate_reference_id: processor_payment_token.map(|token| {
-                api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    api_models::payments::ConnectorMandateReferenceId::new(
+                mandates::MandateReferenceId::ConnectorMandateId(
+                    mandates::ConnectorMandateReferenceId::new(
                         Some(token),
                         None,
                         None,
@@ -374,16 +377,13 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
 
                 let req = api::PaymentMethodCreate {
                     payment_method_type: payment_data.payment_attempt.payment_method_type,
-                    payment_method_subtype: Some(
-                        payment_data.payment_attempt.payment_method_subtype,
-                    ),
+                    payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
                     metadata: None,
                     customer_id: Some(customer_id),
                     payment_method_data,
                     billing,
-                    psp_tokenization: None,
                     network_tokenization: None,
-                    storage_type: None, //this field is currently not being used in storing payment methods via external vault
+                    storage_type: common_enums::StorageType::Persistent, //this field is currently not being used in storing payment methods via external vault
                 };
 
                 let (_pm_response, payment_method) = Box::pin(payment_methods::create_payment_method_core(
@@ -435,6 +435,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                 platform.get_processor().get_account().storage_scheme,
                 common_enums::PaymentMethodStatus::Active,
                 payment_method.get_id(),
+                platform.get_initiator(),
             )
             .await
             .map_err(|err| router_env::logger::error!(err=?err));
@@ -484,6 +485,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
         mut payment_data: PaymentConfirmData<F>,
         _frm_suggestion: Option<api_models::enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>
     where
         F: 'b + Send,
@@ -517,7 +519,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
                 status: intent_status,
                 updated_by: storage_scheme.to_string(),
-                active_attempt_id: Some(payment_data.payment_attempt.id.clone()),
+                active_attempt_id: Some(payment_data.payment_attempt.id.clone())
             };
 
         let authentication_type = payment_data
@@ -584,6 +586,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        _initiator: Option<&domain::Initiator>,
         mut payment_data: PaymentConfirmData<F>,
         response: types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> RouterResult<PaymentConfirmData<F>>

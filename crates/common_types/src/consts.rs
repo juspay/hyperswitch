@@ -1,5 +1,8 @@
 //! Constants that are used in the domain level.
 
+/// Base value for converting percentage to decimal (e.g., 12% → 0.12)
+pub const PERCENTAGE_BASE: f64 = 100.0;
+
 /// API version
 #[cfg(feature = "v1")]
 pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V1;

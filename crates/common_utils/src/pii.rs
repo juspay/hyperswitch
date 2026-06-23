@@ -11,7 +11,7 @@ use diesel::{
     sql_types, AsExpression,
 };
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret, Strategy, WithType};
+use hyperswitch_masking::{ExposeInterface, Secret, Strategy, WithType};
 #[cfg(feature = "logs")]
 use router_env::logger;
 use serde::Deserialize;
@@ -160,6 +160,19 @@ where
             "*** Encrypted data of length {} bytes ***",
             value.as_ref().len()
         )
+    }
+}
+
+/// Masking strategy for binary data or raw bytes
+#[derive(Debug)]
+pub enum BinaryDataStrategy {}
+
+impl<T> Strategy<T> for BinaryDataStrategy
+where
+    T: AsRef<[u8]>,
+{
+    fn fmt(value: &T, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(fmt, "*** Binary data ({} bytes) ***", value.as_ref().len())
     }
 }
 
@@ -370,7 +383,7 @@ where
 mod pii_masking_strategy_tests {
     use std::str::FromStr;
 
-    use masking::{ExposeInterface, Secret};
+    use hyperswitch_masking::{ExposeInterface, Secret};
 
     use super::{ClientSecret, Email, IpAddress, UpiVpaMaskingStrategy};
     use crate::pii::{EmailStrategy, REDACTED};

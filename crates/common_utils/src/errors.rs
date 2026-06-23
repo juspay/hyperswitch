@@ -142,6 +142,14 @@ pub enum PercentageError {
     },
 }
 
+/// Error type for installment interest rate operations
+#[derive(Debug, Clone, thiserror::Error, PartialEq)]
+pub enum InstallmentInterestRateError {
+    /// Error occurred while applying interest rate to amount
+    #[error("Failed to apply interest rate to amount")]
+    UnableToApplyInterestRate,
+}
+
 /// Allows [error_stack::Report] to change between error contexts
 /// using the dependent [ErrorSwitch] trait to define relations & mappings between traits
 pub trait ReportSwitchExt<T, U> {

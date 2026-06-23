@@ -2,13 +2,14 @@ use common_enums::enums;
 use common_utils::{
     self,
     errors::{CustomResult, ValidationError},
+    ext_traits::ValueExt,
     id_type::{self, GenerateId},
     pii,
-    types::{keymanager, MinorUnit},
+    types::{keymanager, CreatedBy, MinorUnit},
 };
 use diesel_models::relay::RelayUpdateInternal;
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -34,6 +35,8 @@ pub struct Relay {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub response_data: Option<pii::SecretSerdeValue>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<CreatedBy>,
 }
 
 impl Relay {
@@ -41,6 +44,8 @@ impl Relay {
         relay_request: &api_models::relay::RelayRequest,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<CreatedBy>,
     ) -> Self {
         let relay_id = id_type::RelayId::generate();
         Self {
@@ -58,6 +63,8 @@ impl Relay {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             response_data: None,
+            processor_merchant_id,
+            created_by,
         }
     }
 }
@@ -77,6 +84,7 @@ impl From<api_models::relay::RelayData> for RelayData {
                     authorized_amount: relay_capture_request.authorized_amount,
                     amount_to_capture: relay_capture_request.amount_to_capture,
                     currency: relay_capture_request.currency,
+                    capture_method: relay_capture_request.capture_method,
                 })
             }
             api_models::relay::RelayData::IncrementalAuthorization(
@@ -91,6 +99,13 @@ impl From<api_models::relay::RelayData> for RelayData {
                 currency: relay_void_request.currency,
                 cancellation_reason: relay_void_request.cancellation_reason,
             }),
+            api_models::relay::RelayData::UnreferencedRefund(data) => {
+                Self::UnreferencedRefund(RelayUnreferencedRefundData {
+                    amount: data.amount,
+                    currency: data.currency,
+                    customer_id: data.customer_id,
+                })
+            }
         }
     }
 }
@@ -111,6 +126,7 @@ impl From<api_models::relay::RelayCaptureRequestData> for RelayCaptureData {
             authorized_amount: relay.authorized_amount,
             amount_to_capture: relay.amount_to_capture,
             currency: relay.currency,
+            capture_method: relay.capture_method,
         }
     }
 }
@@ -162,11 +178,23 @@ impl RelayUpdate {
         ),
     ) -> CustomResult<Self, ApiErrorResponse> {
         match response {
-            Err(error) => Ok(Self::ErrorUpdate {
-                error_code: error.code,
-                error_message: error.reason.unwrap_or(error.message),
-                status: common_enums::RelayStatus::Failure,
-            }),
+            Err(error) => {
+                let relay_status = common_enums::RelayStatus::from(status);
+
+                match relay_status {
+                    common_enums::RelayStatus::Failure => Ok(Self::ErrorUpdate {
+                        error_code: error.code,
+                        error_message: error.reason.unwrap_or(error.message),
+                        status: relay_status,
+                    }),
+                    common_enums::RelayStatus::Created
+                    | common_enums::RelayStatus::Pending
+                    | common_enums::RelayStatus::Success => Ok(Self::StatusUpdate {
+                        connector_reference_id: None,
+                        status: relay_status,
+                    }),
+                }
+            }
             Ok(response) => match response {
                 router_response_types::PaymentsResponseData::TransactionResponse {
                     resource_id,
@@ -262,7 +290,7 @@ impl RelayUpdate {
                     ..
                 } => Ok(Self::StatusUpdate {
                     connector_reference_id: resource_id.get_optional_response_id(),
-                    status: common_enums::RelayStatus::from(status),
+                    status: common_enums::RelayStatus::get_void_status(status),
                 }),
                 _ => Err(ApiErrorResponse::InternalServerError)
                     .attach_printable("Payment Response Not Supported"),
@@ -270,7 +298,6 @@ impl RelayUpdate {
         }
     }
 }
-
 impl From<RelayData> for api_models::relay::RelayData {
     fn from(relay: RelayData) -> Self {
         match relay {
@@ -286,6 +313,7 @@ impl From<RelayData> for api_models::relay::RelayData {
                     authorized_amount: relay_capture_request.authorized_amount,
                     amount_to_capture: relay_capture_request.amount_to_capture,
                     currency: relay_capture_request.currency,
+                    capture_method: relay_capture_request.capture_method,
                 })
             }
             RelayData::IncrementalAuthorization(relay_incremental_authorization_request) => {
@@ -305,6 +333,14 @@ impl From<RelayData> for api_models::relay::RelayData {
                     cancellation_reason: relay_void_request.cancellation_reason,
                 })
             }
+            RelayData::UnreferencedRefund(relay_unreferenced_refund_data) => {
+                Self::UnreferencedRefund(api_models::relay::RelayUnreferencedRefundData {
+                    amount: relay_unreferenced_refund_data.amount,
+                    currency: relay_unreferenced_refund_data.currency,
+                    customer_id: relay_unreferenced_refund_data.customer_id,
+                    recipient_payment_method_data: None,
+                })
+            }
         }
     }
 }
@@ -321,39 +357,7 @@ impl From<Relay> for api_models::relay::RelayResponse {
                 },
             );
 
-        let data = value.request_data.map(|relay_data| match relay_data {
-            RelayData::Refund(relay_refund_request) => {
-                api_models::relay::RelayData::Refund(api_models::relay::RelayRefundRequestData {
-                    amount: relay_refund_request.amount,
-                    currency: relay_refund_request.currency,
-                    reason: relay_refund_request.reason,
-                })
-            }
-            RelayData::Capture(relay_capture_request) => {
-                api_models::relay::RelayData::Capture(api_models::relay::RelayCaptureRequestData {
-                    authorized_amount: relay_capture_request.authorized_amount,
-                    amount_to_capture: relay_capture_request.amount_to_capture,
-                    currency: relay_capture_request.currency,
-                })
-            }
-            RelayData::IncrementalAuthorization(relay_incremental_authorization_request) => {
-                api_models::relay::RelayData::IncrementalAuthorization(
-                    api_models::relay::RelayIncrementalAuthorizationRequestData {
-                        total_amount: relay_incremental_authorization_request.total_amount,
-                        additional_amount: relay_incremental_authorization_request
-                            .additional_amount,
-                        currency: relay_incremental_authorization_request.currency,
-                    },
-                )
-            }
-            RelayData::Void(relay_void_request) => {
-                api_models::relay::RelayData::Void(api_models::relay::RelayVoidRequestData {
-                    amount: relay_void_request.amount,
-                    currency: relay_void_request.currency,
-                    cancellation_reason: relay_void_request.cancellation_reason,
-                })
-            }
-        });
+        let data = value.request_data.map(api_models::relay::RelayData::from);
         Self {
             id: value.id,
             status: value.status,
@@ -375,26 +379,57 @@ pub enum RelayData {
     Capture(RelayCaptureData),
     IncrementalAuthorization(RelayIncrementalAuthorizationData),
     Void(RelayVoidData),
+    UnreferencedRefund(RelayUnreferencedRefundData),
 }
 
 impl RelayData {
+    pub fn parse_relay_data(
+        value: Option<pii::SecretSerdeValue>,
+        relay_type: enums::RelayType,
+    ) -> CustomResult<Option<Self>, ValidationError> {
+        match value {
+            Some(data) => match relay_type {
+                enums::RelayType::Capture => Ok(Some(Self::Capture(RelayCaptureData::from_value(
+                    data.expose(),
+                )?))),
+                enums::RelayType::Refund => Ok(Some(Self::Refund(RelayRefundData::from_value(
+                    data.expose(),
+                )?))),
+                enums::RelayType::IncrementalAuthorization => {
+                    Ok(Some(Self::IncrementalAuthorization(
+                        RelayIncrementalAuthorizationData::from_value(data.expose())?,
+                    )))
+                }
+                enums::RelayType::Void => {
+                    Ok(Some(Self::Void(RelayVoidData::from_value(data.expose())?)))
+                }
+                enums::RelayType::UnreferencedRefund => Ok(Some(Self::UnreferencedRefund(
+                    RelayUnreferencedRefundData::from_value(data.expose())?,
+                ))),
+            },
+            None => Ok(None),
+        }
+    }
+
     pub fn get_refund_data(&self) -> CustomResult<RelayRefundData, ApiErrorResponse> {
         match self.clone() {
             Self::Refund(refund_data) => Ok(refund_data),
-            Self::Capture(_) | Self::IncrementalAuthorization(_) | Self::Void(_) => {
-                Err(ApiErrorResponse::InternalServerError)
-                    .attach_printable("relay data does not contain relay refund data")
-            }
+            Self::Capture(_)
+            | Self::IncrementalAuthorization(_)
+            | Self::Void(_)
+            | Self::UnreferencedRefund(_) => Err(ApiErrorResponse::InternalServerError)
+                .attach_printable("relay data does not contain relay refund data"),
         }
     }
 
     pub fn get_capture_data(&self) -> CustomResult<RelayCaptureData, ApiErrorResponse> {
         match self.clone() {
             Self::Capture(capture_data) => Ok(capture_data),
-            Self::Refund(_) | Self::IncrementalAuthorization(_) | Self::Void(_) => {
-                Err(ApiErrorResponse::InternalServerError)
-                    .attach_printable("relay data does not contain relay capture data")
-            }
+            Self::Refund(_)
+            | Self::IncrementalAuthorization(_)
+            | Self::Void(_)
+            | Self::UnreferencedRefund(_) => Err(ApiErrorResponse::InternalServerError)
+                .attach_printable("relay data does not contain relay capture data"),
         }
     }
 
@@ -405,20 +440,35 @@ impl RelayData {
             Self::IncrementalAuthorization(incremental_authorization_data) => {
                 Ok(incremental_authorization_data)
             }
-            Self::Refund(_) | Self::Capture(_) | Self::Void(_) => Err(
-                ApiErrorResponse::InternalServerError,
-            )
-            .attach_printable("relay data does not contain relay incremental authorization data"),
+            Self::Refund(_) | Self::Capture(_) | Self::Void(_) | Self::UnreferencedRefund(_) => {
+                Err(ApiErrorResponse::InternalServerError).attach_printable(
+                    "relay data does not contain relay incremental authorization data",
+                )
+            }
         }
     }
 
     pub fn get_void_data(&self) -> CustomResult<RelayVoidData, ApiErrorResponse> {
         match self.clone() {
             Self::Void(void_data) => Ok(void_data),
-            Self::Refund(_) | Self::Capture(_) | Self::IncrementalAuthorization(_) => Err(
-                ApiErrorResponse::InternalServerError,
-            )
-            .attach_printable("relay data does not contain relay incremental authorization data"),
+            Self::Refund(_)
+            | Self::Capture(_)
+            | Self::IncrementalAuthorization(_)
+            | Self::UnreferencedRefund(_) => Err(ApiErrorResponse::InternalServerError)
+                .attach_printable("relay data does not contain relay void data"),
+        }
+    }
+
+    pub fn get_unreferenced_refund_data(
+        &self,
+    ) -> CustomResult<RelayUnreferencedRefundData, ApiErrorResponse> {
+        match self.clone() {
+            Self::UnreferencedRefund(data) => Ok(data),
+            Self::Refund(_)
+            | Self::Capture(_)
+            | Self::IncrementalAuthorization(_)
+            | Self::Void(_) => Err(ApiErrorResponse::InternalServerError)
+                .attach_printable("relay data does not contain unreferenced refund data"),
         }
     }
 }
@@ -430,11 +480,32 @@ pub struct RelayRefundData {
     pub reason: Option<String>,
 }
 
+impl RelayRefundData {
+    pub fn from_value(value: serde_json::Value) -> CustomResult<Self, ValidationError> {
+        value
+            .parse_value("RelayRefundData")
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while deserializing RelayRefundData".to_string(),
+            })
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RelayCaptureData {
     pub authorized_amount: MinorUnit,
     pub amount_to_capture: MinorUnit,
     pub currency: enums::Currency,
+    pub capture_method: Option<enums::CaptureMethod>,
+}
+
+impl RelayCaptureData {
+    pub fn from_value(value: serde_json::Value) -> CustomResult<Self, ValidationError> {
+        value
+            .parse_value("RelayCaptureData")
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while deserializing RelayCaptureData".to_string(),
+            })
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -444,11 +515,48 @@ pub struct RelayIncrementalAuthorizationData {
     pub currency: enums::Currency,
 }
 
+impl RelayIncrementalAuthorizationData {
+    pub fn from_value(value: serde_json::Value) -> CustomResult<Self, ValidationError> {
+        value
+            .parse_value("RelayIncrementalAuthorizationData")
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while deserializing RelayIncrementalAuthorizationData".to_string(),
+            })
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RelayVoidData {
     pub amount: Option<MinorUnit>,
     pub currency: Option<enums::Currency>,
     pub cancellation_reason: Option<String>,
+}
+
+impl RelayVoidData {
+    pub fn from_value(value: serde_json::Value) -> CustomResult<Self, ValidationError> {
+        value
+            .parse_value("RelayVoidData")
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while deserializing RelayVoidData".to_string(),
+            })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RelayUnreferencedRefundData {
+    pub amount: MinorUnit,
+    pub currency: enums::Currency,
+    pub customer_id: Option<String>,
+}
+
+impl RelayUnreferencedRefundData {
+    pub fn from_value(value: serde_json::Value) -> CustomResult<Self, ValidationError> {
+        value
+            .parse_value("RelayUnreferencedRefundData")
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while deserializing RelayUnreferencedRefundData".to_string(),
+            })
+    }
 }
 
 #[derive(Debug)]
@@ -461,6 +569,13 @@ pub enum RelayUpdate {
     StatusUpdate {
         connector_reference_id: Option<String>,
         status: common_enums::RelayStatus,
+    },
+    UnreferencedRefundUpdate {
+        connector_reference_id: Option<String>,
+        status: common_enums::RelayStatus,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        response_data: Option<pii::SecretSerdeValue>,
     },
 }
 
@@ -477,6 +592,7 @@ impl From<RelayUpdate> for RelayUpdateInternal {
                 connector_reference_id: None,
                 status: Some(status),
                 modified_at: common_utils::date_time::now(),
+                response_data: None,
             },
             RelayUpdate::StatusUpdate {
                 connector_reference_id,
@@ -487,6 +603,21 @@ impl From<RelayUpdate> for RelayUpdateInternal {
                 error_code: None,
                 error_message: None,
                 modified_at: common_utils::date_time::now(),
+                response_data: None,
+            },
+            RelayUpdate::UnreferencedRefundUpdate {
+                connector_reference_id,
+                status,
+                error_code,
+                error_message,
+                response_data,
+            } => Self {
+                connector_reference_id,
+                status: Some(status),
+                error_code,
+                error_message,
+                modified_at: common_utils::date_time::now(),
+                response_data,
             },
         }
     }
@@ -521,6 +652,8 @@ impl super::behaviour::Conversion for Relay {
             created_at: self.created_at,
             modified_at: self.modified_at,
             response_data: self.response_data,
+            processor_merchant_id: self.processor_merchant_id,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
         })
     }
 
@@ -537,16 +670,7 @@ impl super::behaviour::Conversion for Relay {
             profile_id: item.profile_id,
             merchant_id: item.merchant_id,
             relay_type: item.relay_type,
-            request_data: item
-                .request_data
-                .map(|data| {
-                    serde_json::from_value(data.expose()).change_context(
-                        ValidationError::InvalidValue {
-                            message: "Failed while decrypting business profile data".to_string(),
-                        },
-                    )
-                })
-                .transpose()?,
+            request_data: RelayData::parse_relay_data(item.request_data, item.relay_type)?,
             status: item.status,
             connector_reference_id: item.connector_reference_id,
             error_code: item.error_code,
@@ -554,6 +678,10 @@ impl super::behaviour::Conversion for Relay {
             created_at: item.created_at,
             modified_at: item.modified_at,
             response_data: item.response_data,
+            processor_merchant_id: item.processor_merchant_id,
+            created_by: item
+                .created_by
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
         })
     }
 
@@ -581,6 +709,8 @@ impl super::behaviour::Conversion for Relay {
             created_at: self.created_at,
             modified_at: self.modified_at,
             response_data: self.response_data,
+            processor_merchant_id: self.processor_merchant_id,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
         })
     }
 }

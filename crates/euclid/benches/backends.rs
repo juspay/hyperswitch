@@ -54,6 +54,7 @@ fn get_program_data() -> (ast::Program<DummyOutput>, inputs::BackendInput) {
             payment_method: Some(enums::PaymentMethod::PayLater),
             payment_method_type: Some(enums::PaymentMethodType::Sofort),
             card_network: None,
+            card_discovery: None,
         },
         mandate: inputs::MandateData {
             mandate_acceptance_type: None,

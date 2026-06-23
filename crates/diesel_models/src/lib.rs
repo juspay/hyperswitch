@@ -1,8 +1,10 @@
 pub mod address;
 pub mod api_keys;
+pub mod batch_blocklist_job;
 pub mod blocklist_lookup;
 pub mod business_profile;
 pub mod capture;
+pub mod card_issuer;
 pub mod cards_info;
 pub mod configs;
 
@@ -70,8 +72,8 @@ use diesel_impl::{RequiredFromNullable, RequiredFromNullableWithDefault};
 pub type StorageResult<T> = error_stack::Result<T, errors::DatabaseError>;
 pub type PgPooledConn = async_bb8_diesel::Connection<diesel::PgConnection>;
 pub use self::{
-    address::*, api_keys::*, callback_mapper::*, cards_info::*, configs::*, customers::*,
-    dispute::*, ephemeral_key::*, events::*, file::*, generic_link::*,
+    address::*, api_keys::*, callback_mapper::*, capture::*, cards_info::*, configs::*,
+    customers::*, dispute::*, ephemeral_key::*, events::*, file::*, generic_link::*,
     hyperswitch_ai_interaction::*, locker_mock_up::*, mandate::*, merchant_account::*,
     merchant_connector_account::*, payment_attempt::*, payment_intent::*, payment_method::*,
     payout_attempt::*, payouts::*, process_tracker::*, refund::*, reverse_lookup::*,

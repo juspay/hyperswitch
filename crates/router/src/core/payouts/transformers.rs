@@ -93,6 +93,7 @@ impl
             priority: payout.priority,
             billing: address,
             payout_method_data: payout_attempt.additional_payout_method_data.map(From::from),
+            source_bank_data: payout_attempt.additional_source_bank_data,
             client_secret: None,
             payout_link: None,
             unified_code: attempt.unified_code.clone(),
@@ -153,7 +154,9 @@ impl
                                         required_fields.entry(key.to_string()).and_modify(
                                             |required_field| {
                                                 required_field.value =
-                                                    Some(masking::Secret::new(value.to_string()));
+                                                    Some(hyperswitch_masking::Secret::new(
+                                                        value.to_string(),
+                                                    ));
                                             },
                                         );
                                     }

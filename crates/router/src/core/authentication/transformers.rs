@@ -5,6 +5,7 @@ use common_enums::PaymentMethod;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::authentication;
+use hyperswitch_masking::ExposeInterface;
 
 use crate::{
     core::{
@@ -215,6 +216,8 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
+        sender_payment_instrument_id: None,
     })
 }
 
@@ -229,6 +232,267 @@ impl ForeignFrom<common_enums::TransactionStatus> for common_enums::Authenticati
             common_enums::TransactionStatus::ChallengeRequired
             | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
             | common_enums::TransactionStatus::InformationOnly => Self::Pending,
+        }
+    }
+}
+
+pub fn construct_authentication_domain_model<T>(input: T) -> authentication::Authentication
+where
+    authentication::Authentication: ForeignFrom<T>,
+{
+    authentication::Authentication::foreign_from(input)
+}
+
+#[cfg(feature = "v1")]
+impl
+    ForeignFrom<(
+        api_models::authentication::AuthenticationResponse,
+        api_models::authentication::AuthenticationEligibilityResponse,
+        Option<api_models::authentication::ThreeDsData>,
+        common_utils::id_type::ProfileId,
+        common_utils::id_type::OrganizationId,
+    )> for authentication::Authentication
+{
+    fn foreign_from(
+        (auth_create_response, elig_response, three_ds_data, profile_id, organization_id): (
+            api_models::authentication::AuthenticationResponse,
+            api_models::authentication::AuthenticationEligibilityResponse,
+            Option<api_models::authentication::ThreeDsData>,
+            common_utils::id_type::ProfileId,
+            common_utils::id_type::OrganizationId,
+        ),
+    ) -> Self {
+        Self {
+            authentication_id: auth_create_response.authentication_id,
+            merchant_id: auth_create_response.merchant_id,
+            authentication_connector: auth_create_response
+                .authentication_connector
+                .map(|c| c.to_string()),
+            connector_authentication_id: three_ds_data
+                .as_ref()
+                .and_then(|d| d.connector_authentication_id.clone()),
+            authentication_data: None,
+            payment_method_id: "".to_string(),
+            authentication_type: None,
+            authentication_status: auth_create_response.status,
+            authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
+            created_at: auth_create_response
+                .created_at
+                .unwrap_or_else(common_utils::date_time::now),
+            modified_at: auth_create_response
+                .created_at
+                .unwrap_or_else(common_utils::date_time::now),
+            error_message: auth_create_response.error_message,
+            error_code: auth_create_response.error_code,
+            connector_metadata: elig_response.connector_metadata,
+            maximum_supported_version: three_ds_data
+                .as_ref()
+                .and_then(|d| d.maximum_supported_3ds_version.clone()),
+            threeds_server_transaction_id: three_ds_data
+                .as_ref()
+                .and_then(|d| d.three_ds_server_transaction_id.clone()),
+            cavv: None,
+            authentication_flow_type: None,
+            message_version: three_ds_data
+                .as_ref()
+                .and_then(|d| d.message_version.clone()),
+            eci: None,
+            trans_status: None,
+            acquirer_bin: auth_create_response
+                .acquirer_details
+                .as_ref()
+                .and_then(|a| a.acquirer_bin.clone()),
+            acquirer_merchant_id: auth_create_response
+                .acquirer_details
+                .as_ref()
+                .and_then(|a| a.acquirer_merchant_id.clone()),
+            three_ds_method_data: three_ds_data
+                .as_ref()
+                .and_then(|d| d.three_ds_method_data.clone()),
+            three_ds_method_url: three_ds_data
+                .as_ref()
+                .and_then(|d| d.three_ds_method_url.clone().map(|u| u.to_string())),
+            acs_url: None,
+            challenge_request: None,
+            acs_reference_number: None,
+            acs_trans_id: None,
+            acs_signed_content: None,
+            profile_id,
+            payment_id: None,
+            merchant_connector_id: None,
+            ds_trans_id: None,
+            directory_server_id: three_ds_data
+                .as_ref()
+                .and_then(|d| d.directory_server_id.clone()),
+            acquirer_country_code: auth_create_response
+                .acquirer_details
+                .as_ref()
+                .and_then(|a| a.merchant_country_code.clone()),
+            organization_id,
+            mcc: None,
+            currency: Some(auth_create_response.currency),
+            billing_country: None,
+            shipping_country: None,
+            issuer_country: None,
+            earliest_supported_version: None,
+            latest_supported_version: None,
+            platform: None,
+            device_type: None,
+            device_brand: None,
+            device_os: None,
+            device_display: None,
+            browser_name: None,
+            browser_version: None,
+            issuer_id: None,
+            scheme_name: None,
+            exemption_requested: None,
+            exemption_accepted: None,
+            service_details: None,
+            authentication_client_secret: auth_create_response.client_secret.map(|s| s.expose()),
+            force_3ds_challenge: auth_create_response.force_3ds_challenge,
+            psd2_sca_exemption_type: auth_create_response.psd2_sca_exemption_type,
+            return_url: auth_create_response.return_url,
+            billing_address: None,
+            shipping_address: None,
+            browser_info: None,
+            email: None,
+            profile_acquirer_id: auth_create_response.profile_acquirer_id,
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+            challenge_request_key: None,
+            customer_details: None,
+            amount: Some(auth_create_response.amount),
+            merchant_country_code: None,
+            processor_merchant_id: None,
+            created_by: None,
+            updated_by: None,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl
+    ForeignFrom<(
+        api_models::authentication::AuthenticationSyncResponse,
+        common_utils::id_type::OrganizationId,
+    )> for authentication::Authentication
+{
+    fn foreign_from(
+        (sync_response, organization_id): (
+            api_models::authentication::AuthenticationSyncResponse,
+            common_utils::id_type::OrganizationId,
+        ),
+    ) -> Self {
+        Self {
+            authentication_id: sync_response.authentication_id,
+            merchant_id: sync_response.merchant_id,
+            authentication_connector: sync_response
+                .authentication_connector
+                .map(|c| c.to_string()),
+            connector_authentication_id: sync_response.connector_authentication_id,
+            authentication_data: None,
+            payment_method_id: "".to_string(),
+            authentication_type: None,
+            authentication_status: sync_response.status,
+            authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
+            created_at: sync_response.created_at,
+            modified_at: sync_response.created_at,
+            error_message: None,
+            error_code: None,
+            connector_metadata: sync_response.connector_metadata,
+            maximum_supported_version: sync_response.maximum_supported_3ds_version,
+            threeds_server_transaction_id: sync_response.threeds_server_transaction_id,
+            cavv: sync_response.authentication_details.as_ref().and_then(|d| {
+                match &d.three_ds_data {
+                    Some(three_ds_data) => match &three_ds_data.authentication_cryptogram {
+                        Some(api_models::authentication::Cryptogram::Cavv {
+                            authentication_cryptogram,
+                        }) => Some(authentication_cryptogram.clone().expose()),
+                        _ => None,
+                    },
+                    None => None,
+                }
+            }),
+            authentication_flow_type: None,
+            message_version: sync_response.message_version,
+            eci: sync_response
+                .authentication_details
+                .as_ref()
+                .and_then(|d| d.three_ds_data.as_ref().and_then(|t| t.eci.clone())),
+            trans_status: sync_response.authentication_details.as_ref().and_then(|d| {
+                d.three_ds_data
+                    .as_ref()
+                    .map(|t| t.transaction_status.clone())
+            }),
+            acquirer_bin: sync_response
+                .acquirer_details
+                .as_ref()
+                .and_then(|a| a.acquirer_bin.clone()),
+            acquirer_merchant_id: sync_response
+                .acquirer_details
+                .as_ref()
+                .and_then(|a| a.acquirer_merchant_id.clone()),
+            three_ds_method_data: sync_response.three_ds_method_data,
+            three_ds_method_url: sync_response.three_ds_method_url,
+            acs_url: None,
+            challenge_request: None,
+            acs_reference_number: None,
+            acs_trans_id: None,
+            acs_signed_content: None,
+            profile_id: sync_response.profile_id,
+            payment_id: None,
+            merchant_connector_id: None,
+            ds_trans_id: sync_response
+                .authentication_details
+                .as_ref()
+                .and_then(|d| d.three_ds_data.as_ref().and_then(|t| t.ds_trans_id.clone())),
+            directory_server_id: sync_response.directory_server_id,
+            acquirer_country_code: sync_response
+                .acquirer_details
+                .as_ref()
+                .and_then(|a| a.merchant_country_code.clone()),
+            organization_id,
+            mcc: None,
+            currency: Some(sync_response.currency),
+            billing_country: None,
+            shipping_country: None,
+            issuer_country: None,
+            earliest_supported_version: None,
+            latest_supported_version: None,
+            platform: None,
+            device_type: None,
+            device_brand: None,
+            device_os: None,
+            device_display: None,
+            browser_name: None,
+            browser_version: None,
+            issuer_id: None,
+            scheme_name: None,
+            exemption_requested: None,
+            exemption_accepted: None,
+            service_details: None,
+            authentication_client_secret: sync_response.client_secret.map(|s| s.expose()),
+            force_3ds_challenge: sync_response.force_3ds_challenge,
+            psd2_sca_exemption_type: sync_response.psd2_sca_exemption_type,
+            return_url: sync_response.return_url,
+            billing_address: None,
+            shipping_address: None,
+            browser_info: None,
+            email: None,
+            profile_acquirer_id: None,
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+            challenge_request_key: None,
+            customer_details: None,
+            amount: Some(sync_response.amount),
+            merchant_country_code: None,
+            processor_merchant_id: None,
+            created_by: None,
+            updated_by: None,
         }
     }
 }

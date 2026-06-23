@@ -1,3 +1,4 @@
+use common_utils::types::CreatedBy;
 use diesel_models::{
     enums as storage_enums,
     enums::{FraudCheckLastStep, FraudCheckStatus, FraudCheckType},
@@ -26,6 +27,8 @@ pub struct KafkaFraudCheckEvent<'a> {
     pub modified_at: OffsetDateTime,
     pub last_step: FraudCheckLastStep,
     pub payment_capture_method: Option<storage_enums::CaptureMethod>, // In postFrm, we are updating capture method from automatic to manual. To store the merchant actual capture method, we are storing the actual capture method in payment_capture_method. It will be useful while approving the FRM decision.
+    pub processor_merchant_id: Option<&'a common_utils::id_type::MerchantId>,
+    pub created_by: Option<CreatedBy>,
 }
 
 impl<'a> KafkaFraudCheckEvent<'a> {
@@ -48,6 +51,11 @@ impl<'a> KafkaFraudCheckEvent<'a> {
             modified_at: check.modified_at.assume_utc(),
             last_step: check.last_step,
             payment_capture_method: check.payment_capture_method,
+            processor_merchant_id: check.processor_merchant_id.as_ref(),
+            created_by: check
+                .created_by
+                .as_ref()
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
         }
     }
 }

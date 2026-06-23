@@ -2,12 +2,14 @@ pub mod address;
 pub mod api_keys;
 pub mod authentication;
 pub mod authorization;
+pub mod batch_blocklist_job;
 pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod blocklist_lookup;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod capture;
+pub mod card_issuer;
 pub mod configs;
 pub mod customers;
 pub mod dashboard_metadata;
@@ -53,6 +55,8 @@ use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
 use hyperswitch_domain_models::{
+    authentication::AuthenticationInterface,
+    card_issuer::CardIssuersInterface,
     cards_info::CardsInfoInterface,
     master_key::MasterKeyInterface,
     payment_methods::PaymentMethodInterface,
@@ -117,6 +121,8 @@ pub trait StorageInterface:
     + PaymentMethodInterface<Error = StorageError>
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
+    + batch_blocklist_job::BatchBlocklistJobInterface
+    + CardIssuersInterface<Error = StorageError>
     + dynamic_routing_stats::DynamicRoutingStatsInterface
     + scheduler::SchedulerInterface
     + PayoutAttemptInterface<Error = StorageError>
@@ -138,7 +144,7 @@ pub trait StorageInterface:
     + health_check::HealthCheckDbInterface
     + user_authentication_method::UserAuthenticationMethodInterface
     + hyperswitch_ai_interaction::HyperswitchAiInteractionInterface
-    + authentication::AuthenticationInterface
+    + AuthenticationInterface<Error = StorageError>
     + generic_link::GenericLinkInterface
     + relay::RelayInterface
     + user::theme::ThemeInterface
@@ -300,7 +306,8 @@ impl RequestIdStore for MockDb {}
 
 impl RequestIdStore for Store {
     fn add_request_id(&mut self, request_id: String) {
-        self.request_id = Some(request_id)
+        self.request_id = Some(request_id.clone());
+        self.update_key_manager_request_id(request_id);
     }
 
     fn get_request_id(&self) -> Option<String> {

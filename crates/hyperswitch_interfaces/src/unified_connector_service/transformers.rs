@@ -1,19 +1,28 @@
+use std::str::FromStr;
+
 use common_enums::AttemptStatus;
 use common_types::primitive_wrappers::{ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool};
-use common_utils::request::Method;
+use common_utils::{errors::ErrorSwitch, request::Method};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    errors::api_error_response::{ApiErrorResponse, NotImplementedMessage},
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ErrorResponse,
         ExtendedAuthorizationResponseData,
     },
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
+use hyperswitch_masking::ExposeInterface;
+use prost::Message;
 
 use crate::{
+    errors::ConnectorError,
     helpers::{ForeignFrom, ForeignTryFrom},
     unified_connector_service::payments_grpc,
 };
+
+/// UCS error code indicating the connector returned a 4xx/5xx HTTP response (with `http_status_code` set).
+const CONNECTOR_ERROR_RESPONSE_CODE: &str = "CONNECTOR_ERROR_RESPONSE";
 
 /// Unified Connector Service error variants
 #[derive(Debug, Clone, thiserror::Error)]
@@ -83,29 +92,44 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to inject metadata into request headers: {0}")]
     HeaderInjectionFailed(String),
 
-    /// Failed to perform Create Order from gRPC Server
-    #[error("Failed to perform Create Order from gRPC Server")]
+    /// Tonic gRPC status error from UCS.
+    /// Use http_status() to get the corresponding HTTP status code.
+    #[error("UCS error: {code:?} - {message}")]
+    TonicStatus {
+        /// Tonic status code
+        code: tonic::Code,
+        /// Error message from UCS
+        message: String,
+    },
+
+    /// Connector error received through UCS (contains original connector HTTP status code).
+    /// Distinguishes connector errors from UCS errors by presence of status_code.
+    #[error("Connector error via UCS: {0:?}")]
+    ConnectorError(Box<ConnectorErrorInner>),
+
+    /// Failed to perform Payment Create Order from gRPC Server
+    #[error("Failed to perform Payment Create Order from gRPC Server")]
     PaymentCreateOrderFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
     #[error("Failed to perform. Granular Payment Authorize from gRPC Server")]
     PaymentAuthorizeGranularFailure,
 
-    /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Session Token Create from gRPC Server")]
-    PaymentCreateSessionTokenFailure,
+    /// Failed to perform Create Session Token from gRPC Server
+    #[error("Failed to perform Create Session Token from gRPC Server")]
+    CreateSessionTokenFailure,
 
-    /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Access Token Create from gRPC Server")]
-    PaymentCreateAccessTokenFailure,
+    /// Failed to perform Create Access Token from gRPC Server
+    #[error("Failed to perform Create Access Token from gRPC Server")]
+    CreateAccessTokenFailure,
 
-    /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Method Token Create from gRPC Server")]
-    PaymentMethodTokenCreateFailure,
+    /// Failed to perform Payment Method Tokenize from gRPC Server
+    #[error("Failed to perform Payment Method Tokenize from gRPC Server")]
+    PaymentMethodTokenizeFailure,
 
-    /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Connector Customer Create from gRPC Server")]
-    PaymentConnectorCustomerCreateFailure,
+    /// Failed to perform Create Connector Customer from gRPC Server
+    #[error("Failed to perform Create Connector Customer from gRPC Server")]
+    CreateConnectorCustomerFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
     #[error("Failed to perform Payment Authorize from gRPC Server")]
@@ -131,13 +155,13 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to perform Payment Capture from gRPC Server")]
     PaymentCaptureFailure,
 
-    /// Failed to perform Payment Setup Mandate from gRPC Server
-    #[error("Failed to perform Setup Mandate from gRPC Server")]
-    PaymentRegisterFailure,
+    /// Failed to perform Payment Setup Recurring from gRPC Server
+    #[error("Failed to perform Setup Recurring from gRPC Server")]
+    PaymentSetupRecurringFailure,
 
-    /// Failed to perform Payment Repeat Payment from gRPC Server
-    #[error("Failed to perform Repeat Payment from gRPC Server")]
-    PaymentRepeatEverythingFailure,
+    /// Failed to perform Recurring Payment Charge from gRPC Server
+    #[error("Failed to perform Recurring Payment Charge from gRPC Server")]
+    RecurringPaymentChargeFailure,
 
     /// Failed to perform Payment Refund from gRPC Server
     #[error("Failed to perform Payment Refund from gRPC Server")]
@@ -147,41 +171,79 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to perform Refund Sync from gRPC Server")]
     RefundSyncFailure,
 
-    /// Failed to transform incoming webhook from gRPC Server
-    #[error("Failed to transform incoming webhook from gRPC Server")]
-    WebhookTransformFailure,
+    /// Failed to handle incoming webhook event from gRPC Server
+    #[error("Failed to handle incoming webhook event from gRPC Server")]
+    IncomingWebhookHandleEventFailure,
 
-    /// Failed to perform Payment Cancel from gRPC Server
-    #[error("Failed to perform Cancel from gRPC Server")]
-    PaymentCancelFailure,
+    /// Failed to parse incoming webhook event from gRPC Server
+    #[error("Failed to parse incoming webhook event from gRPC Server")]
+    IncomingWebhookParseEventFailure,
 
-    /// Failed to perform Sdk Session Token from gRPC Server
-    #[error("Failed to perform Sdk Session Token from gRPC Server")]
-    SdkSessionTokenFailure,
+    /// Failed to perform Payment Void from gRPC Server
+    #[error("Failed to perform Void from gRPC Server")]
+    PaymentVoidFailure,
 
-    /// Failed to perform Incremental Authorization from gRPC Server
-    #[error("Failed to perform Incremental Authorization from gRPC Server")]
-    IncrementalAuthorizationFailure,
+    /// Failed to perform Create Sdk Session Token from gRPC Server
+    #[error("Failed to perform Create Sdk Session Token from gRPC Server")]
+    CreateSdkSessionTokenFailure,
+
+    /// Failed to perform Payment Incremental Authorization from gRPC Server
+    #[error("Failed to perform Payment Incremental Authorization from gRPC Server")]
+    PaymentIncrementalAuthorizationFailure,
+
+    /// Failed to perform Payout Create from gRPC Server
+    #[error("Failed to perform Payout Create from gRPC Server")]
+    PayoutCreateFailure,
+
+    /// Failed to perform Payout Transfer from gRPC Server
+    #[error("Failed to perform Payout Transfer from gRPC Server")]
+    PayoutTransferFailure,
+
+    /// Failed to perform Payout Get from gRPC Server
+    #[error("Failed to perform Payout Get from gRPC Server")]
+    PayoutGetFailure,
+
+    /// Failed to perform Payout Void from gRPC Server
+    #[error("Failed to perform Payout Void from gRPC Server")]
+    PayoutVoidFailure,
+
+    /// Failed to perform Payout Stage from gRPC Server
+    #[error("Failed to perform Payout Stage from gRPC Server")]
+    PayoutStageFailure,
+
+    /// Failed to perform Payout Create Recipient from gRPC Server
+    #[error("Failed to perform Payout Create Recipient from gRPC Server")]
+    PayoutCreateRecipientFailure,
+
+    /// Failed to perform Payout Enroll Disburse Account from gRPC Server
+    #[error("Failed to perform Payout Enroll Disburse Account from gRPC Server")]
+    PayoutEnrollDisburseAccountFailure,
+
+    /// Failed to perform Surcharge Calculate from gRPC Server
+    #[error("Failed to perform Surcharge Calculate from gRPC Server")]
+    SurchargeCalculateFailure,
 }
 
-/// UCS Webhook transformation status
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum WebhookTransformationStatus {
-    /// Transformation completed successfully, no further action needed
-    Complete,
-    /// Transformation incomplete, requires second call for final status
-    Incomplete,
-}
-
-#[allow(missing_docs)]
-/// Webhook transform data structure containing UCS response information
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct WebhookTransformData {
-    pub event_type: api_models::webhooks::IncomingWebhookEvent,
-    pub source_verified: bool,
-    pub webhook_content: Option<payments_grpc::WebhookResponseContent>,
-    pub response_ref_id: Option<String>,
-    pub webhook_transformation_status: WebhookTransformationStatus,
+/// Inner data for [`UnifiedConnectorServiceError::ConnectorError`].
+/// Boxed to keep the enum's memory footprint small.
+#[derive(Debug, Clone)]
+pub struct ConnectorErrorInner {
+    /// Connector error code
+    pub code: String,
+    /// Connector error message
+    pub message: String,
+    /// Original HTTP status code from connector
+    pub status_code: u16,
+    /// Optional reason for the error
+    pub reason: Option<String>,
+    /// Name of the connector that returned the error
+    pub connector: String,
+    /// Network decline code from card scheme (e.g. Visa/Mastercard decline code)
+    pub network_decline_code: Option<String>,
+    /// Network advice code for retry logic
+    pub network_advice_code: Option<String>,
+    /// Network-specific error message
+    pub network_error_message: Option<String>,
 }
 
 impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
@@ -192,31 +254,23 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     fn foreign_try_from(
         (response, prev_status): (payments_grpc::PaymentServiceGetResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
-        let connector_response_reference_id =
-            response.response_ref_id.as_ref().and_then(|identifier| {
-                identifier
-                    .id_type
-                    .clone()
-                    .and_then(|id_type| match id_type {
-                        payments_grpc::identifier::IdType::Id(id) => Some(id),
-                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
-                            Some(encoded_data)
-                        }
-                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-                    })
-            });
-
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
-        let resource_id: hyperswitch_domain_models::router_request_types::ResponseId = match response.transaction_id.as_ref().and_then(|id| id.id_type.clone()) {
-            Some(payments_grpc::identifier::IdType::Id(id)) => hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(id),
-            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => hyperswitch_domain_models::router_request_types::ResponseId::EncodedData(encoded_data),
-            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
-        };
+        let connector_transaction_id =
+            hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(
+                response.connector_transaction_id.clone(),
+            );
 
-        let response = if response.error_code.is_some() {
+        let connector_details = response
+            .error
+            .as_ref()
+            .and_then(|e| e.connector_details.as_ref());
+
+        let response = if let Some(error_code) =
+            connector_details.and_then(|details| details.code.clone())
+        {
             let attempt_status = match response.status() {
-                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                payments_grpc::PaymentStatus::Unspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
                     response.status(),
                     prev_status,
@@ -224,16 +278,42 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
             };
 
             Err(ErrorResponse {
-                code: response.error_code().to_owned(),
-                message: response.error_message().to_owned(),
-                reason: Some(response.error_reason().to_owned()),
+                code: error_code,
+                message: connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.message.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
+                        .attach_printable("Missing error message in UCS response ErrorInfo"),
+                    )?,
+                reason: connector_details.as_ref().and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: resource_id.get_optional_response_id(),
-                connector_response_reference_id,
-                network_decline_code: response.network_decline_code.clone(),
-                network_advice_code: response.network_advice_code.clone(),
-                network_error_message: response.network_error_message.clone(),
+                connector_transaction_id: connector_transaction_id.get_optional_response_id(),
+                connector_response_reference_id: response.merchant_transaction_id,
+                network_decline_code: response.error.as_ref().and_then(|error| {
+                    error.issuer_details.as_ref().and_then(|id| {
+                        id.network_details
+                            .as_ref()
+                            .and_then(|nd| nd.decline_code.clone())
+                    })
+                }),
+                network_advice_code: response.error.as_ref().and_then(|error| {
+                    error.issuer_details.as_ref().and_then(|id| {
+                        id.network_details
+                            .as_ref()
+                            .and_then(|nd| nd.advice_code.clone())
+                    })
+                }),
+                network_error_message: response.error.as_ref().and_then(|error| {
+                    error.issuer_details.as_ref().and_then(|id| {
+                        id.network_details
+                            .as_ref()
+                            .and_then(|nd| nd.error_message.clone())
+                    })
+                }),
                 connector_metadata: None,
             })
         } else {
@@ -241,7 +321,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
-                    resource_id,
+                    resource_id: connector_transaction_id,
                     redirection_data: Box::new(
                         response
                             .redirection_data
@@ -249,18 +329,12 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                             .map(ForeignTryFrom::foreign_try_from)
                             .transpose()?,
                     ),
-                    mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
-                        hyperswitch_domain_models::router_response_types::MandateReference {
-                            connector_mandate_id: grpc_mandate.mandate_id,
-                            payment_method_id: grpc_mandate.payment_method_id,
-                            mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
-                        }
-                    })),
+                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata: None,
-                    network_txn_id: response.network_txn_id.clone(),
-                    connector_response_reference_id,
-                    incremental_authorization_allowed: None,
+                    network_txn_id: response.network_transaction_id.clone(),
+                    network_txn_link_id: response.network_txn_link_id.clone(),
+                    connector_response_reference_id: response.merchant_transaction_id,
+                    incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: None,
                 },
@@ -269,6 +343,28 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
         };
 
         Ok(response)
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::MandateReference>
+    for hyperswitch_domain_models::router_response_types::MandateReference
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::MandateReference) -> Result<Self, Self::Error> {
+        match value.mandate_id_type {
+            Some(payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(
+                connector_mandate_id,
+            )) => Ok(Self {
+                connector_mandate_id: connector_mandate_id.connector_mandate_id,
+                payment_method_id: connector_mandate_id.payment_method_id,
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: connector_mandate_id
+                    .connector_mandate_request_reference_id,
+            }),
+            _ => Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                .attach_printable("Recieved Invalid MandateReference from UCS"),
+        }
     }
 }
 
@@ -310,7 +406,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentStatus, Self)> for AttemptStatus {
                 Ok(Self::DeviceDataCollectionPending)
             }
             payments_grpc::PaymentStatus::VoidedPostCapture => Ok(Self::Voided),
-            payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(prev_status),
+            payments_grpc::PaymentStatus::Unspecified => Ok(prev_status),
             payments_grpc::PaymentStatus::PartiallyAuthorized => Ok(Self::PartiallyAuthorized),
             payments_grpc::PaymentStatus::Expired => Ok(Self::Expired),
         }
@@ -430,6 +526,34 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
             ) => Ok(Self::ApplePay {
                 auth_code: apple_pay_data.auth_code,
             }),
+            Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::BankRedirect(bank_redirect_data)) => {
+                let interac = bank_redirect_data.interac.map(|proto_interac| {
+                    hyperswitch_domain_models::router_data::InteracCustomerInfo {
+                        customer_info: proto_interac.customer_info.map(|info| {
+                            common_types::payments::InteracCustomerInfoDetails {
+                                customer_name: info.customer_name.map(|secret| hyperswitch_masking::Secret::new(secret.expose())),
+                                customer_email: info.customer_email
+                                    .and_then(|secret| {
+                                        common_utils::pii::Email::from_str(&secret.expose())
+                                            .map_err(|e| {
+                                                router_env::logger::warn!(
+                                                    email_parse_error=?e,
+                                                    "Failed to parse customer_email from UCS InteracCustomerInfo"
+                                                );
+                                                e
+                                            })
+                                            .ok()
+                                    }),
+                                customer_phone_number: info.customer_phone_number.map(|secret| hyperswitch_masking::Secret::new(secret.expose())),
+                                customer_bank_id: info.customer_bank_id.map(|secret| hyperswitch_masking::Secret::new(secret.expose())),
+                                customer_bank_name: info.customer_bank_name.map(|secret| hyperswitch_masking::Secret::new(secret.expose())),
+                            }
+                        }),
+                    }
+                });
+                Ok(Self::BankRedirect { interac })
+
+            }
             None => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
@@ -458,8 +582,6 @@ impl ForeignTryFrom<payments_grpc::Ach>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(ach: payments_grpc::Ach) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         let bank_name = payments_grpc::BankNames::try_from(ach.bank_name)
             .ok()
             .and_then(|bn| common_enums::BankNames::foreign_try_from(bn).ok());
@@ -473,26 +595,23 @@ impl ForeignTryFrom<payments_grpc::Ach>
             .and_then(|bht| common_enums::BankHolderType::foreign_try_from(bht).ok());
 
         Ok(Self::AchBankDebit {
-            account_number: masking::Secret::new(
+            account_number: hyperswitch_masking::Secret::new(
                 ach.account_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "account_number",
                     })?
                     .expose(),
             ),
-            routing_number: masking::Secret::new(
+            routing_number: hyperswitch_masking::Secret::new(
                 ach.routing_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "routing_number",
                     })?
                     .expose(),
             ),
-            card_holder_name: ach
-                .card_holder_name
-                .map(|s| masking::Secret::new(s.expose())),
             bank_account_holder_name: ach
                 .bank_account_holder_name
-                .map(|s| masking::Secret::new(s.expose())),
+                .map(|s| hyperswitch_masking::Secret::new(s.expose())),
             bank_name,
             bank_type,
             bank_holder_type,
@@ -506,10 +625,8 @@ impl ForeignTryFrom<payments_grpc::Sepa>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(sepa: payments_grpc::Sepa) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         Ok(Self::SepaBankDebit {
-            iban: masking::Secret::new(
+            iban: hyperswitch_masking::Secret::new(
                 sepa.iban
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "iban",
@@ -518,7 +635,7 @@ impl ForeignTryFrom<payments_grpc::Sepa>
             ),
             bank_account_holder_name: sepa
                 .bank_account_holder_name
-                .map(|name| masking::Secret::new(name.expose())),
+                .map(|name| hyperswitch_masking::Secret::new(name.expose())),
         })
     }
 }
@@ -529,17 +646,15 @@ impl ForeignTryFrom<payments_grpc::Bacs>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(bacs: payments_grpc::Bacs) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         Ok(Self::BacsBankDebit {
-            account_number: masking::Secret::new(
+            account_number: hyperswitch_masking::Secret::new(
                 bacs.account_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "account_number",
                     })?
                     .expose(),
             ),
-            sort_code: masking::Secret::new(
+            sort_code: hyperswitch_masking::Secret::new(
                 bacs.sort_code
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "sort_code",
@@ -548,7 +663,7 @@ impl ForeignTryFrom<payments_grpc::Bacs>
             ),
             bank_account_holder_name: bacs
                 .bank_account_holder_name
-                .map(|name| masking::Secret::new(name.expose())),
+                .map(|name| hyperswitch_masking::Secret::new(name.expose())),
         })
     }
 }
@@ -559,17 +674,15 @@ impl ForeignTryFrom<payments_grpc::Becs>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(becs: payments_grpc::Becs) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         Ok(Self::BecsBankDebit {
-            account_number: masking::Secret::new(
+            account_number: hyperswitch_masking::Secret::new(
                 becs.account_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "account_number",
                     })?
                     .expose(),
             ),
-            bsb_number: masking::Secret::new(
+            bsb_number: hyperswitch_masking::Secret::new(
                 becs.bsb_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "bsb_number",
@@ -578,7 +691,7 @@ impl ForeignTryFrom<payments_grpc::Becs>
             ),
             bank_account_holder_name: becs
                 .bank_account_holder_name
-                .map(|name| masking::Secret::new(name.expose())),
+                .map(|name| hyperswitch_masking::Secret::new(name.expose())),
         })
     }
 }
@@ -590,10 +703,14 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
         match bank_type {
             payments_grpc::BankType::Checking => Ok(Self::Checking),
             payments_grpc::BankType::Savings => Ok(Self::Savings),
-            payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
+            payments_grpc::BankType::Bond
+            | payments_grpc::BankType::Transmission
+            | payments_grpc::BankType::Current
+            | payments_grpc::BankType::SubscriptionShare
+            | payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
-            .attach_printable("BankType unspecified")),
+            .attach_printable("BankType unsupported")),
         }
     }
 }
@@ -705,6 +822,40 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                     initialization_token: mifinity.initialization_token,
                 })
             }
+            Some(payments_grpc::redirect_form::FormType::Nmi(nmi)) => {
+                let amount_money =
+                    nmi.amount
+                        .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                            field_name: "amount",
+                        })?;
+                let currency = match payments_grpc::Currency::try_from(amount_money.currency) {
+                    Ok(payments_grpc::Currency::Unspecified) | Err(_) => {
+                        Err(UnifiedConnectorServiceError::MissingRequiredField {
+                            field_name: "currency",
+                        })
+                    }
+                    Ok(c) => common_enums::Currency::from_str(c.as_str_name())
+                        .map_err(|_| UnifiedConnectorServiceError::ParsingFailed),
+                }
+                .attach_printable("Failed to parse currency from UCS Nmi redirect form")?;
+                Ok(Self::Nmi {
+                    amount: common_utils::types::MinorUnit::new(amount_money.minor_amount)
+                        .to_major_unit_as_f64(currency)
+                        .change_context(UnifiedConnectorServiceError::ParsingFailed)?
+                        .get_amount_as_f64()
+                        .to_string(),
+                    currency,
+                    public_key: hyperswitch_masking::Secret::new(
+                        nmi.public_key
+                            .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                                field_name: "public_key",
+                            })?
+                            .expose(),
+                    ),
+                    customer_vault_id: nmi.customer_vault_id,
+                    order_id: nmi.order_id,
+                })
+            }
             None => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Missing form type".to_string(),
@@ -743,6 +894,236 @@ impl ForeignFrom<payments_grpc::UpiSource>
             payments_grpc::UpiSource::UpiCcCl => Self::UpiCcCl,
             payments_grpc::UpiSource::UpiPpi => Self::UpiPpi,
             payments_grpc::UpiSource::UpiVoucher => Self::UpiVoucher,
+        }
+    }
+}
+
+impl UnifiedConnectorServiceError {
+    /// Converts tonic::Code to HTTP status code.
+    pub fn tonic_to_http_status(code: tonic::Code) -> u16 {
+        match code {
+            tonic::Code::InvalidArgument | tonic::Code::FailedPrecondition => 400,
+            tonic::Code::Unauthenticated => 401,
+            tonic::Code::PermissionDenied => 403,
+            tonic::Code::NotFound => 404,
+            tonic::Code::AlreadyExists => 409,
+            tonic::Code::Unimplemented => 501,
+            tonic::Code::Unavailable => 503,
+            tonic::Code::DeadlineExceeded => 504,
+            _ => 500,
+        }
+    }
+
+    /// Returns HTTP status code for this error.
+    pub fn http_status(&self) -> u16 {
+        match self {
+            Self::TonicStatus { code, .. } => Self::tonic_to_http_status(*code),
+            Self::ConnectorError(inner) => inner.status_code,
+            Self::ConnectionError(_) => 503,
+            Self::InvalidDataFormat { .. }
+            | Self::MissingRequiredField { .. }
+            | Self::MissingRequiredFields { .. }
+            | Self::RequestEncodingFailed
+            | Self::RequestEncodingFailedWithReason(_)
+            | Self::InvalidConnectorName
+            | Self::MissingConnectorName => 400,
+            Self::NotImplemented(_) => 501,
+            _ => 500,
+        }
+    }
+
+    /// Maps tonic::Status to UnifiedConnectorServiceError.
+    /// First tries to extract a connector HTTP error from proto-encoded status details.
+    pub fn from_grpc_error(status: &tonic::Status, connector_name: &str) -> Self {
+        // Try to extract ConnectorError from proto-encoded status details
+        if let Some(error_from_details) =
+            Self::decode_connector_error_response(status, connector_name)
+        {
+            return error_from_details;
+        }
+
+        Self::TonicStatus {
+            code: status.code(),
+            message: status.message().to_string(),
+        }
+    }
+
+    /// Decodes a connector HTTP error (4xx/5xx) from tonic status details, returning `None` for UCS-side errors.
+    fn decode_connector_error_response(
+        status: &tonic::Status,
+        connector_name: &str,
+    ) -> Option<Self> {
+        let details = status.details();
+        if details.is_empty() {
+            return None;
+        }
+
+        let connector_error = payments_grpc::ConnectorError::decode(details)
+            .inspect_err(|e| {
+                router_env::logger::warn!(
+                    error = ?e,
+                    connector_name = connector_name,
+                    "Failed to decode ConnectorError from tonic status details"
+                );
+            })
+            .ok()?;
+
+        // Only treat as a connector HTTP error when the error code explicitly signals it.
+        // Other error_code values are UCS-side errors and should fall back to TonicStatus.
+        if connector_error.error_code != CONNECTOR_ERROR_RESPONSE_CODE {
+            return None;
+        }
+
+        let status_code = u16::try_from(connector_error.http_status_code?).ok()?;
+
+        Some(Self::ConnectorError(Box::new(ConnectorErrorInner {
+            code: connector_error.error_code,
+            message: connector_error.error_message,
+            status_code,
+            reason: connector_error
+                .error_info
+                .as_ref()
+                .and_then(|ei| ei.connector_details.as_ref())
+                .and_then(|cd| cd.reason.clone()),
+            connector: connector_name.to_string(),
+            network_decline_code: connector_error
+                .error_info
+                .as_ref()
+                .and_then(|ei| ei.issuer_details.as_ref())
+                .and_then(|id| id.network_details.as_ref())
+                .and_then(|nd| nd.decline_code.clone()),
+            network_advice_code: connector_error
+                .error_info
+                .as_ref()
+                .and_then(|ei| ei.issuer_details.as_ref())
+                .and_then(|id| id.network_details.as_ref())
+                .and_then(|nd| nd.advice_code.clone()),
+            network_error_message: connector_error
+                .error_info
+                .as_ref()
+                .and_then(|ei| ei.issuer_details.as_ref())
+                .and_then(|id| id.network_details.as_ref())
+                .and_then(|nd| nd.error_message.clone()),
+        })))
+    }
+}
+
+impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
+    fn switch(&self) -> ApiErrorResponse {
+        match self {
+            Self::TonicStatus { code, message } => match code {
+                tonic::Code::InvalidArgument | tonic::Code::FailedPrecondition => {
+                    ApiErrorResponse::InvalidRequestData {
+                        message: message.clone(),
+                    }
+                }
+                tonic::Code::NotFound => ApiErrorResponse::InvalidRequestData {
+                    message: format!("Resource not found: {message}"),
+                },
+                tonic::Code::AlreadyExists => ApiErrorResponse::InvalidRequestData {
+                    message: format!("Resource already exists: {message}"),
+                },
+                tonic::Code::PermissionDenied => ApiErrorResponse::AccessForbidden {
+                    resource: message.clone(),
+                },
+                tonic::Code::Unauthenticated => ApiErrorResponse::Unauthorized,
+                tonic::Code::Unimplemented => ApiErrorResponse::NotImplemented {
+                    message: NotImplementedMessage::Reason(message.clone()),
+                },
+                tonic::Code::Unavailable
+                | tonic::Code::DeadlineExceeded
+                | tonic::Code::Internal => ApiErrorResponse::InternalServerError,
+                _ => ApiErrorResponse::InternalServerError,
+            },
+            Self::ConnectorError(inner) => ApiErrorResponse::ExternalConnectorError {
+                code: inner.code.clone(),
+                message: inner.message.clone(),
+                connector: inner.connector.clone(),
+                status_code: inner.status_code,
+                reason: inner.reason.clone(),
+            },
+            _ => ApiErrorResponse::InternalServerError,
+        }
+    }
+}
+
+impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
+    fn switch(&self) -> ConnectorError {
+        match self {
+            // UCS validation errors (4xx from tonic) → ProcessingStepFailed with encoded error
+            // body so the upstream handler can return the right HTTP status code.
+            Self::TonicStatus { code, message } => {
+                let status_code = Self::tonic_to_http_status(*code);
+                let error_body = serde_json::json!({
+                    "code": format!("UCS_{}", status_code),
+                    "message": message,
+                    "status_code": status_code,
+                });
+                ConnectorError::ProcessingStepFailed(Some(bytes::Bytes::from(
+                    error_body.to_string(),
+                )))
+            }
+            // Connector errors with status code → ResponseHandlingFailed
+            Self::ConnectorError(_) => ConnectorError::ResponseHandlingFailed,
+            // Connection/availability errors → ResponseHandlingFailed
+            Self::ConnectionError(_) => ConnectorError::ResponseHandlingFailed,
+            // Request encoding errors
+            Self::RequestEncodingFailed
+            | Self::RequestEncodingFailedWithReason(_)
+            | Self::InvalidDataFormat { .. } => ConnectorError::RequestEncodingFailed,
+            // Missing field errors
+            Self::MissingRequiredField { field_name } => {
+                ConnectorError::MissingRequiredField { field_name }
+            }
+            Self::MissingRequiredFields { field_names } => ConnectorError::MissingRequiredFields {
+                field_names: field_names.clone(),
+            },
+            // Response deserialization errors
+            Self::ResponseDeserializationFailed | Self::ParsingFailed => {
+                ConnectorError::ResponseDeserializationFailed
+            }
+            // Auth errors
+            Self::FailedToObtainAuthType => ConnectorError::FailedToObtainAuthType,
+            // Not implemented
+            Self::NotImplemented(msg) => ConnectorError::NotImplemented(msg.clone()),
+            // Invalid connector name
+            Self::InvalidConnectorName | Self::MissingConnectorName => {
+                ConnectorError::InvalidConnectorName
+            }
+            // Header injection errors → request encoding failure
+            Self::HeaderInjectionFailed(_) => ConnectorError::RequestEncodingFailed,
+            // Webhook processing errors
+            Self::WebhookProcessingFailure => ConnectorError::ResponseHandlingFailed,
+            // All other gRPC operation failures
+            Self::PaymentCreateOrderFailure
+            | Self::PaymentAuthorizeGranularFailure
+            | Self::CreateSessionTokenFailure
+            | Self::CreateAccessTokenFailure
+            | Self::PaymentMethodTokenizeFailure
+            | Self::CreateConnectorCustomerFailure
+            | Self::PaymentAuthorizeFailure
+            | Self::PaymentPreAuthenticateFailure
+            | Self::PaymentAuthenticateFailure
+            | Self::PaymentPostAuthenticateFailure
+            | Self::PaymentGetFailure
+            | Self::PaymentCaptureFailure
+            | Self::PaymentSetupRecurringFailure
+            | Self::RecurringPaymentChargeFailure
+            | Self::PaymentRefundFailure
+            | Self::RefundSyncFailure
+            | Self::IncomingWebhookHandleEventFailure
+            | Self::IncomingWebhookParseEventFailure
+            | Self::PaymentVoidFailure
+            | Self::CreateSdkSessionTokenFailure
+            | Self::PaymentIncrementalAuthorizationFailure
+            | Self::PayoutCreateFailure
+            | Self::PayoutTransferFailure
+            | Self::PayoutGetFailure
+            | Self::PayoutVoidFailure
+            | Self::PayoutStageFailure
+            | Self::PayoutCreateRecipientFailure
+            | Self::SurchargeCalculateFailure
+            | Self::PayoutEnrollDisburseAccountFailure => ConnectorError::ResponseHandlingFailed,
         }
     }
 }

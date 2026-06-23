@@ -22,7 +22,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -795,6 +795,8 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
             | PaymentMethodData::OpenBanking(..)
             | PaymentMethodData::NetworkToken(..)
             | PaymentMethodData::MobilePayment(..)
+            | PaymentMethodData::CardWithOptionalCVC(..)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(..)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(..)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(..) => {
@@ -850,6 +852,8 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
                 TokenizedCardData::try_from((wallet_data, &item.router_data.payment_method_token))?
             }
             PaymentMethodData::Card(..)
+            | PaymentMethodData::CardWithOptionalCVC(..)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(..)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
@@ -937,6 +941,7 @@ impl TryFrom<PaymentsResponseRouterData<ArchipelPaymentsResponse>> for PaymentsA
                     .request
                     .is_customer_initiated_mandate_payment()
                     .then_some(item.response.transaction_id),
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: Some(is_incremental_allowed),
             }),
@@ -984,6 +989,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<ArchipelPaymentsResponse>> for Payme
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
             }),
@@ -1049,6 +1055,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ArchipelPaymentsResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
             }),
@@ -1172,6 +1179,7 @@ impl<F>
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: Some(item.response.transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),
                 incremental_authorization_allowed: Some(false),
             }),
@@ -1230,6 +1238,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<ArchipelPaymentsResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
             }),

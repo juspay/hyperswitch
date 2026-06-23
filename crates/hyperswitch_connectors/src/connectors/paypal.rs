@@ -45,8 +45,9 @@ use hyperswitch_domain_models::{
         PaymentsCompleteAuthorizeRouterData, PaymentsExtendAuthorizationRouterData,
         PaymentsIncrementalAuthorizationRouterData, PaymentsPostAuthenticateRouterData,
         PaymentsPostSessionTokensRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
-        SdkSessionUpdateRouterData, SetupMandateRouterData, VerifyWebhookSourceRouterData,
+        PaymentsSessionRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
+        RefundSyncRouterData, RefundsRouterData, SdkSessionUpdateRouterData,
+        SetupMandateRouterData, VerifyWebhookSourceRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -69,13 +70,13 @@ use hyperswitch_interfaces::{
     types::{
         ExtendedAuthorizationType, IncrementalAuthorizationType, PaymentsAuthorizeType,
         PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsPostAuthenticateType,
-        PaymentsPostSessionTokensType, PaymentsPreProcessingType, PaymentsSyncType,
-        PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType, Response,
-        SdkSessionUpdateType, SetupMandateType, VerifyWebhookSourceType,
+        PaymentsPostSessionTokensType, PaymentsPreProcessingType, PaymentsSessionType,
+        PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType,
+        Response, SdkSessionUpdateType, SetupMandateType, VerifyWebhookSourceType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers::{
@@ -88,8 +89,8 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         self as connector_utils, to_connector_meta, ConnectorErrorType, ConnectorErrorTypeMapping,
-        ForeignTryFrom, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-        PaymentsCompleteAuthorizeRequestData, RefundsRequestData,
+        ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        RefundsRequestData,
     },
 };
 
@@ -377,27 +378,129 @@ impl ConnectorCommon for Paypal {
     }
 }
 
-impl ConnectorValidation for Paypal {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::PaypalRedirect,
-            PaymentMethodDataType::PaypalSdk,
-        ]);
-        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Paypal {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Paypal
 {
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Paypal {}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Paypal {
+    fn get_url(
+        &self,
+        _req: &PaymentsSessionRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}v1/oauth2/token", self.base_url(connectors)))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_headers(
+        &self,
+        req: &PaymentsSessionRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        let auth = paypal::PaypalAuthType::try_from(&req.connector_auth_type)?;
+        let credentials = auth.get_credentials()?;
+        let auth_val = credentials.generate_authorization_value();
+
+        Ok(vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                PaymentsSessionType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (headers::AUTHORIZATION.to_string(), auth_val.into_masked()),
+        ])
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsSessionRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = paypal::PaypalAuthUpdateRequest::try_from(req)?;
+
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsSessionRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let req = Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .headers(PaymentsSessionType::get_headers(self, req, connectors)?)
+                .url(&PaymentsSessionType::get_url(self, req, connectors)?)
+                .set_body(PaymentsSessionType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        );
+
+        Ok(req)
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsSessionRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsSessionRouterData, errors::ConnectorError>
+    where
+        PaymentsResponseData: Clone,
+    {
+        let response: paypal::PaypalAuthUpdateResponse = res
+            .response
+            .parse_struct("Paypal PaypalAuthUpdateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        ForeignTryFrom::foreign_try_from((
+            crate::types::PaymentsSessionResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            data.clone(),
+        ))
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: paypal::PaypalAccessTokenErrorResponse = res
+            .response
+            .parse_struct("Paypal AccessTokenErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error.clone(),
+            message: response.error.clone(),
+            reason: Some(response.error_description),
+            attempt_status: None,
+            connector_transaction_id: None,
+            connector_response_reference_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
+    }
+}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Paypal {
     fn get_url(
@@ -2184,13 +2287,13 @@ impl IncomingWebhook for Paypal {
         let payload: paypal::PaypalWebooksEventType = request
             .body
             .parse_struct("PaypalWebooksEventType")
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?;
         let outcome = match payload.event_type {
             PaypalWebhookEventType::CustomerDisputeResolved => Some(
                 request
                     .body
                     .parse_struct::<paypal::DisputeOutcome>("PaypalWebooksEventType")
-                    .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
+                    .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
                     .outcome_code,
             ),
             PaypalWebhookEventType::CustomerDisputeCreated
@@ -2230,7 +2333,8 @@ impl IncomingWebhook for Paypal {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let details: paypal::PaypalWebhooksBody =
             request
                 .body
@@ -2573,7 +2677,7 @@ static PAYPAL_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
 ];
 
 impl ConnectorSpecifications for Paypal {
-    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => false,
             api::CurrentFlowInfo::CompleteAuthorize {
@@ -2582,6 +2686,7 @@ impl ConnectorSpecifications for Paypal {
                 ..
             } => payment_method == Some(enums::PaymentMethod::Card),
             api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -2594,5 +2699,13 @@ impl ConnectorSpecifications for Paypal {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&PAYPAL_SUPPORTED_WEBHOOK_FLOWS)
+    }
+    fn is_sdk_client_token_generation_enabled(&self) -> bool {
+        true
+    }
+    fn supported_payment_method_types_for_sdk_client_token_generation(
+        &self,
+    ) -> Vec<enums::PaymentMethodType> {
+        vec![enums::PaymentMethodType::Paypal]
     }
 }

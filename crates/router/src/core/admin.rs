@@ -11,17 +11,22 @@ use common_utils::{
     fp_utils, id_type, pii, type_name,
     types::keymanager::{self as km_types, KeyManagerState, ToEncryptable},
 };
+use diesel_models::payment_method;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
-use diesel_models::{configs, payment_method};
 use error_stack::{report, FutureExt, ResultExt};
 use external_services::http_client::client;
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
+#[cfg(feature = "olap")]
+use {
+    base64::Engine,
+    common_utils::{keymanager, types::keymanager::EncryptionTransferRequest},
+};
 
 use super::routing::helpers::redact_cgraph_cache;
 #[cfg(any(feature = "v1", feature = "v2"))]
@@ -29,6 +34,7 @@ use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
+        configs::dimension_state,
         connector_validation::ConnectorAuthTypeAndMetadataValidation,
         disputes,
         encryption::transfer_encryption_key,
@@ -68,26 +74,18 @@ pub fn create_merchant_publishable_key() -> String {
     )
 }
 
-pub async fn insert_merchant_configs(
-    db: &dyn StorageInterface,
-    merchant_id: &id_type::MerchantId,
+/// Insert merchant configs using Superposition for fingerprint_secret
+pub async fn insert_merchant_configs_with_superposition(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorMerchantId,
 ) -> RouterResult<()> {
-    db.insert_config(configs::ConfigNew {
-        key: merchant_id.get_requires_cvv_key(),
-        config: "true".to_string(),
-    })
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error while setting requires_cvv config")?;
+    let fingerprint_secret = utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
 
-    db.insert_config(configs::ConfigNew {
-        key: merchant_id.get_merchant_fingerprint_secret_key(),
-        config: utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs"),
-    })
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error while inserting merchant fingerprint secret")?;
-
+    dimensions
+        .set_fingerprint_secret(state.superposition_service.as_ref(), &fingerprint_secret)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to create fingerprint_secret in Superposition")?;
     Ok(())
 }
 
@@ -166,7 +164,7 @@ pub async fn get_organization(
 ) -> RouterResponse<api::OrganizationResponse> {
     #[cfg(all(feature = "v1", feature = "olap"))]
     {
-        CreateOrValidateOrganization::new(Some(org_id.organization_id))
+        CreateOrValidateOrganization::new(Some(org_id.organization_id), None)
             .create_or_validate(state.accounts_store.as_ref())
             .await
             .map(ForeignFrom::foreign_from)
@@ -211,6 +209,7 @@ fn create_platform_merchant_account_request(
         payout_routing_algorithm: None,
         pm_collect_link_config: None,
         product_type: Some(consts::user::DEFAULT_PRODUCT_TYPE),
+        network_tokenization_credentials: None,
     }
 }
 
@@ -321,9 +320,6 @@ pub async fn create_merchant_account(
     req: api::MerchantAccountCreate,
     org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    #[cfg(feature = "keymanager_create")]
-    use common_utils::{keymanager, types::keymanager::EncryptionTransferRequest};
-
     let db = state.store.as_ref();
     let key = services::generate_aes256_key()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -334,25 +330,16 @@ pub async fn create_merchant_account(
     let key_manager_state: &KeyManagerState = &(&state).into();
     let merchant_id = req.get_merchant_reference_id();
     let identifier = km_types::Identifier::Merchant(merchant_id.clone());
-    #[cfg(feature = "keymanager_create")]
-    {
-        use base64::Engine;
-
-        use crate::consts::BASE64_ENGINE;
-
-        if key_manager_state.enabled {
-            keymanager::transfer_key_to_key_manager(
-                key_manager_state,
-                EncryptionTransferRequest {
-                    identifier: identifier.clone(),
-                    key: masking::StrongSecret::new(BASE64_ENGINE.encode(key)),
-                },
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
-            .attach_printable("Failed to insert key to KeyManager")?;
-        }
-    }
+    keymanager::transfer_key_to_key_manager(
+        key_manager_state,
+        EncryptionTransferRequest {
+            identifier: identifier.clone(),
+            key: hyperswitch_masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
+        },
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
+    .attach_printable("Failed to insert key to KeyManager")?;
 
     let key_store = domain::MerchantKeyStore {
         merchant_id: merchant_id.clone(),
@@ -388,6 +375,20 @@ pub async fn create_merchant_account(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
+    if merchant_account.is_platform_account() {
+        state
+            .accounts_store
+            .update_organization_by_org_id(
+                &merchant_account.organization_id,
+                diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
+                    platform_merchant_id: merchant_id.clone(),
+                },
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update organization with platform_merchant_id")?;
+    }
+
     let platform = domain::Platform::new(
         merchant_account.clone(),
         key_store.clone(),
@@ -395,9 +396,17 @@ pub async fn create_merchant_account(
         key_store.clone(),
         None,
     );
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
+
     add_publishable_key_to_decision_service(&state, &platform);
 
-    insert_merchant_configs(db, &merchant_id).await?;
+    Box::pin(insert_merchant_configs_with_superposition(
+        &state,
+        &dimensions,
+    ))
+    .await?;
 
     Ok(service_api::ApplicationResponse::Json(
         api::MerchantAccountResponse::foreign_try_from(merchant_account)
@@ -491,7 +500,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             (req_org_id, _) => req_org_id.clone(),
         };
 
-        let organization = CreateOrValidateOrganization::new(org_id)
+        let organization = CreateOrValidateOrganization::new(org_id, self.merchant_account_type)
             .create_or_validate(db)
             .await?;
 
@@ -560,6 +569,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         let key = key_store.key.clone().into_inner();
         let key_manager_state = state.into();
 
+        let network_tokenization_credentials = self
+            .network_tokenization_credentials
+            .async_map(|value| cards::create_encrypted_data(&key_manager_state, &key_store, value))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt network_tokenization_credentials")?;
+
         let merchant_account = async {
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                 domain::MerchantAccountSetter {
@@ -627,6 +644,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     is_platform_account: false,
                     product_type: self.product_type,
                     merchant_account_type,
+                    network_tokenization_credentials,
                 },
             )
         }
@@ -647,7 +665,9 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 enum CreateOrValidateOrganization {
     /// Creates a new organization
     #[cfg(feature = "v1")]
-    Create,
+    Create {
+        merchant_account_type: Option<MerchantAccountType>,
+    },
     /// Validates if this organization exists in the records
     Validate {
         organization_id: id_type::OrganizationId,
@@ -660,11 +680,16 @@ impl CreateOrValidateOrganization {
     /// Create an action to either create or validate the given organization_id
     /// If organization_id is passed, then validate if this organization exists
     /// If not passed, create a new organization
-    fn new(organization_id: Option<id_type::OrganizationId>) -> Self {
+    fn new(
+        organization_id: Option<id_type::OrganizationId>,
+        merchant_account_type: Option<MerchantAccountType>,
+    ) -> Self {
         if let Some(organization_id) = organization_id {
             Self::Validate { organization_id }
         } else {
-            Self::Create
+            Self::Create {
+                merchant_account_type,
+            }
         }
     }
 
@@ -682,11 +707,22 @@ impl CreateOrValidateOrganization {
     ) -> RouterResult<diesel_models::organization::Organization> {
         match self {
             #[cfg(feature = "v1")]
-            Self::Create => {
-                let new_organization = api_models::organization::OrganizationNew::new(
-                    OrganizationType::Standard,
-                    None,
-                );
+            Self::Create {
+                merchant_account_type,
+            } => {
+                let org_type = match merchant_account_type {
+                    Some(MerchantAccountType::Platform) => OrganizationType::Platform,
+                    Some(MerchantAccountType::Connected) => {
+                        return Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "Organization cannot be created with connected merchant only"
+                                .to_string(),
+                        }
+                        .into());
+                    }
+                    Some(MerchantAccountType::Standard) | None => OrganizationType::Standard,
+                };
+                let new_organization =
+                    api_models::organization::OrganizationNew::new(org_type, None);
                 let db_organization = ForeignFrom::foreign_from(new_organization);
                 db.insert_organization(db_organization)
                     .await
@@ -1163,6 +1199,14 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             })
             .await;
 
+        let network_tokenization_credentials = self
+            .network_tokenization_credentials
+            .async_map(|value| cards::create_encrypted_data(key_manager_state, key_store, value))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt network_tokenization_credentials")?;
+
         let identifier = km_types::Identifier::Merchant(key_store.merchant_id.clone());
         Ok(storage::MerchantAccountUpdate::Update {
             merchant_name: self
@@ -1218,6 +1262,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             payment_link_config: None,
             pm_collect_link_config,
             routing_algorithm: self.routing_algorithm,
+            network_tokenization_credentials,
         })
     }
 }
@@ -1581,6 +1626,8 @@ impl ConnectorTypeAndConnectorName<'_> {
             api_enums::convert_tax_connector(self.connector_name.to_string().as_str());
         let billing_connector =
             api_enums::convert_billing_connector(self.connector_name.to_string().as_str());
+        let surcharge_connector =
+            api_enums::convert_surcharge_connector(self.connector_name.to_string().as_str());
 
         if pm_auth_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::PaymentMethodAuth
@@ -1619,6 +1666,13 @@ impl ConnectorTypeAndConnectorName<'_> {
                 }
                 .into());
             }
+        } else if surcharge_connector.is_some() {
+            if self.connector_type != &api_enums::ConnectorType::SurchargeProcessor {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid connector type given".to_string(),
+                }
+                .into());
+            }
         } else {
             let routable_connector_option = self
                 .connector_name
@@ -1640,6 +1694,8 @@ struct MerchantDefaultConfigUpdate<'a> {
     merchant_id: &'a id_type::MerchantId,
     profile_id: &'a id_type::ProfileId,
     transaction_type: &'a api_enums::TransactionType,
+    business_profile: &'a domain::Profile,
+    key_store: &'a domain::MerchantKeyStore,
 }
 #[cfg(feature = "v1")]
 impl MerchantDefaultConfigUpdate<'_> {
@@ -1677,7 +1733,7 @@ impl MerchantDefaultConfigUpdate<'_> {
                 .await?;
             }
             if !default_routing_config_for_profile.contains(&choice.clone()) {
-                default_routing_config_for_profile.push(choice);
+                default_routing_config_for_profile.push(choice.clone());
                 routing::helpers::update_merchant_default_config(
                     self.store,
                     self.profile_id.get_string_repr(),
@@ -1685,6 +1741,44 @@ impl MerchantDefaultConfigUpdate<'_> {
                     self.transaction_type,
                 )
                 .await?;
+            }
+            // Update the business_profile.default_fallback_routing column
+            let mut profile_fallback_config = if let Some(default_fallback_routing) =
+                &self.business_profile.default_fallback_routing
+            {
+                default_fallback_routing
+                    .clone()
+                    .expose()
+                    .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
+                        "Vec<RoutableConnectorChoice>",
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Business Profile default config has invalid structure")?
+            } else {
+                Vec::new()
+            };
+            if !profile_fallback_config.contains(&choice) {
+                profile_fallback_config.push(choice);
+                let default_fallback_routing = Secret::from(
+                    profile_fallback_config
+                        .encode_to_value()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to convert routing ref to value")?,
+                );
+                let profile_update = domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
+                    default_fallback_routing: Some(default_fallback_routing),
+                };
+                self.store
+                    .update_profile_by_profile_id(
+                        self.key_store,
+                        self.business_profile.clone(),
+                        profile_update,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to update routing algorithm ref in business profile",
+                    )?;
             }
         }
         Ok(())
@@ -1736,6 +1830,46 @@ impl MerchantDefaultConfigUpdate<'_> {
                     self.transaction_type,
                 )
                 .await?;
+            }
+            // Update the business_profile.default_fallback_routing column
+            let mut profile_fallback_config = if let Some(default_fallback_routing) =
+                &self.business_profile.default_fallback_routing
+            {
+                default_fallback_routing
+                    .clone()
+                    .expose()
+                    .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
+                        "Vec<RoutableConnectorChoice>",
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Business Profile default config has invalid structure")?
+            } else {
+                Vec::new()
+            };
+            if profile_fallback_config.contains(&choice) {
+                profile_fallback_config.retain(|mca| {
+                    mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
+                });
+                let default_fallback_routing = Secret::from(
+                    profile_fallback_config
+                        .encode_to_value()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to convert routing ref to value")?,
+                );
+                let profile_update = domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
+                    default_fallback_routing: Some(default_fallback_routing),
+                };
+                self.store
+                    .update_profile_by_profile_id(
+                        self.key_store,
+                        self.business_profile.clone(),
+                        profile_update,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to update routing algorithm ref in business profile",
+                    )?;
             }
         }
         Ok(())
@@ -2584,6 +2718,28 @@ pub async fn create_connector(
         },
     )?;
 
+    fp_utils::when(
+        processor.get_account().merchant_account_type == MerchantAccountType::Connected
+            && api_models::enums::VaultConnectors::try_from(req.connector_name).is_ok(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "Vault connectors can only be configured by platform or standard merchants, not connected merchants"
+                        .to_string(),
+            })
+        },
+    )?;
+
+    fp_utils::when(
+        processor.get_account().merchant_account_type == MerchantAccountType::Platform
+            && api_models::enums::VaultConnectors::try_from(req.connector_name).is_err(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Platform merchants can only configure vault connectors".to_string(),
+            })
+        },
+    )?;
+
     let connector_metadata = ConnectorMetadata {
         connector_metadata: &req.metadata,
     };
@@ -2688,6 +2844,8 @@ pub async fn create_connector(
         merchant_id,
         profile_id: business_profile.get_id(),
         transaction_type: &req.get_transaction_type(),
+        business_profile: &business_profile,
+        key_store: processor.get_key_store(),
     };
 
     #[cfg(feature = "v2")]
@@ -2938,6 +3096,15 @@ pub async fn update_connector(
     // redact cgraph cache on connector updation
     redact_cgraph_cache(&state, &merchant_id, &profile_id).await?;
 
+    // Fetch business profile for routing update
+    #[cfg(feature = "v1")]
+    let business_profile = db
+        .find_business_profile_by_profile_id(&key_store, &mca.profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: mca.profile_id.get_string_repr().to_owned(),
+        })?;
+
     // redact routing cache on connector updation
     #[cfg(feature = "v1")]
     let merchant_config = MerchantDefaultConfigUpdate {
@@ -2953,6 +3120,8 @@ pub async fn update_connector(
         merchant_id: &merchant_id,
         profile_id: &mca.profile_id,
         transaction_type: &mca.connector_type.into(),
+        business_profile: &business_profile,
+        key_store: &key_store,
     };
 
     #[cfg(feature = "v1")]
@@ -3009,6 +3178,14 @@ pub async fn delete_connector(
             id: merchant_connector_id.get_string_repr().to_string(),
         })?;
 
+    // Fetch business profile for routing update
+    let business_profile = db
+        .find_business_profile_by_profile_id(&key_store, &mca.profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: mca.profile_id.get_string_repr().to_owned(),
+        })?;
+
     // delete the mca from the config as well
     let merchant_default_config_delete = MerchantDefaultConfigUpdate {
         routable_connector: &Some(
@@ -3023,6 +3200,8 @@ pub async fn delete_connector(
         merchant_id: &merchant_id,
         profile_id: &mca.profile_id,
         transaction_type: &mca.connector_type.into(),
+        business_profile: &business_profile,
+        key_store: &key_store,
     };
 
     merchant_default_config_delete
@@ -3351,12 +3530,27 @@ impl ProfileCreateBridge for api::ProfileCreate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, processor.get_key_store(), headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    processor.get_key_store(),
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
+
+        let network_tokenization_credentials = self
+            .network_tokenization_credentials
+            .async_map(|headers| {
+                cards::create_encrypted_data(&key_manager_state, processor.get_key_store(), headers)
+            })
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt network_tokenization_credentials")?;
 
         let payout_link_config = self
             .payout_link_config
@@ -3518,6 +3712,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .attach_printable("error while generating external vault details")?,
             billing_processor_id: self.billing_processor_id,
             is_l2_l3_enabled: self.is_l2_l3_enabled.unwrap_or(false),
+            network_tokenization_credentials,
+            payment_method_blocking: self.payment_method_blocking.map(ForeignInto::foreign_into),
+            default_fallback_routing: None,
+            surcharge_connector_details: self
+                .surcharge_connector_details
+                .map(ForeignInto::foreign_into),
         }))
     }
 
@@ -3550,7 +3750,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -3670,17 +3875,74 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: self.split_txns_enabled.unwrap_or_default(),
             billing_processor_id: self.billing_processor_id,
+            surcharge_connector_details: self
+                .surcharge_connector_details
+                .map(ForeignInto::foreign_into),
         }))
     }
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
+/// External vault can only be configured on the provider merchant in the Platform setup. Connected
+/// merchants share the platform's vault pool and must not configure their own external vault.
+fn validate_external_vault_config_for_merchant_account_type(
+    merchant_account_type: MerchantAccountType,
+    is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+    has_external_vault_connector_details: bool,
+) -> RouterResult<()> {
+    let is_external_vault_being_configured = matches!(
+        is_external_vault_enabled,
+        Some(common_enums::ExternalVaultEnabled::Enable)
+    ) || has_external_vault_connector_details;
+    fp_utils::when(
+        is_external_vault_being_configured
+            && merchant_account_type == MerchantAccountType::Connected,
+        || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "External vault can only be configured for platform merchant, not for connected merchants"
+                        .to_string(),
+            }))
+        },
+    )
+}
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+/// External vault can only be configured on the provider merchant in the Platform setup. Connected
+/// merchants share the platform's vault pool and must not configure their own external vault.
+fn validate_external_vault_config_for_merchant_account_type(
+    merchant_account_type: MerchantAccountType,
+    is_external_vault_enabled: Option<bool>,
+    has_external_vault_connector_details: bool,
+) -> RouterResult<()> {
+    let is_external_vault_being_configured =
+        is_external_vault_enabled == Some(true) || has_external_vault_connector_details;
+    fp_utils::when(
+        is_external_vault_being_configured
+            && merchant_account_type == MerchantAccountType::Connected,
+        || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "External vault can only be configured for platform merchant, not for connected merchants"
+                        .to_string(),
+            }))
+        },
+    )
+}
+
 pub async fn create_profile(
     state: SessionState,
     request: api::ProfileCreate,
     processor: domain::Processor,
 ) -> RouterResponse<api_models::admin::ProfileResponse> {
     let db = state.store.as_ref();
+
+    validate_external_vault_config_for_merchant_account_type(
+        processor.get_account().merchant_account_type,
+        request.is_external_vault_enabled,
+        request.external_vault_connector_details.is_some(),
+    )?;
+
     #[cfg(feature = "v1")]
     let business_profile = request
         .create_domain_model_from_request(&state, &processor)
@@ -3863,12 +4125,25 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
+
+        let network_tokenization_credentials = self
+            .network_tokenization_credentials
+            .async_map(|value| cards::create_encrypted_data(&key_manager_state, key_store, value))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt network_tokenization_credentials")?;
 
         let payout_link_config = self
             .payout_link_config
@@ -4013,6 +4288,13 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(ForeignInto::foreign_into),
                 billing_processor_id: self.billing_processor_id,
                 is_l2_l3_enabled: self.is_l2_l3_enabled,
+                network_tokenization_credentials,
+                payment_method_blocking: self
+                    .payment_method_blocking
+                    .map(ForeignInto::foreign_into),
+                surcharge_connector_details: self
+                    .surcharge_connector_details
+                    .map(ForeignInto::foreign_into),
             },
         )))
     }
@@ -4064,7 +4346,12 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -4164,6 +4451,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 revenue_recovery_retry_algorithm_type,
                 split_txns_enabled: self.split_txns_enabled,
                 billing_processor_id: self.billing_processor_id,
+                surcharge_connector_details: self
+                    .surcharge_connector_details
+                    .map(ForeignInto::foreign_into),
             },
         )))
     }
@@ -4178,6 +4468,17 @@ pub async fn update_profile(
     request: api::ProfileUpdate,
 ) -> RouterResponse<api::ProfileResponse> {
     let db = state.store.as_ref();
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    validate_external_vault_config_for_merchant_account_type(
+        merchant_account.merchant_account_type,
+        request.is_external_vault_enabled,
+        request.external_vault_connector_details.is_some(),
+    )?;
+
     let business_profile = db
         .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, profile_id)
         .await
@@ -4672,7 +4973,9 @@ async fn locker_recipient_create_call(
     let encrypted_data = domain_types::crypto_operation(
         key_manager_state,
         type_name!(payment_method::PaymentMethod),
-        domain_types::CryptoOperation::Encrypt(Secret::<String, masking::WithType>::new(data_json)),
+        domain_types::CryptoOperation::Encrypt(
+            Secret::<String, hyperswitch_masking::WithType>::new(data_json),
+        ),
         identifier,
         key,
     )

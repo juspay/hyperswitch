@@ -5,7 +5,7 @@ use actix_web::{HttpResponse, ResponseError};
 use common_enums::{CardNetwork, PaymentMethodType};
 use common_utils::{events::ApiEventMetric, id_type, pii::PhoneNumberStrategy};
 use csv::Reader;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::{Date, PrimitiveDateTime};
 

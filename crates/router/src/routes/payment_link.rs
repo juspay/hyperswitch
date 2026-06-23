@@ -19,7 +19,10 @@ pub async fn payment_link_retrieve(
 ) -> impl Responder {
     let flow = Flow::PaymentLinkRetrieve;
     let payload = json_payload.into_inner();
-    let api_auth = auth::ApiKeyAuth::default();
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
+    };
 
     let (auth_type, _) = {
         #[cfg(feature = "v1")]
@@ -73,7 +76,7 @@ pub async fn initiate_payment_link(
         |state, auth: auth::AuthenticationData, _, _| {
             initiate_payment_link_flow(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
             )
@@ -107,7 +110,7 @@ pub async fn initiate_secure_payment_link(
         |state, auth: auth::AuthenticationData, _, _| {
             initiate_secure_payment_link_flow(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
                 headers,
@@ -143,7 +146,7 @@ pub async fn payments_link_list(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
+            allow_connected_scope_operation: true,
             allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
@@ -174,7 +177,7 @@ pub async fn payment_link_status(
         |state, auth: auth::AuthenticationData, _, _| {
             get_payment_link_status(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
             )

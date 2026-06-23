@@ -51,15 +51,15 @@ use hyperswitch_interfaces::{
     types::{self, PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, Response},
     webhooks,
 };
+use hyperswitch_masking::{Mask, PeekInterface};
 use image::EncodableLayout;
-use masking::{Mask, PeekInterface};
 use transformers::{self as xendit, XenditEventType, XenditWebhookEvent};
 
 use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils as connector_utils,
-    utils::{self, PaymentMethodDataType, RefundsRequestData},
+    utils::{self, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -102,7 +102,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -133,7 +134,8 @@ impl ConnectorCommon for Xendit {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = xendit::XenditAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let encoded_api_key = BASE64_ENGINE.encode(format!("{}:", auth.api_key.peek()));
@@ -184,16 +186,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Xe
     }
 }
 
-impl ConnectorValidation for Xendit {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Xendit {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Xendit {}
 
@@ -208,7 +201,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = self.build_headers(req, connectors)?;
 
         match &req.request.split_payments {
@@ -354,7 +348,8 @@ impl ConnectorIntegration<SettlementSplitCreate, SettlementSplitRequestData, Pay
         &self,
         req: &PaymentsSettlementSplitCreateRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -438,7 +433,8 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         &self,
         req: &PaymentsPreProcessingRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -520,7 +516,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Xen
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = self.build_headers(req, connectors)?;
 
         match &req.request.split_payments {
@@ -643,7 +640,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = self.build_headers(req, connectors)?;
 
         match &req.request.split_payments {
@@ -765,7 +763,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Xendit 
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = self.build_headers(req, connectors)?;
         if let Some(SplitRefundsRequest::XenditSplitRefund(sub_merchant_data)) =
             &req.request.split_refunds
@@ -873,7 +872,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Xendit {
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = self.build_headers(req, connectors)?;
         if let Some(SplitRefundsRequest::XenditSplitRefund(sub_merchant_data)) =
             &req.request.split_refunds
@@ -977,7 +977,9 @@ impl webhooks::IncomingWebhook for Xendit {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
+        _connector_account_details: crypto::Encryptable<
+            hyperswitch_masking::Secret<serde_json::Value>,
+        >,
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let connector_webhook_secrets = self
@@ -1073,7 +1075,8 @@ impl webhooks::IncomingWebhook for Xendit {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let body: XenditWebhookEvent = request
             .body
             .parse_struct("XenditWebhookEvent")
@@ -1162,7 +1165,7 @@ static XENDIT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static XENDIT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Xendit {
-    fn is_settlement_split_call_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_settlement_split_call_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { request_data, .. } => {
                 matches!(request_data.payment_method_data, PaymentMethodData::Card(_))
@@ -1177,6 +1180,7 @@ impl ConnectorSpecifications for Xendit {
             }
             api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

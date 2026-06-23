@@ -12,7 +12,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, SwitchStrategy};
 use router_env::logger;
 
 use super::{
@@ -20,9 +20,12 @@ use super::{
     NetworkTokenizationResponse, State, StoreLockerResponse, TransitionTo,
 };
 use crate::{
-    core::payment_methods::{
-        cards::{add_card_to_vault, PmCards},
-        transformers as pm_transformers,
+    core::{
+        customers,
+        payment_methods::{
+            cards::{add_card_to_vault, PmCards},
+            transformers as pm_transformers,
+        },
     },
     errors::{self, RouterResult},
     types::{api, domain},
@@ -179,7 +182,10 @@ impl<'a> NetworkTokenizationBuilder<'a, CardDetailsAssigned> {
 impl<'a> NetworkTokenizationBuilder<'a, CustomerAssigned> {
     pub fn get_optional_card_and_cvc(
         &self,
-    ) -> (Option<domain::CardDetail>, Option<masking::Secret<String>>) {
+    ) -> (
+        Option<domain::CardDetail>,
+        Option<hyperswitch_masking::Secret<String>>,
+    ) {
         (self.card.clone(), self.card_cvc.clone())
     }
     pub fn set_token_details(
@@ -269,7 +275,7 @@ impl<'a> NetworkTokenizationBuilder<'a, CardTokenStored> {
         });
         let payment_method_response = api::PaymentMethodResponse {
             merchant_id: payment_method.merchant_id.clone(),
-            customer_id: Some(payment_method.customer_id.clone()),
+            customer_id: payment_method.customer_id.clone(),
             payment_method_id: payment_method.payment_method_id.clone(),
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,
@@ -372,7 +378,10 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
         )
     }
 
-    pub async fn create_customer(&self) -> RouterResult<api::CustomerDetails> {
+    pub async fn create_customer(
+        &self,
+        initiator: Option<&domain::Initiator>,
+    ) -> RouterResult<api::CustomerDetails> {
         let db = &*self.state.store;
         let customer_id = self
             .customer
@@ -414,33 +423,28 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 .attach_printable("Failed to form EncryptableCustomer")?;
 
         let new_customer_id = generate_customer_id_of_default_length();
-        let domain_customer = domain::Customer {
-            customer_id: new_customer_id.clone(),
-            merchant_id: self.merchant_account.get_id().clone(),
-            name: encryptable_customer.name,
-            email: encryptable_customer.email.map(|email| {
+        let domain_customer = domain::Customer::new(
+            new_customer_id.clone(),
+            self.merchant_account.get_id().clone(),
+            encryptable_customer.name,
+            encryptable_customer.email.map(|email| {
                 utils::Encryptable::new(
                     email.clone().into_inner().switch_strategy(),
                     email.into_encrypted(),
                 )
             }),
-            phone: encryptable_customer.phone,
-            description: None,
-            phone_country_code: self.customer.phone_country_code.to_owned(),
-            metadata: None,
-            connector_customer: None,
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-            address_id: None,
-            default_payment_method_id: None,
-            updated_by: None,
-            version: common_types::consts::API_VERSION,
-            tax_registration_id: encryptable_customer.tax_registration_id,
-            document_details: None,
-            // TODO: Populate created_by from authentication context once it is integrated in auth data
-            created_by: None,
-            last_modified_by: None, // Same as created_by on creation
-        };
+            encryptable_customer.phone,
+            self.customer.phone_country_code.to_owned(),
+            None,
+            None,
+            None,
+            None,
+            encryptable_customer.tax_registration_id,
+            None,
+            initiator.and_then(|initiator| initiator.to_created_by()),
+            initiator.and_then(|initiator| initiator.to_created_by()),
+            customers::generate_global_customer_id(&self.state.conf.cell_information.id),
+        );
 
         db.insert_customer(
             domain_customer,
@@ -571,6 +575,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 .as_ref()
                 .map(|network| network.to_string()),
             bank_transfer: None,
+            bank_transfer_data: None,
             wallet: None,
             client_secret: None,
             payment_method_data: None,
@@ -603,11 +608,14 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             None,
             None,
             None,
+            None,
             network_token_details.1.clone(),
             Some(stored_locker_resp.store_token_resp.card_reference.clone()),
             Some(enc_token_data),
             Default::default(), // this method is used only for card bulk tokenization, and currently external vault is not supported for this hence passing Default i.e. InternalVault
             None,
+            None,
+            platform.get_initiator(),
         )
         .await
     }

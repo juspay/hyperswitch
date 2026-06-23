@@ -163,6 +163,7 @@ pub struct KafkaSettings {
     authentication_analytics_topic: String,
     routing_logs_topic: String,
     revenue_recovery_topic: String,
+    external_service_call_topic: String,
 }
 
 impl KafkaSettings {
@@ -258,6 +259,23 @@ impl KafkaSettings {
 
         Ok(())
     }
+
+    pub fn validate_external_service_call_topic(
+        &self,
+    ) -> Result<(), crate::core::errors::ApplicationError> {
+        use common_utils::ext_traits::ConfigExt;
+
+        use crate::core::errors::ApplicationError;
+
+        common_utils::fp_utils::when(
+            self.external_service_call_topic.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Kafka External Service Call topic must not be empty".into(),
+                ))
+            },
+        )
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -279,6 +297,7 @@ pub struct KafkaProducer {
     ckh_database_name: Option<String>,
     routing_logs_topic: String,
     revenue_recovery_topic: String,
+    external_service_call_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -330,6 +349,7 @@ impl KafkaProducer {
             ckh_database_name: None,
             routing_logs_topic: conf.routing_logs_topic.clone(),
             revenue_recovery_topic: conf.revenue_recovery_topic.clone(),
+            external_service_call_topic: conf.external_service_call_topic.clone(),
         })
     }
 
@@ -669,6 +689,7 @@ impl KafkaProducer {
             EventType::Authentication => &self.authentication_analytics_topic,
             EventType::RoutingApiLogs => &self.routing_logs_topic,
             EventType::RevenueRecovery => &self.revenue_recovery_topic,
+            EventType::ExternalServiceCall => &self.external_service_call_topic,
         }
     }
 }
@@ -695,7 +716,7 @@ impl MessagingInterface for KafkaProducer {
         timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError>
     where
-        T: Message<Class = Self::MessageClass> + masking::ErasedMaskSerialize,
+        T: Message<Class = Self::MessageClass> + hyperswitch_masking::ErasedMaskSerialize,
     {
         let topic = self.get_topic(data.get_message_class());
         let json_data = data

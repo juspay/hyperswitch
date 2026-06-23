@@ -5,7 +5,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
 use crate::errors::{CustomResult, ValidationError};

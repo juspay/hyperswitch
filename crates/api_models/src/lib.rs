@@ -4,6 +4,7 @@ pub mod api_keys;
 pub mod apple_pay_certificates_migration;
 pub mod authentication;
 pub mod blocklist;
+pub mod card_issuer;
 pub mod cards_info;
 pub mod chat;
 pub mod conditional_configs;
@@ -23,7 +24,6 @@ pub mod feature_matrix;
 pub mod files;
 pub mod gsm;
 pub mod health_check;
-pub mod locker_migration;
 pub mod mandates;
 pub mod merchant_connector_webhook_management;
 pub mod oidc;
@@ -40,18 +40,18 @@ pub mod process_tracker;
 pub mod profile_acquirer;
 #[cfg(feature = "v2")]
 pub mod proxy;
-#[cfg(feature = "recon")]
-pub mod recon;
 pub mod refunds;
 pub mod relay;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
 pub mod routing;
 pub mod subscription;
+pub mod superposition_sdk_config;
 pub mod surcharge_decision_configs;
 pub mod three_ds_decision_rule;
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
+pub mod unreferenced_refund;
 pub mod user;
 pub mod user_role;
 pub mod verifications;

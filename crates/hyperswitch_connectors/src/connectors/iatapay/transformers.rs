@@ -21,7 +21,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{Secret, SwitchStrategy};
+use hyperswitch_masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -215,6 +215,8 @@ impl
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -400,6 +402,7 @@ fn get_iatpay_response(
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: connector_response_reference_id.clone(),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -412,6 +415,7 @@ fn get_iatpay_response(
             mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: connector_response_reference_id.clone(),
             incremental_authorization_allowed: None,
             authentication_data: None,
@@ -433,7 +437,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, IatapayPaymentsResponse, T, PaymentsRes
             get_iatpay_response(item.response, item.http_code)?;
         Ok(Self {
             status,
-            response: error.map_or_else(|| Ok(payment_response_data), Err),
+            response: match error {
+                Some(err) => Err(err),
+                None => Ok(payment_response_data),
+            },
             ..item.data
         })
     }

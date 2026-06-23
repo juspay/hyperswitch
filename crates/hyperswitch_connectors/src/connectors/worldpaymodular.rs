@@ -14,7 +14,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::*,
     router_request_types::*,
@@ -29,7 +28,7 @@ use hyperswitch_interfaces::{
     types::*,
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::{Mask, Maskable};
+use hyperswitch_masking::{Mask, Maskable};
 use transformers::*;
 
 use crate::{
@@ -38,7 +37,7 @@ use crate::{
     },
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, get_header_key_value, RefundsRequestData as _},
+    utils::{get_header_key_value, RefundsRequestData as _},
 };
 
 #[derive(Clone)]
@@ -136,19 +135,7 @@ impl ConnectorCommon for Worldpaymodular {
     }
 }
 
-impl ConnectorValidation for Worldpaymodular {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            utils::PaymentMethodDataType::GooglePay,
-            utils::PaymentMethodDataType::ApplePay,
-        ]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Worldpaymodular {}
 
 impl Payment for Worldpaymodular {}
 
@@ -768,7 +755,7 @@ impl IncomingWebhook for Worldpaymodular {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         let body: WorldpaymodularWebhookEventType = request
             .body
             .parse_struct("WorldpayWebhookEventType")

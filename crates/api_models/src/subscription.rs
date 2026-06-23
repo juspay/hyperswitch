@@ -10,7 +10,7 @@ use common_utils::{
     },
     types::{MinorUnit, Url},
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use utoipa::ToSchema;
 
 use crate::{

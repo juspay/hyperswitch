@@ -43,7 +43,7 @@ use hyperswitch_interfaces::{
     types::{PaymentsAuthorizeType, PaymentsSyncType, Response},
     webhooks::{self, IncomingWebhook},
 };
-use masking::{Mask, Maskable};
+use hyperswitch_masking::{Mask, Maskable};
 use transformers as opennode;
 
 use self::opennode::OpennodeWebhookDetails;
@@ -453,7 +453,8 @@ impl IncomingWebhook for Opennode {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 

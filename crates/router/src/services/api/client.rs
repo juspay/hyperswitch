@@ -8,7 +8,7 @@ pub use hyperswitch_interfaces::{
     api_client::{ApiClient, ApiClientWrapper, RequestBuilder},
     types::Proxy,
 };
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use reqwest::multipart::Form;
 use router_env::RequestId;
 
@@ -37,8 +37,8 @@ impl ProxyClient {
 
     pub fn get_reqwest_client(
         &self,
-        client_certificate: Option<masking::Secret<String>>,
-        client_certificate_key: Option<masking::Secret<String>>,
+        client_certificate: Option<hyperswitch_masking::Secret<String>>,
+        client_certificate_key: Option<hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<reqwest::Client, ApiClientError> {
         match (client_certificate, client_certificate_key) {
             (Some(certificate), Some(certificate_key)) => {
@@ -124,8 +124,8 @@ impl ApiClient for ProxyClient {
         &self,
         method: Method,
         url: String,
-        certificate: Option<masking::Secret<String>>,
-        certificate_key: Option<masking::Secret<String>>,
+        certificate: Option<hyperswitch_masking::Secret<String>>,
+        certificate_key: Option<hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
         let client_builder = self
             .get_reqwest_client(certificate, certificate_key)
@@ -180,8 +180,8 @@ impl ApiClient for MockApiClient {
         &self,
         _method: Method,
         _url: String,
-        _certificate: Option<masking::Secret<String>>,
-        _certificate_key: Option<masking::Secret<String>>,
+        _certificate: Option<hyperswitch_masking::Secret<String>>,
+        _certificate_key: Option<hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
         // [#2066]: Add Mock implementation for ApiClient
         Err(ApiClientError::UnexpectedState.into())

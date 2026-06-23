@@ -1,6 +1,7 @@
 use api_models::payment_methods::{CardDetailFromLocker, NetworkTokenResponse};
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -12,11 +13,13 @@ pub struct ModularListCustomerPaymentMethodsRequest;
 #[derive(Debug, Deserialize)]
 // TODO: replace dummy response types with real v1/modular models.
 pub struct ModularListCustomerPaymentMethodsResponse {
-    pub customer_payment_methods: Vec<PaymentMethodResponseItem>,
+    pub customer_payment_methods: Vec<PaymentMethodResponseItemV1>,
 }
 
+/// V1 bridge shape — deserialized from the modular service response when called from v1 router.
+/// Uses v1 ID types (String, CustomerId).
 #[derive(Debug, Deserialize)]
-pub struct PaymentMethodResponseItem {
+pub struct PaymentMethodResponseItemV1 {
     pub id: String,
     pub customer_id: id_type::CustomerId,
     pub payment_method_type: PaymentMethod,
@@ -32,14 +35,53 @@ pub struct PaymentMethodResponseItem {
     pub is_default: bool,
     pub billing: Option<api_models::payments::Address>,
     pub network_tokenization: Option<NetworkTokenResponse>,
-    pub psp_tokenization_enabled: bool,
+    pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
+    pub network_transaction_id: Option<String>,
 }
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum WalletPaymentMethodData {
+    ApplePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
+    GooglePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
+    PayPal(Box<api_models::payments::PaypalRedirection>),
+}
+
 /// V2 PaymentMethodResponseData enum
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodResponseData {
-    Card(CardDetailFromLocker),
+    Card(Box<CardDetailFromLocker>),
+    BankDebit(BankDebitDetailsPaymentMethod),
+    Wallet(WalletPaymentMethodData),
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetailsPaymentMethod {
+    AchBankDebit {
+        account_number_last4_digits: String,
+        routing_number_last4_digits: String,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        bank_type: Option<common_enums::BankType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetail {
+    Ach {
+        account_number: Secret<String>,
+        routing_number: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_type: Option<common_enums::BankType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
+        bank_name: Option<common_enums::BankNames>,
+    },
 }
 
 /// V2 modular service request payload.
@@ -54,7 +96,7 @@ pub struct ModularPMRetrieveResponse {
     pub merchant_id: id_type::MerchantId,
     pub customer_id: Option<id_type::CustomerId>,
     pub payment_method_type: PaymentMethod,
-    pub payment_method_subtype: PaymentMethodType,
+    pub payment_method_subtype: Option<PaymentMethodType>,
     pub recurring_enabled: Option<bool>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
@@ -74,6 +116,23 @@ pub struct ModularPMRetrieveResponse {
 #[serde(rename_all = "snake_case")]
 pub enum RawPaymentMethodData {
     Card(CardDetail),
+    CardWithNT(RawCardWithNTDetails),
+    BankDebit(BankDebitDetail),
+    ProxyCard(RawProxyCardDataResponse),
+}
+
+/// Proxy card data returned in retrieve response (vault token reference)
+#[derive(Clone, Debug, Deserialize)]
+pub struct RawProxyCardDataResponse {
+    pub card_number: Secret<String>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_exp_month: Option<Secret<String>>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct RawCardWithNTDetails {
+    pub card_details: CardDetail,
+    pub network_token_details: CardDetail,
 }
 
 /// V2 ConnectorTokenDetails (for deserialization, ignored in transformation)
@@ -86,7 +145,8 @@ pub struct ConnectorTokenDetails {
     pub original_payment_authorized_amount: Option<common_utils::types::MinorUnit>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub token: masking::Secret<String>,
+    pub connector_customer_id: Option<String>,
+    pub token: Secret<String>,
 }
 
 /// V2 CardCVCTokenStorageDetails (for deserialization, ignored in transformation)
@@ -96,4 +156,221 @@ pub struct CardCVCTokenStorageDetails {
 
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub expires_at: Option<PrimitiveDateTime>,
+}
+
+// ---------------------------------------------------------------------------
+// From conversions → api_models client-facing types
+// ---------------------------------------------------------------------------
+
+impl From<WalletPaymentMethodData>
+    for api_models::payment_methods::WalletPaymentMethodDataForClient
+{
+    fn from(wallet_info: WalletPaymentMethodData) -> Self {
+        match wallet_info {
+            WalletPaymentMethodData::ApplePay(apple_pay_info) => Self::ApplePay(apple_pay_info),
+            WalletPaymentMethodData::GooglePay(google_pay_info) => Self::GooglePay(google_pay_info),
+            WalletPaymentMethodData::PayPal(paypal_info) => Self::PayPal(paypal_info),
+        }
+    }
+}
+
+impl From<BankDebitDetailsPaymentMethod> for api_models::payment_methods::BankDebitDataForClient {
+    fn from(bank_debit_info: BankDebitDetailsPaymentMethod) -> Self {
+        match bank_debit_info {
+            BankDebitDetailsPaymentMethod::AchBankDebit {
+                account_number_last4_digits,
+                routing_number_last4_digits,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            } => Self::AchBankDebit {
+                account_number_last4_digits,
+                routing_number_last4_digits,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            },
+        }
+    }
+}
+
+impl From<PaymentMethodResponseData>
+    for Option<api_models::payment_methods::CustomerPaymentMethodDataForClient>
+{
+    fn from(payment_method_response_data: PaymentMethodResponseData) -> Self {
+        match payment_method_response_data {
+            PaymentMethodResponseData::Card(mut card_info) => {
+                // The modular PM service returns `scheme` as null on the card detail even though
+                // `card_network` is populated. Surface the network as the scheme (mirroring
+                // `mk_add_card_response_hs`) so the `/client` response carries it.
+                card_info.scheme = card_info.scheme.or_else(|| {
+                    card_info
+                        .card_network
+                        .as_ref()
+                        .map(|network| network.to_string())
+                });
+                Some(
+                    api_models::payment_methods::CustomerPaymentMethodDataForClient::Card(
+                        card_info,
+                    ),
+                )
+            }
+            PaymentMethodResponseData::Wallet(wallet_info) => Some(
+                api_models::payment_methods::CustomerPaymentMethodDataForClient::Wallet(
+                    wallet_info.into(),
+                ),
+            ),
+            PaymentMethodResponseData::BankDebit(bank_debit_info) => Some(
+                api_models::payment_methods::CustomerPaymentMethodDataForClient::BankDebit(
+                    bank_debit_info.into(),
+                ),
+            ),
+        }
+    }
+}
+
+// ==================== ALT-ID TYPES (Guest Checkout Tokenization) ====================
+
+/// Card data for Alt-ID request (to be JWE encrypted)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AltIdCardData {
+    pub card_number: cards::CardNumber,
+    pub exp_month: Secret<String>,
+    pub exp_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_security_code: Option<Secret<String>>,
+}
+
+impl
+    From<(
+        &hyperswitch_domain_models::payment_method_data::CardDetail,
+        Option<Secret<String>>,
+    )> for AltIdCardData
+{
+    fn from(
+        (card, optional_cvc): (
+            &hyperswitch_domain_models::payment_method_data::CardDetail,
+            Option<Secret<String>>,
+        ),
+    ) -> Self {
+        Self {
+            card_number: card.card_number.clone(),
+            exp_month: card.card_exp_month.clone(),
+            exp_year: card.card_exp_year.clone(),
+            card_security_code: optional_cvc,
+        }
+    }
+}
+
+/// Order data for Alt-ID request
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AltIdOrderData {
+    pub amount: common_utils::types::FloatMajorUnit,
+    pub currency: common_enums::Currency,
+    /// Required for RuPay cards (post-3DS authentication reference)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_ref_number: Option<String>,
+}
+
+/// Alt-ID API request payload
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FetchAltIdRequest {
+    /// JWE encrypted card data
+    pub card_data: Secret<String>,
+    pub order_data: AltIdOrderData,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key_id: Option<String>,
+}
+
+/// Decrypted Alt-ID details (after JWE decryption of altIdDetails field)
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AltIdDetails {
+    /// The Alt-ID token (network token for this transaction)
+    pub alt_id: cards::NetworkToken,
+    /// Token expiry month (MM format)
+    pub exp_month: Secret<String>,
+    /// Token expiry year (YYYY format)
+    pub exp_year: Secret<String>,
+    /// TAVV (Token Authentication Verification Value) - the cryptogram
+    pub tavv: Secret<String>,
+    /// PAR (Payment Account Reference)
+    pub par: Option<Secret<String>>,
+}
+
+/// Raw Alt-ID response payload from API (before altIdDetails decryption)
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AltIdResponsePayloadRaw {
+    pub card_issuer_country: Option<String>,
+    pub correlation_id: String,
+    pub card_issuer_bank: Option<String>,
+    /// JWE encrypted Alt-ID details - needs decryption
+    pub alt_id_details: Secret<String>,
+    pub card_brand: common_enums::CardNetwork,
+    pub provider: Option<String>,
+    pub provider_category: Option<String>,
+}
+
+/// Full Alt-ID response payload (with decrypted altIdDetails)
+#[derive(Debug, Clone)]
+pub struct AltIdResponsePayload {
+    pub card_issuer_country: Option<String>,
+    pub correlation_id: String,
+    pub card_issuer_bank: Option<String>,
+    /// Decrypted Alt-ID details
+    pub alt_id_details: AltIdDetails,
+    pub card_brand: common_enums::CardNetwork,
+    pub provider: Option<String>,
+    pub provider_category: Option<String>,
+}
+
+impl From<(AltIdResponsePayloadRaw, AltIdDetails)> for AltIdResponsePayload {
+    fn from(
+        (alt_id_raw_response, alt_id_details): (AltIdResponsePayloadRaw, AltIdDetails),
+    ) -> Self {
+        Self {
+            card_issuer_country: alt_id_raw_response.card_issuer_country,
+            correlation_id: alt_id_raw_response.correlation_id,
+            card_issuer_bank: alt_id_raw_response.card_issuer_bank,
+            alt_id_details,
+            card_brand: alt_id_raw_response.card_brand,
+            provider: alt_id_raw_response.provider,
+            provider_category: alt_id_raw_response.provider_category,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<AltIdResponsePayload>
+    for hyperswitch_domain_models::payment_method_data::NetworkTokenData
+{
+    fn from(payload: AltIdResponsePayload) -> Self {
+        Self {
+            token_number: payload.alt_id_details.alt_id,
+            token_exp_month: payload.alt_id_details.exp_month,
+            token_exp_year: payload.alt_id_details.exp_year,
+            token_cryptogram: Some(payload.alt_id_details.tavv),
+            nick_name: None,
+            card_issuer: payload.card_issuer_bank,
+            card_network: Some(payload.card_brand),
+            card_type: None,
+            card_issuing_country: payload.card_issuer_country,
+            bank_code: None,
+            eci: None,
+            par: payload.alt_id_details.par,
+        }
+    }
+}
+
+/// Alt-ID API response wrapper (raw, before decryption)
+#[derive(Debug, Deserialize, Clone)]
+pub struct AltIdResponse {
+    pub status: String,
+    pub payload: AltIdResponsePayloadRaw,
 }

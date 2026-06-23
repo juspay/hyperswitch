@@ -1,0 +1,16 @@
+{
+  "skey": "dGVzdF9zaWduYXR1cmU=",
+  "status": "00",
+  "orderid": "{{connector_transaction_id}}",
+  "tranID": "25061512000000",
+  "nbcb": "2",
+  "amount": "60.00",
+  "currency": "MYR",
+  "domain": "test.merchant.com",
+  "appcode": "test_appcode",
+  "paydate": "2024-06-15 12:00:00",
+  "channel": "credit",
+  "error_desc": null,
+  "error_code": null,
+  "extraP": null
+}

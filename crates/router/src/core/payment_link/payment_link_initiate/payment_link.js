@@ -713,7 +713,9 @@ function renderPaymentDetails(paymentDetails) {
     "hyper-checkout-payment-merchant-details"
   );
   if (paymentMerchantDetails instanceof HTMLDivElement) {
-    paymentMerchantDetails.append(merchantNameNode);
+    if (paymentDetails.show_merchant_name !== false) {
+      paymentMerchantDetails.append(merchantNameNode);
+    }
     paymentMerchantDetails.append(paymentIdNode);
   }
   var merchantImageNode = document.getElementById(

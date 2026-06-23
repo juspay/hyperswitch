@@ -7,7 +7,7 @@ use common_utils::{
     request::{Method, RequestContent},
 };
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -39,6 +39,8 @@ pub struct UpdatePaymentMethodV1Payload {
     pub connector_token_details: Option<ConnectorTokenDetails>,
     /// Network transaction ID for off-session updates.
     pub network_transaction_id: Option<Secret<String>>,
+
+    pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 }
 
 /// Modular service update request payload.
@@ -50,6 +52,8 @@ pub struct ModularPMUpdateRequest {
     pub connector_token_details: Option<ConnectorTokenDetails>,
     /// Network transaction ID for off-session updates.
     pub network_transaction_id: Option<Secret<String>>,
+
+    pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 }
 
 /// Payment method update data.
@@ -58,6 +62,7 @@ pub struct ModularPMUpdateRequest {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodUpdateData {
     Card(CardDetailUpdate),
+    BankDebit(BankDebitDetailUpdate),
 }
 
 /// Card update payload for the modular service.
@@ -69,6 +74,16 @@ pub struct CardDetailUpdate {
     pub nick_name: Option<Secret<String>>,
     /// Card CVC (optional).
     pub card_cvc: Option<Secret<String>>,
+}
+
+/// Bank debit update payload for the modular service.
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetailUpdate {
+    Ach {
+        /// Bank account holder name.
+        bank_account_holder_name: Option<Secret<String>>,
+    },
 }
 
 /// V1-facing update response.
@@ -83,7 +98,7 @@ pub struct UpdatePaymentMethodResponse {
     /// The type of payment method.
     pub payment_method_type: PaymentMethod,
     /// The payment method subtype.
-    pub payment_method_subtype: PaymentMethodType,
+    pub payment_method_subtype: Option<PaymentMethodType>,
     /// Indicates whether recurring is enabled.
     pub recurring_enabled: Option<bool>,
     /// Timestamp for creation time.
@@ -112,6 +127,7 @@ impl TryFrom<&UpdatePaymentMethodV1Request> for ModularPMUpdateRequest {
             payment_method_data: value.payload.payment_method_data.clone(),
             connector_token_details: value.payload.connector_token_details.clone(),
             network_transaction_id: value.payload.network_transaction_id.clone(),
+            acknowledgement_status: value.payload.acknowledgement_status,
         })
     }
 }

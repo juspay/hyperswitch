@@ -50,14 +50,14 @@ use hyperswitch_interfaces::{
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use regex::Regex;
 use transformers as nmi;
 
 use crate::{
     types::ResponseRouterData,
     utils::{
-        self, convert_amount, get_header_key_value, PaymentsAuthorizeRequestData,
+        convert_amount, get_header_key_value, PaymentsAuthorizeRequestData,
         PaymentsSetupMandateRequestData,
     },
 };
@@ -157,19 +157,6 @@ impl ConnectorValidation for Nmi {
     ) -> CustomResult<(), ConnectorError> {
         // in case we dont have transaction id, we can make psync using attempt id
         Ok(())
-    }
-
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
-    ) -> CustomResult<(), ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            utils::PaymentMethodDataType::Card,
-            utils::PaymentMethodDataType::ApplePay,
-            utils::PaymentMethodDataType::GooglePay,
-        ]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -1041,7 +1028,7 @@ impl IncomingWebhook for Nmi {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         let webhook_body: nmi::NmiWebhookBody = request
             .body
             .parse_struct("nmi NmiWebhookBody")
@@ -1196,7 +1183,7 @@ static NMI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
     [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Nmi {
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
@@ -1207,6 +1194,7 @@ impl ConnectorSpecifications for Nmi {
                 auth_type,
                 request_data,
             } => auth_type.is_three_ds() && request_data.is_card(),
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

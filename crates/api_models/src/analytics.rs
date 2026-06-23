@@ -1,8 +1,7 @@
 use std::collections::HashSet;
 
 pub use common_utils::types::TimeRange;
-use common_utils::{events::ApiEventMetric, pii::EmailStrategy, types::authentication::AuthInfo};
-use masking::Secret;
+use common_utils::{events::ApiEventMetric, pii::Email, types::authentication::AuthInfo};
 
 use self::{
     active_payments::ActivePaymentsMetrics,
@@ -150,7 +149,11 @@ pub struct RefundDistributionBody {
 #[serde(rename_all = "camelCase")]
 pub struct ReportRequest {
     pub time_range: TimeRange,
-    pub emails: Option<Vec<Secret<String, EmailStrategy>>>,
+    pub emails: Option<Vec<Email>>,
+    pub return_url: Option<MerchantWebhookUrl>,
+    #[cfg(feature = "v2")]
+    #[serde(default)]
+    pub report_type: ReportType,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -159,7 +162,8 @@ pub struct GenerateReportRequest {
     pub request: ReportRequest,
     pub merchant_id: Option<common_utils::id_type::MerchantId>,
     pub auth: AuthInfo,
-    pub email: Secret<String, EmailStrategy>,
+    pub email: Email,
+    pub payment_response_hash_key: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -546,4 +550,57 @@ pub struct AuthEventMetricsResponse<T> {
 #[derive(Debug, serde::Serialize)]
 pub struct AuthEventsAnalyticsMetadata {
     pub total_error_message_count: Option<u64>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReportType {
+    #[default]
+    V2Payments,
+    RevenueRecovery,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, Hash, PartialOrd)]
+/// This domain type is specifically for merchant webhook URLs with validation
+pub struct MerchantWebhookUrl(url::Url);
+
+impl MerchantWebhookUrl {
+    /// Get string representation of the URL
+    pub fn get_string_repr(&self) -> &str {
+        self.0.as_str()
+    }
+
+    /// Wrap a url::Url in MerchantWebhookUrl type
+    pub fn wrap(url: url::Url) -> Self {
+        Self(url)
+    }
+
+    /// Get the inner url::Url
+    pub fn into_inner(self) -> url::Url {
+        self.0
+    }
+
+    /// Verify the URL scheme based on runtime environment
+    pub fn verify_https_scheme(&self) -> Result<(), String> {
+        let scheme = self.0.scheme().to_lowercase();
+
+        #[cfg(debug_assertions)]
+        {
+            // Debug builds: allow HTTP
+            if scheme == "https" || scheme == "http" {
+                return Ok(());
+            }
+        }
+
+        #[cfg(not(debug_assertions))]
+        {
+            // Release builds: HTTPS only
+            if scheme == "https" {
+                return Ok(());
+            }
+        }
+
+        Err("URL scheme must be HTTPS".to_string())
+    }
 }

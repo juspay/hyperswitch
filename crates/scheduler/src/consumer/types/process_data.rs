@@ -9,21 +9,34 @@ pub struct RetryMapping {
     pub frequencies: Vec<(i32, i32)>, // (frequency, count)
 }
 
+impl Default for RetryMapping {
+    fn default() -> Self {
+        Self {
+            start_after: 60,
+            frequencies: vec![(300, 5)],
+        }
+    }
+}
+
+impl TryFrom<serde_json::Value> for RetryMapping {
+    type Error = String;
+
+    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
+        serde_json::from_value(value)
+            .map_err(|e| format!("Failed to deserialize RetryMapping: {:?}", e))
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct ConnectorPTMapping {
     pub default_mapping: RetryMapping,
-    pub custom_merchant_mapping: HashMap<common_utils::id_type::MerchantId, RetryMapping>,
     pub max_retries_count: i32,
 }
 
 impl Default for ConnectorPTMapping {
     fn default() -> Self {
         Self {
-            custom_merchant_mapping: HashMap::new(),
-            default_mapping: RetryMapping {
-                start_after: 60,
-                frequencies: vec![(300, 5)],
-            },
+            default_mapping: RetryMapping::default(),
             max_retries_count: 5,
         }
     }
@@ -75,9 +88,6 @@ pub struct OutgoingWebhookRetryProcessTrackerMapping {
     /// Default (fallback) retry configuration used when no merchant-specific retry configuration
     /// exists.
     pub default_mapping: RetryMapping,
-
-    /// Merchant-specific retry configuration.
-    pub custom_merchant_mapping: HashMap<common_utils::id_type::MerchantId, RetryMapping>,
 }
 
 impl Default for OutgoingWebhookRetryProcessTrackerMapping {
@@ -98,7 +108,6 @@ impl Default for OutgoingWebhookRetryProcessTrackerMapping {
                     (60 * 60 * 6, 3),
                 ],
             },
-            custom_merchant_mapping: HashMap::new(),
         }
     }
 }
@@ -109,9 +118,6 @@ pub struct RevenueRecoveryPaymentProcessTrackerMapping {
     /// Default (fallback) retry configuration used when no merchant-specific retry configuration
     /// exists.
     pub default_mapping: RetryMapping,
-
-    /// Merchant-specific retry configuration.
-    pub custom_merchant_mapping: HashMap<common_utils::id_type::MerchantId, RetryMapping>,
 }
 
 impl Default for RevenueRecoveryPaymentProcessTrackerMapping {
@@ -134,7 +140,6 @@ impl Default for RevenueRecoveryPaymentProcessTrackerMapping {
                     (60 * 60 * 18, 3),
                 ],
             },
-            custom_merchant_mapping: HashMap::new(),
         }
     }
 }

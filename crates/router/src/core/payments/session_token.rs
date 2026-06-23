@@ -14,19 +14,20 @@ use crate::{
     types::{api as api_types, transformers::ForeignFrom},
 };
 
-pub(crate) async fn add_session_token_if_needed<F: Clone, Req: Debug + Clone>(
-    router_data: &types::RouterData<F, Req, types::PaymentsResponseData>,
+pub(crate) async fn add_session_token_if_needed<'a, F: Clone, Req: Debug + Clone>(
+    router_data: &'a types::RouterData<F, Req, types::PaymentsResponseData>,
     state: &routes::SessionState,
     connector: &api_types::ConnectorData,
     gateway_context: &gateway_context::RouterGatewayContext,
+    current_flow: Option<hyperswitch_interfaces::api::CurrentFlowInfo>,
 ) -> RouterResult<Option<String>>
 where
     types::AuthorizeSessionTokenData:
-        for<'a> ForeignFrom<&'a types::RouterData<F, Req, types::PaymentsResponseData>>,
+        ForeignFrom<&'a types::RouterData<F, Req, types::PaymentsResponseData>>,
 {
     if connector
         .connector
-        .is_authorize_session_token_call_required()
+        .is_authorize_session_token_call_required(current_flow)
     {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api_types::AuthorizeSessionToken,
@@ -54,7 +55,7 @@ where
             .map_err(|error| {
                 logger::error!(session_token_create_error = error.reason);
                 report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Faied to perform session token call".to_string()
+                    message: "Failed to perform session token call".to_string()
                 })
             })
             .attach_printable(format!(

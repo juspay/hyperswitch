@@ -41,6 +41,7 @@ use crate::{
         revenue_recovery::{self as revenue_recovery_core, pcr, perform_calculate_workflow},
         webhooks::{
             create_event_and_trigger_outgoing_webhook, recovery_incoming as recovery_incoming_flow,
+            utils,
         },
     },
     db::StorageInterface,
@@ -1544,7 +1545,7 @@ pub fn construct_invoice_record_back_router_data(
             merchant_reference_id,
             amount: payment_attempt.get_total_amount(),
             currency: payment_intent.amount_details.currency,
-            payment_method_type: Some(payment_attempt.payment_method_subtype),
+            payment_method_type: payment_attempt.payment_method_subtype,
             attempt_status: payment_attempt.status,
             connector_transaction_id: payment_attempt
                 .connector_payment_id
@@ -1592,16 +1593,26 @@ impl RevenueRecoveryOutgoingWebhook {
                     api_models::webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
                         response,
                     ));
+                let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
+                    state,
+                    platform,
+                    profile,
+                    payment_intent.created_by.as_ref(),
+                )
+                .await
+                .change_context(errors::RecoveryError::InvalidTask)
+                .attach_printable("Failed to resolve webhook recipient for revenue recovery")?;
+
                 create_event_and_trigger_outgoing_webhook(
                     state.clone(),
-                    profile.clone(),
-                    platform.get_processor().get_key_store(),
+                    platform.clone(),
                     event_status,
                     event_class,
                     payment_attempt_id,
                     common_enums::EventObjectType::PaymentDetails,
                     outgoing_webhook_content,
                     payment_intent.created_at,
+                    webhook_recipient,
                 )
                 .await
                 .change_context(errors::RecoveryError::InvalidTask)

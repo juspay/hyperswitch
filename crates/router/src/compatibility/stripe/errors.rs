@@ -879,6 +879,7 @@ impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
             Self::MandateActive => SC::MandateActive,
             Self::CustomerNotFound => SC::CustomerNotFound,
             Self::CustomerAlreadyExists => SC::DuplicateCustomer,
+            Self::AccessForbidden { .. } => SC::Unauthorized,
         }
     }
 }

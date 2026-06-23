@@ -10,11 +10,12 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::{
-            Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, CreateOrder, ExtendAuthorization, IncrementalAuthorization,
-            InitPayment, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
-            PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SettlementSplitCreate,
-            SetupMandate, UpdateMetadata, Void,
+            Authorize, AuthorizeSessionToken, Balance, CalculateSurcharge, CalculateTax, Capture,
+            CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
+            CreateOrder, ExtendAuthorization, GenerateQr, IncrementalAuthorization, InitPayment,
+            PSync, PaymentMethodToken, PostCaptureVoid, PostCaptureVoidSync, PostProcessing,
+            PostSessionTokens, PreAuthorizeVoid, PreProcessing, PushNotification, SdkSessionUpdate,
+            Session, SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
@@ -52,13 +53,16 @@ use hyperswitch_domain_models::{
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, DefendDisputeRequestData, DisputeSyncData,
-        FetchDisputesRequestData, GiftCardBalanceCheckRequestData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
+        FetchDisputesRequestData, GenerateQrRequestData, GiftCardBalanceCheckRequestData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsCancelPostCaptureSyncData, PaymentsCaptureData, PaymentsCompleteRefundSurchrgeData,
+        PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSurchargeCalculationData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, PushNotificationRequestData, RefundsData,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
         SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
         VaultRequestData, VerifyWebhookSourceRequestData,
@@ -74,11 +78,12 @@ use hyperswitch_domain_models::{
             GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
-        AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
+        AcceptDisputeResponse, CompleteRefundSurchrgeResponseData, CompleteSurchargeResponseData,
+        DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
-        VerifyWebhookSourceResponseData,
+        SurchargeCalculationResponseData, TaxCalculationResponseData, UploadFileResponse,
+        VaultResponseData, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -117,6 +122,24 @@ pub type PaymentsAuthorizeType =
 /// Type alias for `ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>`
 pub type PaymentsTaxCalculationType =
     dyn ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
+/// Type alias for `ConnectorIntegration<CalculateSurcharge, PaymentsSurchargeCalculationData, SurchargeCalculationResponseData>`
+pub type SurchargeCalculationType = dyn ConnectorIntegration<
+    CalculateSurcharge,
+    PaymentsSurchargeCalculationData,
+    SurchargeCalculationResponseData,
+>;
+/// Type alias for `ConnectorIntegration<CompleteSurcharge, PaymentsCompleteSurchargeData, CompleteSurchargeResponseData>`
+pub type CompleteSurchargeType = dyn ConnectorIntegration<
+    CompleteSurcharge,
+    PaymentsCompleteSurchargeData,
+    CompleteSurchargeResponseData,
+>;
+/// Type alias for `ConnectorIntegration<CompleteRefundSurchrge, PaymentsCompleteRefundSurchrgeData, CompleteRefundSurchrgeResponseData>`
+pub type CompleteRefundSurchrgeType = dyn ConnectorIntegration<
+    CompleteRefundSurchrge,
+    PaymentsCompleteRefundSurchrgeData,
+    CompleteRefundSurchrgeResponseData,
+>;
 /// Type alias for `ConnectorIntegration<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>`
 pub type PaymentsPostSessionTokensType = dyn ConnectorIntegration<
     PostSessionTokens,
@@ -157,6 +180,12 @@ pub type PaymentsPostAuthenticateType =
 /// Type alias for `ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>`
 pub type PaymentsPostProcessingType =
     dyn ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
+/// Type alias for `ConnectorIntegration<PushNotification, PushNotificationRequestData, PaymentsResponseData>`
+pub type PaymentsPushNotificationType =
+    dyn ConnectorIntegration<PushNotification, PushNotificationRequestData, PaymentsResponseData>;
+/// Type alias for `ConnectorIntegration<GenerateQr, GenerateQrRequestData, PaymentsResponseData>`
+pub type PaymentsGenerateQrType =
+    dyn ConnectorIntegration<GenerateQr, GenerateQrRequestData, PaymentsResponseData>;
 /// Type alias for `ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>`
 pub type PaymentsCompleteAuthorizeType =
     dyn ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;
@@ -200,7 +229,18 @@ pub type PaymentsVoidType =
 /// Type alias for `ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>`
 pub type PaymentsPostCaptureVoidType =
     dyn ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>;
-
+/// Type alias for `ConnectorIntegration<PostCaptureVoidSync, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>`
+pub type PaymentsPostCaptureVoidSyncType = dyn ConnectorIntegration<
+    PostCaptureVoidSync,
+    PaymentsCancelPostCaptureSyncData,
+    PaymentsResponseData,
+>;
+/// Type alias for `ConnectorIntegration<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, PaymentsResponseData>`
+pub type PaymentsPreAuthorizeVoidType = dyn ConnectorIntegration<
+    PreAuthorizeVoid,
+    PaymentsPreAuthorizeCancelData,
+    PaymentsResponseData,
+>;
 /// Type alias for `ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>`
 pub type TokenizationType = dyn ConnectorIntegration<
     PaymentMethodToken,
@@ -466,7 +506,7 @@ pub struct Proxy {
     pub bypass_proxy_hosts: Option<String>,
 
     /// The CA certificate used for man-in-the-middle (MITM) proxying, if enabled.
-    pub mitm_ca_certificate: Option<masking::Secret<String>>,
+    pub mitm_ca_certificate: Option<hyperswitch_masking::Secret<String>>,
 
     /// Whether man-in-the-middle (MITM) proxying is enabled.
     pub mitm_enabled: Option<bool>,

@@ -2,12 +2,14 @@ pub mod address;
 pub mod api_keys;
 pub mod authentication;
 pub mod authorization;
+pub mod batch_blocklist_job;
 pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod blocklist_lookup;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod capture;
+pub mod card_issuer;
 pub mod cards_info;
 pub mod configs;
 pub mod customers;
@@ -69,13 +71,13 @@ pub use hyperswitch_domain_models::{
 pub use scheduler::db::process_tracker;
 
 pub use self::{
-    address::*, api_keys::*, authentication::*, authorization::*, blocklist::*,
-    blocklist_fingerprint::*, blocklist_lookup::*, business_profile::*, callback_mapper::*,
-    capture::*, cards_info::*, configs::*, customers::*, dashboard_metadata::*, dispute::*,
-    dynamic_routing_stats::*, ephemeral_key::*, events::*, file::*, fraud_check::*,
-    generic_link::*, gsm::*, hyperswitch_ai_interaction::*, locker_mock_up::*, mandate::*,
-    merchant_account::*, merchant_connector_account::*, merchant_key_store::*, payment_link::*,
-    payment_method::*, process_tracker::*, refund::*, reverse_lookup::*, role::*,
-    routing_algorithm::*, unified_translations::*, user::*, user_authentication_method::*,
-    user_role::*,
+    address::*, api_keys::*, authentication::*, authorization::*, batch_blocklist_job::*,
+    blocklist::*, blocklist_fingerprint::*, blocklist_lookup::*, business_profile::*,
+    callback_mapper::*, capture::*, card_issuer::*, cards_info::*, configs::*, customers::*,
+    dashboard_metadata::*, dispute::*, dynamic_routing_stats::*, ephemeral_key::*, events::*,
+    file::*, fraud_check::*, generic_link::*, gsm::*, hyperswitch_ai_interaction::*,
+    locker_mock_up::*, mandate::*, merchant_account::*, merchant_connector_account::*,
+    merchant_key_store::*, payment_link::*, payment_method::*, process_tracker::*, refund::*,
+    reverse_lookup::*, role::*, routing_algorithm::*, unified_translations::*, user::*,
+    user_authentication_method::*, user_role::*,
 };

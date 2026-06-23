@@ -97,6 +97,7 @@ pub struct OutgoingWebhookLogsResult {
     pub content: Option<String>,
     pub is_error: bool,
     pub error: Option<String>,
+    pub initiator_merchant_id: Option<common_utils::id_type::MerchantId>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
 }

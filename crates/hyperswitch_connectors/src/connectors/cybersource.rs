@@ -12,7 +12,6 @@ use common_utils::{
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -71,7 +70,7 @@ use hyperswitch_interfaces::{
     },
     webhooks,
 };
-use masking::{ExposeInterface, Mask, Maskable, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
 use transformers as cybersource;
@@ -81,8 +80,8 @@ use crate::{
     constants::{self, headers},
     types::ResponseRouterData,
     utils::{
-        self, convert_amount, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-        PaymentsPreAuthenticateRequestData, RefundsRequestData, RouterData as OtherRouterData,
+        self, convert_amount, PaymentsAuthorizeRequestData, PaymentsPreAuthenticateRequestData,
+        RefundsRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -308,21 +307,7 @@ impl ConnectorCommon for Cybersource {
     }
 }
 
-impl ConnectorValidation for Cybersource {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::SamsungPay,
-        ]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Cybersource {}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Cybersource
 where
@@ -2146,7 +2131,8 @@ impl webhooks::IncomingWebhook for Cybersource {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
@@ -2282,7 +2268,7 @@ impl ConnectorSpecifications for Cybersource {
     }
     fn get_preprocessing_flow_if_needed(
         &self,
-        current_flow_info: api::CurrentFlowInfo<'_>,
+        current_flow_info: api::CurrentFlowInfo,
     ) -> Option<api::PreProcessingFlowName> {
         match current_flow_info {
             api::CurrentFlowInfo::Authorize { .. } => {
@@ -2304,18 +2290,19 @@ impl ConnectorSpecifications for Cybersource {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => None,
+            api::CurrentFlowInfo::Psync { .. } => None,
         }
     }
     fn get_alternate_flow_if_needed(
         &self,
-        current_flow: api::CurrentFlowInfo<'_>,
+        current_flow: api::CurrentFlowInfo,
     ) -> Option<api::AlternateFlow> {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
             } => {
-                if self.is_3ds_setup_required(request_data, *auth_type) {
+                if self.is_3ds_setup_required(&request_data, auth_type) {
                     Some(api::AlternateFlow::PreAuthenticate)
                 } else {
                     None
@@ -2324,21 +2311,23 @@ impl ConnectorSpecifications for Cybersource {
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => None,
             api::CurrentFlowInfo::SetupMandate { .. } => None,
+            api::CurrentFlowInfo::Psync { .. } => None,
         }
     }
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
-            } => self.is_3ds_setup_required(request_data, *auth_type),
+            } => self.is_3ds_setup_required(&request_data, auth_type),
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     /// Check if authentication flow is required
-    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => {
                 // during authorize flow, there is no post_authentication call needed
@@ -2360,10 +2349,11 @@ impl ConnectorSpecifications for Cybersource {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     /// Check if post-authentication flow is required
-    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => {
                 // during authorize flow, there is no post_authentication call needed
@@ -2385,6 +2375,7 @@ impl ConnectorSpecifications for Cybersource {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
 }

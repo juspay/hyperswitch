@@ -35,7 +35,10 @@ pub use types::AnalyticsDomain;
 pub mod lambda_utils;
 pub mod utils;
 
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use api_models::analytics::{
     active_payments::{ActivePaymentsMetrics, ActivePaymentsMetricsBucketIdentifier},
@@ -430,6 +433,23 @@ impl AnalyticsProvider {
             self,
         )
         .await
+    }
+
+    pub async fn get_intent_status_with_count(
+        &self,
+        auth: &AuthInfo,
+        time_range: &TimeRange,
+    ) -> types::MetricsResult<HashMap<common_enums::IntentStatus, i64>> {
+        match self {
+            Self::Clickhouse(ckh_pool)
+            | Self::CombinedCkh(_, ckh_pool)
+            | Self::CombinedSqlx(_, ckh_pool) => {
+                payment_intents::aggregate::get_intent_status_with_count(ckh_pool, auth, time_range)
+                    .await
+            }
+            Self::Sqlx(_) => Err(report!(MetricsError::NotImplemented)
+                .attach_printable("ClickHouse aggregate not available: analytics source is sqlx")),
+        }
     }
 
     pub async fn get_refund_metrics(
@@ -1047,7 +1067,7 @@ impl SecretsHandler for AnalyticsConfig {
         let analytics_config = value.get_inner();
         let decrypted_password = match analytics_config {
             // Todo: Perform kms decryption of clickhouse password
-            Self::Clickhouse { .. } => masking::Secret::new(String::default()),
+            Self::Clickhouse { .. } => hyperswitch_masking::Secret::new(String::default()),
             Self::Sqlx { sqlx, .. }
             | Self::CombinedCkh { sqlx, .. }
             | Self::CombinedSqlx { sqlx, .. } => {
@@ -1131,6 +1151,7 @@ pub enum AnalyticsFlow {
     GetInfo,
     GetPaymentMetrics,
     GetPaymentIntentMetrics,
+    GetPaymentIntentsAggregate,
     GetRefundsMetrics,
     GetFrmMetrics,
     GetSdkMetrics,
@@ -1159,6 +1180,7 @@ pub enum AnalyticsFlow {
     GetDisputeMetrics,
     GetSankey,
     GetRoutingEvents,
+    GetPaymentListFromOpenSearch,
 }
 
 impl FlowMetric for AnalyticsFlow {}

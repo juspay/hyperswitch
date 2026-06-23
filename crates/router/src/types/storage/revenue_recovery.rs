@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     payments::{payment_attempt::PaymentAttempt, PaymentIntent, PaymentStatusData},
 };
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
@@ -55,9 +55,25 @@ impl RevenueRecoveryPaymentData {
             }
             enums::RevenueRecoveryAlgorithmType::Cascading => {
                 logger::info!("Cascading type found for Revenue Recovery retry payment");
+                let connector = payment_attempt.connector.as_ref().and_then(|c| {
+                    c.parse::<common_enums::connector_enums::Connector>()
+                        .map_err(|e| {
+                            logger::error!(
+                                "Failed to parse connector {:?} for payment_attempt {:?}: {:?}",
+                                c,
+                                payment_attempt.payment_id,
+                                e
+                            )
+                        })
+                        .ok()
+                })?;
+                let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                    .with_processor_merchant_id(merchant_id.clone().into())
+                    .with_connector(connector);
                 revenue_recovery::get_schedule_time_to_retry_mit_payments(
                     state.store.as_ref(),
-                    merchant_id,
+                    state.superposition_service.as_ref(),
+                    &dimensions,
                     retry_count,
                 )
                 .await

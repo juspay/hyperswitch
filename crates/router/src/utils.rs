@@ -16,6 +16,7 @@ pub mod user_role;
 pub mod verify_connector;
 use std::fmt::Debug;
 
+use analytics::{enums::AuthInfo, errors::AnalyticsError};
 use api_models::{
     enums,
     payments::{self},
@@ -38,7 +39,7 @@ pub use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use masking::{ExposeInterface, SwitchStrategy};
+use hyperswitch_masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -54,6 +55,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments as payments_core,
     },
+    db::StorageInterface,
     headers::ACCEPT_LANGUAGE,
     logger,
     routes::{metrics, SessionState},
@@ -237,7 +239,7 @@ pub async fn find_payment_intent_from_refund_id_type(
     let db = &*state.store;
     let refund = match refund_id_type {
         webhooks::RefundIdType::RefundId(id) => db
-            .find_refund_by_merchant_id_refund_id(
+            .find_refund_by_processor_merchant_id_refund_id(
                 platform.get_processor().get_account().get_id(),
                 &id,
                 platform.get_processor().get_account().storage_scheme,
@@ -245,7 +247,7 @@ pub async fn find_payment_intent_from_refund_id_type(
             .await
             .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?,
         webhooks::RefundIdType::ConnectorRefundId(id) => db
-            .find_refund_by_merchant_id_connector_refund_id_connector(
+            .find_refund_by_processor_merchant_id_connector_refund_id_connector(
                 platform.get_processor().get_account().get_id(),
                 &id,
                 connector_name,
@@ -255,9 +257,10 @@ pub async fn find_payment_intent_from_refund_id_type(
             .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?,
     };
     let attempt = db
-        .find_payment_attempt_by_attempt_id_processor_merchant_id(
-            &refund.attempt_id,
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            &refund.payment_id,
             platform.get_processor().get_account().get_id(),
+            &refund.attempt_id,
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store(),
         )
@@ -325,6 +328,7 @@ pub async fn find_mca_from_authentication_id_type(
                 &authentication_id,
                 platform.get_processor().get_key_store(),
                 &state.into(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?,
@@ -334,6 +338,7 @@ pub async fn find_mca_from_authentication_id_type(
                 connector_authentication_id,
                 platform.get_processor().get_key_store(),
                 &state.into(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
@@ -378,9 +383,10 @@ pub async fn get_mca_from_payment_intent(
 
     #[cfg(feature = "v1")]
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_processor_merchant_id(
-            &payment_intent.active_attempt.get_id(),
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            &payment_intent.payment_id,
             platform.get_processor().get_account().get_id(),
+            &payment_intent.active_attempt.get_id(),
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store(),
         )
@@ -700,9 +706,11 @@ pub fn get_http_status_code_type(
 }
 
 // Trims whitespace from a Secret string and returns None if empty
-pub fn trim_secret_string(secret: masking::Secret<String>) -> Option<masking::Secret<String>> {
+pub fn trim_secret_string(
+    secret: hyperswitch_masking::Secret<String>,
+) -> Option<hyperswitch_masking::Secret<String>> {
     let trimmed = secret.expose().trim().to_string();
-    (!trimmed.is_empty()).then(|| masking::Secret::new(trimmed))
+    (!trimmed.is_empty()).then(|| hyperswitch_masking::Secret::new(trimmed))
 }
 
 // Trims whitespace from a regular string and returns None if empty
@@ -805,11 +813,12 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
             country_code: self.phone_country_code.clone(),
             updated_by: storage_scheme.to_string(),
             email: encryptable_address.email.map(|email| {
-                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
-                    Encryptable::new(
-                        email.clone().into_inner().switch_strategy(),
-                        email.into_encrypted(),
-                    );
+                let encryptable: Encryptable<
+                    hyperswitch_masking::Secret<String, pii::EmailStrategy>,
+                > = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
                 encryptable
             }),
             origin_zip: encryptable_address.origin_zip,
@@ -873,11 +882,12 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
             modified_at: common_utils::date_time::now(),
             updated_by: storage_scheme.to_string(),
             email: encryptable_address.email.map(|email| {
-                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
-                    Encryptable::new(
-                        email.clone().into_inner().switch_strategy(),
-                        email.into_encrypted(),
-                    );
+                let encryptable: Encryptable<
+                    hyperswitch_masking::Secret<String, pii::EmailStrategy>,
+                > = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
                 encryptable
             }),
             origin_zip: encryptable_address.origin_zip,
@@ -944,11 +954,12 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
             country_code: self.phone_country_code.clone(),
             updated_by: storage_scheme.to_string(),
             email: encryptable_address.email.map(|email| {
-                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
-                    Encryptable::new(
-                        email.clone().into_inner().switch_strategy(),
-                        email.into_encrypted(),
-                    );
+                let encryptable: Encryptable<
+                    hyperswitch_masking::Secret<String, pii::EmailStrategy>,
+                > = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
                 encryptable
             }),
             origin_zip: encryptable_address.origin_zip,
@@ -1011,11 +1022,12 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
             modified_at: common_utils::date_time::now(),
             updated_by: storage_scheme.to_string(),
             email: encryptable_address.email.map(|email| {
-                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
-                    Encryptable::new(
-                        email.clone().into_inner().switch_strategy(),
-                        email.into_encrypted(),
-                    );
+                let encryptable: Encryptable<
+                    hyperswitch_masking::Secret<String, pii::EmailStrategy>,
+                > = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
                 encryptable
             }),
             origin_zip: encryptable_address.origin_zip,
@@ -1142,8 +1154,7 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
-    processor: &domain::Processor,
-    initiator: Option<&domain::Initiator>,
+    platform: &domain::Platform,
     business_profile: domain::Profile,
     payment_data: D,
     customer: Option<domain::Customer>,
@@ -1161,8 +1172,7 @@ where
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
-    processor: &domain::Processor,
-    initiator: Option<&domain::Initiator>,
+    platform: &domain::Platform,
     business_profile: domain::Profile,
     payment_data: D,
     state: &SessionState,
@@ -1192,6 +1202,7 @@ where
                     .collect()
             });
         let payment_id = payment_data.get_payment_intent().get_id().to_owned();
+        let created_by = payment_data.get_payment_attempt().created_by.clone();
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
             payment_data,
             captures,
@@ -1202,8 +1213,8 @@ where
             None,
             None,
             None,
-            processor,
-            initiator,
+            platform.get_processor(),
+            platform.get_initiator(),
         )?;
 
         let event_type = status.into();
@@ -1217,14 +1228,21 @@ where
             // So when server shutdown won't wait for this thread's completion.
 
             if let Some(event_type) = event_type {
-                let cloned_processor = processor.clone();
+                let webhook_recipient =
+                    webhooks_core::utils::resolve_webhook_recipient_from_created_by(
+                        state,
+                        platform,
+                        &business_profile,
+                        created_by.as_ref(),
+                    )
+                    .await?;
+                let cloned_platform = platform.clone();
                 tokio::spawn(
                     async move {
                         let primary_object_created_at = payments_response_json.created;
                         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                             cloned_state,
-                            cloned_processor,
-                            business_profile,
+                            cloned_platform,
                             event_type,
                             diesel_models::enums::EventClass::Payments,
                             payment_id.get_string_repr().to_owned(),
@@ -1233,6 +1251,7 @@ where
                                 payments_response_json,
                             )),
                             primary_object_created_at,
+                            webhook_recipient,
                         ))
                         .await
                     }
@@ -1291,19 +1310,31 @@ pub async fn trigger_refund_outgoing_webhook(
         let cloned_state = state.clone();
         let primary_object_created_at = refund_response.created_at;
         if let Some(outgoing_event_type) = event_type {
-            let processor = platform.get_processor().clone();
+            let created_by = refund
+                .created_by
+                .as_deref()
+                .and_then(|s| s.parse::<common_utils::types::CreatedBy>().ok());
+            let webhook_recipient =
+                webhooks_core::utils::resolve_webhook_recipient_from_created_by(
+                    state,
+                    platform,
+                    &business_profile,
+                    created_by.as_ref(),
+                )
+                .await?;
+            let cloned_platform = platform.clone();
             tokio::spawn(
                 async move {
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                         cloned_state,
-                        processor,
-                        business_profile,
+                        cloned_platform,
                         outgoing_event_type,
                         diesel_models::enums::EventClass::Refunds,
                         refund_id.to_string(),
                         common_enums::EventObjectType::RefundDetails,
                         webhooks::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
                         primary_object_created_at,
+                        webhook_recipient,
                     ))
                     .await
                 }
@@ -1319,10 +1350,9 @@ pub async fn trigger_refund_outgoing_webhook(
 #[cfg(feature = "v2")]
 pub async fn trigger_refund_outgoing_webhook(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
+    platform: &domain::Platform,
     refund: &diesel_models::Refund,
     profile_id: id_type::ProfileId,
-    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
     todo!()
 }
@@ -1340,6 +1370,7 @@ pub async fn trigger_payouts_webhook(
     state: &SessionState,
     platform: &domain::Platform,
     payout_response: &api_models::payouts::PayoutCreateResponse,
+    created_by: Option<&common_utils::types::CreatedBy>,
 ) -> RouterResult<()> {
     let profile_id = &payout_response.profile_id;
     let business_profile = state
@@ -1363,7 +1394,16 @@ pub async fn trigger_payouts_webhook(
         if let Some(event_type) = event_type {
             let cloned_state = state.clone();
             let cloned_response = payout_response.clone();
-            let processor = platform.get_processor().clone();
+
+            let webhook_recipient =
+                webhooks_core::utils::resolve_webhook_recipient_from_created_by(
+                    state,
+                    platform,
+                    &business_profile,
+                    created_by,
+                )
+                .await?;
+            let cloned_platform = platform.clone();
 
             // This spawns this futures in a background thread, the exception inside this future won't affect
             // the current thread and the lifecycle of spawn thread is not handled by runtime.
@@ -1373,14 +1413,14 @@ pub async fn trigger_payouts_webhook(
                     let primary_object_created_at = cloned_response.created;
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                         cloned_state,
-                        processor,
-                        business_profile,
+                        cloned_platform,
                         event_type,
                         diesel_models::enums::EventClass::Payouts,
                         cloned_response.payout_id.get_string_repr().to_owned(),
                         common_enums::EventObjectType::PayoutDetails,
                         webhooks::OutgoingWebhookContent::PayoutDetails(Box::new(cloned_response)),
                         primary_object_created_at,
+                        webhook_recipient,
                     ))
                     .await
                 }
@@ -1398,6 +1438,7 @@ pub async fn trigger_payouts_webhook(
     state: &SessionState,
     platform: &domain::Platform,
     payout_response: &api_models::payouts::PayoutCreateResponse,
+    created_by: Option<&common_utils::types::CreatedBy>,
 ) -> RouterResult<()> {
     todo!()
 }
@@ -1427,26 +1468,73 @@ pub async fn trigger_subscriptions_outgoing_webhook(
         None,
     );
 
+    let webhook_recipient = webhooks_core::utils::resolve_webhook_recipient_from_created_by(
+        state, &platform, profile, None,
+    )
+    .await?;
+
     let cloned_state = state.clone();
-    let cloned_profile = profile.clone();
     let invoice_id = invoice.id.get_string_repr().to_owned();
     let created_at = subscription.created_at;
-    let processor = platform.get_processor().clone();
 
     tokio::spawn(async move {
         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
             cloned_state,
-            processor,
-            cloned_profile,
+            platform,
             common_enums::enums::EventType::InvoicePaid,
             common_enums::enums::EventClass::Subscriptions,
             invoice_id,
             common_enums::EventObjectType::SubscriptionDetails,
             webhooks::OutgoingWebhookContent::SubscriptionDetails(Box::new(response)),
             Some(created_at),
+            webhook_recipient,
         ))
         .await
     });
 
     Ok(())
+}
+
+pub async fn get_payment_response_hash_key(
+    store: &dyn StorageInterface,
+    key_store: &domain::MerchantKeyStore,
+    auth: &AuthInfo,
+) -> Result<Option<String>, error_stack::Report<AnalyticsError>> {
+    match auth {
+        AuthInfo::ProfileLevel {
+            merchant_id,
+            profile_ids,
+            ..
+        } => {
+            let profile_id = profile_ids.first().ok_or(AnalyticsError::UnknownError)?;
+            let profile = store
+                .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
+                .await
+                .change_context(AnalyticsError::UnknownError)?;
+            Ok(profile.payment_response_hash_key)
+        }
+        AuthInfo::MerchantLevel { merchant_ids, .. } => {
+            #[cfg(feature = "v1")]
+            {
+                let merchant_id = merchant_ids.first().ok_or(AnalyticsError::UnknownError)?;
+                let merchant = store
+                    .find_merchant_account_by_merchant_id(merchant_id, key_store)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+                Ok(merchant.payment_response_hash_key)
+            }
+            #[cfg(feature = "v2")]
+            {
+                let merchant_id = merchant_ids.first().ok_or(AnalyticsError::UnknownError)?;
+                let profiles = store
+                    .list_profile_by_merchant_id(key_store, merchant_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+                Ok(profiles
+                    .first()
+                    .and_then(|profile| profile.payment_response_hash_key.clone()))
+            }
+        }
+        AuthInfo::OrgLevel { .. } => Ok(None),
+    }
 }

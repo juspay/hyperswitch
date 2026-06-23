@@ -1,9 +1,19 @@
+import { getIframeRedirectionConfig } from "./Modifiers";
+
 const successfulNo3DSCardDetails = {
   card_number: "4532111111111112",
   card_exp_month: "10",
   card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "999",
+};
+
+const failedNoThreeDsCardDetails = {
+  card_number: "4242424242424242",
+  card_exp_month: "10",
+  card_exp_year: "30",
+  card_holder_name: "REFUSED13",
+  card_cvc: "737",
 };
 
 const successfulThreeDSTestCardDetails = {
@@ -57,6 +67,9 @@ export const connectorDetails = {
         },
       },
     },
+    ...getIframeRedirectionConfig({
+      cardDetails: successfulThreeDSTestCardDetails,
+    }),
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",
@@ -121,6 +134,9 @@ export const connectorDetails = {
         },
       },
     },
+    ...getIframeRedirectionConfig({
+      cardDetails: successfulThreeDSTestCardDetails,
+    }),
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
@@ -641,6 +657,40 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNoThreeDsCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "200",
+          error_message: "DECLINE",
+        },
+      },
+    },
+  },
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "event_body.order_id",
+      // Type of payment reference ID
+      type: "string",
+      // NMI webhook handler uses PaymentAttemptId for lookup, not ConnectorTransactionId
+      source: "paymentAttemptID",
+    },
+    RefundIdConfig: {
+      path: "event_body.order_id",
+      type: "string",
+      // NMI webhook handler uses RefundId for lookup, not ConnectorRefundId
+      source: "refundId",
     },
   },
 };

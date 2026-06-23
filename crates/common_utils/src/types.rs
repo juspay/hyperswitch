@@ -13,8 +13,8 @@ use std::{
     borrow::Cow,
     fmt::Display,
     iter::Sum,
-    num::NonZeroI64,
-    ops::{Add, Mul, Sub},
+    num::{NonZeroI64, NonZeroU8},
+    ops::{Add, Div, Mul, Sub},
     primitive::i64,
     str::FromStr,
 };
@@ -427,7 +427,7 @@ impl MinorUnit {
     }
 
     /// Convert the amount to its major denomination based on Currency and return f64
-    fn to_major_unit_as_f64(
+    pub fn to_major_unit_as_f64(
         self,
         currency: enums::Currency,
     ) -> Result<FloatMajorUnit, error_stack::Report<ParsingError>> {
@@ -517,6 +517,14 @@ impl Mul<u16> for MinorUnit {
 
     fn mul(self, a2: u16) -> Self::Output {
         Self(self.0 * i64::from(a2))
+    }
+}
+
+impl Div<NonZeroU8> for MinorUnit {
+    type Output = Self;
+
+    fn div(self, a2: NonZeroU8) -> Self::Output {
+        Self(self.0 / i64::from(a2.get()))
     }
 }
 
@@ -616,6 +624,11 @@ impl FloatMajorUnit {
     /// forms a new major unit with zero amount
     pub fn zero() -> Self {
         Self(0.0)
+    }
+
+    /// gets amount as i64
+    pub fn get_amount_as_f64(self) -> f64 {
+        self.0
     }
 
     /// converts to minor unit as i64 from FloatMajorUnit
@@ -1450,6 +1463,19 @@ impl_enum_str!(
         },
     }
 );
+
+impl CreatedBy {
+    /// Returns `true` if the creator is the provider (platform) merchant, i.e. an API-triggered
+    /// creation whose `merchant_id` matches `provider_merchant_id`.
+    pub fn is_provider_initiated(&self, provider_merchant_id: &id_type::MerchantId) -> bool {
+        match self {
+            Self::Api { merchant_id } => id_type::MerchantId::wrap(merchant_id.clone())
+                .map(|parsed_merchant_id| parsed_merchant_id == *provider_merchant_id)
+                .unwrap_or_default(),
+            Self::Jwt { .. } | Self::Invalid | Self::EmbeddedToken { .. } => false,
+        }
+    }
+}
 
 /// Trait for enums created with `impl_enum_str!` macro that have an `Invalid` variant.
 /// This trait allows generic functions to check if a parsed enum value is invalid.

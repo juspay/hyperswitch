@@ -39,6 +39,7 @@ pub enum AuditEventType {
         error_code: Option<String>,
         error_message: Option<String>,
     },
+    PaymentRecurrence,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -83,6 +84,7 @@ impl Event for AuditEvent {
             AuditEventType::PaymentStatus => "payment_status",
             AuditEventType::PaymentCompleteAuthorize => "payment_complete_authorize",
             AuditEventType::PaymentReject { .. } => "payment_rejected",
+            AuditEventType::PaymentRecurrence => "payment_recurrence",
         };
         format!(
             "{event_type}-{}",

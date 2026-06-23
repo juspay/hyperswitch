@@ -1,6 +1,6 @@
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 
 pub struct RiskifiedAuthType {
     pub secret_token: Secret<String>,

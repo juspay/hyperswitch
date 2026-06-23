@@ -46,8 +46,8 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 #[cfg(feature = "v2")]
-use masking::PeekInterface;
-use masking::{ExposeInterface, Mask};
+use hyperswitch_masking::PeekInterface;
+use hyperswitch_masking::{ExposeInterface, Mask};
 use transformers as helcim;
 
 use crate::{
@@ -106,7 +106,7 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -147,7 +147,7 @@ impl ConnectorCommon for Helcim {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
         let auth = helcim::HelcimAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -224,7 +224,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         &self,
         req: &SetupMandateRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
         self.build_headers(req, connectors)
     }
@@ -299,7 +299,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
         self.build_headers(req, connectors)
     }
@@ -391,7 +391,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hel
         &self,
         req: &PaymentsSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -481,7 +481,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
         self.build_headers(req, connectors)
     }
@@ -568,7 +568,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for He
         &self,
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
         self.build_headers(req, connectors)
     }
@@ -648,7 +648,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Helcim 
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
         self.build_headers(req, connectors)
     }
@@ -734,7 +734,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Helcim {
         &self,
         req: &RefundSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::maskable::Maskable<String>)>, errors::ConnectorError>
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -833,7 +833,8 @@ impl IncomingWebhook for Helcim {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

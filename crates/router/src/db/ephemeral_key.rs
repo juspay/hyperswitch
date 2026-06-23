@@ -60,7 +60,7 @@ mod storage {
     use common_utils::id_type;
     use error_stack::ResultExt;
     #[cfg(feature = "v2")]
-    use masking::PeekInterface;
+    use hyperswitch_masking::PeekInterface;
     #[cfg(feature = "v2")]
     use redis_interface::errors::RedisError;
     use redis_interface::HsetnxReply;

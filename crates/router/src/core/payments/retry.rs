@@ -3,7 +3,7 @@ use std::vec::IntoIter;
 use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::ext_traits::OptionExt;
+use hyperswitch_domain_models::{ext_traits::OptionExt, mandates};
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -12,6 +12,7 @@ use router_env::{
 use crate::{
     consts,
     core::{
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, complete_connector_service,
@@ -49,6 +50,7 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
     feature_config: &core_utils::FeatureConfig,
+    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync + std::fmt::Debug + 'static,
@@ -79,8 +81,8 @@ where
 
     #[cfg(feature = "v1")]
     let is_no_three_ds_payment = matches!(
-        payment_data.get_payment_attempt().authentication_type,
-        Some(storage_enums::AuthenticationType::NoThreeDs)
+        router_data.auth_type,
+        storage_enums::AuthenticationType::NoThreeDs
     );
 
     #[cfg(feature = "v2")]
@@ -101,7 +103,7 @@ where
     };
 
     if should_step_up {
-        router_data = do_retry(
+        router_data = Box::pin(do_retry(
             &state.clone(),
             req_state.clone(),
             original_connector_data,
@@ -119,7 +121,7 @@ where
             None,
             initial_gsm.clone(),
             feature_config,
-        )
+        ))
         .await?;
     }
     // Step up is not applicable so proceed with auto retries flow
@@ -186,7 +188,7 @@ where
                             payment_data,
                             &payment_method_info,
                         )?;
-                        payment_data.set_mandate_id(api_models::payments::MandateIds {
+                        payment_data.set_mandate_id(mandates::MandateIds {
                             mandate_id: None,
                             mandate_reference_id, //mandate_ref_id
                         });
@@ -207,7 +209,7 @@ where
                         (connector_routing_data.connector_data, routing_decision)
                     };
 
-                    router_data = do_retry(
+                    router_data = Box::pin(do_retry(
                         &state.clone(),
                         req_state.clone(),
                         &connector,
@@ -226,7 +228,7 @@ where
                         routing_decision,
                         gsm.clone(),
                         feature_config,
-                    )
+                    ))
                     .await?;
 
                     retries = retries.map(|i| i - 1);
@@ -389,6 +391,10 @@ where
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     metrics::AUTO_RETRY_PAYMENT_COUNT.add(1, &[]);
 
     modify_trackers(
@@ -426,6 +432,7 @@ where
         payments::decide_unified_connector_service_call(
             state,
             platform.get_processor(),
+            platform.get_initiator(),
             connector.clone(),
             operation,
             payment_data,
@@ -467,6 +474,7 @@ where
         hyperswitch_domain_models::payments::HeaderPayload::default(),
         frm_suggestion,
         call_connector_service_response,
+        &dimensions,
     )
     .await?;
     Ok(router_data)
@@ -616,6 +624,10 @@ where
                     .get_payment_attempt()
                     .network_transaction_id
                     .clone(),
+                network_transaction_link_id: payment_data
+                    .get_payment_attempt()
+                    .network_transaction_link_id
+                    .clone(),
                 is_overcapture_enabled: None,
                 authorized_amount: router_data.authorized_amount,
                 tokenization: None,
@@ -623,8 +635,13 @@ where
                 issuer_error_message: None,
                 network_details: None,
                 network_error_message: None,
+                advice_message: None,
                 recommended_action: None,
                 card_network: payment_data.get_payment_attempt().extract_card_network(),
+                sender_payment_instrument_id: payment_data
+                    .get_payment_attempt()
+                    .sender_payment_instrument_id
+                    .clone(),
             };
 
             #[cfg(feature = "v1")]
@@ -662,12 +679,12 @@ where
                 None
             };
 
-            // For MIT transactions, lookup recommended action from merchant_advice_codes config
-            let recommended_action = payments_helpers::get_merchant_advice_code_recommended_action(
+            // For MIT transactions, lookup recommended action and description from merchant_advice_codes config
+            let merchant_advice = payments_helpers::get_merchant_advice_code_config(
                 &state.conf.merchant_advice_codes,
                 payment_data.get_payment_intent().off_session,
-                card_network.as_ref(),
-                error_response.network_advice_code.as_deref(),
+                card_network.clone(),
+                error_response.network_advice_code.clone(),
             );
 
             let payment_attempt_update = storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -694,7 +711,8 @@ where
                 issuer_error_message: Some(error_response.network_error_message.clone()),
                 network_details: Some(Some(ForeignFrom::foreign_from(error_response))),
                 network_error_message: Some(error_response.network_error_message.clone()),
-                recommended_action: Some(recommended_action),
+                advice_message: Some(merchant_advice.map(|m| m.description.clone())),
+                recommended_action: Some(merchant_advice.map(|m| m.recommended_action)),
                 card_network: payment_data.get_payment_attempt().extract_card_network(),
             };
 
@@ -822,6 +840,7 @@ pub fn make_new_auto_retry_payment_attempt(
         unified_code: Default::default(),
         unified_message: Default::default(),
         external_three_ds_authentication_attempted: Default::default(),
+        external_threeds_authentication_type: Default::default(),
         authentication_connector: Default::default(),
         authentication_id: Default::default(),
         mandate_data: Default::default(),
@@ -840,6 +859,7 @@ pub fn make_new_auto_retry_payment_attempt(
         routing_approach: old_payment_attempt.routing_approach,
         connector_request_reference_id: Default::default(),
         network_transaction_id: old_payment_attempt.network_transaction_id,
+        network_transaction_link_id: old_payment_attempt.network_transaction_link_id,
         network_details: Default::default(),
         is_stored_credential: old_payment_attempt.is_stored_credential,
         authorized_amount: old_payment_attempt.authorized_amount,
@@ -854,6 +874,9 @@ pub fn make_new_auto_retry_payment_attempt(
         is_overcapture_enabled: Default::default(),
         error_details: Default::default(),
         retry_type: Some(storage_enums::RetryType::AutoRetry),
+        installment_data: Default::default(),
+        external_surcharge_details: Default::default(),
+        sender_payment_instrument_id: Default::default(),
     }
 }
 
@@ -868,32 +891,20 @@ pub fn make_new_payment_attempt(
     todo!()
 }
 
-pub async fn get_merchant_config_for_gsm(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
-) -> bool {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_call_gsm_key(),
-            Some("false".to_string()),
-        )
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
-}
-
 #[cfg(feature = "v1")]
 pub async fn config_should_call_gsm(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    state: &app::SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     profile: &domain::Profile,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {
-    let merchant_config_gsm = get_merchant_config_for_gsm(db, merchant_id).await;
+    let merchant_config_gsm = dimensions
+        .get_should_call_gsm(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await;
     let profile_config_gsm = profile.is_auto_retries_enabled;
     merchant_config_gsm || profile_config_gsm
 }
@@ -937,7 +948,8 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::DeviceDataCollectionPending
                 | storage_enums::AttemptStatus::IntegrityFailure
                 | storage_enums::AttemptStatus::Expired
-                | storage_enums::AttemptStatus::PartiallyAuthorized => false,
+                | storage_enums::AttemptStatus::PartiallyAuthorized
+                | storage_enums::AttemptStatus::CaptureReview => false,
 
                 storage_enums::AttemptStatus::AuthenticationFailed
                 | storage_enums::AttemptStatus::AuthorizationFailed

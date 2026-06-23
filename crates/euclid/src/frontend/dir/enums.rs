@@ -3,10 +3,10 @@ use utoipa::ToSchema;
 
 use crate::enums::collect_variants;
 pub use crate::enums::{
-    AuthenticationType, CaptureMethod, CardNetwork, Country, Country as BusinessCountry,
-    Country as BillingCountry, Country as IssuerCountry, Country as AcquirerCountry, CountryAlpha2,
-    Currency as PaymentCurrency, MandateAcceptanceType, MandateType, PaymentMethod, PaymentType,
-    RoutableConnectors, SetupFutureUsage,
+    AuthenticationType, CaptureMethod, CardDiscovery, CardNetwork, Country,
+    Country as BusinessCountry, Country as BillingCountry, Country as IssuerCountry,
+    Country as AcquirerCountry, CountryAlpha2, Currency as PaymentCurrency, MandateAcceptanceType,
+    MandateType, PaymentMethod, PaymentType, RoutableConnectors, SetupFutureUsage,
 };
 #[cfg(feature = "payouts")]
 pub use crate::enums::{PayoutBankTransferType, PayoutType, PayoutWalletType};
@@ -223,6 +223,10 @@ pub enum BankTransferType {
     MandiriVa,
     PermataBankTransfer,
     Pix,
+    PixKey,
+    PixEmv,
+    PixAutomaticoPush,
+    PixAutomaticoQr,
     Pse,
     LocalBankTransfer,
     InstantBankTransfer,
@@ -392,6 +396,7 @@ pub enum UpiType {
 #[strum(serialize_all = "snake_case")]
 pub enum BankDebitType {
     Ach,
+    EftDebitOrder,
     Sepa,
     SepaGuarenteedDebit,
     Bacs,

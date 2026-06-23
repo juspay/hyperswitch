@@ -94,6 +94,7 @@ impl Feature<api::Reject, types::PaymentsRejectData>
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }

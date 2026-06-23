@@ -1,7 +1,7 @@
 use api_models::apple_pay_certificates_migration;
 use common_utils::{errors::CustomResult, type_name, types::keymanager::Identifier};
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 
 use super::{
     errors::{self, StorageErrorExt},

@@ -170,14 +170,6 @@ impl MerchantId {
         format!("payment_method_surcharge_id_{}", self.get_string_repr())
     }
 
-    /// get_webhook_config_disabled_events_key
-    pub fn get_webhook_config_disabled_events_key(&self, connector_id: &str) -> String {
-        format!(
-            "whconf_disabled_events_{}_{connector_id}",
-            self.get_string_repr()
-        )
-    }
-
     /// get_should_call_gsm_payout_key
     pub fn get_should_call_gsm_payout_key(
         &self,
@@ -201,9 +193,9 @@ impl MerchantId {
     }
 
     /// get should call auth tokenization for modular authentication
-    pub fn get_should_disable_auth_tokenization(&self) -> String {
+    pub fn get_should_disable_vault_tokenization(&self) -> String {
         format!(
-            "should_disable_auth_tokenization_{}",
+            "should_disable_vault_tokenization_{}",
             self.get_string_repr()
         )
     }
@@ -216,22 +208,6 @@ impl MerchantId {
         )
     }
 
-    /// get_max_auto_single_connector_payout_retries_enabled_
-    pub fn get_max_auto_single_connector_payout_retries_enabled(
-        &self,
-        payout_retry_type: common_enums::PayoutRetryType,
-    ) -> String {
-        match payout_retry_type {
-            common_enums::PayoutRetryType::SingleConnector => format!(
-                "max_auto_single_connector_payout_retries_enabled_{}",
-                self.get_string_repr()
-            ),
-            common_enums::PayoutRetryType::MultiConnector => format!(
-                "max_auto_multiple_connector_payout_retries_enabled_{}",
-                self.get_string_repr()
-            ),
-        }
-    }
     /// get_authentication_service_eligible_key
     pub fn get_authentication_service_eligible_key(&self) -> String {
         format!("authentication_service_eligible_{}", self.get_string_repr())
@@ -255,11 +231,6 @@ impl MerchantId {
             "should_store_eligibility_check_data_for_authentication_{}",
             self.get_string_repr()
         )
-    }
-
-    /// Get threeds_routing_region key for merchant
-    pub fn get_threeds_routing_region_uas_key(&self) -> String {
-        format!("threeds_routing_region_uas_{}", self.get_string_repr())
     }
 
     /// fetch should_return_raw_payment_method_details key for organization

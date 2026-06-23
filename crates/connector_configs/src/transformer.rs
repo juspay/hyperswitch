@@ -3,7 +3,7 @@ use std::str::FromStr;
 use api_models::{
     enums::{
         Connector, PaymentMethod,
-        PaymentMethodType::{self, AliPay, ApplePay, GooglePay, Klarna, Paypal, WeChatPay},
+        PaymentMethodType::{self, AliPay, ApplePay, GooglePay, Klarna, Paypal, Qris, WeChatPay},
     },
     payment_methods,
     refunds::MinorUnit,
@@ -55,7 +55,8 @@ impl DashboardRequestPayload {
                 }
                 (Connector::Globepay, AliPay)
                 | (Connector::Globepay, WeChatPay)
-                | (Connector::Stripe, WeChatPay) => {
+                | (Connector::Stripe, WeChatPay)
+                | (Connector::Xendit, Qris) => {
                     Some(api_models::enums::PaymentExperience::DisplayQrCode)
                 }
                 (_, GooglePay)

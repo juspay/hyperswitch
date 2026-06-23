@@ -4,28 +4,35 @@ use hyperswitch_domain_models::{
     router_data_v2::{flow_common_types::GiftCardBalanceCheckFlowData, PaymentFlowData},
     router_flow_types::{
         payments::{
-            Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy,
-            IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
-            PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+            Approve, Authorize, AuthorizeSessionToken, CalculateSurcharge, CalculateTax, Capture,
+            CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
+            CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
+            IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid,
+            PostCaptureVoidSync, PostProcessing, PostSessionTokens, PreAuthorizeVoid,
+            PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
             SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         Authenticate, GiftCardBalanceCheck, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        CreateOrderRequestData, ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData,
-        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        CreateOrderRequestData, ExternalVaultProxyPaymentsData, GenerateQrRequestData,
+        GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData, PaymentsCaptureData,
+        PaymentsCompleteRefundSurchrgeData, PaymentsCompleteSurchargeData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSurchargeCalculationData,
+        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
+        PushNotificationRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
         SetupMandateRequestData,
     },
     router_response_types::{
-        GiftCardBalanceCheckResponseData, PaymentsResponseData, TaxCalculationResponseData,
+        CompleteRefundSurchrgeResponseData, CompleteSurchargeResponseData,
+        GiftCardBalanceCheckResponseData, PaymentsResponseData, SurchargeCalculationResponseData,
+        TaxCalculationResponseData,
     },
 };
 
@@ -68,6 +75,28 @@ pub trait PaymentPostCaptureVoidV2:
     PostCaptureVoid,
     PaymentFlowData,
     PaymentsCancelPostCaptureData,
+    PaymentsResponseData,
+>
+{
+}
+
+/// trait PaymentPostCaptureVoidSyncV2
+pub trait PaymentPostCaptureVoidSyncV2:
+    ConnectorIntegrationV2<
+    PostCaptureVoidSync,
+    PaymentFlowData,
+    PaymentsCancelPostCaptureSyncData,
+    PaymentsResponseData,
+>
+{
+}
+
+/// trait PaymentPreAuthorizeVoidV2
+pub trait PaymentPreAuthorizeVoidV2:
+    ConnectorIntegrationV2<
+    PreAuthorizeVoid,
+    PaymentFlowData,
+    PaymentsPreAuthorizeCancelData,
     PaymentsResponseData,
 >
 {
@@ -132,6 +161,39 @@ pub trait TaxCalculationV2:
     PaymentFlowData,
     PaymentsTaxCalculationData,
     TaxCalculationResponseData,
+>
+{
+}
+
+///trait SurchargeCalculationV2
+pub trait SurchargeCalculationV2:
+    ConnectorIntegrationV2<
+    CalculateSurcharge,
+    PaymentFlowData,
+    PaymentsSurchargeCalculationData,
+    SurchargeCalculationResponseData,
+>
+{
+}
+
+///trait CompleteSurchargeV2
+pub trait CompleteSurchargeV2:
+    ConnectorIntegrationV2<
+    CompleteSurcharge,
+    PaymentFlowData,
+    PaymentsCompleteSurchargeData,
+    CompleteSurchargeResponseData,
+>
+{
+}
+
+///trait CompleteRefundSurchrgeV2
+pub trait CompleteRefundSurchrgeV2:
+    ConnectorIntegrationV2<
+    CompleteRefundSurchrge,
+    PaymentFlowData,
+    PaymentsCompleteRefundSurchrgeData,
+    CompleteRefundSurchrgeResponseData,
 >
 {
 }
@@ -284,6 +346,23 @@ pub trait PaymentsPostProcessingV2:
 {
 }
 
+/// trait PaymentsPushNotificationV2
+pub trait PaymentsPushNotificationV2:
+    ConnectorIntegrationV2<
+    PushNotification,
+    PaymentFlowData,
+    PushNotificationRequestData,
+    PaymentsResponseData,
+>
+{
+}
+
+/// trait PaymentsGenerateQrV2
+pub trait PaymentsGenerateQrV2:
+    ConnectorIntegrationV2<GenerateQr, PaymentFlowData, GenerateQrRequestData, PaymentsResponseData>
+{
+}
+
 /// trait ExternalVaultProxyPaymentsCreate
 pub trait ExternalVaultProxyPaymentsCreate:
     ConnectorIntegrationV2<
@@ -310,12 +389,16 @@ pub trait PaymentV2:
     + PaymentCaptureV2
     + PaymentVoidV2
     + PaymentPostCaptureVoidV2
+    + PaymentPostCaptureVoidSyncV2
+    + PaymentPreAuthorizeVoidV2
     + PaymentApproveV2
     + PaymentRejectV2
     + MandateSetupV2
     + PaymentSessionV2
     + PaymentTokenV2
     + PaymentsPostProcessingV2
+    + PaymentsPushNotificationV2
+    + PaymentsGenerateQrV2
     + ConnectorCustomerV2
     + PaymentIncrementalAuthorizationV2
     + PaymentExtendAuthorizationV2

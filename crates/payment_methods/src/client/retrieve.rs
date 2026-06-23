@@ -27,7 +27,7 @@ pub struct RetrievePaymentMethodResponse {
     pub merchant_id: id_type::MerchantId,
     pub customer_id: Option<id_type::CustomerId>,
     pub payment_method: common_enums::PaymentMethod,
-    pub payment_method_type: common_enums::PaymentMethodType,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub recurring_enabled: Option<bool>,
     pub created: Option<PrimitiveDateTime>,
     pub last_used_at: Option<PrimitiveDateTime>,
@@ -37,6 +37,7 @@ pub struct RetrievePaymentMethodResponse {
     pub raw_payment_method_data: Option<RawPaymentMethodData>,
     pub network_transaction_id: Option<String>,
     pub billing: Option<hyperswitch_domain_models::address::Address>,
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 impl TryFrom<&RetrievePaymentMethodV1Request> for ModularPMRetrieveRequest {
@@ -72,6 +73,7 @@ impl TryFrom<ModularPMRetrieveResponse> for RetrievePaymentMethodResponse {
             raw_payment_method_data: v2_resp.raw_payment_method_data,
             billing: v2_resp.billing,
             network_transaction_id: v2_resp.network_transaction_id,
+            storage_type: v2_resp.storage_type,
         })
     }
 }

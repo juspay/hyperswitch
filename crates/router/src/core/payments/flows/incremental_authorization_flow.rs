@@ -109,6 +109,7 @@ impl Feature<api::IncrementalAuthorization, types::PaymentsIncrementalAuthorizat
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }

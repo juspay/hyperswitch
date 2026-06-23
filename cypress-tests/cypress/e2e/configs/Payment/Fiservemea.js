@@ -1,4 +1,10 @@
-import { customerAcceptance } from "./Commons";
+import {
+  customerAcceptance,
+  blockedPaymentErrorBodyForIssuingCountry,
+  blockedPaymentErrorBodyForDebitCard,
+  blockedPaymentErrorBodyForCardSubtype,
+  blockedPaymentErrorBodyForBinUnavailable,
+} from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "5204740000001002",
@@ -47,6 +53,15 @@ const multiUseMandateData = {
       amount: 8000,
       currency: "EUR",
     },
+  },
+};
+
+const threeDSNotSupportedError = {
+  error: {
+    code: "IR_19",
+    message: "Payment method type not supported",
+    reason: "Cards 3DS is not supported by Fiservemea",
+    type: "invalid_request",
   },
 };
 
@@ -119,9 +134,6 @@ export const connectorDetails = {
       },
     },
     "3DSManualCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -133,31 +145,24 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
+        status: 400,
+        body: threeDSNotSupportedError,
       },
     },
     "3DSAutoCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "MYR",
+        currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
         billing: billingAddress,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+        status: 400,
+        body: threeDSNotSupportedError,
       },
     },
     Capture: {
@@ -293,7 +298,7 @@ export const connectorDetails = {
     },
     PaymentIntentWithShippingCost: {
       Request: {
-        currency: "MYR",
+        currency: "EUR",
         shipping_cost: 50,
         billing: billingAddress,
       },
@@ -319,28 +324,26 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_message: "No terminal setup",
+          status: "succeeded",
         },
       },
     },
     MandateSingleUse3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "EUR",
+        authentication_type: "three_ds",
         mandate_data: singleUseMandateData,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+        status: 400,
+        body: threeDSNotSupportedError,
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
       },
     },
     MandateSingleUse3DSManualCapture: {
@@ -350,13 +353,12 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "EUR",
+        authentication_type: "three_ds",
         mandate_data: singleUseMandateData,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
+        status: 400,
+        body: threeDSNotSupportedError,
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
@@ -446,13 +448,12 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "EUR",
+        authentication_type: "three_ds",
         mandate_data: multiUseMandateData,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
+        status: 400,
+        body: threeDSNotSupportedError,
       },
     },
     MandateMultiUse3DSManualCapture: {
@@ -462,13 +463,12 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "EUR",
+        authentication_type: "three_ds",
         mandate_data: multiUseMandateData,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
+        status: 400,
+        body: threeDSNotSupportedError,
       },
     },
     MITAutoCapture: {
@@ -552,9 +552,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUse3DSAutoCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -562,14 +559,13 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
+        authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
         billing: billingAddress,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
+        status: 400,
+        body: threeDSNotSupportedError,
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
@@ -642,6 +638,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -660,6 +659,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -678,9 +680,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -693,16 +692,11 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
+        status: 400,
+        body: threeDSNotSupportedError,
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -715,10 +709,8 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
+        status: 400,
+        body: threeDSNotSupportedError,
       },
     },
     No3DSFailPayment: {
@@ -737,6 +729,80 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
+    },
+  },
+  payment_method_blocking_pm: {
+    BlockIssuingCountry: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000000002",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingAddress,
+        currency: "EUR",
+      },
+      Response: blockedPaymentErrorBodyForIssuingCountry,
+    },
+    BlockCardType: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingAddress,
+        currency: "EUR",
+      },
+      Response: blockedPaymentErrorBodyForDebitCard,
+    },
+    BlockCardSubtype: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "378282246310005",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        currency: "EUR",
+        billing: billingAddress,
+      },
+      Response: blockedPaymentErrorBodyForCardSubtype,
+    },
+    BlockIfBinInfoUnavailable: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "6304000000000000",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingAddress,
+        currency: "EUR",
+      },
+      Response: blockedPaymentErrorBodyForBinUnavailable,
     },
   },
 };

@@ -3,7 +3,7 @@ use common_utils::{
     errors::CustomResult,
     request::{Request, RequestContent},
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 
 use super::types::Proxy;
 use crate::errors::HttpClientError;

@@ -8,7 +8,7 @@ license.workspace = true
 
 [dependencies]
 # First Party crates
-masking = { version = "0.1.0", path = "../masking" }
+hyperswitch_masking = "0.0.1"
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 
 # Third Party crates

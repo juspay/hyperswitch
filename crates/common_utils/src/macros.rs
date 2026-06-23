@@ -205,6 +205,12 @@ mod id_type {
                     &self.0 .0 .0
                 }
             }
+
+            impl $crate::id_type::TargetingKey for $type {
+                fn targeting_key_value(&self) -> &str {
+                    self.get_string_repr()
+                }
+            }
         };
     }
 
@@ -272,7 +278,7 @@ mod id_type {
     #[macro_export]
     macro_rules! impl_serializable_secret_id_type {
         ($type:ty) => {
-            impl masking::SerializableSecret for $type {}
+            impl hyperswitch_masking::SerializableSecret for $type {}
         };
     }
 

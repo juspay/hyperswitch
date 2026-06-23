@@ -61,7 +61,7 @@ pub async fn validate_create_request(
 ) -> RouterResult<(
     String,
     Option<payouts::PayoutMethodData>,
-    String,
+    id_type::ProfileId,
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
@@ -139,6 +139,7 @@ pub async fn validate_create_request(
         || customer_in_request.email.is_some()
         || customer_in_request.phone.is_some()
         || customer_in_request.phone_country_code.is_some()
+        || customer_in_request.document_details.is_some()
     {
         helpers::get_or_create_customer_details(state, &customer_in_request, platform).await?
     } else {
@@ -184,7 +185,12 @@ pub async fn validate_create_request(
                         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
                         .attach_printable("Unable to find payment method")?;
 
-                    utils::when(payment_method.customer_id != customer.customer_id, || {
+                    let pm_customer_id = payment_method
+                        .customer_id
+                        .clone()
+                        .get_required_value("customer_id")?;
+
+                    utils::when(pm_customer_id != customer.customer_id, || {
                         Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                         message: "Payment method does not belong to this customer_id".to_string(),
                     })
@@ -251,21 +257,63 @@ pub async fn validate_create_request(
                 )
                 .await?
                 {
-                    Some(pm) => match (pm.card_details, pm.bank_transfer_details) {
-                        (Some(card), _) => Ok(Some(payouts::PayoutMethodData::Card(
-                            api_models::payouts::CardPayout {
-                                card_number: card.card_number.get_required_value("card_number")?,
-                                card_holder_name: card.card_holder_name,
-                                expiry_month: card
-                                    .expiry_month
-                                    .get_required_value("expiry_month")?,
-                                expiry_year: card.expiry_year.get_required_value("expiry_year")?,
-                                card_network: card.card_network.clone(),
-                            },
-                        ))),
-                        (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),
-                        _ => Ok(None),
-                    },
+                    Some(pm) => {
+                        match (pm.card_details, pm.wallet_details, pm.bank_transfer_details) {
+                            (Some(card), _, _) => Ok(Some(payouts::PayoutMethodData::Card(
+                                api_models::payouts::CardPayout {
+                                    card_number: card
+                                        .card_number
+                                        .get_required_value("card_number")?,
+                                    card_holder_name: card.card_holder_name,
+                                    expiry_month: card
+                                        .expiry_month
+                                        .get_required_value("expiry_month")?,
+                                    expiry_year: card
+                                        .expiry_year
+                                        .get_required_value("expiry_year")?,
+                                    card_network: card.card_network.clone(),
+                                },
+                            ))),
+                            (_, Some(wallet), _) => {
+                                match wallet {
+                                    hyperswitch_domain_models::payment_method_data::WalletDetail::ApplePayDecryptedData {
+                                        application_primary_account_number,
+                                        expiry_month,
+                                        expiry_year,
+                                    } => Ok(Some(payouts::PayoutMethodData::Wallet(
+                                        api_models::payouts::Wallet::ApplePayDecrypt(
+                                            api_models::payouts::ApplePayDecrypt {
+                                                dpan: application_primary_account_number,
+                                                expiry_month,
+                                                expiry_year,
+                                                card_holder_name: None,
+                                                card_network: None,
+                                            }
+                                        )
+                                    ))),
+                                    hyperswitch_domain_models::payment_method_data::WalletDetail::GooglePayDecryptedData {
+                                        application_primary_account_number,
+                                        expiry_month,
+                                        expiry_year,
+                                    } => Ok(Some(payouts::PayoutMethodData::Wallet(
+                                        api_models::payouts::Wallet::GooglePayDecrypt(
+                                            api_models::payouts::GooglePayDecrypt {
+                                                application_primary_account_number,
+                                                expiry_month,
+                                                expiry_year,
+                                                card_holder_name: None,
+                                                card_network: None,
+                                            }
+                                        )
+                                    ))),
+                                }
+                            }
+                            (_, _, Some(bank)) => {
+                                Ok(Some(payouts::PayoutMethodData::BankTransfer(bank)))
+                            }
+                            _ => Ok(None),
+                        }
+                    }
                     None => Ok(None),
                 }
             }

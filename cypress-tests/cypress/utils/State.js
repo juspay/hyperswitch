@@ -3,7 +3,10 @@ class State {
   constructor(data) {
     this.data = data;
     this.data["connectorId"] = Cypress.env("CONNECTOR");
+    // Keep original connector when connectorId gets changed (e.g., stripeconnect -> stripe); optional and defaults to connectorId if not explicitly set.
+    this.data["originalConnectorId"] = Cypress.env("CONNECTOR");
     this.data["baseUrl"] = Cypress.env("BASEURL");
+    this.data["pmServiceUrl"] = Cypress.env("PM_SERVICE_URL");
     this.data["adminApiKey"] = Cypress.env("ADMINAPIKEY");
     this.data["email"] = Cypress.env("HS_EMAIL");
     this.data["password"] = Cypress.env("HS_PASSWORD");

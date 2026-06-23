@@ -3,55 +3,89 @@ use api_models::payment_methods;
 use common_utils::{crypto::Encryptable, errors::CustomResult, ext_traits::OptionExt};
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+use hyperswitch_masking::PeekInterface;
+#[cfg(feature = "v2")]
+use router_env::logger;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "v2")]
-use crate::errors;
-use crate::payment_method_data;
+use crate::{errors, payment_method_data};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum PaymentMethodVaultingData {
     Card(payment_methods::CardDetail),
     NetworkToken(payment_method_data::NetworkTokenDetails),
     CardNumber(cards::CardNumber),
+    BankDebit(payment_method_data::BankDebitDetail),
+    Wallet(payment_method_data::WalletDetail),
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum FingerprintData {
     Card(FingerprintCardData),
     NetworkToken(FingerprintNetworkTokenData),
     CardNumber(cards::CardNumber),
+    BankDebit(FingerprintBankDebitData),
+    Wallet(FingerprintWalletData),
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum FingerprintWalletData {
+    ApplePayDecryptedData {
+        application_primary_account_number: cards::CardNumber,
+        expiry_month: hyperswitch_masking::Secret<String>,
+        expiry_year: hyperswitch_masking::Secret<String>,
+    },
+}
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum AuxiliaryFingerprintData {
+    CardNumber(cards::CardNumber),
+    NetworkToken(cards::NetworkToken),
+    CardNumberData(cards::CardNumber),
+    BankDebit(hyperswitch_masking::Secret<String>),
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum FingerprintBankDebitData {
+    Ach {
+        account_number: hyperswitch_masking::Secret<String>,
+        routing_number: hyperswitch_masking::Secret<String>,
+    },
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct FingerprintCardData {
     card_number: cards::CardNumber,
-    card_exp_month: masking::Secret<String>,
-    card_exp_year: masking::Secret<String>,
+    card_exp_month: hyperswitch_masking::Secret<String>,
+    card_exp_year: hyperswitch_masking::Secret<String>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct FingerprintNetworkTokenData {
     network_token: cards::NetworkToken,
-    network_token_exp_month: masking::Secret<String>,
-    network_token_exp_year: masking::Secret<String>,
+    network_token_exp_month: hyperswitch_masking::Secret<String>,
+    network_token_exp_year: hyperswitch_masking::Secret<String>,
 }
 
 impl PaymentMethodVaultingData {
+    #[cfg(feature = "v2")]
     pub fn get_card(&self) -> Option<&payment_methods::CardDetail> {
         match self {
             Self::Card(card) => Some(card),
-            Self::NetworkToken(_) => None,
-            Self::CardNumber(_) => None,
+            Self::NetworkToken(_) | Self::CardNumber(_) | Self::BankDebit(_) | Self::Wallet(_) => {
+                None
+            }
         }
     }
 
-    pub fn set_card_cvc(&mut self, card_cvc: masking::Secret<String>) {
+    #[cfg(feature = "v2")]
+    pub fn set_card_cvc(&mut self, card_cvc: hyperswitch_masking::Secret<String>) {
         match self {
             Self::Card(card_details) => {
                 card_details.card_cvc = Some(card_cvc);
             }
-            Self::NetworkToken(_) => {}
-            Self::CardNumber(_) => {}
+            Self::NetworkToken(_) | Self::CardNumber(_) | Self::BankDebit(_) | Self::Wallet(_) => {}
         }
     }
 
@@ -62,21 +96,49 @@ impl PaymentMethodVaultingData {
         match self {
             Self::Card(card) => Some(payment_methods::RawPaymentMethodData::Card(card.clone())),
             // Raw payment methods data is not available for network tokens
-            Self::NetworkToken(network_token) => None,
+            Self::NetworkToken(_) => None,
             // When it is card number populated_payment_methods_data_and_get_payment_method_vaulting_data
             // will be called which will populated the payment methods data for card number and convert it to type CardDetail
-            Self::CardNumber(card_number) => None,
+            Self::CardNumber(_) => None,
+            Self::BankDebit(bank_debit) => Some(payment_methods::RawPaymentMethodData::BankDebit(
+                bank_debit.clone().into(),
+            )),
+            Self::Wallet(_) => None,
         }
     }
 
     #[cfg(feature = "v2")]
     pub fn populated_payment_methods_data_and_get_payment_method_vaulting_data(
         &self,
-        payment_methods_data_optional: Option<&Encryptable<payment_methods::PaymentMethodsData>>,
+        payment_methods_data_optional: Option<
+            &Encryptable<payment_method_data::PaymentMethodsData>,
+        >,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         match self {
-            Self::Card(card_details) => Ok(self.clone()),
-            Self::NetworkToken(_) => Ok(self.clone()),
+            Self::Card(card_details) => {
+                let payment_methods_data = payment_methods_data_optional
+                    .get_required_value("payment methods data")
+                    .change_context(
+                            errors::api_error_response::ApiErrorResponse::InternalServerError,
+                        )
+                    .attach_printable("failed to get payment methods data for payment method vaulting data type card number")?;
+
+                let payment_methods_data = payment_methods_data_optional
+                    .get_required_value("payment methods data")
+                    .change_context(
+                            errors::api_error_response::ApiErrorResponse::InternalServerError,
+                        )
+                    .attach_printable("failed to get payment methods data for payment method vaulting data type card number")?;
+
+                let card_detail = Self::populated_payment_methods_data_for_payment_method_vaulting_data_card_number(
+                        &card_details.card_number,
+                        card_details.card_cvc.clone(),
+                        payment_methods_data,
+                    )?;
+
+                Ok(Self::Card(card_detail))
+            }
+            Self::NetworkToken(_) | Self::BankDebit(_) | Self::Wallet(_) => Ok(self.clone()),
             Self::CardNumber(card_number) => {
                 let payment_methods_data = payment_methods_data_optional
                     .get_required_value("payment methods data")
@@ -87,6 +149,7 @@ impl PaymentMethodVaultingData {
 
                 let card_detail = Self::populated_payment_methods_data_for_payment_method_vaulting_data_card_number(
                         card_number,
+                        None,
                         payment_methods_data,
                     )?;
 
@@ -98,7 +161,8 @@ impl PaymentMethodVaultingData {
     #[cfg(feature = "v2")]
     pub fn populated_payment_methods_data_for_payment_method_vaulting_data_card_number(
         card_number: &cards::CardNumber,
-        payment_methods_data: &Encryptable<payment_methods::PaymentMethodsData>,
+        card_cvc: Option<hyperswitch_masking::Secret<String>>,
+        payment_methods_data: &Encryptable<payment_method_data::PaymentMethodsData>,
     ) -> CustomResult<payment_methods::CardDetail, errors::api_error_response::ApiErrorResponse>
     {
         let stored_card_metadata = payment_methods_data
@@ -111,7 +175,8 @@ impl PaymentMethodVaultingData {
 
         let card_with_details = payment_method_data::CardNumberWithStoredDetails::new(
             card_number.clone(),
-            stored_card_metadata.into(),
+            card_cvc.clone(),
+            stored_card_metadata,
         );
 
         payment_methods::CardDetail::try_from(card_with_details)
@@ -121,6 +186,7 @@ impl PaymentMethodVaultingData {
             )
     }
 
+    #[cfg(feature = "v2")]
     pub fn get_payment_methods_data(&self) -> payment_method_data::PaymentMethodsData {
         match self {
             Self::Card(card) => payment_method_data::PaymentMethodsData::Card(
@@ -152,8 +218,35 @@ impl PaymentMethodVaultingData {
                     co_badged_card_data: None,
                 },
             ),
+            Self::BankDebit(bank_debit) => payment_method_data::PaymentMethodsData::BankDebit(
+                payment_method_data::BankDebitDetailsPaymentMethod::from(bank_debit.clone()),
+            ),
+            Self::Wallet(wallet) => {
+                let wallet_info = match wallet {
+                    payment_method_data::WalletDetail::ApplePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month,
+                        expiry_year,
+                    }
+                    | payment_method_data::WalletDetail::GooglePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month,
+                        expiry_year,
+                    } => payment_methods::PaymentMethodDataWalletInfo {
+                        last4: Some(application_primary_account_number.get_last4()),
+                        card_network: None,
+                        card_type: None,
+                        card_exp_month: Some(expiry_month.clone()),
+                        card_exp_year: Some(expiry_year.clone()),
+                        auth_code: None,
+                        email: None,
+                    },
+                };
+                payment_method_data::PaymentMethodsData::WalletDetails(wallet_info)
+            }
         }
     }
+
     pub fn to_fingerprint_data(&self) -> FingerprintData {
         match self {
             Self::Card(card) => FingerprintData::Card(FingerprintCardData {
@@ -167,6 +260,79 @@ impl PaymentMethodVaultingData {
                 network_token_exp_year: nt.network_token_exp_year.clone(),
             }),
             Self::CardNumber(card_number) => FingerprintData::CardNumber(card_number.clone()),
+            Self::BankDebit(bank_debit) => {
+                FingerprintData::BankDebit(Self::get_bank_debit_fingerprint_data(bank_debit))
+            }
+            Self::Wallet(wallet) => {
+                let (application_primary_account_number, expiry_month, expiry_year) = match wallet {
+                    payment_method_data::WalletDetail::ApplePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month,
+                        expiry_year,
+                    }
+                    | payment_method_data::WalletDetail::GooglePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month,
+                        expiry_year,
+                    } => (
+                        application_primary_account_number.clone(),
+                        expiry_month.clone(),
+                        expiry_year.clone(),
+                    ),
+                };
+                FingerprintData::Wallet(FingerprintWalletData::ApplePayDecryptedData {
+                    application_primary_account_number,
+                    expiry_month,
+                    expiry_year,
+                })
+            }
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn to_auxiliary_fingerprint_data(&self) -> AuxiliaryFingerprintData {
+        match self {
+            Self::Card(card) => AuxiliaryFingerprintData::CardNumber(card.card_number.clone()),
+            Self::NetworkToken(nt) => {
+                AuxiliaryFingerprintData::NetworkToken(nt.network_token.clone())
+            }
+            Self::CardNumber(card_number) => {
+                AuxiliaryFingerprintData::CardNumber(card_number.clone())
+            }
+            Self::BankDebit(bank_debit) => {
+                let account_number = match bank_debit {
+                    payment_method_data::BankDebitDetail::Ach { account_number, .. } => {
+                        account_number.clone()
+                    }
+                };
+                AuxiliaryFingerprintData::BankDebit(account_number)
+            }
+            Self::Wallet(
+                payment_method_data::WalletDetail::ApplePayDecryptedData {
+                    application_primary_account_number,
+                    ..
+                }
+                | payment_method_data::WalletDetail::GooglePayDecryptedData {
+                    application_primary_account_number,
+                    ..
+                },
+            ) => AuxiliaryFingerprintData::CardNumber(application_primary_account_number.clone()),
+        }
+    }
+
+    pub fn get_bank_debit_fingerprint_data(
+        bank_debit: &payment_method_data::BankDebitDetail,
+    ) -> FingerprintBankDebitData {
+        let (account_number, routing_number) = match bank_debit {
+            payment_method_data::BankDebitDetail::Ach {
+                account_number,
+                routing_number,
+                ..
+            } => (account_number.clone(), routing_number.clone()),
+        };
+        FingerprintBankDebitData::Ach {
+            account_number,
+            routing_number,
         }
     }
 }
@@ -186,39 +352,84 @@ impl Default for PaymentMethodCustomVaultingData {
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct CardCustomData {
     pub card_number: Option<cards::CardNumber>,
-    pub card_exp_month: Option<masking::Secret<String>>,
-    pub card_exp_year: Option<masking::Secret<String>>,
-    pub card_cvc: Option<masking::Secret<String>>,
+    pub card_exp_month: Option<hyperswitch_masking::Secret<String>>,
+    pub card_exp_year: Option<hyperswitch_masking::Secret<String>>,
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct NetworkTokenCustomData {
     pub network_token: Option<cards::NetworkToken>,
-    pub network_token_exp_month: Option<masking::Secret<String>>,
-    pub network_token_exp_year: Option<masking::Secret<String>>,
-    pub cryptogram: Option<masking::Secret<String>>,
+    pub network_token_exp_month: Option<hyperswitch_masking::Secret<String>>,
+    pub network_token_exp_year: Option<hyperswitch_masking::Secret<String>>,
+    pub cryptogram: Option<hyperswitch_masking::Secret<String>>,
 }
 
-pub trait VaultingDataInterface {
-    fn get_vaulting_data_key(&self) -> String;
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct V1VaultEntityId {
+    merchant_id: common_utils::id_type::MerchantId,
+    customer_id: common_utils::id_type::CustomerId,
 }
 
-impl VaultingDataInterface for PaymentMethodVaultingData {
-    fn get_vaulting_data_key(&self) -> String {
-        match &self {
-            Self::Card(card) => card.card_number.to_string(),
-            Self::NetworkToken(network_token) => network_token.network_token.to_string(),
-            Self::CardNumber(card_number) => card_number.to_string(),
+#[cfg(feature = "v1")]
+impl V1VaultEntityId {
+    pub fn new(
+        merchant_id: common_utils::id_type::MerchantId,
+        customer_id: common_utils::id_type::CustomerId,
+    ) -> Self {
+        Self {
+            merchant_id,
+            customer_id,
         }
     }
+
+    pub fn get_string_repr(&self) -> String {
+        format!(
+            "{}_{}",
+            self.merchant_id.get_string_repr(),
+            self.customer_id.get_string_repr()
+        )
+    }
 }
-impl VaultingDataInterface for FingerprintData {
-    fn get_vaulting_data_key(&self) -> String {
-        match self {
-            Self::Card(card) => card.card_number.to_string(),
-            Self::NetworkToken(network_token) => network_token.network_token.to_string(),
-            Self::CardNumber(card_number) => card_number.to_string(),
-        }
+
+#[cfg(feature = "v1")]
+impl Serialize for V1VaultEntityId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.get_string_repr())
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<'de> Deserialize<'de> for V1VaultEntityId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let parts: Vec<&str> = s.splitn(2, '_').collect();
+
+        let merchant_part = parts.first().ok_or_else(|| {
+            serde::de::Error::custom(
+                "Invalid V1VaultEntityId format: expected 'merchant_id_customer_id'",
+            )
+        })?;
+
+        let customer_part = parts.get(1).ok_or_else(|| {
+            serde::de::Error::custom(
+                "Invalid V1VaultEntityId format: expected 'merchant_id_customer_id'",
+            )
+        })?;
+
+        Ok(Self {
+            merchant_id: common_utils::id_type::MerchantId::wrap((*merchant_part).to_string())
+                .map_err(serde::de::Error::custom)?,
+            customer_id: common_utils::id_type::CustomerId::wrap((*customer_part).to_string())
+                .map_err(serde::de::Error::custom)?,
+        })
     }
 }
 
@@ -233,9 +444,24 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
                     ..card
                 }))
             }
+            payment_methods::PaymentMethodCreateData::BankDebit(bank_debit) => {
+                Ok(Self::BankDebit(bank_debit.into()))
+            }
             payment_methods::PaymentMethodCreateData::ProxyCard(card) => Err(
                 errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
                     message: "Proxy Card for PaymentMethodCreateData".to_string(),
+                }
+                .into(),
+            ),
+            payment_methods::PaymentMethodCreateData::Wallet(_) => Err(
+                errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
+                    message: "Wallet for PaymentMethodCreateData".to_string(),
+                }
+                .into(),
+            ),
+            payment_methods::PaymentMethodCreateData::BankRedirect(_) => Err(
+                errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
+                    message: "BankRedirect for PaymentMethodCreateData".to_string(),
                 }
                 .into(),
             ),
@@ -243,31 +469,130 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
     }
 }
 
-impl From<PaymentMethodVaultingData> for PaymentMethodCustomVaultingData {
-    fn from(item: PaymentMethodVaultingData) -> Self {
+#[cfg(feature = "v1")]
+impl From<payment_methods::PaymentMethodCreateData> for PaymentMethodVaultingData {
+    fn from(item: payment_methods::PaymentMethodCreateData) -> Self {
         match item {
-            PaymentMethodVaultingData::Card(card_data) => Self::CardData(CardCustomData {
+            payment_methods::PaymentMethodCreateData::Card(card) => {
+                Self::Card(payment_methods::CardDetail {
+                    card_cvc: None, // card cvc should not be used for vaulting
+                    ..card
+                })
+            }
+            payment_methods::PaymentMethodCreateData::BankDebit(bank_debit_detail) => {
+                Self::BankDebit(bank_debit_detail.into())
+            }
+            payment_methods::PaymentMethodCreateData::Wallet(wallet_detail) => {
+                Self::Wallet(wallet_detail.into())
+            }
+        }
+    }
+}
+
+impl TryFrom<PaymentMethodVaultingData> for PaymentMethodCustomVaultingData {
+    type Error = error_stack::Report<errors::api_error_response::ApiErrorResponse>;
+
+    fn try_from(item: PaymentMethodVaultingData) -> Result<Self, Self::Error> {
+        match item {
+            PaymentMethodVaultingData::Card(card_data) => Ok(Self::CardData(CardCustomData {
                 card_number: Some(card_data.card_number),
                 card_exp_month: Some(card_data.card_exp_month),
                 card_exp_year: Some(card_data.card_exp_year),
                 card_cvc: card_data.card_cvc,
-            }),
+            })),
             PaymentMethodVaultingData::NetworkToken(network_token_data) => {
-                Self::NetworkTokenData(NetworkTokenCustomData {
+                Ok(Self::NetworkTokenData(NetworkTokenCustomData {
                     network_token: Some(network_token_data.network_token),
                     network_token_exp_month: Some(network_token_data.network_token_exp_month),
                     network_token_exp_year: Some(network_token_data.network_token_exp_year),
                     cryptogram: network_token_data.cryptogram,
-                })
+                }))
             }
             PaymentMethodVaultingData::CardNumber(card_number_data) => {
-                Self::CardData(CardCustomData {
+                Ok(Self::CardData(CardCustomData {
                     card_number: Some(card_number_data),
                     card_exp_month: None,
                     card_exp_year: None,
                     card_cvc: None,
-                })
+                }))
             }
+            PaymentMethodVaultingData::BankDebit(_) => Err(
+                errors::api_error_response::ApiErrorResponse::NotImplemented {
+                    message: errors::api_error_response::NotImplementedMessage::Reason(
+                        "PaymentMethodCustomVaultingData not implemented for BankDebit".to_string(),
+                    ),
+                },
+            )?,
+            PaymentMethodVaultingData::Wallet(_) => Err(
+                errors::api_error_response::ApiErrorResponse::NotImplemented {
+                    message: errors::api_error_response::NotImplementedMessage::Reason(
+                        "PaymentMethodCustomVaultingData not implemented for Wallet".to_string(),
+                    ),
+                },
+            )?,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<payment_methods::Card> for PaymentMethodVaultingData {
+    fn from(card: payment_methods::Card) -> Self {
+        let card_network = card.card_brand.and_then(|brand| {
+            brand
+                .parse()
+                .inspect_err(|e| {
+                    logger::warn!(
+                        "Failed to parse card brand '{}' to CardNetwork: {:?}",
+                        brand,
+                        e
+                    );
+                })
+                .ok()
+        });
+
+        Self::Card(payment_methods::CardDetail {
+            card_number: card.card_number,
+            card_exp_month: card.card_exp_month,
+            card_exp_year: card.card_exp_year,
+            card_holder_name: card.name_on_card,
+            card_cvc: None,
+            card_network,
+            nick_name: card.nick_name.map(hyperswitch_masking::Secret::new),
+            card_issuing_country: None,
+            card_issuer: None,
+            card_type: None,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<payment_methods::Card> for payment_method_data::NetworkTokenDetails {
+    fn from(card: payment_methods::Card) -> Self {
+        let card_network = card.card_brand.and_then(|brand| {
+            brand
+                .parse()
+                .inspect_err(|e| {
+                    logger::warn!(
+                        "Failed to parse card brand '{}' to CardNetwork: {:?}",
+                        brand,
+                        e
+                    );
+                })
+                .ok()
+        });
+
+        Self {
+            network_token: card.card_number.into(),
+            network_token_exp_month: card.card_exp_month,
+            network_token_exp_year: card.card_exp_year,
+            cryptogram: None,
+            card_issuer: None,
+            card_network,
+            card_type: None,
+            card_issuing_country: None,
+            card_holder_name: card.name_on_card,
+            nick_name: card.nick_name.map(hyperswitch_masking::Secret::new),
+            par: None,
         }
     }
 }

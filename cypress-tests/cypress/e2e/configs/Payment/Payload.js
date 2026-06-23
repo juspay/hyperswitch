@@ -20,14 +20,6 @@ const successfulThreeDSTestCardDetails = {
   ...successfulNo3DSCardDetails,
 };
 
-const failedNo3DSCardDetails = {
-  card_number: "4111111111119903",
-  card_exp_month: "01",
-  card_exp_year: "30",
-  card_holder_name: "John Doe",
-  card_cvc: "123",
-};
-
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -91,6 +83,60 @@ export const connectorDetails = {
           amount_received: 6050,
           amount: 6000,
           net_amount: 6050,
+        },
+      },
+    },
+    PaymentIntentWithBillingDescriptor: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {
+        currency: "USD",
+        billing_descriptor: {
+          name: "Test Business",
+          city: "San Francisco",
+          phone: "1234567890",
+          statement_descriptor: "Test Descriptor",
+          statement_descriptor_suffix: "Suffix",
+          reference: "REF123",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        billing_descriptor: {
+          name: "Test Business",
+          city: "San Francisco",
+          phone: "1234567890",
+          statement_descriptor: "Test Descriptor",
+          statement_descriptor_suffix: "Suffix",
+          reference: "REF123",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount_received: 6000,
         },
       },
     },
@@ -165,7 +211,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
       Request: {
@@ -190,7 +236,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: failedNo3DSCardDetails,
+          card: successfulNo3DSCardDetails, //payload doesnt support failed cards
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -198,11 +244,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "card_declined",
-          error_message: "Your card was declined",
-          unified_code: "UE_9000",
-          unified_message: "Something went wrong",
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
         },
       },
     },
@@ -299,7 +343,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
       Request: {
@@ -369,7 +413,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
       Request: {
@@ -472,7 +516,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
       Request: {
@@ -660,6 +704,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -693,6 +738,47 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
+    },
+  },
+  bank_debit_pm: {
+    Ach: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "110000000",
+              bank_account_holder_name: "John Doe",
+              bank_type: "checking",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "John",
+            last_name: "Doe",
+            line1: "123 Main St",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+  },
+  webhook: {
+    TransactionIdConfig: {
+      path: "triggered_on.id",
+      type: "string",
     },
   },
 };

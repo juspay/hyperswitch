@@ -15,39 +15,97 @@ impl DisputeNew {
 }
 
 impl Dispute {
-    pub async fn find_by_merchant_id_payment_id_connector_dispute_id(
+    pub async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
         connector_dispute_id: &str,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
                 .and(dsl::payment_id.eq(payment_id.to_owned()))
                 .and(dsl::connector_dispute_id.eq(connector_dispute_id.to_owned())),
         )
         .await
     }
 
-    pub async fn find_by_merchant_id_dispute_id(
+    pub async fn find_by_processor_merchant_id_dispute_id(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
                 .and(dsl::dispute_id.eq(dispute_id.to_owned())),
         )
         .await
     }
 
+    pub async fn find_by_processor_merchant_id_payment_id(
+        conn: &PgPooledConn,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .or(dsl::processor_merchant_id
+                    .is_null()
+                    .and(dsl::merchant_id.eq(processor_merchant_id.to_owned())))
+                .and(dsl::payment_id.eq(payment_id.to_owned())),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
+
+    // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
+    pub async fn find_by_merchant_id_payment_id_connector_dispute_id(
+        conn: &PgPooledConn,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
+        connector_dispute_id: &str,
+    ) -> StorageResult<Option<Self>> {
+        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::payment_id.eq(payment_id.to_owned()))
+                .and(dsl::connector_dispute_id.eq(connector_dispute_id.to_owned())),
+        )
+        .await
+    }
+
+    // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
+    pub async fn find_by_merchant_id_dispute_id(
+        conn: &PgPooledConn,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        dispute_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::dispute_id.eq(dispute_id.to_owned())),
+        )
+        .await
+    }
+
+    // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_payment_id(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
@@ -58,7 +116,7 @@ impl Dispute {
         >(
             conn,
             dsl::merchant_id
-                .eq(merchant_id.to_owned())
+                .eq(processor_merchant_id.to_owned())
                 .and(dsl::payment_id.eq(payment_id.to_owned())),
             None,
             None,

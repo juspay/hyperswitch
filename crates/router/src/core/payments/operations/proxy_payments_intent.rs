@@ -4,15 +4,16 @@ use common_enums::enums;
 use common_utils::types::keymanager::ToEncryptable;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
+    mandates, payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use super::{Domain, GetTracker, Operation, PostUpdateTracker, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
             operations::{self, ValidateStatusForOperation},
@@ -59,7 +60,8 @@ impl ValidateStatusForOperation for PaymentProxyIntent {
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Expired => {
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
@@ -213,7 +215,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                     cell_id,
                     storage_scheme,
                     request,
-                    encrypted_data
+                    encrypted_data,
+                    platform.get_initiator(),
                 )
                 .await?;
                 db.insert_payment_attempt(
@@ -244,20 +247,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                 .map(|address| address.into_inner()),
             Some(true),
         );
-        let mandate_data_input = api_models::payments::MandateIds {
+        let mandate_data_input = mandates::MandateIds {
             mandate_id: None,
-            mandate_reference_id: Some(
-                api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    api_models::payments::ConnectorMandateReferenceId::new(
-                        Some(processor_payment_token),
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                    ),
+            mandate_reference_id: Some(mandates::MandateReferenceId::ConnectorMandateId(
+                mandates::ConnectorMandateReferenceId::new(
+                    Some(processor_payment_token),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
                 ),
-            ),
+            )),
         };
 
         let payment_data = PaymentConfirmData {
@@ -367,6 +368,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
         mut payment_data: PaymentConfirmData<F>,
         _frm_suggestion: Option<api_models::enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>
     where
         F: 'b + Send,
@@ -467,6 +469,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        _initiator: Option<&domain::Initiator>,
         mut payment_data: PaymentConfirmData<F>,
         response: types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> RouterResult<PaymentConfirmData<F>>

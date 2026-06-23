@@ -121,6 +121,9 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
                     frm_id: utils::generate_id(consts::ID_LENGTH, "frm"),
                     payment_id: payment_data.payment_intent.get_id().to_owned(),
                     merchant_id: payment_data.merchant_account.get_id().clone(),
+                    processor_merchant_id: Some(
+                        payment_data.payment_intent.processor_merchant_id.clone(),
+                    ),
                     attempt_id: payment_data.payment_attempt.attempt_id.clone(),
                     created_at: common_utils::date_time::now(),
                     frm_name: frm_connector_details.connector_name,
@@ -135,6 +138,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
                     modified_at: common_utils::date_time::now(),
                     last_step: FraudCheckLastStep::Processing,
                     payment_capture_method: payment_data.payment_attempt.capture_method,
+                    created_by: None,
                 })
                 .await
             }
@@ -202,7 +206,13 @@ where
                 amount: router_data.request.amount,
                 order_details: router_data.request.order_details,
                 currency: router_data.request.currency,
+                gateway: router_data.request.gateway,
+                client_ip: router_data.request.client_ip,
+                customer_id: router_data.request.customer_id,
                 email: router_data.request.email,
+                phone: router_data.request.phone,
+                phone_country_code: router_data.request.phone_country_code,
+                payment_method_data: router_data.request.payment_method_data,
             }),
             response: FrmResponse::Sale(router_data.response),
         }))
@@ -270,6 +280,7 @@ where
                 None,
                 None,
                 HeaderPayload::default(),
+                None,
             ))
             .await?;
             logger::debug!("payment_id : {:?} has been cancelled since it has been found fraudulent by configured frm connector",payment_data.get_payment_attempt().payment_id);
@@ -326,6 +337,7 @@ where
                 None,
                 None,
                 HeaderPayload::default(),
+                None,
             ))
             .await?;
             logger::debug!("payment_id : {:?} has been captured since it has been found legit by configured frm connector",payment_data.get_payment_attempt().payment_id);
@@ -362,7 +374,13 @@ where
                 amount: router_data.request.amount,
                 order_details: router_data.request.order_details,
                 currency: router_data.request.currency,
+                gateway: router_data.request.gateway,
+                client_ip: router_data.request.client_ip,
+                customer_id: router_data.request.customer_id,
                 email: router_data.request.email,
+                phone: router_data.request.phone,
+                phone_country_code: router_data.request.phone_country_code,
+                payment_method_data: router_data.request.payment_method_data,
             }),
             response: FrmResponse::Sale(router_data.response),
         })
