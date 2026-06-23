@@ -6691,7 +6691,6 @@ impl TryFrom<&SubmitEvidenceRouterData> for Evidence {
 }
 
 fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseDocuments>> {
-    println!("Getting defence documents for dispute id: {:?}", item);
     let mut defense_documents: Vec<DefenseDocuments> = Vec::new();
     if let Some(shipping_documentation) = item.shipping_documentation {
         defense_documents.push(DefenseDocuments {
