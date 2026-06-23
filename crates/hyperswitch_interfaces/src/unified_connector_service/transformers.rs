@@ -519,7 +519,10 @@ impl ForeignTryFrom<payments_grpc::MandateReference>
             )) => Ok(Self {
                 connector_mandate_id: connector_mandate_id.connector_mandate_id,
                 payment_method_id: connector_mandate_id.payment_method_id,
-                mandate_metadata: None,
+                mandate_metadata: connector_mandate_id
+                    .mandate_metadata
+                    .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                    .map(hyperswitch_masking::Secret::new),
                 connector_mandate_request_reference_id: connector_mandate_id
                     .connector_mandate_request_reference_id,
             }),
@@ -1297,5 +1300,69 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             | Self::PayoutEnrollDisburseAccountFailure
             | Self::NotifyConnectorFailure => ConnectorError::ResponseHandlingFailed,
         }
+    }
+}
+
+#[cfg(test)]
+mod mandate_metadata_tests {
+    use hyperswitch_masking::PeekInterface;
+
+    use super::*;
+
+    // Regression test for #16967 / #20158: the UCS -> HS mandate_reference mapping must
+    // carry `mandate_metadata` through instead of hardcoding `None`, or the connector's
+    // split-payment routing info gets silently dropped on the shadow (UCS) path.
+    #[test]
+    fn mandate_metadata_is_parsed_from_ucs_response() {
+        let proto = payments_grpc::MandateReference {
+            mandate_id_type: Some(payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(
+                payments_grpc::ConnectorMandateReferenceId {
+                    connector_mandate_id: Some("pm_123".to_string()),
+                    payment_method_id: Some("pm_123".to_string()),
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: Some(
+                        r#"{"transfer_account_id":"acct_1TjBkeDfqJC9T9K6","charge_type":"direct","application_fees":100,"on_behalf_of":null}"#
+                            .to_string(),
+                    ),
+                },
+            )),
+        };
+
+        let domain =
+            hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from(
+                proto,
+            )
+            .expect("conversion should succeed");
+
+        let metadata = domain
+            .mandate_metadata
+            .expect("mandate_metadata must be populated, not dropped as None");
+        let metadata_str = serde_json::to_string(metadata.peek()).unwrap();
+        assert!(metadata_str.contains("acct_1TjBkeDfqJC9T9K6"));
+        assert!(metadata_str.contains("100"));
+    }
+
+    #[test]
+    fn missing_mandate_metadata_maps_to_none() {
+        let proto = payments_grpc::MandateReference {
+            mandate_id_type: Some(
+                payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(
+                    payments_grpc::ConnectorMandateReferenceId {
+                        connector_mandate_id: Some("pm_456".to_string()),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
+                    },
+                ),
+            ),
+        };
+
+        let domain =
+            hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from(
+                proto,
+            )
+            .expect("conversion should succeed");
+
+        assert!(domain.mandate_metadata.is_none());
     }
 }
