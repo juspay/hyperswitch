@@ -83,6 +83,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         request: &api::PaymentsRequest,
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
+        _flow_kind: operations::PaymentFlowKind,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
@@ -2115,7 +2116,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         payment_data.payment_attempt.profile_id.clone(),
                         payment_data.payment_attempt.organization_id.clone(),
                     )
-                 );
+                 )
+                    .update_storage_scheme(platform.get_processor().get_account().storage_scheme);
 
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                         cavv: None,
@@ -2182,7 +2184,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         sync_response.clone(),
                         payment_data.payment_attempt.organization_id.clone(),
                     )
-                 );
+                 )
+                    .update_storage_scheme(platform.get_processor().get_account().storage_scheme);
 
                 let cryptogram = sync_response.authentication_details.and_then(|authentication_details| authentication_details.three_ds_data.and_then(|data| data.authentication_cryptogram)).ok_or(errors::ApiErrorResponse::MissingRequiredField{field_name:"authentication_cryptogram"})?;
 
@@ -2627,9 +2630,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_fingerprint_id = payment_data.payment_attempt.fingerprint_id.clone();
         let m_db = state.clone().store;
         let surcharge_amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.surcharge_amount);
+            .payment_attempt
+            .net_amount
+            .get_surcharge_amount();
         let tax_amount = payment_data
             .surcharge_details
             .as_ref()
@@ -2743,6 +2746,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .request_extended_authorization,
                         tokenization: payment_data.payment_attempt.get_tokenization_strategy(),
                         installment_data,
+                        external_surcharge_details: payment_data
+                            .payment_attempt
+                            .external_surcharge_details
+                            .clone(),
                     },
                     storage_scheme,
                     &cloned_key_store,
