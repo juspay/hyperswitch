@@ -6,6 +6,7 @@ use api_models::{
     enums,
     payments::{self, PollConfig, QrCodeInformation, VoucherNextStepData},
 };
+use base64::Engine;
 use cards::{CardNumber, NetworkToken};
 use common_enums::enums as storage_enums;
 #[cfg(feature = "payouts")]
@@ -6772,7 +6773,7 @@ fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseD
 }
 
 fn get_content(item: Vec<u8>) -> String {
-    base64::encode(&item)
+    base64::engine::general_purpose::STANDARD.encode(&item)
 }
 
 impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for AcceptDisputeRouterData {
