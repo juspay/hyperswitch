@@ -93,6 +93,8 @@ pub mod headers {
     pub const X_CLIENT_SECRET: &str = "X-Client-Secret";
     pub const X_CUSTOMER_ID: &str = "X-Customer-Id";
     pub const X_CONNECTED_MERCHANT_ID: &str = "x-connected-merchant-id";
+    pub const CLIENT_SECRET: &str = "client-secret";
+    pub const SDK_AUTHORIZATION: &str = "sdk-authorization";
     // Header value for X_CONNECTOR_HTTP_STATUS_CODE differs by version.
     // Constant name is kept the same for consistency across versions.
     #[cfg(feature = "v1")]
@@ -276,14 +278,17 @@ pub fn mk_app(
 ///
 ///  Unwrap used because without the value we can't start the server
 #[allow(clippy::expect_used, clippy::unwrap_used)]
-pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> ApplicationResult<Server> {
+pub async fn start_server(
+    conf: settings::Settings<SecuredSecret>,
+    service_name: &'static str,
+) -> ApplicationResult<Server> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
     let api_client = Box::new(services::ProxyClient::new(&conf.proxy).map_err(|error| {
         errors::ApplicationError::ApiClientError(error.current_context().clone())
     })?);
-    let state = Box::pin(AppState::new(conf, tx, api_client)).await;
+    let state = Box::pin(AppState::new(conf, tx, api_client, service_name)).await;
     let request_body_limit = server.request_body_limit;
 
     let server_builder =

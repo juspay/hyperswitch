@@ -76,6 +76,7 @@ impl WiseTest {
                     bank_name: Some("Deutsche Bank".to_string()),
                     bank_country_code: Some(enums::CountryAlpha2::NL),
                     bank_city: Some("Amsterdam".to_string()),
+                    account_holder_name: None,
                 }),
             )),
             ..Default::default()

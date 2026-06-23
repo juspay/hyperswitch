@@ -68,13 +68,27 @@ use crate::{
     utils::{generate_id, OptionExt, ValueExt},
 };
 
-#[cfg(all(feature = "v1", feature = "pm_modular"))]
 #[derive(Debug, Clone, Default)]
 pub struct FeatureConfig {
     pub is_payment_method_modular_allowed: bool,
 }
 
-#[cfg(all(feature = "v1", feature = "pm_modular"))]
+impl FeatureConfig {
+    pub fn should_use_modular_pm_path(
+        &self,
+        payment_method_version: Option<common_enums::ApiVersion>,
+        last_modified_by_modular: Option<time::PrimitiveDateTime>,
+        last_modified_by_legacy: Option<time::PrimitiveDateTime>,
+    ) -> bool {
+        (self.is_payment_method_modular_allowed
+            && matches!(
+                (last_modified_by_modular, last_modified_by_legacy),
+                (Some(last_mod_modular), Some(last_mod_legacy)) if last_mod_modular >= last_mod_legacy
+            ))
+            || payment_method_version == Some(common_enums::ApiVersion::V2)
+    }
+}
+
 pub async fn get_feature_config(
     state: &SessionState,
     platform: &domain::Platform,
@@ -113,19 +127,14 @@ where
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
-    #[cfg(feature = "pm_modular")]
-    {
-        let feature_config = get_feature_config(state, platform, &dimensions).await;
-        common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
-            Err(error_stack::report!(E::from(
-                errors::ApiErrorResponse::AccessForbidden {
-                    resource: "Deprecated route".to_string(),
-                },
-            )))
-        })?;
-    }
-    #[cfg(not(feature = "pm_modular"))]
-    let _ = (state, platform, dimensions);
+    let feature_config = get_feature_config(state, platform, &dimensions).await;
+    common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
+        Err(error_stack::report!(E::from(
+            errors::ApiErrorResponse::AccessForbidden {
+                resource: "Deprecated route".to_string(),
+            },
+        )))
+    })?;
     Ok(())
 }
 
@@ -286,6 +295,7 @@ pub async fn construct_payout_router_data<'a, F>(
             browser_info,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
+            source_bank_data: payout_data.source_bank_data.clone(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -321,6 +331,7 @@ pub async fn construct_payout_router_data<'a, F>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -499,6 +510,7 @@ pub async fn construct_refund_router_data<'a, F>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -696,6 +708,7 @@ pub async fn construct_refund_router_data<'a, F>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1213,6 +1226,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1324,6 +1338,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1441,6 +1456,7 @@ pub async fn construct_upload_file_router_data<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1519,6 +1535,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     })
 }
 
@@ -1632,6 +1649,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1768,6 +1786,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1882,6 +1901,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1986,6 +2006,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -2231,8 +2252,11 @@ pub async fn get_profile_id_from_business_details(
     }
 }
 
-pub fn get_poll_id(merchant_id: &common_utils::id_type::MerchantId, unique_id: String) -> String {
-    merchant_id.get_poll_id(&unique_id)
+pub fn get_poll_id(
+    processor_merchant_id: &common_utils::id_type::MerchantId,
+    unique_id: String,
+) -> String {
+    processor_merchant_id.get_poll_id(&unique_id)
 }
 
 pub fn get_external_authentication_request_poll_id(
@@ -2673,6 +2697,7 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn construct_vault_router_data<F>(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -2683,6 +2708,7 @@ pub async fn construct_vault_router_data<F>(
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
     should_generate_multiple_tokens: Option<bool>,
+    storage_type: Option<common_enums::StorageType>,
 ) -> RouterResult<VaultRouterDataV2<F>> {
     let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
@@ -2702,6 +2728,7 @@ pub async fn construct_vault_router_data<F>(
             connector_vault_id,
             connector_customer_id,
             should_generate_multiple_tokens,
+            storage_type,
         },
         response: Ok(types::VaultResponseData::default()),
     };

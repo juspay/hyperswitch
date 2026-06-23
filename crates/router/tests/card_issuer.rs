@@ -1,5 +1,7 @@
 mod utils;
 
+use common_utils::id_type::CardIssuerId;
+
 #[actix_web::test]
 #[ignore]
 async fn card_issuer_success() {
@@ -79,6 +81,43 @@ async fn card_issuer_success() {
         .and_then(|v| v.as_array())
         .unwrap()
         .is_empty());
+
+    // delete card issuer
+    response = client
+        .delete(format!("http://127.0.0.1:8080/card_issuers/{issuer_id}"))
+        .insert_header(admin_api_key)
+        .send()
+        .await
+        .unwrap();
+    response_body = response.json::<serde_json::Value>().await.unwrap();
+    println!("card-issuer-delete: {response:?} : {response_body:?}");
+    assert_eq!(response.status(), awc::http::StatusCode::OK);
+    assert_eq!(
+        response_body.get("id").and_then(|v| v.as_str()),
+        Some(issuer_id.as_str())
+    );
+    assert_eq!(
+        response_body.get("deleted").and_then(|v| v.as_bool()),
+        Some(true)
+    );
+
+    // list with query filter after delete should be empty
+    response = client
+        .get(format!(
+            "http://127.0.0.1:8080/card_issuers?query={updated_name}"
+        ))
+        .insert_header(admin_api_key)
+        .send()
+        .await
+        .unwrap();
+    response_body = response.json::<serde_json::Value>().await.unwrap();
+    println!("card-issuer-list-after-delete: {response:?} : {response_body:?}");
+    assert_eq!(response.status(), awc::http::StatusCode::OK);
+    assert!(response_body
+        .get("issuers")
+        .and_then(|v| v.as_array())
+        .unwrap()
+        .is_empty());
 }
 
 #[actix_web::test]
@@ -96,6 +135,10 @@ async fn card_issuer_failure() {
     let client = awc::Client::default();
     let mut response;
     let mut response_body;
+    let non_existent_id = CardIssuerId::generate()
+        .unwrap()
+        .get_string_repr()
+        .to_string();
 
     // create card issuer
     response = client
@@ -119,13 +162,28 @@ async fn card_issuer_failure() {
 
     // update with non-existent id should fail
     response = client
-        .put("http://127.0.0.1:8080/card_issuers/non_existent_id")
+        .put(format!(
+            "http://127.0.0.1:8080/card_issuers/{non_existent_id}"
+        ))
         .insert_header(admin_api_key)
         .send_json(&serde_json::json!({ "issuer_name": "NEW NAME" }))
         .await
         .unwrap();
     response_body = response.json::<serde_json::Value>().await.unwrap();
     println!("card-issuer-update-not-found: {response:?} : {response_body:?}");
+    assert_eq!(response.status(), awc::http::StatusCode::NOT_FOUND);
+
+    // delete with non-existent id should fail
+    response = client
+        .delete(format!(
+            "http://127.0.0.1:8080/card_issuers/{non_existent_id}"
+        ))
+        .insert_header(admin_api_key)
+        .send()
+        .await
+        .unwrap();
+    response_body = response.json::<serde_json::Value>().await.unwrap();
+    println!("card-issuer-delete-not-found: {response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::NOT_FOUND);
 
     // create with empty name should fail

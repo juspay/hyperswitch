@@ -14,6 +14,7 @@ async fn get_redis_conn_failure() {
         Settings::default(),
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
     let state = Arc::new(app_state)
@@ -45,6 +46,7 @@ async fn get_redis_conn_success() {
         Settings::default(),
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
     let state = Arc::new(app_state)

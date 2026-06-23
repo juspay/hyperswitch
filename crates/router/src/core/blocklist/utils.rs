@@ -7,33 +7,35 @@ use hyperswitch_masking::StrongSecret;
 
 use super::{errors, transformers::generate_fingerprint, SessionState};
 use crate::{
-    consts,
     core::{
+        configs::dimension_state,
         errors::{RouterResult, StorageErrorExt},
         payments::PaymentData,
     },
     logger,
     types::{domain, storage, transformers::ForeignInto},
-    utils,
 };
 
 pub async fn delete_entry_from_blocklist(
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    processor_merchant_id: &common_utils::id_type::MerchantId,
     request: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResult<api_blocklist::DeleteFromBlocklistResponse> {
     let blocklist_entry = match request {
         api_blocklist::DeleteFromBlocklistRequest::CardBin(bin) => {
-            delete_card_bin_blocklist_entry(state, &bin, merchant_id).await?
+            delete_card_bin_blocklist_entry(state, &bin, processor_merchant_id).await?
         }
 
         api_blocklist::DeleteFromBlocklistRequest::ExtendedCardBin(xbin) => {
-            delete_card_bin_blocklist_entry(state, &xbin, merchant_id).await?
+            delete_card_bin_blocklist_entry(state, &xbin, processor_merchant_id).await?
         }
 
         api_blocklist::DeleteFromBlocklistRequest::Fingerprint(fingerprint_id) => state
             .store
-            .delete_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, &fingerprint_id)
+            .delete_blocklist_entry_by_processor_merchant_id_fingerprint_id(
+                processor_merchant_id,
+                &fingerprint_id,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "no blocklist record for the given fingerprint id was found".to_string(),
@@ -45,10 +47,10 @@ pub async fn delete_entry_from_blocklist(
 
 pub async fn toggle_blocklist_guard_for_merchant(
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    processor_merchant_id: &common_utils::id_type::MerchantId,
     query: api_blocklist::ToggleBlocklistQuery,
 ) -> CustomResult<api_blocklist::ToggleBlocklistResponse, errors::ApiErrorResponse> {
-    let key = merchant_id.get_blocklist_guard_key();
+    let key = processor_merchant_id.get_blocklist_guard_key();
     let maybe_guard = state.store.find_config_by_key_from_db(&key).await;
     let new_config = configs::ConfigNew {
         key: key.clone(),
@@ -89,14 +91,14 @@ pub async fn toggle_blocklist_guard_for_merchant(
 
 pub async fn list_blocklist_entries_for_merchant(
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    processor_merchant_id: &common_utils::id_type::MerchantId,
     query: api_blocklist::ListBlocklistQuery,
 ) -> RouterResult<api_blocklist::ListBlocklistResponse> {
     let entries = state
         .store
-        .list_blocklist_entries_by_merchant_id_data_kind(
-            merchant_id,
-            query.data_kind.clone(),
+        .list_blocklist_entries_by_processor_merchant_id_data_kind(
+            processor_merchant_id,
+            query.data_kind,
             query.limit.into(),
             query.offset.into(),
         )
@@ -107,7 +109,10 @@ pub async fn list_blocklist_entries_for_merchant(
 
     let total_count = state
         .store
-        .get_blocklist_entries_count_by_merchant_id_data_kind(merchant_id, query.data_kind)
+        .get_blocklist_entries_count_by_processor_merchant_id_data_kind(
+            processor_merchant_id,
+            query.data_kind,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "no blocklist records found".to_string(),
@@ -149,16 +154,18 @@ fn validate_extended_card_bin(bin: &str) -> RouterResult<()> {
 
 pub async fn insert_entry_into_blocklist(
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    platform: &domain::Platform,
     to_block: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResult<api_blocklist::AddToBlocklistResponse> {
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
+
     let blocklist_entry = match &to_block {
         api_blocklist::AddToBlocklistRequest::CardBin(bin) => {
             validate_card_bin(bin)?;
             duplicate_check_insert_bin(
                 bin,
                 state,
-                merchant_id,
+                platform,
                 common_enums::BlocklistDataKind::CardBin,
             )
             .await?
@@ -169,7 +176,7 @@ pub async fn insert_entry_into_blocklist(
             duplicate_check_insert_bin(
                 bin,
                 state,
-                merchant_id,
+                platform,
                 common_enums::BlocklistDataKind::ExtendedCardBin,
             )
             .await?
@@ -178,7 +185,10 @@ pub async fn insert_entry_into_blocklist(
         api_blocklist::AddToBlocklistRequest::Fingerprint(fingerprint_id) => {
             let blocklist_entry_result = state
                 .store
-                .find_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, fingerprint_id)
+                .find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
+                    processor_merchant_id,
+                    fingerprint_id,
+                )
                 .await;
 
             match blocklist_entry_result {
@@ -202,11 +212,16 @@ pub async fn insert_entry_into_blocklist(
             state
                 .store
                 .insert_blocklist_entry(storage::BlocklistNew {
-                    merchant_id: merchant_id.to_owned(),
+                    merchant_id: platform.get_provider().get_account().get_id().clone(),
                     fingerprint_id: fingerprint_id.clone(),
                     data_kind: api_models::enums::enums::BlocklistDataKind::PaymentMethod,
                     metadata: None,
                     created_at: common_utils::date_time::now(),
+                    processor_merchant_id: Some(processor_merchant_id.to_owned()),
+                    created_by: platform
+                        .get_initiator()
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|created_by| created_by.to_string()),
                 })
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -218,47 +233,35 @@ pub async fn insert_entry_into_blocklist(
 
 pub async fn get_merchant_fingerprint_secret(
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorMerchantId,
 ) -> RouterResult<String> {
-    let key = merchant_id.get_merchant_fingerprint_secret_key();
-    let config_fetch_result = state.store.find_config_by_key(&key).await;
+    // Fetch from Superposition only
+    let secret = dimensions
+        .get_fingerprint_secret(
+            &*state.store,
+            state.superposition_service.as_ref(),
+            None, // No targeting key needed for merchant-level config
+        )
+        .await;
 
-    match config_fetch_result {
-        Ok(config) => Ok(config.config),
-
-        Err(e) if e.current_context().is_db_not_found() => {
-            let new_fingerprint_secret =
-                utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
-            let new_config = storage::ConfigNew {
-                key,
-                config: new_fingerprint_secret.clone(),
-            };
-
-            state
-                .store
-                .insert_config(new_config)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to create new fingerprint secret for merchant")?;
-
-            Ok(new_fingerprint_secret)
-        }
-
-        Err(e) => Err(e)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error fetching merchant fingerprint secret"),
+    match secret.is_empty() {
+        false => Ok(secret),
+        true => Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("fingerprint_secret not found in Superposition for merchant"),
     }
 }
 
 async fn duplicate_check_insert_bin(
     bin: &str,
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    platform: &domain::Platform,
     data_kind: common_enums::BlocklistDataKind,
 ) -> RouterResult<storage::Blocklist> {
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
+
     let blocklist_entry_result = state
         .store
-        .find_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, bin)
+        .find_blocklist_entry_by_processor_merchant_id_fingerprint_id(processor_merchant_id, bin)
         .await;
 
     match blocklist_entry_result {
@@ -281,11 +284,16 @@ async fn duplicate_check_insert_bin(
     state
         .store
         .insert_blocklist_entry(storage::BlocklistNew {
-            merchant_id: merchant_id.to_owned(),
+            merchant_id: platform.get_provider().get_account().get_id().clone(),
             fingerprint_id: bin.to_string(),
             data_kind,
             metadata: None,
             created_at: common_utils::date_time::now(),
+            processor_merchant_id: Some(processor_merchant_id.to_owned()),
+            created_by: platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|created_by| created_by.to_string()),
         })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -295,11 +303,11 @@ async fn duplicate_check_insert_bin(
 async fn delete_card_bin_blocklist_entry(
     state: &SessionState,
     bin: &str,
-    merchant_id: &common_utils::id_type::MerchantId,
+    processor_merchant_id: &common_utils::id_type::MerchantId,
 ) -> RouterResult<storage::Blocklist> {
     state
         .store
-        .delete_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, bin)
+        .delete_blocklist_entry_by_processor_merchant_id_fingerprint_id(processor_merchant_id, bin)
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "could not find a blocklist entry for the given bin".to_string(),
@@ -309,12 +317,15 @@ async fn delete_card_bin_blocklist_entry(
 pub async fn should_payment_be_blocked(
     state: &SessionState,
     processor: &domain::Processor,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     payment_method_data: &Option<domain::EligibilityPaymentMethodData>,
     business_profile: &domain::Profile,
 ) -> CustomResult<Option<BlockReason>, errors::ApiErrorResponse> {
     let db = &state.store;
-    let merchant_id = processor.get_account().get_id();
-    let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, merchant_id).await?;
+    let processor_merchant_id = processor.get_account().get_id();
+    let processor_dimensions = dimensions.without_provider_merchant_id();
+    let merchant_fingerprint_secret =
+        get_merchant_fingerprint_secret(state, &processor_dimensions).await?;
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.
     let card_number_fingerprint =
@@ -362,26 +373,30 @@ pub async fn should_payment_be_blocked(
     //validating the payment method.
     let mut blocklist_futures = Vec::new();
     if let Some(card_number_fingerprint) = card_number_fingerprint.as_ref() {
-        blocklist_futures.push(db.find_blocklist_entry_by_merchant_id_fingerprint_id(
-            merchant_id,
-            card_number_fingerprint,
-        ));
+        blocklist_futures.push(
+            db.find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
+                processor_merchant_id,
+                card_number_fingerprint,
+            ),
+        );
     }
 
     if let Some(card_bin_fingerprint) = card_bin_fingerprint.as_ref() {
         blocklist_futures.push(
-            db.find_blocklist_entry_by_merchant_id_fingerprint_id(
-                merchant_id,
+            db.find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
+                processor_merchant_id,
                 card_bin_fingerprint,
             ),
         );
     }
 
     if let Some(extended_card_bin_fingerprint) = extended_card_bin_fingerprint.as_ref() {
-        blocklist_futures.push(db.find_blocklist_entry_by_merchant_id_fingerprint_id(
-            merchant_id,
-            extended_card_bin_fingerprint,
-        ));
+        blocklist_futures.push(
+            db.find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
+                processor_merchant_id,
+                extended_card_bin_fingerprint,
+            ),
+        );
     }
 
     let blocklist_lookups = futures::future::join_all(blocklist_futures).await;
@@ -417,6 +432,7 @@ pub async fn should_payment_be_blocked(
 pub async fn validate_data_for_blocklist<F>(
     state: &SessionState,
     processor: &domain::Processor,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     payment_data: &mut PaymentData<F>,
     business_profile: &domain::Profile,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
@@ -427,6 +443,7 @@ where
     let block_reason = should_payment_be_blocked(
         state,
         processor,
+        dimensions,
         &payment_data
             .payment_method_data
             .clone()
@@ -483,7 +500,7 @@ where
     } else {
         payment_data.payment_attempt.fingerprint_id = generate_payment_fingerprint(
             state,
-            payment_data.payment_attempt.merchant_id.clone(),
+            &dimensions.without_provider_merchant_id(),
             payment_data.payment_method_data.clone(),
         )
         .await?;
@@ -589,10 +606,10 @@ pub async fn should_payment_be_blocked_by_profile_config(
 
 pub async fn generate_payment_fingerprint(
     state: &SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorMerchantId,
     payment_method_data: Option<domain::PaymentMethodData>,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
-    let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, &merchant_id).await?;
+    let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, dimensions).await?;
 
     Ok(
         if let Some(domain::PaymentMethodData::Card(card)) = payment_method_data.as_ref() {

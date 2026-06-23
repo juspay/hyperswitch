@@ -248,6 +248,7 @@ impl<F, T>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -355,6 +356,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayjustnowSyncResponse, T, Payme
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item
                     .response
                     .payment_reference

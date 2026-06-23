@@ -7,6 +7,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
 
     fn foreign_try_from(from: api_enums::Connector) -> Result<Self, Self::Error> {
         Ok(match from {
+            api_enums::Connector::AbsaSanlam => Self::AbsaSanlam,
             api_enums::Connector::Aci => Self::Aci,
             api_enums::Connector::Adyen => Self::Adyen,
             api_enums::Connector::Affirm => Self::Affirm,
@@ -90,6 +91,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Iatapay => Self::Iatapay,
             api_enums::Connector::Imerchantsolutions => Self::Imerchantsolutions,
             api_enums::Connector::Inespay => Self::Inespay,
+            api_enums::Connector::Interpayments => Self::Interpayments,
             api_enums::Connector::Itaubank => Self::Itaubank,
             api_enums::Connector::Jpmorgan => Self::Jpmorgan,
             api_enums::Connector::Juspaythreedsserver => {
@@ -223,8 +225,10 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
                     message: "Taxjar is not a routable connector".to_string(),
                 })?
             }
+
             api_enums::Connector::Phonepe => Self::Phonepe,
             api_enums::Connector::Paytm => Self::Paytm,
+            api_enums::Connector::Payconex => Self::Payconex,
         })
     }
 }

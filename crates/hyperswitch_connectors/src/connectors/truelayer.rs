@@ -12,7 +12,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -197,8 +196,8 @@ impl ConnectorCommon for Truelayer {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.title.clone(),
-            message: response.title.clone(),
-            reason: Some(response.detail),
+            message: response.detail.clone(),
+            reason: Some(response.title),
             attempt_status: None,
             connector_transaction_id: Some(response.trace_id),
             connector_response_reference_id: None,
@@ -211,20 +210,6 @@ impl ConnectorCommon for Truelayer {
 }
 
 impl ConnectorValidation for Truelayer {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,
@@ -1063,7 +1048,10 @@ impl webhooks::IncomingWebhook for Truelayer {
 
 static TRUELAYER_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
-        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+        ];
 
         let mut truelayer_supported_payment_methods = SupportedPaymentMethods::new();
         truelayer_supported_payment_methods.add(
@@ -1102,13 +1090,12 @@ impl ConnectorSpecifications for Truelayer {
         Some(&TRUELAYER_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-    #[cfg(feature = "v1")]
-    fn generate_connector_customer_id(
+    fn should_call_connector_customer(
         &self,
-        _customer_id: &Option<common_utils::id_type::CustomerId>,
-        _merchant_id: &common_utils::id_type::MerchantId,
-    ) -> Option<String> {
+        #[cfg(feature = "v1")]
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> api::ConnectorCustomerAction {
         let connector_customer_id = uuid::Uuid::new_v4().to_string();
-        Some(connector_customer_id)
+        api::ConnectorCustomerAction::GeneratedCustomerId(connector_customer_id)
     }
 }

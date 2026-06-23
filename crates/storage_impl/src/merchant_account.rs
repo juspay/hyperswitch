@@ -834,8 +834,8 @@ async fn publish_and_redact_merchant_account_cache(
         merchant_account.get_id().get_string_repr().into(),
     )];
 
-    cache_keys.extend(publishable_key.into_iter());
-    cache_keys.extend(cgraph_key.into_iter());
+    cache_keys.extend(publishable_key);
+    cache_keys.extend(cgraph_key);
 
     cache::redact_from_redis_and_publish(store, cache_keys).await?;
     Ok(())

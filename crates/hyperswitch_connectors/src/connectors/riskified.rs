@@ -232,7 +232,7 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
     ) -> CustomResult<RequestContent, ConnectorError> {
         let amount = convert_amount(
             self.amount_converter,
-            MinorUnit::new(req.request.amount),
+            req.request.amount,
             req.request
                 .currency
                 .ok_or(ConnectorError::MissingRequiredField {

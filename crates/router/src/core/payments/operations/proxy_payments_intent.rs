@@ -4,7 +4,7 @@ use common_enums::enums;
 use common_utils::types::keymanager::ToEncryptable;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
+    mandates, payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::PeekInterface;
@@ -60,7 +60,8 @@ impl ValidateStatusForOperation for PaymentProxyIntent {
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Expired => {
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
@@ -246,20 +247,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                 .map(|address| address.into_inner()),
             Some(true),
         );
-        let mandate_data_input = api_models::payments::MandateIds {
+        let mandate_data_input = mandates::MandateIds {
             mandate_id: None,
-            mandate_reference_id: Some(
-                api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    api_models::payments::ConnectorMandateReferenceId::new(
-                        Some(processor_payment_token),
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                    ),
+            mandate_reference_id: Some(mandates::MandateReferenceId::ConnectorMandateId(
+                mandates::ConnectorMandateReferenceId::new(
+                    Some(processor_payment_token),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
                 ),
-            ),
+            )),
         };
 
         let payment_data = PaymentConfirmData {

@@ -1,4 +1,7 @@
-use api_models::{admin as admin_types, payments as payment_types};
+use api_models::{
+    admin as admin_types,
+    payments::{self as payment_types, PaypalCaptureMethod},
+};
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::ByteSliceExt,
@@ -574,9 +577,9 @@ async fn create_applepay_session_token(
                         apple_pay_res
                             .map(|res| {
                                 let response: Result<
-                                    payment_types::NoThirdPartySdkSessionResponse,
+                                    serde_json::Value,
                                     Report<common_utils::errors::ParsingError>,
-                                > = res.response.parse_struct("NoThirdPartySdkSessionResponse");
+                                > = res.response.parse_struct("serde_json::Value");
 
                                 // logging the parsing failed error
                                 if let Err(error) = response.as_ref() {
@@ -946,7 +949,12 @@ fn create_apple_pay_session_response(
                         payment_request_data: apple_pay_payment_request,
                         connector: connector_name,
                         delayed_session_token: delayed_response,
-                        sdk_next_action: { payment_types::SdkNextAction { next_action } },
+                        sdk_next_action: {
+                            payment_types::SdkNextAction {
+                                next_action,
+                                should_block_confirm: None,
+                            }
+                        },
                         connector_reference_id: None,
                         connector_sdk_public_key: None,
                         connector_merchant_id: None,
@@ -978,7 +986,12 @@ fn create_apple_pay_session_response(
                                 payment_request_data: apple_pay_payment_request,
                                 connector: connector_name,
                                 delayed_session_token: delayed_response,
-                                sdk_next_action: { payment_types::SdkNextAction { next_action } },
+                                sdk_next_action: {
+                                    payment_types::SdkNextAction {
+                                        next_action,
+                                        should_block_confirm: None,
+                                    }
+                                },
                                 connector_reference_id: None,
                                 connector_sdk_public_key: None,
                                 connector_merchant_id: None,
@@ -1030,6 +1043,7 @@ fn create_gpay_session_token(
                             connector: connector.connector_name.to_string(),
                             sdk_next_action: payment_types::SdkNextAction {
                                 next_action: payment_types::NextActionCall::Confirm,
+                                should_block_confirm: None,
                             },
                         },
                     ),
@@ -1121,6 +1135,7 @@ fn create_gpay_session_token(
                                 connector: connector.connector_name.to_string(),
                                 sdk_next_action: payment_types::SdkNextAction {
                                     next_action: payment_types::NextActionCall::Confirm,
+                                    should_block_confirm: None,
                                 },
                                 delayed_session_token: false,
                                 secrets: None,
@@ -1222,6 +1237,7 @@ fn create_gpay_session_token(
                                 connector: connector.connector_name.to_string(),
                                 sdk_next_action: payment_types::SdkNextAction {
                                     next_action: payment_types::NextActionCall::Confirm,
+                                    should_block_confirm: None,
                                 },
                                 delayed_session_token: false,
                                 secrets: None,
@@ -1397,10 +1413,16 @@ fn create_paypal_sdk_session_token(
                     session_token: paypal_sdk_data.data.client_id,
                     sdk_next_action: payment_types::SdkNextAction {
                         next_action: payment_types::NextActionCall::PostSessionTokens,
+                        should_block_confirm: None,
                     },
                     data_user_id_token: None,
                     client_token: None,
                     transaction_info: None,
+                    currency: Some(router_data.request.currency),
+                    intent: router_data
+                        .request
+                        .capture_method
+                        .map(PaypalCaptureMethod::from),
                 },
             )),
         }),

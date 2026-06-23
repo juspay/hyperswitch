@@ -27,6 +27,7 @@ impl PaymentLinkResponseExt for RetrievePaymentLinkResponse {
             description: payment_link.description,
             created_at: payment_link.created_at,
             merchant_id: payment_link.merchant_id,
+            processor_merchant_id: payment_link.processor_merchant_id,
             expiry: payment_link.fulfilment_time,
             currency: payment_link.currency,
             status,

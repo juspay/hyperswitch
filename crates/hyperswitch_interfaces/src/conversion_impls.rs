@@ -98,6 +98,7 @@ fn get_default_router_data<F, Req, Resp>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     }
 }
 

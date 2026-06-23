@@ -68,6 +68,8 @@ pub struct MockDb {
     pub hyperswitch_ai_interactions:
         Arc<Mutex<Vec<store::hyperswitch_ai_interaction::HyperswitchAiInteraction>>>,
     pub card_issuers: Arc<Mutex<Vec<store::card_issuer::CardIssuer>>>,
+    pub blocklists: Arc<Mutex<Vec<store::blocklist::Blocklist>>>,
+    pub batch_blocklist_jobs: Arc<Mutex<Vec<store::batch_blocklist_job::BatchBlocklistJob>>>,
     pub key_manager_state: Option<KeyManagerState>,
 }
 
@@ -127,6 +129,8 @@ impl MockDb {
             themes: Default::default(),
             hyperswitch_ai_interactions: Default::default(),
             card_issuers: Default::default(),
+            blocklists: Default::default(),
+            batch_blocklist_jobs: Default::default(),
             key_manager_state: Some(key_manager_state),
         })
     }

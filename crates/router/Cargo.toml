@@ -9,7 +9,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["common_default", "v1"]
+default = ["common_default", "v1", "redis-rs"]
 common_default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "partial-auth", "km_forward_x_request_id", "external_services/superposition"]
 olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
 tls = ["actix-web/rustls-0_22"]
@@ -36,12 +36,12 @@ v1 = ["common_default", "api_models/v1", "diesel_models/v1", "hyperswitch_domain
 dynamic_routing = ["external_services/dynamic_routing", "storage_impl/dynamic_routing", "api_models/dynamic_routing"]
 revenue_recovery = ["api_models/revenue_recovery", "hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery", "hyperswitch_connectors/revenue_recovery", "external_services/revenue_recovery", "dep:prost-types"]
 tokenization_v2 = ["api_models/tokenization_v2", "diesel_models/tokenization_v2", "hyperswitch_domain_models/tokenization_v2", "storage_impl/tokenization_v2"]
-pm_modular = []
-
 # Partial Auth
 # The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
 # This is named as partial-auth because the router will still try to authenticate if the `x-merchant-id` header is not present.
 partial-auth = []
+fred    = ["redis_interface/fred",     "redis_interface/metrics", "storage_impl/fred",    "scheduler/fred"]
+redis-rs = ["redis_interface/redis-rs", "redis_interface/metrics", "storage_impl/redis-rs", "scheduler/redis-rs"]
 
 [dependencies]
 actix-cors = "0.6.5"
@@ -90,8 +90,9 @@ reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "mult
 ring = "0.17.14"
 rust_decimal = { version = "1.37.1", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5", package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5", package = "ucs_cards" }
+
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.06.12.2", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.06.12.2", package = "ucs_cards" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
 rustls-pemfile = "2"
@@ -137,7 +138,7 @@ injector = { version = "0.1.0", path = "../injector", optional = true }
 kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
 hyperswitch_masking = "0.0.1"
 pm_auth = { version = "0.1.0", path = "../pm_auth", package = "pm_auth" }
-redis_interface = { version = "0.1.0", path = "../redis_interface" }
+redis_interface = { version = "0.1.0", path = "../redis_interface", default-features = false }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }

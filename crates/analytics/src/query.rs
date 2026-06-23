@@ -552,17 +552,28 @@ pub enum FilterTypes {
     IsNotNull,
 }
 
+/// Strips whitespace and escapes SQL string metacharacters so the value is
+/// safe inside a single-quoted SQL literal: `'<sanitized>'`.
+pub fn sanitize_sql_string_literal(raw: &str) -> String {
+    let sanitized = raw
+        .replace(' ', "")
+        .replace('\\', "\\\\")
+        .replace('\'', "''");
+    format!("'{sanitized}'")
+}
+
 pub fn filter_type_to_sql(l: &str, op: FilterTypes, r: &str) -> String {
+    let str = || r.replace('\\', "\\\\").replace('\'', "''");
     match op {
         FilterTypes::EqualBool => format!("{l} = {r}"),
-        FilterTypes::Equal => format!("{l} = '{r}'"),
-        FilterTypes::NotEqual => format!("{l} != '{r}'"),
+        FilterTypes::Equal => format!("{l} = '{}'", str()),
+        FilterTypes::NotEqual => format!("{l} != '{}'", str()),
         FilterTypes::In => format!("{l} IN ({r})"),
-        FilterTypes::Gte => format!("{l} >= '{r}'"),
+        FilterTypes::Gte => format!("{l} >= '{}'", str()),
         FilterTypes::Gt => format!("{l} > {r}"),
-        FilterTypes::Lte => format!("{l} <= '{r}'"),
-        FilterTypes::Like => format!("{l} LIKE '%{r}%'"),
-        FilterTypes::NotLike => format!("{l} NOT LIKE '%{r}%'"),
+        FilterTypes::Lte => format!("{l} <= '{}'", str()),
+        FilterTypes::Like => format!("{l} LIKE '%{}%'", str()),
+        FilterTypes::NotLike => format!("{l} NOT LIKE '%{}%'", str()),
         FilterTypes::IsNotNull => format!("{l} IS NOT NULL"),
     }
 }
@@ -705,11 +716,8 @@ where
         let list = values
             .iter()
             .map(|i| {
-                // trimming whitespaces from the filter values received in request, to prevent a possibility of an SQL injection
-                i.to_sql(&self.table_engine).map(|s| {
-                    let trimmed_str = s.replace(' ', "");
-                    format!("'{trimmed_str}'")
-                })
+                i.to_sql(&self.table_engine)
+                    .map(|s| sanitize_sql_string_literal(&s))
             })
             .collect::<error_stack::Result<Vec<String>, ParsingError>>()
             .change_context(QueryBuildingError::SqlSerializeError)

@@ -64,6 +64,7 @@ impl NomupayTest {
                     bank_city: Some("Munich".to_string()),
                     iban: Secret::new("DE57331060435647542639".to_string()),
                     bic: Some(Secret::new("DEUTDE5M551".to_string())),
+                    account_holder_name: None,
                 }),
             )),
             ..Default::default()

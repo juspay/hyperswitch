@@ -74,7 +74,7 @@ pub struct Profile {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub acquirer_config_map: Option<AcquirerConfigBucket>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
@@ -87,6 +87,7 @@ pub struct Profile {
     pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -153,6 +154,7 @@ pub struct ProfileNew {
     pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -208,7 +210,7 @@ pub struct ProfileUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub acquirer_config_map: Option<AcquirerConfigBucket>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
@@ -220,6 +222,7 @@ pub struct ProfileUpdateInternal {
     pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -281,6 +284,7 @@ impl ProfileUpdateInternal {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id,
+            surcharge_connector_details,
             network_tokenization_credentials,
             payment_method_blocking,
             default_fallback_routing,
@@ -379,6 +383,8 @@ impl ProfileUpdateInternal {
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
+            surcharge_connector_details: surcharge_connector_details
+                .or(source.surcharge_connector_details),
             network_tokenization_credentials: network_tokenization_credentials
                 .or(source.network_tokenization_credentials),
             payment_method_blocking: payment_method_blocking.or(source.payment_method_blocking),
@@ -443,7 +449,7 @@ pub struct Profile {
     pub id: common_utils::id_type::ProfileId,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub acquirer_config_map: Option<AcquirerConfigBucket>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
@@ -456,6 +462,7 @@ pub struct Profile {
     pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -530,6 +537,7 @@ pub struct ProfileNew {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
@@ -598,6 +606,7 @@ pub struct ProfileUpdateInternal {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
@@ -640,6 +649,7 @@ impl ProfileUpdateInternal {
             tax_connector_id,
             is_tax_connector_enabled,
             billing_processor_id,
+            surcharge_connector_details,
             routing_algorithm_id,
             order_fulfillment_time,
             order_fulfillment_time_origin,
@@ -768,6 +778,8 @@ impl ProfileUpdateInternal {
             always_enable_overcapture: None,
             is_l2_l3_enabled: None,
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
+            surcharge_connector_details: surcharge_connector_details
+                .or(source.surcharge_connector_details),
             network_tokenization_credentials: source.network_tokenization_credentials,
             payment_method_blocking: None,
         }
@@ -802,6 +814,22 @@ common_utils::impl_to_sql_from_sql_json!(ExternalVaultConnectorDetails);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct SurchargeConnectorDetails {
+    pub surcharge_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+}
+
+common_utils::impl_to_sql_from_sql_json!(SurchargeConnectorDetails);
+
+fn default_guest_ip_blocking_status() -> bool {
+    common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_STATUS
+}
+
+fn default_guest_ip_blocking_threshold() -> i32 {
+    common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_THRESHOLD
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct CardTestingGuardConfig {
     pub is_card_ip_blocking_enabled: bool,
     pub card_ip_blocking_threshold: i32,
@@ -810,6 +838,10 @@ pub struct CardTestingGuardConfig {
     pub is_customer_id_blocking_enabled: bool,
     pub customer_id_blocking_threshold: i32,
     pub card_testing_guard_expiry: i32,
+    #[serde(default = "default_guest_ip_blocking_status")]
+    pub is_guest_ip_blocking_enabled: bool,
+    #[serde(default = "default_guest_ip_blocking_threshold")]
+    pub guest_ip_blocking_threshold: i32,
 }
 
 common_utils::impl_to_sql_from_sql_json!(CardTestingGuardConfig);
@@ -829,6 +861,8 @@ impl Default for CardTestingGuardConfig {
                 common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
             card_testing_guard_expiry:
                 common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
+            is_guest_ip_blocking_enabled: common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_STATUS,
+            guest_ip_blocking_threshold: common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_THRESHOLD,
         }
     }
 }
@@ -858,6 +892,30 @@ pub struct WebhookDetails {
 }
 
 common_utils::impl_to_sql_from_sql_json!(WebhookDetails);
+
+#[derive(
+    Clone, Debug, serde::Serialize, serde::Deserialize, diesel::AsExpression, diesel::FromSqlRow,
+)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+#[serde(untagged)]
+pub enum AcquirerConfigBucket {
+    New(common_types::domain::AcquirerConfigBucket),
+    Old(HashMap<common_utils::id_type::ProfileAcquirerId, common_types::domain::AcquirerConfig>),
+}
+
+common_utils::impl_to_sql_from_sql_json!(AcquirerConfigBucket);
+
+impl From<AcquirerConfigBucket> for common_types::domain::AcquirerConfigBucket {
+    fn from(item: AcquirerConfigBucket) -> Self {
+        match item {
+            AcquirerConfigBucket::New(new) => new,
+            AcquirerConfigBucket::Old(old) => Self {
+                default_acquirer_config: None,
+                configs: old.into_iter().map(|(k, v)| (k, vec![v])).collect(),
+            },
+        }
+    }
+}
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
@@ -898,6 +956,7 @@ pub struct PaymentLinkConfigRequest {
     pub show_card_terms: Option<common_enums::PaymentLinkShowSdkTerms>,
     pub is_setup_mandate_flow: Option<bool>,
     pub color_icon_card_cvc_error: Option<String>,
+    pub show_merchant_name: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]

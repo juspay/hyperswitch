@@ -388,7 +388,7 @@ where
             let gateway: Box<
                 dyn PaymentGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>,
             > = F::get_gateway(ExecutionPath::Direct);
-            let direct_router_data = gateway
+            let direct_result = gateway
                 .execute(
                     state,
                     connector_integration.clone_box(),
@@ -398,12 +398,18 @@ where
                     return_raw_connector_response,
                     context.clone(),
                 )
-                .await?;
+                .await;
+
+            let direct_for_compare: Result<RouterData<F, Req, Resp>, String> = match &direct_result
+            {
+                Ok(fo) => Ok(fo.get_router_data().clone()),
+                Err(e) => Err(format!("{:?}", e)),
+            };
             let state_clone = state.clone();
             let router_data_clone = router_data.clone();
-            let direct_router_data_clone = direct_router_data.clone();
             let return_raw_connector_response_clone = return_raw_connector_response;
             let context_clone = context;
+            let connector_name = router_data.connector.clone();
             tokio::spawn(
                 async move {
                     let gateway: Box<
@@ -421,33 +427,27 @@ where
                         )
                         .await
                         .attach_printable("Gateway execution failed");
-                    // Send comparison data asynchronously
-                    match ucs_shadow_result {
-                        Ok(ucs_router_data) => {
-                            // Send comparison data asynchronously
-                            if let Some(comparison_service_config) =
-                                state_clone.get_comparison_service_config()
-                            {
-                                let request_id = state_clone.get_request_id_str();
-                                let _ =
-                                    helpers::serialize_router_data_and_send_to_comparison_service(
-                                        &state_clone,
-                                        direct_router_data_clone.get_router_data().clone(),
-                                        ucs_router_data.get_router_data().clone(),
-                                        comparison_service_config,
-                                        request_id,
-                                    )
-                                    .await;
-                            };
-                        }
-                        Err(e) => {
-                            logger::error!(error=?e, "UCS shadow execution failed");
-                        }
+
+                    if let Err(e) = &ucs_shadow_result {
+                        logger::error!(error=?e, "UCS shadow execution failed");
                     }
+
+                    let ucs_for_compare = match ucs_shadow_result {
+                        Ok(fo) => Ok(fo.get_router_data().clone()),
+                        Err(e) => Err(format!("{:?}", e)),
+                    };
+
+                    helpers::serialize_comparison_results_and_send(
+                        &state_clone,
+                        connector_name,
+                        direct_for_compare,
+                        ucs_for_compare,
+                    )
+                    .await;
                 }
                 .instrument(router_env::tracing::Span::current()),
             );
-            Ok(direct_router_data)
+            direct_result
         }
     }
 }
@@ -522,7 +522,7 @@ where
             let gateway: Box<
                 dyn PayoutGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>,
             > = F::get_payout_gateway(ExecutionPath::Direct);
-            let direct_router_data = gateway
+            let direct_result = gateway
                 .execute(
                     state,
                     connector_integration.clone_box(),
@@ -532,12 +532,18 @@ where
                     return_raw_connector_response,
                     context.clone(),
                 )
-                .await?;
+                .await;
+
+            let direct_for_compare: Result<RouterData<F, Req, Resp>, String> = match &direct_result
+            {
+                Ok(fo) => Ok(fo.get_router_data().clone()),
+                Err(e) => Err(format!("{:?}", e)),
+            };
             let state_clone = state.clone();
             let router_data_clone = router_data.clone();
-            let direct_router_data_clone = direct_router_data.clone();
             let return_raw_connector_response_clone = return_raw_connector_response;
             let context_clone = context;
+            let connector_name = router_data.connector.clone();
             tokio::spawn(
                 async move {
                     let gateway: Box<
@@ -555,33 +561,27 @@ where
                         )
                         .await
                         .attach_printable("Gateway execution failed");
-                    // Send comparison data asynchronously
-                    match ucs_shadow_result {
-                        Ok(ucs_router_data) => {
-                            // Send comparison data asynchronously
-                            if let Some(comparison_service_config) =
-                                state_clone.get_comparison_service_config()
-                            {
-                                let request_id = state_clone.get_request_id_str();
-                                let _ =
-                                    helpers::serialize_router_data_and_send_to_comparison_service(
-                                        &state_clone,
-                                        direct_router_data_clone.get_router_data().clone(),
-                                        ucs_router_data.get_router_data().clone(),
-                                        comparison_service_config,
-                                        request_id,
-                                    )
-                                    .await;
-                            };
-                        }
-                        Err(e) => {
-                            logger::error!(error=?e, "UCS shadow execution failed");
-                        }
+
+                    if let Err(e) = &ucs_shadow_result {
+                        logger::error!(error=?e, "UCS shadow execution failed");
                     }
+
+                    let ucs_for_compare = match ucs_shadow_result {
+                        Ok(fo) => Ok(fo.get_router_data().clone()),
+                        Err(e) => Err(format!("{:?}", e)),
+                    };
+
+                    helpers::serialize_comparison_results_and_send(
+                        &state_clone,
+                        connector_name,
+                        direct_for_compare,
+                        ucs_for_compare,
+                    )
+                    .await;
                 }
                 .instrument(router_env::tracing::Span::current()),
             );
-            Ok(direct_router_data)
+            direct_result
         }
     }
 }

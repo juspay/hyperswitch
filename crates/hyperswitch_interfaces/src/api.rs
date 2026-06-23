@@ -47,7 +47,6 @@ pub use hyperswitch_domain_models::router_request_types::CurrentFlowInfo;
 use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
-    payment_method_data::PaymentMethodData,
     router_data::{
         AccessToken, AccessTokenAuthenticationResponse, ConnectorAuthType, ErrorResponse,
         RouterData,
@@ -428,6 +427,18 @@ pub struct PreProcessingFlowResponse<'a> {
     pub attempt_status: enums::AttemptStatus,
 }
 
+/// Action to be taken for connector customer creation
+#[derive(Debug, Clone, Default)]
+pub enum ConnectorCustomerAction {
+    /// Call the connector to create a customer
+    CallConnectorCustomer,
+    /// Use a customer ID generated at connector layer
+    GeneratedCustomerId(String),
+    /// No action required
+    #[default]
+    NoAction,
+}
+
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
     /// Check if pre-authentication flow is required
@@ -448,6 +459,13 @@ pub trait ConnectorSpecifications {
     }
     /// Check if post-authentication flow is required
     fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
+    /// Check if pre-authenticate cancel flow is supported
+    fn is_pre_authorize_cancel_supported(
+        &self,
+        _payment_method_type: Option<PaymentMethodType>,
+    ) -> bool {
         false
     }
     /// Check if settlement split flow is required
@@ -503,8 +521,8 @@ pub trait ConnectorSpecifications {
         &self,
         #[cfg(feature = "v1")]
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> bool {
-        false
+    ) -> ConnectorCustomerAction {
+        ConnectorCustomerAction::NoAction
     }
 
     /// Validate if another operation is required
@@ -870,27 +888,6 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
                 connector: self.id(),
             }
             .into())
-        }
-    }
-
-    /// fn validate_mandate_payment
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        _pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let connector = self.id();
-        match pm_type {
-            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{pm_type} mandate payment"),
-                connector,
-            }
-            .into()),
-            None => Err(errors::ConnectorError::NotSupported {
-                message: " mandate payment".to_string(),
-                connector,
-            }
-            .into()),
         }
     }
 

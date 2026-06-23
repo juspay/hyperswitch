@@ -2,6 +2,7 @@ use common_enums::{enums, Currency};
 use common_utils::{id_type::CustomerId, pii::Email, types::MinorUnit};
 use hyperswitch_domain_models::{
     address::Address as DomainAddress,
+    mandates,
     payment_method_data::PaymentMethodData,
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
@@ -308,9 +309,7 @@ fn determine_cit_mit_fields(
         .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
     {
         // If there's a connector mandate ID, this is a MIT (Merchant Initiated Transaction)
-        Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-            connector_mandate_id,
-        )) => {
+        Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_id)) => {
             mandate_fields.card_on_file_indicator = Some(CardOnFileIndicator::RecurringPayment);
             mandate_fields.initiated_by = Some(InitiatedBy::Merchant); // This is a MIT
             mandate_fields.stored_credential_indicator = Some(StoredCredentialIndicator::Used);
@@ -326,9 +325,9 @@ fn determine_cit_mit_fields(
             ))
         }
         // For other mandate types that might not be supported
-        Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
-        | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
-        | Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
+        Some(mandates::MandateReferenceId::NetworkMandateId(_))
+        | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+        | Some(mandates::MandateReferenceId::CardWithLimitedData) => {
             // These might need different handling or return an error
             Err(errors::ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Celero"),
@@ -573,6 +572,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                                     mandate_reference: data.get_mandate_reference(),
                                     connector_metadata: None,
                                     network_txn_id: None,
+                                    network_txn_link_id: None,
                                     connector_response_reference_id: response.auth_code.clone(),
                                     incremental_authorization_allowed: None,
                                     authentication_data: None,
@@ -695,6 +695,7 @@ impl
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -772,6 +773,7 @@ impl
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,

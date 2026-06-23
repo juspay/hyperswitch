@@ -2,6 +2,7 @@ use diesel::{associations::HasTable, ExpressionMethods};
 
 use super::generics;
 use crate::{
+    kv,
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     schema::reverse_lookup::dsl,
     PgPooledConn, StorageResult,
@@ -18,6 +19,13 @@ impl ReverseLookupNew {
     ) -> StorageResult<()> {
         generics::generic_insert::<_, _, ReverseLookup>(conn, reverse_lookups).await?;
         Ok(())
+    }
+
+    pub async fn generate_drainer_insert_query(
+        self,
+        conn: &mut PgPooledConn,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_insert_query(conn, self).await
     }
 }
 impl ReverseLookup {

@@ -1,3 +1,4 @@
+pub mod batch;
 pub mod transformers;
 pub mod utils;
 
@@ -15,49 +16,71 @@ pub async fn add_entry_to_blocklist(
     platform: domain::Platform,
     body: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResponse<api_blocklist::AddToBlocklistResponse> {
-    utils::insert_entry_into_blocklist(
-        &state,
-        platform.get_processor().get_account().get_id(),
-        body,
-    )
-    .await
-    .map(services::ApplicationResponse::Json)
+    utils::insert_entry_into_blocklist(&state, &platform, body)
+        .await
+        .map(services::ApplicationResponse::Json)
 }
 
 pub async fn remove_entry_from_blocklist(
     state: SessionState,
-    platform: domain::Platform,
+    processor: domain::Processor,
     body: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResponse<api_blocklist::DeleteFromBlocklistResponse> {
-    utils::delete_entry_from_blocklist(
-        &state,
-        platform.get_processor().get_account().get_id(),
-        body,
-    )
-    .await
-    .map(services::ApplicationResponse::Json)
+    utils::delete_entry_from_blocklist(&state, processor.get_account().get_id(), body)
+        .await
+        .map(services::ApplicationResponse::Json)
 }
 
 pub async fn list_blocklist_entries(
     state: SessionState,
-    platform: domain::Platform,
+    processor: domain::Processor,
     query: api_blocklist::ListBlocklistQuery,
 ) -> RouterResponse<api_blocklist::ListBlocklistResponse> {
-    utils::list_blocklist_entries_for_merchant(
+    utils::list_blocklist_entries_for_merchant(&state, processor.get_account().get_id(), query)
+        .await
+        .map(services::ApplicationResponse::Json)
+}
+
+pub async fn toggle_blocklist_guard(
+    state: SessionState,
+    processor: domain::Processor,
+    query: api_blocklist::ToggleBlocklistQuery,
+) -> RouterResponse<api_blocklist::ToggleBlocklistResponse> {
+    utils::toggle_blocklist_guard_for_merchant(&state, processor.get_account().get_id(), query)
+        .await
+        .map(services::ApplicationResponse::Json)
+}
+
+pub async fn upload_batch_blocklist(
+    state: SessionState,
+    platform: domain::Platform,
+    csv_bytes: bytes::Bytes,
+) -> RouterResponse<api_blocklist::BatchBlocklistUploadResponse> {
+    batch::initiate_batch_blocklist_upload(&state, &platform, csv_bytes)
+        .await
+        .map(services::ApplicationResponse::Json)
+}
+
+pub async fn get_batch_blocklist_job_status(
+    state: SessionState,
+    platform: domain::Platform,
+    job_id: String,
+) -> RouterResponse<api_blocklist::BatchBlocklistJobStatusResponse> {
+    batch::get_batch_blocklist_job_status(
         &state,
         platform.get_processor().get_account().get_id(),
-        query,
+        &job_id,
     )
     .await
     .map(services::ApplicationResponse::Json)
 }
 
-pub async fn toggle_blocklist_guard(
+pub async fn list_batch_blocklist_jobs(
     state: SessionState,
     platform: domain::Platform,
-    query: api_blocklist::ToggleBlocklistQuery,
-) -> RouterResponse<api_blocklist::ToggleBlocklistResponse> {
-    utils::toggle_blocklist_guard_for_merchant(
+    query: api_blocklist::ListBatchBlocklistJobsQuery,
+) -> RouterResponse<api_blocklist::ListBatchBlocklistJobsResponse> {
+    batch::list_batch_blocklist_jobs(
         &state,
         platform.get_processor().get_account().get_id(),
         query,

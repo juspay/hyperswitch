@@ -59,7 +59,6 @@ Flow:
 
 describe("Connector Agnostic Tests", () => {
   before(function () {
-    // Changed to regular function instead of arrow function
     let skip = false;
 
     cy.task("getGlobalState")
@@ -67,7 +66,6 @@ describe("Connector Agnostic Tests", () => {
         globalState = new State(state);
         connector = globalState.get("connectorId");
 
-        // Skip running test against a connector that is added in the exclude list
         if (
           utils.shouldExcludeConnector(
             connector,
@@ -142,6 +140,7 @@ describe("Connector Agnostic Tests", () => {
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        cy.assertNetworkTransactionId(globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -330,6 +329,7 @@ describe("Connector Agnostic Tests", () => {
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        cy.assertNetworkTransactionId(globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -506,6 +506,7 @@ describe("Connector Agnostic Tests", () => {
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        cy.assertNetworkTransactionId(globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -681,6 +682,7 @@ describe("Connector Agnostic Tests", () => {
       ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+      cy.assertNetworkTransactionId(globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });

@@ -30,6 +30,14 @@ impl CardIssuersInterface for KafkaStore {
     }
 
     #[instrument(skip_all)]
+    async fn delete_card_issuer(
+        &self,
+        id: id_type::CardIssuerId,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store.delete_card_issuer(id).await
+    }
+
+    #[instrument(skip_all)]
     async fn list_card_issuers(
         &self,
         query: Option<String>,

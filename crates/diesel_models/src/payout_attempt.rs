@@ -41,6 +41,8 @@ pub struct PayoutAttempt {
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub source_bank_data_token: Option<String>,
+    pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
 }
 
 #[derive(
@@ -84,6 +86,8 @@ pub struct PayoutAttemptNew {
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub source_bank_data_token: Option<String>,
+    pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -112,8 +116,10 @@ pub enum PayoutAttemptUpdate {
         routing_info: Option<serde_json::Value>,
         merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     },
-    AdditionalPayoutMethodDataUpdate {
+    AdditionalPayoutDataUpdate {
         additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
+        additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
+        source_bank_data_token: Option<String>,
     },
     ManualUpdate {
         status: Option<storage_enums::PayoutStatus>,
@@ -147,6 +153,8 @@ pub struct PayoutAttemptUpdateInternal {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub source_bank_data_token: Option<String>,
+    pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {
@@ -171,6 +179,8 @@ impl Default for PayoutAttemptUpdateInternal {
             additional_payout_method_data: None,
             merchant_order_reference_id: None,
             payout_connector_metadata: None,
+            source_bank_data_token: None,
+            additional_source_bank_data: None,
         }
     }
 }
@@ -224,10 +234,14 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 merchant_connector_id,
                 ..Default::default()
             },
-            PayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+            PayoutAttemptUpdate::AdditionalPayoutDataUpdate {
                 additional_payout_method_data,
+                additional_source_bank_data,
+                source_bank_data_token,
             } => Self {
                 additional_payout_method_data,
+                additional_source_bank_data,
+                source_bank_data_token,
                 ..Default::default()
             },
             PayoutAttemptUpdate::ManualUpdate {
@@ -272,6 +286,8 @@ impl PayoutAttemptUpdate {
             additional_payout_method_data,
             merchant_order_reference_id,
             payout_connector_metadata,
+            source_bank_data_token,
+            additional_source_bank_data,
         } = self.into();
         PayoutAttempt {
             payout_token: payout_token.or(source.payout_token),
@@ -296,6 +312,9 @@ impl PayoutAttemptUpdate {
                 .or(source.merchant_order_reference_id),
             payout_connector_metadata: payout_connector_metadata
                 .or(source.payout_connector_metadata),
+            source_bank_data_token: source_bank_data_token.or(source.source_bank_data_token),
+            additional_source_bank_data: additional_source_bank_data
+                .or(source.additional_source_bank_data),
             ..source
         }
     }

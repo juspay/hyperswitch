@@ -5,6 +5,7 @@ use common_enums::{AttemptStatus, AuthenticationType, CountryAlpha2, Currency, R
 use common_utils::{errors::CustomResult, ext_traits::XmlExt, pii::Email, types::FloatMajorUnit};
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::{
         ApplePayWalletData, Card, GooglePayWalletData, PaymentMethodData, WalletData,
     },
@@ -251,6 +252,7 @@ fn build_nmi_vault_response(
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(vault_response.transactionid.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -463,6 +465,7 @@ impl
                     },
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -549,6 +552,8 @@ pub struct NmiPaymentsRequest {
 #[skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct NmiBillingDetails {
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
     address1: Option<Secret<String>>,
     address2: Option<Secret<String>>,
     city: Option<String>,
@@ -704,34 +709,34 @@ impl TryFrom<&NmiRouterData<&PaymentsAuthorizeRouterData>> for NmiPaymentsReques
             .clone()
             .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
         {
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                connector_mandate_id,
-            )) => Ok(Self {
-                transaction_type,
-                security_key: auth_type.api_key,
-                amount,
-                currency: item.router_data.request.currency,
-                payment_method: PaymentMethod::MandatePayment(Box::new(MandatePayment {
-                    customer_vault_id: Secret::new(
-                        connector_mandate_id
-                            .get_connector_mandate_id()
-                            .ok_or(ConnectorError::MissingConnectorMandateID)?,
-                    ),
-                })),
-                merchant_defined_field: item
-                    .router_data
-                    .request
-                    .metadata
-                    .as_ref()
-                    .map(NmiMerchantDefinedField::new),
-                orderid: item.router_data.connector_request_reference_id.clone(),
-                customer_vault: None,
-                billing_details: item.get_billing_details(),
-                shipping_details: item.get_shipping_details(),
-            }),
-            Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
-            | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
-            | Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
+            Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_id)) => {
+                Ok(Self {
+                    transaction_type,
+                    security_key: auth_type.api_key,
+                    amount,
+                    currency: item.router_data.request.currency,
+                    payment_method: PaymentMethod::MandatePayment(Box::new(MandatePayment {
+                        customer_vault_id: Secret::new(
+                            connector_mandate_id
+                                .get_connector_mandate_id()
+                                .ok_or(ConnectorError::MissingConnectorMandateID)?,
+                        ),
+                    })),
+                    merchant_defined_field: item
+                        .router_data
+                        .request
+                        .metadata
+                        .as_ref()
+                        .map(NmiMerchantDefinedField::new),
+                    orderid: item.router_data.connector_request_reference_id.clone(),
+                    customer_vault: None,
+                    billing_details: item.get_billing_details(),
+                    shipping_details: item.get_shipping_details(),
+                })
+            }
+            Some(mandates::MandateReferenceId::NetworkMandateId(_))
+            | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+            | Some(mandates::MandateReferenceId::CardWithLimitedData) => {
                 Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("nmi"),
                 ))?
@@ -1166,6 +1171,7 @@ impl
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -1282,6 +1288,7 @@ impl<T> TryFrom<ResponseRouterData<SetupMandate, StandardResponse, T, PaymentsRe
                     },
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -1349,6 +1356,7 @@ impl TryFrom<PaymentsResponseRouterData<StandardResponse>>
                     },
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -1390,6 +1398,7 @@ impl<T> TryFrom<ResponseRouterData<Void, StandardResponse, T, PaymentsResponseDa
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -1439,6 +1448,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SyncResponse, T, PaymentsResponseData>>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -1760,6 +1770,8 @@ impl TryFrom<&NmiWebhookBody> for SyncResponse {
 impl<T: utils::RouterData> NmiRouterData<&T> {
     pub fn get_billing_details(&self) -> NmiBillingDetails {
         NmiBillingDetails {
+            first_name: self.router_data.get_optional_billing_first_name(),
+            last_name: self.router_data.get_optional_billing_last_name(),
             address1: self.router_data.get_optional_billing_line1(),
             address2: self.router_data.get_optional_billing_line2(),
             city: self.router_data.get_optional_billing_city(),

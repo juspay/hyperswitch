@@ -10,40 +10,58 @@
 # The seeding script ignores this field; it's only needed for runtime fallback
 overrides = []
 
-[dimensions.organization_id]
+[dimensions.connector]
 position = 1
+schema = { type = "string" }
+description = "Payment connector identifier (e.g. stripe, adyen)"
+change_reason = "Initial setup"
+
+[dimensions.payment_method]
+position = 2
+schema = { type = "string" }
+description = "Payment method identifier (e.g. card, wallet, bank_transfer)"
+change_reason = "Initial setup"
+
+[dimensions.payment_method_type]
+position = 3
+schema = { type = "string" }
+description = "Payment method type identifier (e.g. credit, debit, google_pay)"
+change_reason = "Initial setup"
+
+[dimensions.payout_retry_type]
+position = 4
+schema = { type = "string" }
+description = "Type of payout retry (single_connector or multi_connector)"
+change_reason = "Initial setup"
+
+[dimensions.incoming_webhook_events]
+position = 5
+schema = { type = "string" }
+description = "Incoming webhook event type identifier (e.g. payment_intent.succeeded)"
+change_reason = "Initial setup"
+
+[dimensions.organization_id]
+position = 6
 schema = { type = "string" }
 description = "Organization identifier"
 change_reason = "Initial setup"
 
 [dimensions.provider_merchant_id]
-position = 2
+position = 7
 schema = { type = "string" }
 description = "Provider merchant identifier (hyperswitch merchant id)"
 change_reason = "Initial setup"
 
 [dimensions.processor_merchant_id]
-position = 3
+position = 8
 schema = { type = "string" }
 description = "Processor merchant identifier (connector-side merchant id)"
 change_reason = "Initial setup"
 
 [dimensions.profile_id]
-position = 4
+position = 9
 schema = { type = "string" }
 description = "Business profile identifier"
-change_reason = "Initial setup"
-
-[dimensions.connector]
-position = 5
-schema = { type = "string" }
-description = "Payment connector identifier (e.g. stripe, adyen)"
-change_reason = "Initial setup"
-
-[dimensions.payout_retry_type]
-position = 6
-schema = { type = "string" }
-description = "Type of payout retry (single_connector or multi_connector)"
 change_reason = "Initial setup"
 
 [default-configs.requires_cvv]
@@ -71,6 +89,12 @@ frequencies = [[300, 5]]
 value = true
 schema = { type = "boolean" }
 description = "Whether client session validation is enabled for payments"
+change_reason = "Initial setup"
+
+[default-configs.fingerprint_secret]
+value = ""
+schema = { type = "string" }
+description = "Fingerprint secret used for payment card fingerprinting per merchant"
 change_reason = "Initial setup"
 
 [default-configs.should_call_gsm]
@@ -127,9 +151,114 @@ schema = { type = "boolean" }
 description = "Whether to call the PM modular service for an organization"
 change_reason = "Initial setup"
 
+[default-configs.should_schedule_modular_forward_compat]
+value = false
+schema = { type = "boolean" }
+description = "Whether to schedule PM modular forward compatibility PT for a merchant"
+change_reason = "Initial setup"
+
+[default-configs.should_trigger_fingerprint_migration]
+value = false
+schema = { type = "boolean" }
+description = "Whether to trigger fingerprint and entity_id migration for a merchant"
+change_reason = "Initial setup"
+
+
+[default-configs.should_schedule_modular_backward_compat]
+value = false
+schema = { type = "boolean" }
+description = "Whether to schedule PM modular backward compatibility PT for a merchant"
+change_reason = "Initial setup"
+
+[default-configs.should_trigger_backwards_compatibility_inline]
+value = false
+schema = { type = "boolean" }
+description = "Whether to trigger PM modular backward compatibility inline for a merchant"
+change_reason = "Initial setup"
+
 [default-configs.should_return_raw_payment_method_details]
 value = false
 schema = { type = "boolean" }
 description = "Whether to return raw payment method details (v2 only)"
 change_reason = "Initial setup"
 
+[default-configs.routing_result_source]
+value = "hyperswitch_routing"
+schema = { type = "string", enum = ["decision_engine", "hyperswitch_routing"] }
+description = "Source of routing result: decision_engine (external DE) or hyperswitch_routing (inbuilt)"
+change_reason = "Initial setup"
+
+[default-configs.threeds_routing_region_uas]
+value = "region1"
+schema = { type = "string", enum = ["region1", "region2"] }
+description = "3DS routing region for UAS (Unified Authentication Service) per organization"
+change_reason = "Initial setup"
+
+[default-configs.incoming_webhook_disabled_events]
+value = false
+schema = { type = "boolean" }
+description = "Whether a specific incoming webhook event is disabled for a given connector"
+change_reason = "Initial setup"
+
+[default-configs.poll_config_external_three_ds]
+schema = { type = "object" }
+description = "Poll configuration for external 3DS authentication per connector"
+change_reason = "Initial setup"
+
+[default-configs.poll_config_external_three_ds.value]
+delay_in_secs = 2
+frequency = 5
+
+[default-configs.pt_mapping_outgoing_webhooks]
+schema = { type = "object" }
+description = "Outgoing webhook retry process tracker mapping configuration"
+change_reason = "Initial setup"
+
+[default-configs.pt_mapping_outgoing_webhooks.value.default_mapping]
+start_after = 60
+frequencies = [[300, 2], [600, 5], [3600, 5], [21600, 3]]
+
+[default-configs.pt_mapping_pcr_retries]
+schema = { type = "object" }
+description = "Revenue recovery (PCR) payment retry process tracker mapping configuration"
+change_reason = "Initial setup"
+
+[default-configs.pt_mapping_pcr_retries.value.default_mapping]
+start_after = 60
+frequencies = [[10800, 2], [21600, 3], [32400, 3], [43200, 3], [64800, 3]]
+
+[default-configs.pt_mapping_payment_sync]
+schema = { type = "object" }
+description = "Payment sync (psync) retry process tracker mapping configuration"
+change_reason = "Initial setup"
+
+[default-configs.pt_mapping_payment_sync.value]
+max_retries_count = 5
+
+[default-configs.pt_mapping_payment_sync.value.default_mapping]
+start_after = 60
+frequencies = [[300, 5]]
+
+[default-configs.pt_mapping_refund_sync]
+schema = { type = "object" }
+description = "Refund sync retry process tracker mapping configuration"
+change_reason = "Initial setup"
+
+[default-configs.pt_mapping_refund_sync.value]
+max_retries_count = 5
+
+[default-configs.pt_mapping_refund_sync.value.default_mapping]
+start_after = 60
+frequencies = [[300, 5]]
+
+[default-configs.pt_mapping_dispute_sync]
+schema = { type = "object" }
+description = "Dispute sync retry process tracker mapping configuration"
+change_reason = "Initial setup"
+
+[default-configs.pt_mapping_dispute_sync.value]
+max_retries_count = 5
+
+[default-configs.pt_mapping_dispute_sync.value.default_mapping]
+start_after = 60
+frequencies = [[300, 5]]
