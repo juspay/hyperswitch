@@ -398,6 +398,14 @@ export const connectorDetails = {
         },
       },
     },
+    SyncRefundScheduled: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
     // IncrementalAuth: { // commenting out due to credentials issue
     //   Request: {
     //     amount: 8000,
@@ -997,6 +1005,8 @@ export const connectorDetails = {
         },
       },
     },
+    ClientSessionInvalidConfirm:
+      commonConnectorDetails.card_pm.ClientSessionInvalidConfirm,
   },
   bank_transfer_pm: {
     Ach: {
@@ -1316,6 +1326,43 @@ export const connectorDetails = {
               billing_email: "customer@email.com",
               billing_country: "US",
             },
+          },
+        },
+        billing: {
+          email: "customer@email.com",
+          address: {
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "Mock",
+            last_name: "Mock",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    Affirm: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            affirm_redirect: {},
           },
         },
         billing: {

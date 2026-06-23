@@ -468,6 +468,12 @@ pub struct ListOrgsForUserResponse {
     pub org_type: common_enums::OrganizationType,
 }
 
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct UserMerchantDetailsResponse {
+    pub product_type: Option<common_enums::MerchantProductType>,
+    pub merchant_account_type: common_enums::MerchantAccountType,
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct UserMerchantAccountResponse {
     pub merchant_id: id_type::MerchantId,

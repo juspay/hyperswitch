@@ -15,7 +15,7 @@
 
 use serde_json::{json, Value};
 use error_stack::{Report, ResultExt};
-use crate::core::errors::{self, ApiErrorResponse};
+use crate::core::errors::ApiErrorResponse;
 
 /// Serializes any serde-serializable request into a JSON Value for generic storage
 pub fn serialize_request_to_json<T: serde::Serialize>(

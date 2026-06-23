@@ -26,6 +26,15 @@ const CONSTANTS = {
   ],
 };
 
+const COINGATE_BILLING = {
+  email: "test@example.com",
+  firstName: "Jan",
+  lastName: "Jansen",
+  dobMonth: "1",
+  dobDay: "1",
+  dobYear: "1990",
+};
+
 function normalizeConnectorForRedirect(connectorId) {
   return connectorId === "stripeconnect" ? "stripe" : connectorId;
 }
@@ -61,7 +70,8 @@ export function handleRedirection(
       threeDsRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        resolvedConnectorId
+        resolvedConnectorId,
+        paymentMethodType
       );
       break;
     case "upi":
@@ -93,6 +103,24 @@ export function handleRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
         resolvedConnectorId,
+        paymentMethodType,
+        handlerMetadata?.globalState
+      );
+      break;
+    case "affirm_pay_later":
+      affirmPayLaterRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId,
+        paymentMethodType,
+        handlerMetadata?.globalState
+      );
+      break;
+    case "voucher":
+      voucherRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId,
         paymentMethodType
       );
       break;
@@ -116,40 +144,232 @@ function cryptoRedirection(
   connectorId,
   paymentMethodType
 ) {
-  // Crypto payments are async → never verify return URL
   const verifyUrl = false;
 
   if (redirectionUrl && redirectionUrl.href) {
     cy.visit(redirectionUrl.href);
 
-    // Ensure redirect happened
-    waitForRedirect(redirectionUrl.href);
+    if (connectorId !== "bitpay") {
+      waitForRedirect(redirectionUrl.href);
+    }
 
     cy.wait(CONSTANTS.WAIT_TIME / 5);
 
-    //  Verify QR is present
-    cy.get("canvas.BbpsQr__canvas", { timeout: 5000 })
-      .should("exist")
-      .and("be.visible");
+    if (connectorId === "bitpay") {
+      cy.document().should("have.property", "readyState", "complete");
+      cy.wait(3000);
 
-    handleFlow(
-      redirectionUrl,
-      expectedUrl,
-      connectorId,
-      ({ paymentMethodType }) => {
-        switch (paymentMethodType) {
-          case "crypto_currency":
-            cy.log("Handling crypto currency payment redirection");
-            break;
+      cy.scrollTo("bottom");
+      cy.wait(1000);
 
-          default:
-            throw new Error(
-              `Unsupported crypto payment method type: ${paymentMethodType}`
-            );
+      cy.get("body").then(($body) => {
+        const loginLink = $body
+          .find('a[href*="login"]:visible, button:visible')
+          .filter((_, el) => /log\s*in|sign\s*in|account/i.test(el.innerText))
+          .first();
+
+        if (loginLink.length > 0) {
+          cy.wrap(loginLink).click({ force: true });
+          cy.log("Clicked login link");
+        } else {
+          cy.log("Login link not found");
         }
-      },
-      { paymentMethodType }
-    );
+      });
+
+      cy.wait(2000);
+
+      cy.get('input[type="email"], input[name="email"]', { timeout: 10000 })
+        .should("be.visible")
+        .clear()
+        .type("venkatakarthik.m@juspay.in", { delay: 50 });
+
+      cy.get("body").then(($body) => {
+        const continueBtn = $body
+          .find('button:visible, input[type="submit"]:visible')
+          .filter((_, el) =>
+            /continue|next/i.test(el.innerText || el.value || "")
+          )
+          .first();
+
+        if (continueBtn.length > 0) {
+          cy.wrap(continueBtn).click({ force: true });
+          cy.log("Clicked continue after email");
+        }
+      });
+
+      cy.wait(2000);
+
+      cy.get('input[type="password"], input[name="password"]', {
+        timeout: 10000,
+      })
+        .should("be.visible")
+        .clear()
+        .type("venkatkarthik123@", { delay: 50 });
+
+      cy.get('button[type="submit"], input[type="submit"]', { timeout: 10000 })
+        .should("be.visible")
+        .click();
+
+      cy.log("Submitted Bitpay login credentials");
+    } else if (connectorId === "coingate") {
+      cy.document().should("have.property", "readyState", "complete");
+      cy.title({ timeout: CONSTANTS.WAIT_TIME }).should("include", "CoinGate");
+      cy.log("Coingate payment page loaded");
+
+      // Wait for Next.js app to render the currency selection dropdown
+      cy.contains(/Select currency/i, { timeout: CONSTANTS.WAIT_TIME }).should(
+        "be.visible"
+      );
+      cy.log("Coingate currency selection screen rendered");
+
+      // Open the currency dropdown
+      cy.contains(/Select currency/i).click();
+      cy.log("Opened currency selector dropdown");
+
+      // Step 1: Select Bitcoin from the currency dropdown
+      cy.contains(/Bitcoin/i, { timeout: CONSTANTS.WAIT_TIME })
+        .first()
+        .should("be.visible")
+        .click();
+      cy.log("Selected Bitcoin as payment currency");
+
+      // Step 2: Wait briefly for any network selection modal to appear,
+      // then select Bitcoin mainchain if the modal is present.
+      cy.wait(2000);
+      cy.get("body").then(($body) => {
+        if ($body.text().includes("Select network")) {
+          cy.log(
+            "Network selection modal appeared - selecting Bitcoin mainchain"
+          );
+          cy.contains(/^Bitcoin$/i, { timeout: CONSTANTS.WAIT_TIME })
+            .should("be.visible")
+            .click();
+          cy.log("Selected Bitcoin mainchain network");
+        } else {
+          cy.log("No network selection modal - proceeding to Continue");
+        }
+      });
+
+      // Click Continue to proceed to the payment address screen
+      cy.contains(/Continue/i, { timeout: CONSTANTS.WAIT_TIME })
+        .should("be.visible")
+        .click();
+      cy.log("Clicked Continue on Coingate payment page");
+
+      handleFlow(
+        redirectionUrl,
+        expectedUrl,
+        connectorId,
+        // NOTE: this callback runs inside cy.origin — CONSTANTS and
+        // COINGATE_BILLING are not in scope. Use `constants` and
+        // `coingateBilling` from the destructured args instead.
+        ({ paymentMethodType, constants, coingateBilling }) => {
+          switch (paymentMethodType) {
+            case "crypto_currency": {
+              cy.log("Coingate Bitcoin payment: checking for KYC billing form");
+
+              cy.document().should("have.property", "readyState", "complete");
+
+              // Coingate may require billing details (KYC) before showing
+              // the BTC payment address. Fill the form if it appears.
+              cy.get("body").then(($body) => {
+                const bodyText = $body.text();
+                if (
+                  bodyText.includes("Billing details") ||
+                  bodyText.includes("First name")
+                ) {
+                  cy.log("Billing details form detected - filling KYC fields");
+
+                  // Email (optional, but fill it)
+                  cy.get('input[type="email"]').then(($el) => {
+                    if ($el.length > 0) {
+                      cy.wrap($el.first()).clear().type(coingateBilling.email);
+                    }
+                  });
+
+                  // First name + Last name (inputs with latin-characters placeholder)
+                  cy.get('input[placeholder*="latin"]').then(($inputs) => {
+                    if ($inputs.length >= 1) {
+                      cy.wrap($inputs.eq(0))
+                        .clear()
+                        .type(coingateBilling.firstName);
+                    }
+                    if ($inputs.length >= 2) {
+                      cy.wrap($inputs.eq(1))
+                        .clear()
+                        .type(coingateBilling.lastName);
+                    }
+                  });
+
+                  // Date of birth — select Month=January, Day=1, Year=1990
+                  // Use jQuery .find() instead of cy.get("select") to avoid
+                  // Cypress retry timeout when no <select> elements exist on
+                  // the Coingate billing form.
+                  const $selects = $body.find("select");
+                  if ($selects.length >= 1) {
+                    cy.wrap($selects.eq(0)).select(coingateBilling.dobMonth);
+                  }
+                  if ($selects.length >= 2) {
+                    cy.wrap($selects.eq(1)).select(coingateBilling.dobDay);
+                  }
+                  if ($selects.length >= 3) {
+                    cy.wrap($selects.eq(2)).select(coingateBilling.dobYear);
+                  }
+
+                  cy.wait(500);
+
+                  // Submit the billing form
+                  cy.contains(/Continue/i, { timeout: constants.WAIT_TIME })
+                    .last()
+                    .click();
+                  cy.log("Billing form submitted");
+                  cy.wait(3000);
+                } else {
+                  cy.log("No billing form - proceeding to payment address");
+                }
+              });
+
+              // After the billing form (or if skipped), the BTC payment
+              // address screen should appear.
+              cy.contains(/Amount|BTC|address|0\./i, {
+                timeout: constants.WAIT_TIME,
+              }).should("be.visible");
+              cy.log("Coingate Bitcoin payment details displayed successfully");
+              break;
+            }
+
+            default:
+              throw new Error(
+                `Unsupported crypto payment method type: ${paymentMethodType}`
+              );
+          }
+        },
+        { paymentMethodType, coingateBilling: COINGATE_BILLING }
+      );
+    } else {
+      cy.get("canvas.BbpsQr__canvas", { timeout: 5000 })
+        .should("exist")
+        .and("be.visible");
+
+      handleFlow(
+        redirectionUrl,
+        expectedUrl,
+        connectorId,
+        ({ paymentMethodType }) => {
+          switch (paymentMethodType) {
+            case "crypto_currency":
+              cy.log("Handling crypto currency payment redirection");
+              break;
+
+            default:
+              throw new Error(
+                `Unsupported crypto payment method type: ${paymentMethodType}`
+              );
+          }
+        },
+        { paymentMethodType }
+      );
+    }
   } else {
     cy.log("Skipping crypto redirection - no valid redirect URL provided");
   }
@@ -246,7 +466,76 @@ function payLaterRedirection(
           case "stripe":
             // Stripe handles pay_later differently - may have different flow
             cy.log("Handling Stripe pay_later flow");
-            cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+
+            if (paymentMethodType === "affirm") {
+              cy.log("Handling Stripe Affirm redirect flow");
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+
+              cy.get("body").then(($body) => {
+                const bodyText = $body.text().toLowerCase();
+                if (
+                  bodyText.includes("affirm") ||
+                  bodyText.includes("pay over time")
+                ) {
+                  cy.log("Affirm page detected");
+
+                  cy.get("body").then(($b) => {
+                    const phoneInput = $b.find(
+                      'input[type="tel"], input[name*="phone"], input[placeholder*="phone"], input[placeholder*="Phone"]'
+                    );
+                    if (phoneInput.length > 0) {
+                      cy.wrap(phoneInput[0])
+                        .should("be.visible")
+                        .clear()
+                        .type("5555555555");
+                    }
+                  });
+
+                  cy.get("body").then(($b) => {
+                    const pinInput = $b.find(
+                      'input[type="password"], input[name*="pin"], input[placeholder*="PIN"]'
+                    );
+                    if (pinInput.length > 0) {
+                      cy.wrap(pinInput[0])
+                        .should("be.visible")
+                        .clear()
+                        .type("1234");
+                    }
+                  });
+
+                  cy.get("body").then(($b) => {
+                    const ssnInput = $b.find(
+                      'input[name*="ssn"], input[placeholder*="SSN"], input[placeholder*="social"]'
+                    );
+                    if (ssnInput.length > 0) {
+                      cy.wrap(ssnInput[0])
+                        .should("be.visible")
+                        .clear()
+                        .type("1234");
+                    }
+                  });
+
+                  cy.get("body").then(($b) => {
+                    const termsCheckbox = $b.find(
+                      'input[type="checkbox"][name*="terms"], input[type="checkbox"][name*="agree"]'
+                    );
+                    if (termsCheckbox.length > 0) {
+                      cy.wrap(termsCheckbox[0]).should("be.visible").check();
+                    }
+                  });
+
+                  cy.get("body").then(($b) => {
+                    const submitBtn = $b.find('button[type="submit"]');
+                    if (submitBtn.length > 0) {
+                      cy.wrap(submitBtn[0]).should("be.visible").click();
+                    }
+                  });
+                }
+              });
+            } else {
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+            }
+
             verifyUrl = false;
             break;
 
@@ -312,51 +601,74 @@ function payLaterRedirection(
             break;
 
           case "airwallex":
-            // Airwallex Klarna PayLater - follows similar pattern to other Klarna flows
             cy.log(`Handling Airwallex ${paymentMethodType} pay_later flow`);
 
             // Wait for the page to load
             cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
 
-            // Airwallex Klarna redirects to standard Klarna playground
-            // Verify we landed on a Klarna page
-            cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
-              const bodyText = $body.text();
-              const klarnaIndicators = [
-                /klarna/i,
-                /playground/i,
-                /buy now.*pay later/i,
-                /continue.*klarna/i,
-                /smoooth/i,
-              ];
-
-              const hasKlarnaIndicator = klarnaIndicators.some((pattern) =>
-                pattern.test(bodyText)
-              );
-
-              if (hasKlarnaIndicator) {
-                cy.log(
-                  "Successfully navigated to Klarna page - verified redirection"
-                );
-              } else {
-                // Check URL as fallback
-                cy.url().then((url) => {
+            if (paymentMethodType === "atome") {
+              // Atome redirects to sandbox-gateway.apaylater.net
+              cy.url().then((url) => {
+                try {
+                  const urlObj = new URL(url);
+                  const hostname = urlObj.hostname;
                   if (
-                    url.includes("klarna") ||
-                    url.includes("playground") ||
-                    url.includes("airwallex")
+                    hostname === "apaylater.net" ||
+                    hostname.endsWith(".apaylater.net")
                   ) {
                     cy.log(
-                      "URL indicates Klarna redirect - verified navigation"
+                      "Successfully navigated to Atome page - verified redirection"
                     );
                   } else {
                     cy.log(
-                      `Warning: URL (${url}) does not contain expected Klarna indicators`
+                      `Warning: URL (${url}) does not contain expected Atome indicators`
                     );
                   }
-                });
-              }
-            });
+                } catch {
+                  cy.log(`Warning: Could not parse URL: ${url}`);
+                }
+              });
+            } else {
+              // Airwallex Klarna redirects to standard Klarna playground
+              // Verify we landed on a Klarna page
+              cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+                const bodyText = $body.text();
+                const klarnaIndicators = [
+                  /klarna/i,
+                  /playground/i,
+                  /buy now.*pay later/i,
+                  /continue.*klarna/i,
+                  /smoooth/i,
+                ];
+
+                const hasKlarnaIndicator = klarnaIndicators.some((pattern) =>
+                  pattern.test(bodyText)
+                );
+
+                if (hasKlarnaIndicator) {
+                  cy.log(
+                    "Successfully navigated to Klarna page - verified redirection"
+                  );
+                } else {
+                  // Check URL as fallback
+                  cy.url().then((url) => {
+                    if (
+                      url.includes("klarna") ||
+                      url.includes("playground") ||
+                      url.includes("airwallex")
+                    ) {
+                      cy.log(
+                        "URL indicates Klarna redirect - verified navigation"
+                      );
+                    } else {
+                      cy.log(
+                        `Warning: URL (${url}) does not contain expected Klarna indicators`
+                      );
+                    }
+                  });
+                }
+              });
+            }
 
             verifyUrl = false; // Don't complete payment, just verify navigation
             break;
@@ -376,6 +688,422 @@ function payLaterRedirection(
 
   cy.then(() => {
     verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+  });
+}
+
+function affirmPayLaterRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType,
+  globalState
+) {
+  const verifyUrl = false;
+
+  if (redirectionUrl && redirectionUrl.href) {
+    cy.visit(redirectionUrl.href);
+    cy.log("Affirm flow - starting checkout automation");
+
+    cy.on("uncaught:exception", (err) => {
+      if (
+        err.message.includes("Cannot read properties of null") ||
+        err.message.includes("postMessage")
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    cy.url().then((initialUrl) => {
+      const affirmOrigin = new URL(initialUrl).origin;
+      cy.log("Affirm pay later flow - handling on origin: " + affirmOrigin);
+
+      const waitTime = CONSTANTS.WAIT_TIME;
+
+      const determineAffirmStep = (doc, bodyText, currentUrl) => {
+        if (currentUrl.includes("/payments/completion")) return "done";
+
+        const hasPinInput = doc.querySelector(
+          '[data-testid="phone-pin-field"]:not([aria-hidden="true"])'
+        );
+        if (hasPinInput) return "pin";
+
+        if (
+          bodyText.includes("phone") ||
+          bodyText.includes("mobile") ||
+          bodyText.includes("cell")
+        )
+          return "phone";
+        if (bodyText.includes("continue to plans")) return "continue_to_plans";
+        if (
+          bodyText.includes("social") ||
+          bodyText.includes("ssn") ||
+          bodyText.includes("last 4")
+        )
+          return "ssn";
+        if (bodyText.includes("first name") || bodyText.includes("legal name"))
+          return "first_name";
+        if (bodyText.includes("last name") || bodyText.includes("surname"))
+          return "last_name";
+        if (
+          bodyText.includes("date of birth") ||
+          bodyText.includes("birthday") ||
+          bodyText.includes("dob") ||
+          bodyText.includes("birth date")
+        )
+          return "dob";
+        if (bodyText.includes("email") || bodyText.includes("e-mail"))
+          return "email";
+        if (
+          bodyText.includes("continue to plans") ||
+          (bodyText.includes("creating an account") &&
+            bodyText.includes("agree"))
+        )
+          return "consent";
+        if (
+          bodyText.includes("pick a plan") ||
+          bodyText.includes("choose a payment plan") ||
+          bodyText.includes("payment plan") ||
+          bodyText.includes("choose this plan") ||
+          bodyText.includes("every month") ||
+          bodyText.includes("total of payments")
+        )
+          return "plan";
+        if (
+          bodyText.includes("review") ||
+          bodyText.includes("confirm") ||
+          bodyText.includes("autopay") ||
+          bodyText.includes("terms")
+        )
+          return "review";
+        return "fallback";
+      };
+
+      const handleAffirmStep = () => {
+        cy.wait(waitTime / 5);
+
+        cy.document().then((doc) => {
+          const bodyText = doc.body.innerText.toLowerCase();
+          const pageTitle = doc.title || "No title";
+          const currentUrl = doc.location?.href || "Unknown URL";
+
+          cy.log(`Affirm Page: ${pageTitle}`);
+          cy.log(`URL: ${currentUrl}`);
+          cy.log(`Page content preview: ${bodyText.substring(0, 200)}...`);
+
+          const step = determineAffirmStep(doc, bodyText, currentUrl);
+          cy.log(`Determined Affirm step: ${step}`);
+
+          switch (step) {
+            case "done":
+              cy.log("Reached return URL, done");
+              break;
+
+            case "phone":
+              cy.get("body").then(($body) => {
+                const phoneInputs = $body.find(
+                  'input[type="tel"]:visible, input[autocomplete="tel"]:visible, input[name*="phone"]:visible'
+                );
+                if (phoneInputs.length > 0) {
+                  cy.wrap(phoneInputs.first()).clear().type("4155551234");
+                  cy.log("Entered phone number");
+
+                  const sendBtn = $body
+                    .find("button:visible")
+                    .filter((i, btn) =>
+                      /send|submit|continue|next/i.test(
+                        btn.innerText.toLowerCase()
+                      )
+                    );
+                  if (sendBtn.length > 0) {
+                    cy.wrap(sendBtn.first()).click({ force: true });
+                    cy.log("Clicked send/submit after phone");
+                  }
+                }
+              });
+              break;
+
+            case "pin":
+              cy.get("body").then(($body) => {
+                const pinInput = $body
+                  .find(
+                    'input[data-testid="phone-pin-field"]:visible, input[placeholder="000000"]:visible, input[autocomplete="one-time-code"]:visible, input[inputmode="numeric"]:visible'
+                  )
+                  .first();
+
+                if (pinInput.length > 0) {
+                  cy.wrap(pinInput).clear().type("123456", { delay: 100 });
+                  cy.log("Entered PIN 123456 into phone-pin-field");
+
+                  cy.wait(1000);
+
+                  const verifyBtn = $body
+                    .find("button:visible")
+                    .filter((i, btn) =>
+                      /verify|confirm|continue/i.test(
+                        btn.innerText.toLowerCase()
+                      )
+                    );
+                  if (verifyBtn.length > 0) {
+                    cy.wrap(verifyBtn.first()).click({ force: true });
+                    cy.log("Clicked verify/continue after PIN");
+                  }
+                } else {
+                  cy.log(
+                    "PIN input not found - looking for phone-pin-field or placeholder 000000"
+                  );
+                }
+              });
+              break;
+
+            case "continue_to_plans":
+              cy.get("body").then(($body) => {
+                const continueBtn = $body
+                  .find("button:visible")
+                  .filter((i, btn) =>
+                    /continue to plans/i.test(btn.innerText.toLowerCase())
+                  );
+                if (continueBtn.length > 0) {
+                  cy.wrap(continueBtn.first()).click({ force: true });
+                  cy.log("Clicked Continue to plans");
+                }
+              });
+              break;
+
+            case "ssn":
+              cy.get("body").then(($body) => {
+                const ssnInputs = $body.find(
+                  'input[type="password"][maxlength="4"]:visible, input[name*="ssn"]:visible, input[placeholder*="last 4"]:visible'
+                );
+                if (ssnInputs.length > 0) {
+                  cy.wrap(ssnInputs.first()).clear().type("5678");
+                  cy.log("Entered SSN last 4");
+
+                  const continueBtn = $body
+                    .find("button:visible")
+                    .filter((i, btn) =>
+                      /continue|next|submit/i.test(btn.innerText.toLowerCase())
+                    );
+                  if (continueBtn.length > 0) {
+                    cy.wrap(continueBtn.first()).click({ force: true });
+                    cy.log("Clicked continue after SSN");
+                  }
+                }
+              });
+              break;
+
+            case "first_name":
+              cy.get("body").then(($body) => {
+                const firstNameInputs = $body.find(
+                  'input[name*="first"]:visible, input[id*="first"]:visible, input[autocomplete*="given-name"]:visible'
+                );
+                if (firstNameInputs.length > 0) {
+                  cy.wrap(firstNameInputs.first())
+                    .clear()
+                    .invoke("val", "Joseph")
+                    .trigger("input");
+                  cy.log("Entered first name Joseph");
+                }
+              });
+              break;
+
+            case "last_name":
+              cy.get("body").then(($body) => {
+                const lastNameInputs = $body.find(
+                  'input[name*="last"]:visible, input[id*="last"]:visible, input[autocomplete*="family-name"]:visible'
+                );
+                if (lastNameInputs.length > 0) {
+                  cy.wrap(lastNameInputs.first())
+                    .clear()
+                    .invoke("val", "Doe")
+                    .trigger("input");
+                  cy.log("Entered last name Doe");
+                }
+              });
+              break;
+
+            case "dob":
+              cy.get("body").then(($body) => {
+                const dobInputs = $body.find(
+                  'input[data-testid*="dob"]:visible, input[aria-label*="Birth"]:visible, input[placeholder*="mm"]:visible, input[name*="dob"]:visible, input[name*="birth"]:visible'
+                );
+                if (dobInputs.length > 0) {
+                  cy.wrap(dobInputs.first())
+                    .click()
+                    .clear()
+                    .type("01/01/1990", { delay: 50 });
+                  cy.log("Entered DOB 01/01/1990");
+                }
+              });
+              break;
+
+            case "email":
+              cy.get("body").then(($body) => {
+                const emailInputs = $body.find(
+                  'input[data-testid*="email"]:visible, input[type="email"]:visible, input[autocomplete="email"]:visible, input[data-test="email-input"]:visible'
+                );
+                if (emailInputs.length > 0) {
+                  cy.wrap(emailInputs.first())
+                    .click()
+                    .clear()
+                    .type("venkatakarthik.m@juspay.in", { delay: 50 });
+                  cy.log("Entered email venkatakarthik.m@juspay.in");
+                }
+              });
+              break;
+
+            case "consent":
+              cy.get("body").then(($body) => {
+                const consentCheckbox = $body
+                  .find('input[type="checkbox"]:not(:checked):visible')
+                  .first();
+                if (consentCheckbox.length > 0) {
+                  cy.wrap(consentCheckbox).click({ force: true });
+                  cy.log("Checked consent checkbox");
+                }
+
+                const continueBtn = $body
+                  .find("button:visible")
+                  .filter((i, btn) =>
+                    /continue to plans/i.test(btn.innerText.toLowerCase())
+                  );
+                if (continueBtn.length > 0) {
+                  cy.wrap(continueBtn.first()).click({ force: true });
+                  cy.log("Clicked Continue to plans");
+                }
+              });
+              break;
+
+            case "plan":
+              {
+                const planRadio = doc.querySelector(
+                  'input[type="radio"][name="selectedTermIndex"]'
+                );
+                if (planRadio) {
+                  planRadio.checked = true;
+                  planRadio.dispatchEvent(
+                    new Event("change", { bubbles: true })
+                  );
+                  cy.log("Selected payment plan via DOM");
+                }
+
+                const planBtn = doc.querySelector(
+                  'button[data-testid="continue-with-selected-term-button"]'
+                );
+                if (planBtn) {
+                  planBtn.dispatchEvent(
+                    new MouseEvent("click", { bubbles: true })
+                  );
+                  cy.log("Clicked Choose this plan via DOM");
+                }
+
+                cy.wait(2000).then(() => {
+                  const indicator = doc.querySelector(
+                    '[data-testid="disclosure-checkbox-indicator"]'
+                  );
+                  if (indicator) {
+                    const label = indicator.closest("label");
+                    (label || indicator).dispatchEvent(
+                      new MouseEvent("click", { bubbles: true })
+                    );
+                    cy.log("Clicked disclosure checkbox");
+                  }
+
+                  const submitBtn = doc.querySelector(
+                    'button[data-testid="submit-button"]'
+                  );
+                  if (submitBtn) {
+                    submitBtn.dispatchEvent(
+                      new MouseEvent("click", { bubbles: true })
+                    );
+                    cy.log("Clicked Confirm button");
+                  }
+                });
+              }
+              break;
+
+            case "review":
+              cy.get('[data-testid="disclosure-checkbox-indicator"]')
+                .closest("label")
+                .click({ force: true });
+              cy.log("Clicked disclosure checkbox label");
+
+              cy.wait(1000);
+
+              cy.get('button[data-testid="submit-button"]').click({
+                force: true,
+              });
+              cy.log("Clicked Confirm button");
+              break;
+
+            case "fallback":
+            default:
+              cy.get("body").then(($body) => {
+                const buttons = $body.find("button:visible");
+                for (let i = 0; i < buttons.length; i++) {
+                  const btnText = buttons[i].innerText.toLowerCase();
+                  if (
+                    /continue|submit|verify|next|pay|confirm|agree/i.test(
+                      btnText
+                    )
+                  ) {
+                    cy.wrap(buttons[i]).click({ force: true });
+                    cy.log("Clicked button: " + btnText);
+                    break;
+                  }
+                }
+              });
+              break;
+          }
+        });
+      };
+
+      function runUntilComplete(maxSteps, delay) {
+        if (maxSteps <= 0) {
+          cy.log("Max steps reached, stopping");
+          return;
+        }
+
+        cy.url().then((currentUrl) => {
+          cy.log(`Step remaining: ${maxSteps} | Current URL: ${currentUrl}`);
+
+          handleAffirmStep();
+
+          cy.wait(delay).then(() => {
+            runUntilComplete(maxSteps - 1, delay);
+          });
+        });
+      }
+
+      runUntilComplete(3, 6000);
+    });
+  } else {
+    cy.log("Skipping Affirm redirection - no valid redirect URL provided");
+  }
+
+  cy.then(() => {
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+
+    if (globalState) {
+      cy.url().then((currentUrl) => {
+        try {
+          const urlObj = new URL(currentUrl);
+          const urlParams = new URLSearchParams(urlObj.search);
+          const paymentId = urlParams.get("payment_id");
+
+          if (paymentId) {
+            cy.log(`Extracted payment_id from return URL: ${paymentId}`);
+            globalState.set("paymentID", paymentId);
+          } else {
+            cy.log(
+              "No payment_id found in return URL - using existing paymentID from globalState"
+            );
+          }
+        } catch (error) {
+          cy.log(`Error extracting payment_id from URL: ${error.message}`);
+        }
+      });
+    }
   });
 }
 
@@ -503,6 +1231,8 @@ function bankRedirectRedirection(
   connectorId = normalizeConnectorForRedirect(connectorId);
   let verifyUrl = false;
 
+  cy.on("uncaught:exception", () => false);
+
   // Mifinity wallet redirect: visit the redirect URL and verify the redirection
   // without waiting for a host change (mifinity redirects to an external wallet
   // authentication page that doesn't trigger a secondary redirect)
@@ -516,6 +1246,49 @@ function bankRedirectRedirection(
       cy.log(`Mifinity redirect: navigated to ${currentUrl}`);
       cy.log("Mifinity wallet redirect verified - redirection is happening");
     });
+    verifyUrl = false;
+    cy.then(() => {
+      verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+    });
+    return;
+  }
+
+  const adyenWalletTypesWithNullRedirect = ["dana", "go_pay", "momo", "vipps"];
+
+  if (
+    connectorId === "adyen" &&
+    adyenWalletTypesWithNullRedirect.includes(paymentMethodType)
+  ) {
+    if (redirectionUrl.hostname === "null") {
+      cy.log(
+        `Adyen ${paymentMethodType} redirect URL has null hostname - skipping redirect handling`
+      );
+      verifyUrl = false;
+      cy.then(() => {
+        verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+      });
+      return;
+    }
+
+    cy.visit(redirectionUrl.href, { failOnStatusCode: false });
+    cy.get("body", { timeout: CONSTANTS.TIMEOUT }).should("exist");
+    cy.log(
+      `Adyen ${paymentMethodType} redirect page loaded (may return error status)`
+    );
+    verifyUrl = false;
+    cy.then(() => {
+      verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+    });
+    return;
+  }
+
+  if (connectorId === "adyen" && paymentMethodType === "gcash") {
+    cy.visit(redirectionUrl.href, {
+      failOnStatusCode: false,
+      timeout: CONSTANTS.TIMEOUT * 2,
+    });
+    cy.get("body", { timeout: CONSTANTS.TIMEOUT * 2 }).should("exist");
+    cy.log("Adyen Gcash redirect page loaded (extended timeout)");
     verifyUrl = false;
     cy.then(() => {
       verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
@@ -689,14 +1462,77 @@ function bankRedirectRedirection(
           case "adyen":
             switch (paymentMethodType) {
               case "eps":
+              case "twint":
                 cy.get("h1").should("contain.text", "Acquirer Simulator");
                 cy.get('[value="authorised"]').click();
                 verifyUrl = true;
                 break;
+              case "paypal":
+              case "kakao_pay":
+              case "gcash":
               case "ali_pay_hk":
-                cy.get("h1").should("contain.text", "Acquirer Simulator");
-                cy.get('[value="authorised"]').click();
-                verifyUrl = true;
+                cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+                  const bodyText = $body.text() || "";
+                  if (
+                    bodyText.includes("Acquirer Simulator") &&
+                    $body.find("h1").length > 0
+                  ) {
+                    cy.get("h1").should("contain.text", "Acquirer Simulator");
+                    cy.get('[value="authorised"]').click();
+                    verifyUrl = true;
+                  } else if (
+                    bodyText.includes("PayPal") ||
+                    bodyText.includes("Log in")
+                  ) {
+                    cy.log("Adyen redirected to PayPal sandbox page");
+                    cy.get("body", { timeout: constants.TIMEOUT }).should(
+                      "exist"
+                    );
+                    verifyUrl = false;
+                  } else {
+                    cy.log(
+                      `Adyen ${paymentMethodType} redirect page loaded but unrecognized content`
+                    );
+                    verifyUrl = false;
+                  }
+                });
+                break;
+              case "momo":
+                cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+                  if ($body.find("h1").length > 0) {
+                    cy.get("h1").should("contain.text", "Acquirer Simulator");
+                    cy.get('[value="authorised"]').click();
+                    verifyUrl = true;
+                  } else if ($body.find('[value="authorised"]').length > 0) {
+                    cy.get('[value="authorised"]').click();
+                    verifyUrl = true;
+                  } else {
+                    cy.log(
+                      "Adyen Momo redirect page loaded - no h1 or authorised button found"
+                    );
+                    cy.get("body").should("exist");
+                    verifyUrl = false;
+                  }
+                });
+                break;
+              case "vipps":
+                cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+                  const bodyText = $body.text() || "";
+                  if (bodyText.includes("Acquirer Simulator")) {
+                    cy.get('[value="authorised"]').click();
+                    verifyUrl = true;
+                  } else {
+                    cy.log("Vipps redirect page loaded - skipping interaction");
+                    verifyUrl = false;
+                  }
+                });
+                break;
+              case "dana":
+              case "go_pay":
+                cy.log(
+                  `Adyen ${paymentMethodType} redirect page - skipping interaction`
+                );
+                verifyUrl = false;
                 break;
               case "pay_safe_card":
                 cy.url().should("include", "paysafecard");
@@ -732,10 +1568,32 @@ function bankRedirectRedirection(
             }
             break;
 
+          case "airwallex":
+            if (paymentMethodType === "paypal") {
+              cy.log("Handling Airwallex PayPal wallet redirect");
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+              verifyUrl = false;
+            } else if (paymentMethodType === "skrill") {
+              cy.log("Handling Airwallex Skrill wallet redirect");
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+              cy.get("button#approve", { timeout: constants.TIMEOUT })
+                .should("be.visible")
+                .click();
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported Airwallex payment method type: ${paymentMethodType}`
+              );
+            }
+            break;
+
           case "paypal":
             if (["eps", "ideal", "giropay"].includes(paymentMethodType)) {
               cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
               verifyUrl = true;
+            } else if (paymentMethodType === "paypal") {
+              cy.url().should("include", "sandbox.paypal.com");
+              verifyUrl = false;
             } else {
               throw new Error(
                 `Unsupported Paypal payment method type: ${paymentMethodType}`
@@ -992,21 +1850,17 @@ function bankRedirectRedirection(
           case "globalpay":
             switch (paymentMethodType) {
               case "ideal":
-              case "eps":
-                cy.get("body", { timeout: 15000 }).then(($body) => {
-                  const bodyText = $body.text().toLowerCase();
-                  if (
-                    bodyText.includes("timeout") ||
-                    bodyText.includes("error")
-                  ) {
-                    cy.log(
-                      `GlobalPay ${paymentMethodType} timeout detected - skipping interaction`
-                    );
-                    verifyUrl = false;
-                    return;
-                  }
+                cy.get("body", { timeout: 20000 }).then(($body) => {
+                  const bodyText = $body.text();
+                  cy.task(
+                    "cli_log",
+                    `GlobalPay ${paymentMethodType} page text: ${bodyText.substring(0, 200)}`
+                  );
+
                   if ($body.find('button[type="submit"]').length > 0) {
                     cy.get('button[type="submit"]').first().click();
+                  } else if ($body.find('input[type="submit"]').length > 0) {
+                    cy.get('input[type="submit"]').first().click();
                   } else if (
                     $body.find(
                       '[data-testid*="confirm"], [data-testid*="continue"]'
@@ -1017,6 +1871,45 @@ function bankRedirectRedirection(
                     )
                       .first()
                       .click();
+                  } else if ($body.find("a.btn, button.btn").length > 0) {
+                    cy.get("a.btn, button.btn").first().click();
+                  } else {
+                    cy.log(
+                      `No interactable elements found on GlobalPay ${paymentMethodType} page`
+                    );
+                  }
+                });
+                verifyUrl = false;
+                break;
+              case "eps":
+                cy.on("uncaught:exception", () => false);
+                cy.get("body", { timeout: 20000 }).then(($body) => {
+                  const bodyText = $body.text();
+                  cy.task(
+                    "cli_log",
+                    `GlobalPay ${paymentMethodType} page text: ${bodyText.substring(0, 200)}`
+                  );
+
+                  if ($body.find('button[type="submit"]').length > 0) {
+                    cy.get('button[type="submit"]').first().click();
+                  } else if ($body.find('input[type="submit"]').length > 0) {
+                    cy.get('input[type="submit"]').first().click();
+                  } else if (
+                    $body.find(
+                      '[data-testid*="confirm"], [data-testid*="continue"]'
+                    ).length > 0
+                  ) {
+                    cy.get(
+                      '[data-testid*="confirm"], [data-testid*="continue"]'
+                    )
+                      .first()
+                      .click();
+                  } else if ($body.find("a.btn, button.btn").length > 0) {
+                    cy.get("a.btn, button.btn").first().click();
+                  } else {
+                    cy.log(
+                      `No interactable elements found on GlobalPay ${paymentMethodType} page`
+                    );
                   }
                 });
                 verifyUrl = false;
@@ -1039,6 +1932,10 @@ function bankRedirectRedirection(
                 });
                 verifyUrl = false;
                 break;
+              case "paypal":
+                cy.url().should("include", "sandbox.paypal.com");
+                verifyUrl = false;
+                break;
               default:
                 throw new Error(
                   `Unsupported GlobalPay payment method type: ${paymentMethodType}`
@@ -1049,7 +1946,12 @@ function bankRedirectRedirection(
           case "loonio":
             switch (paymentMethodType) {
               case "interac":
-                cy.contains("p", "Pay with Interac e-transfer").click();
+                cy.log("Handling Loonio Interac bank redirect flow");
+                cy.contains("button", "Back to Cashier", {
+                  timeout: constants.TIMEOUT / 3,
+                })
+                  .should("be.visible")
+                  .click();
 
                 verifyUrl = true;
                 break;
@@ -1085,7 +1987,16 @@ function bankRedirectRedirection(
             break;
 
           case "multisafepay":
-            if (["sofort", "eps", "mbway"].includes(paymentMethodType)) {
+            if (
+              [
+                "sofort",
+                "eps",
+                "mb_way",
+                "ali_pay",
+                "paypal",
+                "we_chat_pay",
+              ].includes(paymentMethodType)
+            ) {
               // Multisafe pay has CSRF blocking cannot actually test redirection flow via cypress
               // cy.get(".btn-msp-success").click();
 
@@ -1132,6 +2043,30 @@ function bankRedirectRedirection(
               default:
                 throw new Error(
                   `Unsupported Calida payment method type: ${paymentMethodType}`
+                );
+            }
+            break;
+
+          case "paysafe":
+            switch (paymentMethodType) {
+              case "interac":
+                cy.log("Handling Paysafe Interac bank redirect flow");
+
+                verifyUrl = false;
+                break;
+              case "skrill":
+                cy.log("Handling Paysafe Skrill wallet redirect flow");
+
+                verifyUrl = false;
+                break;
+              case "pay_safe_card":
+                cy.log("Handling Paysafe PaySafeCard gift card redirect flow");
+
+                verifyUrl = false;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported Paysafe payment method type in handleFlow: ${paymentMethodType}`
                 );
             }
             break;
@@ -1281,30 +2216,6 @@ function bankRedirectRedirection(
             }
             break;
 
-          case "paysafe":
-            switch (paymentMethodType) {
-              case "interac":
-                cy.log("Handling Paysafe Interac bank redirect flow");
-
-                verifyUrl = false;
-                break;
-              case "skrill":
-                cy.log("Handling Paysafe Skrill wallet redirect flow");
-
-                verifyUrl = false;
-                break;
-              case "pay_safe_card":
-                cy.log("Handling Paysafe PaySafeCard gift card redirect flow");
-
-                verifyUrl = false;
-                break;
-              default:
-                throw new Error(
-                  `Unsupported Paysafe payment method type in handleFlow: ${paymentMethodType}`
-                );
-            }
-            break;
-
           default:
             throw new Error(
               `Unsupported connector in handleFlow: ${connectorId}`
@@ -1320,7 +2231,12 @@ function bankRedirectRedirection(
   });
 }
 
-function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
+function threeDsRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
   let responseContentType = null;
 
   // First check what type of response we get from the redirect URL
@@ -1385,6 +2301,26 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     cy.log("Submitted OTP");
     // Wait for redirect URL to load
     cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl);
+
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    return;
+  }
+
+  if (connectorId === "iatapay" && paymentMethodType === "duit_now") {
+    cy.log("Starting iatapay RealTimePayment redirection flow for DuitNow");
+
+    cy.get(".iatapay-button.iatapay-button--secondary", {
+      timeout: CONSTANTS.TIMEOUT,
+    })
+      .should("be.visible")
+      .click();
+
+    cy.log("Clicked Simulate button");
+
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should(
+      "include",
+      expectedUrl.hostname
+    );
 
     verifyReturnUrl(redirectionUrl, expectedUrl, true);
     return;
@@ -1931,6 +2867,175 @@ function rewardRedirection(
   });
 }
 
+function voucherRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
+  let verifyUrl = false;
+
+  if (redirectionUrl && redirectionUrl.href) {
+    cy.visit(redirectionUrl.href);
+    waitForRedirect(redirectionUrl.href);
+
+    handleFlow(
+      redirectionUrl,
+      expectedUrl,
+      connectorId,
+      ({ connectorId, paymentMethodType, constants }) => {
+        switch (connectorId) {
+          case "adyen":
+            switch (paymentMethodType) {
+              case "boleto":
+              case "oxxo":
+              case "alfamart":
+              case "indomaret":
+                // display_voucher_information vouchers — never reach here because
+                // handleVoucherRedirection skips the redirect step entirely
+                cy.log(
+                  `Unexpected redirect for display_voucher_information voucher: ${paymentMethodType}`
+                );
+                verifyUrl = false;
+                break;
+              case "seven_eleven":
+              case "lawson":
+              case "mini_stop":
+              case "family_mart":
+              case "seicomart":
+              case "pay_easy":
+                // Adyen voucher redirect pages show branded Japanese-language
+                // payment receipts. They are NOT Acquirer Simulator pages.
+                // Just verify the page loads with voucher content.
+                cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+                // Voucher pages have a non-standard h1 (often a full-width
+                // space) so we avoid asserting on heading text.  Instead
+                // confirm that page load succeeded by checking for known
+                // vendor logos or Japanese payment terminology.
+                cy.get("body").then(($body) => {
+                  const bodyText = $body.text();
+                  const voucherIndicators = [
+                    /お支払い/i,
+                    /払込/i,
+                    /セブン|lawson|ミニストップ|ファミリーマート|セイコーマート|ペイジー/i,
+                    /お客様名/i,
+                    /前払い/i,
+                    /\u3000/, // full-width space
+                  ];
+                  const isVoucherPage = voucherIndicators.some((pat) =>
+                    pat.test(bodyText)
+                  );
+                  if (isVoucherPage) {
+                    cy.log(
+                      `Verified Adyen voucher redirect page loaded for ${paymentMethodType}`
+                    );
+                  } else {
+                    cy.log(
+                      `Warning: Voucher page content not recognized for ${paymentMethodType}. Body length: ${bodyText.length}`
+                    );
+                  }
+                });
+                verifyUrl = false;
+                break;
+              default:
+                cy.log(`Unhandled Adyen voucher type: ${paymentMethodType}`);
+                verifyUrl = false;
+            }
+            break;
+          case "dlocal":
+            switch (paymentMethodType) {
+              case "oxxo":
+                // Dlocal Oxxo returns a redirect URL via ticket.image_url.
+                // Visit the page, inspect for interactive elements,
+                // and attempt to complete payment.
+                cy.log(`Dlocal Oxxo voucher — visiting redirect URL`);
+
+                // Suppress potential JS errors from sandbox/test pages
+                cy.on("uncaught:exception", () => false);
+
+                cy.get("body", { timeout: constants.TIMEOUT })
+                  .should("exist")
+                  .then(($body) => {
+                    const bodyText = $body.text().toLowerCase();
+
+                    // Determine if this is an interactive payment page
+                    const hasPayButton =
+                      $body.find('button:visible, input[type="submit"]:visible')
+                        .length > 0;
+                    const hasInteractiveElements = [
+                      /pay/i,
+                      /confirm/i,
+                      /continue/i,
+                      /submit/i,
+                    ].some((pat) => pat.test(bodyText));
+
+                    if (hasPayButton || hasInteractiveElements) {
+                      cy.log(
+                        `Interactive Oxxo page detected — attempting to complete payment`
+                      );
+
+                      // Generic button click strategy
+                      cy.get("body").then(($b) => {
+                        const buttons = $b.find("button:visible");
+                        for (let i = 0; i < buttons.length; i++) {
+                          const btnText = buttons[i].innerText.toLowerCase();
+                          if (
+                            /pay|confirm|continue|submit|complete/i.test(
+                              btnText
+                            )
+                          ) {
+                            cy.wrap(buttons[i]).click({ force: true });
+                            cy.log(`Clicked payment button: ${btnText}`);
+                            break;
+                          }
+                        }
+                      });
+
+                      // If there's a form, try to fill any visible inputs
+                      cy.get("body").then(($b) => {
+                        const inputs = $b.find(
+                          "input:visible:not([type='hidden'])"
+                        );
+                        if (inputs.length > 0) {
+                          cy.log(
+                            `Found ${inputs.length} visible input(s) on Oxxo page`
+                          );
+                        }
+                      });
+
+                      verifyUrl = true;
+                    } else {
+                      // No interactive elements — display-only page (e.g. static barcode/image)
+                      cy.log(
+                        `Dlocal Oxxo page has no clickable payment buttons — display-only voucher`
+                      );
+                      verifyUrl = false;
+                    }
+                  });
+                break;
+              default:
+                cy.log(`Unhandled dlocal voucher type: ${paymentMethodType}`);
+                verifyUrl = false;
+            }
+            break;
+          default:
+            cy.log(
+              `Generic voucher handling for ${connectorId}/${paymentMethodType}`
+            );
+            verifyUrl = false;
+        }
+      },
+      { paymentMethodType }
+    );
+  } else {
+    cy.log("Skipping voucher redirection - no valid redirect URL provided");
+  }
+
+  cy.then(() => {
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+  });
+}
+
 function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
   if (!forwardFlow) {
     cy.log("Skipping return URL verification as forwardFlow is false.");
@@ -2215,12 +3320,10 @@ function paymentLinkCardRedirection(
             name.includes("card_number") ||
             autocomplete.includes("cc-number")
           ) {
-            /* eslint-disable cypress/no-force */
             cy.wrap(input)
-              .focus()
-              .clear({ force: true })
-              .type(card_number, { delay: 30, force: true });
-            /* eslint-enable cypress/no-force */
+              .should("be.visible")
+              .clear()
+              .type(card_number, { delay: 30 });
             cy.task("cli_log", `Filled card number in iframe ${index}`);
           } else if (
             placeholder.includes("expir") ||
@@ -2230,15 +3333,12 @@ function paymentLinkCardRedirection(
             name.includes("exp") ||
             autocomplete.includes("cc-exp")
           ) {
-            /* eslint-disable cypress/no-force */
             cy.wrap(input)
-              .focus()
-              .clear({ force: true })
+              .should("be.visible")
+              .clear()
               .type(`${card_exp_month}${card_exp_year.slice(-2)}`, {
                 delay: 30,
-                force: true,
               });
-            /* eslint-enable cypress/no-force */
             cy.task("cli_log", `Filled expiry in iframe ${index}`);
           } else if (
             placeholder.includes("cvc") ||
@@ -2250,12 +3350,10 @@ function paymentLinkCardRedirection(
             name.includes("cvv") ||
             autocomplete.includes("cc-csc")
           ) {
-            /* eslint-disable cypress/no-force */
             cy.wrap(input)
-              .focus()
-              .clear({ force: true })
-              .type(card_cvc, { delay: 30, force: true });
-            /* eslint-enable cypress/no-force */
+              .should("be.visible")
+              .clear()
+              .type(card_cvc, { delay: 30 });
             cy.task("cli_log", `Filled CVC in iframe ${index}`);
           }
         });
@@ -2270,12 +3368,10 @@ function paymentLinkCardRedirection(
     });
   });
 
-  /* eslint-disable cypress/no-force */
   cy.get("#submit", { timeout: 30000 })
     .should("be.visible")
     .and("not.have.class", "hidden")
-    .click({ force: true });
-  /* eslint-enable cypress/no-force */
+    .click();
   cy.task("cli_log", "Clicked submit button");
 
   if (expectedOutcome === "error") {

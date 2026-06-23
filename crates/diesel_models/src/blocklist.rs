@@ -11,6 +11,8 @@ pub struct BlocklistNew {
     pub data_kind: common_enums::BlocklistDataKind,
     pub metadata: Option<serde_json::Value>,
     pub created_at: time::PrimitiveDateTime,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(
@@ -23,4 +25,6 @@ pub struct Blocklist {
     pub data_kind: common_enums::BlocklistDataKind,
     pub metadata: Option<serde_json::Value>,
     pub created_at: time::PrimitiveDateTime,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }

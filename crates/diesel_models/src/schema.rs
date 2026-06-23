@@ -181,6 +181,8 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        #[max_length = 32]
+        updated_by -> Nullable<Varchar>,
     }
 }
 
@@ -215,6 +217,10 @@ diesel::table! {
         data_kind -> BlocklistDataKind,
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1211,6 +1217,8 @@ diesel::table! {
         network_transaction_link_id -> Nullable<Varchar>,
         #[max_length = 255]
         sender_payment_instrument_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        external_threeds_authentication_type -> Nullable<Varchar>,
     }
 }
 
@@ -1325,6 +1333,9 @@ diesel::table! {
         installment_options -> Nullable<Jsonb>,
         #[max_length = 64]
         profile_acquirer_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        external_surcharge_strategy -> Nullable<Varchar>,
+        external_surcharge_applicable -> Nullable<Bool>,
     }
 }
 
@@ -1440,6 +1451,7 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 255]
         network_transaction_link_id -> Nullable<Varchar>,
+        compatibility_updated_at -> Nullable<Timestamp>,
     }
 }
 
@@ -1672,6 +1684,10 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         response_data -> Nullable<Jsonb>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1747,6 +1763,10 @@ diesel::table! {
         algorithm_for -> TransactionType,
         #[max_length = 64]
         decision_engine_routing_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 

@@ -16,7 +16,6 @@ use hyperswitch_masking::PeekInterface;
 use router_env::tracing::{self, instrument};
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
-    types::process_data,
     utils as scheduler_utils,
 };
 #[cfg(feature = "v1")]
@@ -307,13 +306,6 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
 ///     "start_after": 60,
 ///     "frequency": [300],
 ///     "count": [5]
-///   },
-///   "custom_merchant_mapping": {
-///     "merchant_id1": {
-///       "start_after": 30,
-///       "frequency": [300],
-///       "count": [2]
-///     }
 ///   }
 /// }
 /// ```
@@ -323,49 +315,20 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
 ///   default.
 /// - `default_mapping.frequency` and `count`: The next 5 retries should have an interval of 300
 ///   seconds between them by default.
-/// - `custom_merchant_mapping.merchant_id1`: Merchant-specific retry configuration for merchant
-///   with merchant ID `merchant_id1`.
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub(crate) async fn get_webhook_delivery_retry_schedule_time(
     db: &dyn StorageInterface,
-    merchant_id: &id_type::MerchantId,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantId,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
-    let key = "pt_mapping_outgoing_webhooks";
+    let mapping = dimensions
+        .get_pt_mapping_outgoing_webhooks(db, superposition_client, None)
+        .await;
 
-    let result = db
-        .find_config_by_key(key)
-        .await
-        .map(|value| value.config)
-        .and_then(|config| {
-            config
-                .parse_struct("OutgoingWebhookRetryProcessTrackerMapping")
-                .change_context(errors::StorageError::DeserializationFailed)
-        });
-    let mapping = result.map_or_else(
-        |error| {
-            if error.current_context().is_db_not_found() {
-                logger::debug!("Outgoing webhooks retry config `{key}` not found, ignoring");
-            } else {
-                logger::error!(
-                    ?error,
-                    "Failed to read outgoing webhooks retry config `{key}`"
-                );
-            }
-            process_data::OutgoingWebhookRetryProcessTrackerMapping::default()
-        },
-        |mapping| {
-            logger::debug!(?mapping, "Using custom outgoing webhooks retry config");
-            mapping
-        },
-    );
-
-    let time_delta = scheduler_utils::get_outgoing_webhook_retry_schedule_time(
-        mapping,
-        merchant_id,
-        retry_count,
-    );
+    let time_delta =
+        scheduler_utils::get_outgoing_webhook_retry_schedule_time(mapping, retry_count);
 
     scheduler_utils::get_time_from_delta(time_delta)
 }
@@ -375,11 +338,19 @@ pub(crate) async fn get_webhook_delivery_retry_schedule_time(
 #[instrument(skip_all)]
 pub(crate) async fn retry_webhook_delivery_task(
     db: &dyn StorageInterface,
+    superposition_client: &external_services::superposition::SuperpositionClient,
     merchant_id: &id_type::MerchantId,
     process: storage::ProcessTracker,
 ) -> errors::CustomResult<(), errors::StorageError> {
-    let schedule_time =
-        get_webhook_delivery_retry_schedule_time(db, merchant_id, process.retry_count + 1).await;
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_processor_merchant_id(merchant_id.clone().into());
+    let schedule_time = get_webhook_delivery_retry_schedule_time(
+        db,
+        superposition_client,
+        &dimensions,
+        process.retry_count + 1,
+    )
+    .await;
 
     match schedule_time {
         Some(schedule_time) => {
@@ -458,6 +429,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                 None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
             ))
             .await?
             {

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use api_models::payments::{MandateIds, MandateReferenceId};
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -9,6 +8,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     address,
+    mandates::{MandateIds, MandateReferenceId},
     payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{Authorize, SetupMandate},

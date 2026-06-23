@@ -6,7 +6,6 @@ use common_enums::enums;
 use common_utils::{crypto, errors::CustomResult, ext_traits::ByteSliceExt, request::Request};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -41,33 +40,33 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use hyperswitch_masking::{Mask, PeekInterface};
-use transformers as sanlam;
+use transformers as absa_sanlam;
 
 use crate::{constants::headers, types::ResponseRouterData, utils::get_header_key_value};
 
 #[derive(Clone)]
-pub struct Sanlam {}
+pub struct AbsaSanlam {}
 
-impl Sanlam {
+impl AbsaSanlam {
     pub fn new() -> &'static Self {
         &Self {}
     }
 }
 
-impl api::Payment for Sanlam {}
-impl api::PaymentSession for Sanlam {}
-impl api::ConnectorAccessToken for Sanlam {}
-impl api::MandateSetup for Sanlam {}
-impl api::PaymentAuthorize for Sanlam {}
-impl api::PaymentSync for Sanlam {}
-impl api::PaymentCapture for Sanlam {}
-impl api::PaymentVoid for Sanlam {}
-impl api::Refund for Sanlam {}
-impl api::RefundExecute for Sanlam {}
-impl api::RefundSync for Sanlam {}
-impl api::PaymentToken for Sanlam {}
+impl api::Payment for AbsaSanlam {}
+impl api::PaymentSession for AbsaSanlam {}
+impl api::ConnectorAccessToken for AbsaSanlam {}
+impl api::MandateSetup for AbsaSanlam {}
+impl api::PaymentAuthorize for AbsaSanlam {}
+impl api::PaymentSync for AbsaSanlam {}
+impl api::PaymentCapture for AbsaSanlam {}
+impl api::PaymentVoid for AbsaSanlam {}
+impl api::Refund for AbsaSanlam {}
+impl api::RefundExecute for AbsaSanlam {}
+impl api::RefundSync for AbsaSanlam {}
+impl api::PaymentToken for AbsaSanlam {}
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Sanlam
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for AbsaSanlam
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -87,9 +86,9 @@ where
     }
 }
 
-impl ConnectorCommon for Sanlam {
+impl ConnectorCommon for AbsaSanlam {
     fn id(&self) -> &'static str {
-        "sanlam"
+        "absa_sanlam"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
@@ -101,7 +100,7 @@ impl ConnectorCommon for Sanlam {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.sanlam.base_url.as_ref()
+        connectors.absa_sanlam.base_url.as_ref()
     }
 
     fn get_auth_header(
@@ -109,7 +108,7 @@ impl ConnectorCommon for Sanlam {
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
-        let auth = sanlam::SanlamAuthType::try_from(auth_type)
+        let auth = absa_sanlam::AbsaSanlamAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![
             (
@@ -124,21 +123,7 @@ impl ConnectorCommon for Sanlam {
     }
 }
 
-impl ConnectorValidation for Sanlam {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
+impl ConnectorValidation for AbsaSanlam {
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,
@@ -150,7 +135,7 @@ impl ConnectorValidation for Sanlam {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Sanlam {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for AbsaSanlam {
     fn build_request(
         &self,
         _req: &PaymentsSessionRouterData,
@@ -158,14 +143,14 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Session".to_string(),
-            connector: "Sanlam".to_string(),
+            connector: "AbsaSanlam".to_string(),
         }
         .into())
     }
 }
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Sanlam
+    for AbsaSanlam
 {
     fn build_request(
         &self,
@@ -174,13 +159,13 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "PaymentMethodToken".to_string(),
-            connector: "Sanlam".to_string(),
+            connector: "AbsaSanlam".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Sanlam {
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for AbsaSanlam {
     fn build_request(
         &self,
         _req: &RefreshTokenRouterData,
@@ -188,13 +173,15 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "AccessTokenAuth".to_string(),
-            connector: "Sanlam".to_string(),
+            connector: "AbsaSanlam".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Sanlam {
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for AbsaSanlam
+{
     fn build_request(
         &self,
         _req: &SetupMandateRouterData,
@@ -202,13 +189,13 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "SetupMandate".to_string(),
-            connector: "Sanlam".to_string(),
+            connector: "AbsaSanlam".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Sanlam {
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for AbsaSanlam {
     fn build_request(
         &self,
         _req: &PaymentsAuthorizeRouterData,
@@ -216,13 +203,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Authorize".to_string(),
-            connector: "Sanlam".to_string(),
+            connector: "AbsaSanlam".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Sanlam {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for AbsaSanlam {
     fn build_request(
         &self,
         _req: &PaymentsSyncRouterData,
@@ -230,7 +217,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "PSync".to_string(),
-            connector: "Sanlam".to_string(),
+            connector: "AbsaSanlam".to_string(),
         }
         .into())
     }
@@ -241,9 +228,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: sanlam::SanlamWebhookEvent = res
+        let response: absa_sanlam::AbsaSanlamWebhookEvent = res
             .response
-            .parse_struct("SanlamWebhookEvent")
+            .parse_struct("AbsaSanlamWebhookEvent")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -255,7 +242,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Sanlam {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for AbsaSanlam {
     fn build_request(
         &self,
         _req: &PaymentsCaptureRouterData,
@@ -263,13 +250,13 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Capture".to_string(),
-            connector: "Sanlam".to_string(),
+            connector: "AbsaSanlam".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sanlam {
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for AbsaSanlam {
     fn build_request(
         &self,
         _req: &PaymentsCancelRouterData,
@@ -277,13 +264,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Void".to_string(),
-            connector: "Sanlam".to_string(),
+            connector: "AbsaSanlam".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Sanlam {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for AbsaSanlam {
     fn build_request(
         &self,
         _req: &RefundExecuteRouterData,
@@ -291,13 +278,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Sanlam 
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Execute".to_string(),
-            connector: "Sanlam".to_string(),
+            connector: "AbsaSanlam".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Sanlam {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for AbsaSanlam {
     fn build_request(
         &self,
         _req: &RefundSyncRouterData,
@@ -305,14 +292,14 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Sanlam {
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "RSync".to_string(),
-            connector: "Sanlam".to_string(),
+            connector: "AbsaSanlam".to_string(),
         }
         .into())
     }
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Sanlam {
+impl webhooks::IncomingWebhook for AbsaSanlam {
     fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -345,14 +332,13 @@ impl webhooks::IncomingWebhook for Sanlam {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let details: sanlam::SanlamWebhookEvent =
-            request
-                .body
-                .parse_struct("SanlamWebhookEvent")
-                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let details: absa_sanlam::AbsaSanlamWebhookEvent = request
+            .body
+            .parse_struct("AbsaSanlamWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         let id = match details {
-            sanlam::SanlamWebhookEvent::Payment(ref event) => {
+            absa_sanlam::AbsaSanlamWebhookEvent::Payment(ref event) => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::PaymentAttemptId(
                         event.payment.user_reference.clone(),
@@ -369,21 +355,20 @@ impl webhooks::IncomingWebhook for Sanlam {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: sanlam::SanlamWebhookEvent =
-            request
-                .body
-                .parse_struct("SanlamWebhookEvent")
-                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let details: absa_sanlam::AbsaSanlamWebhookEvent = request
+            .body
+            .parse_struct("AbsaSanlamWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         let event_type = match details {
-            sanlam::SanlamWebhookEvent::Payment(ref event) => match event.event_type {
-                sanlam::SanlamWebhookEventType::PaymentSucceeded => {
+            absa_sanlam::AbsaSanlamWebhookEvent::Payment(ref event) => match event.event_type {
+                absa_sanlam::AbsaSanlamWebhookEventType::PaymentSucceeded => {
                     api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
                 }
-                sanlam::SanlamWebhookEventType::PaymentFailed => {
+                absa_sanlam::AbsaSanlamWebhookEventType::PaymentFailed => {
                     api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure
                 }
-                sanlam::SanlamWebhookEventType::DisputeOpened => {
+                absa_sanlam::AbsaSanlamWebhookEventType::DisputeOpened => {
                     api_models::webhooks::IncomingWebhookEvent::DisputeOpened
                 }
             },
@@ -397,53 +382,53 @@ impl webhooks::IncomingWebhook for Sanlam {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
     {
-        let details: sanlam::SanlamWebhookEvent =
-            request
-                .body
-                .parse_struct("SanlamWebhookEvent")
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let details: absa_sanlam::AbsaSanlamWebhookEvent = request
+            .body
+            .parse_struct("AbsaSanlamWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(Box::new(details))
     }
 }
 
-static SANLAM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-    let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+static ABSA_SANLAM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
-    let mut sanlam_supported_payment_methods = SupportedPaymentMethods::new();
-    sanlam_supported_payment_methods.add(
-        enums::PaymentMethod::BankDebit,
-        enums::PaymentMethodType::EftDebitOrder,
-        PaymentMethodDetails {
-            mandates: common_enums::FeatureStatus::NotSupported,
-            refunds: common_enums::FeatureStatus::NotSupported,
-            supported_capture_methods: supported_capture_methods.clone(),
-            specific_features: None,
-        },
-    );
+        let mut absa_sanlam_supported_payment_methods = SupportedPaymentMethods::new();
+        absa_sanlam_supported_payment_methods.add(
+            enums::PaymentMethod::BankDebit,
+            enums::PaymentMethodType::EftDebitOrder,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::NotSupported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
 
-    sanlam_supported_payment_methods
-});
+        absa_sanlam_supported_payment_methods
+    });
 
-static SANLAM_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Sanlam",
-    description: "Sanlam connector",
+static ABSA_SANLAM_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "AbsaSanlam",
+    description: "AbsaSanlam connector",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
-static SANLAM_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static ABSA_SANLAM_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
-impl ConnectorSpecifications for Sanlam {
+impl ConnectorSpecifications for AbsaSanlam {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&SANLAM_CONNECTOR_INFO)
+        Some(&ABSA_SANLAM_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*SANLAM_SUPPORTED_PAYMENT_METHODS)
+        Some(&*ABSA_SANLAM_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&SANLAM_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&ABSA_SANLAM_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

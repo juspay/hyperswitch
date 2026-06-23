@@ -271,6 +271,11 @@ pub struct CardTestingGuardConfig {
     pub customer_id_blocking_threshold: i32,
     /// Determines Redis Expiry for Card Testing Guard for profile
     pub card_testing_guard_expiry: i32,
+    /// Determines if Guest IP Blocking is enabled for profile
+    pub guest_ip_blocking_status: Option<CardTestingGuardStatus>,
+    /// Determines the unsuccessful payment threshold for Guest IP Blocking for profile
+    #[schema(default = 10)]
+    pub guest_ip_blocking_threshold: Option<i32>,
 }
 
 /// Configuration for payment method blocking based on card attributes
@@ -1091,14 +1096,15 @@ pub struct MerchantConnectorCreate {
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    #[schema(deprecated)]
     pub business_label: Option<String>,
 
     /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "chase")]
+    #[schema(example = "chase", deprecated)]
     pub business_sub_label: Option<String>,
 
     /// Unique ID of the connector
@@ -1546,15 +1552,15 @@ pub struct MerchantConnectorResponse {
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     ///The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "travel")]
+    #[schema(example = "travel", deprecated)]
     pub business_label: Option<String>,
 
     /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "chase")]
+    #[schema(example = "chase", deprecated)]
     pub business_sub_label: Option<String>,
 
     /// identifier for the verified domains of a particular connector account
@@ -1658,15 +1664,15 @@ pub struct MerchantConnectorListResponse {
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     ///The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "travel")]
+    #[schema(example = "travel", deprecated)]
     pub business_label: Option<String>,
 
     /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "chase")]
+    #[schema(example = "chase", deprecated)]
     pub business_sub_label: Option<String>,
 
     /// identifier for the verified domains of a particular connector account
@@ -1971,6 +1977,7 @@ pub struct FrmPaymentMethod {
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: Option<common_enums::PaymentMethod>,
     ///payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.
+    #[schema(deprecated)]
     pub payment_method_types: Option<Vec<FrmPaymentMethodType>>,
     ///frm flow type to be used, can be pre/post
     #[schema(value_type = Option<FrmPreferredFlowTypes>)]
@@ -3538,6 +3545,9 @@ pub struct PaymentLinkConfigRequest {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
+    /// Flag to display the merchant name in the payment link
+    #[schema(default = true, example = true)]
+    pub show_merchant_name: Option<bool>,
 }
 
 impl PaymentLinkConfigRequest {
@@ -3650,6 +3660,8 @@ pub struct PaymentLinkConfig {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
+    /// Flag to display the merchant name in the payment link
+    pub show_merchant_name: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

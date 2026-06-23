@@ -9,7 +9,7 @@ crate::global_id_type!(
 
 The format will be `<cell_id>_<entity_prefix>_<time_ordered_id>`.
 
-Example: `cell1_pay_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p`"
+Example: `0a_pay_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p`"
 );
 
 // Database related implementations so that this field can be used directly in the database tables

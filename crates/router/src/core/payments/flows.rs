@@ -2,13 +2,14 @@ pub mod approve_flow;
 pub mod authorize_flow;
 pub mod cancel_flow;
 pub mod cancel_post_capture_flow;
+pub mod cancel_post_capture_sync_flow;
 pub mod capture_flow;
 pub mod complete_authorize_flow;
 pub mod extend_authorization_flow;
-#[cfg(feature = "v2")]
 pub mod external_proxy_flow;
 pub mod incremental_authorization_flow;
 pub mod post_session_tokens_flow;
+pub mod pre_authorize_void_flow;
 pub mod psync_flow;
 pub mod reject_flow;
 pub mod session_flow;
@@ -20,7 +21,6 @@ pub mod update_post_confirm_flow;
 use async_trait::async_trait;
 use common_enums;
 use common_types::payments::CustomerAcceptance;
-#[cfg(feature = "v2")]
 use external_services::grpc_client;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
@@ -321,6 +321,25 @@ pub trait Feature<F, T> {
         _lineage_ids: grpc_client::LineageIds,
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _processor: &domain::Processor,
+        _unified_connector_service_execution_mode: common_enums::ExecutionMode,
+    ) -> RouterResult<()>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(())
+    }
+
+    #[cfg(feature = "v1")]
+    async fn call_unified_connector_service_with_external_vault_proxy_v1<'a>(
+        &mut self,
+        _state: &SessionState,
+        _header_payload: &domain_payments::HeaderPayload,
+        _lineage_ids: grpc_client::LineageIds,
+        _merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
+        _external_vault_merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         _processor: &domain::Processor,
         _unified_connector_service_execution_mode: common_enums::ExecutionMode,
     ) -> RouterResult<()>

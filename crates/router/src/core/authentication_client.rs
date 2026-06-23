@@ -38,7 +38,7 @@ impl<'a> AuthenticationServiceClient<'a> {
     }
 }
 
-impl<'a> MicroserviceClient for AuthenticationServiceClient<'a> {
+impl MicroserviceClient for AuthenticationServiceClient<'_> {
     fn base_url(&self) -> &Url {
         &self.base_url
     }

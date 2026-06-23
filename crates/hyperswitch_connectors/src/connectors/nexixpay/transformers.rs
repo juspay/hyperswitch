@@ -12,6 +12,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -977,7 +978,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                     }
                 }
             }
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+            Some(mandates::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
                 let contract_id = Secret::new(
                     mandate_data
                         .get_connector_mandate_request_reference_id()
@@ -992,9 +993,9 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                     },
                 )))
             }
-            Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
-            | Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
-            | Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
+            Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+            | Some(mandates::MandateReferenceId::NetworkMandateId(_))
+            | Some(mandates::MandateReferenceId::CardWithLimitedData) => {
                 Err(errors::ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("nexixpay"),
                 )

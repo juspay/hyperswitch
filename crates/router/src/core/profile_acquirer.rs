@@ -12,11 +12,11 @@ use crate::{
 pub async fn create_profile_acquirer(
     state: SessionState,
     request: profile_acquirer::ProfileAcquirerCreate,
-    platform: domain::Platform,
+    processor: domain::Processor,
 ) -> RouterResponse<profile_acquirer::ProfileAcquirerResponse> {
     let db = state.store.as_ref();
     let profile_acquirer_id = common_utils::generate_profile_acquirer_id_of_default_length();
-    let merchant_key_store = platform.get_processor().get_key_store();
+    let merchant_key_store = processor.get_key_store();
 
     let mut business_profile = db
         .find_business_profile_by_profile_id(merchant_key_store, &request.profile_id)
@@ -44,7 +44,11 @@ pub async fn create_profile_acquirer(
         acquirer_bin: Some(request.acquirer_bin.clone()),
         acquirer_ica: request.acquirer_ica.clone(),
         acquirer_fraud_rate: request.acquirer_fraud_rate,
-        acquirer_country_code: request.acquirer_country_code.clone(),
+        acquirer_country_code: request.acquirer_country_code.map(|code| {
+            common_enums::Country::from_alpha2(code)
+                .to_numeric()
+                .to_string()
+        }),
     };
 
     // Initialize the new bucket as a Vec containing its first AcquirerConfig entry.
@@ -102,10 +106,10 @@ pub async fn update_profile_acquirer_config(
     profile_id: common_utils::id_type::ProfileId,
     profile_acquirer_id: common_utils::id_type::ProfileAcquirerId,
     request: profile_acquirer::ProfileAcquirerUpdate,
-    platform: domain::Platform,
+    processor: domain::Processor,
 ) -> RouterResponse<profile_acquirer::ProfileAcquirerResponse> {
     let db = state.store.as_ref();
-    let merchant_key_store = platform.get_processor().get_key_store();
+    let merchant_key_store = processor.get_key_store();
 
     let mut business_profile = db
         .find_business_profile_by_profile_id(merchant_key_store, &profile_id)
@@ -259,6 +263,12 @@ fn upsert_acquirer_config_in_bucket(
             acquirer_country_code: None,
         });
 
+    let request_acquirer_country_code = request.acquirer_country_code.map(|code| {
+        common_enums::Country::from_alpha2(code)
+            .to_numeric()
+            .to_string()
+    });
+
     let upserted_config = common_types::domain::AcquirerConfig {
         acquirer_assigned_merchant_id: request
             .acquirer_assigned_merchant_id
@@ -268,10 +278,7 @@ fn upsert_acquirer_config_in_bucket(
         acquirer_bin: request.acquirer_bin.clone().or(base.acquirer_bin),
         acquirer_ica: request.acquirer_ica.clone().or(base.acquirer_ica),
         acquirer_fraud_rate: request.acquirer_fraud_rate.or(base.acquirer_fraud_rate),
-        acquirer_country_code: request
-            .acquirer_country_code
-            .clone()
-            .or(base.acquirer_country_code),
+        acquirer_country_code: request_acquirer_country_code.or(base.acquirer_country_code),
         network: base.network,
     };
 

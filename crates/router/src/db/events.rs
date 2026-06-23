@@ -2181,7 +2181,7 @@ mod tests {
                     )
                     .await
                     .map_err(|e| format!("resolve_webhook_recipient failed: {e}"))?;
-                webhooks_core::create_event_and_trigger_outgoing_webhook(
+                Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                     state_clone,
                     cloned_platform,
                     event_type,
@@ -2191,7 +2191,7 @@ mod tests {
                     content_clone,
                     primary_object_created_at,
                     webhook_recipient,
-                )
+                ))
                 .await
                 .map_err(|e| format!("create_event_and_trigger_outgoing_webhook failed: {e}"))
             });

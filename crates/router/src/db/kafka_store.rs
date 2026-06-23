@@ -24,6 +24,7 @@ use hyperswitch_domain_models::payouts::{
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::platform::Initiator;
 use hyperswitch_domain_models::{
+    authentication::AuthenticationInterface,
     cards_info::CardsInfoInterface,
     disputes,
     invoice::{Invoice as DomainInvoice, InvoiceInterface, InvoiceUpdate as DomainInvoiceUpdate},
@@ -66,7 +67,6 @@ use crate::{
         self,
         address::AddressInterface,
         api_keys::ApiKeyInterface,
-        authentication::AuthenticationInterface,
         authorization::AuthorizationInterface,
         business_profile::ProfileInterface,
         callback_mapper::CallbackMapperInterface,
@@ -425,6 +425,29 @@ impl CustomerInterface for KafkaStore {
                 key_store,
                 storage_scheme,
             )
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_customer_for_global_id_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> CustomResult<storage::CustomerGlobalIdMigrationRow, errors::StorageError> {
+        self.diesel_store
+            .find_customer_for_global_id_migration(customer_id, merchant_id)
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn update_customer_global_id_for_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        new_id: id_type::GlobalCustomerId,
+    ) -> CustomResult<storage::CustomerGlobalIdMigrationRow, errors::StorageError> {
+        self.diesel_store
+            .update_customer_global_id_for_migration(customer_id, merchant_id, new_id)
             .await
     }
 
@@ -1690,26 +1713,6 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
-        &self,
-        connector_transaction_id: &common_utils::types::ConnectorTransactionId,
-        payment_id: &id_type::PaymentId,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
-        self.diesel_store
-            .find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
-                connector_transaction_id,
-                payment_id,
-                processor_merchant_id,
-                storage_scheme,
-                key_store,
-            )
-            .await
-    }
-
-    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_processor_merchant_id_connector_txn_id(
         &self,
         processor_merchant_id: &id_type::MerchantId,
@@ -2527,6 +2530,23 @@ impl PayoutAttemptInterface for KafkaStore {
             .await
     }
 
+    async fn find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        payout_id: &id_type::PayoutId,
+        payout_attempt_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
+        self.diesel_store
+            .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+                merchant_id,
+                payout_id,
+                payout_attempt_id,
+                storage_scheme,
+            )
+            .await
+    }
+
     async fn find_payout_attempt_by_merchant_id_connector_payout_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -3314,13 +3334,16 @@ impl RoutingAlgorithmInterface for KafkaStore {
             .await
     }
 
-    async fn find_routing_algorithm_by_algorithm_id_merchant_id(
+    async fn find_routing_algorithm_by_algorithm_id_processor_merchant_id(
         &self,
         algorithm_id: &id_type::RoutingId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
     ) -> CustomResult<storage::RoutingAlgorithm, errors::StorageError> {
         self.diesel_store
-            .find_routing_algorithm_by_algorithm_id_merchant_id(algorithm_id, merchant_id)
+            .find_routing_algorithm_by_algorithm_id_processor_merchant_id(
+                algorithm_id,
+                processor_merchant_id,
+            )
             .await
     }
 
@@ -4082,16 +4105,21 @@ impl AuthorizationInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl AuthenticationInterface for KafkaStore {
+    type Error = errors::StorageError;
+
     async fn insert_authentication(
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         authentication: hyperswitch_domain_models::authentication::Authentication,
-    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
-    {
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
         let auth = self
             .diesel_store
-            .insert_authentication(state, key_store, authentication)
+            .insert_authentication(state, key_store, authentication, storage_scheme)
             .await?;
 
         if let Err(er) = self
@@ -4111,14 +4139,18 @@ impl AuthenticationInterface for KafkaStore {
         authentication_id: &id_type::AuthenticationId,
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
-    {
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
         self.diesel_store
             .find_authentication_by_merchant_id_authentication_id(
                 merchant_id,
                 authentication_id,
                 key_store,
                 state,
+                storage_scheme,
             )
             .await
     }
@@ -4129,14 +4161,18 @@ impl AuthenticationInterface for KafkaStore {
         connector_authentication_id: String,
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
-    {
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
         self.diesel_store
             .find_authentication_by_merchant_id_connector_authentication_id(
                 merchant_id,
                 connector_authentication_id,
                 key_store,
                 state,
+                storage_scheme,
             )
             .await
     }
@@ -4147,8 +4183,11 @@ impl AuthenticationInterface for KafkaStore {
         authentication_update: hyperswitch_domain_models::authentication::AuthenticationUpdate,
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
-    {
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
         let auth = self
             .diesel_store
             .update_authentication_by_merchant_id_authentication_id(
@@ -4156,6 +4195,7 @@ impl AuthenticationInterface for KafkaStore {
                 authentication_update,
                 key_store,
                 state,
+                storage_scheme,
             )
             .await?;
 

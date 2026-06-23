@@ -1,6 +1,6 @@
+use hyperswitch_domain_models::mandates::{MandateIds, MandateReferenceId};
 pub mod request;
 pub mod response;
-use api_models::payments::{MandateIds, MandateReferenceId};
 use base64::Engine;
 use common_enums::{enums, Currency, PaymentChannel};
 use common_utils::{

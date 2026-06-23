@@ -4,6 +4,7 @@ import { updateDefaultStatusCode } from "./Modifiers.js";
 
 import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
+import { connectorDetails as affirmConnectorDetails } from "./Affirm.js";
 import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 import { connectorDetails as authipayConnectorDetails } from "./Authipay.js";
@@ -12,6 +13,7 @@ import { connectorDetails as bamboraConnectorDetails } from "./Bambora.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as barclaycardConnectorDetails } from "./Barclaycard.js";
+import { connectorDetails as bitpayConnectorDetails } from "./Bitpay.js";
 import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
@@ -20,6 +22,7 @@ import { connectorDetails as cashtocodeConnectorDetails } from "./Cashtocode.js"
 import { connectorDetails as celeroConnectorDetails } from "./Celero.js";
 import { connectorDetails as checkbookConnectorDetails } from "./Checkbook.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
+import { connectorDetails as coingateConnectorDetails } from "./Coingate.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cryptopayConnectorDetails } from "./Cryptopay.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
@@ -58,6 +61,7 @@ import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
+import { connectorDetails as rapydConnectorDetails } from "./Rapyd.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
 import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js";
@@ -80,6 +84,7 @@ import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
+  affirm: affirmConnectorDetails,
   airwallex: airwallexConnectorDetails,
   archipel: archipelConnectorDetails,
   authipay: authipayConnectorDetails,
@@ -88,6 +93,7 @@ const connectorDetails = {
   bamboraapac: bamboraapacConnectorDetails,
   barclaycard: barclaycardConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
+  bitpay: bitpayConnectorDetails,
   billwerk: billwerkConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
@@ -97,6 +103,7 @@ const connectorDetails = {
   checkout: checkoutConnectorDetails,
   checkbook: checkbookConnectorDetails,
   commons: commonConnectorDetails,
+  coingate: coingateConnectorDetails,
   cryptopay: cryptopayConnectorDetails,
   cybersource: cybersourceConnectorDetails,
   dlocal: dlocalConnectorDetails,
@@ -133,6 +140,7 @@ const connectorDetails = {
   payu: payuConnectorDetails,
   peachpayments: peachpaymentsConnectorDetails,
   powertranz: powertranzConnectorDetails,
+  rapyd: rapydConnectorDetails,
   redsys: redsysConnectorDetails,
   shift4: shift4ConnectorDetails,
   silverflow: silverflowConnectorDetails,
@@ -429,14 +437,19 @@ export const CONNECTOR_LISTS = {
       "bamboraapac",
       "bankofamerica",
       "billwerk",
+      "bluesnap",
       "braintree",
+      "cashtocode",
       "facilitapay",
       "fiserv",
       "fiuu",
       "forte",
       "globalpay",
+      "gigadat",
       "jpmorgan",
+      "loonio",
       "nexinets",
+      "noon",
       "novalnet",
       "payload",
       "paypal",
@@ -448,7 +461,14 @@ export const CONNECTOR_LISTS = {
       "mollie",
       "zift",
     ],
-    MANDATE_ID_TEST: ["airwallex", "payload"],
+    MANDATE_ID_TEST: [
+      "airwallex",
+      "payload",
+      "gigadat",
+      "loonio",
+      "redsys",
+      "worldpayxml",
+    ],
     // Add more exclusion lists
   },
 
@@ -523,16 +543,31 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stripe",
     ],
-    BANK_DEBIT: ["adyen", "novalnet", "payload"], // payload verified as working
+    BANK_DEBIT: ["adyen", "novalnet", "payload", "wellsfargo", "stax"], // payload verified as working
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen"],
     BLUECODE_WALLET: ["calida"],
-    ALIPAY_HK_WALLET: ["adyen"],
-    PAYPAL_WALLET: ["novalnet", "paypal"],
+    ALIPAY_HK_WALLET: [""],
+    PAYPAL_WALLET: [
+      "airwallex",
+      "globalpay",
+      "multisafepay",
+      "novalnet",
+      "paypal",
+    ],
     MIFINITY_WALLET: ["mifinity"],
+    ALIPAY_WALLET: ["multisafepay"],
+    WECHATPAY_WALLET: ["multisafepay"],
+    MBWAY_WALLET: ["multisafepay"],
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
-    PAYPAL_MANDATE: ["paypal"],
+    PAYPAL_MANDATE: ["globalpay", "paypal"],
+    PAYPAL_WALLET_MANDATE: ["adyen"],
+    KAKAO_PAY_WALLET_MANDATE: ["adyen"],
+    GCASH_WALLET_MANDATE: ["adyen"],
+    TWINT_WALLET_MANDATE: ["adyen"],
+    DANA_WALLET_MANDATE: ["adyen"],
+    GOPAY_WALLET_MANDATE: ["adyen"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
@@ -541,6 +576,7 @@ export const CONNECTOR_LISTS = {
       "nuvei",
       "trustpay",
       "finix",
+      "payload",
     ],
     BILLING_DESCRIPTOR_INVALID_PHONE: ["nuvei"],
     FEATURE_METADATA: ["bankofamerica"],
@@ -567,15 +603,29 @@ export const CONNECTOR_LISTS = {
     ],
     EXTERNAL_THREE_DS: ["stripe", "finix"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
+    AFFIRM_PAY_LATER: ["affirm"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
+    VOUCHER: ["adyen", "dlocal"],
     RELAY_OPERATIONS: ["bankofamerica"],
-    PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie"],
+    PAY_LATER: [
+      "klarna",
+      "adyen",
+      "aci",
+      "stripe",
+      "airwallex",
+      "mollie",
+      "affirm",
+    ],
+    AFFIRM: ["stripe"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
+    PAYMENT_RESPONSE_HASH: ["stripe"],
+    MULTIPLE_CAPTURE: ["adyen", "checkout"],
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
     MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
+    EXTENDED_CARD_INFO: ["stripe"],
     PAYMENT_LINK_CARD: ["stripe"],
     ORDER_DETAILS: [
       "stripe",
@@ -588,8 +638,12 @@ export const CONNECTOR_LISTS = {
       "trustpay",
     ],
     CARD_TESTING_GUARD: ["bankofamerica"],
+    CLEAR_PAN_RETRY: ["bankofamerica"],
     L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
+    REFUND_TYPE: ["stripe", "adyen", "checkout"],
+    MANUAL_PAYMENT_UPDATE: ["stripe"],
+    CRYPTO_PAYMENT: ["bitpay", "coingate", "cryptopay"],
     STEP_UP_RETRY: [
       "cybersource",
       "checkout",
@@ -612,6 +666,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
+    CLIENT_SESSION_VALIDATION: ["stripe"],
     // Add more inclusion lists
   },
 };

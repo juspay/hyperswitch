@@ -113,13 +113,6 @@ macro_rules! config {
                     ).await
                 }
             }
-
-            impl DatabaseBackedConfig for [<$key:camel>] {
-                const KEY: &'static str = stringify!([<$key:snake>]);
-                fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-                    None
-                }
-            }
         }
     };
 
@@ -276,7 +269,6 @@ impl DatabaseBackedConfig for ShouldPerformEligibility {
     const KEY: &'static str = "should_perform_eligibility";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "should_perform_eligibility_{merchant_id}"
         dimensions
             .get_processor_merchant_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
@@ -313,7 +305,6 @@ impl DatabaseBackedConfig for ShouldStoreEligibilityCheckDataForAuthentication {
     const KEY: &'static str = "should_store_eligibility_check_data_for_authentication";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "should_store_eligibility_check_data_for_authentication_{merchant_id}"
         dimensions
             .get_processor_merchant_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
@@ -332,7 +323,6 @@ impl DatabaseBackedConfig for EnableExtendedCardBin {
     const KEY: &'static str = "enable_extended_card_bin";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "{profile_id}_enable_extended_card_bin"
         dimensions
             .get_profile_id()
             .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
@@ -381,17 +371,22 @@ config! {
     superposition_key = SHOULD_DISABLE_VAULT_TOKENIZATION,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
     targeting_key = id_type::CustomerId
 }
 
 impl DatabaseBackedConfig for ShouldDisableVaultTokenization {
     const KEY: &'static str = "should_disable_vault_tokenization";
 
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        dimensions
-            .get_processor_merchant_id()
-            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    fn db_keys(dimensions: &impl dimension_state::DimensionsBase) -> Vec<Option<String>> {
+        vec![
+            dimensions
+                .get_organization_id()
+                .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr())),
+            dimensions
+                .get_processor_merchant_id()
+                .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr())),
+        ]
     }
 }
 
@@ -488,12 +483,39 @@ impl DatabaseBackedConfig for ShouldTriggerBackwardsCompatibilityInline {
 }
 
 config! {
+    superposition_key = SHOULD_TRIGGER_FINGERPRINT_MIGRATION,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldTriggerFingerprintMigration {
+    const KEY: &'static str = "should_trigger_fingerprint_migration";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_provider_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
     superposition_key = PAYOUT_TRACKER_MAPPING,
     output = RetryMapping,
     default = RetryMapping::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
     targeting_key = id_type::PayoutId
+}
+
+impl DatabaseBackedConfig for PayoutTrackerMapping {
+    const KEY: &'static str = "payout_tracker_mapping";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // The payout tracker mapping config has been directly implemented in superposition. So there would be no db fallback for it. Hence returning none here.
+        None
+    }
 }
 
 config! {
@@ -506,8 +528,10 @@ config! {
 
 impl DatabaseBackedConfig for ClientSessionValidationEnabled {
     const KEY: &'static str = "client_session_validation_enabled";
-    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        None
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }
 
@@ -538,6 +562,116 @@ impl DatabaseBackedConfig for MaxAutoPayoutRetries {
                         ),
                     })
             })
+    }
+}
+
+config! {
+    superposition_key = POLL_CONFIG_EXTERNAL_THREE_DS,
+    output = crate::types::PollConfig,
+    default = crate::types::PollConfig::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for PollConfigExternalThreeDs {
+    const KEY: &'static str = "poll_config_external_three_ds";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_connector()
+            .map(|connector| format!("{}_{}", Self::KEY, connector))
+    }
+}
+
+config! {
+    superposition_key = PT_MAPPING_OUTGOING_WEBHOOKS,
+    output = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping,
+    default = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantId,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for PtMappingOutgoingWebhooks {
+    const KEY: &'static str = "pt_mapping_outgoing_webhooks";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        Some(Self::KEY.to_string())
+    }
+}
+
+config! {
+    superposition_key = PT_MAPPING_PCR_RETRIES,
+    output = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping,
+    default = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for PtMappingPcrRetries {
+    const KEY: &'static str = "pt_mapping_pcr_retries";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        Some(Self::KEY.to_string())
+    }
+}
+
+config! {
+    superposition_key = PT_MAPPING_PAYMENT_SYNC,
+    output = scheduler::types::process_data::ConnectorPTMapping,
+    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for PtMappingPaymentSync {
+    const KEY: &'static str = "pt_mapping";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_connector()
+            .map(|connector| format!("{}_{}", Self::KEY, connector))
+    }
+}
+
+config! {
+    superposition_key = PT_MAPPING_REFUND_SYNC,
+    output = scheduler::types::process_data::ConnectorPTMapping,
+    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for PtMappingRefundSync {
+    const KEY: &'static str = "pt_mapping_refund_sync";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_connector()
+            .map(|connector| format!("{}_{}", Self::KEY, connector))
+    }
+}
+
+config! {
+    superposition_key = PT_MAPPING_DISPUTE_SYNC,
+    output = scheduler::types::process_data::ConnectorPTMapping,
+    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for PtMappingDisputeSync {
+    const KEY: &'static str = "pt_mapping";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_connector()
+            .map(|connector| format!("{}_{}", Self::KEY, connector))
     }
 }
 

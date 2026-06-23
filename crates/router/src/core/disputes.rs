@@ -85,9 +85,10 @@ pub async fn retrieve_dispute(
             core_utils::validate_profile_id_from_auth_layer(profile_id.clone(), &dispute)?;
 
             let payment_attempt = db
-                .find_payment_attempt_by_attempt_id_processor_merchant_id(
-                    &dispute.attempt_id,
+                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                    &dispute.payment_id,
                     platform.get_processor().get_account().get_id(),
+                    &dispute.attempt_id,
                     platform.get_processor().get_account().storage_scheme,
                     platform.get_processor().get_key_store(),
                 )
@@ -330,9 +331,10 @@ pub async fn accept_dispute(
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_processor_merchant_id(
-            &dispute.attempt_id,
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            &dispute.payment_id,
             processor.get_account().get_id(),
+            &dispute.attempt_id,
             processor.get_account().storage_scheme,
             processor.get_key_store(),
         )
@@ -454,9 +456,10 @@ pub async fn submit_evidence(
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_processor_merchant_id(
-            &dispute.attempt_id,
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            &dispute.payment_id,
             processor.get_account().get_id(),
+            &dispute.attempt_id,
             processor.get_account().storage_scheme,
             processor.get_key_store(),
         )
@@ -855,11 +858,23 @@ pub async fn fetch_disputes_from_connector(
         .await;
 
         if payment_attempt.is_ok() {
+            let payment_id = payment_attempt
+                .as_ref()
+                .ok()
+                .map(|pa| pa.payment_id.clone());
+            let connector_enum = connector_name
+                .parse::<common_enums::connector_enums::Connector>()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid connector name")?;
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .with_connector(connector_enum);
             let schedule_time = process_dispute::get_sync_process_schedule_time(
                 &*state.store,
-                &connector_name,
-                platform.get_processor().get_account().get_id(),
+                state.superposition_service.as_ref(),
+                &dimensions,
                 0,
+                payment_id.as_ref(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -1,4 +1,3 @@
-use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutMethodData;
 use base64::Engine;
@@ -20,6 +19,7 @@ use hyperswitch_domain_models::{
     types::PayoutsRouterData,
 };
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::{
         ApplePayWalletData, GooglePayWalletData, NetworkTokenData, PaymentMethodData,
         SamsungPayWalletData, WalletData,
@@ -962,7 +962,7 @@ impl
                 .clone()
                 .and_then(|mandate_id| mandate_id.mandate_reference_id)
             {
-                Some(payments::MandateReferenceId::ConnectorMandateId(_)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(_)) => {
                     let original_amount = item
                         .router_data
                         .recurring_mandate_payment_data
@@ -1009,7 +1009,7 @@ impl
                         }),
                     )
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
                     let (original_amount, original_currency) = match network
                         .clone()
                         .map(|network| network.to_lowercase())
@@ -1079,7 +1079,7 @@ impl
                         }),
                     )
                 }
-                Some(payments::MandateReferenceId::NetworkTokenWithNTI(mandate_data)) => {
+                Some(mandates::MandateReferenceId::NetworkTokenWithNTI(mandate_data)) => {
                     let (original_amount, original_currency) = match network
                         .clone()
                         .map(|network| network.to_lowercase())
@@ -1149,7 +1149,7 @@ impl
                         }),
                     )
                 }
-                Some(payments::MandateReferenceId::CardWithLimitedData) | None => {
+                Some(mandates::MandateReferenceId::CardWithLimitedData) | None => {
                     (None, None, None)
                 }
             }

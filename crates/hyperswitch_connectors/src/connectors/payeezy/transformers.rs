@@ -3,6 +3,7 @@ use common_enums::{enums, AttemptStatus, CaptureMethod, Currency, PaymentMethod}
 use common_utils::{errors::ParsingError, ext_traits::Encode};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::Execute,
@@ -187,9 +188,9 @@ fn get_transaction_type_and_stored_creds(
 {
     let connector_mandate_id = item.request.mandate_id.as_ref().and_then(|mandate_ids| {
         match mandate_ids.mandate_reference_id.clone() {
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                connector_mandate_ids,
-            )) => connector_mandate_ids.get_connector_mandate_id(),
+            Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                connector_mandate_ids.get_connector_mandate_id()
+            }
             _ => None,
         }
     });

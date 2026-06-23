@@ -16,7 +16,7 @@ use common_utils::{
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+use hyperswitch_domain_models::{mandates, payments::payment_intent::CustomerData};
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
@@ -247,36 +247,30 @@ impl ForeignFrom<storage_enums::MandateAmountData> for payments::MandateAmountDa
 }
 
 // TODO: remove foreign from since this conversion won't be needed in the router crate once data models is treated as a single & primary source of truth for structure information
-impl ForeignFrom<payments::MandateData> for hyperswitch_domain_models::mandates::MandateData {
+impl ForeignFrom<payments::MandateData> for mandates::MandateData {
     fn foreign_from(d: payments::MandateData) -> Self {
         Self {
             customer_acceptance: d.customer_acceptance,
             mandate_type: d.mandate_type.map(|d| match d {
                 payments::MandateType::MultiUse(Some(i)) => {
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
-                        hyperswitch_domain_models::mandates::MandateAmountData {
-                            amount: i.amount,
-                            currency: i.currency,
-                            start_date: i.start_date,
-                            end_date: i.end_date,
-                            metadata: i.metadata,
-                        },
-                    ))
+                    mandates::MandateDataType::MultiUse(Some(mandates::MandateAmountData {
+                        amount: i.amount,
+                        currency: i.currency,
+                        start_date: i.start_date,
+                        end_date: i.end_date,
+                        metadata: i.metadata,
+                    }))
                 }
                 payments::MandateType::SingleUse(i) => {
-                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(
-                        hyperswitch_domain_models::mandates::MandateAmountData {
-                            amount: i.amount,
-                            currency: i.currency,
-                            start_date: i.start_date,
-                            end_date: i.end_date,
-                            metadata: i.metadata,
-                        },
-                    )
+                    mandates::MandateDataType::SingleUse(mandates::MandateAmountData {
+                        amount: i.amount,
+                        currency: i.currency,
+                        start_date: i.start_date,
+                        end_date: i.end_date,
+                        metadata: i.metadata,
+                    })
                 }
-                payments::MandateType::MultiUse(None) => {
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)
-                }
+                payments::MandateType::MultiUse(None) => mandates::MandateDataType::MultiUse(None),
             }),
             update_mandate_id: d.update_mandate_id,
         }
@@ -454,6 +448,8 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
                 })
             }
             payments::PaymentMethodData::NetworkToken(..) => Ok(Self::NetworkToken),
+            payments::PaymentMethodData::ProxyCard(..)
+            | payments::PaymentMethodData::VaultCardTokenData(..) => Ok(Self::Card),
         }
     }
 }
@@ -1388,6 +1384,7 @@ impl ForeignFrom<&api_models::payouts::Wallet> for api_enums::PaymentMethodType 
             api_models::payouts::Wallet::Paypal(_) => Self::Paypal,
             api_models::payouts::Wallet::Venmo(_) => Self::Venmo,
             api_models::payouts::Wallet::ApplePayDecrypt(_) => Self::ApplePay,
+            api_models::payouts::Wallet::GooglePayDecrypt(_) => Self::GooglePay,
         }
     }
 }
@@ -2252,6 +2249,14 @@ impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
             },
             customer_id_blocking_threshold: item.customer_id_blocking_threshold,
             card_testing_guard_expiry: item.card_testing_guard_expiry,
+            is_guest_ip_blocking_enabled: match item.guest_ip_blocking_status {
+                Some(api_models::admin::CardTestingGuardStatus::Enabled) => true,
+                Some(api_models::admin::CardTestingGuardStatus::Disabled) => false,
+                None => common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_STATUS,
+            },
+            guest_ip_blocking_threshold: item
+                .guest_ip_blocking_threshold
+                .unwrap_or(common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_THRESHOLD),
         }
     }
 }
@@ -2277,6 +2282,11 @@ impl ForeignFrom<diesel_models::business_profile::CardTestingGuardConfig>
             },
             customer_id_blocking_threshold: item.customer_id_blocking_threshold,
             card_testing_guard_expiry: item.card_testing_guard_expiry,
+            guest_ip_blocking_status: Some(match item.is_guest_ip_blocking_enabled {
+                true => api_models::admin::CardTestingGuardStatus::Enabled,
+                false => api_models::admin::CardTestingGuardStatus::Disabled,
+            }),
+            guest_ip_blocking_threshold: Some(item.guest_ip_blocking_threshold),
         }
     }
 }
@@ -2458,6 +2468,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             show_card_terms: item.show_card_terms,
             is_setup_mandate_flow: item.is_setup_mandate_flow,
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
+            show_merchant_name: item.show_merchant_name,
         }
     }
 }
@@ -2495,6 +2506,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             show_card_terms: item.show_card_terms,
             is_setup_mandate_flow: item.is_setup_mandate_flow,
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
+            show_merchant_name: item.show_merchant_name,
         }
     }
 }

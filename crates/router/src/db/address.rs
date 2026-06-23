@@ -315,7 +315,7 @@ mod storage {
                 self,
                 behaviour::{Conversion, ReverseConversion},
             },
-            storage::{self as storage_types, kv},
+            storage::{self as storage_types},
         },
         utils::db_utils,
     };
@@ -477,27 +477,29 @@ mod storage {
                         .await
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let updated_address = AddressUpdateInternal::from(address_update.clone())
+                    let address_update_internal =
+                        AddressUpdateInternal::from(address_update.clone());
+                    let updated_address = address_update_internal
+                        .clone()
                         .create_address(address.clone());
                     let redis_value = serde_json::to_string(&updated_address)
                         .change_context(errors::StorageError::KVError)?;
 
-                    let redis_entry = kv::TypedSql {
-                        op: kv::DBOperation::Update {
-                            updatable: Box::new(kv::Updateable::AddressUpdate(Box::new(
-                                kv::AddressUpdateMems {
-                                    orig: address,
-                                    update_data: address_update.into(),
-                                },
-                            ))),
-                        },
-                    };
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let drainer_query = address_update_internal
+                        .generate_drainer_update_query(
+                            &mut query_gen_conn,
+                            address.address_id.clone(),
+                        )
+                        .await
+                        .change_context(errors::StorageError::KVError)
+                        .attach_printable("Failed to generate address update query")?;
 
                     Box::pin(kv_wrapper::<(), _, _>(
                         self,
                         KvOperation::Hset::<storage_types::Address>(
                             (&field, redis_value),
-                            redis_entry,
+                            drainer_query,
                         ),
                         key,
                     ))
@@ -588,18 +590,19 @@ mod storage {
                         origin_zip: address_new.origin_zip.clone(),
                     };
 
-                    let redis_entry = kv::TypedSql {
-                        op: kv::DBOperation::Insert {
-                            insertable: Box::new(kv::Insertable::Address(Box::new(address_new))),
-                        },
-                    };
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let drainer_query = address_new
+                        .generate_drainer_insert_query(&mut query_gen_conn)
+                        .await
+                        .change_context(errors::StorageError::KVError)
+                        .attach_printable("Failed to generate address insert query")?;
 
                     match Box::pin(kv_wrapper::<diesel_models::Address, _, _>(
                         self,
                         KvOperation::HSetNx::<diesel_models::Address>(
                             &field,
                             &created_address,
-                            redis_entry,
+                            drainer_query,
                         ),
                         key,
                     ))

@@ -100,7 +100,7 @@ pub struct PaymentsAuthorizeData {
     pub complete_authorize_url: Option<String>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<mandates::MandateIds>,
     pub off_session: Option<bool>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub setup_mandate_details: Option<mandates::MandateData>,
@@ -182,7 +182,7 @@ pub struct ExternalVaultProxyPaymentsData {
     pub complete_authorize_url: Option<String>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<mandates::MandateIds>,
     pub off_session: Option<bool>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub setup_mandate_details: Option<mandates::MandateData>,
@@ -558,7 +558,7 @@ pub struct PaymentMethodTokenizationData {
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub setup_mandate_details: Option<mandates::MandateData>,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<mandates::MandateIds>,
     pub router_return_url: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
 }
@@ -747,7 +747,7 @@ pub struct PaymentsPreProcessingData {
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub enrolled_for_3ds: bool,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<mandates::MandateIds>,
     pub related_transaction_id: Option<String>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub metadata: Option<Secret<serde_json::Value>>,
@@ -1079,7 +1079,7 @@ pub struct CompleteAuthorizeData {
     pub capture_method: Option<storage_enums::CaptureMethod>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<mandates::MandateIds>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
@@ -1117,7 +1117,7 @@ pub struct PaymentsSyncData {
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub connector_meta: Option<serde_json::Value>,
     pub sync_type: SyncRequestType,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<mandates::MandateIds>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub currency: storage_enums::Currency,
     pub payment_experience: Option<common_enums::PaymentExperience>,
@@ -1166,6 +1166,22 @@ pub struct PaymentsCancelPostCaptureData {
     pub connector_meta: Option<serde_json::Value>,
     // minor amount data for amount framework
     pub minor_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct PaymentsCancelPostCaptureSyncData {
+    pub currency: Option<storage_enums::Currency>,
+    pub connector_payment_transaction_id: String,
+    pub connector_post_capture_void_transaction_id: String,
+    pub connector_meta: Option<pii::SecretSerdeValue>,
+    // minor amount data for amount framework
+    pub minor_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct PaymentsPreAuthorizeCancelData {
+    pub connector_transaction_id: String,
+    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1342,6 +1358,55 @@ impl
         ),
     ) -> Self {
         todo!()
+    }
+}
+
+/// Surcharge calculated during /eligibility and cached for /confirm to consume.
+/// The payment_method / payment_method_type carried here are the ones the surcharge
+/// was calculated against; /confirm must match them before applying.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ExternalSurchargeDetails {
+    pub surcharge_amount: MinorUnit,
+    pub tax_amount: Option<MinorUnit>,
+    pub payment_method: common_enums::PaymentMethod,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub external_surcharge_id: String,
+}
+
+impl ExternalSurchargeDetails {
+    pub fn matches_payment_method(
+        &self,
+        payment_method: Option<common_enums::PaymentMethod>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+    ) -> bool {
+        payment_method == Some(self.payment_method)
+            && (self.payment_method_type.is_none()
+                || self.payment_method_type == payment_method_type)
+    }
+}
+
+#[cfg(feature = "v1")]
+impl
+    From<(
+        &ExternalSurchargeDetails,
+        &payments::payment_attempt::PaymentAttempt,
+    )> for SurchargeDetails
+{
+    fn from(
+        (external_surcharge_details, payment_attempt): (
+            &ExternalSurchargeDetails,
+            &payments::payment_attempt::PaymentAttempt,
+        ),
+    ) -> Self {
+        let surcharge_amount = external_surcharge_details.surcharge_amount;
+        let tax_on_surcharge_amount = external_surcharge_details.tax_amount.unwrap_or_default();
+        Self {
+            original_amount: payment_attempt.net_amount.get_order_amount(),
+            surcharge: common_utils::types::Surcharge::Fixed(surcharge_amount),
+            tax_on_surcharge: None,
+            surcharge_amount,
+            tax_on_surcharge_amount,
+        }
     }
 }
 
@@ -1729,6 +1794,7 @@ pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: common_enums::Currency,
     pub country: Option<common_enums::CountryAlpha2>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
     pub surcharge_details: Option<SurchargeDetails>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub email: Option<pii::Email>,
@@ -1769,17 +1835,8 @@ pub struct PaymentsSurchargeCalculationData {
     pub previous_connector_surcharge_id: Option<String>,
     /// Country in ISO alpha-2 format (optional, defaults to USA)
     pub country: Option<common_enums::CountryAlpha2>,
-    /// wave strategy for surcharge application (optional, defaults to Apply)
-    pub surcharge_strategy: Option<SurchargeStrategy>,
-}
-
-#[derive(Debug, Default, Clone)]
-pub enum SurchargeStrategy {
-    /// Apply the calculated surcharge to the payment
-    #[default]
-    Apply,
-    /// Do not apply the surcharge, just return the calculated amount
-    Waive,
+    /// Strategy for surcharge application (optional, defaults to Apply)
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 #[derive(Debug, Clone)]
@@ -1840,7 +1897,7 @@ pub struct SetupMandateRequestData {
     pub amount: i64,
     pub confirm: bool,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<mandates::MandateIds>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<mandates::MandateData>,
@@ -1884,6 +1941,9 @@ pub struct VaultRequestData {
     pub connector_vault_id: Option<String>,
     pub connector_customer_id: Option<String>,
     pub should_generate_multiple_tokens: Option<bool>,
+    /// Storage type (persistent/volatile) for the vault session. `None` lets the connector apply
+    /// its default. Used by the external vault (e.g. Hyperswitch Vault) session create flow.
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -1896,19 +1956,19 @@ pub struct DisputeSyncData {
 /// Implemented by request types used in flows triggered after SetupMandate,
 /// where the mandate_id from the SetupMandate response needs to be propagated.
 pub trait MandateIdSettable {
-    fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds);
+    fn set_mandate_id(&mut self, mandate_id: mandates::MandateIds);
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PushNotificationRequestData {
     pub payment_method_data: Option<PaymentMethodData>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<mandates::MandateIds>,
     pub amount: Option<i64>,
 }
 
 impl MandateIdSettable for PushNotificationRequestData {
-    fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, mandate_id: mandates::MandateIds) {
         self.mandate_id = Some(mandate_id);
     }
 }
@@ -1918,12 +1978,12 @@ impl PushNotificationRequestData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    connector_mandate_ids,
-                )) => connector_mandate_ids.get_connector_mandate_id(),
-                Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(api_models::payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_id()
+                }
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None => None,
             })
     }
@@ -1932,11 +1992,11 @@ impl PushNotificationRequestData {
 #[derive(Debug, Clone, Serialize)]
 pub struct GenerateQrRequestData {
     pub amount: Option<i64>,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<mandates::MandateIds>,
 }
 
 impl MandateIdSettable for GenerateQrRequestData {
-    fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, mandate_id: mandates::MandateIds) {
         self.mandate_id = Some(mandate_id);
     }
 }
@@ -1946,12 +2006,12 @@ impl GenerateQrRequestData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    connector_mandate_ids,
-                )) => connector_mandate_ids.get_connector_mandate_id(),
-                Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(api_models::payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_id()
+                }
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None => None,
             })
     }

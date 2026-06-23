@@ -235,40 +235,15 @@ pub(crate) async fn extract_data_and_perform_action(
 #[cfg(feature = "v2")]
 pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     db: &dyn StorageInterface,
-    merchant_id: &id_type::MerchantId,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
-    let key = "pt_mapping_pcr_retries";
-    let result = db
-        .find_config_by_key(key)
-        .await
-        .map(|value| value.config)
-        .and_then(|config| {
-            config
-                .parse_struct("RevenueRecoveryPaymentProcessTrackerMapping")
-                .change_context(StorageError::DeserializationFailed)
-        });
+    let mapping = dimensions
+        .get_pt_mapping_pcr_retries(db, superposition_client, None)
+        .await;
 
-    let mapping = result.map_or_else(
-        |error| {
-            if error.current_context().is_db_not_found() {
-                logger::debug!("Revenue Recovery retry config `{key}` not found, ignoring");
-            } else {
-                logger::error!(
-                    ?error,
-                    "Failed to read Revenue Recovery retry config `{key}`"
-                );
-            }
-            process_data::RevenueRecoveryPaymentProcessTrackerMapping::default()
-        },
-        |mapping| {
-            logger::debug!(?mapping, "Using custom pcr payments retry config");
-            mapping
-        },
-    );
-
-    let time_delta =
-        scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, merchant_id, retry_count);
+    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, retry_count);
 
     scheduler_utils::get_time_from_delta(time_delta)
 }
@@ -658,6 +633,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     state: &SessionState,
     connector_customer_id: &str,
     payment_intent: &PaymentIntent,
+    billing_connector: common_enums::connector_enums::Connector,
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
     retry_count: i32,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
@@ -668,9 +644,13 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
         }
 
         RevenueRecoveryAlgorithmType::Cascading => {
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                .with_connector(billing_connector);
             let time = get_schedule_time_to_retry_mit_payments(
                 state.store.as_ref(),
-                &payment_intent.merchant_id,
+                state.superposition_service.as_ref(),
+                &dimensions,
                 retry_count,
             )
             .await
