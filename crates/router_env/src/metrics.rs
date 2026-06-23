@@ -143,8 +143,8 @@ mod helpers {
         let mut buckets: [f64; 30] = [0.0; 30];
 
         for bucket in &mut buckets {
-            init *= 2.0;
             *bucket = init;
+            init *= 2.0;
         }
 
         Vec::from(buckets)
