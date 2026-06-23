@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.10.0-hotfix8
+
+### Features
+
+- **ucs:** Add org-level rollout config with precedence hierarchy ([#12917](https://github.com/juspay/hyperswitch/pull/12917)) ([`aaab0aa`](https://github.com/juspay/hyperswitch/commit/aaab0aa3e1e2b159e3f11144dc5625f79ae9377d))
+
+**Full Changelog:** [`2026.06.10.0-hotfix7...2026.06.10.0-hotfix8`](https://github.com/juspay/hyperswitch/compare/2026.06.10.0-hotfix7...2026.06.10.0-hotfix8)
+
+- - -
+
 ## 2026.06.10.0-hotfix7
 
 ### Features
