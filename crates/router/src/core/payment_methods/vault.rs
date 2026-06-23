@@ -2086,6 +2086,7 @@ pub async fn add_payment_method_to_vault(
         customer_id,
         pmd.clone(),
         state.conf.locker.ttl_for_storage_in_secs,
+        existing_vault_id,
     )?;
 
     let query_params = write_mode.map(pm_types::VaultQueryParam::from);
