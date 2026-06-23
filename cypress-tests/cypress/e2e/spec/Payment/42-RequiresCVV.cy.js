@@ -15,7 +15,7 @@ describe("Card - Requires CVV flow test", () => {
         connector = globalState.get("connectorId");
 
         if (
-          !utils.shouldIncludeConnector(
+          utils.shouldIncludeConnector(
             connector,
             utils.CONNECTOR_LISTS.INCLUDE.REQUIRES_CVV
           )

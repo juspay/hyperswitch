@@ -679,7 +679,7 @@ export const shouldExcludeConnector = (connectorId, list) => {
 
 export const shouldIncludeConnector = (connectorId, list) => {
   if (!Array.isArray(list)) return true;
-  return list.includes(connectorId);
+  return !list.includes(connectorId);
 };
 
 export function setNormalizedValue(
