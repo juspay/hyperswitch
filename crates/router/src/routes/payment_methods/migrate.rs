@@ -320,9 +320,10 @@ impl MigrationBatch<MerchantsHydrated> {
                         .unwrap_or_else(|| {
                             "Merchant account or key store not found for merchant_id".to_string()
                         });
-                    fetched_rows.extend(rows.into_iter().map(|row| {
-                        Err(Box::new(row.failed(message.clone())))
-                    }));
+                    fetched_rows.extend(
+                        rows.into_iter()
+                            .map(|row| Err(Box::new(row.failed(message.clone())))),
+                    );
                 }
                 Some(platform) => {
                     let mut payment_method_ids = Vec::new();
@@ -390,8 +391,9 @@ impl MigrationBatch<PaymentMethodsFetched> {
                 .into_iter()
                 .map(|row| {
                     row.and_then(|row| {
-                        row.prepare_for_retrieve()
-                            .and_then(MigrationRow::<ReadyForVaultRetrieve>::validate_record_version)
+                        row.prepare_for_retrieve().and_then(
+                            MigrationRow::<ReadyForVaultRetrieve>::validate_record_version,
+                        )
                     })
                 })
                 .collect(),
@@ -404,7 +406,10 @@ impl MigrationBatch<PaymentMethodsFetched> {
 }
 
 impl MigrationBatch<ReadyForVaultRetrieve> {
-    async fn retrieve_vault_data(self, state: &SessionState) -> MigrationBatch<EligibilityVerified> {
+    async fn retrieve_vault_data(
+        self,
+        state: &SessionState,
+    ) -> MigrationBatch<EligibilityVerified> {
         let merchant_contexts = &self.merchant_contexts;
         let rows = future::join_all(self.rows.into_iter().map(|row| async move {
             match row {
@@ -413,9 +418,9 @@ impl MigrationBatch<ReadyForVaultRetrieve> {
                         Ok(row) => row.validate_vaulting_data(),
                         Err(result) => Err(result),
                     },
-                    None => Err(Box::new(row.failed(
-                        "Merchant account or key store not found for merchant_id",
-                    ))),
+                    None => Err(Box::new(
+                        row.failed("Merchant account or key store not found for merchant_id"),
+                    )),
                 },
                 Err(result) => Err(result),
             }
@@ -624,18 +629,22 @@ impl MigrationRow<MerchantsHydrated> {
 
 impl MigrationRow<PaymentMethodsFetched> {
     fn prepare_for_retrieve(self) -> MigrationStepResult<MigrationRow<ReadyForVaultRetrieve>> {
-        let payment_method = self.payment_method.as_ref().ok_or_else(|| {
-            Box::new(self.failed("Payment method record was not available"))
-        })?;
-        let customer_id = payment_method.customer_id.clone().ok_or_else(|| {
-            Box::new(self.failed("Payment method must have a customer_id"))
-        })?;
-        let locker_id = payment_method.locker_id.clone().ok_or_else(|| {
-            Box::new(self.failed("Payment method must have a locker_id"))
-        })?;
-        let old_fingerprint_id = payment_method.locker_fingerprint_id.clone().ok_or_else(|| {
-            Box::new(self.failed("Payment method must have a fingerprint"))
-        })?;
+        let payment_method = self
+            .payment_method
+            .as_ref()
+            .ok_or_else(|| Box::new(self.failed("Payment method record was not available")))?;
+        let customer_id = payment_method
+            .customer_id
+            .clone()
+            .ok_or_else(|| Box::new(self.failed("Payment method must have a customer_id")))?;
+        let locker_id = payment_method
+            .locker_id
+            .clone()
+            .ok_or_else(|| Box::new(self.failed("Payment method must have a locker_id")))?;
+        let old_fingerprint_id = payment_method
+            .locker_fingerprint_id
+            .clone()
+            .ok_or_else(|| Box::new(self.failed("Payment method must have a fingerprint")))?;
 
         let mut next = self.transition::<ReadyForVaultRetrieve>();
         next.customer_id = Some(customer_id);
@@ -648,9 +657,10 @@ impl MigrationRow<PaymentMethodsFetched> {
 
 impl MigrationRow<ReadyForVaultRetrieve> {
     fn validate_record_version(mut self) -> MigrationStepResult<Self> {
-        let payment_method = self.payment_method.as_ref().ok_or_else(|| {
-            Box::new(self.failed("Payment method record was not available"))
-        })?;
+        let payment_method = self
+            .payment_method
+            .as_ref()
+            .ok_or_else(|| Box::new(self.failed("Payment method record was not available")))?;
 
         match payment_method.version {
             ApiVersion::V1 => {
@@ -672,12 +682,14 @@ impl MigrationRow<ReadyForVaultRetrieve> {
         state: &SessionState,
         platform: &platform::Platform,
     ) -> MigrationStepResult<MigrationRow<VaultRetrieved>> {
-        let customer_id = self.customer_id.as_ref().ok_or_else(|| {
-            Box::new(self.failed("Payment method must have a customer_id"))
-        })?;
-        let vault_id = self.vault_id.as_ref().ok_or_else(|| {
-            Box::new(self.failed("Payment method must have a locker_id"))
-        })?;
+        let customer_id = self
+            .customer_id
+            .as_ref()
+            .ok_or_else(|| Box::new(self.failed("Payment method must have a customer_id")))?;
+        let vault_id = self
+            .vault_id
+            .as_ref()
+            .ok_or_else(|| Box::new(self.failed("Payment method must have a locker_id")))?;
         let controller = cards::PmCards {
             state,
             provider: platform.get_provider(),
@@ -706,12 +718,14 @@ impl MigrationRow<ReadyForVaultRetrieve> {
 
 impl MigrationRow<VaultRetrieved> {
     fn validate_vaulting_data(self) -> MigrationStepResult<MigrationRow<EligibilityVerified>> {
-        let payment_method = self.payment_method.as_ref().ok_or_else(|| {
-            Box::new(self.failed("Payment method record was not available"))
-        })?;
-        let vaulting_data = self.vaulting_data.as_ref().ok_or_else(|| {
-            Box::new(self.failed("Vaulting data was not available"))
-        })?;
+        let payment_method = self
+            .payment_method
+            .as_ref()
+            .ok_or_else(|| Box::new(self.failed("Payment method record was not available")))?;
+        let vaulting_data = self
+            .vaulting_data
+            .as_ref()
+            .ok_or_else(|| Box::new(self.failed("Vaulting data was not available")))?;
 
         let is_bank_debit = matches!(
             vaulting_data,
@@ -759,9 +773,10 @@ impl MigrationRow<EligibilityVerified> {
         &self,
         customer_cache: &HashMap<(String, String), Result<String, String>>,
     ) -> MigrationStepResult<String> {
-        let customer_id = self.customer_id.as_ref().ok_or_else(|| {
-            Box::new(self.failed("Payment method must have a customer_id"))
-        })?;
+        let customer_id = self
+            .customer_id
+            .as_ref()
+            .ok_or_else(|| Box::new(self.failed("Payment method must have a customer_id")))?;
         let key = customer_cache_key(&self.merchant_id, customer_id);
 
         match customer_cache.get(&key) {
@@ -779,15 +794,18 @@ impl MigrationRow<EligibilityVerified> {
         platform: &platform::Platform,
         customer_cache: &HashMap<(String, String), Result<String, String>>,
     ) -> MigrationStepResult<String> {
-        let vault_id = self.vault_id.as_ref().ok_or_else(|| {
-            Box::new(self.failed("Payment method must have a locker_id"))
-        })?;
-        let vaulting_data = self.vaulting_data.as_ref().ok_or_else(|| {
-            Box::new(self.failed("Vaulting data was not available"))
-        })?;
-        let old_fingerprint_id = self.old_fingerprint_id.clone().ok_or_else(|| {
-            Box::new(self.failed("Payment method must have a fingerprint"))
-        })?;
+        let vault_id = self
+            .vault_id
+            .as_ref()
+            .ok_or_else(|| Box::new(self.failed("Payment method must have a locker_id")))?;
+        let vaulting_data = self
+            .vaulting_data
+            .as_ref()
+            .ok_or_else(|| Box::new(self.failed("Vaulting data was not available")))?;
+        let old_fingerprint_id = self
+            .old_fingerprint_id
+            .clone()
+            .ok_or_else(|| Box::new(self.failed("Payment method must have a fingerprint")))?;
         let controller = cards::PmCards {
             state,
             provider: platform.get_provider(),
