@@ -192,16 +192,13 @@ impl SessionState {
             ExecutionMode::Shadow => Some("shadow"),
             ExecutionMode::NotApplicable => None,
         };
-        // UCS keeps emitting events in every mode; shadow and primary are
-        // distinguished downstream by `execution_mode`, so there is no need to
-        // suppress UCS events in shadow.
-        let config_override: Option<String> = None;
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
             .shadow_mode(shadow_mode)
             .proxy_name(proxy_name)
-            .config_override(config_override)
+            // no override: UCS emits in all modes, distinguished downstream by `execution_mode`
+            .config_override(None)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
