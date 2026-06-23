@@ -495,6 +495,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::VaultSdk,
         api_models::enums::VaultTokenType,
         api_models::enums::WebhookRegistrationStatus,
+        api_models::enums::WebhookHmacGenerationStatus,
         api_models::admin::ExternalVaultConnectorDetails,
         api_models::admin::VaultTokenField,
         api_models::admin::MerchantConnectorCreate,

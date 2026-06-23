@@ -45778,6 +45778,14 @@
         },
         "additionalProperties": false
       },
+      "WebhookHmacGenerationStatus": {
+        "type": "string",
+        "description": "The status of HMAC key generation for a connector webhook",
+        "enum": [
+          "Success",
+          "Failure"
+        ]
+      },
       "WebhookRegistrationStatus": {
         "type": "string",
         "description": "The status of webhook registration",
