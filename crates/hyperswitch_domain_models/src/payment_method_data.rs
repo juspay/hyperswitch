@@ -1658,6 +1658,11 @@ pub enum WalletDetail {
         expiry_month: Secret<String>,
         expiry_year: Secret<String>,
     },
+    GooglePayDecryptedData {
+        application_primary_account_number: cards::CardNumber,
+        expiry_month: Secret<String>,
+        expiry_year: Secret<String>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -1669,6 +1674,15 @@ impl From<payment_methods::WalletDetail> for WalletDetail {
                 expiry_month,
                 expiry_year,
             } => Self::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            },
+            payment_methods::WalletDetail::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::GooglePayDecryptedData {
                 application_primary_account_number,
                 expiry_month,
                 expiry_year,

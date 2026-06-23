@@ -607,6 +607,20 @@ impl Vaultable for api::WalletPayout {
                 expiry_year: Some(apple_pay_decrypt_data.expiry_year.clone()),
                 card_holder_name: apple_pay_decrypt_data.card_holder_name.clone(),
             },
+            Self::GooglePayDecrypt(google_pay_decrypt_data) => TokenizedWalletSensitiveValues {
+                email: None,
+                telephone_number: None,
+                wallet_id: None,
+                wallet_type: PaymentMethodType::GooglePay,
+                dpan: Some(
+                    google_pay_decrypt_data
+                        .application_primary_account_number
+                        .clone(),
+                ),
+                expiry_month: Some(google_pay_decrypt_data.expiry_month.clone()),
+                expiry_year: Some(google_pay_decrypt_data.expiry_year.clone()),
+                card_holder_name: google_pay_decrypt_data.card_holder_name.clone(),
+            },
         };
 
         value1
@@ -631,6 +645,10 @@ impl Vaultable for api::WalletPayout {
             Self::ApplePayDecrypt(apple_pay_decrypt_data) => TokenizedWalletInsensitiveValues {
                 customer_id,
                 card_network: apple_pay_decrypt_data.card_network.clone(),
+            },
+            Self::GooglePayDecrypt(google_pay_decrypt_data) => TokenizedWalletInsensitiveValues {
+                customer_id,
+                card_network: google_pay_decrypt_data.card_network.clone(),
             },
         };
 
