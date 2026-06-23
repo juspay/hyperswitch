@@ -1363,6 +1363,7 @@ pub struct ExternalSurchargeDetails {
     pub tax_amount: Option<MinorUnit>,
     pub payment_method: common_enums::PaymentMethod,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub external_surcharge_id: String,
 }
 
 impl ExternalSurchargeDetails {
