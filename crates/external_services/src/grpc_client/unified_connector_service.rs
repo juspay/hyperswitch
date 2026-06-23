@@ -671,9 +671,7 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.payment_service_client
-            .clone()
-            .authorize(request)
+        Box::pin(self.payment_service_client.clone().authorize(request))
             .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
@@ -813,24 +811,26 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.recurring_payment_service_client
-            .clone()
-            .charge(request)
-            .await
-            .map_err(|error| {
-                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
-                    &error,
-                    &connector_name,
-                ))
-            })
-            .inspect_err(|error| {
-                logger::error!(
-                    grpc_error=?error,
-                    method="recurring_payment_charge",
-                    connector_name=?connector_name,
-                    "UCS recurring payment charge gRPC call failed"
-                )
-            })
+        Box::pin(
+            self.recurring_payment_service_client
+                .clone()
+                .charge(request),
+        )
+        .await
+        .map_err(|error| {
+            error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                &error,
+                &connector_name,
+            ))
+        })
+        .inspect_err(|error| {
+            logger::error!(
+                grpc_error=?error,
+                method="recurring_payment_charge",
+                connector_name=?connector_name,
+                "UCS recurring payment charge gRPC call failed"
+            )
+        })
     }
 
     /// Performs Payment Cancel/Void
