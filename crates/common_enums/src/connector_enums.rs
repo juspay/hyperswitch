@@ -298,7 +298,7 @@ impl Connector {
         matches!(self, Self::Stripe | Self::Checkout | Self::Worldpayvantiv)
     }
     pub fn requires_defend_dispute(self) -> bool {
-        matches!(self, Self::Checkout)
+        matches!(self, Self::Adyen | Self::Checkout)
     }
     pub fn is_separate_authentication_supported(self) -> bool {
         match self {
