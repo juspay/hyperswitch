@@ -826,6 +826,12 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 .map(payments_grpc::PaymentMethodType::foreign_try_from)
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
+            // Thread the stored connector_mandate_request_reference_id so prism can
+            // surface response.mandate_reference on sync for off-session mandate
+            // setups, matching the native gateway (#16985).
+            connector_mandate_request_reference_id: router_data
+                .connector_mandate_request_reference_id
+                .clone(),
         })
     }
 }
