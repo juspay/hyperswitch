@@ -393,9 +393,16 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                         | WalletData::CashappQr(_)
                         | WalletData::SwishQr(_)
                         | WalletData::Mifinity(_)
-                        | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
-                            utils::get_unimplemented_payment_method_error_message("Noon"),
-                        )),
+                        | WalletData::RevolutPay(_)
+                        | WalletData::MpesaRedirect {}
+                        | WalletData::BlinkByEmtelRedirect {}
+                        | WalletData::McbJuiceRedirect {}
+                        | WalletData::ScanToPayRedirect {}
+                        | WalletData::MaucasRedirect {} => {
+                            Err(errors::ConnectorError::NotImplemented(
+                                utils::get_unimplemented_payment_method_error_message("Noon"),
+                            ))
+                        }
                     },
                     PaymentMethodData::CardRedirect(_)
                     | PaymentMethodData::PayLater(_)

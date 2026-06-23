@@ -392,7 +392,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 | WalletDataPaymentMethod::RevolutPay(_)
                 | WalletDataPaymentMethod::Paysera(_)
                 | WalletDataPaymentMethod::Skrill(_)
-                | WalletDataPaymentMethod::Mifinity(_) => {
+                | WalletDataPaymentMethod::Mifinity(_)
+                | WalletDataPaymentMethod::MpesaRedirect {}
+                | WalletDataPaymentMethod::BlinkByEmtelRedirect {}
+                | WalletDataPaymentMethod::McbJuiceRedirect {}
+                | WalletDataPaymentMethod::ScanToPayRedirect {}
+                | WalletDataPaymentMethod::MaucasRedirect {} => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("amazonpay"),
                     )

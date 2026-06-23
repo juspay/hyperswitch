@@ -670,6 +670,11 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                     | WalletData::SwishQr(_)
                     | WalletData::WeChatPayQr(_)
                     | WalletData::RevolutPay(_)
+                    | WalletData::MpesaRedirect {}
+                    | WalletData::BlinkByEmtelRedirect {}
+                    | WalletData::McbJuiceRedirect {}
+                    | WalletData::ScanToPayRedirect {}
+                    | WalletData::MaucasRedirect {}
                     | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Paysafe"),
                     ))?,
@@ -827,6 +832,11 @@ impl TryFrom<&PaysafeRouterData<&TokenizationRouterData>> for PaysafePaymentHand
                     | WalletData::SwishQr(_)
                     | WalletData::WeChatPayQr(_)
                     | WalletData::RevolutPay(_)
+                    | WalletData::MpesaRedirect {}
+                    | WalletData::BlinkByEmtelRedirect {}
+                    | WalletData::McbJuiceRedirect {}
+                    | WalletData::ScanToPayRedirect {}
+                    | WalletData::MaucasRedirect {}
                     | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Paysafe"),
                     ))?,

@@ -829,7 +829,12 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::Mifinity(_)
-                | WalletData::RevolutPay(_) => Err(report!(ConnectorError::NotImplemented(
+                | WalletData::RevolutPay(_)
+                | WalletData::MpesaRedirect {}
+                | WalletData::BlinkByEmtelRedirect {}
+                | WalletData::McbJuiceRedirect {}
+                | WalletData::ScanToPayRedirect {}
+                | WalletData::MaucasRedirect {} => Err(report!(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("nmi"),
                 ))),
             },

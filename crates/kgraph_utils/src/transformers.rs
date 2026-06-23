@@ -353,6 +353,26 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::NetworkToken => {
                 Ok(dirval!(NetworkTokenType = NetworkToken))
             }
+            api_enums::PaymentMethodType::CapitecPay => Ok(dirval!(BankTransferType = CapitecPay)),
+            api_enums::PaymentMethodType::PayShap => Ok(dirval!(BankTransferType = PayShap)),
+            api_enums::PaymentMethodType::NedbankDirectEft => {
+                Ok(dirval!(BankTransferType = NedbankDirectEft))
+            }
+            api_enums::PaymentMethodType::PeachEft => Ok(dirval!(BankTransferType = PeachEft)),
+            api_enums::PaymentMethodType::Payflex => Ok(dirval!(PayLaterType = Payflex)),
+            api_enums::PaymentMethodType::ZeroPay => Ok(dirval!(PayLaterType = ZeroPay)),
+            api_enums::PaymentMethodType::Float => Ok(dirval!(PayLaterType = Float)),
+            api_enums::PaymentMethodType::HappyPay => Ok(dirval!(PayLaterType = HappyPay)),
+            api_enums::PaymentMethodType::Mobicred => Ok(dirval!(PayLaterType = Mobicred)),
+            api_enums::PaymentMethodType::Rcs => Ok(dirval!(PayLaterType = Rcs)),
+            api_enums::PaymentMethodType::APlus => Ok(dirval!(PayLaterType = APlus)),
+            api_enums::PaymentMethodType::Mpesa => Ok(dirval!(WalletType = Mpesa)),
+            api_enums::PaymentMethodType::BlinkByEmtel => Ok(dirval!(WalletType = BlinkByEmtel)),
+            api_enums::PaymentMethodType::McbJuice => Ok(dirval!(WalletType = McbJuice)),
+            api_enums::PaymentMethodType::ScanToPay => Ok(dirval!(WalletType = ScanToPay)),
+            api_enums::PaymentMethodType::Maucas => Ok(dirval!(WalletType = Maucas)),
+            api_enums::PaymentMethodType::OneForYou => Ok(dirval!(VoucherType = OneForYou)),
+            api_enums::PaymentMethodType::MoneyBadger => Ok(dirval!(CryptoType = MoneyBadger)),
         }
     }
 }

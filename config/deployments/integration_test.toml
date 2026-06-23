@@ -132,6 +132,7 @@ paystack.base_url = "https://api.paystack.co"
 paytm.base_url = "https://securegw-stage.paytm.in/"
 payu.base_url = "https://secure.snd.payu.com/"
 peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
+peachpayments.secondary_base_url = "https://testapi-v2.peachpayments.com"
 phonepe.base_url = "https://api.phonepe.com/apis/hermes/"
 placetopay.base_url = "https://test.placetopay.com/rest/gateway"
 plaid.base_url = "https://sandbox.plaid.com"
@@ -746,6 +747,26 @@ red_pagos = { country = "UY", currency = "UYU" }
 
 [pm_filters.zsl]
 local_bank_transfer = { country = "CN", currency = "CNY" }
+
+[pm_filters.peachpayments]
+capitec_pay = { country = "ZA", currency = "ZAR" }
+pay_shap = { country = "ZA", currency = "ZAR" }
+nedbank_direct_eft = { country = "ZA", currency = "ZAR" }
+peach_eft = { country = "ZA", currency = "ZAR" }
+payflex = { country = "ZA", currency = "ZAR" }
+zero_pay = { country = "ZA", currency = "ZAR" }
+float = { country = "ZA", currency = "ZAR" }
+happy_pay = { country = "ZA", currency = "ZAR" }
+mobicred = { country = "ZA", currency = "ZAR" }
+rcs = { country = "ZA", currency = "ZAR" }
+a_plus = { country = "ZA", currency = "ZAR" }
+mpesa = { country = "KE", currency = "KES" }
+blink_by_emtel = { country = "MU", currency = "MUR" }
+mcb_juice = { country = "MU", currency = "MUR" }
+scan_to_pay = { country = "ZA", currency = "ZAR" }
+maucas = { country = "MU", currency = "MUR" }
+one_for_you = { country = "ZA", currency = "ZAR" }
+money_badger = { country = "ZA", currency = "ZAR" }
 
 [pm_filters.nordea]
 sepa = { country = "DK,FI,NO,SE", currency = "DKK,EUR,NOK,SEK" }

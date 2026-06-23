@@ -2776,6 +2776,37 @@ pub enum PayLaterData {
     #[smithy(nested_value_type)]
     BreadpayRedirect {},
     PayjustnowRedirect {},
+    /// For Payflex Redirect as PayLater Option
+    #[smithy(nested_value_type)]
+    PayflexRedirect {},
+    /// For ZeroPay Redirect as PayLater Option
+    #[smithy(nested_value_type)]
+    ZeroPayRedirect {},
+    /// For Float Redirect as PayLater Option
+    #[smithy(nested_value_type)]
+    FloatRedirect {},
+    /// For HappyPay Redirect as PayLater Option
+    #[smithy(nested_value_type)]
+    HappyPayRedirect {},
+    /// For Mobicred Redirect as PayLater Option
+    #[smithy(nested_value_type)]
+    MobicredRedirect {
+        /// The Mobicred account password
+        #[schema(value_type = Option<String>)]
+        #[smithy(value_type = "Option<String>")]
+        password: Option<Secret<String>>,
+    },
+    /// For RCS Redirect as PayLater Option
+    #[smithy(nested_value_type)]
+    RcsRedirect {
+        /// The shopper's RCS store card number
+        #[schema(value_type = Option<String>)]
+        #[smithy(value_type = "Option<String>")]
+        card_number: Option<Secret<String>>,
+    },
+    /// For A+ Store Cards Redirect as PayLater Option
+    #[smithy(nested_value_type)]
+    APlusRedirect {},
 }
 
 impl GetAddressFromPaymentMethodData for PayLaterData {
@@ -2819,7 +2850,14 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
             | Self::AffirmRedirect {}
             | Self::AtomeRedirect {}
             | Self::BreadpayRedirect {}
-            | Self::PayjustnowRedirect {} => None,
+            | Self::PayjustnowRedirect {}
+            | Self::PayflexRedirect {}
+            | Self::ZeroPayRedirect {}
+            | Self::FloatRedirect {}
+            | Self::HappyPayRedirect {}
+            | Self::MobicredRedirect { .. }
+            | Self::RcsRedirect { .. }
+            | Self::APlusRedirect {} => None,
         }
     }
 }
@@ -3627,6 +3665,11 @@ impl GetPaymentMethodType for WalletData {
             Self::SwishQr(_) => api_enums::PaymentMethodType::Swish,
             Self::Mifinity(_) => api_enums::PaymentMethodType::Mifinity,
             Self::RevolutPay(_) => api_enums::PaymentMethodType::RevolutPay,
+            Self::MpesaRedirect {} => api_enums::PaymentMethodType::Mpesa,
+            Self::BlinkByEmtelRedirect {} => api_enums::PaymentMethodType::BlinkByEmtel,
+            Self::McbJuiceRedirect {} => api_enums::PaymentMethodType::McbJuice,
+            Self::ScanToPayRedirect {} => api_enums::PaymentMethodType::ScanToPay,
+            Self::MaucasRedirect {} => api_enums::PaymentMethodType::Maucas,
         }
     }
 }
@@ -3645,6 +3688,13 @@ impl GetPaymentMethodType for PayLaterData {
             Self::AtomeRedirect {} => api_enums::PaymentMethodType::Atome,
             Self::BreadpayRedirect {} => api_enums::PaymentMethodType::Breadpay,
             Self::PayjustnowRedirect {} => api_enums::PaymentMethodType::Payjustnow,
+            Self::PayflexRedirect {} => api_enums::PaymentMethodType::Payflex,
+            Self::ZeroPayRedirect {} => api_enums::PaymentMethodType::ZeroPay,
+            Self::FloatRedirect {} => api_enums::PaymentMethodType::Float,
+            Self::HappyPayRedirect {} => api_enums::PaymentMethodType::HappyPay,
+            Self::MobicredRedirect { .. } => api_enums::PaymentMethodType::Mobicred,
+            Self::RcsRedirect { .. } => api_enums::PaymentMethodType::Rcs,
+            Self::APlusRedirect {} => api_enums::PaymentMethodType::APlus,
         }
     }
 }
@@ -3735,6 +3785,10 @@ impl GetPaymentMethodType for BankTransferData {
             Self::IndonesianBankTransfer { .. } => {
                 api_enums::PaymentMethodType::IndonesianBankTransfer
             }
+            Self::CapitecPay { .. } => api_enums::PaymentMethodType::CapitecPay,
+            Self::PayShap { .. } => api_enums::PaymentMethodType::PayShap,
+            Self::NedbankDirectEft {} => api_enums::PaymentMethodType::NedbankDirectEft,
+            Self::PeachEft {} => api_enums::PaymentMethodType::PeachEft,
         }
     }
 }
@@ -3783,6 +3837,7 @@ impl GetPaymentMethodType for VoucherData {
             Self::FamilyMart(_) => api_enums::PaymentMethodType::FamilyMart,
             Self::Seicomart(_) => api_enums::PaymentMethodType::Seicomart,
             Self::PayEasy(_) => api_enums::PaymentMethodType::PayEasy,
+            Self::OneForYou(_) => api_enums::PaymentMethodType::OneForYou,
         }
     }
 }
@@ -4803,6 +4858,28 @@ pub enum BankTransferData {
         #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
     },
+    #[smithy(nested_value_type)]
+    CapitecPay {
+        /// The type of identifier used by the shopper's Capitec Pay account
+        #[schema(value_type = Option<CapitecPayAccountType>, example = "cellphone")]
+        #[smithy(value_type = "Option<CapitecPayAccountType>")]
+        account_type: Option<common_enums::CapitecPayAccountType>,
+        /// The identifier value (SA ID number, cellphone number or account number)
+        #[schema(value_type = Option<String>, example = "+27711234567")]
+        #[smithy(value_type = "Option<String>")]
+        account_id: Option<Secret<String>>,
+    },
+    #[smithy(nested_value_type)]
+    PayShap {
+        /// The shopper's bank for PayShap
+        #[schema(value_type = Option<BankNames>, example = "first_national_bank")]
+        #[smithy(value_type = "Option<BankNames>")]
+        bank: Option<common_enums::BankNames>,
+    },
+    #[smithy(nested_value_type)]
+    NedbankDirectEft {},
+    #[smithy(nested_value_type)]
+    PeachEft {},
 }
 
 #[derive(
@@ -4912,7 +4989,11 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
             | Self::InstantBankTransfer {}
             | Self::InstantBankTransferFinland {}
             | Self::IndonesianBankTransfer { .. }
-            | Self::InstantBankTransferPoland {} => None,
+            | Self::InstantBankTransferPoland {}
+            | Self::CapitecPay { .. }
+            | Self::PayShap { .. }
+            | Self::NedbankDirectEft {}
+            | Self::PeachEft {} => None,
         }
     }
 }
@@ -4997,6 +5078,10 @@ pub enum WalletData {
     #[schema(title = "ApplePayThirdPartySdk")]
     #[smithy(value_type = "ApplePayThirdPartySdkData")]
     ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>),
+    /// The wallet data for blink by Emtel redirect
+    #[schema(title = "BlinkByEmtelRedirect")]
+    #[smithy(nested_value_type)]
+    BlinkByEmtelRedirect {},
     /// The wallet data for Bluecode QR Code Redirect
     #[schema(title = "BluecodeRedirect")]
     #[smithy(nested_value_type)]
@@ -5033,10 +5118,18 @@ pub enum WalletData {
     #[schema(title = "KakaoPayRedirect")]
     #[smithy(value_type = "KakaoPayRedirection")]
     KakaoPayRedirect(KakaoPayRedirection),
+    /// The wallet data for MauCAS QR redirect
+    #[schema(title = "MaucasRedirect")]
+    #[smithy(nested_value_type)]
+    MaucasRedirect {},
     /// Wallet data for MbWay redirect flow
     #[schema(title = "MbWayRedirect")]
     #[smithy(value_type = "MbWayRedirection")]
     MbWayRedirect(Box<MbWayRedirection>),
+    /// The wallet data for MCB Juice redirect
+    #[schema(title = "McbJuiceRedirect")]
+    #[smithy(nested_value_type)]
+    McbJuiceRedirect {},
     // The wallet data for Mifinity Ewallet
     #[schema(title = "Mifinity")]
     #[smithy(value_type = "MifinityData")]
@@ -5049,6 +5142,10 @@ pub enum WalletData {
     #[schema(title = "MomoRedirect")]
     #[smithy(value_type = "MomoRedirection")]
     MomoRedirect(MomoRedirection),
+    /// The wallet data for M-PESA redirect
+    #[schema(title = "MpesaRedirect")]
+    #[smithy(nested_value_type)]
+    MpesaRedirect {},
     /// This is for paypal redirection
     #[schema(title = "PaypalRedirect")]
     #[smithy(value_type = "PaypalRedirection")]
@@ -5073,6 +5170,10 @@ pub enum WalletData {
     #[schema(title = "SamsungPay")]
     #[smithy(value_type = "SamsungPayWalletData")]
     SamsungPay(Box<SamsungPayWalletData>),
+    /// The wallet data for Scan to Pay redirect
+    #[schema(title = "ScanToPayRedirect")]
+    #[smithy(nested_value_type)]
+    ScanToPayRedirect {},
     /// The wallet data for Skrill
     #[schema(title = "Skrill")]
     #[smithy(value_type = "SkrillData")]
@@ -5157,7 +5258,12 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::CashappQr(_)
             | Self::SwishQr(_)
             | Self::RevolutPay(_)
-            | Self::BluecodeRedirect {} => None,
+            | Self::BluecodeRedirect {}
+            | Self::BlinkByEmtelRedirect {}
+            | Self::MaucasRedirect {}
+            | Self::McbJuiceRedirect {}
+            | Self::MpesaRedirect {}
+            | Self::ScanToPayRedirect {} => None,
         }
     }
 }
@@ -5775,6 +5881,20 @@ pub enum VoucherData {
     Seicomart(Box<JCSVoucherData>),
     #[smithy(value_type = "JCSVoucherData")]
     PayEasy(Box<JCSVoucherData>),
+    #[smithy(value_type = "OneForYouVoucherData")]
+    OneForYou(Box<OneForYouVoucherData>),
+}
+
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct OneForYouVoucherData {
+    /// The 1Voucher PIN collected from the shopper
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub voucher_pin: Option<Secret<String>>,
 }
 
 impl GetAddressFromPaymentMethodData for VoucherData {
@@ -5820,7 +5940,8 @@ impl GetAddressFromPaymentMethodData for VoucherData {
             | Self::PagoEfectivo
             | Self::RedCompra
             | Self::RedPagos
-            | Self::Oxxo => None,
+            | Self::Oxxo
+            | Self::OneForYou(_) => None,
         }
     }
 }

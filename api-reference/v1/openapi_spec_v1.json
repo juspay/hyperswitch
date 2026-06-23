@@ -12859,7 +12859,11 @@
           "ulster_bank",
           "yoursafe",
           "n26",
-          "nationale_nederlanden"
+          "nationale_nederlanden",
+          "first_national_bank",
+          "discovery_bank",
+          "nedbank",
+          "tyme_bank"
         ]
       },
       "BankRedirect": {
@@ -13870,6 +13874,60 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "capitec_pay"
+            ],
+            "properties": {
+              "capitec_pay": {
+                "$ref": "#/components/schemas/CapitecPayAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_shap"
+            ],
+            "properties": {
+              "pay_shap": {
+                "type": "object",
+                "properties": {
+                  "bank": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "nedbank_direct_eft"
+            ],
+            "properties": {
+              "nedbank_direct_eft": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "peach_eft"
+            ],
+            "properties": {
+              "peach_eft": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -14294,6 +14352,76 @@
                     "nullable": true
                   }
                 }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "capitec_pay"
+            ],
+            "properties": {
+              "capitec_pay": {
+                "type": "object",
+                "properties": {
+                  "account_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/CapitecPayAccountType"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "account_id": {
+                    "type": "string",
+                    "description": "The identifier value (SA ID number, cellphone number or account number)",
+                    "example": "+27711234567",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_shap"
+            ],
+            "properties": {
+              "pay_shap": {
+                "type": "object",
+                "properties": {
+                  "bank": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "nedbank_direct_eft"
+            ],
+            "properties": {
+              "nedbank_direct_eft": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "peach_eft"
+            ],
+            "properties": {
+              "peach_eft": {
+                "type": "object"
               }
             }
           }
@@ -15268,6 +15396,34 @@
           "cancelled_at": {
             "type": "string",
             "description": "Date when the subscription was cancelled",
+            "nullable": true
+          }
+        }
+      },
+      "CapitecPayAccountType": {
+        "type": "string",
+        "description": "The type of identifier used by the shopper's Capitec Pay account",
+        "enum": [
+          "id_number",
+          "cellphone",
+          "account_number"
+        ]
+      },
+      "CapitecPayAdditionalData": {
+        "type": "object",
+        "properties": {
+          "account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CapitecPayAccountType"
+              }
+            ],
+            "nullable": true
+          },
+          "account_id": {
+            "type": "string",
+            "description": "Partially masked identifier value",
+            "example": "**** 4567",
             "nullable": true
           }
         }
@@ -27343,6 +27499,16 @@
           }
         }
       },
+      "OneForYouVoucherData": {
+        "type": "object",
+        "properties": {
+          "voucher_pin": {
+            "type": "string",
+            "description": "The 1Voucher PIN collected from the shopper",
+            "nullable": true
+          }
+        }
+      },
       "OnlineMandate": {
         "type": "object",
         "description": "Details of online mandate",
@@ -28313,6 +28479,104 @@
             "properties": {
               "payjustnow_redirect": {
                 "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payflex_redirect"
+            ],
+            "properties": {
+              "payflex_redirect": {
+                "type": "object",
+                "description": "For Payflex Redirect as PayLater Option"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "zero_pay_redirect"
+            ],
+            "properties": {
+              "zero_pay_redirect": {
+                "type": "object",
+                "description": "For ZeroPay Redirect as PayLater Option"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "float_redirect"
+            ],
+            "properties": {
+              "float_redirect": {
+                "type": "object",
+                "description": "For Float Redirect as PayLater Option"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "happy_pay_redirect"
+            ],
+            "properties": {
+              "happy_pay_redirect": {
+                "type": "object",
+                "description": "For HappyPay Redirect as PayLater Option"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mobicred_redirect"
+            ],
+            "properties": {
+              "mobicred_redirect": {
+                "type": "object",
+                "description": "For Mobicred Redirect as PayLater Option",
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "description": "The Mobicred account password",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "rcs_redirect"
+            ],
+            "properties": {
+              "rcs_redirect": {
+                "type": "object",
+                "description": "For RCS Redirect as PayLater Option",
+                "properties": {
+                  "card_number": {
+                    "type": "string",
+                    "description": "The shopper's RCS store card number",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "a_plus_redirect"
+            ],
+            "properties": {
+              "a_plus_redirect": {
+                "type": "object",
+                "description": "For A+ Store Cards Redirect as PayLater Option"
               }
             }
           }
@@ -30935,7 +31199,25 @@
           "revolut_pay",
           "indonesian_bank_transfer",
           "open_banking",
-          "network_token"
+          "network_token",
+          "blink_by_emtel",
+          "capitec_pay",
+          "float",
+          "happy_pay",
+          "maucas",
+          "mcb_juice",
+          "mobicred",
+          "money_badger",
+          "mpesa",
+          "nedbank_direct_eft",
+          "one_for_you",
+          "payflex",
+          "pay_shap",
+          "peach_eft",
+          "rcs",
+          "scan_to_pay",
+          "zero_pay",
+          "a_plus"
         ]
       },
       "PaymentMethodUpdate": {
@@ -44948,6 +45230,17 @@
                 "$ref": "#/components/schemas/JCSVoucherData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "one_for_you"
+            ],
+            "properties": {
+              "one_for_you": {
+                "$ref": "#/components/schemas/OneForYouVoucherData"
+              }
+            }
           }
         ]
       },
@@ -45189,6 +45482,19 @@
           },
           {
             "type": "object",
+            "title": "BlinkByEmtelRedirect",
+            "required": [
+              "blink_by_emtel_redirect"
+            ],
+            "properties": {
+              "blink_by_emtel_redirect": {
+                "type": "object",
+                "description": "The wallet data for blink by Emtel redirect"
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "BluecodeRedirect",
             "required": [
               "bluecode_redirect"
@@ -45299,6 +45605,19 @@
           },
           {
             "type": "object",
+            "title": "MaucasRedirect",
+            "required": [
+              "maucas_redirect"
+            ],
+            "properties": {
+              "maucas_redirect": {
+                "type": "object",
+                "description": "The wallet data for MauCAS QR redirect"
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "MbWayRedirect",
             "required": [
               "mb_way_redirect"
@@ -45306,6 +45625,19 @@
             "properties": {
               "mb_way_redirect": {
                 "$ref": "#/components/schemas/MbWayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "McbJuiceRedirect",
+            "required": [
+              "mcb_juice_redirect"
+            ],
+            "properties": {
+              "mcb_juice_redirect": {
+                "type": "object",
+                "description": "The wallet data for MCB Juice redirect"
               }
             }
           },
@@ -45342,6 +45674,19 @@
             "properties": {
               "momo_redirect": {
                 "$ref": "#/components/schemas/MomoRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "MpesaRedirect",
+            "required": [
+              "mpesa_redirect"
+            ],
+            "properties": {
+              "mpesa_redirect": {
+                "type": "object",
+                "description": "The wallet data for M-PESA redirect"
               }
             }
           },
@@ -45414,6 +45759,19 @@
             "properties": {
               "samsung_pay": {
                 "$ref": "#/components/schemas/SamsungPayWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "ScanToPayRedirect",
+            "required": [
+              "scan_to_pay_redirect"
+            ],
+            "properties": {
+              "scan_to_pay_redirect": {
+                "type": "object",
+                "description": "The wallet data for Scan to Pay redirect"
               }
             }
           },

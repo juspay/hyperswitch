@@ -290,6 +290,7 @@ impl
             | VoucherData::MiniStop { .. }
             | VoucherData::FamilyMart { .. }
             | VoucherData::Seicomart { .. }
+            | VoucherData::OneForYou(_)
             | VoucherData::PayEasy { .. } => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Zen"),
             ))?,
@@ -353,6 +354,10 @@ impl
             | BankTransferData::PixAutomaticoPush { .. }
             | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::PixEmv {}
+            | BankTransferData::CapitecPay { .. }
+            | BankTransferData::PayShap { .. }
+            | BankTransferData::NedbankDirectEft {}
+            | BankTransferData::PeachEft {}
             | BankTransferData::MandiriVaBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
@@ -518,6 +523,11 @@ impl
             | WalletData::SwishQr(_)
             | WalletData::WeChatPayQr(_)
             | WalletData::Mifinity(_)
+            | WalletData::MpesaRedirect {}
+            | WalletData::BlinkByEmtelRedirect {}
+            | WalletData::McbJuiceRedirect {}
+            | WalletData::ScanToPayRedirect {}
+            | WalletData::MaucasRedirect {}
             | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Zen"),
             ))?,
@@ -777,6 +787,13 @@ impl TryFrom<&PayLaterData> for ZenPaymentsRequest {
             | PayLaterData::FlexitiRedirect {}
             | PayLaterData::AtomeRedirect {}
             | PayLaterData::BreadpayRedirect {}
+            | PayLaterData::PayflexRedirect {}
+            | PayLaterData::ZeroPayRedirect {}
+            | PayLaterData::FloatRedirect {}
+            | PayLaterData::HappyPayRedirect {}
+            | PayLaterData::MobicredRedirect { .. }
+            | PayLaterData::RcsRedirect { .. }
+            | PayLaterData::APlusRedirect {}
             | PayLaterData::PayjustnowRedirect {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Zen"),
             )

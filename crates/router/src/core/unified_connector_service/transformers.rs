@@ -4075,6 +4075,15 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::N26 => Ok(Self::N26),
             common_enums::BankNames::NationaleNederlanden => Ok(Self::NationaleNederlanden),
             common_enums::BankNames::Absa => Ok(Self::Absa),
+            common_enums::BankNames::FirstNationalBank
+            | common_enums::BankNames::DiscoveryBank
+            | common_enums::BankNames::Nedbank
+            | common_enums::BankNames::TymeBank => {
+                Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                    "Bank name {bank_name:?} is not supported by the unified connector service"
+                ))
+                .into())
+            }
         }
     }
 }

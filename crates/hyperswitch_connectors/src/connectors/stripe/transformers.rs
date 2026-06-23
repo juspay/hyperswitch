@@ -979,6 +979,24 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Breadpay
             | enums::PaymentMethodType::UpiQr
             | enums::PaymentMethodType::OpenBanking
+            | enums::PaymentMethodType::CapitecPay
+            | enums::PaymentMethodType::PayShap
+            | enums::PaymentMethodType::NedbankDirectEft
+            | enums::PaymentMethodType::PeachEft
+            | enums::PaymentMethodType::Payflex
+            | enums::PaymentMethodType::ZeroPay
+            | enums::PaymentMethodType::Float
+            | enums::PaymentMethodType::HappyPay
+            | enums::PaymentMethodType::Mobicred
+            | enums::PaymentMethodType::Rcs
+            | enums::PaymentMethodType::APlus
+            | enums::PaymentMethodType::Mpesa
+            | enums::PaymentMethodType::BlinkByEmtel
+            | enums::PaymentMethodType::McbJuice
+            | enums::PaymentMethodType::ScanToPay
+            | enums::PaymentMethodType::Maucas
+            | enums::PaymentMethodType::OneForYou
+            | enums::PaymentMethodType::MoneyBadger
             | enums::PaymentMethodType::NetworkToken => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -1231,6 +1249,13 @@ impl TryFrom<&PayLaterData> for StripePaymentMethodType {
             | PayLaterData::FlexitiRedirect { .. }
             | PayLaterData::AtomeRedirect {}
             | PayLaterData::BreadpayRedirect {}
+            | PayLaterData::PayflexRedirect {}
+            | PayLaterData::ZeroPayRedirect {}
+            | PayLaterData::FloatRedirect {}
+            | PayLaterData::HappyPayRedirect {}
+            | PayLaterData::MobicredRedirect { .. }
+            | PayLaterData::RcsRedirect { .. }
+            | PayLaterData::APlusRedirect {}
             | PayLaterData::PayjustnowRedirect {} => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )),
@@ -1309,6 +1334,11 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::TouchNGoRedirect(_)
         | WalletData::SwishQr(_)
         | WalletData::WeChatPayRedirect(_)
+        | WalletData::MpesaRedirect {}
+        | WalletData::BlinkByEmtelRedirect {}
+        | WalletData::McbJuiceRedirect {}
+        | WalletData::ScanToPayRedirect {}
+        | WalletData::MaucasRedirect {}
         | WalletData::Mifinity(_) => Err(ConnectorError::NotImplemented(
             get_unimplemented_payment_method_error_message("stripe"),
         )),
@@ -1550,6 +1580,10 @@ fn create_stripe_payment_method(
             | payment_method_data::BankTransferData::CimbVaBankTransfer { .. }
             | payment_method_data::BankTransferData::DanamonVaBankTransfer { .. }
             | payment_method_data::BankTransferData::IndonesianBankTransfer { .. }
+            | payment_method_data::BankTransferData::CapitecPay { .. }
+            | payment_method_data::BankTransferData::PayShap { .. }
+            | payment_method_data::BankTransferData::NedbankDirectEft {}
+            | payment_method_data::BankTransferData::PeachEft {}
             | payment_method_data::BankTransferData::MandiriVaBankTransfer { .. } => Err(
                 ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
                     "stripe",
@@ -1600,6 +1634,7 @@ fn create_stripe_payment_method(
             | VoucherData::MiniStop(_)
             | VoucherData::FamilyMart(_)
             | VoucherData::Seicomart(_)
+            | VoucherData::OneForYou(_)
             | VoucherData::PayEasy(_) => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -1838,6 +1873,11 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
             | WalletData::TouchNGoRedirect(_)
             | WalletData::SwishQr(_)
             | WalletData::WeChatPayRedirect(_)
+            | WalletData::MpesaRedirect {}
+            | WalletData::BlinkByEmtelRedirect {}
+            | WalletData::McbJuiceRedirect {}
+            | WalletData::ScanToPayRedirect {}
+            | WalletData::MaucasRedirect {}
             | WalletData::Mifinity(_) => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -4821,6 +4861,10 @@ impl
                 | payment_method_data::BankTransferData::InstantBankTransferFinland {}
                 | payment_method_data::BankTransferData::InstantBankTransferPoland {}
                 | payment_method_data::BankTransferData::IndonesianBankTransfer { .. }
+                | payment_method_data::BankTransferData::CapitecPay { .. }
+                | payment_method_data::BankTransferData::PayShap { .. }
+                | payment_method_data::BankTransferData::NedbankDirectEft {}
+                | payment_method_data::BankTransferData::PeachEft {}
                 | payment_method_data::BankTransferData::MandiriVaBankTransfer { .. } => {
                     Err(ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("stripe"),

@@ -1151,6 +1151,11 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::SwishQr(_)
                 | WalletData::Mifinity(_)
                 | WalletData::RevolutPay(_)
+                | WalletData::MpesaRedirect {}
+                | WalletData::BlinkByEmtelRedirect {}
+                | WalletData::McbJuiceRedirect {}
+                | WalletData::ScanToPayRedirect {}
+                | WalletData::MaucasRedirect {}
                 | WalletData::Paze(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 ))?,
@@ -1335,6 +1340,24 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::UpiQr
                     | enums::PaymentMethodType::Payjustnow
                     | enums::PaymentMethodType::OpenBanking
+                    | enums::PaymentMethodType::CapitecPay
+                    | enums::PaymentMethodType::PayShap
+                    | enums::PaymentMethodType::NedbankDirectEft
+                    | enums::PaymentMethodType::PeachEft
+                    | enums::PaymentMethodType::Payflex
+                    | enums::PaymentMethodType::ZeroPay
+                    | enums::PaymentMethodType::Float
+                    | enums::PaymentMethodType::HappyPay
+                    | enums::PaymentMethodType::Mobicred
+                    | enums::PaymentMethodType::Rcs
+                    | enums::PaymentMethodType::APlus
+                    | enums::PaymentMethodType::Mpesa
+                    | enums::PaymentMethodType::BlinkByEmtel
+                    | enums::PaymentMethodType::McbJuice
+                    | enums::PaymentMethodType::ScanToPay
+                    | enums::PaymentMethodType::Maucas
+                    | enums::PaymentMethodType::OneForYou
+                    | enums::PaymentMethodType::MoneyBadger
                     | enums::PaymentMethodType::NetworkToken => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("paypal"),
@@ -1400,6 +1423,13 @@ impl TryFrom<&PayLaterData> for PaypalPaymentsRequest {
             | PayLaterData::AlmaRedirect {}
             | PayLaterData::AtomeRedirect {}
             | PayLaterData::BreadpayRedirect {}
+            | PayLaterData::PayflexRedirect {}
+            | PayLaterData::ZeroPayRedirect {}
+            | PayLaterData::FloatRedirect {}
+            | PayLaterData::HappyPayRedirect {}
+            | PayLaterData::MobicredRedirect { .. }
+            | PayLaterData::RcsRedirect { .. }
+            | PayLaterData::APlusRedirect {}
             | PayLaterData::PayjustnowRedirect {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             )
@@ -1451,6 +1481,10 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::IndonesianBankTransfer { .. }
+            | BankTransferData::CapitecPay { .. }
+            | BankTransferData::PayShap { .. }
+            | BankTransferData::NedbankDirectEft {}
+            | BankTransferData::PeachEft {}
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
@@ -1478,6 +1512,7 @@ impl TryFrom<&VoucherData> for PaypalPaymentsRequest {
             | VoucherData::MiniStop(_)
             | VoucherData::FamilyMart(_)
             | VoucherData::Seicomart(_)
+            | VoucherData::OneForYou(_)
             | VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
             )

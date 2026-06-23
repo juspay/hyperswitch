@@ -232,6 +232,28 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::NetworkToken => {
                 Ok(dirval!(NetworkTokenType = NetworkToken))
             }
+            global_enums::PaymentMethodType::CapitecPay => {
+                Ok(dirval!(BankTransferType = CapitecPay))
+            }
+            global_enums::PaymentMethodType::PayShap => Ok(dirval!(BankTransferType = PayShap)),
+            global_enums::PaymentMethodType::NedbankDirectEft => {
+                Ok(dirval!(BankTransferType = NedbankDirectEft))
+            }
+            global_enums::PaymentMethodType::PeachEft => Ok(dirval!(BankTransferType = PeachEft)),
+            global_enums::PaymentMethodType::Payflex => Ok(dirval!(PayLaterType = Payflex)),
+            global_enums::PaymentMethodType::ZeroPay => Ok(dirval!(PayLaterType = ZeroPay)),
+            global_enums::PaymentMethodType::Float => Ok(dirval!(PayLaterType = Float)),
+            global_enums::PaymentMethodType::HappyPay => Ok(dirval!(PayLaterType = HappyPay)),
+            global_enums::PaymentMethodType::Mobicred => Ok(dirval!(PayLaterType = Mobicred)),
+            global_enums::PaymentMethodType::Rcs => Ok(dirval!(PayLaterType = Rcs)),
+            global_enums::PaymentMethodType::APlus => Ok(dirval!(PayLaterType = APlus)),
+            global_enums::PaymentMethodType::Mpesa => Ok(dirval!(WalletType = Mpesa)),
+            global_enums::PaymentMethodType::BlinkByEmtel => Ok(dirval!(WalletType = BlinkByEmtel)),
+            global_enums::PaymentMethodType::McbJuice => Ok(dirval!(WalletType = McbJuice)),
+            global_enums::PaymentMethodType::ScanToPay => Ok(dirval!(WalletType = ScanToPay)),
+            global_enums::PaymentMethodType::Maucas => Ok(dirval!(WalletType = Maucas)),
+            global_enums::PaymentMethodType::OneForYou => Ok(dirval!(VoucherType = OneForYou)),
+            global_enums::PaymentMethodType::MoneyBadger => Ok(dirval!(CryptoType = MoneyBadger)),
         }
     }
 }

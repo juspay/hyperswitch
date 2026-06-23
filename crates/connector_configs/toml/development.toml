@@ -7860,9 +7860,47 @@ options=["Connector","Hyperswitch"]
   payment_method_type = "AmericanExpress"
 [[peachpayments.network_token]]
   payment_method_type = "network_token"
-[peachpayments.connector_auth.BodyKey]
+[[peachpayments.bank_transfer]]
+  payment_method_type = "capitec_pay"
+[[peachpayments.bank_transfer]]
+  payment_method_type = "pay_shap"
+[[peachpayments.bank_transfer]]
+  payment_method_type = "nedbank_direct_eft"
+[[peachpayments.bank_transfer]]
+  payment_method_type = "peach_eft"
+[[peachpayments.pay_later]]
+  payment_method_type = "payflex"
+[[peachpayments.pay_later]]
+  payment_method_type = "zero_pay"
+[[peachpayments.pay_later]]
+  payment_method_type = "float"
+[[peachpayments.pay_later]]
+  payment_method_type = "happy_pay"
+[[peachpayments.pay_later]]
+  payment_method_type = "mobicred"
+[[peachpayments.pay_later]]
+  payment_method_type = "rcs"
+[[peachpayments.pay_later]]
+  payment_method_type = "a_plus"
+[[peachpayments.wallet]]
+  payment_method_type = "mpesa"
+[[peachpayments.wallet]]
+  payment_method_type = "blink_by_emtel"
+[[peachpayments.wallet]]
+  payment_method_type = "mcb_juice"
+[[peachpayments.wallet]]
+  payment_method_type = "scan_to_pay"
+[[peachpayments.wallet]]
+  payment_method_type = "maucas"
+[[peachpayments.voucher]]
+  payment_method_type = "one_for_you"
+[[peachpayments.crypto]]
+  payment_method_type = "money_badger"
+[peachpayments.connector_auth.MultiAuthKey]
 api_key="API Key"
 key1="Tenant ID"
+key2="Payments API User ID"
+api_secret="Payments API Password"
 [peachpayments.connector_webhook_details]
 merchant_secret="Webhook Secret"
 
@@ -7876,6 +7914,12 @@ type="Text"
 name="merchant_payment_method_route_id"
 label="Merchant Payment Method Route Id"
 placeholder="Enter Merchant Payment Method Route Id"
+required=true
+type="Text"
+[peachpayments.metadata.entity_id]
+name="entity_id"
+label="Payments API Entity ID"
+placeholder="Enter Payments API Entity ID"
 required=true
 type="Text"
 

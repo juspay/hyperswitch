@@ -209,6 +209,9 @@ enum RequiredField {
     PixAccountNumber,
     PixBranchCode,
     PixBankIdentifier,
+    PayShapBank(Vec<enums::BankNames>),
+    MobicredPassword,
+    OneForYouVoucherPin,
 }
 
 impl RequiredField {
@@ -253,6 +256,37 @@ impl RequiredField {
                             .to_string(),
                     display_name: "bank_identifier".to_string(),
                     field_type: FieldType::UserBankIdentifier,
+                    value: None,
+                },
+            ),
+            Self::PayShapBank(banks) => (
+                "payment_method_data.bank_transfer.pay_shap.bank".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.bank_transfer.pay_shap.bank".to_string(),
+                    display_name: "bank".to_string(),
+                    field_type: FieldType::UserBankOptions {
+                        options: banks.iter().map(|bank| bank.to_string()).collect(),
+                    },
+                    value: None,
+                },
+            ),
+            Self::MobicredPassword => (
+                "payment_method_data.pay_later.mobicred_redirect.password".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.pay_later.mobicred_redirect.password"
+                        .to_string(),
+                    display_name: "password".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
+            Self::OneForYouVoucherPin => (
+                "payment_method_data.voucher.one_for_you.voucher_pin".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.voucher.one_for_you.voucher_pin"
+                        .to_string(),
+                    display_name: "voucher_pin".to_string(),
+                    field_type: FieldType::UserGiftCardPin,
                     value: None,
                 },
             ),
@@ -1178,23 +1212,32 @@ impl RequiredFields {
             ),
             (
                 enums::PaymentMethod::Crypto,
-                PaymentMethodType(HashMap::from([(
-                    enums::PaymentMethodType::CryptoCurrency,
-                    connectors(vec![(
-                        Connector::Cryptopay,
-                        fields(
-                            vec![],
-                            vec![
-                                RequiredField::CyptoPayCurrency(vec![
-                                    "BTC", "LTC", "ETH", "XRP", "XLM", "BCH", "ADA", "SOL", "SHIB",
-                                    "TRX", "DOGE", "BNB", "USDT", "USDC", "DAI",
-                                ]),
-                                RequiredField::CryptoNetwork,
-                            ],
-                            vec![],
-                        ),
-                    )]),
-                )])),
+                PaymentMethodType(HashMap::from([
+                    (
+                        enums::PaymentMethodType::CryptoCurrency,
+                        connectors(vec![(
+                            Connector::Cryptopay,
+                            fields(
+                                vec![],
+                                vec![
+                                    RequiredField::CyptoPayCurrency(vec![
+                                        "BTC", "LTC", "ETH", "XRP", "XLM", "BCH", "ADA", "SOL",
+                                        "SHIB", "TRX", "DOGE", "BNB", "USDT", "USDC", "DAI",
+                                    ]),
+                                    RequiredField::CryptoNetwork,
+                                ],
+                                vec![],
+                            ),
+                        )]),
+                    ),
+                    (
+                        enums::PaymentMethodType::MoneyBadger,
+                        connectors(vec![(
+                            Connector::Peachpayments,
+                            fields(vec![], vec![], vec![]),
+                        )]),
+                    ),
+                ])),
             ),
             (
                 enums::PaymentMethod::Voucher,
@@ -2557,6 +2600,62 @@ fn get_bank_redirect_required_fields(
 fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFields> {
     HashMap::from([
         (
+            enums::PaymentMethodType::Mpesa,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::BillingPhone,
+                        RequiredField::BillingPhoneCountryCode,
+                    ],
+                ),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::BlinkByEmtel,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::BillingPhone,
+                        RequiredField::BillingPhoneCountryCode,
+                    ],
+                ),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::McbJuice,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::BillingPhone,
+                        RequiredField::BillingPhoneCountryCode,
+                    ],
+                ),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::ScanToPay,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(vec![], vec![], vec![]),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::Maucas,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(vec![], vec![], vec![]),
+            )]),
+        ),
+        (
             enums::PaymentMethodType::ApplePay,
             connectors(vec![
                 (Connector::Stripe, fields(vec![], vec![], vec![])),
@@ -3062,6 +3161,59 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
 fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFields> {
     HashMap::from([
         (
+            enums::PaymentMethodType::Payflex,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(vec![], vec![], vec![]),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::ZeroPay,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(vec![], vec![], vec![]),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::Float,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(vec![], vec![], vec![]),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::HappyPay,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(vec![], vec![], vec![]),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::Mobicred,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![RequiredField::BillingEmail, RequiredField::MobicredPassword],
+                ),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::Rcs,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(vec![], vec![], vec![]),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::APlus,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(vec![], vec![], vec![RequiredField::BillingEmail]),
+            )]),
+        ),
+        (
             enums::PaymentMethodType::AfterpayClearpay,
             connectors(vec![
                 (
@@ -3391,6 +3543,21 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
 #[cfg(feature = "v1")]
 fn get_voucher_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFields> {
     HashMap::from([
+        (
+            enums::PaymentMethodType::OneForYou,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::OneForYouVoucherPin,
+                        RequiredField::BillingPhone,
+                        RequiredField::BillingPhoneCountryCode,
+                    ],
+                ),
+            )]),
+        ),
         (
             enums::PaymentMethodType::Boleto,
             connectors(vec![
@@ -3813,6 +3980,55 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
 #[cfg(feature = "v1")]
 fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFields> {
     HashMap::from([
+        (
+            enums::PaymentMethodType::CapitecPay,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::BillingPhone,
+                        RequiredField::BillingPhoneCountryCode,
+                    ],
+                ),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::PayShap,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::PayShapBank(vec![
+                            enums::BankNames::FirstNationalBank,
+                            enums::BankNames::DiscoveryBank,
+                            enums::BankNames::Nedbank,
+                            enums::BankNames::TymeBank,
+                            enums::BankNames::Absa,
+                        ]),
+                        RequiredField::BillingPhone,
+                        RequiredField::BillingPhoneCountryCode,
+                    ],
+                ),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::NedbankDirectEft,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(vec![], vec![], vec![]),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::PeachEft,
+            connectors(vec![(
+                Connector::Peachpayments,
+                fields(vec![], vec![], vec![]),
+            )]),
+        ),
         (
             enums::PaymentMethodType::Multibanco,
             connectors(vec![(
