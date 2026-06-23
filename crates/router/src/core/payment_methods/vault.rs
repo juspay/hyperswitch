@@ -2413,7 +2413,7 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
     );
 
     // delete key after retrieving the cvc
-    redis_conn.delete_key(&key.into()).await.map_err(|err| {
+    let _ = redis_conn.delete_key(&key.into()).await.map_err(|err| {
         logger::error!("Failed to delete token from redis: {:?}", err);
     });
 
