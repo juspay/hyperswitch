@@ -37,6 +37,15 @@ import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import { handleRedirection } from "./redirectionHandler";
 
+function avoidHelcimDuplicateDeclineByUniqueCardholderName(body, globalState) {
+  if (globalState.get("connectorId") !== "helcim") return;
+  if (!body.payment_method_data?.card) return;
+
+  const ts = Date.now();
+  const rnd = Math.floor(Math.random() * 1_000_000);
+  body.payment_method_data.card.card_holder_name = `HelcimTest ${ts}_${rnd}`;
+}
+
 // In MITM replay mode (MOCK_SERVER=true) there is no live browser redirection
 // to drive. Cypress.env may return a boolean or a string, hence String().
 function isMockServer() {
@@ -2742,6 +2751,8 @@ Cypress.Commands.add(
       confirmBody.split_payments = reqData.split_payments;
     }
 
+    avoidHelcimDuplicateDeclineByUniqueCardholderName(confirmBody, globalState);
+
     const headers = {
       "Content-Type": "application/json",
       "api-key": apiKey,
@@ -3511,6 +3522,11 @@ Cypress.Commands.add(
     if (reqData?.split_payments && isStripeConnect(globalState)) {
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
+
+    avoidHelcimDuplicateDeclineByUniqueCardholderName(
+      createConfirmPaymentBody,
+      globalState
+    );
 
     const headers = {
       "Content-Type": "application/json",
