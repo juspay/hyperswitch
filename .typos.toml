@@ -145,6 +145,22 @@ dimesnions = "dimesnions" # Typo in router/src/core/payouts.rs from main merge
 updator = "updator" # Typo in router/src/core/user_role.rs from main merge
 cutomer = "cutomer" # Typo in router/src/routes/app.rs from main merge
 parmas = "parmas" # Typo in router/src/middleware.rs from main merge
+Tansfer = "Tansfer" # Typo in stripe/transformers.rs from main merge
+Occurence = "Occurence" # Typo in paysafe/transformers.rs from main merge
+connnector = "connnector" # Typo in stripebilling/transformers.rs from main merge
+featrue = "featrue" # Typo in stripebilling/transformers.rs from main merge
+unparseable = "unparseable" # Typo in signifyd/transformers.rs from main merge
+differnt = "differnt" # Typo in worldpaymodular/transformers.rs from main merge
+attmept = "attmept" # Typo in router/src/core/revenue_recovery.rs from main merge
+respone = "respone" # Typo in router/src/core/payments/session_token.rs from main merge
+Correspondente = "Correspondente" # Portuguese: correspondent (Santander API field)
+ETO = "ETO" # Abbreviation in external services
+Eto = "Eto" # Abbreviation in external services
+Guarentee = "Guarentee" # Typo in main, can't rename without breaking API
+RTO = "RTO" # Abbreviation: Recovery Time Objective
+recieved = "recieved" # Typo in main, can't rename without breaking code
+sepearte = "sepearte" # Typo in main, can't rename without breaking code
+supoorted = "supoorted" # Typo in main, can't rename without breaking code
 
 [files]
 extend-exclude = [
