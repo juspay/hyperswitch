@@ -2701,6 +2701,43 @@ pub struct CardToken {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub card_cvc: Option<Secret<String>>,
+
+    /// Token referencing a CVC vaulted in the hyperswitch (self-hosted) vault. Used by the
+    /// self-hosted default-vault repeat-customer flow, where the card is referenced by the
+    /// top-level `payment_token` and the freshly-tokenized CVC arrives as this token; the server
+    /// resolves it to the raw CVC. Not used by the external vault proxy flow.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub card_cvc_token: Option<Secret<String>>,
+}
+
+/// Card token data carried by the external vault proxy `vault_card_token_data` variant. Its
+/// `card_cvc` is a vault token detokenized on the wire by the external vault (e.g. VGS). Kept as a
+/// distinct type from [`CardToken`] so the self-hosted `card_cvc_token` field does not leak into
+/// the proxy contract.
+#[derive(
+    Eq,
+    PartialEq,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    ToSchema,
+    Default,
+    SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct VaultCardToken {
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The CVC number for the card (a vault token for the external vault proxy flow)
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub card_cvc: Option<Secret<String>>,
 }
 
 #[derive(
@@ -3499,14 +3536,15 @@ pub enum PaymentMethodData {
     /// Vault card data used for external vault proxy payments.
     /// When this variant is used, the payment will be routed through the external vault proxy flow.
     #[schema(title = "VaultDataCard")]
-    #[serde(rename = "vault_data_card")]
+    #[serde(rename = "vault_data_card", alias = "vault_card")]
     ProxyCard(Box<ProxyCardData>),
     /// Vault card token data used for external vault proxy payments with an already-saved card.
     /// The top-level `payment_token` resolves to a stored payment method whose external vault
     /// tokens are retrieved from the modular PM service; this variant carries the CVC / card
     /// holder name to combine with those tokens. Routed through the external vault proxy flow.
     #[schema(title = "VaultCardTokenData")]
-    VaultCardTokenData(CardToken),
+    #[serde(rename = "vault_card_token_data", alias = "vault_card_token")]
+    VaultCardTokenData(VaultCardToken),
 }
 
 pub trait GetAddressFromPaymentMethodData {

@@ -1435,6 +1435,10 @@ pub struct CardToken {
 
     /// The CVC number for the card
     pub card_cvc: Option<Secret<String>>,
+
+    /// Token referencing a CVC vaulted in the hyperswitch (self-hosted) vault, resolved by the
+    /// server to the raw CVC for the self-hosted default-vault repeat-customer flow.
+    pub card_cvc_token: Option<Secret<String>>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
@@ -2856,10 +2860,12 @@ impl From<api_models::payments::CardToken> for CardToken {
         let api_models::payments::CardToken {
             card_holder_name,
             card_cvc,
+            card_cvc_token,
         } = value;
         Self {
             card_holder_name,
             card_cvc,
+            card_cvc_token,
         }
     }
 }
