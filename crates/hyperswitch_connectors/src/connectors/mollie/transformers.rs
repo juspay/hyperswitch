@@ -878,48 +878,56 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
     fn try_from(
         item: ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let status = enums::AttemptStatus::from(item.response.status.clone());
+        let status = match item.response.status.clone() {
+            MolliePaymentStatus::Unknown => {
+                router_env::logger::warn!("Unknown payment status received from mollie");
+                item.data.status
+            }
+            other => {
+                let status = enums::AttemptStatus::from(other);
+                // Handle failed payments: extract error details from the details object
+                // Mollie returns 2xx but with status "failed" when payment fails after 3DS authentication
+                if crate::utils::is_payment_failure(status) {
+                    let (failure_reason, failure_message) = item
+                        .response
+                        .details
+                        .as_ref()
+                        .map(|details| {
+                            (
+                                details.failure_reason.clone(),
+                                details.failure_message.clone(),
+                            )
+                        })
+                        .unwrap_or((None, None));
 
-        // Handle failed payments: extract error details from the details object
-        // Mollie returns 2xx but with status "failed" when payment fails after 3DS authentication
-        if crate::utils::is_payment_failure(status) {
-            let (failure_reason, failure_message) = item
-                .response
-                .details
-                .as_ref()
-                .map(|details| {
-                    (
-                        details.failure_reason.clone(),
-                        details.failure_message.clone(),
-                    )
-                })
-                .unwrap_or((None, None));
+                    let error_code = failure_reason
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string());
+                    let error_message = failure_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
 
-            let error_code = failure_reason
-                .clone()
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string());
-            let error_message = failure_message
-                .clone()
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
-
-            return Ok(Self {
-                status,
-                response: Err(ErrorResponse {
-                    status_code: item.http_code,
-                    code: error_code,
-                    message: error_message.clone(),
-                    reason: Some(error_message),
-                    attempt_status: None,
-                    connector_transaction_id: Some(item.response.id),
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    connector_metadata: None,
-                    connector_response_reference_id: None,
-                }),
-                ..item.data
-            });
-        }
+                    return Ok(Self {
+                        status,
+                        response: Err(ErrorResponse {
+                            status_code: item.http_code,
+                            code: error_code,
+                            message: error_message.clone(),
+                            reason: Some(error_message),
+                            attempt_status: None,
+                            connector_transaction_id: Some(item.response.id),
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
+                            connector_metadata: None,
+                            connector_response_reference_id: None,
+                        }),
+                        ..item.data
+                    });
+                }
+                status
+            }
+        };
 
         let url = item
             .response
