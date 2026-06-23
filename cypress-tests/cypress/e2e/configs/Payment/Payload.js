@@ -86,6 +86,60 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithBillingDescriptor: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {
+        currency: "USD",
+        billing_descriptor: {
+          name: "Test Business",
+          city: "San Francisco",
+          phone: "1234567890",
+          statement_descriptor: "Test Descriptor",
+          statement_descriptor_suffix: "Suffix",
+          reference: "REF123",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        billing_descriptor: {
+          name: "Test Business",
+          city: "San Francisco",
+          phone: "1234567890",
+          statement_descriptor: "Test Descriptor",
+          statement_descriptor_suffix: "Suffix",
+          reference: "REF123",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount_received: 6000,
+        },
+      },
+    },
     "3DSManualCapture": {
       Configs: {
         TRIGGER_SKIP: true,
