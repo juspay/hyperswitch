@@ -1491,7 +1491,6 @@ export const connectorDetails = {
     },
     Becs: {
       Configs: {
-        TRIGGER_SKIP: true,
         CONNECTOR_CREDENTIAL: {
           value: "connector_4",
         },
