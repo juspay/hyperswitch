@@ -53,6 +53,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
+    types::Response,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -5770,20 +5771,17 @@ pub(crate) fn get_adyen_webhook_event(
             None => api_models::webhooks::IncomingWebhookEvent::DisputeLost,
         },
         WebhookEventCode::RequestForInformation => match dispute_status {
-            // RFI was responded to (merchant submitted info) - dispute remains open awaiting decision
             Some(DisputeStatus::Responded) => {
                 api_models::webhooks::IncomingWebhookEvent::DisputeOpened
             }
             Some(DisputeStatus::Expired) => {
                 api_models::webhooks::IncomingWebhookEvent::DisputeExpired
             }
-            // Unresponded RFI - still in pre-dispute phase, awaiting merchant action
             Some(DisputeStatus::Unresponded) => {
                 api_models::webhooks::IncomingWebhookEvent::DisputeOpened
             }
             None | Some(_) => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
         },
-        // INFORMATION_SUPPLIED - Defense documents uploaded or auto-defended
         WebhookEventCode::InformationSupplied => match dispute_status {
             Some(DisputeStatus::Responded) => {
                 api_models::webhooks::IncomingWebhookEvent::DisputeChallenged
@@ -5791,58 +5789,45 @@ pub(crate) fn get_adyen_webhook_event(
             Some(_) => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
             None => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
         },
-        // CHARGEBACK_REVERSED - Chargeback defended, funds returned while under review
         WebhookEventCode::ChargebackReversed => match dispute_status {
-            // Pending = issuer reviewing defense materials - still technically challenged
             Some(DisputeStatus::Pending) => {
                 api_models::webhooks::IncomingWebhookEvent::DisputeChallenged
             }
             _ => api_models::webhooks::IncomingWebhookEvent::DisputeWon,
         },
-        // SECOND_CHARGEBACK - Issuing bank declined defense materials
         WebhookEventCode::SecondChargeback => {
             api_models::webhooks::IncomingWebhookEvent::DisputeLost
         }
-        // PREARBITRATION_WON - Pre-arbitration case accepted by cardholder's bank
         WebhookEventCode::PrearbitrationWon => {
             api_models::webhooks::IncomingWebhookEvent::DisputeWon
         }
-        // PREARBITRATION_LOST - Pre-arbitration case declined by cardholder's bank
         WebhookEventCode::PrearbitrationLost => {
             api_models::webhooks::IncomingWebhookEvent::DisputeLost
         }
-        // PREARBITRATION_OPEN - Issuer declined defense and opened pre-arbitration
         WebhookEventCode::PrearbitrationOpen => match dispute_status {
             Some(DisputeStatus::Undefended) => {
                 api_models::webhooks::IncomingWebhookEvent::DisputeOpened
             }
             _ => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
         },
-        // PREARBITRATION_ACCEPTED - Merchant (partially) accepted pre-arbitration
         WebhookEventCode::PrearbitrationAccepted => {
             api_models::webhooks::IncomingWebhookEvent::DisputeAccepted
         }
-        // PREARBITRATION_DECLINED - Merchant declined pre-arbitration
         WebhookEventCode::PrearbitrationDeclined => {
             api_models::webhooks::IncomingWebhookEvent::DisputeChallenged
         }
-        // PREARBITRATION_ISSUER_WITHDRAWN - Issuer withdrew pre-arbitration case
         WebhookEventCode::PrearbitrationIssuerWithdrawn => {
             api_models::webhooks::IncomingWebhookEvent::DisputeWon
         }
-        // SCHEME_ARBITRATION - Escalated to scheme arbitration
         WebhookEventCode::SchemeArbitration => {
             api_models::webhooks::IncomingWebhookEvent::DisputeOpened
         }
-        // SCHEME_ARBITRATION_WON - Scheme ruled in merchant's favor
         WebhookEventCode::SchemeArbitrationWon => {
             api_models::webhooks::IncomingWebhookEvent::DisputeWon
         }
-        // SCHEME_ARBITRATION_LOST - Scheme ruled in issuer's favor
         WebhookEventCode::SchemeArbitrationLost => {
             api_models::webhooks::IncomingWebhookEvent::DisputeLost
         }
-        // DISPUTE_DEFENSE_PERIOD_ENDED - Defense period ended without defense or accepted liability
         WebhookEventCode::DisputeDefensePeriodEnded => match dispute_status {
             Some(DisputeStatus::Undefended) | Some(DisputeStatus::Lost) => {
                 api_models::webhooks::IncomingWebhookEvent::DisputeLost
@@ -5852,7 +5837,6 @@ pub(crate) fn get_adyen_webhook_event(
             }
             _ => api_models::webhooks::IncomingWebhookEvent::DisputeLost,
         },
-        // ISSUER_RESPONSE_TIMEFRAME_EXPIRED - Issuer accepted defense or didn't respond
         WebhookEventCode::IssuerResponseTimeframeExpired => {
             api_models::webhooks::IncomingWebhookEvent::DisputeWon
         }
@@ -6649,7 +6633,7 @@ impl TryFrom<&DefendDisputeRouterData> for AdyenDefendDisputeRequest {
         Ok(Self {
             dispute_psp_reference: item.request.connector_dispute_id.clone(),
             merchant_account_code,
-            defense_reason_code: "SupplyDefenseMaterial".into(),
+            defense_reason_code: "AdditionalInformation".into(),
         })
     }
 }
@@ -6873,11 +6857,13 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for SubmitEvidenceRouterData 
     }
 }
 
-impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for DefendDisputeRouterData {
+impl ForeignTryFrom<(&Self, Response, AdyenDisputeResponse)> for DefendDisputeRouterData {
     type Error = errors::ConnectorError;
 
-    fn foreign_try_from(item: (&Self, AdyenDisputeResponse)) -> Result<Self, Self::Error> {
-        let (data, response) = item;
+    fn foreign_try_from(
+        item: (&Self, Response, AdyenDisputeResponse),
+    ) -> Result<Self, Self::Error> {
+        let (data, res, response) = item;
         let dispute_result = response.dispute_service_result;
 
         if dispute_result.success {
@@ -6900,11 +6886,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for DefendDisputeRouterData {
                         .clone()
                         .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                     reason: dispute_result.error_message,
-                    status_code: data.connector_http_status_code.ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "http code",
-                        },
-                    )?,
+                    status_code: res.status_code,
                     attempt_status: None,
                     connector_transaction_id: None,
                     connector_response_reference_id: None,

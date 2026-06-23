@@ -105,6 +105,12 @@ use crate::{
 };
 const ADYEN_API_VERSION: &str = "v68";
 
+const ADYEN_IMAGE_MAX_SIZE: i32 = 10_000_000;
+const ADYEN_PDF_MAX_SIZE: i32 = 2_000_000;
+const ADYEN_SUPPORTED_DISPUTE_EVIDENCE_FILE_TYPES: [&str; 4] =
+    ["image/jpeg", "image/jpg", "image/tiff", "application/pdf"];
+const ADYEN_IMAGE_FILE_TYPES: [&str; 3] = ["image/jpeg", "image/jpg", "image/tiff"];
+
 /// Helper function to log Adyen connector request and response with prefixes
 fn log_adyen_request_response<Flow>(
     flow_name: &str,
@@ -2478,7 +2484,7 @@ impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeRespons
             .response
             .parse_struct("AdyenDisputeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        RouterData::foreign_try_from((data, response))
+        RouterData::foreign_try_from((data, res, response))
             .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -2590,28 +2596,24 @@ impl FileUpload for Adyen {
     ) -> CustomResult<(), errors::ConnectorError> {
         match purpose {
             FilePurpose::DisputeEvidence => {
-                let supported_file_types =
-                    ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
-                if !supported_file_types.contains(&file_type.to_string().as_str()) {
+                let file_type_str = file_type.to_string();
+                if !ADYEN_SUPPORTED_DISPUTE_EVIDENCE_FILE_TYPES.contains(&file_type_str.as_str()) {
                     Err(errors::ConnectorError::FileValidationFailed {
-                        reason: "file_type does not match JPEG, JPG, PNG, or PDF format".to_owned(),
+                        reason: "file_type does not match JPEG, JPG, TIFF, or PDF format"
+                            .to_owned(),
                     })?
                 }
-                //10 MB
-                if (file_type.to_string().as_str() == "image/jpeg"
-                    || file_type.to_string().as_str() == "image/jpg"
-                    || file_type.to_string().as_str() == "image/png")
-                    && file_size > 10000000
+                if ADYEN_IMAGE_FILE_TYPES.contains(&file_type_str.as_str())
+                    && file_size > ADYEN_IMAGE_MAX_SIZE
                 {
                     Err(errors::ConnectorError::FileValidationFailed {
                         reason: "file_size exceeded the max file size of 10MB for Image formats"
                             .to_owned(),
                     })?
                 }
-                //2 MB
-                if file_type.to_string().as_str() == "application/pdf" && file_size > 2000000 {
+                if file_type_str.as_str() == "application/pdf" && file_size > ADYEN_PDF_MAX_SIZE {
                     Err(errors::ConnectorError::FileValidationFailed {
-                        reason: "file_size exceeded the max file size of 2MB for PDF formats"
+                        reason: "file_size exceeded the max file size of 2MB for PDF format"
                             .to_owned(),
                     })?
                 }
