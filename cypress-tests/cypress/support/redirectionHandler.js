@@ -27,7 +27,7 @@ const CONSTANTS = {
 };
 
 /**
- * Handle the Inespay SEPA bank-debit simulator redirect flow.
+ * Handle a SEPA bank-debit simulator redirect flow (e.g. Inespay).
  *
  * Required flow (board-specified exact sequence):
  * 1. Click "close" button to dismiss any modal
@@ -40,7 +40,7 @@ const CONSTANTS = {
  *
  * @param {string} nextActionUrl – the redirect URL from the payment
  */
-export function handleInespayRedirectFlow(nextActionUrl) {
+export function handleSimulatorRedirectFlow(nextActionUrl) {
   // Suppress uncaught exceptions from the simulator page
   cy.on("uncaught:exception", () => false);
 
@@ -1469,6 +1469,12 @@ function bankRedirectRedirection(
     cy.then(() => {
       verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
     });
+    return;
+  }
+
+  // Inespay SEPA bank-debit simulator redirect flow
+  if (connectorId === "inespay") {
+    handleSimulatorRedirectFlow(redirectionUrl.href);
     return;
   }
 
@@ -3720,14 +3726,14 @@ function handleFlow(
 }
 
 /**
- * Verify Globepay QR-code nextActionUrl (inline base64 data URI).
- * Used by WeChatPay and AliPay wallet flows where the connector returns
+ * Verify a QR-code nextActionUrl (inline base64 data URI).
+ * Used by wallet flows (e.g. WeChatPay, AliPay) where the connector returns
  * a data: URI instead of a redirect URL.
  */
-export function handleGlobepayQRRedirection(nextActionUrl) {
+export function handleQRCodeRedirection(nextActionUrl) {
   expect(
     nextActionUrl,
-    "nextActionUrl should be present after Globepay wallet confirm"
+    "nextActionUrl should be present after wallet confirm"
   ).to.be.a("string");
 
   expect(
@@ -3736,6 +3742,6 @@ export function handleGlobepayQRRedirection(nextActionUrl) {
   ).to.match(/^data:/);
 
   cy.log(
-    "Globepay inline QR code verified via data URI — no redirect expected"
+    "Inline QR code verified via data URI — no redirect expected"
   );
 }

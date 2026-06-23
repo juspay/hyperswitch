@@ -36,8 +36,7 @@ import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import {
-  handleGlobepayQRRedirection as handleGlobepayQR,
-  handleInespayRedirectFlow,
+  handleQRCodeRedirection,
   handleRedirection,
 } from "./redirectionHandler";
 
@@ -2392,10 +2391,6 @@ Cypress.Commands.add(
     globalState.set("paymentCurrency", createPaymentBody.currency);
     globalState.set("captureMethod", capture_method);
     globalState.set("setupFutureUsage", createPaymentBody.setup_future_usage);
-    // Reset redirect-related state so stale values from previous tests
-    // (e.g. Inespay SEPA) do not leak into the current payment flow.
-    globalState.set("nextActionUrl", null);
-    globalState.set("nextActionType", null);
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
@@ -3167,12 +3162,13 @@ Cypress.Commands.add(
                   response.body.capture_method === "manual" ||
                   response.body.capture_method === "manual_multiple"
                 ) {
-                  if (connectorId === "globepay") {
-                    // GlobePay returns QR code inline, not a redirect URL
-                    expect(response.body)
-                      .to.have.property("next_action")
-                      .to.have.property("type")
-                      .to.equal("qr_code_information");
+                  // Some connectors return a QR code inline (next_action.type
+                  // === "qr_code_information") instead of a redirect URL.
+                  // Drive behavior from the next_action type, not the connector ID.
+                  if (
+                    response.body.next_action &&
+                    response.body.next_action.type === "qr_code_information"
+                  ) {
                     expect(response.body.next_action)
                       .to.have.property("image_data_url")
                       .to.be.a("string");
@@ -5173,20 +5169,15 @@ Cypress.Commands.add(
       return;
     }
 
-    // Known exception: Globepay returns a data: URI (QR code), not a navigable URL.
-    // Must be checked before new URL() which would throw on a data: URI.
-    if (connectorId === "globepay") {
-      handleGlobepayQR(nextActionUrl);
+    // Some connectors return a data: URI (QR code) instead of a navigable URL.
+    // Detect this generically from the URL scheme rather than hardcoding connector IDs.
+    if (nextActionUrl.startsWith("data:")) {
+      handleQRCodeRedirection(nextActionUrl);
       return;
     }
 
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
-
-    if (connectorId === "inespay") {
-      handleInespayRedirectFlow(nextActionUrl);
-      return;
-    }
 
     // Known exception: Adyen wallet types (dana, go_pay, momo, vipps) legitimately
     // return a redirect URL with a null hostname — these wallets complete via the
@@ -5314,8 +5305,10 @@ Cypress.Commands.add(
       return;
     }
 
-    if (connectorId === "globepay") {
-      handleGlobepayQR(nextActionUrl);
+    // Some connectors return a data: URI (QR code) instead of a navigable URL.
+    // Detect this generically from the URL scheme rather than hardcoding connector IDs.
+    if (nextActionUrl.startsWith("data:")) {
+      handleQRCodeRedirection(nextActionUrl);
       return;
     }
 
