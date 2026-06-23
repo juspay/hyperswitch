@@ -5253,9 +5253,16 @@ Cypress.Commands.add(
 
       cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
         if (saved && saved.__redirect_method === "GET") {
-          // Connector uses a browser GET for redirect/complete (e.g. Cybersource DDC).
+          // Connector uses a browser GET for redirect/complete (e.g. Cybersource DDC)
+          // or redirect/response (e.g. Adyen 3DS). Prefer __redirect_segment so we
+          // call the exact path that was captured; fall back to notificationUrl.
+          const hyperswitchUrl =
+            Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
           const qs = new URLSearchParams(saved.__query || {}).toString();
-          const url = qs ? `${notificationUrl}?${qs}` : notificationUrl;
+          const base = saved.__redirect_segment
+            ? `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`
+            : notificationUrl;
+          const url = qs ? `${base}?${qs}` : base;
           cy.request({
             method: "GET",
             url,
@@ -5319,22 +5326,166 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
-    if (skipRedirectionInMockServer("handleBankRedirectRedirection")) {
-      return;
-    }
+    const isProxyEnabled = String(Cypress.env("IS_PROXY_ENABLED")) === "true";
 
-    const expectedUrl = new URL(expectedRedirection);
-    const redirectionUrl = new URL(nextActionUrl);
-
-    // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
-    // trying to handle that specific case results in stripe 3ds tests to fail
-    if (!(connectorId == "adyen" && paymentMethodType == "sofort")) {
+    // In non-proxy mode, preserve the original behaviour exactly.
+    if (!isProxyEnabled) {
+      if (skipRedirectionInMockServer("handleBankRedirectRedirection")) {
+        return;
+      }
+      // adyen sofort blocks other tests; skip it unconditionally.
+      if (connectorId === "adyen" && paymentMethodType === "sofort") {
+        return;
+      }
+      const expectedUrl = new URL(expectedRedirection);
+      const redirectionUrl = new URL(nextActionUrl);
       handleRedirection(
         "bank_redirect",
         { redirectionUrl, expectedUrl },
         connectorId,
         paymentMethodType
       );
+      return;
+    }
+
+    // Proxy mode (IS_PROXY_ENABLED=true): record/replay logic below.
+    // adyen sofort is excluded — it blocks other tests.
+    if (connectorId === "adyen" && paymentMethodType === "sofort") {
+      return;
+    }
+
+    if (isProxyEnabled) {
+      const paymentId = globalState.get("paymentID");
+      const merchantId = globalState.get("merchantId");
+      const baseUrl = globalState.get("baseUrl");
+      const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
+      const redirectBodyFile = `cypress/fixtures/proxy-bodies/${testIdHash}-redirect-body.json`;
+      const redirectProxyAdminUrl = Cypress.env("REDIRECT_PROXY_ADMIN_URL");
+
+      // Bank redirect connectors that complete via a browser GET return to redirect/response.
+      // Stripe (and stripeconnect) fall into this category — same as card 3DS return path.
+      const JS_BANK_REDIRECT_CONNECTORS = {
+        stripe: {
+          path: "redirect/response",
+          params: (gs) => ({
+            payment_intent: gs.get("connectorTransactionID"),
+            redirect_status: "succeeded",
+          }),
+        },
+        stripeconnect: {
+          path: "redirect/response",
+          params: (gs) => ({
+            payment_intent: gs.get("connectorTransactionID"),
+            redirect_status: "succeeded",
+          }),
+        },
+      };
+      const jsConnector = JS_BANK_REDIRECT_CONNECTORS[connectorId];
+
+      if (!isMockServer()) {
+        // RECORDING path.
+        // Bank redirect uses cy.visit only (no cy.request for nextActionUrl), so:
+        //   step N+1 = redirect/response or redirect/complete (browser-driven)
+        //   step N+2 = next Cypress cy.request (retrieve, etc.)
+        if (redirectProxyAdminUrl) {
+          const currentStep = Cypress._getStepCounter
+            ? Cypress._getStepCounter()
+            : 0;
+          const redirectStep = currentStep + 1; // N+1 (not N+2 — no nextActionUrl cy.request)
+          const redirectRid = `${testIdHash}-${String(redirectStep).padStart(3, "0")}`;
+
+          cy.request({
+            method: "POST",
+            url: `${redirectProxyAdminUrl}/reserve`,
+            body: { rid: redirectRid, testIdHash },
+            failOnStatusCode: false,
+            timeout: 2000,
+          });
+        }
+
+        const expectedUrl = new URL(expectedRedirection);
+        const redirectionUrl = new URL(nextActionUrl);
+        handleRedirection(
+          "bank_redirect",
+          { redirectionUrl, expectedUrl },
+          connectorId,
+          paymentMethodType
+        );
+
+        cy.then(() => {
+          if (Cypress._buildRequestId) {
+            Cypress._buildRequestId(); // consume step N+1 so retrieve lands on N+2
+          }
+        });
+        return;
+      }
+
+      // REPLAY path.
+      // Step N+1 = replay the redirect/response or redirect/complete call.
+      // Step N+2 = retrieve (next cy.request).
+      if (jsConnector) {
+        const hyperswitchUrl =
+          Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
+        cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
+          if (saved && saved.__redirect_method === "GET" && saved.__redirect_segment) {
+            const segment = saved.__redirect_segment;
+            const url = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${segment}`;
+            const qs = new URLSearchParams(saved.__query || {}).toString();
+            cy.request({
+              method: "GET",
+              url: qs ? `${url}?${qs}` : url,
+              failOnStatusCode: false,
+              followRedirect: false,
+            }); // step N+1
+          } else {
+            // Fallback: synthesize from globalState (no proxy-bodies captured yet)
+            const returnUrl = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${jsConnector.path}/${connectorId}`;
+            const params = jsConnector.params(globalState);
+            const hasValues = Object.values(params).every(
+              (v) => v !== undefined && v !== null
+            );
+            if (hasValues) {
+              const qs = new URLSearchParams(params).toString();
+              cy.request({
+                method: "GET",
+                url: `${returnUrl}?${qs}`,
+                failOnStatusCode: false,
+                followRedirect: false,
+              }); // step N+1
+            } else if (Cypress._buildRequestId) {
+              cy.then(() => { Cypress._buildRequestId(); }); // burn N+1 slot
+            }
+          }
+        });
+        return;
+      }
+
+      // Non-JS connector replay: use saved proxy-bodies for redirect/complete.
+      const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
+      cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
+        if (saved && saved.__redirect_method === "GET") {
+          const qs = new URLSearchParams(saved.__query || {}).toString();
+          const url = qs ? `${notificationUrl}?${qs}` : notificationUrl;
+          cy.request({
+            method: "GET",
+            url,
+            failOnStatusCode: false,
+            followRedirect: false,
+          }); // step N+1
+        } else if (saved) {
+          cy.request({
+            method: "POST",
+            url: notificationUrl,
+            form: true,
+            body: saved,
+            failOnStatusCode: false,
+            followRedirect: false,
+          }); // step N+1
+        } else if (Cypress._buildRequestId) {
+          cy.then(() => { Cypress._buildRequestId(); }); // burn N+1 slot
+        }
+      });
+      return;
     }
   }
 );
