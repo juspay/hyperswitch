@@ -143,11 +143,16 @@ where
 
                 let connector_customer_result = match connector_customer_result {
                     Ok(response) => Ok(response),
-                    Err(err) => {
+                    Err(mut err) => {
                         logger::debug!("Error in UCS router data response");
                         if let Some(attempt_status) = err.attempt_status {
                             router_data.status = attempt_status;
                         }
+                        // The attempt status is carried on `router_data.status`; HS-native
+                        // leaves the ErrorResponse's own `attempt_status` as None for this
+                        // flow, so clear it to keep the UCS-shadow router data identical to
+                        // native (otherwise `response.Err.attempt_status` diverges).
+                        err.attempt_status = None;
                         Err(err)
                     }
                 };
