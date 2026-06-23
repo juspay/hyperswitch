@@ -2610,12 +2610,8 @@ pub fn build_webhook_secrets_from_merchant_connector_account(
     }
 }
 
-/// Build and emit the connector event for a Hyperswitch -> UCS gRPC call.
-///
-/// Same `connector_events` stream as a direct connector call, tagged
-/// `destination = unified_connector_service`. Shared by `ucs_logging_wrapper` and
-/// `ucs_logging_wrapper_granular`, which differ only in the error type they propagate
-/// (router vs `UnifiedConnectorServiceError`).
+/// Emit the connector event for a Hyperswitch -> UCS gRPC call, tagged
+/// `destination = unified_connector_service` (same `connector_events` stream as a direct call).
 #[allow(clippy::too_many_arguments)]
 fn emit_ucs_connector_event(
     state: &SessionState,
