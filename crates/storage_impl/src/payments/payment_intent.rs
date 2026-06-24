@@ -1291,7 +1291,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         })
     }
 
-
     #[cfg(all(feature = "v1", feature = "olap"))]
     #[instrument(skip_all)]
     async fn filter_payment_intents_by_time_range_constraints(

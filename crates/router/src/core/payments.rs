@@ -10216,12 +10216,8 @@ pub async fn get_platform_payment_filters(
         .clone();
 
         let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-            super::admin::list_payment_connectors(
-                state.clone(),
-                processor,
-                profile_id_list.clone(),
-            )
-            .await?
+            super::admin::list_payment_connectors(state.clone(), processor, profile_id_list.clone())
+                .await?
         {
             data
         } else {

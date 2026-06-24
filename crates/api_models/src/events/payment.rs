@@ -43,7 +43,8 @@ use crate::{
         PaymentsManualUpdateRequest, PaymentsManualUpdateResponse,
         PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRejectRequest,
         PaymentsRetrieveRequest, PaymentsStartRequest, PaymentsUpdateMetadataRequest,
-        PaymentsUpdateMetadataResponse, PlatformPaymentListConstraints, PlatformPaymentListResponse,
+        PaymentsUpdateMetadataResponse, PlatformPaymentListConstraints,
+        PlatformPaymentListResponse,
     },
 };
 

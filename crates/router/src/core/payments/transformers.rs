@@ -29,16 +29,16 @@ use common_utils::{
         StringMajorUnitForConnector,
     },
 };
-#[cfg(all(feature = "v1", feature = "olap"))]
-use diesel_models::{
-    payment_attempt::PaymentAttempt as DieselPaymentAttempt, PaymentIntent as DieselPaymentIntent,
-};
 use diesel_models::{
     ephemeral_key,
     payment_attempt::{
         ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
         NetworkDetails as DieselNetworkDetails,
     },
+};
+#[cfg(all(feature = "v1", feature = "olap"))]
+use diesel_models::{
+    payment_attempt::PaymentAttempt as DieselPaymentAttempt, PaymentIntent as DieselPaymentIntent,
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
