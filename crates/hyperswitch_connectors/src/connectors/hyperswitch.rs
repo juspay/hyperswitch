@@ -15,13 +15,17 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        payments::{
+            Authorize, Capture, PSync, PaymentMethodToken, PostCaptureVoidSync, PreAuthorizeVoid,
+            Session, SetupMandate, Void,
+        },
         refunds::{Execute, RSync},
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCancelPostCaptureSyncData, PaymentsCaptureData,
+        PaymentsPreAuthorizeCancelData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
@@ -61,6 +65,8 @@ impl Hyperswitch {
 }
 
 impl api::Payment for Hyperswitch {}
+impl api::PaymentPreAuthorizeVoid for Hyperswitch {}
+impl api::PaymentPostCaptureVoidSync for Hyperswitch {}
 impl api::PaymentSession for Hyperswitch {}
 impl api::ConnectorAccessToken for Hyperswitch {}
 impl api::MandateSetup for Hyperswitch {}
@@ -75,6 +81,22 @@ impl api::PaymentToken for Hyperswitch {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Hyperswitch
+{
+    // Not Implemented (R)
+}
+
+impl ConnectorIntegration<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, PaymentsResponseData>
+    for Hyperswitch
+{
+    // Not Implemented (R)
+}
+
+impl
+    ConnectorIntegration<
+        PostCaptureVoidSync,
+        PaymentsCancelPostCaptureSyncData,
+        PaymentsResponseData,
+    > for Hyperswitch
 {
     // Not Implemented (R)
 }
@@ -162,20 +184,6 @@ impl ConnectorCommon for Hyperswitch {
 }
 
 impl ConnectorValidation for Hyperswitch {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,
