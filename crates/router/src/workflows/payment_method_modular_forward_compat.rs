@@ -141,6 +141,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                     &customer_id,
                     pmd,
                     state.conf.locker.ttl_for_storage_in_secs,
+                    Some(domain::VaultId::generate(card_reference.clone())),
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
