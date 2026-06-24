@@ -489,9 +489,7 @@ mod storage {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::{
-        ext_traits::Encode, fallback_reverse_lookup_not_found, types::ConnectorTransactionIdTrait,
-    };
+    use common_utils::{ext_traits::Encode, fallback_reverse_lookup_not_found};
     use diesel_models::refund as diesel_refund;
     use error_stack::{report, ResultExt};
     use hyperswitch_domain_models::refunds;
@@ -507,7 +505,7 @@ mod storage {
         core::errors::{self, utils::RedisErrorExt, CustomResult},
         db::reverse_lookup::ReverseLookupInterface,
         services::Store,
-        types::storage::{self as storage_types, enums, kv},
+        types::storage::{self as storage_types, enums},
         utils::db_utils,
     };
     #[async_trait::async_trait]
@@ -561,10 +559,7 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!(
-                        "ref_inter_ref_{}_{internal_reference_id}",
-                        processor_merchant_id.get_string_repr()
-                    );
+                    let lookup_id = diesel_refund::Refund::construct_lookup_id_processor_merchant_id_internal_reference_id(processor_merchant_id, internal_reference_id);
                     let lookup = fallback_reverse_lookup_not_found!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
@@ -669,19 +664,12 @@ mod storage {
                         &created_refund.attempt_id, &created_refund.refund_id
                     );
 
-                    let redis_entry = kv::TypedSql {
-                        op: kv::DBOperation::Insert {
-                            insertable: Box::new(kv::Insertable::Refund(new)),
-                        },
-                    };
-
                     let mut reverse_lookups = vec![
                         storage_types::ReverseLookupNew {
                             sk_id: field.clone(),
-                            lookup_id: format!(
-                                "ref_ref_id_{}_{}",
-                                created_refund.merchant_id.get_string_repr(),
-                                created_refund.refund_id
+                            lookup_id: diesel_refund::Refund::construct_lookup_id_processor_merchant_id_refund_id(
+                                &created_refund.merchant_id,
+                                &created_refund.refund_id
                             ),
                             pk_id: key_str.clone(),
                             source: "refund".to_string(),
@@ -690,27 +678,24 @@ mod storage {
                         // [#492]: A discussion is required on whether this is required?
                         storage_types::ReverseLookupNew {
                             sk_id: field.clone(),
-                            lookup_id: format!(
-                                "ref_inter_ref_{}_{}",
-                                created_refund.merchant_id.get_string_repr(),
-                                created_refund.internal_reference_id
+                            lookup_id: diesel_refund::Refund::construct_lookup_id_processor_merchant_id_internal_reference_id(
+                                &created_refund.merchant_id,
+                                &created_refund.internal_reference_id
                             ),
                             pk_id: key_str.clone(),
                             source: "refund".to_string(),
                             updated_by: storage_scheme.to_string(),
                         },
                     ];
-                    if let Some(connector_refund_id) =
-                        created_refund.to_owned().get_optional_connector_refund_id()
-                    {
+                    if let Some(connector_refund_id) = &created_refund.connector_refund_id {
+                        let lookup_id = diesel_refund::Refund::construct_lookup_id_processor_merchant_id_connector_refund_id_connector(
+                            &created_refund.merchant_id,
+                            connector_refund_id.get_id(),
+                            &created_refund.connector
+                        );
                         reverse_lookups.push(storage_types::ReverseLookupNew {
                             sk_id: field.clone(),
-                            lookup_id: format!(
-                                "ref_connector_{}_{}_{}",
-                                created_refund.merchant_id.get_string_repr(),
-                                connector_refund_id,
-                                created_refund.connector
-                            ),
+                            lookup_id,
                             pk_id: key_str.clone(),
                             source: "refund".to_string(),
                             updated_by: storage_scheme.to_string(),
@@ -722,12 +707,19 @@ mod storage {
 
                     futures::future::try_join_all(rev_look).await?;
 
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let drainer_query = new
+                        .generate_drainer_insert_query(&mut query_gen_conn)
+                        .await
+                        .change_context(errors::StorageError::KVError)
+                        .attach_printable("Failed to generate refund insert query")?;
+
                     match Box::pin(kv_wrapper::<diesel_refund::Refund, _, _>(
                         self,
                         KvOperation::<diesel_refund::Refund>::HSetNx(
                             &field,
                             &created_refund,
-                            redis_entry,
+                            drainer_query,
                         ),
                         key,
                     ))
@@ -886,26 +878,74 @@ mod storage {
                     let key_str = key.to_string();
                     let updated_refund = refund.clone().apply_changeset(this.clone());
 
+                    let old_connector_refund_id_option = this.connector_refund_id.clone();
+                    let new_connector_refund_id_option = updated_refund.connector_refund_id.clone();
+
+                    match (
+                        old_connector_refund_id_option,
+                        new_connector_refund_id_option,
+                    ) {
+                        (None, Some(new_connector_refund_id)) => {
+                            // No connector_refund_id existed before
+                            let lookup_id = diesel_refund::Refund::construct_lookup_id_processor_merchant_id_connector_refund_id_connector(
+                                &updated_refund.merchant_id,
+                                new_connector_refund_id.get_id(),
+                                &updated_refund.connector
+                            );
+                            let reverse_lookup = storage_types::ReverseLookupNew {
+                                sk_id: field.clone(),
+                                lookup_id,
+                                pk_id: key_str.clone(),
+                                source: "refund".to_string(),
+                                updated_by: storage_scheme.to_string(),
+                            };
+                            self.insert_reverse_lookup(reverse_lookup, storage_scheme)
+                                .await?;
+                        }
+                        (Some(old_connector_refund_id), Some(new_connector_refund_id))
+                            if old_connector_refund_id.ne(&new_connector_refund_id) =>
+                        {
+                            // connector_refund_id existed before but it is being updated in this update call
+                            let lookup_id = diesel_refund::Refund::construct_lookup_id_processor_merchant_id_connector_refund_id_connector(
+                                &updated_refund.merchant_id,
+                                new_connector_refund_id.get_id(),
+                                &updated_refund.connector
+                            );
+                            let reverse_lookup = storage_types::ReverseLookupNew {
+                                sk_id: field.clone(),
+                                lookup_id,
+                                pk_id: key_str.clone(),
+                                source: "refund".to_string(),
+                                updated_by: storage_scheme.to_string(),
+                            };
+                            self.insert_reverse_lookup(reverse_lookup, storage_scheme)
+                                .await?;
+                        }
+                        (_, _) => {}
+                    }
+
                     let redis_value = updated_refund
                         .encode_to_string_of_json()
                         .change_context(errors::StorageError::SerializationFailed)?;
 
-                    let redis_entry = kv::TypedSql {
-                        op: kv::DBOperation::Update {
-                            updatable: Box::new(kv::Updateable::RefundUpdate(Box::new(
-                                kv::RefundUpdateMems {
-                                    orig: this,
-                                    update_data: refund,
-                                },
-                            ))),
-                        },
-                    };
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let drainer_query = refund
+                        .generate_drainer_update_query(
+                            &mut query_gen_conn,
+                            this.refund_id.clone(),
+                            this.processor_merchant_id
+                                .clone()
+                                .unwrap_or_else(|| merchant_id.clone()),
+                        )
+                        .await
+                        .change_context(errors::StorageError::KVError)
+                        .attach_printable("Failed to generate refund update query")?;
 
                     Box::pin(kv_wrapper::<(), _, _>(
                         self,
                         KvOperation::Hset::<diesel_refund::Refund>(
                             (&field, redis_value),
-                            redis_entry,
+                            drainer_query,
                         ),
                         key,
                     ))
@@ -981,10 +1021,11 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!(
-                        "ref_ref_id_{}_{refund_id}",
-                        processor_merchant_id.get_string_repr()
-                    );
+                    let lookup_id =
+                        diesel_refund::Refund::construct_lookup_id_processor_merchant_id_refund_id(
+                            processor_merchant_id,
+                            refund_id,
+                        );
                     let lookup = fallback_reverse_lookup_not_found!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
@@ -1063,9 +1104,10 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!(
-                        "ref_connector_{}_{connector_refund_id}_{connector}",
-                        processor_merchant_id.get_string_repr()
+                    let lookup_id = diesel_refund::Refund::construct_lookup_id_processor_merchant_id_connector_refund_id_connector(
+                        processor_merchant_id,
+                        connector_refund_id,
+                        connector,
                     );
                     let lookup = fallback_reverse_lookup_not_found!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)

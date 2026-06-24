@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-#[cfg(all(feature = "v1", feature = "olap"))]
+#[cfg(feature = "v1")]
 use api_models::enums::Connector;
 #[cfg(feature = "v1")]
 use api_models::payments::Amount;
@@ -107,16 +107,6 @@ pub trait PaymentAttemptInterface {
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
-
-    #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
-        &self,
-        connector_transaction_id: &ConnectorTransactionId,
-        payment_id: &id_type::PaymentId,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
@@ -787,6 +777,7 @@ pub struct PaymentAttempt {
     /// Whether external 3DS authentication was attempted for this payment.
     /// This is based on the configuration of the merchant in the business profile
     pub external_three_ds_authentication_attempted: Option<bool>,
+    pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     /// The connector that was used for external authentication
     pub authentication_connector: Option<String>,
     /// The foreign key reference to the authentication details
@@ -974,6 +965,7 @@ impl PaymentAttempt {
             encoded_data: None,
             merchant_connector_id: None,
             external_three_ds_authentication_attempted: None,
+            external_threeds_authentication_type: None,
             authentication_connector: None,
             authentication_id: None,
             fingerprint_id: None,
@@ -1067,6 +1059,7 @@ impl PaymentAttempt {
             encoded_data: None,
             merchant_connector_id: Some(request.merchant_connector_id.clone()),
             external_three_ds_authentication_attempted: None,
+            external_threeds_authentication_type: None,
             authentication_connector: None,
             authentication_id: None,
             fingerprint_id: None,
@@ -1168,6 +1161,7 @@ impl PaymentAttempt {
             encoded_data: None,
             merchant_connector_id: None,
             external_three_ds_authentication_attempted: None,
+            external_threeds_authentication_type: None,
             authentication_connector: None,
             authentication_id: None,
             fingerprint_id: None,
@@ -1292,6 +1286,7 @@ impl PaymentAttempt {
             encoded_data: None,
             merchant_connector_id: request.payment_merchant_connector_id.clone(),
             external_three_ds_authentication_attempted: None,
+            external_threeds_authentication_type: None,
             authentication_connector: None,
             authentication_id: None,
             fingerprint_id: None,
@@ -1396,6 +1391,7 @@ pub struct PaymentAttempt {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub external_three_ds_authentication_attempted: Option<bool>,
+    pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<id_type::AuthenticationId>,
     pub mandate_data: Option<MandateDetails>,
@@ -1541,6 +1537,10 @@ impl NetAmount {
             .clone()
             .map(|details| details.surcharge_amount);
         self.tax_on_surcharge = surcharge_details.map(|details| details.tax_on_surcharge_amount);
+    }
+
+    pub fn set_external_surcharge_amount(&mut self, surcharge_amount: Option<MinorUnit>) {
+        self.surcharge_amount = surcharge_amount;
     }
 
     pub fn set_installment_interest(&mut self, installment_interest: Option<MinorUnit>) {
@@ -1991,6 +1991,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         external_three_ds_authentication_attempted: Option<bool>,
+        external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
         authentication_connector: Option<String>,
         authentication_id: Option<id_type::AuthenticationId>,
         payment_method_billing_address_id: Option<String>,
@@ -2009,6 +2010,7 @@ pub enum PaymentAttemptUpdate {
         network_transaction_link_id: Option<String>,
         is_stored_credential: Option<bool>,
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+        external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -2156,6 +2158,7 @@ pub enum PaymentAttemptUpdate {
     AuthenticationUpdate {
         status: storage_enums::AttemptStatus,
         external_three_ds_authentication_attempted: Option<bool>,
+        external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
         authentication_connector: Option<String>,
         authentication_id: Option<id_type::AuthenticationId>,
         updated_by: String,
@@ -2318,6 +2321,7 @@ impl PaymentAttemptUpdate {
                 merchant_connector_id: connector_id,
                 payment_method_id,
                 external_three_ds_authentication_attempted,
+                external_threeds_authentication_type,
                 authentication_connector,
                 authentication_id,
                 payment_method_billing_address_id,
@@ -2334,6 +2338,7 @@ impl PaymentAttemptUpdate {
                 network_transaction_link_id,
                 is_stored_credential,
                 request_extended_authorization,
+                external_surcharge_details,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -2358,6 +2363,7 @@ impl PaymentAttemptUpdate {
                 merchant_connector_id: connector_id,
                 payment_method_id,
                 external_three_ds_authentication_attempted,
+                external_threeds_authentication_type,
                 authentication_connector,
                 authentication_id,
                 payment_method_billing_address_id,
@@ -2383,6 +2389,7 @@ impl PaymentAttemptUpdate {
                 network_transaction_link_id,
                 is_stored_credential,
                 request_extended_authorization,
+                external_surcharge_details,
             },
             Self::VoidUpdate {
                 status,
@@ -2707,12 +2714,14 @@ impl PaymentAttemptUpdate {
             Self::AuthenticationUpdate {
                 status,
                 external_three_ds_authentication_attempted,
+                external_threeds_authentication_type,
                 authentication_connector,
                 authentication_id,
                 updated_by,
             } => DieselPaymentAttemptUpdate::AuthenticationUpdate {
                 status,
                 external_three_ds_authentication_attempted,
+                external_threeds_authentication_type,
                 authentication_connector,
                 authentication_id,
                 updated_by,
@@ -2954,6 +2963,7 @@ impl behaviour::Conversion for PaymentAttempt {
             net_amount: Some(self.net_amount.get_total_amount()),
             external_three_ds_authentication_attempted: self
                 .external_three_ds_authentication_attempted,
+            external_threeds_authentication_type: self.external_threeds_authentication_type,
             authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
             mandate_data: self.mandate_data.map(Into::into),
@@ -3090,6 +3100,8 @@ impl behaviour::Conversion for PaymentAttempt {
                 unified_message: storage_model.unified_message,
                 external_three_ds_authentication_attempted: storage_model
                     .external_three_ds_authentication_attempted,
+                external_threeds_authentication_type: storage_model
+                    .external_threeds_authentication_type,
                 authentication_connector: storage_model.authentication_connector,
                 authentication_id: storage_model.authentication_id,
                 mandate_data: storage_model.mandate_data.map(Into::into),
@@ -3201,6 +3213,7 @@ impl behaviour::Conversion for PaymentAttempt {
             net_amount: Some(self.net_amount.get_total_amount()),
             external_three_ds_authentication_attempted: self
                 .external_three_ds_authentication_attempted,
+            external_threeds_authentication_type: self.external_threeds_authentication_type,
             authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
             mandate_data: self.mandate_data.map(Into::into),
@@ -3286,6 +3299,7 @@ impl behaviour::Conversion for PaymentAttempt {
             encoded_data,
             merchant_connector_id,
             external_three_ds_authentication_attempted,
+            external_threeds_authentication_type,
             authentication_connector,
             authentication_id,
             fingerprint_id,
@@ -3372,6 +3386,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 .and_then(|details| details.unified_message.clone()),
             net_amount,
             external_three_ds_authentication_attempted,
+            external_threeds_authentication_type,
             authentication_connector,
             authentication_id,
             fingerprint_id,
@@ -3527,6 +3542,8 @@ impl behaviour::Conversion for PaymentAttempt {
                 merchant_connector_id: storage_model.merchant_connector_id,
                 external_three_ds_authentication_attempted: storage_model
                     .external_three_ds_authentication_attempted,
+                external_threeds_authentication_type: storage_model
+                    .external_threeds_authentication_type,
                 authentication_connector: storage_model.authentication_connector,
                 authentication_id: storage_model.authentication_id,
                 fingerprint_id: storage_model.fingerprint_id,
@@ -3591,6 +3608,7 @@ impl behaviour::Conversion for PaymentAttempt {
             encoded_data,
             merchant_connector_id,
             external_three_ds_authentication_attempted,
+            external_threeds_authentication_type,
             authentication_connector,
             authentication_id,
             fingerprint_id,
@@ -3674,6 +3692,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 .and_then(|details| details.unified_message.clone()),
             net_amount: amount_details.net_amount,
             external_three_ds_authentication_attempted,
+            external_threeds_authentication_type,
             authentication_connector,
             authentication_id,
             fingerprint_id,

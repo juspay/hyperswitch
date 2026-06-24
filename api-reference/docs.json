@@ -45,6 +45,7 @@
                       "v1/payments/payments--retrieve",
                       "v1/payments/payments--cancel",
                       "v1/payments/payments--cancel-post-capture",
+                      "v1/payments/payments--cancel-post-capture-retrieve",
                       "v1/payments/payments--capture",
                       "v1/payments/payments--incremental-authorization",
                       "v1/payments/payments--extend-authorization",
@@ -97,14 +98,6 @@
                     ]
                   },
                   {
-                    "group": "Mandates",
-                    "pages": [
-                      "v1/mandates/mandates--revoke-mandate",
-                      "v1/mandates/mandates--retrieve-mandate",
-                      "v1/mandates/mandates--customer-mandates-list"
-                    ]
-                  },
-                  {
                     "group": "Refunds",
                     "pages": [
                       "v1/refunds/refunds--create",
@@ -117,7 +110,17 @@
                     "group": "Disputes",
                     "pages": [
                       "v1/disputes/disputes--retrieve",
-                      "v1/disputes/disputes--list"
+                      "v1/disputes/disputes--list",
+                      "v1/disputes/disputes--list-profiles",
+                      "v1/disputes/disputes--accept",
+                      "v1/disputes/disputes--submit-evidence",
+                      "v1/disputes/disputes--attach-evidence",
+                      "v1/disputes/disputes--retrieve-evidence",
+                      "v1/disputes/disputes--delete-evidence",
+                      "v1/disputes/disputes--get-aggregate",
+                      "v1/disputes/disputes--get-aggregate-profiles",
+                      "v1/disputes/disputes--get-filters",
+                      "v1/disputes/disputes--get-filters-profiles"
                     ]
                   },
                   {
@@ -147,6 +150,14 @@
               {
                 "group": "Deprecated APIs",
                 "pages": [
+                  {
+                    "group": "Mandates",
+                    "pages": [
+                      "v1/mandates/mandates--revoke-mandate",
+                      "v1/mandates/mandates--retrieve-mandate",
+                      "v1/mandates/mandates--customer-mandates-list"
+                    ]
+                  },
                   {
                     "group": "Customers",
                     "pages": [

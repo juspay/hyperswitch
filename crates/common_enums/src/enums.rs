@@ -791,6 +791,32 @@ pub enum ConnectorType {
     VaultProcessor,
 }
 
+/// Strategy for applying external surcharge
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SurchargeStrategy {
+    /// Apply the calculated surcharge to the payment (default)
+    #[default]
+    Apply,
+    /// Do not apply the surcharge; return the amount only
+    Waive,
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum PaymentAction {
     PSync,
@@ -2467,19 +2493,29 @@ pub enum PaymentMethodType {
     NetworkToken,
 }
 
+/// Indicates whether a wallet token is decrypted .
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WalletDecryptedToken {
+    ApplePay,
+    GooglePay,
+    /// No wallet decryption occurred.
+    None,
+}
+
 impl PaymentMethodType {
+    /// - True : then fetch the saved payment method and update the last used, skip locker id creation
+    /// - False : For applepay and googlepay decrypted tokens create a new payment method according to locker fingerprint
     pub fn should_check_for_customer_saved_payment_method_type(
         self,
-        is_apple_pay_decrypt: bool,
+        decrypted_token: WalletDecryptedToken,
     ) -> bool {
-        if is_apple_pay_decrypt {
-            // return false if the payment method is Apple Pay and the decryption is successful, else exhibit the existing behaviour
-            !matches!(self, Self::ApplePay)
-        } else {
-            matches!(
+        match decrypted_token {
+            WalletDecryptedToken::ApplePay => !matches!(self, Self::ApplePay),
+            WalletDecryptedToken::GooglePay => !matches!(self, Self::GooglePay),
+            WalletDecryptedToken::None => matches!(
                 self,
                 Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
-            )
+            ),
         }
     }
     pub fn to_display_name(&self) -> String {
@@ -2838,6 +2874,33 @@ pub enum ExecutionMode {
     Primary,
     Shadow,
     NotApplicable,
+}
+
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+/// Whether a connector event is the real call or a shadow mirror.
+pub enum EventExecutionMode {
+    Primary,
+    Shadow,
+}
+
+impl From<ExecutionMode> for EventExecutionMode {
+    fn from(mode: ExecutionMode) -> Self {
+        match mode {
+            ExecutionMode::Shadow => Self::Shadow,
+            ExecutionMode::Primary | ExecutionMode::NotApplicable => Self::Primary,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+/// Where a connector event's call was sent.
+pub enum EventDestination {
+    /// A direct call to the connector.
+    Connector,
+    /// A call to the Unified Connector Service.
+    UnifiedConnectorService,
 }
 
 #[derive(
@@ -9594,6 +9657,10 @@ pub enum PermissionGroup {
     UsersManage,
     AccountView,
     AccountManage,
+    WebhooksView,
+    WebhooksManage,
+    ApiKeysView,
+    ApiKeysManage,
     InternalManage,
     ThemeView,
     ThemeManage,
@@ -9619,6 +9686,8 @@ pub enum ParentGroup {
     Analytics,
     Users,
     Account,
+    Webhook,
+    ApiKeys,
     Internal,
     Theme,
     Configurations,
@@ -10737,6 +10806,7 @@ pub enum ProcessTrackerStatus {
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum ProcessTrackerRunner {
     PaymentsSyncWorkflow,
+    PaymentsPostCaptureVoidSyncWorkflow,
     RefundWorkflowRouter,
     DeleteTokenizeDataWorkflow,
     ApiKeyExpiryWorkflow,

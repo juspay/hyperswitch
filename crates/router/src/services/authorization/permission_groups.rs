@@ -23,6 +23,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AnalyticsView
             | Self::UsersView
             | Self::AccountView
+            | Self::WebhooksView
+            | Self::ApiKeysView
             | Self::ThemeView
             | Self::ConfigurationsView
             | Self::ReconSourcesView
@@ -35,6 +37,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::WorkflowsManage
             | Self::UsersManage
             | Self::AccountManage
+            | Self::WebhooksManage
+            | Self::ApiKeysManage
             | Self::InternalManage
             | Self::ThemeManage
             | Self::ConfigurationsManage
@@ -53,6 +57,8 @@ impl PermissionGroupExt for PermissionGroup {
             Self::AnalyticsView => ParentGroup::Analytics,
             Self::UsersView | Self::UsersManage => ParentGroup::Users,
             Self::AccountView | Self::AccountManage => ParentGroup::Account,
+            Self::WebhooksView | Self::WebhooksManage => ParentGroup::Webhook,
+            Self::ApiKeysView | Self::ApiKeysManage => ParentGroup::ApiKeys,
 
             Self::ThemeView | Self::ThemeManage => ParentGroup::Theme,
             Self::ConfigurationsView | Self::ConfigurationsManage => ParentGroup::Configurations,
@@ -98,6 +104,14 @@ impl PermissionGroupExt for PermissionGroup {
 
             Self::AccountView => vec![Self::AccountView],
             Self::AccountManage => vec![Self::AccountView, Self::AccountManage],
+
+            Self::WebhooksView => vec![Self::WebhooksView, Self::AccountView],
+            Self::WebhooksManage => {
+                vec![Self::WebhooksView, Self::WebhooksManage, Self::AccountView]
+            }
+
+            Self::ApiKeysView => vec![Self::ApiKeysView, Self::AccountView],
+            Self::ApiKeysManage => vec![Self::ApiKeysView, Self::ApiKeysManage, Self::AccountView],
 
             Self::InternalManage => vec![Self::InternalManage],
             Self::ThemeView => vec![Self::ThemeView, Self::AccountView],
@@ -161,6 +175,10 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AnalyticsView
             | Self::AccountView
             | Self::AccountManage
+            | Self::WebhooksView
+            | Self::WebhooksManage
+            | Self::ApiKeysView
+            | Self::ApiKeysManage
             | Self::InternalManage
             | Self::ThemeView
             | Self::ThemeManage
@@ -198,6 +216,8 @@ impl ParentGroupExt for ParentGroup {
             Self::Analytics => ANALYTICS.to_vec(),
             Self::Users => USERS.to_vec(),
             Self::Account => ACCOUNT.to_vec(),
+            Self::Webhook => WEBHOOK.to_vec(),
+            Self::ApiKeys => API_KEYS.to_vec(),
             Self::Internal => INTERNAL.to_vec(),
             Self::Theme => THEME.to_vec(),
             Self::Configurations => CONFIGURATIONS.to_vec(),
@@ -270,6 +290,10 @@ pub static ANALYTICS: [Resource; 3] = [Resource::Analytics, Resource::Report, Re
 pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
 
 pub static ACCOUNT: [Resource; 3] = [Resource::Account, Resource::ApiKey, Resource::WebhookEvent];
+
+pub static WEBHOOK: [Resource; 1] = [Resource::WebhookEvent];
+
+pub static API_KEYS: [Resource; 1] = [Resource::ApiKey];
 
 pub static INTERNAL: [Resource; 1] = [Resource::InternalConnector];
 

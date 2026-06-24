@@ -225,6 +225,7 @@ pub struct PaymentMethodNew {
     pub last_modified_by: Option<String>,
     pub customer_details: Option<Encryption>,
     pub compatibility_updated_at: Option<PrimitiveDateTime>,
+    pub external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 impl PaymentMethodNew {
@@ -1441,7 +1442,6 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             network_token_payment_method_data: payment_method_new
                 .network_token_payment_method_data
                 .clone(),
-            external_vault_source: None,
             external_vault_token_data: payment_method_new.external_vault_token_data.clone(),
             vault_type: payment_method_new.vault_type,
             created_by: payment_method_new.created_by.clone(),
@@ -1449,6 +1449,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             customer_details: payment_method_new.customer_details.clone(),
             network_tokenization_data: None,
             compatibility_updated_at: payment_method_new.compatibility_updated_at,
+            external_vault_source: payment_method_new.external_vault_source.clone(),
         }
     }
 }

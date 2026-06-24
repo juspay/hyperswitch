@@ -43,6 +43,11 @@ fn get_group_description(group: PermissionGroup) -> Option<&'static str> {
         PermissionGroup::UsersManage => Some("Manage and invite Users to the Team"),
         PermissionGroup::AccountView => Some("View Merchant Details"),
         PermissionGroup::AccountManage => Some("Create, modify and delete Merchant Details like api keys, webhooks, etc"),
+        // Omits these from the authorization-info response; hidden until the role backfill
+        PermissionGroup::WebhooksView => None,
+        PermissionGroup::WebhooksManage => None,
+        PermissionGroup::ApiKeysView => None,
+        PermissionGroup::ApiKeysManage => None,
         PermissionGroup::ThemeView => Some("View Themes"),
         PermissionGroup::ThemeManage => Some("Manage Themes"),
         PermissionGroup::ConfigurationsView => Some("View Configurations"),
@@ -67,6 +72,9 @@ pub fn get_parent_group_description(group: ParentGroup) -> Option<&'static str> 
         ParentGroup::Analytics => Some("View Analytics"),
         ParentGroup::Users =>  Some("Manage and invite Users to the Team"),
         ParentGroup::Account => Some("Create, modify and delete Merchant Details like api keys, webhooks, etc"),
+        // Omits these from the authorization-info response; hidden until the role backfill
+        ParentGroup::Webhook => None,
+        ParentGroup::ApiKeys => None,
         ParentGroup::Theme => Some("Manage and view themes for the organization"),
         ParentGroup::Configurations => Some("Manage and view configurations"),
         ParentGroup::Internal => None, // Internal group, no user-facing description
