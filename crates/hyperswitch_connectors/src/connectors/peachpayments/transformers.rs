@@ -876,16 +876,19 @@ fn get_transaction_operations(
 }
 
 fn get_send_date_time() -> Result<String, errors::ConnectorError> {
-    Ok(OffsetDateTime::now_utc()
+    OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Iso8601::DEFAULT)
-        .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?)
+        .map_err(|_| errors::ConnectorError::RequestEncodingFailed)
 }
 
 fn get_three_ds_data(
     item: &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
 ) -> Option<PeachpaymentsThreeDSData> {
-    if let Some(authentication_data) = &item.router_data.request.authentication_data {
-        Some(PeachpaymentsThreeDSData {
+    item.router_data
+        .request
+        .authentication_data
+        .as_ref()
+        .map(|authentication_data| PeachpaymentsThreeDSData {
             cavv: Some(authentication_data.cavv.clone()),
             ds_trans_id: authentication_data.ds_trans_id.clone(),
             three_d_s_version: authentication_data
@@ -895,9 +898,6 @@ fn get_three_ds_data(
             eci: authentication_data.eci.clone(),
             authentication_status: authentication_data.transaction_status.clone(),
         })
-    } else {
-        None
-    }
 }
 
 // Auth Struct for Card Gateway API
