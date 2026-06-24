@@ -10,7 +10,7 @@ use common_enums::{
 use common_utils::{
     consts::BASE64_ENGINE,
     errors::{CustomResult, ErrorSwitch},
-    ext_traits::{StringExt, ValueExt},
+    ext_traits::ValueExt,
     id_type,
     request::Method,
     ucs_types,
@@ -53,11 +53,12 @@ use crate::{
             OperationSessionGetters, OperationSessionSetters,
         },
         utils::get_flow_name,
+        webhooks::types::FeatureTrackingData,
     },
     events::connector_api_logs::ConnectorEvent,
     routes::SessionState,
     types::{
-        api::{enums as api_enums, webhook_events::OutgoingWebhookRequestContent},
+        api::enums as api_enums,
         domain::Event,
         transformers::{ForeignFrom, ForeignTryFrom},
         UcsPaymentAuthorizeResponseData, UcsPaymentCaptureResponseData,
@@ -3371,17 +3372,10 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
 
 #[cfg(feature = "v1")]
 fn extract_notify_connector_content_from_request(
-    request_content: OutgoingWebhookRequestContent,
+    feature_data: FeatureTrackingData,
 ) -> CustomResult<payments_grpc::NotifyConnectorContent, errors::ApiErrorResponse> {
-    let webhook: api_models::webhooks::OutgoingWebhook = request_content
-        .body
-        .peek()
-        .parse_struct("OutgoingWebhook")
-        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-        .attach_printable("Failed to parse OutgoingWebhook from webhook request content")?;
-
-    match webhook.content {
-        api_models::webhooks::OutgoingWebhookContent::SurchargeDetails(details) => {
+    match feature_data {
+        FeatureTrackingData::SurchargeDetails(details) => {
             Ok(payments_grpc::NotifyConnectorContent {
                 content: Some(
                     payments_grpc::notify_connector_content::Content::SurchargeContent(
@@ -3392,8 +3386,6 @@ fn extract_notify_connector_content_from_request(
                 ),
             })
         }
-        _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("Unexpected webhook content type for connector notification"),
     }
 }
 
@@ -3401,10 +3393,10 @@ fn extract_notify_connector_content_from_request(
 #[instrument(skip_all, fields(connector_name))]
 pub fn build_notify_connector_request(
     event: &Event,
-    request_content: OutgoingWebhookRequestContent,
     merchant_id: &id_type::MerchantId,
     merchant_connector_account: MerchantConnectorAccountType,
     connector_name: String,
+    notify_feature_data: FeatureTrackingData,
 ) -> RouterResult<(
     payments_grpc::NotifyConnectorRequest,
     ConnectorAuthMetadata,
@@ -3441,7 +3433,7 @@ pub fn build_notify_connector_request(
             event_id: event.event_id.clone(),
             event_type: notify_event_type.into(),
             content: Some(extract_notify_connector_content_from_request(
-                request_content,
+                notify_feature_data,
             )?),
             timestamp: event.created_at.assume_utc().unix_timestamp(),
         },

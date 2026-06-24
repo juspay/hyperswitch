@@ -976,9 +976,11 @@ pub struct AmountDetailsResponse {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct PaymentAmountDetailsResponse {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
+    #[schema(value_type = u64, example = 6540)]
+    #[serde(default, deserialize_with = "amount::deserialize")]
     pub order_amount: MinorUnit,
     /// The currency of the order
     #[schema(example = "USD", value_type = Currency)]
@@ -1913,23 +1915,6 @@ pub struct RequestSurchargeDetails {
     pub tax_amount: Option<MinorUnit>,
 }
 
-/// Details of surcharge applied on this payment, if applicable
-#[derive(
-    Default, Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, SmithyModel,
-)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct ResponseSurchargeDetails {
-    #[schema(value_type = i64, example = 6540)]
-    #[smithy(value_type = "i64")]
-    pub surcharge_amount: MinorUnit,
-    pub external_surcharge_id: String,
-    #[schema(value_type = Option<String>)]
-    #[smithy(value_type = "Option<String>")]
-    pub payment_id: id_type::PaymentId,
-    #[smithy(value_type = "String")]
-    pub attempt_id: String,
-}
-
 // for v2 use the type from common_utils::types
 #[cfg(feature = "v1")]
 /// Browser information to be used for 3DS 2.0
@@ -2023,7 +2008,6 @@ impl RequestSurchargeDetails {
 #[derive(
     Debug,
     serde::Serialize,
-    serde::Deserialize,
     Clone,
     PartialEq,
     ToSchema,
@@ -2129,15 +2113,7 @@ pub struct PaymentAttemptResponse {
 }
 
 #[cfg(feature = "v2")]
-#[derive(
-    Debug,
-    serde::Serialize,
-    serde::Deserialize,
-    Clone,
-    PartialEq,
-    ToSchema,
-    router_derive::PolymorphicSchema,
-)]
+#[derive(Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema)]
 pub struct PaymentAttemptResponse {
     /// The global identifier for the payment attempt
     #[schema(value_type = String)]
@@ -2290,7 +2266,6 @@ pub struct PaymentAttemptRevenueRecoveryData {
     Default,
     Debug,
     serde::Serialize,
-    serde::Deserialize,
     Clone,
     PartialEq,
     ToSchema,
@@ -7155,7 +7130,6 @@ pub struct ReceiverDetails {
     Debug,
     PartialEq,
     serde::Serialize,
-    serde::Deserialize,
     ToSchema,
     router_derive::PolymorphicSchema,
     SmithyModel,
@@ -7754,7 +7728,7 @@ pub struct PaymentsResponse {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentMethodTokenizationDetails {
     /// The unique identifier for the payment method
@@ -8495,7 +8469,7 @@ pub struct ErrorDetails {
 
 /// Token information that can be used to initiate transactions by the merchant.
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ConnectorTokenDetails {
     /// A token that can be used to make payments directly with the connector.
     #[schema(example = "pm_9UhMqBMEOooRIvJFFdeW")]
@@ -8511,7 +8485,7 @@ pub struct ConnectorTokenDetails {
 /// For example
 /// shipping, billing, customer, payment_method
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct PaymentsResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -8701,17 +8675,7 @@ pub struct PaymentStartRedirectionParams {
 }
 
 /// Details of external authentication
-#[derive(
-    Setter,
-    Clone,
-    Default,
-    Debug,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    ToSchema,
-    SmithyModel,
-)]
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ExternalAuthenticationDetailsResponse {
     /// Authentication Type - Challenge / Frictionless
@@ -8968,17 +8932,7 @@ pub struct RecoveryPaymentListResponse {
     pub data: Vec<RecoveryPaymentsListResponseItem>,
 }
 
-#[derive(
-    Setter,
-    Clone,
-    Default,
-    Debug,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    ToSchema,
-    SmithyModel,
-)]
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct IncrementalAuthorizationResponse {
     /// The unique identifier of authorization
@@ -12447,7 +12401,7 @@ pub struct RetrievePaymentLinkRequest {
     pub client_secret: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentLinkResponse {
     /// URL for rendering the open payment link
     pub link: String,

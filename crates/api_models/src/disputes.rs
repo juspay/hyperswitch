@@ -10,7 +10,7 @@ use utoipa::ToSchema;
 use super::enums::{Currency, DisputeStage, DisputeStatus};
 use crate::{admin::MerchantConnectorInfo, files::FileMetadataResponse};
 
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, ToSchema)]
 pub struct DisputeResponse {
     /// The identifier for dispute
     pub dispute_id: String,
@@ -60,7 +60,7 @@ pub struct DisputeResponse {
     pub is_already_refunded: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, Eq, PartialEq, SmithyModel)]
+#[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct DisputeResponsePaymentsRetrieve {
     /// The identifier for dispute

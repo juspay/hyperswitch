@@ -453,7 +453,7 @@ impl CreateAndConfirmSubscriptionRequest {
 
 impl ApiEventMetric for CreateAndConfirmSubscriptionRequest {}
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct ConfirmSubscriptionResponse {
     /// Unique identifier for the subscription.
     pub id: SubscriptionId,
@@ -501,7 +501,7 @@ impl ConfirmSubscriptionResponse {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct Invoice {
     /// Unique identifier for the invoice.
     pub id: InvoiceId,

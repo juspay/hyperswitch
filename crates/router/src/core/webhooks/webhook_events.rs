@@ -410,7 +410,7 @@ pub async fn retry_delivery_attempt(
         delivery_attempt,
         None,
         None,
-        super::utils::WebhookRecipientData::Merchant { merchant_id },
+        super::types::WebhookRecipientData::Merchant { merchant_id },
     ))
     .await;
 

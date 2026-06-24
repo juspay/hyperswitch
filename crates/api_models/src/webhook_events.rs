@@ -156,7 +156,7 @@ impl common_utils::events::ApiEventMetric for EventRetrieveResponse {
 }
 
 /// The request information (headers and body) sent in the webhook.
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct OutgoingWebhookRequestContent {
     /// The request body sent in the webhook.
     #[schema(value_type = String)]

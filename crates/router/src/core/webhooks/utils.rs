@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::marker::PhantomData;
 
 use base64::Engine;
 use common_utils::{
@@ -17,7 +17,7 @@ use hyperswitch_interfaces::webhooks::IncomingWebhook;
 use redis_interface as redis;
 use router_env::tracing;
 
-use super::MERCHANT_ID;
+use super::{types as webhook_types, MERCHANT_ID};
 use crate::{
     core::{
         configs::dimension_state,
@@ -250,49 +250,43 @@ pub(crate) fn generate_event_id() -> String {
     common_utils::generate_time_ordered_id("evt")
 }
 
-pub(crate) fn increment_webhook_outgoing_received_count(recipient_data: &WebhookRecipientData) {
-    match recipient_data {
-        WebhookRecipientData::Connector {
+pub(crate) fn increment_webhook_outgoing_received_count(
+    recipient_data: &webhook_types::WebhookRecipientData,
+) {
+    let attributes = match recipient_data {
+        webhook_types::WebhookRecipientData::Connector {
             merchant_connector_id,
             ..
-        } => {
-            metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
-                1,
-                router_env::metric_attributes!((
-                    crate::core::webhooks::MERCHANT_CONNECTOR_ACCOUNT_ID,
-                    merchant_connector_id.clone()
-                )),
-            );
+        } => router_env::metric_attributes!((
+            crate::core::webhooks::MERCHANT_CONNECTOR_ACCOUNT_ID,
+            merchant_connector_id.clone()
+        )),
+
+        webhook_types::WebhookRecipientData::Merchant { merchant_id, .. } => {
+            router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone()))
         }
-        WebhookRecipientData::Merchant { merchant_id } => metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT
-            .add(
-                1,
-                router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
-            ),
-    }
+    };
+
+    metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(1, attributes);
 }
 
-pub(crate) fn increment_webhook_outgoing_not_received_count(recipient_data: &WebhookRecipientData) {
-    match recipient_data {
-        WebhookRecipientData::Connector {
+pub(crate) fn increment_webhook_outgoing_not_received_count(
+    recipient_data: &webhook_types::WebhookRecipientData,
+) {
+    let attributes = match recipient_data {
+        webhook_types::WebhookRecipientData::Connector {
             merchant_connector_id,
             ..
-        } => {
-            metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
-                1,
-                router_env::metric_attributes!((
-                    crate::core::webhooks::MERCHANT_CONNECTOR_ACCOUNT_ID,
-                    merchant_connector_id.clone()
-                )),
-            );
+        } => router_env::metric_attributes!((
+            crate::core::webhooks::MERCHANT_CONNECTOR_ACCOUNT_ID,
+            merchant_connector_id.clone()
+        )),
+
+        webhook_types::WebhookRecipientData::Merchant { merchant_id } => {
+            router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone()))
         }
-        WebhookRecipientData::Merchant { merchant_id } => {
-            metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
-                1,
-                router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
-            );
-        }
-    }
+    };
+    metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(1, attributes);
 }
 
 pub fn is_outgoing_webhook_disabled(
@@ -325,73 +319,6 @@ pub(crate) struct WebhookRecipientContext {
     pub key_store: domain::MerchantKeyStore,
     /// The business profile from which the webhook URL and config are read.
     pub profile: domain::Profile,
-}
-
-pub(crate) struct WebhookPayload {
-    pub event_type: types::storage::enums::EventType,
-    pub event_content: api::OutgoingWebhookContent,
-    pub recipient_data: WebhookRecipientData,
-}
-
-impl WebhookPayload {
-    /// Builds a surcharge webhook payload if the primary event supports surcharge notification
-    /// and the payment attempt has external surcharge details.
-    #[cfg(feature = "v1")]
-    pub fn build_surcharge_payload(
-        surcharge_event: types::storage::enums::EventType,
-        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-        merchant_surcharge_connector: &domain::MerchantConnectorAccount,
-    ) -> CustomResult<Option<Self>, errors::ApiErrorResponse> {
-        let connector =
-            api::enums::Connector::from_str(&merchant_surcharge_connector.connector_name)
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "connector",
-                })?;
-
-        Ok(payment_attempt
-            .external_surcharge_details
-            .as_ref()
-            .map(|external_surcharge_details| {
-                let event_content = api_models::payments::ResponseSurchargeDetails {
-                    surcharge_amount: external_surcharge_details.external_surcharge_amount,
-                    external_surcharge_id: external_surcharge_details.external_surcharge_id.clone(),
-                    payment_id: payment_attempt.payment_id.clone(),
-                    attempt_id: payment_attempt.attempt_id.clone(),
-                };
-                Self {
-                    event_type: surcharge_event,
-                    event_content: api::OutgoingWebhookContent::SurchargeDetails(Box::new(
-                        event_content,
-                    )),
-                    recipient_data: WebhookRecipientData::Connector {
-                        connector,
-                        merchant_connector_id: merchant_surcharge_connector
-                            .merchant_connector_id
-                            .clone(),
-                    },
-                }
-            }))
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub(crate) enum WebhookRecipientData {
-    Merchant {
-        merchant_id: common_utils::id_type::MerchantId,
-    },
-    Connector {
-        connector: common_enums::connector_enums::Connector,
-        merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    },
-}
-
-impl WebhookRecipientData {
-    pub fn get_event_recipient(&self) -> common_enums::EventRecipient {
-        match self {
-            Self::Merchant { .. } => common_enums::EventRecipient::Merchant,
-            Self::Connector { .. } => common_enums::EventRecipient::Connector,
-        }
-    }
 }
 
 /// Resolves the webhook recipient from the `created_by` field on the resource.

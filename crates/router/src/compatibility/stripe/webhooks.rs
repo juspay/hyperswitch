@@ -91,7 +91,6 @@ pub enum StripeWebhookObject {
     #[cfg(feature = "payouts")]
     Payout(StripePayoutResponse),
     Subscriptions,
-    Surcharge,
 }
 
 #[derive(Serialize, Debug)]
@@ -353,7 +352,6 @@ impl From<api::OutgoingWebhookContent> for StripeWebhookObject {
             api_models::webhooks::OutgoingWebhookContent::SubscriptionDetails(_) => {
                 Self::Subscriptions
             }
-            api_models::webhooks::OutgoingWebhookContent::SurchargeDetails(_) => Self::Surcharge,
         }
     }
 }

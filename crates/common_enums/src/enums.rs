@@ -1832,8 +1832,13 @@ impl EventClass {
                 EventType::PaymentCaptured,
                 EventType::PaymentExpired,
                 EventType::ActionRequired,
+                EventType::SurchargePaymentSucceeded,
             ]),
-            Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
+            Self::Refunds => HashSet::from([
+                EventType::RefundSucceeded,
+                EventType::RefundFailed,
+                EventType::SurchargeRefundSucceeded,
+            ]),
             Self::Disputes => HashSet::from([
                 EventType::DisputeOpened,
                 EventType::DisputeExpired,

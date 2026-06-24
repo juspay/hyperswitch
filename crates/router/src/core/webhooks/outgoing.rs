@@ -43,7 +43,7 @@ use crate::{
         api,
         domain::{self},
         storage::{self, enums},
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{OptionExt, ValueExt},
     workflows::outgoing_webhook_retry,
@@ -57,13 +57,13 @@ pub(crate) async fn get_webhook_events(
     webhook_resource_data: Option<WebhookResourceData>,
     provider_profile: &domain::Profile,
     webhook_recipient: &utils::WebhookRecipientContext,
-) -> CustomResult<Vec<utils::WebhookPayload>, errors::ApiErrorResponse> {
+) -> CustomResult<Vec<types::WebhookPayload>, errors::ApiErrorResponse> {
     let mut webhook_events = Vec::new();
 
-    let event_data = utils::WebhookPayload {
+    let event_data = types::WebhookPayload {
         event_type: primary_event_type,
-        event_content: primary_content.clone(),
-        recipient_data: utils::WebhookRecipientData::Merchant {
+        event_content: Some(primary_content.clone()),
+        recipient_data: types::WebhookRecipientData::Merchant {
             merchant_id: webhook_recipient.merchant_account.get_id().clone(),
         },
     };
@@ -111,7 +111,7 @@ async fn get_surcharge_webhook_event(
     primary_event_type: enums::EventType,
     webhook_resource_data: Option<WebhookResourceData>,
     merchant_surcharge_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-) -> CustomResult<Option<utils::WebhookPayload>, errors::ApiErrorResponse> {
+) -> CustomResult<Option<types::WebhookPayload>, errors::ApiErrorResponse> {
     let merchant_surcharge_connector = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -148,7 +148,7 @@ async fn get_surcharge_webhook_event(
 
     let payment_attempt = resource.get_payment_attempt();
 
-    utils::WebhookPayload::build_surcharge_payload(
+    types::WebhookPayload::build_surcharge_payload(
         surcharge_event,
         payment_attempt,
         &merchant_surcharge_connector,
@@ -225,7 +225,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 async fn insert_event_and_spawn_webhook_delivery(
     state: SessionState,
     platform: &domain::Platform,
-    event_data: utils::WebhookPayload,
+    event_data: types::WebhookPayload,
     webhook_recipient: &utils::WebhookRecipientContext,
     provider_merchant_id: common_utils::id_type::MerchantId,
     processor_merchant_id: common_utils::id_type::MerchantId,
@@ -241,7 +241,7 @@ async fn insert_event_and_spawn_webhook_delivery(
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("Failed to generate idempotent event ID")?;
 
-    if let utils::WebhookRecipientData::Merchant { .. } = event_data.recipient_data {
+    if let types::WebhookRecipientData::Merchant { .. } = event_data.recipient_data {
         let webhook_url_result = get_webhook_url_from_business_profile(&webhook_recipient.profile);
         if webhook_url_result.is_err() || webhook_url_result.as_ref().is_ok_and(String::is_empty) {
             logger::debug!(
@@ -255,27 +255,63 @@ async fn insert_event_and_spawn_webhook_delivery(
 
     let event_id = utils::generate_event_id();
     let event_type = event_data.event_type;
-    let content = event_data.event_content;
+    let content = event_data.event_content.clone();
 
-    let outgoing_webhook = api::OutgoingWebhook {
-        merchant_id: provider_merchant_id.clone(),
-        event_id: event_id.clone(),
-        event_type,
-        content: content.clone(),
-        timestamp: now,
-        processor_merchant_id: Some(processor_merchant_id.clone()),
+    let outgoing_webhook =
+        content
+            .as_ref()
+            .map(
+                |event_content_data: &webhooks::OutgoingWebhookContent| api::OutgoingWebhook {
+                    merchant_id: provider_merchant_id.clone(),
+                    event_id: event_id.clone(),
+                    event_type,
+                    content: event_content_data.clone(),
+                    timestamp: now,
+                    processor_merchant_id: Some(processor_merchant_id.clone()),
+                },
+            );
+
+    let request_content = outgoing_webhook
+        .map(|outgoing_webhook_data| {
+            get_outgoing_webhook_request(
+                &webhook_recipient.merchant_account,
+                outgoing_webhook_data,
+                &webhook_recipient.profile,
+            )
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("Failed to construct outgoing webhook request content")?;
+
+    let key_manager_state = &(&state).into();
+    let encrypted_content = match request_content {
+        Some(ref request_content_data) => {
+            let encoded = request_content_data
+                .clone()
+                .encode_to_string_of_json()
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("Failed to encode outgoing webhook request content")
+                .map(Secret::new)?;
+
+            let encrypted = crypto_operation(
+                key_manager_state,
+                type_name!(domain::Event),
+                CryptoOperation::Encrypt(encoded),
+                Identifier::Merchant(webhook_recipient.key_store.merchant_id.clone()),
+                webhook_recipient.key_store.key.get_inner().peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_operation())
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("Failed to encrypt outgoing webhook request content")?;
+
+            Some(encrypted)
+        }
+        None => None,
     };
 
-    let request_content = get_outgoing_webhook_request(
-        &webhook_recipient.merchant_account,
-        outgoing_webhook,
-        &webhook_recipient.profile,
-    )
-    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-    .attach_printable("Failed to construct outgoing webhook request content")?;
     let recipient = event_data.recipient_data.get_event_recipient();
-    let event_metadata = storage::EventMetadata::foreign_from(&content);
-    let key_manager_state = &(&state).into();
+    let event_metadata = storage::EventMetadata::foreign_try_from(&event_data)?;
     let new_event = domain::Event {
         event_id: event_id.clone(),
         event_type,
@@ -289,25 +325,7 @@ async fn insert_event_and_spawn_webhook_delivery(
         primary_object_created_at,
         idempotent_event_id: Some(idempotent_event_id.clone()),
         initial_attempt_id: Some(event_id.clone()),
-        request: Some(
-            crypto_operation(
-                key_manager_state,
-                type_name!(domain::Event),
-                CryptoOperation::Encrypt(
-                    request_content
-                        .encode_to_string_of_json()
-                        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                        .attach_printable("Failed to encode outgoing webhook request content")
-                        .map(Secret::new)?,
-                ),
-                Identifier::Merchant(webhook_recipient.key_store.merchant_id.clone()),
-                webhook_recipient.key_store.key.get_inner().peek(),
-            )
-            .await
-            .and_then(|val| val.try_into_operation())
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("Failed to encrypt outgoing webhook request content")?,
-        ),
+        request: encrypted_content,
         response: None,
         delivery_attempt: Some(delivery_attempt),
         metadata: Some(event_metadata),
@@ -397,6 +415,7 @@ async fn insert_event_and_spawn_webhook_delivery(
     let cloned_provider_merchant_id = provider_merchant_id.clone();
     let cloned_processor_merchant_id = processor_merchant_id.clone();
     let cloned_profile = webhook_recipient.profile.clone();
+    let cloned_content = content.clone();
     // Using a tokio spawn here and not arbiter because not all caller of this function
     // may have an actix arbiter
     tokio::spawn(
@@ -410,7 +429,7 @@ async fn insert_event_and_spawn_webhook_delivery(
                 event,
                 request_content,
                 delivery_attempt,
-                Some(content),
+                cloned_content,
                 process_tracker,
                 event_data.recipient_data,
             ))
@@ -438,11 +457,11 @@ trait WebhookTrigger: Send + Sync {
         provider_merchant_id: common_utils::id_type::MerchantId,
         processor_merchant_id: common_utils::id_type::MerchantId,
         event: domain::Event,
-        request_content: OutgoingWebhookRequestContent,
+        request_content: Option<OutgoingWebhookRequestContent>,
         delivery_attempt: enums::WebhookDeliveryAttempt,
         content: Option<api::OutgoingWebhookContent>,
         process_tracker: Option<storage::ProcessTracker>,
-        recipient_data: utils::WebhookRecipientData,
+        recipient_data: types::WebhookRecipientData,
     );
 }
 
@@ -455,15 +474,15 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     provider_merchant_id: common_utils::id_type::MerchantId,
     processor_merchant_id: common_utils::id_type::MerchantId,
     event: domain::Event,
-    request_content: OutgoingWebhookRequestContent,
+    request_content: Option<OutgoingWebhookRequestContent>,
     delivery_attempt: enums::WebhookDeliveryAttempt,
     content: Option<api::OutgoingWebhookContent>,
     process_tracker: Option<storage::ProcessTracker>,
-    recipient_data: utils::WebhookRecipientData,
+    recipient_data: types::WebhookRecipientData,
 ) {
     let trigger: Box<dyn WebhookTrigger> = match event.recipient {
         Some(enums::EventRecipient::Connector) => Box::new(types::ConnectorWebhook),
-        _ => Box::new(types::MerchantWebhook),
+        Some(enums::EventRecipient::Merchant) | None => Box::new(types::MerchantWebhook),
     };
 
     trigger
@@ -493,11 +512,11 @@ impl WebhookTrigger for types::MerchantWebhook {
         provider_merchant_id: common_utils::id_type::MerchantId,
         processor_merchant_id: common_utils::id_type::MerchantId,
         event: domain::Event,
-        request_content: OutgoingWebhookRequestContent,
+        request_content: Option<OutgoingWebhookRequestContent>,
         delivery_attempt: enums::WebhookDeliveryAttempt,
         content: Option<api::OutgoingWebhookContent>,
         process_tracker: Option<storage::ProcessTracker>,
-        recipient_data: utils::WebhookRecipientData,
+        recipient_data: types::WebhookRecipientData,
     ) {
         logger::debug!(
             event_id=%event.event_id,
@@ -540,11 +559,11 @@ impl WebhookTrigger for types::ConnectorWebhook {
         provider_merchant_id: common_utils::id_type::MerchantId,
         processor_merchant_id: common_utils::id_type::MerchantId,
         event: domain::Event,
-        request_content: OutgoingWebhookRequestContent,
+        request_content: Option<OutgoingWebhookRequestContent>,
         delivery_attempt: enums::WebhookDeliveryAttempt,
         content: Option<api::OutgoingWebhookContent>,
         process_tracker: Option<storage::ProcessTracker>,
-        recipient_data: utils::WebhookRecipientData,
+        recipient_data: types::WebhookRecipientData,
     ) {
         logger::debug!(
             event_id=%event.event_id,
@@ -582,9 +601,9 @@ async fn trigger_webhook_to_connector(
     merchant_key_store: domain::MerchantKeyStore,
     event: domain::Event,
     delivery_attempt: enums::WebhookDeliveryAttempt,
-    request_content: OutgoingWebhookRequestContent,
+    _request_content: Option<OutgoingWebhookRequestContent>,
     process_tracker: Option<storage::ProcessTracker>,
-    recipient_data: utils::WebhookRecipientData,
+    recipient_data: types::WebhookRecipientData,
 ) -> CustomResult<
     (domain::Event, Option<Report<errors::WebhooksFlowError>>),
     errors::WebhooksFlowError,
@@ -592,10 +611,18 @@ async fn trigger_webhook_to_connector(
     let provider_merchant_id = business_profile.merchant_id.clone();
 
     let merchant_connector_id = match &recipient_data {
-        utils::WebhookRecipientData::Connector {
+        types::WebhookRecipientData::Connector {
             merchant_connector_id,
             ..
         } => merchant_connector_id,
+        _ => {
+            logger::error!("Missing merchant_connector_id for connector webhook");
+            return Err(errors::WebhooksFlowError::MerchantConfigNotFound.into());
+        }
+    };
+
+    let notify_feature_data = match &recipient_data {
+        types::WebhookRecipientData::Connector { feature_data, .. } => feature_data.clone(),
         _ => {
             logger::error!("Missing merchant_connector_id for connector webhook");
             return Err(errors::WebhooksFlowError::MerchantConfigNotFound.into());
@@ -624,10 +651,10 @@ async fn trigger_webhook_to_connector(
     let (notify_request, connector_auth_metadata, notify_event_type) =
         crate::core::unified_connector_service::build_notify_connector_request(
             &event,
-            request_content,
             &provider_merchant_id,
             MerchantConnectorAccountType::DbVal(Box::new(mca)),
             connector_name,
+            notify_feature_data,
         )
         .change_context(errors::WebhooksFlowError::WebhookRequestConstructionFailed)?;
 
@@ -793,14 +820,18 @@ async fn trigger_webhook_to_merchant(
     business_profile: domain::Profile,
     merchant_key_store: &domain::MerchantKeyStore,
     event: domain::Event,
-    request_content: OutgoingWebhookRequestContent,
+    request_content: Option<OutgoingWebhookRequestContent>,
     delivery_attempt: enums::WebhookDeliveryAttempt,
     process_tracker: Option<storage::ProcessTracker>,
-    recipient_data: utils::WebhookRecipientData,
+    recipient_data: types::WebhookRecipientData,
 ) -> CustomResult<
     (domain::Event, Option<Report<errors::WebhooksFlowError>>),
     errors::WebhooksFlowError,
 > {
+    let request_content = request_content
+        .ok_or(errors::WebhooksFlowError::WebhookRequestConstructionFailed)
+        .attach_printable("OutgoingWebhookRequestContent not found")?;
+
     let webhook_url = match (
         get_webhook_url_from_business_profile(&business_profile),
         process_tracker.clone(),
@@ -955,7 +986,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     webhook_recipient: &utils::WebhookRecipientContext,
     event: &domain::Event,
     application_source: common_enums::ApplicationSource,
-    webhook_recipient_data: utils::WebhookRecipientData,
+    webhook_recipient_data: types::WebhookRecipientData,
 ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
     let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
     let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
@@ -983,7 +1014,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
         primary_object_id: event.primary_object_id.clone(),
         primary_object_type: event.primary_object_type,
         initial_attempt_id: event.initial_attempt_id.clone(),
-        recipient_data: webhook_recipient_data,
+        recipient_data: Some(webhook_recipient_data),
     };
 
     let runner = storage::ProcessTrackerRunner::OutgoingWebhookRetryWorkflow;
@@ -1167,7 +1198,7 @@ async fn api_client_error_handler(
     client_error: Report<errors::ApiClientError>,
     delivery_attempt: enums::WebhookDeliveryAttempt,
     schedule_webhook_retry: ScheduleWebhookRetry,
-    recipient_data: utils::WebhookRecipientData,
+    recipient_data: types::WebhookRecipientData,
 ) -> CustomResult<
     (domain::Event, Option<Report<errors::WebhooksFlowError>>),
     errors::WebhooksFlowError,
@@ -1290,7 +1321,7 @@ async fn update_overall_delivery_status_in_storage(
 
 pub(crate) async fn success_response_handler(
     state: SessionState,
-    recipient_data: &utils::WebhookRecipientData,
+    recipient_data: &types::WebhookRecipientData,
     process_tracker: Option<storage::ProcessTracker>,
     business_status: &'static str,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
@@ -1399,10 +1430,34 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
                     payment_id: subscription.get_optional_payment_id(),
                 }
             }
-            webhooks::OutgoingWebhookContent::SurchargeDetails(surcharge) => Self::Surcharge {
-                payment_id: surcharge.payment_id.clone(),
-                attempt_id: surcharge.attempt_id.clone(),
+        }
+    }
+}
+
+impl ForeignFrom<&types::FeatureTrackingData> for storage::EventMetadata {
+    fn foreign_from(content: &types::FeatureTrackingData) -> Self {
+        match content {
+            types::FeatureTrackingData::SurchargeDetails(surcharge_details) => Self::Surcharge {
+                payment_id: surcharge_details.payment_id.clone(),
+                attempt_id: surcharge_details.attempt_id.clone(),
             },
+        }
+    }
+}
+
+impl ForeignTryFrom<&types::WebhookPayload> for storage::EventMetadata {
+    type Error = errors::ApiErrorResponse;
+
+    fn foreign_try_from(webhook_payload: &types::WebhookPayload) -> Result<Self, Self::Error> {
+        match &webhook_payload.recipient_data {
+            types::WebhookRecipientData::Merchant { .. } => webhook_payload
+                .event_content
+                .as_ref()
+                .map(storage::EventMetadata::foreign_from)
+                .ok_or(errors::ApiErrorResponse::WebhookResourceNotFound),
+            types::WebhookRecipientData::Connector { feature_data, .. } => {
+                Ok(storage::EventMetadata::foreign_from(feature_data))
+            }
         }
     }
 }
@@ -1413,7 +1468,7 @@ async fn handle_successful_delivery(
     updated_event: &domain::Event,
     process_tracker: Option<storage::ProcessTracker>,
     business_status: &'static str,
-    recipient_data: utils::WebhookRecipientData,
+    recipient_data: types::WebhookRecipientData,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     update_overall_delivery_status_in_storage(
         state.clone(),
@@ -1442,7 +1497,7 @@ trait OutgoingWebhookResponseHandlerV1 {
         event_id: &str,
         process_tracker: Option<storage::ProcessTracker>,
         response: R,
-        recipient_data: utils::WebhookRecipientData,
+        recipient_data: types::WebhookRecipientData,
     ) -> CustomResult<
         (domain::Event, Option<Report<errors::WebhooksFlowError>>),
         errors::WebhooksFlowError,
@@ -1457,7 +1512,7 @@ trait OutgoingWebhookResponseHandlerV1 {
         event_id: &str,
         process_tracker: Option<storage::ProcessTracker>,
         client_error: Report<errors::ApiClientError>,
-        recipient_data: utils::WebhookRecipientData,
+        recipient_data: types::WebhookRecipientData,
     ) -> CustomResult<
         (domain::Event, Option<Report<errors::WebhooksFlowError>>),
         errors::WebhooksFlowError,
@@ -1474,7 +1529,7 @@ impl OutgoingWebhookResponseHandlerV1 for enums::WebhookDeliveryAttempt {
         event_id: &str,
         process_tracker: Option<storage::ProcessTracker>,
         response: R,
-        recipient_data: utils::WebhookRecipientData,
+        recipient_data: types::WebhookRecipientData,
     ) -> CustomResult<
         (domain::Event, Option<Report<errors::WebhooksFlowError>>),
         errors::WebhooksFlowError,
@@ -1525,7 +1580,7 @@ impl OutgoingWebhookResponseHandlerV1 for enums::WebhookDeliveryAttempt {
         event_id: &str,
         process_tracker: Option<storage::ProcessTracker>,
         client_error: Report<errors::ApiClientError>,
-        recipient_data: utils::WebhookRecipientData,
+        recipient_data: types::WebhookRecipientData,
     ) -> CustomResult<
         (domain::Event, Option<Report<errors::WebhooksFlowError>>),
         errors::WebhooksFlowError,
@@ -1563,7 +1618,7 @@ trait WebhookNotificationHandlerV1: Send + Sync {
         merchant_key_store: domain::MerchantKeyStore,
         updated_event: &domain::Event,
         process_tracker: Option<storage::ProcessTracker>,
-        recipient_data: utils::WebhookRecipientData,
+        recipient_data: types::WebhookRecipientData,
     ) -> Option<Report<errors::WebhooksFlowError>>;
 
     async fn not_notified_action(
@@ -1571,7 +1626,7 @@ trait WebhookNotificationHandlerV1: Send + Sync {
         state: SessionState,
         merchant_id: &common_utils::id_type::MerchantId,
         status_code: u16,
-        recipient_data: utils::WebhookRecipientData,
+        recipient_data: types::WebhookRecipientData,
         process_tracker: Option<storage::ProcessTracker>,
     ) -> Option<Report<errors::WebhooksFlowError>>;
 }
@@ -1585,7 +1640,7 @@ impl WebhookNotificationHandlerV1 for types::InitialAttempt {
         merchant_key_store: domain::MerchantKeyStore,
         updated_event: &domain::Event,
         process_tracker: Option<storage::ProcessTracker>,
-        recipient_data: utils::WebhookRecipientData,
+        recipient_data: types::WebhookRecipientData,
     ) -> Option<Report<errors::WebhooksFlowError>> {
         handle_successful_delivery(
             state,
@@ -1605,7 +1660,7 @@ impl WebhookNotificationHandlerV1 for types::InitialAttempt {
         state: SessionState,
         merchant_id: &common_utils::id_type::MerchantId,
         status_code: u16,
-        recipient_data: utils::WebhookRecipientData,
+        recipient_data: types::WebhookRecipientData,
         _process_tracker: Option<storage::ProcessTracker>,
     ) -> Option<Report<errors::WebhooksFlowError>> {
         handle_failed_delivery(
@@ -1631,7 +1686,7 @@ impl WebhookNotificationHandlerV1 for types::AutomaticRetry {
         merchant_key_store: domain::MerchantKeyStore,
         updated_event: &domain::Event,
         process_tracker: Option<storage::ProcessTracker>,
-        recipient_data: utils::WebhookRecipientData,
+        recipient_data: types::WebhookRecipientData,
     ) -> Option<Report<errors::WebhooksFlowError>> {
         handle_successful_delivery(
             state,
@@ -1651,7 +1706,7 @@ impl WebhookNotificationHandlerV1 for types::AutomaticRetry {
         state: SessionState,
         merchant_id: &common_utils::id_type::MerchantId,
         status_code: u16,
-        recipient_data: utils::WebhookRecipientData,
+        recipient_data: types::WebhookRecipientData,
         process_tracker: Option<storage::ProcessTracker>,
     ) -> Option<Report<errors::WebhooksFlowError>> {
         let process_tracker = match process_tracker
@@ -1686,7 +1741,7 @@ impl WebhookNotificationHandlerV1 for types::ManualRetry {
         _merchant_key_store: domain::MerchantKeyStore,
         _updated_event: &domain::Event,
         _process_tracker: Option<storage::ProcessTracker>,
-        recipient_data: utils::WebhookRecipientData,
+        recipient_data: types::WebhookRecipientData,
     ) -> Option<Report<errors::WebhooksFlowError>> {
         utils::increment_webhook_outgoing_received_count(&recipient_data);
         None
@@ -1697,7 +1752,7 @@ impl WebhookNotificationHandlerV1 for types::ManualRetry {
         state: SessionState,
         merchant_id: &common_utils::id_type::MerchantId,
         status_code: u16,
-        recipient_data: utils::WebhookRecipientData,
+        recipient_data: types::WebhookRecipientData,
         _process_tracker: Option<storage::ProcessTracker>,
     ) -> Option<Report<errors::WebhooksFlowError>> {
         handle_failed_delivery(
@@ -1718,7 +1773,7 @@ async fn handle_failed_delivery(
     state: SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
     status_code: u16,
-    recipient_data: utils::WebhookRecipientData,
+    recipient_data: types::WebhookRecipientData,
     schedule_webhook_retry: ScheduleWebhookRetry,
     log_message: &'static str,
 ) -> CustomResult<(), errors::WebhooksFlowError> {

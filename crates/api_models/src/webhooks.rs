@@ -441,7 +441,7 @@ pub struct PayoutWebhookUpdate {
     pub error_code: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct OutgoingWebhook {
     /// The provider merchant id (platform/business owner)
     #[schema(value_type = String)]
@@ -458,7 +458,7 @@ pub struct OutgoingWebhook {
     pub content: OutgoingWebhookContent,
 
     /// The time at which webhook was sent
-    #[serde(with = "custom_serde::iso8601")]
+    #[serde(default, with = "custom_serde::iso8601")]
     pub timestamp: PrimitiveDateTime,
 
     /// The merchant id of the merchant account whose connector credentials are used for payment processing
@@ -466,7 +466,7 @@ pub struct OutgoingWebhook {
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 #[cfg(feature = "v1")]
 pub enum OutgoingWebhookContent {
@@ -483,11 +483,9 @@ pub enum OutgoingWebhookContent {
     PayoutDetails(Box<payouts::PayoutCreateResponse>),
     #[schema(value_type = ConfirmSubscriptionResponse, title = "ConfirmSubscriptionResponse")]
     SubscriptionDetails(Box<subscription::ConfirmSubscriptionResponse>),
-    #[schema(value_type = ResponseSurchargeDetails, title = "ResponseSurchargeDetails")]
-    SurchargeDetails(Box<payments::ResponseSurchargeDetails>),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 #[cfg(feature = "v2")]
 pub enum OutgoingWebhookContent {

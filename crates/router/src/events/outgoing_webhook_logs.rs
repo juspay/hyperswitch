@@ -133,12 +133,6 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
                         .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
                 })
             }
-            Self::SurchargeDetails(surcharge_data) => {
-                Some(OutgoingWebhookEventContent::Surcharge {
-                    payment_id: surcharge_data.payment_id.clone(),
-                    attempt_id: surcharge_data.attempt_id.clone(),
-                })
-            }
         }
     }
 }

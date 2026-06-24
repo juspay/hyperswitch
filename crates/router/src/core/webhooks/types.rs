@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use api_models::{webhook_events, webhooks};
 use common_utils::{crypto::SignMessage, ext_traits::Encode};
 use error_stack::ResultExt;
@@ -6,10 +8,15 @@ use hyperswitch_masking::Secret;
 use serde::Serialize;
 
 use crate::{
-    core::{errors, webhooks::utils::WebhookRecipientData},
+    core::errors,
     headers, logger,
     services::request::Maskable,
-    types::storage::{self, enums},
+    types::{
+        api::OutgoingWebhookContent,
+        domain::MerchantConnectorAccount,
+        storage::{self, enums},
+        MinorUnit,
+    },
 };
 
 #[derive(Debug)]
@@ -91,7 +98,7 @@ pub(crate) struct OutgoingWebhookTrackingData {
     pub(crate) primary_object_id: String,
     pub(crate) primary_object_type: enums::EventObjectType,
     pub(crate) initial_attempt_id: Option<String>,
-    pub(crate) recipient_data: WebhookRecipientData,
+    pub(crate) recipient_data: Option<WebhookRecipientData>,
 }
 
 pub struct WebhookResponse {
@@ -228,3 +235,88 @@ pub(crate) struct ConnectorWebhook;
 pub(crate) struct InitialAttempt;
 pub(crate) struct AutomaticRetry;
 pub(crate) struct ManualRetry;
+
+pub(crate) struct WebhookPayload {
+    pub event_type: enums::EventType,
+    pub event_content: Option<OutgoingWebhookContent>,
+    pub recipient_data: WebhookRecipientData,
+}
+
+impl WebhookPayload {
+    /// Builds a surcharge webhook payload if the primary event supports surcharge notification
+    /// and the payment attempt has external surcharge details.
+    #[cfg(feature = "v1")]
+    pub fn build_surcharge_payload(
+        surcharge_event: enums::EventType,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        merchant_surcharge_connector: &MerchantConnectorAccount,
+    ) -> errors::CustomResult<Option<Self>, errors::ApiErrorResponse> {
+        let connector = common_enums::connector_enums::Connector::from_str(
+            &merchant_surcharge_connector.connector_name,
+        )
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })?;
+
+        Ok(payment_attempt
+            .external_surcharge_details
+            .as_ref()
+            .map(|external_surcharge_details| {
+                let feature_specific_data = SurchargeDetails {
+                    surcharge_amount: external_surcharge_details.external_surcharge_amount,
+                    external_surcharge_id: external_surcharge_details.external_surcharge_id.clone(),
+                    payment_id: payment_attempt.payment_id.clone(),
+                    attempt_id: payment_attempt.attempt_id.clone(),
+                };
+                Self {
+                    event_type: surcharge_event,
+                    event_content: None,
+                    recipient_data: WebhookRecipientData::Connector {
+                        connector,
+                        merchant_connector_id: merchant_surcharge_connector
+                            .merchant_connector_id
+                            .clone(),
+                        feature_data: FeatureTrackingData::SurchargeDetails(Box::new(
+                            feature_specific_data,
+                        )),
+                    },
+                }
+            }))
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub(crate) enum WebhookRecipientData {
+    Merchant {
+        merchant_id: common_utils::id_type::MerchantId,
+    },
+    Connector {
+        connector: common_enums::connector_enums::Connector,
+        merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+        feature_data: FeatureTrackingData,
+    },
+}
+
+impl WebhookRecipientData {
+    pub fn get_event_recipient(&self) -> common_enums::EventRecipient {
+        match self {
+            Self::Merchant { .. } => common_enums::EventRecipient::Merchant,
+            Self::Connector { .. } => common_enums::EventRecipient::Connector,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FeatureTrackingData {
+    SurchargeDetails(Box<SurchargeDetails>),
+}
+
+/// Details of surcharge applied on this payment, if applicable
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SurchargeDetails {
+    pub surcharge_amount: MinorUnit,
+    pub external_surcharge_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
+    pub attempt_id: String,
+}
