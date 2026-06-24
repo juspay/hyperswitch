@@ -143,7 +143,10 @@ def _save_redirect(
             return
         os.makedirs(real_dir, exist_ok=True)
         safe_filename = os.path.basename(filename)
-        captures_path = os.path.join(real_dir, safe_filename)
+        captures_path = os.path.realpath(os.path.join(real_dir, safe_filename))
+        if not captures_path.startswith(real_dir + os.sep):
+            print(f"[redirect-proxy] WARNING: resolved file path {captures_path!r} escapes target dir — skipping")
+            return
         with open(captures_path, "w") as f:
             json.dump(data, f, indent=2)
         print(f"[redirect-proxy] body also saved → {captures_path}")
