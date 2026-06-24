@@ -341,3 +341,50 @@ fn test_nested_option_some_some_sets_value() {
     // Some(Some(v)) sets the target to Some(v)
     assert_eq!(result.nickname, Some("bob".to_string()));
 }
+
+// Target has Option<T> fields, update struct has non-Option T fields.
+// The macro should automatically wrap the assigned value in Some(...).
+#[derive(Debug, Clone, PartialEq)]
+pub struct OptionTargetWithNonOptionalUpdate {
+    pub name: Option<String>,
+    pub count: Option<i32>,
+}
+
+#[apply_changeset(target = OptionTargetWithNonOptionalUpdate)]
+pub struct NonOptionalToOptionUpdate {
+    pub name: String,
+    pub count: i32,
+}
+
+#[test]
+fn test_non_optional_update_for_optional_target_none_start() {
+    let target = OptionTargetWithNonOptionalUpdate { name: None, count: None };
+
+    let update = NonOptionalToOptionUpdate {
+        name: "new name".to_string(),
+        count: 42,
+    };
+
+    let result = update.apply_changeset(target);
+
+    assert_eq!(result.name, Some("new name".to_string()));
+    assert_eq!(result.count, Some(42));
+}
+
+#[test]
+fn test_non_optional_update_for_optional_target_some_start() {
+    let target = OptionTargetWithNonOptionalUpdate {
+        name: Some("original".to_string()),
+        count: Some(10),
+    };
+
+    let update = NonOptionalToOptionUpdate {
+        name: "updated".to_string(),
+        count: 20,
+    };
+
+    let result = update.apply_changeset(target);
+
+    assert_eq!(result.name, Some("updated".to_string()));
+    assert_eq!(result.count, Some(20));
+}

@@ -46,7 +46,8 @@ pub(crate) fn apply_changeset_attribute(
         }
     };
 
-    let mut assignments = Vec::new();
+    let mut option_assignments = Vec::new();
+    let mut direct_assignments = Vec::new();
 
     for field in &fields {
         let Some(field_name) = field.ident.as_ref() else {
@@ -55,15 +56,9 @@ pub(crate) fn apply_changeset_attribute(
         let ty = &field.ty;
 
         if is_option_type(ty) {
-            assignments.push(quote! {
-                ::common_utils::ApplyOptionField::apply(
-                    self.#field_name, &mut target.#field_name
-                );
-            });
+            option_assignments.push(field_name);
         } else {
-            assignments.push(quote! {
-                target.#field_name = self.#field_name;
-            });
+            direct_assignments.push(field_name);
         }
     }
 
@@ -78,7 +73,22 @@ pub(crate) fn apply_changeset_attribute(
             /// Fields of type `Option<T>` are only applied when `Some`, leaving
             /// the original value unchanged when `None`.
             pub fn apply_changeset(self, mut target: #target_type) -> #target_type {
-                #(#assignments)*
+                fn __set<Target, Source: ::core::convert::Into<Target>>(
+                    source: Source,
+                    target: &mut Target,
+                ) {
+                    *target = source.into();
+                }
+
+                #(
+                    __set(self.#direct_assignments, &mut target.#direct_assignments);
+                )*
+                #(
+                    ::common_utils::ApplyOptionField::apply(
+                        self.#option_assignments, &mut target.#option_assignments
+                    );
+                )*
+
                 target
             }
         }
