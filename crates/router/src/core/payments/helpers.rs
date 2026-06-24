@@ -17,7 +17,7 @@ use api_models::{
     },
 };
 use base64::Engine;
-use common_enums::{enums::ExecutionMode, ConnectorType};
+use common_enums::{enums::ExecutionMode, ConnectorType, WalletDecryptedToken};
 use common_types::payments::InstallmentOption;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
@@ -646,7 +646,9 @@ pub async fn get_token_pm_type_mandate_details(
                         .payment_method_type
                         .map(|payment_method_type_value| {
                             payment_method_type_value
-                                .should_check_for_customer_saved_payment_method_type(false)
+                                .should_check_for_customer_saved_payment_method_type(
+                                    WalletDecryptedToken::None,
+                                )
                         })
                         .unwrap_or(false)
                     {
@@ -1671,6 +1673,30 @@ pub async fn validate_customer_id_blocking_for_business_profile(
     validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await
 }
 
+pub async fn validate_guest_ip_blocking_for_business_profile(
+    state: &SessionState,
+    client_ip: IpAddr,
+    profile_id: &id_type::ProfileId,
+    card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
+) -> RouterResult<String> {
+    let normalized_ip = match client_ip {
+        IpAddr::V4(v4) => v4.to_string(),
+        IpAddr::V6(v6) => v6.to_canonical().to_string(),
+    }
+    .replace(':', "-");
+
+    let cache_key = format!(
+        "{}_{}_{}",
+        consts::GUEST_IP_BLOCKING_CACHE_KEY_PREFIX,
+        profile_id.get_string_repr(),
+        normalized_ip
+    );
+
+    let unsuccessful_payment_threshold = card_testing_guard_config.guest_ip_blocking_threshold;
+
+    validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await
+}
+
 pub async fn validate_blocking_threshold(
     state: &SessionState,
     unsuccessful_payment_threshold: i32,
@@ -2117,6 +2143,24 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     }
                 }
                 None => {
+                    let pm_modular_dimensions = dimensions
+                        .without_profile_id()
+                        .with_organization_id(provider.get_account().organization_id.clone())
+                        .without_provider_merchant_id()
+                        .without_processor_merchant_id();
+                    let should_call_pm_modular_service =
+                        payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
+                            state,
+                            &pm_modular_dimensions,
+                        )
+                        .await;
+
+                    if should_call_pm_modular_service {
+                        Err(report!(errors::StorageError::ValueNotFound(
+                            "customer".to_owned()
+                        )))?
+                    }
+
                     // Validate that the customer_id is not in GlobalCustomerId format
                     if customers::is_customer_id_in_global_format(&customer_id) {
                         Err(report!(errors::StorageError::InvalidDataFormat(format!(
@@ -2625,6 +2669,65 @@ pub async fn should_execute_based_on_rollout(
     }
 }
 
+/// Tries rollout config keys from highest to lowest precedence, returns the result
+/// for the first key found in the config table. Falls back to default if none found.
+///
+/// Key precedence (highest → lowest):
+/// 1. `ucs_rollout_config_<merchant_id>_<connector>_...`          — merchant + connector
+/// 2. `ucs_rollout_config_<org_id>_<merchant_id>_<connector>_...` — org + merchant + connector
+/// 3. `ucs_rollout_config_<org_id>_<merchant_id>`                  — org + merchant
+/// 4. `ucs_rollout_config_<org_id>`                                — org level
+///
+/// Uses `find_config_by_key_unwrap_or` with a sentinel so absent keys are cached after
+/// the first DB miss — subsequent requests hit in-memory cache instead of the DB.
+/// The future is boxed (`Box::pin`) to keep stack frames small under high concurrency.
+pub async fn should_execute_based_on_rollout_with_precedence(
+    state: &SessionState,
+    // Keys in ascending precedence order (lowest first, highest last)
+    keys: &[String],
+) -> RouterResult<RolloutExecutionResult> {
+    // Iterate highest → lowest (reverse of the input order)
+    for key in keys.iter().rev() {
+        // Box the future to avoid large stack frames from nested async in debug builds
+        let result = Box::pin(state.store.find_config_by_key_unwrap_or(
+            key,
+            Some(consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED.to_string()),
+        ))
+        .await
+        .ok();
+
+        match result {
+            Some(config) if config.config == consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED => {
+                // Sentinel — key absent in DB, cached to skip future DB calls
+                logger::debug!(config_key = %key, "Rollout config not set, trying next key");
+                continue;
+            }
+            Some(config) => {
+                logger::info!(config_key = %key, "Rollout config found, using this key");
+                return Ok(serde_json::from_str::<RolloutConfig>(&config.config)
+                    .map(RolloutExecutionResult::from)
+                    .map_err(|err| {
+                        logger::error!(
+                            error = ?err,
+                            config = %config.config,
+                            "Failed to parse rollout config as JSON. Defaulting to not execute."
+                        );
+                        RolloutExecutionResult::default()
+                    })
+                    .unwrap_or_default());
+            }
+            None => {
+                // Unexpected DB error — skip and try next key
+                continue;
+            }
+        }
+    }
+
+    // No key found at any level — caller will apply default execution mode
+    logger::debug!("No rollout config found at any precedence level, using default execution mode");
+    Ok(RolloutExecutionResult::default())
+}
+
 pub fn determine_standard_vault_action(
     is_network_tokenization_enabled: bool,
     mandate_id: Option<mandates::MandateIds>,
@@ -2889,11 +2992,11 @@ pub async fn fetch_card_details_from_locker(
         } => {
             Box::pin(fetch_card_details_from_external_vault(
                 state,
-                platform.get_processor().get_account().get_id(),
+                platform.get_provider().get_account().get_id(),
                 card_token_data,
                 co_badged_card_data,
                 payment_method_info,
-                platform.get_processor().get_key_store(),
+                platform.get_provider().get_key_store(),
                 external_vault_source,
             ))
             .await
@@ -2910,6 +3013,72 @@ pub async fn fetch_card_details_from_locker(
             .await
         }
     }
+}
+
+/// Resolve the provider (platform) merchant's business profile in a platform-connected flow.
+///
+/// In a platform-connected flow the payment runs under the connected (processor) merchant,
+/// but provider-level configuration (such as external vault) lives on the provider merchant's
+/// profile, so we resolve the provider merchant's single profile. For standard merchants
+/// (provider == processor) the supplied payment profile is returned unchanged, keeping
+/// standard flows untouched.
+pub async fn resolve_provider_profile(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_profile: &domain::Profile,
+) -> RouterResult<domain::Profile> {
+    let provider = platform.get_provider();
+    let processor = platform.get_processor();
+
+    if provider.get_account().get_id() == processor.get_account().get_id() {
+        Ok(payment_profile.clone())
+    } else {
+        #[cfg(feature = "v1")]
+        {
+            let profile_id = provider
+                .get_account()
+                .get_default_profile()
+                .clone()
+                .ok_or_else(|| {
+                    report!(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Provider merchant has no default profile configured")
+                })?;
+
+            state
+                .store
+                .find_business_profile_by_profile_id(provider.get_key_store(), &profile_id)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                    id: profile_id.get_string_repr().to_owned(),
+                })
+        }
+        #[cfg(feature = "v2")]
+        {
+            Err(
+                report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "Platform-connected provider profile resolution is not supported in v2",
+                ),
+            )
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+pub async fn get_provider_mca_v2(
+    state: &SessionState,
+    provider: &domain::Provider,
+    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
+) -> RouterResult<domain::MerchantConnectorAccount> {
+    let merchant_connector_id = merchant_connector_id
+        .get_required_value("merchant_connector_id")
+        .attach_printable("merchant_connector_id not provided")?;
+    state
+        .store
+        .find_merchant_connector_account_by_id(merchant_connector_id, provider.get_key_store())
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.get_string_repr().to_string(),
+        })
 }
 
 #[cfg(feature = "v1")]
@@ -7154,7 +7323,6 @@ impl GooglePayTokenDecryptor {
 
         // decrypt the message
         let decrypted = self.decrypt_message(symmetric_encryption_key, encrypted_message)?;
-
         // parse the decrypted data
         let decrypted_data: hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal =
             decrypted
@@ -7162,6 +7330,7 @@ impl GooglePayTokenDecryptor {
                 .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // check the expiration date of the decrypted data
+
         if matches!(
             check_expiration_date_is_valid(&decrypted_data.message_expiration),
             Ok(true)

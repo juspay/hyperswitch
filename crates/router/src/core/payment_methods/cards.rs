@@ -855,6 +855,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 customer_id,
                 pmd,
                 self.state.conf.locker.ttl_for_storage_in_secs,
+                None,
             )?;
 
             let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
@@ -960,6 +961,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 customer_id,
                 pmd,
                 self.state.conf.locker.ttl_for_storage_in_secs,
+                None,
             )?;
 
             let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
@@ -1870,18 +1872,33 @@ pub fn encode_add_vault_request(
     customer_id: &id_type::CustomerId,
     pmd: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
     ttl: i64,
+    vault_id: Option<domain::VaultId>,
 ) -> errors::CustomResult<Vec<u8>, errors::VaultError> {
     if should_trigger_fingerprint_migration {
+        // New fingerprint migration path uses merchant-scoped vault entity ids.
         pm_types::AddVaultRequestNew {
             entity_id: merchant_id,
-            vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
+            vault_id: vault_id
+                .unwrap_or_else(|| domain::VaultId::generate(uuid::Uuid::now_v7().to_string())),
             data: pmd,
             ttl,
         }
         .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode AddVaultRequestNew")
+    } else if let Some(vault_id) = vault_id {
+        // Forward-compat PT reuses the existing locker id so modular reads can address the row.
+        pm_types::AddCompatVaultRequest {
+            entity_id: customer_id.to_owned(),
+            vault_id,
+            data: pmd,
+            ttl,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode AddCompatVaultRequest")
     } else {
+        // Legacy v1 add path keeps the original merchant-and-customer entity id shape.
         pm_types::AddVaultRequest {
             entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
                 merchant_id,
@@ -1944,11 +1961,15 @@ pub fn encode_add_vault_request(
     customer_id: &id_type::GlobalCustomerId,
     pmd: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
     ttl: i64,
+    vault_id: Option<domain::VaultId>,
 ) -> errors::CustomResult<Vec<u8>, errors::VaultError> {
+    let vault_id =
+        vault_id.unwrap_or_else(|| domain::VaultId::generate(uuid::Uuid::now_v7().to_string()));
+
     if should_trigger_fingerprint_migration {
         pm_types::AddVaultRequestNew {
             entity_id: merchant_id,
-            vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
+            vault_id,
             data: pmd,
             ttl,
         }
@@ -1958,7 +1979,7 @@ pub fn encode_add_vault_request(
     } else {
         pm_types::AddVaultRequest {
             entity_id: customer_id.clone(),
-            vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
+            vault_id,
             data: pmd,
             ttl,
         }
@@ -5414,27 +5435,47 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     }
 }
 
-/// Filters customer payment methods to keep only the latest Apple Pay method when multiple DPANs exist.
-/// All other payment methods are returned unchanged.
+/// Filters customer payment methods to keep only the latest Apple Pay and Google Pay method
+/// when multiple DPANs exist. All other payment methods are returned unchanged.
 #[cfg(feature = "v1")]
-fn filter_latest_apple_pay(
+fn filter_latest_wallet_methods(
     payment_methods: Vec<api::CustomerPaymentMethod>,
 ) -> Vec<api::CustomerPaymentMethod> {
-    let (apple_pay_methods, other_methods): (Vec<_>, Vec<_>) =
+    let (wallet_methods, other_methods): (Vec<_>, Vec<_>) =
         payment_methods.into_iter().partition(|pm| {
             pm.payment_method == api_enums::PaymentMethod::Wallet
-                && pm.payment_method_type == Some(api_enums::PaymentMethodType::ApplePay)
+                && (pm.payment_method_type == Some(api_enums::PaymentMethodType::ApplePay)
+                    || pm.payment_method_type == Some(api_enums::PaymentMethodType::GooglePay))
         });
 
-    if apple_pay_methods.len() > 1 {
-        // Sort by last_used_at timestamp descending (latest first) and keep only the first one
-        let mut sorted = apple_pay_methods;
-        sorted.sort_by_key(|b| std::cmp::Reverse(b.last_used_at));
-        let latest_apple_pay = sorted.into_iter().next();
-        other_methods.into_iter().chain(latest_apple_pay).collect()
-    } else {
-        other_methods.into_iter().chain(apple_pay_methods).collect()
+    if wallet_methods.is_empty() {
+        return other_methods;
     }
+
+    let mut result = other_methods;
+
+    for wallet_type in [
+        api_enums::PaymentMethodType::ApplePay,
+        api_enums::PaymentMethodType::GooglePay,
+    ] {
+        let type_methods: Vec<_> = wallet_methods
+            .iter()
+            .filter(|pm| pm.payment_method_type == Some(wallet_type))
+            .cloned()
+            .collect();
+
+        if type_methods.len() > 1 {
+            let mut sorted = type_methods;
+            sorted.sort_by_key(|b| std::cmp::Reverse(b.last_used_at));
+            if let Some(latest) = sorted.into_iter().next() {
+                result.push(latest);
+            }
+        } else {
+            result.extend(type_methods);
+        }
+    }
+
+    result
 }
 
 #[cfg(feature = "v1")]
@@ -5672,7 +5713,7 @@ pub async fn list_customer_payment_method(
     }
 
     // // Filter to keep only the latest Apple Pay method if duplicates exist
-    let filtered_customer_pms = filter_latest_apple_pay(customer_pms);
+    let filtered_customer_pms = filter_latest_wallet_methods(customer_pms);
 
     let mut response = api::CustomerPaymentMethodsListResponse {
         customer_payment_methods: filtered_customer_pms,
