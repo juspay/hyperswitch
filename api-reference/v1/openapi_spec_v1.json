@@ -4616,6 +4616,535 @@
         ]
       }
     },
+    "/disputes/profile/list": {
+      "get": {
+        "tags": [
+          "Disputes"
+        ],
+        "summary": "Disputes - List Disputes for The Given Profiles",
+        "description": "Lists all the Disputes for a merchant",
+        "operationId": "List Disputes for The given Profiles",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The maximum number of Dispute Objects to include in the response",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "dispute_status",
+            "in": "query",
+            "description": "The status of dispute",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/DisputeStatus"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
+            "name": "dispute_stage",
+            "in": "query",
+            "description": "The stage of dispute",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/DisputeStage"
+                }
+              ],
+              "nullable": true
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "description": "The reason for dispute",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "connector",
+            "in": "query",
+            "description": "The connector linked to dispute",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "received_time",
+            "in": "query",
+            "description": "The time at which dispute is received",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            }
+          },
+          {
+            "name": "received_time.lt",
+            "in": "query",
+            "description": "Time less than the dispute received time",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            }
+          },
+          {
+            "name": "received_time.gt",
+            "in": "query",
+            "description": "Time greater than the dispute received time",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            }
+          },
+          {
+            "name": "received_time.lte",
+            "in": "query",
+            "description": "Time less than or equals to the dispute received time",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            }
+          },
+          {
+            "name": "received_time.gte",
+            "in": "query",
+            "description": "Time greater than or equals to the dispute received time",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The dispute list was retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DisputeResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized request"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/disputes/filter": {
+      "get": {
+        "tags": [
+          "Disputes"
+        ],
+        "summary": "Disputes - Disputes Filters",
+        "description": "Lists all the filters associated with disputes",
+        "operationId": "List all filters for disputes",
+        "responses": {
+          "200": {
+            "description": "List of filters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisputeListFilters"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/disputes/profile/filter": {
+      "get": {
+        "tags": [
+          "Disputes"
+        ],
+        "summary": "Disputes - Disputes Filters Profile",
+        "description": "Lists all the filters associated with disputes for the given profiles",
+        "operationId": "List all filters for disputes for the given Profiles",
+        "responses": {
+          "200": {
+            "description": "List of filters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisputeListFilters"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/disputes/accept/{dispute_id}": {
+      "post": {
+        "tags": [
+          "Disputes"
+        ],
+        "summary": "Disputes - Accept Dispute",
+        "description": "Accepts a dispute",
+        "operationId": "Accept a Dispute",
+        "parameters": [
+          {
+            "name": "dispute_id",
+            "in": "path",
+            "description": "The identifier for dispute",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The dispute was accepted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisputeResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Dispute does not exist in our records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/disputes/evidence": {
+      "post": {
+        "tags": [
+          "Disputes"
+        ],
+        "summary": "Disputes - Uploads Dispute Evidence",
+        "description": "Uploads evidence for a dispute",
+        "operationId": "Submit Dispute Evidence",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitEvidenceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The dispute evidence submitted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisputeResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Dispute does not exist in our records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Disputes"
+        ],
+        "summary": "Disputes - Attach Evidence to Dispute",
+        "description": "Attaches an uploaded evidence file to a dispute",
+        "operationId": "Attach Evidence to Dispute",
+        "requestBody": {
+          "description": "A multipart/form-data request with a `file` field containing the evidence file.",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Evidence attached to dispute",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateFileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Disputes"
+        ],
+        "summary": "Disputes - Delete Evidence attached to a Dispute",
+        "description": "Deletes an evidence file attached to a dispute",
+        "operationId": "Delete Evidence attached to a Dispute",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteEvidenceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Evidence deleted from a dispute"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/disputes/evidence/{dispute_id}": {
+      "get": {
+        "tags": [
+          "Disputes"
+        ],
+        "summary": "Disputes - Retrieve Dispute Evidence",
+        "description": "Retrieves evidence for a dispute",
+        "operationId": "Retrieve a Dispute Evidence",
+        "parameters": [
+          {
+            "name": "dispute_id",
+            "in": "path",
+            "description": "The identifier for dispute",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The dispute evidence was retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DisputeEvidenceBlock"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Dispute does not exist in our records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/disputes/aggregate": {
+      "get": {
+        "tags": [
+          "Disputes"
+        ],
+        "summary": "Disputes - Get Disputes Aggregate",
+        "description": "Gets a count of disputes grouped by their status for a merchant within a time range",
+        "operationId": "Get Disputes Aggregate",
+        "parameters": [
+          {
+            "name": "start_time",
+            "in": "query",
+            "description": "The start time for the aggregate query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disputes aggregate retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisputesAggregateResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/disputes/profile/aggregate": {
+      "get": {
+        "tags": [
+          "Disputes"
+        ],
+        "summary": "Disputes - Get Disputes Aggregate for Profiles",
+        "description": "Gets a count of disputes grouped by their status for the given profiles within a time range",
+        "operationId": "Get Disputes Aggregate for Profiles",
+        "parameters": [
+          {
+            "name": "start_time",
+            "in": "query",
+            "description": "The start time for the aggregate query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disputes aggregate retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisputesAggregateResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
     "/routing": {
       "post": {
         "tags": [
@@ -14250,6 +14779,46 @@
               }
             ],
             "nullable": true
+          },
+          "discount_rules": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderPaymentDiscountRules"
+              }
+            ],
+            "nullable": true
+          },
+          "penalties": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PenaltyRules"
+              }
+            ],
+            "nullable": true
+          },
+          "collection_actions": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CollectionActions"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_constraints": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoPaymentTypeConstraints"
+              }
+            ],
+            "nullable": true
+          },
+          "beneficiary": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BeneficiaryDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15935,6 +16504,21 @@
             "type": "integer",
             "format": "int32",
             "description": "Determines Redis Expiry for Card Testing Guard for profile"
+          },
+          "guest_ip_blocking_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardTestingGuardStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "guest_ip_blocking_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines the unsuccessful payment threshold for Guest IP Blocking for profile",
+            "default": 10,
+            "nullable": true
           }
         }
       },
@@ -15959,6 +16543,11 @@
           "card_cvc": {
             "type": "string",
             "description": "The CVC number for the card",
+            "nullable": true
+          },
+          "card_cvc_token": {
+            "type": "string",
+            "description": "Token referencing a CVC vaulted in the hyperswitch (self-hosted) vault. Used by the\nself-hosted default-vault repeat-customer flow, where the card is referenced by the\ntop-level `payment_token` and the freshly-tokenized CVC arrives as this token; the server\nresolves it to the raw CVC. Not used by the external vault proxy flow.",
             "nullable": true
           }
         }
@@ -17940,6 +18529,18 @@
           }
         }
       },
+      "CreateFileResponse": {
+        "type": "object",
+        "required": [
+          "file_id"
+        ],
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "ID of the file created"
+          }
+        }
+      },
       "CreateSubscriptionPaymentDetails": {
         "type": "object",
         "required": [
@@ -19455,6 +20056,22 @@
           }
         }
       },
+      "DeleteEvidenceRequest": {
+        "type": "object",
+        "required": [
+          "dispute_id",
+          "evidence_type"
+        ],
+        "properties": {
+          "dispute_id": {
+            "type": "string",
+            "description": "Id of the dispute"
+          },
+          "evidence_type": {
+            "$ref": "#/components/schemas/EvidenceType"
+          }
+        }
+      },
       "DeviceChannel": {
         "type": "string",
         "description": "Device Channel indicating whether request is coming from App or Browser",
@@ -19535,6 +20152,63 @@
           "shipping_cost": {
             "type": "string",
             "description": "shipping cost for the order"
+          }
+        }
+      },
+      "DisputeEvidenceBlock": {
+        "type": "object",
+        "required": [
+          "evidence_type",
+          "file_metadata_response"
+        ],
+        "properties": {
+          "evidence_type": {
+            "$ref": "#/components/schemas/EvidenceType"
+          },
+          "file_metadata_response": {
+            "$ref": "#/components/schemas/FileMetadataResponse"
+          }
+        }
+      },
+      "DisputeListFilters": {
+        "type": "object",
+        "required": [
+          "connector",
+          "currency",
+          "dispute_status",
+          "dispute_stage"
+        ],
+        "properties": {
+          "connector": {
+            "type": "object",
+            "description": "The map of available connector filters, where the key is the connector name and the value is a list of MerchantConnectorInfo instances",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/MerchantConnectorInfo"
+              }
+            }
+          },
+          "currency": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Currency"
+            },
+            "description": "The list of available currency filters"
+          },
+          "dispute_status": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DisputeStatus"
+            },
+            "description": "The list of available dispute status filters"
+          },
+          "dispute_stage": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DisputeStage"
+            },
+            "description": "The list of available dispute stage filters"
           }
         }
       },
@@ -19731,6 +20405,22 @@
           "dispute_won",
           "dispute_lost"
         ]
+      },
+      "DisputesAggregateResponse": {
+        "type": "object",
+        "required": [
+          "status_with_count"
+        ],
+        "properties": {
+          "status_with_count": {
+            "type": "object",
+            "description": "Different status of disputes with their count",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
       },
       "DocumentDetails": {
         "type": "object",
@@ -20660,6 +21350,21 @@
           "invoice_paid"
         ]
       },
+      "EvidenceType": {
+        "type": "string",
+        "enum": [
+          "cancellation_policy",
+          "customer_communication",
+          "customer_signature",
+          "receipt",
+          "refund_policy",
+          "service_documentation",
+          "shipping_documentation",
+          "invoice_showing_distinct_transactions",
+          "recurring_transaction_agreement",
+          "uncategorized_file"
+        ]
+      },
       "ExemptionIndicator": {
         "type": "string",
         "description": "Represents the exemption indicator used in a transaction under PSD2 SCA (Strong Customer Authentication) rules.",
@@ -21494,6 +22199,39 @@
         ],
         "description": "Possible field type of required fields in payment_method_data"
       },
+      "FileMetadataResponse": {
+        "type": "object",
+        "required": [
+          "file_id",
+          "file_size",
+          "file_type",
+          "available"
+        ],
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "ID of the file created"
+          },
+          "file_name": {
+            "type": "string",
+            "description": "Name of the file",
+            "nullable": true
+          },
+          "file_size": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Size of the file"
+          },
+          "file_type": {
+            "type": "string",
+            "description": "Type of the file"
+          },
+          "available": {
+            "type": "boolean",
+            "description": "File availability"
+          }
+        }
+      },
       "FinixAdditionalDetails": {
         "type": "object",
         "properties": {
@@ -21978,6 +22716,69 @@
           "PREPAID",
           "UNKNOWN"
         ]
+      },
+      "GooglePayDecrypt": {
+        "type": "object",
+        "required": [
+          "application_primary_account_number",
+          "expiry_month",
+          "expiry_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "application_primary_account_number": {
+            "type": "string",
+            "description": "The dpan number associated with card number",
+            "example": "4242424242424242"
+          },
+          "expiry_month": {
+            "type": "string",
+            "description": "The card's expiry month"
+          },
+          "expiry_year": {
+            "type": "string",
+            "description": "The card's expiry year"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Doe"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "GooglePayDecryptAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for Google pay decrypt wallet payout method",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card expiry month",
+            "example": "01"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card expiry year",
+            "example": "2026"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card holder name",
+            "example": "John Doe"
+          }
+        }
       },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
@@ -22823,6 +23624,18 @@
           "surcharge_calculation_provider",
           "revenue_growth_management_platform"
         ]
+      },
+      "HyperswitchVaultData": {
+        "type": "object",
+        "required": [
+          "sdk_authorization"
+        ],
+        "properties": {
+          "sdk_authorization": {
+            "type": "string",
+            "description": "Base64-encoded SDK authorization token for the Hyperswitch Vault session"
+          }
+        }
       },
       "HyperswitchVaultSessionDetails": {
         "type": "object",
@@ -24820,6 +25633,25 @@
           },
           "merchant_connector_id": {
             "type": "string"
+          }
+        }
+      },
+      "MerchantConnectorInfo": {
+        "type": "object",
+        "required": [
+          "connector_label",
+          "merchant_connector_id",
+          "connector_type"
+        ],
+        "properties": {
+          "connector_label": {
+            "type": "string"
+          },
+          "merchant_connector_id": {
+            "type": "string"
+          },
+          "connector_type": {
+            "$ref": "#/components/schemas/ConnectorType"
           }
         }
       },
@@ -29152,12 +29984,12 @@
           },
           {
             "type": "object",
-            "title": "ProxyCard",
+            "title": "VaultDataCard",
             "required": [
-              "proxy_card"
+              "vault_data_card"
             ],
             "properties": {
-              "proxy_card": {
+              "vault_data_card": {
                 "$ref": "#/components/schemas/ProxyCardData"
               }
             }
@@ -29170,7 +30002,7 @@
             ],
             "properties": {
               "vault_card_token_data": {
-                "$ref": "#/components/schemas/CardToken"
+                "$ref": "#/components/schemas/VaultCardToken"
               }
             }
           }
@@ -34293,7 +35125,7 @@
           "vault_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/VaultDetails"
+                "$ref": "#/components/schemas/VaultDetailsResponse"
               }
             ],
             "nullable": true
@@ -37685,9 +38517,11 @@
             "nullable": true
           },
           "acquirer_country_code": {
-            "type": "string",
-            "description": "Acquirer country code",
-            "example": "US",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           },
           "profile_id": {
@@ -37809,8 +38643,11 @@
             "nullable": true
           },
           "acquirer_country_code": {
-            "type": "string",
-            "example": "US",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           },
           "is_default": {
@@ -42141,6 +42978,148 @@
         },
         "additionalProperties": false
       },
+      "SubmitEvidenceRequest": {
+        "type": "object",
+        "required": [
+          "dispute_id"
+        ],
+        "properties": {
+          "dispute_id": {
+            "type": "string",
+            "description": "Dispute Id"
+          },
+          "access_activity_log": {
+            "type": "string",
+            "description": "Logs showing the usage of service by customer",
+            "nullable": true
+          },
+          "billing_address": {
+            "type": "string",
+            "description": "Billing address of the customer",
+            "nullable": true
+          },
+          "cancellation_policy": {
+            "type": "string",
+            "description": "File Id of cancellation policy",
+            "nullable": true
+          },
+          "cancellation_policy_disclosure": {
+            "type": "string",
+            "description": "Details of showing cancellation policy to customer before purchase",
+            "nullable": true
+          },
+          "cancellation_rebuttal": {
+            "type": "string",
+            "description": "Details telling why customer's subscription was not cancelled",
+            "nullable": true
+          },
+          "customer_communication": {
+            "type": "string",
+            "description": "File Id of customer communication",
+            "nullable": true
+          },
+          "customer_email_address": {
+            "type": "string",
+            "description": "Customer email address",
+            "nullable": true
+          },
+          "customer_name": {
+            "type": "string",
+            "description": "Customer name",
+            "nullable": true
+          },
+          "customer_purchase_ip": {
+            "type": "string",
+            "description": "IP address of the customer",
+            "nullable": true
+          },
+          "customer_signature": {
+            "type": "string",
+            "description": "Fild Id of customer signature",
+            "nullable": true
+          },
+          "product_description": {
+            "type": "string",
+            "description": "Product Description",
+            "nullable": true
+          },
+          "receipt": {
+            "type": "string",
+            "description": "File Id of receipt",
+            "nullable": true
+          },
+          "refund_policy": {
+            "type": "string",
+            "description": "File Id of refund policy",
+            "nullable": true
+          },
+          "refund_policy_disclosure": {
+            "type": "string",
+            "description": "Details of showing refund policy to customer before purchase",
+            "nullable": true
+          },
+          "refund_refusal_explanation": {
+            "type": "string",
+            "description": "Details why customer is not entitled to refund",
+            "nullable": true
+          },
+          "service_date": {
+            "type": "string",
+            "description": "Customer service date",
+            "nullable": true
+          },
+          "service_documentation": {
+            "type": "string",
+            "description": "File Id service documentation",
+            "nullable": true
+          },
+          "shipping_address": {
+            "type": "string",
+            "description": "Shipping address of the customer",
+            "nullable": true
+          },
+          "shipping_carrier": {
+            "type": "string",
+            "description": "Delivery service that shipped the product",
+            "nullable": true
+          },
+          "shipping_date": {
+            "type": "string",
+            "description": "Shipping date",
+            "nullable": true
+          },
+          "shipping_documentation": {
+            "type": "string",
+            "description": "File Id shipping documentation",
+            "nullable": true
+          },
+          "shipping_tracking_number": {
+            "type": "string",
+            "description": "Tracking number of shipped product",
+            "nullable": true
+          },
+          "invoice_showing_distinct_transactions": {
+            "type": "string",
+            "description": "File Id showing two distinct transactions when customer claims a payment was charged twice",
+            "nullable": true
+          },
+          "recurring_transaction_agreement": {
+            "type": "string",
+            "description": "File Id of recurring transaction agreement",
+            "nullable": true
+          },
+          "uncategorized_file": {
+            "type": "string",
+            "description": "Any additional supporting file",
+            "nullable": true
+          },
+          "uncategorized_text": {
+            "type": "string",
+            "description": "Any additional evidence statements",
+            "nullable": true
+          }
+        }
+      },
       "SubscriptionId": {
         "type": "string",
         "description": "A type for subscription_id that can be used for subscription ids"
@@ -43659,6 +44638,25 @@
           "propertyName": "type"
         }
       },
+      "VaultCardToken": {
+        "type": "object",
+        "description": "Card token data carried by the external vault proxy `vault_card_token_data` variant. Its\n`card_cvc` is a vault token detokenized on the wire by the external vault (e.g. VGS). Kept as a\ndistinct type from [`CardToken`] so the self-hosted `card_cvc_token` field does not leak into\nthe proxy contract.",
+        "required": [
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card (a vault token for the external vault proxy flow)",
+            "nullable": true
+          }
+        }
+      },
       "VaultDetails": {
         "type": "object",
         "description": "Top-level vault details returned in the session-tokens response.\nFor v1: contains both internal vault (SDK authorization) and external vault details.\nFor v2: contains only external vault details.",
@@ -43679,6 +44677,50 @@
             ],
             "nullable": true
           }
+        }
+      },
+      "VaultDetailsResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "vault_type",
+              "vault_data"
+            ],
+            "properties": {
+              "vault_type": {
+                "type": "string",
+                "enum": [
+                  "hyperswitch"
+                ]
+              },
+              "vault_data": {
+                "$ref": "#/components/schemas/HyperswitchVaultData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "vault_type",
+              "vault_data"
+            ],
+            "properties": {
+              "vault_type": {
+                "type": "string",
+                "enum": [
+                  "vgs"
+                ]
+              },
+              "vault_data": {
+                "$ref": "#/components/schemas/VgsVaultData"
+              }
+            }
+          }
+        ],
+        "description": "V1-facing vault details for the session-tokens response, serialized as a tagged\n`{ \"vault_type\": ..., \"vault_data\": { ... } }` object. Exactly one variant is returned:\nexternal vault details when configured, otherwise the internal Hyperswitch vault session.",
+        "discriminator": {
+          "propertyName": "vault_type"
         }
       },
       "VaultSdk": {
@@ -43778,6 +44820,23 @@
             "description": "The identifier of the external vault"
           },
           "sdk_env": {
+            "type": "string",
+            "description": "The environment for the external vault initiation"
+          }
+        }
+      },
+      "VgsVaultData": {
+        "type": "object",
+        "required": [
+          "vault_id",
+          "environment"
+        ],
+        "properties": {
+          "vault_id": {
+            "type": "string",
+            "description": "The identifier of the external vault"
+          },
+          "environment": {
             "type": "string",
             "description": "The environment for the external vault initiation"
           }
@@ -43970,6 +45029,17 @@
           {
             "type": "object",
             "required": [
+              "google_pay_decrypt"
+            ],
+            "properties": {
+              "google_pay_decrypt": {
+                "$ref": "#/components/schemas/GooglePayDecrypt"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "paypal"
             ],
             "properties": {
@@ -43995,6 +45065,9 @@
         "oneOf": [
           {
             "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/GooglePayDecryptAdditionalData"
           },
           {
             "$ref": "#/components/schemas/PaypalAdditionalData"
@@ -44498,6 +45571,37 @@
                   "application_primary_account_number": {
                     "type": "string",
                     "description": "The application primary account number associated with the card",
+                    "example": "4242424242424242"
+                  },
+                  "expiry_month": {
+                    "type": "string",
+                    "description": "The card's expiry month"
+                  },
+                  "expiry_year": {
+                    "type": "string",
+                    "description": "The card's expiry year"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay_decrypted_data"
+            ],
+            "properties": {
+              "google_pay_decrypted_data": {
+                "type": "object",
+                "required": [
+                  "application_primary_account_number",
+                  "expiry_month",
+                  "expiry_year"
+                ],
+                "properties": {
+                  "application_primary_account_number": {
+                    "type": "string",
+                    "description": "The application primary account number (PAN) associated with the card",
                     "example": "4242424242424242"
                   },
                   "expiry_month": {

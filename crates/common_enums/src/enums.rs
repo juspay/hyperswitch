@@ -2494,19 +2494,29 @@ pub enum PaymentMethodType {
     NetworkToken,
 }
 
+/// Indicates whether a wallet token is decrypted .
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WalletDecryptedToken {
+    ApplePay,
+    GooglePay,
+    /// No wallet decryption occurred.
+    None,
+}
+
 impl PaymentMethodType {
+    /// - True : then fetch the saved payment method and update the last used, skip locker id creation
+    /// - False : For applepay and googlepay decrypted tokens create a new payment method according to locker fingerprint
     pub fn should_check_for_customer_saved_payment_method_type(
         self,
-        is_apple_pay_decrypt: bool,
+        decrypted_token: WalletDecryptedToken,
     ) -> bool {
-        if is_apple_pay_decrypt {
-            // return false if the payment method is Apple Pay and the decryption is successful, else exhibit the existing behaviour
-            !matches!(self, Self::ApplePay)
-        } else {
-            matches!(
+        match decrypted_token {
+            WalletDecryptedToken::ApplePay => !matches!(self, Self::ApplePay),
+            WalletDecryptedToken::GooglePay => !matches!(self, Self::GooglePay),
+            WalletDecryptedToken::None => matches!(
                 self,
                 Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
-            )
+            ),
         }
     }
     pub fn to_display_name(&self) -> String {
@@ -2866,6 +2876,33 @@ pub enum ExecutionMode {
     Primary,
     Shadow,
     NotApplicable,
+}
+
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+/// Whether a connector event is the real call or a shadow mirror.
+pub enum EventExecutionMode {
+    Primary,
+    Shadow,
+}
+
+impl From<ExecutionMode> for EventExecutionMode {
+    fn from(mode: ExecutionMode) -> Self {
+        match mode {
+            ExecutionMode::Shadow => Self::Shadow,
+            ExecutionMode::Primary | ExecutionMode::NotApplicable => Self::Primary,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+/// Where a connector event's call was sent.
+pub enum EventDestination {
+    /// A direct call to the connector.
+    Connector,
+    /// A call to the Unified Connector Service.
+    UnifiedConnectorService,
 }
 
 #[derive(
