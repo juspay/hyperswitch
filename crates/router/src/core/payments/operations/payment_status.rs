@@ -232,9 +232,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
         request: &api::PaymentsRetrieveRequest,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
+        _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
     > {
@@ -483,6 +485,7 @@ async fn get_tracker_for_sync<
                     authentication_id,
                     platform.get_processor().get_key_store(),
                     key_manager_state,
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::InternalServerError)

@@ -71,6 +71,41 @@ pub struct Refund {
     pub created_by: Option<String>,
 }
 
+impl Refund {
+    pub fn construct_lookup_id_processor_merchant_id_connector_refund_id_connector(
+        processor_merchant_id: &id_type::MerchantId,
+        connector_refund_id: &str,
+        connector: &str,
+    ) -> String {
+        format!(
+            "ref_connector_{}_{}_{}",
+            processor_merchant_id.get_string_repr(),
+            connector_refund_id,
+            connector
+        )
+    }
+    pub fn construct_lookup_id_processor_merchant_id_refund_id(
+        processor_merchant_id: &id_type::MerchantId,
+        refund_id: &str,
+    ) -> String {
+        format!(
+            "ref_ref_id_{}_{}",
+            processor_merchant_id.get_string_repr(),
+            refund_id,
+        )
+    }
+    pub fn construct_lookup_id_processor_merchant_id_internal_reference_id(
+        processor_merchant_id: &id_type::MerchantId,
+        internal_reference_id: &str,
+    ) -> String {
+        format!(
+            "ref_inter_ref_{}_{}",
+            processor_merchant_id.get_string_repr(),
+            internal_reference_id,
+        )
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(
     Clone,

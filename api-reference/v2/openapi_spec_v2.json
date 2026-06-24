@@ -9631,6 +9631,46 @@
               }
             ],
             "nullable": true
+          },
+          "discount_rules": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderPaymentDiscountRules"
+              }
+            ],
+            "nullable": true
+          },
+          "penalties": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PenaltyRules"
+              }
+            ],
+            "nullable": true
+          },
+          "collection_actions": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CollectionActions"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_constraints": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoPaymentTypeConstraints"
+              }
+            ],
+            "nullable": true
+          },
+          "beneficiary": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BeneficiaryDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -10791,6 +10831,21 @@
             "type": "integer",
             "format": "int32",
             "description": "Determines Redis Expiry for Card Testing Guard for profile"
+          },
+          "guest_ip_blocking_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardTestingGuardStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "guest_ip_blocking_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines the unsuccessful payment threshold for Guest IP Blocking for profile",
+            "default": 10,
+            "nullable": true
           }
         }
       },
@@ -10815,6 +10870,11 @@
           "card_cvc": {
             "type": "string",
             "description": "The CVC number for the card",
+            "nullable": true
+          },
+          "card_cvc_token": {
+            "type": "string",
+            "description": "Token referencing a CVC vaulted in the hyperswitch (self-hosted) vault. Used by the\nself-hosted default-vault repeat-customer flow, where the card is referenced by the\ntop-level `payment_token` and the freshly-tokenized CVC arrives as this token; the server\nresolves it to the raw CVC. Not used by the external vault proxy flow.",
             "nullable": true
           }
         }
@@ -15499,6 +15559,69 @@
           "UNKNOWN"
         ]
       },
+      "GooglePayDecrypt": {
+        "type": "object",
+        "required": [
+          "application_primary_account_number",
+          "expiry_month",
+          "expiry_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "application_primary_account_number": {
+            "type": "string",
+            "description": "The dpan number associated with card number",
+            "example": "4242424242424242"
+          },
+          "expiry_month": {
+            "type": "string",
+            "description": "The card's expiry month"
+          },
+          "expiry_year": {
+            "type": "string",
+            "description": "The card's expiry year"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Doe"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "GooglePayDecryptAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for Google pay decrypt wallet payout method",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card expiry month",
+            "example": "01"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card expiry year",
+            "example": "2026"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card holder name",
+            "example": "John Doe"
+          }
+        }
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -16970,7 +17093,8 @@
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "deprecated": true
       },
       "MandateResponse": {
         "type": "object",
@@ -21882,12 +22006,12 @@
           },
           {
             "type": "object",
-            "title": "ProxyCard",
+            "title": "VaultDataCard",
             "required": [
-              "proxy_card"
+              "vault_data_card"
             ],
             "properties": {
-              "proxy_card": {
+              "vault_data_card": {
                 "$ref": "#/components/schemas/ProxyCardData"
               }
             }
@@ -21900,7 +22024,7 @@
             ],
             "properties": {
               "vault_card_token_data": {
-                "$ref": "#/components/schemas/CardToken"
+                "$ref": "#/components/schemas/VaultCardToken"
               }
             }
           }
@@ -25610,7 +25734,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
+            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated. _Deprecated: Use the customer object instead._",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 255
           },
@@ -25637,7 +25762,8 @@
           },
           "business_label": {
             "type": "string",
-            "description": "Business label of the merchant for this payout",
+            "description": "Business label of the merchant for this payout. _Deprecated: Use profile_id instead._",
+            "deprecated": true,
             "example": "food",
             "nullable": true
           },
@@ -32386,6 +32512,25 @@
           "propertyName": "type"
         }
       },
+      "VaultCardToken": {
+        "type": "object",
+        "description": "Card token data carried by the external vault proxy `vault_card_token_data` variant. Its\n`card_cvc` is a vault token detokenized on the wire by the external vault (e.g. VGS). Kept as a\ndistinct type from [`CardToken`] so the self-hosted `card_cvc_token` field does not leak into\nthe proxy contract.",
+        "required": [
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card (a vault token for the external vault proxy flow)",
+            "nullable": true
+          }
+        }
+      },
       "VaultDetails": {
         "type": "object",
         "description": "Top-level vault details returned in the session-tokens response.\nFor v1: contains both internal vault (SDK authorization) and external vault details.\nFor v2: contains only external vault details.",
@@ -32674,6 +32819,17 @@
           {
             "type": "object",
             "required": [
+              "google_pay_decrypt"
+            ],
+            "properties": {
+              "google_pay_decrypt": {
+                "$ref": "#/components/schemas/GooglePayDecrypt"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "paypal"
             ],
             "properties": {
@@ -32699,6 +32855,9 @@
         "oneOf": [
           {
             "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/GooglePayDecryptAdditionalData"
           },
           {
             "$ref": "#/components/schemas/PaypalAdditionalData"

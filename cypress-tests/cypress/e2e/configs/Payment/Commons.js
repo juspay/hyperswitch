@@ -1745,6 +1745,47 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentIntentWithBillingDescriptor: getCustomExchange({
+      Request: {
+        currency: "USD",
+        billing_descriptor: {
+          name: "Test Business",
+          city: "San Francisco",
+          phone: "1234567890",
+          statement_descriptor: "Test Descriptor",
+          statement_descriptor_suffix: "Suffix",
+          reference: "REF123",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    PaymentConfirmWithBillingDescriptor: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        billing_descriptor: {
+          name: "Test Business",
+          city: "San Francisco",
+          phone: "1234567890",
+          statement_descriptor: "Test Descriptor",
+          statement_descriptor_suffix: "Suffix",
+          reference: "REF123",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
     PaymentConfirmWithShippingCost: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -3382,6 +3423,27 @@ export const connectorDetails = {
           error: {
             error_type: "invalid_request",
             code: "IR_06",
+          },
+        },
+      },
+    }),
+    ClientSessionInvalidConfirm: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 401,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "API key not provided or invalid API key used",
+            code: "IR_01",
           },
         },
       },

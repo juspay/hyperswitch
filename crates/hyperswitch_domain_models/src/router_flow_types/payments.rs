@@ -33,6 +33,9 @@ pub struct PostCaptureVoid;
 pub struct PostCaptureVoidSync;
 
 #[derive(Debug, Clone)]
+pub struct PreAuthorizeVoid;
+
+#[derive(Debug, Clone)]
 pub struct Reject;
 
 #[derive(Debug, Clone)]

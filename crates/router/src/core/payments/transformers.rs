@@ -2797,7 +2797,9 @@ where
                     .clone()
                     .get_required_value("client_secret")?
                     .into(),
-                vault_details: payment_data.get_optional_external_vault_session_details(),
+                vault_details: payment_data
+                    .get_optional_external_vault_session_details()
+                    .and_then(Into::into),
             },
             vec![],
         )))
@@ -5867,6 +5869,29 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             merchant_order_reference_id: payment_data.payment_intent.merchant_order_reference_id,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             feature_metadata,
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreAuthorizeCancelData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        let connector = api::ConnectorData::get_connector_by_name(
+            &additional_data.state.conf.connectors,
+            &additional_data.connector_name,
+            api::GetToken::Connector,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
+        )?;
+
+        Ok(Self {
+            connector_transaction_id: connector
+                .connector
+                .connector_transaction_id(&payment_data.payment_attempt)?
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
+            connector_meta: payment_data.payment_attempt.connector_metadata.clone(),
         })
     }
 }

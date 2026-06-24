@@ -206,6 +206,22 @@ pub enum ApplePayFlow {
 }
 
 impl PaymentMethodData {
+    /// BIN for any card-bearing variant — raw, saved, network-token, or NTID-based MIT.
+    pub fn get_card_iin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_card_isin()),
+            Self::CardWithOptionalCVC(card) => Some(card.card_number.get_card_isin()),
+            Self::CardWithNetworkTokenDetails(card) => {
+                Some(card.card_details.card_number.get_card_isin())
+            }
+            Self::CardDetailsForNetworkTransactionId(card) => {
+                Some(card.card_number.get_card_isin())
+            }
+            Self::CardWithLimitedDetails(card) => Some(card.card_number.get_card_isin()),
+            _ => None,
+        }
+    }
+
     pub fn apply_additional_payment_data(
         &self,
         additional_payment_data: api_models::payments::AdditionalPaymentData,
@@ -1419,6 +1435,10 @@ pub struct CardToken {
 
     /// The CVC number for the card
     pub card_cvc: Option<Secret<String>>,
+
+    /// Token referencing a CVC vaulted in the hyperswitch (self-hosted) vault, resolved by the
+    /// server to the raw CVC for the self-hosted default-vault repeat-customer flow.
+    pub card_cvc_token: Option<Secret<String>>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
@@ -1658,6 +1678,11 @@ pub enum WalletDetail {
         expiry_month: Secret<String>,
         expiry_year: Secret<String>,
     },
+    GooglePayDecryptedData {
+        application_primary_account_number: cards::CardNumber,
+        expiry_month: Secret<String>,
+        expiry_year: Secret<String>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -1669,6 +1694,15 @@ impl From<payment_methods::WalletDetail> for WalletDetail {
                 expiry_month,
                 expiry_year,
             } => Self::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            },
+            payment_methods::WalletDetail::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::GooglePayDecryptedData {
                 application_primary_account_number,
                 expiry_month,
                 expiry_year,
@@ -2826,10 +2860,12 @@ impl From<api_models::payments::CardToken> for CardToken {
         let api_models::payments::CardToken {
             card_holder_name,
             card_cvc,
+            card_cvc_token,
         } = value;
         Self {
             card_holder_name,
             card_cvc,
+            card_cvc_token,
         }
     }
 }
