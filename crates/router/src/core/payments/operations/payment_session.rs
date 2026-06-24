@@ -271,11 +271,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
         let key_store = processor.get_key_store();
 
         let metadata = payment_data.payment_intent.metadata.clone();
-        let feature_metadata = payment_data
-            .payment_intent
-            .feature_metadata
-            .clone()
-            .map(hyperswitch_masking::Secret::new);
+        let feature_metadata = payment_data.payment_intent.feature_metadata.clone();
         payment_data.payment_intent = match metadata {
             Some(metadata) => state
                 .store
