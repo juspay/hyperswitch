@@ -89,11 +89,7 @@ impl Dispute {
         merchant_id: &common_utils::id_type::MerchantId,
         dispute_id: &str,
     ) -> String {
-        format!(
-            "dispute_{}_{}",
-            merchant_id.get_string_repr(),
-            dispute_id
-        )
+        format!("dispute_{}_{}", merchant_id.get_string_repr(), dispute_id)
     }
 
     pub fn generate_lookup_merchant_id_payment_id_connector_dispute_id(
