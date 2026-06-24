@@ -1,5 +1,6 @@
-use common_utils::events::{ApiEventMetric, ApiEventsType};
 use std::collections::BTreeMap;
+
+use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 /// Context entry returned by Superposition list/create endpoints.
 #[derive(Debug, Clone, serde::Serialize)]
