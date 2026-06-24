@@ -2188,7 +2188,7 @@ fn get_additional_data(
                     ref_data.transaction_link_id.clone()
                 }
                 mandates::MandateReferenceId::ConnectorMandateId(_)
-                | mandates::MandateReferenceId::CardWithLimitedData => None,
+                | mandates::MandateReferenceId::CardWithLimitedData(_) => None,
             })
     });
 
@@ -3299,7 +3299,7 @@ impl
                     }
                 }
             }
-            mandates::MandateReferenceId::CardWithLimitedData => {
+            mandates::MandateReferenceId::CardWithLimitedData(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Card Only MIT for payment method".to_string(),
                     connector: "Adyen",

@@ -193,6 +193,14 @@ pub struct CardWithLimitedData {
 
     /// The ECI(Electronic Commerce Indicator) value for this authentication.
     pub eci: Option<String>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    pub network_transaction_id: Option<Secret<String>>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
 }
 
 // Determines if decryption should be performed
@@ -687,7 +695,13 @@ impl CardWithLimitedDetails {
         card_with_limited_data: CardWithLimitedData,
     ) -> (mandates::MandateReferenceId, PaymentMethodData) {
         (
-            mandates::MandateReferenceId::CardWithLimitedData,
+            mandates::MandateReferenceId::CardWithLimitedData(mandates::CardWithLimitedDataRef {
+                network_transaction_id: card_with_limited_data
+                    .clone()
+                    .network_transaction_id
+                    .map(|id| id.peek().to_string()),
+                transaction_link_id: card_with_limited_data.transaction_link_id.clone(),
+            }),
             PaymentMethodData::CardWithLimitedDetails(card_with_limited_data.into()),
         )
     }
@@ -4418,6 +4432,8 @@ impl From<api_mandates::CardWithLimitedData> for CardWithLimitedData {
             card_exp_year: card_with_limited_data.card_exp_year,
             card_holder_name: card_with_limited_data.card_holder_name,
             eci: card_with_limited_data.eci,
+            network_transaction_id: card_with_limited_data.network_transaction_id,
+            transaction_link_id: card_with_limited_data.transaction_link_id,
         }
     }
 }
