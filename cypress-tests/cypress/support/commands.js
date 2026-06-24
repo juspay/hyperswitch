@@ -5187,7 +5187,10 @@ Cypress.Commands.add(
       const baseUrl = globalState.get("baseUrl");
       const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
-      const redirectBodyFile = `cypress/fixtures/proxy-bodies/${testIdHash}-redirect-body.json`;
+      const captureDir = Cypress.env("CAPTURE_DIR");
+      const redirectBodyFile = captureDir
+        ? `${captureDir}/${connectorId}/Payment/redirect-bodies/${testIdHash}-redirect-body.json`
+        : `cypress/fixtures/proxy-bodies/${testIdHash}-redirect-body.json`;
       const jsConnector = JS_3DS_CONNECTORS[connectorId];
 
       cy.request({
@@ -5346,7 +5349,10 @@ Cypress.Commands.add(
       const merchantId = globalState.get("merchantId");
       const baseUrl = globalState.get("baseUrl");
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
-      const redirectBodyFile = `cypress/fixtures/proxy-bodies/${testIdHash}-redirect-body.json`;
+      const captureDir = Cypress.env("CAPTURE_DIR");
+      const redirectBodyFile = captureDir
+        ? `${captureDir}/${connectorId}/Payment/redirect-bodies/${testIdHash}-redirect-body.json`
+        : `cypress/fixtures/proxy-bodies/${testIdHash}-redirect-body.json`;
       const redirectProxyAdminUrl = Cypress.env("REDIRECT_PROXY_ADMIN_URL");
 
       // Bank redirect connectors that complete via a browser GET return to redirect/response.
@@ -5496,7 +5502,10 @@ Cypress.Commands.add(
       const merchantId = globalState.get("merchantId");
       const baseUrl = globalState.get("baseUrl");
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
-      const redirectBodyFile = `cypress/fixtures/proxy-bodies/${testIdHash}-redirect-body.json`;
+      const captureDir = Cypress.env("CAPTURE_DIR");
+      const redirectBodyFile = captureDir
+        ? `${captureDir}/${connectorId}/Payment/redirect-bodies/${testIdHash}-redirect-body.json`
+        : `cypress/fixtures/proxy-bodies/${testIdHash}-redirect-body.json`;
       const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
       const hyperswitchUrl =
         Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";

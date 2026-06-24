@@ -38,6 +38,10 @@ FIXTURES_DIR = os.environ.get(
     "REDIRECT_BODY_DIR",
     os.path.normpath(os.path.join(SCRIPT_DIR, "..", "cypress", "fixtures", "proxy-bodies")),
 )
+CAPTURE_DIR = os.environ.get(
+    "CAPTURE_DIR",
+    os.path.normpath(os.path.join(SCRIPT_DIR, "captures")),
+)
 LISTEN_PORT = int(os.environ.get("REDIRECT_PROXY_PORT", "9001"))
 ADMIN_PORT = int(os.environ.get("REDIRECT_PROXY_ADMIN_PORT", "9002"))
 UPSTREAM_HOST = os.environ.get("REDIRECT_PROXY_UPSTREAM_HOST", "localhost")
@@ -103,11 +107,24 @@ def _save_redirect(
         if redirect_segment:
             data["__redirect_segment"] = redirect_segment
 
+    # Save to fixtures/proxy-bodies/ for local replay
     os.makedirs(FIXTURES_DIR, exist_ok=True)
     path = os.path.join(FIXTURES_DIR, f"{test_id_hash}-redirect-body.json")
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
     print(f"[redirect-proxy] body saved → {path}")
+
+    # Also save inside captures/{connector}/Payment/redirect-bodies/ so it gets
+    # packaged with the cassettes tarball and is available in CI.
+    redirect_segment = data.get("__redirect_segment")
+    if redirect_segment:
+        connector = redirect_segment.split("/")[-1]
+        captures_body_dir = os.path.join(CAPTURE_DIR, connector, "Payment", "redirect-bodies")
+        os.makedirs(captures_body_dir, exist_ok=True)
+        captures_path = os.path.join(captures_body_dir, f"{test_id_hash}-redirect-body.json")
+        with open(captures_path, "w") as f:
+            json.dump(data, f, indent=2)
+        print(f"[redirect-proxy] body also saved → {captures_path}")
 
 
 # ───── proxy handler ─────
