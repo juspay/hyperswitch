@@ -2123,7 +2123,6 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
-
     #[cfg(all(feature = "olap", feature = "v1"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,

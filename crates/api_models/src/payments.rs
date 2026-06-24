@@ -49,8 +49,8 @@ where
             for item in s.split(',') {
                 let trimmed_item = item.trim();
                 if !trimmed_item.is_empty() {
-                    let merchant_id = id_type::MerchantId::wrap(trimmed_item.to_string())
-                        .map_err(|e| {
+                    let merchant_id =
+                        id_type::MerchantId::wrap(trimmed_item.to_string()).map_err(|e| {
                             <D::Error as serde::de::Error>::custom(format!(
                                 "Invalid merchant_id '{trimmed_item}': {e}"
                             ))
