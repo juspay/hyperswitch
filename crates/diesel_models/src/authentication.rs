@@ -86,6 +86,40 @@ pub struct Authentication {
     pub shipping_country: Option<String>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub updated_by: Option<String>,
+}
+
+impl Authentication {
+    /// Redis hash field key under which the authentication record is stored within its partition.
+    pub fn get_hash_key_for_kv_store(
+        authentication_id: &common_utils::id_type::AuthenticationId,
+    ) -> String {
+        format!("auth_{}", authentication_id.get_string_repr())
+    }
+
+    /// Reverse-lookup id to find an authentication by its id (scoped to the merchant).
+    pub fn get_authentication_id_lookup_id(
+        merchant_id: &common_utils::id_type::MerchantId,
+        authentication_id: &common_utils::id_type::AuthenticationId,
+    ) -> String {
+        format!(
+            "mid_{}_authn_id_{}",
+            merchant_id.get_string_repr(),
+            authentication_id.get_string_repr()
+        )
+    }
+
+    /// Reverse-lookup id to find an authentication by its connector authentication id (webhook path).
+    pub fn get_connector_authentication_lookup_id(
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_authentication_id: &str,
+    ) -> String {
+        format!(
+            "mid_{}_conn_authn_{}",
+            merchant_id.get_string_repr(),
+            connector_authentication_id
+        )
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Insertable)]
@@ -166,6 +200,7 @@ pub struct AuthenticationNew {
     pub shipping_country: Option<String>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub updated_by: Option<String>,
 }
 
 #[derive(Debug)]
@@ -173,6 +208,7 @@ pub enum AuthenticationUpdate {
     PreAuthenticationVersionCallUpdate {
         maximum_supported_3ds_version: common_utils::types::SemanticVersion,
         message_version: common_utils::types::SemanticVersion,
+        updated_by: String,
     },
     PreAuthenticationThreeDsMethodCall {
         threeds_server_transaction_id: String,
@@ -181,6 +217,7 @@ pub enum AuthenticationUpdate {
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
+        updated_by: String,
     },
     PreAuthenticationUpdate {
         threeds_server_transaction_id: String,
@@ -206,6 +243,7 @@ pub enum AuthenticationUpdate {
         shipping_country: Option<String>,
         earliest_supported_version: Option<common_utils::types::SemanticVersion>,
         latest_supported_version: Option<common_utils::types::SemanticVersion>,
+        updated_by: String,
     },
     AuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
@@ -228,6 +266,7 @@ pub enum AuthenticationUpdate {
         device_brand: Option<String>,
         device_os: Option<String>,
         device_display: Option<String>,
+        updated_by: String,
     },
     PostAuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
@@ -235,25 +274,30 @@ pub enum AuthenticationUpdate {
         authentication_status: common_enums::AuthenticationStatus,
         challenge_cancel: Option<String>,
         challenge_code_reason: Option<String>,
+        updated_by: String,
     },
     ErrorUpdate {
         error_message: Option<String>,
         error_code: Option<String>,
         authentication_status: common_enums::AuthenticationStatus,
         connector_authentication_id: Option<String>,
+        updated_by: String,
     },
     PostAuthorizationUpdate {
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus,
+        updated_by: String,
     },
     AuthenticationStatusUpdate {
         trans_status: common_enums::TransactionStatus,
         authentication_status: common_enums::AuthenticationStatus,
+        updated_by: String,
     },
     /// Persists resolved acquirer details after bucket-based network lookup (eligibility_core)
     AcquirerDetailsUpdate {
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
         acquirer_country_code: Option<String>,
+        updated_by: String,
     },
 }
 
@@ -319,6 +363,7 @@ impl Default for AuthenticationUpdateInternal {
             merchant_country_code: Default::default(),
             billing_country: Default::default(),
             shipping_country: Default::default(),
+            updated_by: Default::default(),
         }
     }
 }
@@ -387,6 +432,7 @@ pub struct AuthenticationUpdateInternal {
     pub merchant_country_code: Option<String>,
     pub billing_country: Option<String>,
     pub shipping_country: Option<String>,
+    pub updated_by: String,
 }
 
 impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
@@ -397,6 +443,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 error_code,
                 authentication_status,
                 connector_authentication_id,
+                updated_by,
             } => Self {
                 error_code,
                 error_message,
@@ -407,10 +454,12 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 payment_method_id: None,
                 connector_metadata: None,
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status,
+                updated_by,
             } => Self {
                 connector_authentication_id: None,
 
@@ -422,6 +471,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 error_message: None,
                 error_code: None,
                 connector_metadata: None,
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::PreAuthenticationUpdate {
@@ -448,6 +498,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 shipping_country,
                 earliest_supported_version,
                 latest_supported_version,
+                updated_by,
             } => Self {
                 threeds_server_transaction_id: Some(threeds_server_transaction_id),
                 maximum_supported_version: Some(maximum_supported_3ds_version),
@@ -472,6 +523,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 shipping_country,
                 earliest_supported_version,
                 latest_supported_version,
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::AuthenticationUpdate {
@@ -495,6 +547,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 device_brand,
                 device_os,
                 device_display,
+                updated_by,
             } => Self {
                 trans_status: Some(trans_status),
                 authentication_type: Some(authentication_type),
@@ -516,6 +569,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 device_brand,
                 device_os,
                 device_display,
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::PostAuthenticationUpdate {
@@ -524,20 +578,24 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 authentication_status,
                 challenge_cancel,
                 challenge_code_reason,
+                updated_by,
             } => Self {
                 trans_status: Some(trans_status),
                 eci,
                 authentication_status: Some(authentication_status),
                 challenge_cancel,
                 challenge_code_reason,
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
                 maximum_supported_3ds_version,
                 message_version,
+                updated_by,
             } => Self {
                 maximum_supported_version: Some(maximum_supported_3ds_version),
                 message_version: Some(message_version),
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
@@ -547,6 +605,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acquirer_bin,
                 acquirer_merchant_id,
                 connector_metadata,
+                updated_by,
             } => Self {
                 threeds_server_transaction_id: Some(threeds_server_transaction_id),
                 three_ds_method_data,
@@ -554,24 +613,29 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acquirer_bin,
                 acquirer_merchant_id,
                 connector_metadata,
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::AuthenticationStatusUpdate {
                 trans_status,
                 authentication_status,
+                updated_by,
             } => Self {
                 trans_status: Some(trans_status),
                 authentication_status: Some(authentication_status),
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::AcquirerDetailsUpdate {
                 acquirer_bin,
                 acquirer_merchant_id,
                 acquirer_country_code,
+                updated_by,
             } => Self {
                 acquirer_bin,
                 acquirer_merchant_id,
                 acquirer_country_code,
+                updated_by,
                 ..Default::default()
             },
         }

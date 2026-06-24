@@ -79,6 +79,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         request: &api::PaymentsRequest,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
+        flow_kind: operations::PaymentFlowKind,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
@@ -518,6 +519,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let operation = payments::if_not_create_change_operation::<_, F>(
             payment_intent.status,
             request.confirm,
+            flow_kind,
             self,
         );
 
@@ -681,6 +683,22 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             None
         };
 
+        // For a single-call create+confirm routed through the external vault proxy core, the
+        // operation has been swapped to `PaymentExternalVaultProxyConfirm` above. That confirm
+        // op normally builds `external_vault_pmd` in its own `get_trackers`, which is skipped
+        // here — so build it now from the same request + vault tokens, mirroring the two-step
+        // confirm flow. The downstream connector call requires this to be populated.
+        let external_vault_pmd = (flow_kind == operations::PaymentFlowKind::ExternalVaultProxy
+            && request.confirm.unwrap_or(false))
+        .then(|| {
+            super::payment_confirm_external_vault_proxy::build_external_vault_payment_method_data(
+                request,
+                payment_method_with_raw_data.as_ref(),
+            )
+        })
+        .transpose()?
+        .flatten();
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -731,7 +749,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             external_authentication_data: request.three_ds_data.clone(),
             client_session_id,
             vault_session_details: None,
-            external_vault_pmd: None,
+            external_vault_pmd,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

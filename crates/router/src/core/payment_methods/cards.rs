@@ -855,6 +855,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 customer_id,
                 pmd,
                 self.state.conf.locker.ttl_for_storage_in_secs,
+                None,
             )?;
 
             let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
@@ -960,6 +961,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 customer_id,
                 pmd,
                 self.state.conf.locker.ttl_for_storage_in_secs,
+                None,
             )?;
 
             let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
@@ -1870,18 +1872,33 @@ pub fn encode_add_vault_request(
     customer_id: &id_type::CustomerId,
     pmd: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
     ttl: i64,
+    vault_id: Option<domain::VaultId>,
 ) -> errors::CustomResult<Vec<u8>, errors::VaultError> {
     if should_trigger_fingerprint_migration {
+        // New fingerprint migration path uses merchant-scoped vault entity ids.
         pm_types::AddVaultRequestNew {
             entity_id: merchant_id,
-            vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
+            vault_id: vault_id
+                .unwrap_or_else(|| domain::VaultId::generate(uuid::Uuid::now_v7().to_string())),
             data: pmd,
             ttl,
         }
         .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode AddVaultRequestNew")
+    } else if let Some(vault_id) = vault_id {
+        // Forward-compat PT reuses the existing locker id so modular reads can address the row.
+        pm_types::AddCompatVaultRequest {
+            entity_id: customer_id.to_owned(),
+            vault_id,
+            data: pmd,
+            ttl,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode AddCompatVaultRequest")
     } else {
+        // Legacy v1 add path keeps the original merchant-and-customer entity id shape.
         pm_types::AddVaultRequest {
             entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
                 merchant_id,
@@ -1944,11 +1961,15 @@ pub fn encode_add_vault_request(
     customer_id: &id_type::GlobalCustomerId,
     pmd: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
     ttl: i64,
+    vault_id: Option<domain::VaultId>,
 ) -> errors::CustomResult<Vec<u8>, errors::VaultError> {
+    let vault_id =
+        vault_id.unwrap_or_else(|| domain::VaultId::generate(uuid::Uuid::now_v7().to_string()));
+
     if should_trigger_fingerprint_migration {
         pm_types::AddVaultRequestNew {
             entity_id: merchant_id,
-            vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
+            vault_id,
             data: pmd,
             ttl,
         }
@@ -1958,7 +1979,7 @@ pub fn encode_add_vault_request(
     } else {
         pm_types::AddVaultRequest {
             entity_id: customer_id.clone(),
-            vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
+            vault_id,
             data: pmd,
             ttl,
         }

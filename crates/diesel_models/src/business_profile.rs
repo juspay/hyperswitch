@@ -487,6 +487,14 @@ pub struct SurchargeConnectorDetails {
 
 common_utils::impl_to_sql_from_sql_json!(SurchargeConnectorDetails);
 
+fn default_guest_ip_blocking_status() -> bool {
+    common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_STATUS
+}
+
+fn default_guest_ip_blocking_threshold() -> i32 {
+    common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_THRESHOLD
+}
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct CardTestingGuardConfig {
@@ -497,6 +505,10 @@ pub struct CardTestingGuardConfig {
     pub is_customer_id_blocking_enabled: bool,
     pub customer_id_blocking_threshold: i32,
     pub card_testing_guard_expiry: i32,
+    #[serde(default = "default_guest_ip_blocking_status")]
+    pub is_guest_ip_blocking_enabled: bool,
+    #[serde(default = "default_guest_ip_blocking_threshold")]
+    pub guest_ip_blocking_threshold: i32,
 }
 
 common_utils::impl_to_sql_from_sql_json!(CardTestingGuardConfig);
@@ -516,6 +528,8 @@ impl Default for CardTestingGuardConfig {
                 common_utils::consts::DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD,
             card_testing_guard_expiry:
                 common_utils::consts::DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS,
+            is_guest_ip_blocking_enabled: common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_STATUS,
+            guest_ip_blocking_threshold: common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_THRESHOLD,
         }
     }
 }
