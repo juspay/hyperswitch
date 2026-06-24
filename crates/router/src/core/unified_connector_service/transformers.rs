@@ -2855,7 +2855,16 @@ impl
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_transaction_id.get_optional_response_id(),
+                // On a failed setup_mandate there is no `connector_recurring_payment_id`
+                // (it is only populated on success), so prefer the connector's transaction
+                // id surfaced in the error details. This mirrors the connector's primary
+                // `get_error_response`, which sets `connector_transaction_id` to the
+                // transaction id even on a decline.
+                connector_transaction_id: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.connector_transaction_id.clone())
+                    .or_else(|| connector_transaction_id.get_optional_response_id()),
                 connector_response_reference_id: Some(
                     response.merchant_recurring_payment_id.clone(),
                 )
