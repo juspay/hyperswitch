@@ -4,6 +4,39 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.24.0
+
+### Features
+
+- **Connector:** [ADEYN] DISPUTES Changes ([#12868](https://github.com/juspay/hyperswitch/pull/12868)) ([`53572f2`](https://github.com/juspay/hyperswitch/commit/53572f28c6e63373479b8cb898dfe04295f4417f))
+- **analytics:** Add source, destination and execution_mode dimensions, plus ucs_api_events ([#12714](https://github.com/juspay/hyperswitch/pull/12714)) ([`1d03429`](https://github.com/juspay/hyperswitch/commit/1d03429b7bcef7e41b12cf046f5609f48850d7a8))
+- **core:**
+  - Store external_surcharge_details in payment_attempt ([#12879](https://github.com/juspay/hyperswitch/pull/12879)) ([`82b270a`](https://github.com/juspay/hyperswitch/commit/82b270a997267605e79606004b94933f3165172f))
+  - Added sdk authorisation support to sdk configs ([#12887](https://github.com/juspay/hyperswitch/pull/12887)) ([`8f582fc`](https://github.com/juspay/hyperswitch/commit/8f582fc57fddb468af4cef3d2b05f4a7b64f4d84))
+  - Bump UCS to tag 2026.06.19.0 and emit Adyen applicationInfo ([#16707](https://github.com/juspay/hyperswitch/pull/16707)) ([#12786](https://github.com/juspay/hyperswitch/pull/12786)) ([`4c9f185`](https://github.com/juspay/hyperswitch/commit/4c9f1852cac313951afd667f9a721073a66e4859))
+- **payments:** Support hyperswitch self-hosted vault for repeat-customer payments ([#12922](https://github.com/juspay/hyperswitch/pull/12922)) ([`bb30ffa`](https://github.com/juspay/hyperswitch/commit/bb30ffa120af5ed875fd8e9cd98df48a2adceb18))
+
+### Bug Fixes
+
+- **connector:** [WorldpayWPG] correct XML element ordering in payments request ([#12867](https://github.com/juspay/hyperswitch/pull/12867)) ([`9cfafdd`](https://github.com/juspay/hyperswitch/commit/9cfafddef1fdf30c7debe3d6a3c0bc12e6282b98))
+- **modular:** Forward compatibility job ([#12895](https://github.com/juspay/hyperswitch/pull/12895)) ([`f75fb60`](https://github.com/juspay/hyperswitch/commit/f75fb607c254c5b41802d1437648270771596a29))
+
+### Refactors
+
+- **configs:** Allow config retrieve API to be called with internal API key or admin API key ([#12885](https://github.com/juspay/hyperswitch/pull/12885)) ([`6298e9f`](https://github.com/juspay/hyperswitch/commit/6298e9fad6036d6d7c7970457353e56942413871))
+
+### Testing
+
+- **cypress:** Add payout link coverage for wise ([#12428](https://github.com/juspay/hyperswitch/pull/12428)) ([`95cce2d`](https://github.com/juspay/hyperswitch/commit/95cce2d6b8369e6004c4c6df5fc2ed4a477625c5))
+
+### Miscellaneous Tasks
+
+- **metrics:** Adjust f64 histogram buckets size ([#12884](https://github.com/juspay/hyperswitch/pull/12884)) ([`2782cdb`](https://github.com/juspay/hyperswitch/commit/2782cdb3c385f7336af9fa2bb21ff4024c03c485))
+
+**Full Changelog:** [`2026.06.23.0...2026.06.24.0`](https://github.com/juspay/hyperswitch/compare/2026.06.23.0...2026.06.24.0)
+
+- - -
+
 ## 2026.06.23.0
 
 ### Features

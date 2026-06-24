@@ -4740,7 +4740,12 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             feature_metadata: None,
             reference_id: None,
             payment_link: None,
-            surcharge_details: None,
+            surcharge_details: pa.net_amount.get_surcharge_amount().map(|surcharge_amount| {
+                RequestSurchargeDetails {
+                    surcharge_amount,
+                    tax_amount: pa.net_amount.get_tax_on_surcharge(),
+                }
+            }),
             merchant_decision: None,
             incremental_authorization_allowed: None,
             authorization_count: None,
@@ -4891,6 +4896,8 @@ pub fn bank_transfer_next_steps_check(
                 != Some(diesel_models::enums::PaymentMethodType::PixAutomaticoPush)
             && payment_attempt.payment_method_type
                 != Some(diesel_models::enums::PaymentMethodType::PixEmv)
+            && payment_attempt.payment_method_type
+                != Some(diesel_models::enums::PaymentMethodType::PixQr)
         {
             let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
                 payment_attempt
