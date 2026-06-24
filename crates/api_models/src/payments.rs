@@ -8801,67 +8801,6 @@ pub struct PaymentListConstraints {
     pub created_gte: Option<PrimitiveDateTime>,
 }
 
-#[cfg(feature = "v1")]
-#[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct PlatformPaymentListConstraints {
-    /// The identifier for customer
-    #[schema(
-        max_length = 64,
-        min_length = 1,
-        example = "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-        value_type = Option<String>,
-    )]
-    pub customer_id: Option<id_type::CustomerId>,
-
-    /// limit on the number of objects to return
-    #[schema(default = 10, maximum = 100)]
-    #[serde(default = "default_payments_list_limit")]
-    pub limit: u32,
-
-    /// The time at which payment is created
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created: Option<PrimitiveDateTime>,
-
-    /// Time less than the payment created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(
-        default,
-        with = "common_utils::custom_serde::iso8601::option",
-        rename = "created.lt"
-    )]
-    pub created_lt: Option<PrimitiveDateTime>,
-
-    /// Time greater than the payment created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(
-        default,
-        with = "common_utils::custom_serde::iso8601::option",
-        rename = "created.gt"
-    )]
-    pub created_gt: Option<PrimitiveDateTime>,
-
-    /// Time less than or equals to the payment created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(
-        default,
-        with = "common_utils::custom_serde::iso8601::option",
-        rename = "created.lte"
-    )]
-    pub created_lte: Option<PrimitiveDateTime>,
-
-    /// Time greater than or equals to the payment created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    #[serde(rename = "created.gte")]
-    pub created_gte: Option<PrimitiveDateTime>,
-
-    /// The identifier for the connected (processor) merchant whose credentials processed the payment
-    #[schema(value_type = Option<String>, example = "merchant_1668273825")]
-    pub processor_merchant_id: Option<id_type::MerchantId>,
-}
-
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, utoipa::IntoParams)]
 #[serde(deny_unknown_fields)]

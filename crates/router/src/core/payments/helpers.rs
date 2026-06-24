@@ -4059,22 +4059,6 @@ pub(super) fn validate_payment_list_request(
     Ok(())
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
-pub(super) fn validate_platform_payment_list_request(
-    req: &api::PlatformPaymentListConstraints,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V1;
-
-    utils::when(
-        req.limit > PAYMENTS_LIST_MAX_LIMIT_V1 || req.limit < 1,
-        || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("limit should be in between 1 and {PAYMENTS_LIST_MAX_LIMIT_V1}"),
-            })
-        },
-    )?;
-    Ok(())
-}
 #[cfg(feature = "olap")]
 pub(super) fn validate_payment_list_request_for_joins(
     limit: u32,
