@@ -7188,7 +7188,7 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
         let webhook_type: WebhookRegisterType = WebhookRegisterType::try_from(&webhook_type)?;
         Ok(Self {
             webhook_type,
-            url: "https://4bed-219-65-110-2.ngrok-free.app/webhooks/merchant_1781856491/mca_MRvzMKxBVbumw55t8BTt".to_string(),
+            url: item.request.webhook_url.clone(),
             active: true,
             communication_format: CommunicationFormat::Json,
         })
