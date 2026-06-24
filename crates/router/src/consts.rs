@@ -357,12 +357,6 @@ pub const UCS_AUTH_CURRENCY_AUTH_KEY: &str = "currency-auth-key";
 /// Form field name for challenge request during creq submission
 pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
 
-/// Error message used when all refund sync retry attempts have been exhausted.
-pub const RETRY_EXHAUSTED_ERROR_MESSAGE: &str = "All retry attempts exhausted for refund sync";
-
-/// Error code used when all refund sync retry attempts have been exhausted.
-pub const RETRY_EXHAUSTED_ERROR_CODE: &str = "RETRIES_EXHAUSTED";
-
 /// Superposition configuration keys
 pub mod superposition {
     /// CVV requirement configuration key
