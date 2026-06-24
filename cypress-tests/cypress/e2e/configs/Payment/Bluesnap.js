@@ -231,48 +231,44 @@ export const connectorDetails = {
     Refund: {
       Request: {
         amount: 6000,
-        refund_type: "scheduled",
       },
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
     PartialRefund: {
       Request: {
         amount: 2000,
-        refund_type: "scheduled",
       },
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
     manualPaymentRefund: {
       Request: {
         amount: 6000,
-        refund_type: "scheduled",
       },
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
     manualPaymentPartialRefund: {
       Request: {
         amount: 2000,
-        refund_type: "scheduled",
       },
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -299,7 +295,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },

@@ -92,28 +92,6 @@ export const connectorDetails = {
     },
   },
   card_pm: {
-    "3DSManualCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-    "3DSAutoCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
     ZeroAuthMandate: {
       Response: {
         status: 501,
