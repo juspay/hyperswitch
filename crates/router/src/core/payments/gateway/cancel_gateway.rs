@@ -188,6 +188,17 @@ where
                 router_data.response = router_data_response;
                 router_data.connector_http_status_code = Some(status_code);
 
+                // Carry connector_response (e.g. AVS / payment_checks) from the UCS void
+                // response so the void router-data matches the native flow, which builds
+                // connector_response from the connector's AVS data. Mirrors capture_gateway.
+                if let Some(connector_response) =
+                    unified_connector_service::extract_connector_response_from_ucs(
+                        payment_void_response.connector_response.as_ref(),
+                    )
+                {
+                    router_data.connector_response = Some(connector_response);
+                }
+
                 Ok((router_data, (), payment_void_response))
             },
         ))
