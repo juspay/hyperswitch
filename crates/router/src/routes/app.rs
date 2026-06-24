@@ -1413,22 +1413,26 @@ impl Customers {
         }
         #[cfg(all(feature = "oltp", feature = "v2"))]
         {
-            route = route
-                .service(web::resource("").route(web::post().to(customers::customers_create)))
-                .service(
-                    web::resource("/migrate/global-id")
-                        .route(web::post().to(customers::migrate::migrate_global_id)),
-                )
-                .service(
-                    web::resource("/{id}")
-                        .route(web::put().to(customers::customers_update))
-                        .route(web::get().to(customers::customers_retrieve))
-                        .route(web::delete().to(customers::customers_delete)),
-                )
-                .service(
-                    web::resource("/{customer_id}/payment-methods/{payment_method_id}/default")
-                        .route(web::post().to(payment_methods::default_payment_method_set_api)),
-                )
+            route =
+                route
+                    .service(web::resource("").route(web::post().to(customers::customers_create)))
+                    .service(
+                        web::resource("/migrate/global-id")
+                            .route(web::post().to(customers::migrate::migrate_global_id)),
+                    )
+                    .service(web::resource("/ref/{merchant_reference_id}").route(
+                        web::get().to(customers::customers_retrieve_by_merchant_reference_id),
+                    ))
+                    .service(
+                        web::resource("/{id}")
+                            .route(web::put().to(customers::customers_update))
+                            .route(web::get().to(customers::customers_retrieve))
+                            .route(web::delete().to(customers::customers_delete)),
+                    )
+                    .service(
+                        web::resource("/{customer_id}/payment-methods/{payment_method_id}/default")
+                            .route(web::post().to(payment_methods::default_payment_method_set_api)),
+                    )
         }
         route
     }

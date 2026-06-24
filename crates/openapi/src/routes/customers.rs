@@ -202,6 +202,35 @@ pub async fn customers_create_v1() {}
 #[cfg(feature = "v2")]
 pub async fn customers_retrieve() {}
 
+/// Customers - Retrieve using Merchant Reference ID
+///
+/// Retrieves a customer's details using the merchant supplied reference ID.
+#[utoipa::path(
+    get,
+    path = "/v2/customers/ref/{merchant_reference_id}",
+    params (
+        (
+            "merchant_reference_id" = String,
+            Path,
+            description = "The merchant supplied reference identifier for the Customer"
+        ),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the customer",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
+    responses(
+        (status = 200, description = "Customer Retrieved", body = CustomerResponse),
+        (status = 404, description = "Customer was not found")
+    ),
+    tag = "Customers",
+    operation_id = "Retrieve a Customer using Merchant Reference ID",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn customers_retrieve_by_merchant_reference_id() {}
+
 /// Customers - Retrieve
 ///
 /// Retrieves a customer's details.

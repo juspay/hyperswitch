@@ -120,6 +120,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CreateConfigKey => Self::Configs,
             Flow::CustomersCreate
             | Flow::CustomersRetrieve
+            | Flow::CustomersRetrieveByReferenceId
             | Flow::CustomersUpdate
             | Flow::CustomersDelete
             | Flow::CustomersGetMandates

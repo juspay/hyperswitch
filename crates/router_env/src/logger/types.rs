@@ -110,6 +110,8 @@ pub enum Flow {
     CustomersCreate,
     /// Customers retrieve flow.
     CustomersRetrieve,
+    /// Customers retrieve by reference id flow.
+    CustomersRetrieveByReferenceId,
     /// Customers update flow.
     CustomersUpdate,
     /// Customers delete flow.
