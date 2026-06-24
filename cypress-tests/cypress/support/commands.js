@@ -5141,8 +5141,6 @@ Cypress.Commands.add(
 
     if (redirectProxyActive && !isMockServer()) {
       // ── RECORDING path ────────────────────────────────────────────────────
-      const paymentId = globalState.get("paymentID");
-      const merchantId = globalState.get("merchantId");
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
       const redirectProxyAdminUrl = Cypress.env("REDIRECT_PROXY_ADMIN_URL");
 
