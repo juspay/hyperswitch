@@ -2040,9 +2040,12 @@ pub async fn sync_refund_with_gateway_workflow(
             )
             .await?;
 
-            // If all retries are exhausted and refund is still not in terminal status,
-            // mark it as Failure
-            if is_last_retry {
+            // If the refund status is still pending and there is no connector_refund_id
+            // then move the refund status to manual review if all retries exceeded
+            if is_last_retry
+                && response.refund_status == enums::RefundStatus::Pending
+                && response.connector_refund_id.is_none()
+            {
                 let processor_merchant_id = refund_core
                     .processor_merchant_id
                     .clone()
@@ -2059,17 +2062,12 @@ pub async fn sync_refund_with_gateway_workflow(
                     .change_context(errors::ApiErrorResponse::RefundNotFound)
                     .attach_printable("Failed to fetch refund for failure update")?;
 
-                let refund_update = diesel_refund::RefundUpdate::ErrorUpdate {
-                    refund_status: Some(enums::RefundStatus::Failure),
-                    refund_error_message: Some(consts::RETRY_EXHAUSTED_ERROR_MESSAGE.to_string()),
-                    refund_error_code: Some(consts::RETRY_EXHAUSTED_ERROR_CODE.to_string()),
+                let refund_update = diesel_refund::RefundUpdate::StatusUpdate {
+                    connector_refund_id: None,
+                    sent_to_gateway: response.sent_to_gateway,
+                    refund_status: enums::RefundStatus::ManualReview,
                     updated_by: refund.updated_by.clone(),
-                    connector_refund_id: refund.connector_refund_id.clone(),
                     processor_refund_data: refund.processor_refund_data.clone(),
-                    unified_code: None,
-                    unified_message: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
                 };
 
                 state
