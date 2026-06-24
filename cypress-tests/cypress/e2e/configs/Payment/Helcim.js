@@ -408,8 +408,28 @@ const mandateScenarios = {
   },
 };
 
+function stampPaymentMethodType(scenarios, paymentMethodType) {
+  const cloned = JSON.parse(JSON.stringify(scenarios));
+  for (const scenario of Object.values(cloned)) {
+    if (scenario.Request && typeof scenario.Request === "object") {
+      scenario.Request.payment_method_type = paymentMethodType;
+    }
+  }
+  return cloned;
+}
+
 export const connectorDetails = {
   card_pm: { ...paymentScenarios, ...mandateScenarios, ...refundScenarios },
+  card_credit_pm: {
+    ...stampPaymentMethodType(paymentScenarios, "credit"),
+    ...stampPaymentMethodType(mandateScenarios, "credit"),
+    ...refundScenarios,
+  },
+  card_debit_pm: {
+    ...stampPaymentMethodType(paymentScenarios, "debit"),
+    ...stampPaymentMethodType(mandateScenarios, "debit"),
+    ...refundScenarios,
+  },
 };
 
 // Rotate cards to avoid Helcim's duplicate-decline window.
