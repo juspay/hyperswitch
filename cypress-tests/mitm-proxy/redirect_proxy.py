@@ -58,6 +58,7 @@ _reserved: dict[str, str] = {}
 
 def _save_redirect(
     test_id_hash: str,
+    rid: str,
     method: str,
     path_only: str,
     query_string: str,
@@ -107,9 +108,13 @@ def _save_redirect(
         if redirect_segment:
             data["__redirect_segment"] = redirect_segment
 
+    # Extract sequence number from rid: "{testIdHash}-{NNN}" → "NNN"
+    seq = rid.split("-")[-1] if rid and "-" in rid else "000"
+    filename = f"{test_id_hash}-{seq}-redirect-body.json"
+
     # Save to fixtures/proxy-bodies/ for local replay
     os.makedirs(FIXTURES_DIR, exist_ok=True)
-    path = os.path.join(FIXTURES_DIR, f"{test_id_hash}-redirect-body.json")
+    path = os.path.join(FIXTURES_DIR, filename)
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
     print(f"[redirect-proxy] body saved → {path}")
@@ -121,7 +126,7 @@ def _save_redirect(
         connector = redirect_segment.split("/")[-1]
         captures_body_dir = os.path.join(CAPTURE_DIR, connector, "Payment", "redirect-bodies")
         os.makedirs(captures_body_dir, exist_ok=True)
-        captures_path = os.path.join(captures_body_dir, f"{test_id_hash}-redirect-body.json")
+        captures_path = os.path.join(captures_body_dir, filename)
         with open(captures_path, "w") as f:
             json.dump(data, f, indent=2)
         print(f"[redirect-proxy] body also saved → {captures_path}")
@@ -162,6 +167,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 query_string = self.path.split("?", 1)[1] if "?" in self.path else ""
                 _save_redirect(
                     test_id_hash,
+                    rid,
                     self.command,
                     path_only,
                     query_string,

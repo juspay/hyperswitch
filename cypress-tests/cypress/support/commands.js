@@ -493,6 +493,12 @@ const EXPECTED_ALGORITHM = "HMAC-SHA512";
 const HASH_ALGO = "sha512";
 const SIGNATURE_HEX_LENGTH = 128;
 
+// Tracks how many redirect bodies have been consumed per test (keyed by testIdHash).
+// Incremented each time a redirect body is read during replay so that multiple
+// redirects within one test map to the correct sequenced file
+// ({hash}-001-redirect-body.json, {hash}-002-redirect-body.json, …).
+const _redirectReadCount = {};
+
 function resolveAlgorithm(signatureAlgorithm) {
   expect(
     signatureAlgorithm,
@@ -5188,9 +5194,11 @@ Cypress.Commands.add(
       const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
       const captureDir = Cypress.env("CAPTURE_DIR");
+      _redirectReadCount[testIdHash] = (_redirectReadCount[testIdHash] || 0) + 1;
+      const seq = String(_redirectReadCount[testIdHash]).padStart(3, "0");
       const redirectBodyFile = captureDir
-        ? `${captureDir}/${connectorId}/Payment/redirect-bodies/${testIdHash}-redirect-body.json`
-        : `cypress/fixtures/proxy-bodies/${testIdHash}-redirect-body.json`;
+        ? `${captureDir}/${connectorId}/Payment/redirect-bodies/${testIdHash}-${seq}-redirect-body.json`
+        : `cypress/fixtures/proxy-bodies/${testIdHash}-${seq}-redirect-body.json`;
       const jsConnector = JS_3DS_CONNECTORS[connectorId];
 
       cy.request({
@@ -5350,9 +5358,11 @@ Cypress.Commands.add(
       const baseUrl = globalState.get("baseUrl");
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
       const captureDir = Cypress.env("CAPTURE_DIR");
+      _redirectReadCount[testIdHash] = (_redirectReadCount[testIdHash] || 0) + 1;
+      const seq = String(_redirectReadCount[testIdHash]).padStart(3, "0");
       const redirectBodyFile = captureDir
-        ? `${captureDir}/${connectorId}/Payment/redirect-bodies/${testIdHash}-redirect-body.json`
-        : `cypress/fixtures/proxy-bodies/${testIdHash}-redirect-body.json`;
+        ? `${captureDir}/${connectorId}/Payment/redirect-bodies/${testIdHash}-${seq}-redirect-body.json`
+        : `cypress/fixtures/proxy-bodies/${testIdHash}-${seq}-redirect-body.json`;
       const redirectProxyAdminUrl = Cypress.env("REDIRECT_PROXY_ADMIN_URL");
 
       // Bank redirect connectors that complete via a browser GET return to redirect/response.
@@ -5503,9 +5513,11 @@ Cypress.Commands.add(
       const baseUrl = globalState.get("baseUrl");
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
       const captureDir = Cypress.env("CAPTURE_DIR");
+      _redirectReadCount[testIdHash] = (_redirectReadCount[testIdHash] || 0) + 1;
+      const seq = String(_redirectReadCount[testIdHash]).padStart(3, "0");
       const redirectBodyFile = captureDir
-        ? `${captureDir}/${connectorId}/Payment/redirect-bodies/${testIdHash}-redirect-body.json`
-        : `cypress/fixtures/proxy-bodies/${testIdHash}-redirect-body.json`;
+        ? `${captureDir}/${connectorId}/Payment/redirect-bodies/${testIdHash}-${seq}-redirect-body.json`
+        : `cypress/fixtures/proxy-bodies/${testIdHash}-${seq}-redirect-body.json`;
       const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
       const hyperswitchUrl =
         Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
@@ -10944,4 +10956,8 @@ Cypress.Commands.add("retrieveNonExistentPayoutTest", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
     expect(response.status).to.equal(404);
   });
+});
+
+Cypress.Commands.add("resetRedirectReadCount", (testIdHash) => {
+  delete _redirectReadCount[testIdHash];
 });
