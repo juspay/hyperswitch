@@ -2633,7 +2633,7 @@ impl From<RolloutConfig> for RolloutExecutionResult {
 impl From<WebhookRolloutConfig> for RolloutExecutionResult {
     fn from(config: WebhookRolloutConfig) -> Self {
         let webhook_flows = config.webhook_flows;
-        let mut result = RolloutExecutionResult::from(config.rollout_configs);
+        let mut result = Self::from(config.rollout_configs);
         result.webhook_flows = webhook_flows;
         result
     }
