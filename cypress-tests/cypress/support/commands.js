@@ -3553,10 +3553,7 @@ Cypress.Commands.add(
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
 
-    injectRandomHelcimCard(
-      createConfirmPaymentBody,
-      globalState
-    );
+    injectRandomHelcimCard(createConfirmPaymentBody, globalState);
 
     const headers = {
       "Content-Type": "application/json",

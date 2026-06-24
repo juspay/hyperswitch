@@ -1,7 +1,4 @@
-import {
-  customerAcceptance,
-  standardBillingAddress,
-} from "./Commons";
+import { customerAcceptance, standardBillingAddress } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
