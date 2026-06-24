@@ -1,4 +1,5 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
+use std::collections::BTreeMap;
 
 /// Context entry returned by Superposition list/create endpoints.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -145,18 +146,26 @@ impl<T> ApiEventMetric for PaginatedListResponse<T> {
     }
 }
 
-/// Resolved configuration returned by the Superposition resolve endpoint.
-#[derive(Debug, serde::Serialize)]
-pub struct ResolveConfigResponse {
-    /// The resolved configuration values.
-    pub config: serde_json::Value,
-    /// Version of the configuration that was resolved.
-    pub version: String,
-    /// Last modification timestamp (RFC3339).
-    pub last_modified: String,
-    /// Identifier of the audit log entry for this resolution, if any.
-    pub audit_id: Option<String>,
+/// A single resolved configuration entry returned by Superposition's detailed-resolve
+/// endpoint: the resolved value alongside its default-config metadata.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ResolvedConfigEntry {
+    /// Human-readable description of the configuration key.
+    pub description: String,
+    /// JSON schema describing the value.
+    pub schema: serde_json::Value,
+    /// The resolved value for this key.
+    pub value: serde_json::Value,
 }
+
+/// Detailed resolved configuration returned by the Superposition resolve endpoint.
+///
+/// Maps each configuration key to its resolved value and metadata, mirroring the body of
+/// Superposition's `/config/resolve/detailed`. The upstream `version` / `last_modified` /
+/// `audit_id` are returned as HTTP headers, not in the body.
+#[derive(Debug, serde::Serialize)]
+#[serde(transparent)]
+pub struct ResolveConfigResponse(pub BTreeMap<String, ResolvedConfigEntry>);
 
 impl ApiEventMetric for ResolveConfigResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

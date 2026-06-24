@@ -165,20 +165,23 @@ pub async fn create_context(
     .await
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::SuperpositionResolveConfig))]
-pub async fn resolve_config(
+#[instrument(skip_all, fields(flow = ?Flow::SuperpositionResolveDetailedConfig))]
+pub async fn resolve_detailed_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     body: web::Json<ResolveConfigBody>,
 ) -> HttpResponse {
-    let flow = Flow::SuperpositionResolveConfig;
+    let flow = Flow::SuperpositionResolveDetailedConfig;
     let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req) {
         Ok((org_id, workspace_id)) => (org_id, workspace_id),
         Err(response) => return response,
     };
 
-    let input =
-        superposition_proxy::build_resolve_config_input(org_id, workspace_id, body.into_inner());
+    let input = superposition_proxy::build_resolve_detailed_config_input(
+        org_id,
+        workspace_id,
+        body.into_inner(),
+    );
 
     Box::pin(api::server_wrap(
         flow,
@@ -187,7 +190,7 @@ pub async fn resolve_config(
         (),
         move |state, user, _, _| {
             let input = input.clone();
-            async move { superposition_proxy::resolve_config(state, user, input).await }
+            async move { superposition_proxy::resolve_detailed_config(state, user, input).await }
         },
         &auth::JWTAuth {
             permission: Permission::ProfileSuperpositionConfigRead,

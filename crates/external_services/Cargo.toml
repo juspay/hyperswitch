@@ -82,9 +82,9 @@ quick-xml = { version = "0.31.0", features = ["serialize"] }
 
 unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.05.25.0", package = "rust-grpc-client" }
 open-feature = { version = "0.2.5", optional = true }
-superposition_provider = { version = "0.110.0", optional = true}
-superposition_types = "0.110.0"
-superposition_sdk = { version = "0.110.0", optional = true }
+superposition_provider = { version = "0.113.0", optional = true}
+superposition_types = "0.113.0"
+superposition_sdk = { version = "0.113.0", optional = true }
 
 
 # First party crates

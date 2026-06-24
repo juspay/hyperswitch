@@ -18,7 +18,7 @@ use superposition_provider::traits::AllFeatureProvider;
 pub use superposition_sdk::{
     operation::{
         create_context::builders::CreateContextInputBuilder,
-        get_resolved_config::builders::GetResolvedConfigInputBuilder,
+        get_detailed_resolved_config::builders::GetDetailedResolvedConfigInputBuilder,
         list_audit_logs::builders::ListAuditLogsInputBuilder,
         list_contexts::builders::ListContextsInputBuilder,
         list_default_configs::builders::ListDefaultConfigsInputBuilder,

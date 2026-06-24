@@ -393,7 +393,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::SuperpositionListDefaultConfigs
             | Flow::SuperpositionListDimensions
             | Flow::SuperpositionCreateContext
-            | Flow::SuperpositionResolveConfig
+            | Flow::SuperpositionResolveDetailedConfig
             | Flow::SuperpositionListAuditLogs => Self::Superposition,
             Flow::MerchantConnectorWebhookRegister | Flow::MerchantConnectorWebhookList => {
                 Self::MerchantConnectorWebhookManagement

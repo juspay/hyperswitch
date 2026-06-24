@@ -1550,7 +1550,7 @@ dependencies = [
  "bitflags 2.9.0",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.11.0",
  "log 0.4.27",
  "prettyplease",
  "proc-macro2",
@@ -5076,15 +5076,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "itertools"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
-dependencies = [
- "either",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7164,7 +7155,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "343d3bd7056eda839b03204e68deff7d1b13aba7af2b2fd16890697274262ee7"
 dependencies = [
  "heck 0.5.0",
- "itertools 0.13.0",
+ "itertools 0.11.0",
  "log 0.4.27",
  "multimap",
  "petgraph",
@@ -7185,7 +7176,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.13.0",
+ "itertools 0.11.0",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -7198,7 +7189,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27c6023962132f4b30eb4c172c91ce92d933da334c59c23cddee82358ddafb0b"
 dependencies = [
  "anyhow",
- "itertools 0.13.0",
+ "itertools 0.11.0",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -9593,9 +9584,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "superposition_core"
-version = "0.110.0"
+version = "0.113.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2de1cdcaffc5100715e8b112d17cf30d6ab4a38309cc7a92c2c05c4592a6b4b5"
+checksum = "13903fdef6c27a862efe4a1f6867d2962847bcb19996e1a7da31b500dcdf9d6c"
 dependencies = [
  "bigdecimal 0.3.1",
  "blake3",
@@ -9614,9 +9605,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_derives"
-version = "0.110.0"
+version = "0.113.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e91850369c0cd34217c5518936897edb0478460d50821f5d415e65fef00f7cff"
+checksum = "bce101077584b211911eb4f1e2664a2779ee31219c2d42d441412fadbe5ff97f"
 dependencies = [
  "proc-macro-crate 3.2.0",
  "quote",
@@ -9625,9 +9616,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_provider"
-version = "0.110.0"
+version = "0.113.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a7152d014d0c15a7d61aa192aa2ec2c9171215352f92775fa2cb7f73853910c"
+checksum = "8e05a793e895603c1ee8ae9d95b12b58826901875bfac60c6abec54c60e2985b"
 dependencies = [
  "async-trait",
  "aws-smithy-types",
@@ -9650,9 +9641,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_sdk"
-version = "0.110.0"
+version = "0.113.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e2c75f804dae814cc5c19e8e25bf0c2be225deacf653a3fb8b89fd4c5c339c3"
+checksum = "d49bffbfad3c661d582db82c669dc004bc7531500bcfbbaa35af99d1cb001be3"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-http 0.62.1",
@@ -9668,9 +9659,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_types"
-version = "0.110.0"
+version = "0.113.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "203935bb6b0be4eb53126a85fdaf61b044aad0b7d8e2dae087706bbac3df191a"
+checksum = "941c6ac97fdf31ba43653e25f56c6918a8031d7d23b51e0dbfb90644eb5e69b3"
 dependencies = [
  "bigdecimal 0.3.1",
  "chrono",

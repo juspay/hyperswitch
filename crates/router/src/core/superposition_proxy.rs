@@ -5,10 +5,10 @@ pub use api_models::superposition_proxy::{
 };
 use external_services::superposition::{
     audit_log_full_to_struct, context_response_to_struct, create_context_output_to_struct,
-    datetime_to_string, default_config_response_to_struct, dimension_response_to_struct,
+    default_config_response_to_struct, dimension_response_to_struct,
     doc_map_to_json, document_to_value, map_sdk_error, parse_datetime, value_to_document,
     AuditAction, ContextFilterSortOn, CreateContextInputBuilder, DateTime, DimensionMatchStrategy,
-    GetResolvedConfigInputBuilder, ListAuditLogsInputBuilder, ListContextsInputBuilder,
+    GetDetailedResolvedConfigInputBuilder, ListAuditLogsInputBuilder, ListContextsInputBuilder,
     ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, ResolveConfigBody, SortBy,
     SuperpositionError,
 };
@@ -400,13 +400,13 @@ impl ListAuditLogsQuery {
     }
 }
 
-/// Build the `GetResolvedConfig` SDK input from the resolve-config body.
-pub fn build_resolve_config_input(
+/// Build the `GetDetailedResolvedConfig` SDK input from the resolve-config body.
+pub fn build_resolve_detailed_config_input(
     org_id: String,
     workspace_id: String,
     body: ResolveConfigBody,
-) -> GetResolvedConfigInputBuilder {
-    let mut builder = GetResolvedConfigInputBuilder::default()
+) -> GetDetailedResolvedConfigInputBuilder {
+    let mut builder = GetDetailedResolvedConfigInputBuilder::default()
         .org_id(org_id)
         .workspace_id(workspace_id);
 
@@ -609,15 +609,15 @@ pub async fn create_context(
     Ok(ApplicationResponse::Json(response))
 }
 
-pub async fn resolve_config(
+pub async fn resolve_detailed_config(
     state: SessionState,
     auth: UserFromToken,
-    input: GetResolvedConfigInputBuilder,
+    input: GetDetailedResolvedConfigInputBuilder,
 ) -> RouterResponse<ResolveConfigResponse> {
     logger::info!(
         user_id = %auth.user_id,
         role_id = %auth.role_id,
-        "superposition resolve_config request"
+        "superposition resolve_detailed_config request"
     );
 
     // Read context dims off the SDK request for auth-scoped validation.
@@ -633,7 +633,7 @@ pub async fn resolve_config(
             role_id = %auth.role_id,
             context = ?context_json,
             error = ?validation_error,
-            "superposition resolve_config rejected: context dimension validation failed"
+            "superposition resolve_detailed_config rejected: context dimension validation failed"
         );
         return Err(validation_error);
     }
@@ -642,7 +642,7 @@ pub async fn resolve_config(
         .send_with(state.superposition_service.superposition_sdk_client())
         .await
         .map_err(|sdk_error| {
-        logger::error!(error = ?sdk_error, "superposition resolve_config upstream request failed");
+        logger::error!(error = ?sdk_error, "superposition resolve_detailed_config upstream request failed");
         map_superposition_err(
             error_stack::report!(map_sdk_error(sdk_error)),
             "Failed to resolve config from Superposition",
@@ -650,15 +650,16 @@ pub async fn resolve_config(
     })?;
 
     let config_value = document_to_value(resolved_config.config().clone());
+    let resolved_entries = serde_json::from_value(config_value).map_err(|err| {
+        logger::error!(error = ?err, "failed to parse superposition detailed resolved config");
+        map_superposition_err(
+            error_stack::report!(SuperpositionError::ClientError(err.to_string())),
+            "Failed to parse resolved config from Superposition",
+        )
+    })?;
+    let response = ResolveConfigResponse(resolved_entries);
 
-    let response = ResolveConfigResponse {
-        config: config_value,
-        version: resolved_config.version().to_owned(),
-        last_modified: datetime_to_string(resolved_config.last_modified()),
-        audit_id: resolved_config.audit_id().map(str::to_owned),
-    };
-
-    logger::info!(user_id = %auth.user_id, "superposition resolve_config success");
+    logger::info!(user_id = %auth.user_id, "superposition resolve_detailed_config success");
     Ok(ApplicationResponse::Json(response))
 }
 

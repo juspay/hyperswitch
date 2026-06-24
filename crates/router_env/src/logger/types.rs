@@ -753,8 +753,8 @@ pub enum Flow {
     SuperpositionListDimensions,
     /// Superposition Proxy Create Context flow
     SuperpositionCreateContext,
-    /// Superposition Proxy Resolve Config flow
-    SuperpositionResolveConfig,
+    /// Superposition Proxy Resolve Detailed Config flow
+    SuperpositionResolveDetailedConfig,
     /// Superposition Proxy List Audit Logs flow
     SuperpositionListAuditLogs,
     // Get user details internal
