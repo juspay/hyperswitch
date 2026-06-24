@@ -329,6 +329,7 @@ pub async fn find_mca_from_authentication_id_type(
                 &authentication_id,
                 platform.get_processor().get_key_store(),
                 &state.into(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?,
@@ -338,6 +339,7 @@ pub async fn find_mca_from_authentication_id_type(
                 connector_authentication_id,
                 platform.get_processor().get_key_store(),
                 &state.into(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?

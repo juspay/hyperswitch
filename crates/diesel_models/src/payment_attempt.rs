@@ -651,6 +651,7 @@ pub enum PaymentAttemptUpdate {
         network_transaction_link_id: Option<String>,
         is_stored_credential: Option<bool>,
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+        external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -3063,6 +3064,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_link_id,
                 is_stored_credential,
                 request_extended_authorization,
+                external_surcharge_details,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -3137,7 +3139,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data,
                 encrypted_payment_method_data: None,
                 error_details: None,
-                external_surcharge_details: None,
+                external_surcharge_details,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,

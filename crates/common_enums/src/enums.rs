@@ -2913,6 +2913,33 @@ pub enum ExecutionMode {
     NotApplicable,
 }
 
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+/// Whether a connector event is the real call or a shadow mirror.
+pub enum EventExecutionMode {
+    Primary,
+    Shadow,
+}
+
+impl From<ExecutionMode> for EventExecutionMode {
+    fn from(mode: ExecutionMode) -> Self {
+        match mode {
+            ExecutionMode::Shadow => Self::Shadow,
+            ExecutionMode::Primary | ExecutionMode::NotApplicable => Self::Primary,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+/// Where a connector event's call was sent.
+pub enum EventDestination {
+    /// A direct call to the connector.
+    Connector,
+    /// A call to the Unified Connector Service.
+    UnifiedConnectorService,
+}
+
 #[derive(
     Clone,
     Copy,
