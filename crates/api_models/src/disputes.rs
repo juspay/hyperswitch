@@ -413,13 +413,12 @@ where
             for item in s.split(',') {
                 let trimmed_item = item.trim();
                 if !trimmed_item.is_empty() {
-                    let merchant_id =
-                        common_utils::id_type::MerchantId::wrap(trimmed_item.to_string())
-                            .map_err(|e| {
-                                D::Error::custom(format!(
-                                    "Invalid merchant_id '{trimmed_item}': {e}"
-                                ))
-                            })?;
+                    let merchant_id = common_utils::id_type::MerchantId::wrap(
+                        trimmed_item.to_string(),
+                    )
+                    .map_err(|e| {
+                        D::Error::custom(format!("Invalid merchant_id '{trimmed_item}': {e}"))
+                    })?;
                     result.push(merchant_id);
                 }
             }

@@ -366,7 +366,9 @@ pub async fn get_platform_disputes_filters(
 
     // Every connected merchant lives under the platform's organization.
     let merchant_accounts = db
-        .list_merchant_accounts_by_organization_id(platform.get_provider().get_account().get_org_id())
+        .list_merchant_accounts_by_organization_id(
+            platform.get_provider().get_account().get_org_id(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 

@@ -150,7 +150,8 @@ impl DisputeDbExt for Dispute {
             .into_boxed();
 
         if let Some(processor_merchant_id) = &dispute_list_constraints.processor_merchant_id {
-            filter = filter.filter(dsl::processor_merchant_id.eq_any(processor_merchant_id.clone()));
+            filter =
+                filter.filter(dsl::processor_merchant_id.eq_any(processor_merchant_id.clone()));
         }
         if let Some(payment_id) = &dispute_list_constraints.payment_id {
             filter = filter.filter(dsl::payment_id.eq(payment_id.to_owned()));
@@ -216,7 +217,8 @@ impl DisputeDbExt for Dispute {
             .into_boxed();
 
         if let Some(processor_merchant_id) = &dispute_list_constraints.processor_merchant_id {
-            filter = filter.filter(dsl::processor_merchant_id.eq_any(processor_merchant_id.clone()));
+            filter =
+                filter.filter(dsl::processor_merchant_id.eq_any(processor_merchant_id.clone()));
         }
         if let Some(payment_id) = &dispute_list_constraints.payment_id {
             filter = filter.filter(dsl::payment_id.eq(payment_id.to_owned()));
