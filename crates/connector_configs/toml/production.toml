@@ -7678,6 +7678,10 @@ payment_method_type = "JCB"
 payment_method_type = "Discover"
 [[imerchantsolutions.debit]]
 payment_method_type = "UnionPay"
+[[imerchantsolutions.wallet]]
+payment_method_type = "google_pay"
+[[imerchantsolutions.wallet]]
+payment_method_type = "apple_pay"
 
 [absa_sanlam]
 [absa_sanlam.connector_auth.BodyKey]
