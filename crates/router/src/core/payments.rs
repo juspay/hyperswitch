@@ -3330,7 +3330,8 @@ where
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
         business_profile.get_id().clone(),
-    );
+    )
+    .with_payment_id(Some(router_data.payment_id.clone()));
 
     let execution_mode = match execution_path {
         ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
@@ -6062,7 +6063,8 @@ where
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
         business_profile.get_id().clone(),
-    );
+    )
+    .with_payment_id(Some(router_data.payment_id.clone()));
 
     let execution_mode = match execution_path {
         ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
@@ -6647,7 +6649,8 @@ where
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
         business_profile.get_id().clone(),
-    );
+    )
+    .with_payment_id(Some(router_data.payment_id.clone()));
 
     let execution_mode = match execution_path {
         ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
@@ -6778,7 +6781,8 @@ where
         let lineage_ids = grpc_client::LineageIds::new(
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),
-        );
+        )
+        .with_payment_id(Some(router_data.payment_id.clone()));
 
         let execution_mode = match execution_path {
             ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
@@ -6868,7 +6872,8 @@ where
         let lineage_ids = grpc_client::LineageIds::new(
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),
-        );
+        )
+        .with_payment_id(Some(router_data.payment_id.clone()));
 
         router_data
             .call_unified_connector_service_with_external_vault_proxy(
@@ -6974,7 +6979,8 @@ where
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
         business_profile.get_id().clone(),
-    );
+    )
+    .with_payment_id(Some(router_data.payment_id.clone()));
 
     let execution_mode = match execution_path {
         ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
@@ -8013,7 +8019,8 @@ where
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
         business_profile.get_id().clone(),
-    );
+    )
+    .with_payment_id(Some(router_data.payment_id.clone()));
 
     let execution_mode = match execution_path {
         ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,

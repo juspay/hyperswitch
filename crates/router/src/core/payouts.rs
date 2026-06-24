@@ -4041,7 +4041,10 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
     let lineage_ids = grpc_client::LineageIds::new(
         payout_data.payouts.merchant_id.clone(),
         payout_data.profile_id.clone(),
-    );
+    )
+    .with_payout_id(Some(
+        payout_data.payouts.payout_id.get_string_repr().to_string(),
+    ));
 
     let execution_mode = match execution_path {
         common_enums::enums::ExecutionPath::UnifiedConnectorService => {

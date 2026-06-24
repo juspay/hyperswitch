@@ -239,7 +239,10 @@ pub async fn trigger_refund_to_gateway(
         "Executing refund via {execution_path:?}"
     );
 
-    let lineage_ids = LineageIds::new(payment_intent.merchant_id.clone(), profile_id.clone());
+    let lineage_ids = LineageIds::new(payment_intent.merchant_id.clone(), profile_id.clone())
+        .with_payment_id(Some(
+            payment_intent.payment_id.get_string_repr().to_string(),
+        ));
 
     let execution_mode = match execution_path {
         common_enums::ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
@@ -916,7 +919,10 @@ pub async fn sync_refund_with_gateway(
         "Executing refund sync via {execution_path:?}"
     );
 
-    let lineage_ids = LineageIds::new(payment_intent.merchant_id.clone(), profile_id.clone());
+    let lineage_ids = LineageIds::new(payment_intent.merchant_id.clone(), profile_id.clone())
+        .with_payment_id(Some(
+            payment_intent.payment_id.get_string_repr().to_string(),
+        ));
 
     let execution_mode = match execution_path {
         common_enums::ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,

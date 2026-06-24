@@ -3050,7 +3050,8 @@ pub async fn call_unified_connector_service_for_refund_execute(
     let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;
-    let lineage_ids = LineageIds::new(merchant_id, profile_id);
+    let lineage_ids = LineageIds::new(merchant_id, profile_id)
+        .with_payment_id(Some(router_data.payment_id.clone()));
     let merchant_reference_id =
         id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
             .inspect_err(|err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"))
@@ -3184,7 +3185,8 @@ pub async fn call_unified_connector_service_for_refund_sync(
     let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;
-    let lineage_ids = LineageIds::new(merchant_id, profile_id);
+    let lineage_ids = LineageIds::new(merchant_id, profile_id)
+        .with_payment_id(Some(router_data.payment_id.clone()));
     let merchant_reference_id =
         id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
             .inspect_err(|err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"))
@@ -3342,7 +3344,8 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
     };
 
     // Build gRPC headers
-    let lineage_ids = LineageIds::new(processor.get_account().get_id().clone(), profile_id.clone());
+    let lineage_ids = LineageIds::new(processor.get_account().get_id().clone(), profile_id.clone())
+        .with_payment_id(Some(payment_id.get_string_repr().to_string()));
     let merchant_reference_id = id_type::PaymentReferenceId::from_str(payment_id.get_string_repr())
         .inspect_err(
             |err| logger::warn!(error=?err, "Invalid PaymentId for surcharge UCS reference id"),

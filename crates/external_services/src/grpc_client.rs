@@ -204,6 +204,13 @@ pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
 pub struct LineageIds {
     merchant_id: id_type::MerchantId,
     profile_id: id_type::ProfileId,
+    /// Payment this connector call is rooted in, when applicable. Carried as a
+    /// typed lineage key so the consumer need not infer the resource type.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    payment_id: Option<String>,
+    /// Payout this connector call is rooted in, when applicable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    payout_id: Option<String>,
 }
 impl LineageIds {
     /// constructor for LineageIds
@@ -211,7 +218,21 @@ impl LineageIds {
         Self {
             merchant_id,
             profile_id,
+            payment_id: None,
+            payout_id: None,
         }
+    }
+    /// attach the rooting payment id (no-op when `None`)
+    #[must_use]
+    pub fn with_payment_id(mut self, payment_id: Option<String>) -> Self {
+        self.payment_id = payment_id;
+        self
+    }
+    /// attach the rooting payout id (no-op when `None`)
+    #[must_use]
+    pub fn with_payout_id(mut self, payout_id: Option<String>) -> Self {
+        self.payout_id = payout_id;
+        self
     }
     /// get url encoded string representation of LineageIds
     pub fn get_url_encoded_string(self) -> Result<String, serde_urlencoded::ser::Error> {
