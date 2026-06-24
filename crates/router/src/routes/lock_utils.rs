@@ -228,6 +228,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::DisputesRetrieve
             | Flow::DisputesList
             | Flow::DisputesFilters
+            | Flow::PlatformDisputesList
+            | Flow::PlatformDisputesFilters
             | Flow::DisputesEvidenceSubmit
             | Flow::AttachDisputeEvidence
             | Flow::RetrieveDisputeEvidence

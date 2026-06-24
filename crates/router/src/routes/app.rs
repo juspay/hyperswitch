@@ -2336,6 +2336,14 @@ impl Disputes {
                     .route(web::get().to(disputes::get_disputes_filters_profile)),
             )
             .service(
+                web::resource("/list-platform")
+                    .route(web::get().to(disputes::retrieve_disputes_list_for_platform)),
+            )
+            .service(
+                web::resource("/list-platform/filter")
+                    .route(web::get().to(disputes::get_platform_disputes_filters)),
+            )
+            .service(
                 web::resource("/accept/{dispute_id}")
                     .route(web::post().to(disputes::accept_dispute)),
             )

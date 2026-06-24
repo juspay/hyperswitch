@@ -16,6 +16,25 @@ pub trait DisputeDbExt: Sized {
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
+    /// List dispute rows for a platform merchant across all of its connected merchants.
+    /// Filters on `dispute.merchant_id` (which equals the platform's id on connected-merchant
+    /// rows) instead of `processor_merchant_id`, with an optional `processor_merchant_id`
+    /// filter to narrow to specific connected merchants.
+    #[cfg(feature = "v1")]
+    async fn filter_by_constraints_for_platform(
+        conn: &PgPooledConn,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
+        dispute_list_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
+
+    /// Total count of disputes matching a platform listing's constraints (ignores limit/offset).
+    #[cfg(feature = "v1")]
+    async fn get_disputes_count_for_platform(
+        conn: &PgPooledConn,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
+        dispute_list_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<i64, errors::DatabaseError>;
+
     async fn get_dispute_status_with_count(
         conn: &PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -113,6 +132,135 @@ impl DisputeDbExt for Dispute {
         .await
         .change_context(errors::DatabaseError::NotFound)
         .attach_printable_lazy(|| "Error filtering records by predicate")
+    }
+
+    #[cfg(feature = "v1")]
+    async fn filter_by_constraints_for_platform(
+        conn: &PgPooledConn,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
+        dispute_list_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+        // Platform listings aggregate across every connected merchant, so filter on
+        // `merchant_id` (= the platform's id on connected-merchant rows) rather than
+        // `processor_merchant_id`. An optional `processor_merchant_id` filter narrows the
+        // result to specific connected merchants.
+        let mut filter = <Self as HasTable>::table()
+            .filter(dsl::merchant_id.eq(platform_merchant_id.to_owned()))
+            .order(dsl::modified_at.desc())
+            .into_boxed();
+
+        if let Some(processor_merchant_id) = &dispute_list_constraints.processor_merchant_id {
+            filter = filter.filter(dsl::processor_merchant_id.eq_any(processor_merchant_id.clone()));
+        }
+        if let Some(payment_id) = &dispute_list_constraints.payment_id {
+            filter = filter.filter(dsl::payment_id.eq(payment_id.to_owned()));
+        }
+        if let Some(dispute_id) = &dispute_list_constraints.dispute_id {
+            filter = filter.filter(dsl::dispute_id.eq(dispute_id.clone()));
+        }
+        if let Some(time_range) = dispute_list_constraints.time_range {
+            filter = filter.filter(dsl::created_at.ge(time_range.start_time));
+            if let Some(end_time) = time_range.end_time {
+                filter = filter.filter(dsl::created_at.le(end_time));
+            }
+        }
+        if let Some(profile_id) = &dispute_list_constraints.profile_id {
+            filter = filter.filter(dsl::profile_id.eq_any(profile_id.clone()));
+        }
+        if let Some(connector_list) = &dispute_list_constraints.connector {
+            filter = filter.filter(dsl::connector.eq_any(connector_list.clone()));
+        }
+        if let Some(reason) = &dispute_list_constraints.reason {
+            filter = filter.filter(dsl::connector_reason.eq(reason.clone()));
+        }
+        if let Some(dispute_stage) = &dispute_list_constraints.dispute_stage {
+            filter = filter.filter(dsl::dispute_stage.eq_any(dispute_stage.clone()));
+        }
+        if let Some(dispute_status) = &dispute_list_constraints.dispute_status {
+            filter = filter.filter(dsl::dispute_status.eq_any(dispute_status.clone()));
+        }
+        if let Some(currency_list) = &dispute_list_constraints.currency {
+            filter = filter.filter(dsl::dispute_currency.eq_any(currency_list.clone()));
+        }
+        if let Some(merchant_connector_id) = &dispute_list_constraints.merchant_connector_id {
+            filter = filter.filter(dsl::merchant_connector_id.eq(merchant_connector_id.clone()));
+        }
+        if let Some(limit) = dispute_list_constraints.limit {
+            filter = filter.limit(limit.into());
+        }
+        if let Some(offset) = dispute_list_constraints.offset {
+            filter = filter.offset(offset.into());
+        }
+
+        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
+
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_results_async(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering platform dispute records")
+    }
+
+    #[cfg(feature = "v1")]
+    async fn get_disputes_count_for_platform(
+        conn: &PgPooledConn,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
+        dispute_list_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<i64, errors::DatabaseError> {
+        // `total_count` ignores limit/offset/order so the caller can paginate.
+        let mut filter = <Self as HasTable>::table()
+            .count()
+            .filter(dsl::merchant_id.eq(platform_merchant_id.to_owned()))
+            .into_boxed();
+
+        if let Some(processor_merchant_id) = &dispute_list_constraints.processor_merchant_id {
+            filter = filter.filter(dsl::processor_merchant_id.eq_any(processor_merchant_id.clone()));
+        }
+        if let Some(payment_id) = &dispute_list_constraints.payment_id {
+            filter = filter.filter(dsl::payment_id.eq(payment_id.to_owned()));
+        }
+        if let Some(dispute_id) = &dispute_list_constraints.dispute_id {
+            filter = filter.filter(dsl::dispute_id.eq(dispute_id.clone()));
+        }
+        if let Some(time_range) = dispute_list_constraints.time_range {
+            filter = filter.filter(dsl::created_at.ge(time_range.start_time));
+            if let Some(end_time) = time_range.end_time {
+                filter = filter.filter(dsl::created_at.le(end_time));
+            }
+        }
+        if let Some(profile_id) = &dispute_list_constraints.profile_id {
+            filter = filter.filter(dsl::profile_id.eq_any(profile_id.clone()));
+        }
+        if let Some(connector_list) = &dispute_list_constraints.connector {
+            filter = filter.filter(dsl::connector.eq_any(connector_list.clone()));
+        }
+        if let Some(reason) = &dispute_list_constraints.reason {
+            filter = filter.filter(dsl::connector_reason.eq(reason.clone()));
+        }
+        if let Some(dispute_stage) = &dispute_list_constraints.dispute_stage {
+            filter = filter.filter(dsl::dispute_stage.eq_any(dispute_stage.clone()));
+        }
+        if let Some(dispute_status) = &dispute_list_constraints.dispute_status {
+            filter = filter.filter(dsl::dispute_status.eq_any(dispute_status.clone()));
+        }
+        if let Some(currency_list) = &dispute_list_constraints.currency {
+            filter = filter.filter(dsl::dispute_currency.eq_any(currency_list.clone()));
+        }
+        if let Some(merchant_connector_id) = &dispute_list_constraints.merchant_connector_id {
+            filter = filter.filter(dsl::merchant_connector_id.eq(merchant_connector_id.clone()));
+        }
+
+        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
+
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_result_async::<i64>(conn),
+            db_metrics::DatabaseOperation::Count,
+        )
+        .await
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error counting platform dispute records")
     }
 
     async fn get_dispute_status_with_count(

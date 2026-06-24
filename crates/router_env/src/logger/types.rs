@@ -353,6 +353,10 @@ pub enum Flow {
     DisputesList,
     /// Dispute Filters flow
     DisputesFilters,
+    /// Aggregated disputes list flow for a platform across its connected merchants.
+    PlatformDisputesList,
+    /// Aggregated disputes filter-values flow for a platform across its connected merchants.
+    PlatformDisputesFilters,
     /// Cards Info flow
     CardsInfo,
     /// Create File flow

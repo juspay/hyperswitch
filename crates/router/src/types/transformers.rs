@@ -754,6 +754,44 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
     }
 }
 
+// Maps a raw dispute row to the slim platform list item. Dispute records hold no encrypted
+// PII, so this reads only non-encrypted columns and performs no decryption (mirroring the
+// platform payments list). `merchant_id` is the platform's id, `processor_merchant_id` is the
+// connected merchant that owns the dispute.
+#[cfg(feature = "v1")]
+impl ForeignFrom<storage::Dispute> for api_models::disputes::PlatformDisputeListItem {
+    fn foreign_from(dispute: storage::Dispute) -> Self {
+        Self {
+            dispute_id: dispute.dispute_id,
+            payment_id: dispute.payment_id,
+            attempt_id: dispute.attempt_id,
+            merchant_id: dispute.merchant_id,
+            processor_merchant_id: dispute.processor_merchant_id,
+            amount: dispute.amount,
+            currency: dispute.dispute_currency.unwrap_or(
+                dispute
+                    .currency
+                    .to_uppercase()
+                    .parse_enum("Currency")
+                    .unwrap_or_default(),
+            ),
+            dispute_stage: dispute.dispute_stage,
+            dispute_status: dispute.dispute_status,
+            connector: dispute.connector,
+            connector_status: dispute.connector_status,
+            connector_dispute_id: dispute.connector_dispute_id,
+            connector_reason: dispute.connector_reason,
+            connector_reason_code: dispute.connector_reason_code,
+            challenge_required_by: dispute.challenge_required_by,
+            connector_created_at: dispute.connector_created_at,
+            connector_updated_at: dispute.connector_updated_at,
+            created_at: dispute.created_at,
+            profile_id: dispute.profile_id,
+            merchant_connector_id: dispute.merchant_connector_id,
+        }
+    }
+}
+
 impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationResponse {
     fn foreign_from(authorization: storage::Authorization) -> Self {
         Self {
