@@ -299,6 +299,17 @@ export const connectorDetails = {
         },
       },
     },
+    DuplicateRefundID: {
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     ZeroAuthMandate: {
       Response: {
         status: 501,

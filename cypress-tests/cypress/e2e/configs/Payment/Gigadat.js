@@ -13,6 +13,28 @@ export const connectorDetails = {
         },
       },
     },
+    "3DSManualCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    "3DSAutoCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
   },
   bank_redirect_pm: {
     Interac: {
