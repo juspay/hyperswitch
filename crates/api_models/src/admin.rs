@@ -223,8 +223,8 @@ pub struct MerchantAccountCreateWithoutOrgId {
 #[cfg(feature = "v2")]
 impl MerchantAccountCreateWithoutOrgId {
     pub fn validate(&self) -> Result<(), String> {
-        let merchant_name_str: &str = self.merchant_name.peek().as_ref();
-        if common_utils::validation::contains_potential_xss_or_sqli(merchant_name_str) {
+        let merchant_name_string = self.merchant_name.peek().clone().into_inner();
+        if common_utils::validation::contains_potential_xss_or_sqli(&merchant_name_string) {
             return Err("merchant_name contains potential XSS or SQLi attack vectors".to_string());
         }
         Ok(())
@@ -249,8 +249,8 @@ pub struct MerchantAccountCreate {
 #[cfg(feature = "v2")]
 impl MerchantAccountCreate {
     pub fn validate(&self) -> Result<(), String> {
-        let merchant_name_str: &str = self.merchant_name.peek().as_ref();
-        if common_utils::validation::contains_potential_xss_or_sqli(merchant_name_str) {
+        let merchant_name_string = self.merchant_name.peek().clone().into_inner();
+        if common_utils::validation::contains_potential_xss_or_sqli(&merchant_name_string) {
             return Err("merchant_name contains potential XSS or SQLi attack vectors".to_string());
         }
         Ok(())
