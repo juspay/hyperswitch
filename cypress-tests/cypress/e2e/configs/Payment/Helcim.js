@@ -1,6 +1,10 @@
 import { customerAcceptance, standardBillingAddress } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
+if (Cypress.env("CONNECTOR") === "helcim") {
+  Cypress.config("retries", 0);
+}
+
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
