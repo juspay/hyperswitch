@@ -201,6 +201,7 @@ pub enum AuthenticationType {
         merchant_id: id_type::MerchantId,
         profile_id: id_type::ProfileId,
     },
+    InternalApiKey,
     NoAuth,
 }
 
@@ -235,6 +236,7 @@ impl AuthenticationType {
             | Self::EmbeddedJwt { merchant_id, .. }
             | Self::SdkAuthorization { merchant_id, .. } => Some(merchant_id),
             Self::AdminApiKey
+            | Self::InternalApiKey
             | Self::OrganizationJwt { .. }
             | Self::BasicAuth { .. }
             | Self::UserJwt { .. }
@@ -2760,6 +2762,47 @@ where
                     profile_id: Some(validated_data.profile.get_id().clone()),
                 },
             )),
+            None => self.0.authenticate_and_fetch(request_headers, state).await,
+        }
+    }
+}
+
+pub struct InternalApiKeyAuth<F>(pub F);
+
+#[async_trait]
+impl<A, F> AuthenticateAndFetch<(), A> for InternalApiKeyAuth<F>
+where
+    A: SessionStateInfo + Sync + Send,
+    F: AuthenticateAndFetch<(), A> + Sync + Send,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        if !state.conf().internal_merchant_id_profile_id_auth.enabled {
+            return self.0.authenticate_and_fetch(request_headers, state).await;
+        }
+
+        let internal_api_key = HeaderMapStruct::new(request_headers)
+            .get_header_value_by_key(headers::X_INTERNAL_API_KEY)
+            .map(|s| s.to_string());
+
+        match internal_api_key {
+            Some(key) => {
+                if key
+                    == *state
+                        .conf()
+                        .internal_merchant_id_profile_id_auth
+                        .internal_api_key
+                        .peek()
+                {
+                    Ok(((), AuthenticationType::InternalApiKey))
+                } else {
+                    Err(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Internal API key authentication failed")
+                }
+            }
             None => self.0.authenticate_and_fetch(request_headers, state).await,
         }
     }
@@ -5756,7 +5799,9 @@ impl ClientSecretFetch for api_models::authentication::AuthenticationSessionToke
 
 impl ClientSecretFetch for api_models::superposition_sdk_config::SdkConfigRequest {
     fn get_client_secret(&self) -> Option<&String> {
-        self.client_secret.as_ref().map(|cs| cs.peek())
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
     }
 }
 
@@ -5872,6 +5917,54 @@ where
         None => {
             // Use existing client_secret and publishable key check
             check_client_secret_and_get_auth(headers, payload, api_auth)
+        }
+    }
+}
+
+/// Checks SDK authorization first, then falls back to publishable-key auth with
+/// a required client secret. Merchant secret-key auth is intentionally rejected.
+#[cfg(feature = "v1")]
+pub fn check_sdk_auth_or_client_secret_auth<T>(
+    headers: &HeaderMap,
+    payload: &impl ClientSecretFetch,
+    api_auth: ApiKeyAuth,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+    api::AuthFlow,
+)>
+where
+    T: SessionStateInfo + Sync + Send,
+    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    SdkAuthorizationAuth: AuthenticateAndFetch<AuthenticationData, T>,
+{
+    match get_header_value_by_key(headers::AUTHORIZATION.into(), headers)? {
+        Some(_) => Ok((
+            Box::new(SdkAuthorizationAuth {
+                allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                allow_platform_self_operation: api_auth.allow_platform_self_operation,
+            }),
+            api::AuthFlow::Client,
+        )),
+        None => {
+            let api_key = get_api_key(headers)?;
+
+            match (
+                api_key.starts_with("pk_"),
+                payload.get_client_secret().is_some(),
+            ) {
+                (true, true) => Ok((
+                    Box::new(HeaderAuth(PublishableKeyAuth {
+                        allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                        allow_platform_self_operation: api_auth.allow_platform_self_operation,
+                    })),
+                    api::AuthFlow::Client,
+                )),
+                (true, false) => Err(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "client_secret",
+                }
+                .into()),
+                (false, _) => Err(errors::ApiErrorResponse::Unauthorized.into()),
+            }
         }
     }
 }

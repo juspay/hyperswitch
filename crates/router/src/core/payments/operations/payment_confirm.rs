@@ -83,6 +83,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         request: &api::PaymentsRequest,
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
+        _flow_kind: operations::PaymentFlowKind,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
@@ -1242,16 +1243,20 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             if let Some(payment_method_ref) = self.get_payment_method_reference(req) {
                 let payment_method_ref_to_use = match req.payment_token.as_deref() {
                     Some(payment_token) if payment_token == payment_method_ref => {
-                        let token_data = helpers::retrieve_payment_token_data(
+                        // Best-effort: resolve the token to its stored payment_method_id. A
+                        // self-hosted vault token minted by the modular PM service is not present in
+                        // the legacy redis token store (different key), so a miss/error here is not
+                        // fatal — fall back to using the reference as-is and let the modular fetch
+                        // resolve it, instead of failing the payment with "token invalid or expired".
+                        match helpers::retrieve_payment_token_data(
                             state,
                             payment_method_ref.to_string(),
                             req.payment_method,
                         )
-                        .await?;
-
-                        match token_data {
-                            storage::PaymentTokenData::Permanent(card_token_data)
-                            | storage::PaymentTokenData::PermanentCard(card_token_data) => {
+                        .await
+                        {
+                            Ok(storage::PaymentTokenData::Permanent(card_token_data))
+                            | Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => {
                                 card_token_data
                                     .payment_method_id
                                     .as_deref()
@@ -2115,7 +2120,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         payment_data.payment_attempt.profile_id.clone(),
                         payment_data.payment_attempt.organization_id.clone(),
                     )
-                 );
+                 )
+                    .update_storage_scheme(platform.get_processor().get_account().storage_scheme);
 
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                         cavv: None,
@@ -2182,7 +2188,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         sync_response.clone(),
                         payment_data.payment_attempt.organization_id.clone(),
                     )
-                 );
+                 )
+                    .update_storage_scheme(platform.get_processor().get_account().storage_scheme);
 
                 let cryptogram = sync_response.authentication_details.and_then(|authentication_details| authentication_details.three_ds_data.and_then(|data| data.authentication_cryptogram)).ok_or(errors::ApiErrorResponse::MissingRequiredField{field_name:"authentication_cryptogram"})?;
 
@@ -2356,6 +2363,23 @@ impl PaymentConfirm {
             Some(domain::PaymentMethodData::CardToken(token)) => Some(token),
             _ => None,
         };
+        // Self-hosted (default) vault repeat-customer flow: the saved card is referenced by the
+        // top-level `payment_token`, while the freshly-tokenized CVC arrives as `card_cvc_token`
+        // (minted by the modular PM service and stored in redis keyed by that token). Resolve it to
+        // the raw CVC here so the modular fetch below receives a usable card. `take()` consumes the
+        // token so it is not carried any further.
+        if let Some(token) = card_token_data.as_mut() {
+            if let Some(card_cvc_token) = token.card_cvc_token.take() {
+                let resolved_cvc =
+                    crate::core::payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
+                        state,
+                        card_cvc_token.peek(),
+                        platform.get_provider().get_key_store(),
+                    )
+                    .await?;
+                token.card_cvc = Some(resolved_cvc);
+            }
+        }
         if let Some(card_cvc) = req.card_cvc.clone() {
             if let Some(card_token_data) = card_token_data.as_mut() {
                 card_token_data.card_cvc = Some(card_cvc);
@@ -2363,6 +2387,7 @@ impl PaymentConfirm {
                 card_token_data = Some(domain::CardToken {
                     card_holder_name: None,
                     card_cvc: Some(card_cvc),
+                    card_cvc_token: None,
                 });
             }
         }
@@ -2627,9 +2652,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_fingerprint_id = payment_data.payment_attempt.fingerprint_id.clone();
         let m_db = state.clone().store;
         let surcharge_amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.surcharge_amount);
+            .payment_attempt
+            .net_amount
+            .get_surcharge_amount();
         let tax_amount = payment_data
             .surcharge_details
             .as_ref()
@@ -2743,6 +2768,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .request_extended_authorization,
                         tokenization: payment_data.payment_attempt.get_tokenization_strategy(),
                         installment_data,
+                        external_surcharge_details: payment_data
+                            .payment_attempt
+                            .external_surcharge_details
+                            .clone(),
                     },
                     storage_scheme,
                     &cloned_key_store,
