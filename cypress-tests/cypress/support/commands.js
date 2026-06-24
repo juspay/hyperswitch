@@ -2778,6 +2778,12 @@ Cypress.Commands.add(
             expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
           }
         } else if (response.status === 200) {
+          // Clear stale next_action state from previous tests.
+          // If this response contains a next_action, it will be set
+          // below in the authentication_type switch.
+          globalState.set("nextActionUrl", null);
+          globalState.set("nextActionType", null);
+
           if (response.body.next_action?.redirect_to_url) {
             globalState.set(
               "nextActionUrl",
@@ -3109,6 +3115,12 @@ Cypress.Commands.add(
           updateConnectorState(globalState, response.body.connector);
           globalState.set("paymentMethodType", confirmBody.payment_method_type);
 
+          // Clear stale next_action state from previous tests.
+          // If this response contains a next_action, it will be set
+          // below in the authentication_type switch.
+          globalState.set("nextActionUrl", null);
+          globalState.set("nextActionType", null);
+
           if (response.status === 200) {
             validateErrorMessage(response, resData);
 
@@ -3245,6 +3257,11 @@ Cypress.Commands.add(
           globalState.set("paymentID", paymentIntentId);
           updateConnectorState(globalState, response.body.connector);
           globalState.set("paymentMethodType", confirmBody.payment_method_type);
+
+          // Clear stale next_action state from previous tests.
+          // If this response contains a next_action, it will be set below.
+          globalState.set("nextActionUrl", null);
+          globalState.set("nextActionType", null);
 
           validateErrorMessage(response, resData);
 
@@ -5622,6 +5639,11 @@ Cypress.Commands.add(
         if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
 
+          // Clear stale next_action state from previous tests.
+          // If this response contains a next_action, it will be set below.
+          globalState.set("nextActionUrl", null);
+          globalState.set("nextActionType", null);
+
           validateErrorMessage(response, resData);
 
           if (
@@ -5634,7 +5656,8 @@ Cypress.Commands.add(
                   "nextActionType",
                   "display_voucher_information"
                 );
-                globalState.set("nextActionUrl", null);
+                // nextActionUrl and nextActionType already cleared above;
+                // voucher flow doesn't need a redirect URL.
               } else if (response.body.next_action.redirect_to_url) {
                 globalState.set(
                   "nextActionUrl",
