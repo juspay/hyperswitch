@@ -134,10 +134,16 @@ def _save_redirect(
         if not connector:
             return
         captures_body_dir = os.path.join(CAPTURE_DIR, connector, "Payment", "redirect-bodies")
-        os.makedirs(captures_body_dir, exist_ok=True)
-        # Use basename to strip any traversal sequences from the filename.
+        # Resolve the real path and verify it stays inside CAPTURE_DIR to
+        # guard against any remaining traversal sequences.
+        real_dir = os.path.realpath(captures_body_dir)
+        real_base = os.path.realpath(CAPTURE_DIR)
+        if not real_dir.startswith(real_base + os.sep):
+            print(f"[redirect-proxy] WARNING: resolved path {real_dir!r} escapes CAPTURE_DIR — skipping")
+            return
+        os.makedirs(real_dir, exist_ok=True)
         safe_filename = os.path.basename(filename)
-        captures_path = os.path.join(captures_body_dir, safe_filename)
+        captures_path = os.path.join(real_dir, safe_filename)
         with open(captures_path, "w") as f:
             json.dump(data, f, indent=2)
         print(f"[redirect-proxy] body also saved → {captures_path}")
