@@ -645,7 +645,7 @@ where
             .and_then(|metadata| {
                 // Try to parse the JSON value as FeatureMetadata
                 // Log errors but don't fail the flow for corrupted metadata
-                match serde_json::from_value::<FeatureMetadata>(metadata.clone()) {
+                match serde_json::from_value::<FeatureMetadata>(metadata.clone().expose()) {
                     Ok(feature_metadata) => feature_metadata.gateway_system,
                     Err(err) => {
                         router_env::logger::warn!(
@@ -677,7 +677,7 @@ where
     let existing_metadata = payment_intent.feature_metadata.as_ref();
 
     let mut feature_metadata = match existing_metadata {
-        Some(metadata) => serde_json::from_value::<FeatureMetadata>(metadata.clone())
+        Some(metadata) => serde_json::from_value::<FeatureMetadata>(metadata.clone().expose())
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
                 "Failed to deserialize existing feature metadata while updating gateway system",
@@ -691,7 +691,7 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize feature metadata")?;
 
-    payment_intent.feature_metadata = Some(updated_metadata.clone());
+    payment_intent.feature_metadata = Some(Secret::new(updated_metadata));
     payment_data.set_payment_intent(payment_intent);
 
     Ok(())
