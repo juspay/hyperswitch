@@ -5122,6 +5122,11 @@ Cypress.Commands.add(
     //          Stripe uses /redirect/response (its payment-intent return_url),
     //          NOT /redirect/complete (which is for ACS form POSTs like Redsys).
     // params — query params the connector appends on success.
+    // JS_3DS_CONNECTORS describes how each connector signals a completed 3DS flow
+    // via a browser GET to Hyperswitch's redirect/response endpoint.
+    // `redirect_status: "succeeded"` is intentionally hardcoded here because
+    // these tests only exercise the success path; the real ACS outcome is
+    // determined by Hyperswitch parsing the connector's response, not this param.
     const JS_3DS_CONNECTORS = {
       stripe: {
         path: "redirect/response",
@@ -5166,6 +5171,8 @@ Cypress.Commands.add(
 
       const expectedUrl = new URL(expectedRedirection);
       const redirectionUrl = new URL(nextActionUrl);
+      // Cypress commands are queued and execute sequentially — handleRedirection
+      // fully completes before cy.then() runs, so there is no race condition.
       handleRedirection(
         "three_ds",
         { redirectionUrl, expectedUrl },
