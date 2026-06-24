@@ -48,7 +48,7 @@ aws-smithy-runtime = "1.8.3"
 aws-smithy-types = "1.3.1"
 base64 = "0.22.1"
 dyn-clone = "1.0.19"
-deja = { git = "https://github.com/maverox/deja-lib", rev = "a605192ffad17c556017b85f18ca75f1b6a0694e", optional = true }
+deja = { git = "https://github.com/maverox/deja-lib", rev = "0756c8e8270a404bab6646d82cb2ab45a257c592", optional = true }
 error-stack = "0.4.1"
 hex = "0.4.3"
 hyper = "0.14.32"

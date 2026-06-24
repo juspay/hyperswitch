@@ -24,7 +24,7 @@ tracing = { workspace = true }
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext"] }
-deja = { git = "https://github.com/maverox/deja-lib", rev = "a605192ffad17c556017b85f18ca75f1b6a0694e", optional = true, default-features = false }
+deja = { git = "https://github.com/maverox/deja-lib", rev = "0756c8e8270a404bab6646d82cb2ab45a257c592", optional = true, default-features = false }
 
 [dev-dependencies]
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }

@@ -10,7 +10,7 @@ license.workspace = true
 [dependencies]
 cargo_metadata = "0.18.1"
 config = { version = "0.14.1", features = ["toml"] }
-deja = { git = "https://github.com/maverox/deja-lib", rev = "a605192ffad17c556017b85f18ca75f1b6a0694e", optional = true, default-features = false }
+deja = { git = "https://github.com/maverox/deja-lib", rev = "0756c8e8270a404bab6646d82cb2ab45a257c592", optional = true, default-features = false }
 error-stack = "0.4.1"
 gethostname = "0.4.3"
 opentelemetry = { version = "0.27.1", default-features = false, features = ["internal-logs", "metrics", "trace"] }

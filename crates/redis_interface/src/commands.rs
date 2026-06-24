@@ -118,6 +118,8 @@ impl super::RedisConnectionPool {
             boundary = "redis",
             component = "redis_interface::commands",
             operation = "set_key",
+            channel = State,
+            effect = Write,
             replay_ok,
             correlation = None::<String>,
             args = {
@@ -152,6 +154,8 @@ impl super::RedisConnectionPool {
             boundary = "redis",
             component = "redis_interface::commands",
             operation = "set_key_without_modifying_ttl",
+            channel = State,
+            effect = Write,
             replay_ok,
             correlation = None::<String>,
             args = {
@@ -183,6 +187,23 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetFailed)
     }
 
+    #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "set_multiple_keys_if_not_exist",
+            channel = State,
+            effect = Write,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "command": "MSETNX",
+                })
+            },
+        )
+    )]
     pub async fn set_multiple_keys_if_not_exist<V>(
         &self,
         value: V,
@@ -284,6 +305,8 @@ impl super::RedisConnectionPool {
         boundary = "redis",
         component = "redis_interface::commands",
         operation = "get_key",
+        channel = State,
+        effect = Read,
         replay_ok,
         correlation = None::<String>,
         args = {
@@ -431,6 +454,8 @@ impl super::RedisConnectionPool {
             boundary = "redis",
             component = "redis_interface::commands",
             operation = "get_multiple_keys",
+            channel = State,
+            effect = Read,
             correlation = None::<String>,
             args = {
                 serde_json::json!({
@@ -488,6 +513,8 @@ impl super::RedisConnectionPool {
             boundary = "redis",
             component = "redis_interface::commands",
             operation = "exists",
+            channel = State,
+            effect = Read,
             replay_ok,
             correlation = None::<String>,
             args = {
@@ -582,6 +609,8 @@ impl super::RedisConnectionPool {
             boundary = "redis",
             component = "redis_interface::commands",
             operation = "delete_key",
+            channel = State,
+            effect = Write,
             replay_ok,
             correlation = None::<String>,
             args = {
@@ -644,6 +673,8 @@ impl super::RedisConnectionPool {
             boundary = "redis",
             component = "redis_interface::commands",
             operation = "set_key_with_expiry",
+            channel = State,
+            effect = Write,
             replay_ok,
             correlation = None::<String>,
             args = {
@@ -684,6 +715,8 @@ impl super::RedisConnectionPool {
             boundary = "redis",
             component = "redis_interface::commands",
             operation = "set_key_if_not_exists_with_expiry",
+            channel = State,
+            effect = Write,
             replay_ok,
             correlation = None::<String>,
             args = {
@@ -726,6 +759,8 @@ impl super::RedisConnectionPool {
             boundary = "redis",
             component = "redis_interface::commands",
             operation = "set_expiry",
+            channel = State,
+            effect = VolatileRead,
             replay_ok,
             correlation = None::<String>,
             args = {
@@ -755,6 +790,8 @@ impl super::RedisConnectionPool {
             boundary = "redis",
             component = "redis_interface::commands",
             operation = "set_expire_at",
+            channel = State,
+            effect = VolatileRead,
             replay_ok,
             correlation = None::<String>,
             args = {
@@ -784,6 +821,8 @@ impl super::RedisConnectionPool {
             boundary = "redis",
             component = "redis_interface::commands",
             operation = "get_ttl",
+            channel = State,
+            effect = VolatileRead,
             replay_ok,
             correlation = None::<String>,
             args = {
@@ -808,6 +847,8 @@ impl super::RedisConnectionPool {
             boundary = "redis",
             component = "redis_interface::commands",
             operation = "set_hash_fields",
+            channel = State,
+            effect = Write,
             replay_ok,
             correlation = None::<String>,
             args = {
@@ -860,6 +901,8 @@ impl super::RedisConnectionPool {
             boundary = "redis",
             component = "redis_interface::commands",
             operation = "set_hash_field_if_not_exist",
+            channel = State,
+            effect = Write,
             replay_ok,
             correlation = None::<String>,
             args = {
@@ -951,6 +994,25 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "increment_fields_in_hash",
+            channel = State,
+            effect = ReadModifyWrite,
+            strategy = SeedAndExecute,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "HINCRBY",
+                    "field_count": fields_to_increment.len(),
+                })
+            },
+        )
+    )]
     pub async fn increment_fields_in_hash<T>(
         &self,
         key: &RedisKey,
@@ -973,6 +1035,24 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "hscan",
+            channel = State,
+            effect = VolatileRead,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "HSCAN",
+                    "pattern": pattern,
+                })
+            },
+        )
+    )]
     pub async fn hscan(
         &self,
         key: &RedisKey,
@@ -1004,6 +1084,23 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "scan",
+            channel = State,
+            effect = VolatileRead,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "pattern": pattern.as_str(),
+                    "command": "SCAN",
+                })
+            },
+        )
+    )]
     pub async fn scan(
         &self,
         pattern: &RedisKey,
@@ -1066,6 +1163,8 @@ impl super::RedisConnectionPool {
         boundary = "redis",
         component = "redis_interface::commands",
         operation = "get_hash_field",
+        channel = State,
+        effect = Read,
         replay_ok,
         correlation = None::<String>,
         args = {
@@ -1155,6 +1254,8 @@ impl super::RedisConnectionPool {
         boundary = "redis",
         component = "redis_interface::commands",
         operation = "get_hash_fields",
+        channel = State,
+        effect = Read,
         replay_ok,
         correlation = None::<String>,
         args = {
@@ -1259,6 +1360,8 @@ impl super::RedisConnectionPool {
             boundary = "redis",
             component = "redis_interface::commands",
             operation = "sadd",
+            channel = State,
+            effect = Write,
             replay_ok,
             correlation = None::<String>,
             args = {
@@ -1285,6 +1388,23 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "stream_append_entry",
+            channel = State,
+            effect = Append,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XADD",
+                })
+            },
+        )
+    )]
     pub async fn stream_append_entry<F>(
         &self,
         stream: &RedisKey,
@@ -1302,6 +1422,23 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "stream_delete_entries",
+            channel = State,
+            effect = Write,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XDEL",
+                })
+            },
+        )
+    )]
     pub async fn stream_delete_entries<Ids>(
         &self,
         stream: &RedisKey,
@@ -1317,6 +1454,23 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "stream_trim_entries",
+            channel = State,
+            effect = Write,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XTRIM",
+                })
+            },
+        )
+    )]
     pub async fn stream_trim_entries<C>(
         &self,
         stream: &RedisKey,
@@ -1333,6 +1487,24 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "stream_acknowledge_entries",
+            channel = State,
+            effect = VolatileRead,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XACK",
+                    "group": group,
+                })
+            },
+        )
+    )]
     pub async fn stream_acknowledge_entries<Ids>(
         &self,
         stream: &RedisKey,
@@ -1349,6 +1521,23 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "stream_get_length",
+            channel = State,
+            effect = Read,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XLEN",
+                })
+            },
+        )
+    )]
     pub async fn stream_get_length(
         &self,
         stream: &RedisKey,
@@ -1375,6 +1564,22 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "stream_read_entries",
+            channel = State,
+            effect = VolatileRead,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "command": "XREAD",
+                })
+            },
+        )
+    )]
     pub async fn stream_read_entries<K, Ids>(
         &self,
         streams: K,
@@ -1403,6 +1608,22 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "stream_read_with_options",
+            channel = State,
+            effect = VolatileRead,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "command": if group.is_some() { "XREADGROUP" } else { "XREAD" },
+                })
+            },
+        )
+    )]
     pub async fn stream_read_with_options<K, Ids>(
         &self,
         streams: K,
@@ -1444,6 +1665,23 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "append_elements_to_list",
+            channel = State,
+            effect = Write,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "RPUSH",
+                })
+            },
+        )
+    )]
     pub async fn append_elements_to_list<V>(
         &self,
         key: &RedisKey,
@@ -1460,6 +1698,25 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "get_list_elements",
+            channel = State,
+            effect = Read,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "LRANGE",
+                    "start": start,
+                    "stop": stop,
+                })
+            },
+        )
+    )]
     pub async fn get_list_elements(
         &self,
         key: &RedisKey,
@@ -1473,6 +1730,23 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "get_list_length",
+            channel = State,
+            effect = Read,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "LLEN",
+                })
+            },
+        )
+    )]
     pub async fn get_list_length(&self, key: &RedisKey) -> CustomResult<usize, errors::RedisError> {
         self.pool
             .llen(key.tenant_aware_key(self))
@@ -1481,6 +1755,25 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "lpop_list_elements",
+            channel = State,
+            effect = ReadModifyWrite,
+            strategy = SeedAndExecute,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "LPOP",
+                    "count": count,
+                })
+            },
+        )
+    )]
     pub async fn lpop_list_elements(
         &self,
         key: &RedisKey,
@@ -1495,6 +1788,24 @@ impl super::RedisConnectionPool {
     //                                              Consumer Group API
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "consumer_group_create",
+            channel = State,
+            effect = VolatileRead,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XGROUP_CREATE",
+                    "group": group,
+                })
+            },
+        )
+    )]
     pub async fn consumer_group_create(
         &self,
         stream: &RedisKey,
@@ -1516,6 +1827,24 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "consumer_group_destroy",
+            channel = State,
+            effect = VolatileRead,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XGROUP_DESTROY",
+                    "group": group,
+                })
+            },
+        )
+    )]
     pub async fn consumer_group_destroy(
         &self,
         stream: &RedisKey,
@@ -1529,6 +1858,25 @@ impl super::RedisConnectionPool {
 
     // the number of pending messages that the consumer had before it was deleted
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "consumer_group_delete_consumer",
+            channel = State,
+            effect = VolatileRead,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XGROUP_DELCONSUMER",
+                    "group": group,
+                    "consumer": consumer,
+                })
+            },
+        )
+    )]
     pub async fn consumer_group_delete_consumer(
         &self,
         stream: &RedisKey,
@@ -1542,6 +1890,24 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "consumer_group_set_last_id",
+            channel = State,
+            effect = VolatileRead,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XGROUP_SETID",
+                    "group": group,
+                })
+            },
+        )
+    )]
     pub async fn consumer_group_set_last_id(
         &self,
         stream: &RedisKey,
@@ -1555,6 +1921,37 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "consumer_group_set_message_owner",
+            channel = State,
+            effect = VolatileRead,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XCLAIM",
+                    "group": group,
+                    "consumer": consumer,
+                })
+            },
+            // Generic `R: FromRedis` is NOT `Debug`, so the default `result_debug`
+            // capture would not compile. Record only the ok/err verdict (record-only
+            // leaf — no replay reconstruction needed).
+            result = {
+                (
+                    match __deja_result {
+                        Ok(ref _v) => serde_json::json!({"ok": true}),
+                        Err(ref e) => serde_json::json!({"ok": false, "error": format!("{:?}", e)}),
+                    },
+                    __deja_result.is_err(),
+                )
+            },
+        )
+    )]
     pub async fn consumer_group_set_message_owner<Ids, R>(
         &self,
         stream: &RedisKey,
@@ -1585,6 +1982,35 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "evaluate_redis_script",
+            channel = State,
+            effect = Opaque,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "command": "EVAL",
+                    "key_count": key.len(),
+                })
+            },
+            // Generic `T` is NOT `Debug`, so the default `result_debug` capture
+            // would not compile. Record only the ok/err verdict (record-only leaf —
+            // an Opaque EVAL is never reconstructed without an explicit override).
+            result = {
+                (
+                    match __deja_result {
+                        Ok(ref _v) => serde_json::json!({"ok": true}),
+                        Err(ref e) => serde_json::json!({"ok": false, "error": format!("{:?}", e)}),
+                    },
+                    __deja_result.is_err(),
+                )
+            },
+        )
+    )]
     pub async fn evaluate_redis_script<V, T>(
         &self,
         lua_script: &'static str,
@@ -1634,6 +2060,38 @@ impl super::RedisConnectionPool {
     /// Sets a value in Redis if not already present, and returns the value (either existing or newly set).
     /// This operation is atomic using Redis transactions.
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "redis",
+            component = "redis_interface::commands",
+            operation = "set_key_if_not_exists_and_get_value",
+            channel = State,
+            effect = ReadModifyWrite,
+            strategy = SeedAndExecute,
+            correlation = None::<String>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SETNX_GET",
+                    "ttl_seconds": ttl,
+                })
+            },
+            // `SetGetReply<V>` carries a generic `V` with no `Debug` bound, so the
+            // default `result_debug` capture would not compile. Record only the
+            // ok/err verdict (record-only leaf — no replay reconstruction needed;
+            // an RMW transaction always re-executes live under SeedAndExecute).
+            result = {
+                (
+                    match __deja_result {
+                        Ok(ref _v) => serde_json::json!({"ok": true}),
+                        Err(ref e) => serde_json::json!({"ok": false, "error": format!("{:?}", e)}),
+                    },
+                    __deja_result.is_err(),
+                )
+            },
+        )
+    )]
     pub async fn set_key_if_not_exists_and_get_value<V>(
         &self,
         key: &RedisKey,

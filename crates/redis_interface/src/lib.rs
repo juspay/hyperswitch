@@ -23,7 +23,7 @@ use std::sync::{atomic, Arc};
 
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-pub use fred::interfaces::{EventInterface, PubsubInterface};
+pub use fred::interfaces::{EventInterface, KeysInterface, PubsubInterface};
 use fred::{clients::Transaction, interfaces::ClientLike, prelude::TransactionInterface};
 
 pub use self::types::*;

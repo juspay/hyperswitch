@@ -125,7 +125,7 @@ cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics", "keymanager"] }
 common_types = { version = "0.1.0", path = "../common_types" }
-deja = { git = "https://github.com/maverox/deja-lib", rev = "a605192ffad17c556017b85f18ca75f1b6a0694e", optional = true, default-features = false }
+deja = { git = "https://github.com/maverox/deja-lib", rev = "0756c8e8270a404bab6646d82cb2ab45a257c592", optional = true, default-features = false }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store", "tokenization_v2"], default-features = false }
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }

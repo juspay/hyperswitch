@@ -2742,7 +2742,7 @@ checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
 [[package]]
 name = "deja"
 version = "0.1.0"
-source = "git+https://github.com/maverox/deja-lib?rev=a605192ffad17c556017b85f18ca75f1b6a0694e#a605192ffad17c556017b85f18ca75f1b6a0694e"
+source = "git+https://github.com/maverox/deja-lib?rev=0756c8e8270a404bab6646d82cb2ab45a257c592#0756c8e8270a404bab6646d82cb2ab45a257c592"
 dependencies = [
  "deja-context",
  "deja-core",
@@ -2755,7 +2755,7 @@ dependencies = [
 [[package]]
 name = "deja-context"
 version = "0.1.0"
-source = "git+https://github.com/maverox/deja-lib?rev=a605192ffad17c556017b85f18ca75f1b6a0694e#a605192ffad17c556017b85f18ca75f1b6a0694e"
+source = "git+https://github.com/maverox/deja-lib?rev=0756c8e8270a404bab6646d82cb2ab45a257c592#0756c8e8270a404bab6646d82cb2ab45a257c592"
 dependencies = [
  "pin-project-lite",
 ]
@@ -2763,7 +2763,7 @@ dependencies = [
 [[package]]
 name = "deja-core"
 version = "0.1.0"
-source = "git+https://github.com/maverox/deja-lib?rev=a605192ffad17c556017b85f18ca75f1b6a0694e#a605192ffad17c556017b85f18ca75f1b6a0694e"
+source = "git+https://github.com/maverox/deja-lib?rev=0756c8e8270a404bab6646d82cb2ab45a257c592#0756c8e8270a404bab6646d82cb2ab45a257c592"
 dependencies = [
  "serde",
  "serde_json",
@@ -2773,7 +2773,7 @@ dependencies = [
 [[package]]
 name = "deja-derive"
 version = "0.1.0"
-source = "git+https://github.com/maverox/deja-lib?rev=a605192ffad17c556017b85f18ca75f1b6a0694e#a605192ffad17c556017b85f18ca75f1b6a0694e"
+source = "git+https://github.com/maverox/deja-lib?rev=0756c8e8270a404bab6646d82cb2ab45a257c592#0756c8e8270a404bab6646d82cb2ab45a257c592"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2783,7 +2783,7 @@ dependencies = [
 [[package]]
 name = "deja-record"
 version = "0.1.0"
-source = "git+https://github.com/maverox/deja-lib?rev=a605192ffad17c556017b85f18ca75f1b6a0694e#a605192ffad17c556017b85f18ca75f1b6a0694e"
+source = "git+https://github.com/maverox/deja-lib?rev=0756c8e8270a404bab6646d82cb2ab45a257c592#0756c8e8270a404bab6646d82cb2ab45a257c592"
 dependencies = [
  "async-trait",
  "deja-context",

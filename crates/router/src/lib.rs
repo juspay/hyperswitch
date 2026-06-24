@@ -431,11 +431,13 @@ pub fn get_application_builder(
                 // adopting it (UseIncoming) anchors the candidate to the recorded
                 // correlation_id so every downstream time/id/db lookup keys off
                 // the same correlation and replays deterministically. Outside
-                // replay, honor the configured strategy.
+                // replay, honor the configured strategy. The replay-mode decision
+                // belongs to the library (deja::replay_is_active), not a vendor
+                // env-check, so this call site carries no DEJA_MODE logic.
                 .use_incoming_id({
                     #[cfg(feature = "deja")]
                     {
-                        if std::env::var("DEJA_MODE").as_deref() == Ok("replay") {
+                        if deja::replay_is_active() {
                             router_env::IdReuse::UseIncoming
                         } else {
                             trace_header.id_reuse_strategy

@@ -26,7 +26,31 @@ use crate::{
 
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
-struct NonceSequence(u128);
+struct NonceSequence(
+    // deja: serialize the 96-bit nonce as its 16 big-endian BYTES, not a bare
+    // u128. A nonce routinely exceeds u64::MAX, and `serde_json::Value::Number`
+    // cannot hold a u128 beyond u64 range — so capturing it as a number FAILED
+    // and the boundary recorded `null`, leaving nothing to substitute (the real
+    // random nonce then ran on replay → divergent at-rest ciphertext). A byte
+    // array is small-int-only, so it round-trips through serde_json AND the
+    // Kafka→Vector→MinIO pipeline losslessly, exactly like `generate_aes256_key`.
+    #[cfg_attr(feature = "deja", serde(with = "deja_nonce_bytes"))] u128,
+);
+
+/// deja: lossless u128 nonce (de)serialization via its 16 big-endian bytes.
+#[cfg(feature = "deja")]
+mod deja_nonce_bytes {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn serialize<S: Serializer>(v: &u128, s: S) -> Result<S::Ok, S::Error> {
+        v.to_be_bytes().serialize(s)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<u128, D::Error> {
+        let bytes = <[u8; 16]>::deserialize(d)?;
+        Ok(u128::from_be_bytes(bytes))
+    }
+}
 
 impl NonceSequence {
     /// Byte index at which sequence number starts in a 16-byte (128-bit) sequence.
