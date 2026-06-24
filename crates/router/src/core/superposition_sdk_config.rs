@@ -33,7 +33,7 @@ pub struct SdkPaymentContext {
 }
 
 struct PaymentContextSuperposition {
-    pub currency : Option<String>,
+    pub currency: Option<String>,
     pub amount: Option<i64>,
     pub payment_method: Option<api_enums::PaymentMethod>,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
@@ -99,7 +99,7 @@ pub fn build_random_payment_create_request(
     let request_json = serde_json::json!({
         "amount": amount,
         "currency": currency,
-        "payment_method": payment_method,
+        // "payment_method": payment_method,
         "billing": { "address": { "country": country } },
     });
 
@@ -494,7 +494,7 @@ pub async fn get_superposition_sdk_config(
                 .get_eligible_connectors()
                 .into_iter()
                 .map(serde_json::Value::String)
-                .collect(),
+                .collect::<Vec<serde_json::Value>>(),
         ),
     );
 
@@ -507,9 +507,18 @@ pub async fn get_superposition_sdk_config(
         let payment_context_for_superposition = PaymentContextSuperposition {
             currency: payment_intent.currency.map(|c| c.to_string()),
             amount: Some(payment_intent.amount.get_amount_as_i64()),
-            payment_method: payment_context.payment_attempt.as_ref().and_then(|pa| pa.payment_method),
-            payment_method_type: payment_context.payment_attempt.as_ref().and_then(|pa| pa.payment_method_type),
-            country: payment_context.billing_address.as_ref().and_then(|c| c.country),
+            payment_method: payment_context
+                .payment_attempt
+                .as_ref()
+                .and_then(|pa| pa.payment_method),
+            payment_method_type: payment_context
+                .payment_attempt
+                .as_ref()
+                .and_then(|pa| pa.payment_method_type),
+            country: payment_context
+                .billing_address
+                .as_ref()
+                .and_then(|c| c.country),
             connector: Some(connector.clone()),
         };
 
