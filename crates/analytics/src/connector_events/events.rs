@@ -78,6 +78,9 @@ pub struct ConnectorEventsResult {
     pub error: Option<String>,
     pub status_code: u16,
     pub latency: Option<u128>,
+    pub source: Option<String>,
+    pub destination: Option<String>,
+    pub execution_mode: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     pub method: Option<String>,
