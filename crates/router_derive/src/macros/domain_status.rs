@@ -37,6 +37,11 @@ pub(crate) fn domain_status_derive_inner(ast: &DeriveInput) -> syn::Result<Token
 
     let mut variant_defs = Vec::new();
     let mut variant_idents = Vec::new();
+    // Track the storage enum's `#[default]` variant so the domain mirror can
+    // carry an equivalent `Default` impl. The application uses domain types for
+    // logic, so the domain type must be a first-class citizen with its own
+    // `Default` rather than relying on / converting from the storage type.
+    let mut default_variant = None;
     for variant in &data.variants {
         if !matches!(variant.fields, Fields::Unit) {
             return Err(syn::Error::new_spanned(
@@ -49,6 +54,13 @@ pub(crate) fn domain_status_derive_inner(ast: &DeriveInput) -> syn::Result<Token
                 variant,
                 "storage enum must not declare `Unknown`; the derive appends it",
             ));
+        }
+        if variant
+            .attrs
+            .iter()
+            .any(|attr| attr.path().is_ident("default"))
+        {
+            default_variant = Some(variant.ident.clone());
         }
         // Carry over doc comments and serde attrs (aliases/renames); drop the
         // rest (`#[default]`, strum/diesel/schema helpers) which do not apply to
@@ -69,6 +81,21 @@ pub(crate) fn domain_status_derive_inner(ast: &DeriveInput) -> syn::Result<Token
     let try_from_arms = variant_idents.iter().map(|variant| {
         quote! { #domain_ident::#variant => ::core::result::Result::Ok(Self::#variant) }
     });
+
+    // Mirror the storage enum's default variant onto the domain type so the
+    // domain type is usable wherever a default is needed without falling back to
+    // the storage type. `Unknown` is never chosen as the default.
+    let default_impl = match &default_variant {
+        Some(variant) => quote! {
+            #[automatically_derived]
+            impl ::core::default::Default for #domain_ident {
+                fn default() -> Self {
+                    Self::#variant
+                }
+            }
+        },
+        None => quote! {},
+    };
 
     Ok(quote! {
         #[doc = ::core::concat!(
@@ -94,6 +121,8 @@ pub(crate) fn domain_status_derive_inner(ast: &DeriveInput) -> syn::Result<Token
             #[serde(other)]
             Unknown,
         }
+
+        #default_impl
 
         #[automatically_derived]
         impl ::core::convert::From<#storage_ident> for #domain_ident {

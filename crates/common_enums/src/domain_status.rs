@@ -113,6 +113,22 @@ mod tests {
     }
 
     #[test]
+    fn domain_default_mirrors_storage_default() {
+        // The application uses domain types for logic; the domain mirror must
+        // carry its own `Default` matching the storage enum's `#[default]`,
+        // never falling back to the storage type and never defaulting to Unknown.
+        assert_eq!(
+            AttemptStatusDomain::default(),
+            AttemptStatusDomain::from(AttemptStatus::default())
+        );
+        assert!(!AttemptStatusDomain::default().is_unknown());
+        assert_eq!(
+            AttemptStatusDomain::default().to_storage().unwrap(),
+            AttemptStatus::default()
+        );
+    }
+
+    #[test]
     fn resolve_or_keep_preserves_known_status() {
         let resolved = AttemptStatusDomain::Charged.resolve_or_keep(AttemptStatus::Pending);
         assert_eq!(resolved, AttemptStatusDomain::Charged);
