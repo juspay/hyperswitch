@@ -1,5 +1,5 @@
 use common_enums::PaymentMethodType;
-#[cfg(feature = "v2")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 use common_utils::encryption::Encryption;
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
@@ -41,6 +41,10 @@ use crate::{
     },
     utils::{ConnectorResponseExt, StringExt},
 };
+// `pm_cards` and `OptionExt` are imported for v2 via the larger v2-only `use` block below; the v1
+// build needs them for `retrieve_and_delete_cvc_from_payment_token` (self-hosted vault CVC retrieval).
+#[cfg(feature = "v1")]
+use crate::{core::payment_methods::cards as pm_cards, utils::ext_traits::OptionExt};
 #[cfg(feature = "v2")]
 use crate::{
     core::{
@@ -2329,7 +2333,7 @@ pub struct TemporaryVaultCvc {
 #[instrument(skip_all)]
 pub async fn insert_cvc_using_payment_token(
     state: &routes::SessionState,
-    payment_method_id: &id_type::GlobalPaymentMethodId,
+    token: &str,
     card_cvc: hyperswitch_masking::Secret<String>,
     fulfillment_time: i64,
     key_store: &domain::MerchantKeyStore,
@@ -2340,10 +2344,7 @@ pub async fn insert_cvc_using_payment_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let key = format!(
-        "pm_token_{}_hyperswitch_cvc",
-        payment_method_id.get_string_repr()
-    );
+    let key = format!("pm_token_{token}_hyperswitch_cvc");
 
     let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
 
@@ -2378,7 +2379,7 @@ pub async fn insert_cvc_using_payment_token(
     Ok(card_token_cvc_storage)
 }
 
-#[cfg(feature = "v2")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 #[instrument(skip_all)]
 pub async fn retrieve_and_delete_cvc_from_payment_token(
     state: &routes::SessionState,
@@ -2412,7 +2413,7 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
     );
 
     // delete key after retrieving the cvc
-    redis_conn.delete_key(&key.into()).await.map_err(|err| {
+    let _ = redis_conn.delete_key(&key.into()).await.map_err(|err| {
         logger::error!("Failed to delete token from redis: {:?}", err);
     });
 
