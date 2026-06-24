@@ -935,6 +935,7 @@ async fn payments_incoming_webhook_flow(
                 shadow_ucs_call_connector_action,
                 None,
                 HeaderPayload::default(),
+                None,
             ))
             .await;
             // When mandate details are present in successful webhooks, and consuming webhooks are skipped during payment sync if the payment status is already updated to charged, this function is used to update the connector mandate details.
@@ -1872,6 +1873,7 @@ async fn external_authentication_incoming_webhook_flow(
             eci: authentication_details.eci,
             challenge_cancel: authentication_details.challenge_cancel,
             challenge_code_reason: authentication_details.challenge_code_reason,
+            updated_by: platform.get_processor().get_account().storage_scheme.to_string(),
         };
         let authentication =
             if let webhooks::ObjectReferenceId::ExternalAuthenticationID(authentication_id_type) =
@@ -1885,6 +1887,7 @@ async fn external_authentication_incoming_webhook_flow(
                             &authentication_id,
                             platform.get_processor().get_key_store(),
                             &key_manager_state,
+                            platform.get_processor().get_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
@@ -1900,6 +1903,7 @@ async fn external_authentication_incoming_webhook_flow(
                             connector_authentication_id.clone(),
                             platform.get_processor().get_key_store(),
                             &key_manager_state,
+                            platform.get_processor().get_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
@@ -1919,6 +1923,7 @@ async fn external_authentication_incoming_webhook_flow(
                 authentication_update,
                 platform.get_processor().get_key_store(),
                 &key_manager_state,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1988,6 +1993,7 @@ async fn external_authentication_incoming_webhook_flow(
                         None,
                         None,
                         HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                        None,
                     ))
                     .await?
                 } else {
@@ -2010,6 +2016,7 @@ async fn external_authentication_incoming_webhook_flow(
                         None,
                         None,
                         HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                        None,
                     ))
                     .await?
                 };
@@ -2221,6 +2228,7 @@ async fn frm_incoming_webhook_flow(
                     None,
                     None,
                     HeaderPayload::default(),
+                    None,
                 ))
                 .await?
             }
@@ -2250,6 +2258,7 @@ async fn frm_incoming_webhook_flow(
                     None,
                     None,
                     HeaderPayload::default(),
+                    None,
                 ))
                 .await?
             }
@@ -2476,6 +2485,7 @@ async fn bank_transfer_webhook_flow(
             None,
             None,
             HeaderPayload::with_source(common_enums::PaymentSource::Webhook),
+            None,
         ))
         .await;
         (response, created_by)

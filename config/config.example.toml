@@ -286,6 +286,7 @@ multisafepay.base_url = "https://testapi.multisafepay.com/"
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"
+payconex.base_url = "https://cert.payconex.net"
 nmi.base_url = "https://secure.nmi.com/"
 nomupay.base_url = "https://payout-api.sandbox.nomupay.com"
 noon.base_url = "https://api-test{{region}}.noonpayments.com/"
@@ -1284,7 +1285,7 @@ connector_list = "tokenio"
 recon = "test@example.com"
 
 [cell_information]
-id = "12345" # Default CellID for Global Cell Information
+id = "0a" # Default CellID for Global Cell Information
 
 [network_tokenization_supported_card_networks]
 card_networks = "Visa, AmericanExpress, Mastercard" # Supported card networks for network tokenization

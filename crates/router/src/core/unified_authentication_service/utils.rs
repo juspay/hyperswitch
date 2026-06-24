@@ -171,6 +171,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
     device_details: Option<api_models::payments::DeviceDetails>,
     merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    storage_scheme: diesel_models::enums::MerchantStorageScheme,
 ) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
     let key_state = state.into();
     let authentication_update = match router_data.response {
@@ -308,6 +309,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         shipping_country: shipping_address
                             .clone()
                             .and_then(|shipping| shipping.address.clone().and_then(|address| address.country.map(|country| country.to_string()))),
+                        updated_by: storage_scheme.to_string(),
                     },
                 )
             }
@@ -373,6 +375,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         device_display: device_details
                             .as_ref()
                             .and_then(|details| details.device_display.clone()),
+                        updated_by: storage_scheme.to_string(),
                     },
                 )
             }
@@ -411,6 +414,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         eci: authentication_details.eci,
                         challenge_cancel: authentication_details.challenge_cancel,
                         challenge_code_reason: authentication_details.challenge_code_reason,
+                        updated_by: storage_scheme.to_string(),
                     },
                 )
             }
@@ -433,6 +437,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .map(|reason| format!("message: {}, reason: {}", error.message, reason))
                     .or(Some(error.message)),
                 error_code: Some(error.code),
+                updated_by: storage_scheme.to_string(),
             },
         ),
     }?;
@@ -444,6 +449,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
             authentication_update,
             merchant_key_store,
             &key_state,
+            storage_scheme,
         )
         .await
         .change_context(ApiErrorResponse::InternalServerError)

@@ -89,6 +89,8 @@ pub struct PaymentIntent {
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -201,6 +203,8 @@ pub struct PaymentIntent {
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -419,6 +423,8 @@ pub struct PaymentIntentNew {
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -511,6 +517,8 @@ pub struct PaymentIntentNew {
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -598,6 +606,10 @@ pub enum PaymentIntentUpdate {
         surcharge_applicable: Option<bool>,
         updated_by: String,
     },
+    ExternalSurchargeApplicableUpdate {
+        external_surcharge_applicable: Option<bool>,
+        updated_by: String,
+    },
     IncrementalAuthorizationAmountUpdate {
         amount: MinorUnit,
     },
@@ -650,6 +662,8 @@ pub struct PaymentIntentUpdateFields {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub payment_channel: Option<Option<common_enums::PaymentChannel>>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -696,6 +710,8 @@ pub struct PaymentIntentUpdateFields {
     pub shipping_cost: Option<MinorUnit>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
 }
 
 // TODO: uncomment fields as necessary
@@ -745,6 +761,8 @@ pub struct PaymentIntentUpdateInternal {
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -793,6 +811,8 @@ impl PaymentIntentUpdateInternal {
             enable_partial_authorization,
             state_metadata,
             profile_acquirer_id,
+            external_surcharge_strategy,
+            external_surcharge_applicable,
         } = self;
 
         PaymentIntent {
@@ -840,6 +860,10 @@ impl PaymentIntentUpdateInternal {
             request_external_three_ds_authentication: request_external_three_ds_authentication
                 .or(source.request_external_three_ds_authentication),
             profile_acquirer_id: profile_acquirer_id.or(source.profile_acquirer_id),
+            external_surcharge_strategy: external_surcharge_strategy
+                .or(source.external_surcharge_strategy),
+            external_surcharge_applicable: external_surcharge_applicable
+                .or(source.external_surcharge_applicable),
             updated_by,
             force_3ds_challenge: force_3ds_challenge.or(source.force_3ds_challenge),
             is_iframe_redirection_enabled: is_iframe_redirection_enabled
@@ -943,6 +967,8 @@ pub struct PaymentIntentUpdateInternal {
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -1001,6 +1027,8 @@ impl PaymentIntentUpdate {
             state_metadata: _,
             installment_options: _,
             profile_acquirer_id,
+            external_surcharge_strategy,
+            external_surcharge_applicable,
             ..
         } = self.into();
         PaymentIntent {
@@ -1065,6 +1093,10 @@ impl PaymentIntentUpdate {
             enable_overcapture: enable_overcapture.or(source.enable_overcapture),
             shipping_cost: shipping_cost.or(source.shipping_cost),
             profile_acquirer_id: profile_acquirer_id.or(source.profile_acquirer_id),
+            external_surcharge_strategy: external_surcharge_strategy
+                .or(source.external_surcharge_strategy),
+            external_surcharge_applicable: external_surcharge_applicable
+                .or(source.external_surcharge_applicable),
             ..source
         }
     }
@@ -1131,6 +1163,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::StateMetadataUpdate {
                 state_metadata,
@@ -1188,6 +1222,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_cost: None,
                 profile_acquirer_id: None,
                 installment_options: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -1243,6 +1279,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 state_metadata: None,
                 installment_options: value.installment_options,
                 profile_acquirer_id: value.profile_acquirer_id,
+                external_surcharge_strategy: value.external_surcharge_strategy,
+                external_surcharge_applicable: value.external_surcharge_applicable,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -1305,6 +1343,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -1364,6 +1404,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -1423,6 +1465,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -1490,6 +1534,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1548,6 +1594,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -1607,6 +1655,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -1665,6 +1715,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -1723,6 +1775,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -1780,6 +1834,67 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
+            },
+            PaymentIntentUpdate::ExternalSurchargeApplicableUpdate {
+                external_surcharge_applicable,
+                updated_by,
+            } => Self {
+                external_surcharge_applicable,
+                updated_by,
+                amount: None,
+                currency: None,
+                status: None,
+                amount_captured: None,
+                customer_id: None,
+                return_url: None,
+                setup_future_usage: None,
+                off_session: None,
+                metadata: None,
+                billing_address_id: None,
+                shipping_address_id: None,
+                modified_at: common_utils::date_time::now(),
+                active_attempt_id: None,
+                business_country: None,
+                business_label: None,
+                description: None,
+                statement_descriptor_name: None,
+                statement_descriptor_suffix: None,
+                order_details: None,
+                attempt_count: None,
+                merchant_decision: None,
+                payment_confirm_source: None,
+                surcharge_applicable: None,
+                incremental_authorization_allowed: None,
+                authorization_count: None,
+                session_expiry: None,
+                fingerprint_id: None,
+                request_external_three_ds_authentication: None,
+                frm_metadata: None,
+                customer_details: None,
+                billing_details: None,
+                merchant_order_reference_id: None,
+                shipping_details: None,
+                is_payment_processor_token_flow: None,
+                tax_details: None,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+                extended_return_url: None,
+                payment_channel: None,
+                feature_metadata: None,
+                state_metadata: None,
+                installment_options: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
+                enable_overcapture: None,
+                shipping_cost: None,
+                profile_acquirer_id: None,
+                external_surcharge_strategy: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -1834,6 +1949,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -1890,6 +2007,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -1946,6 +2065,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
                 status,
@@ -2000,6 +2121,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
@@ -2059,6 +2182,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -2113,6 +2238,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             },
         }
     }

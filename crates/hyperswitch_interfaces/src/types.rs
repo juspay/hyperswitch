@@ -13,9 +13,9 @@ use hyperswitch_domain_models::{
             Authorize, AuthorizeSessionToken, Balance, CalculateSurcharge, CalculateTax, Capture,
             CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
             CreateOrder, ExtendAuthorization, GenerateQr, IncrementalAuthorization, InitPayment,
-            PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens,
-            PreProcessing, PushNotification, SdkSessionUpdate, Session, SettlementSplitCreate,
-            SetupMandate, UpdateMetadata, Void,
+            PSync, PaymentMethodToken, PostCaptureVoid, PostCaptureVoidSync, PostProcessing,
+            PostSessionTokens, PreAuthorizeVoid, PreProcessing, PushNotification, SdkSessionUpdate,
+            Session, SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
@@ -56,10 +56,11 @@ use hyperswitch_domain_models::{
         FetchDisputesRequestData, GenerateQrRequestData, GiftCardBalanceCheckRequestData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsCompleteRefundSurchrgeData, PaymentsCompleteSurchargeData,
-        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsCancelPostCaptureSyncData, PaymentsCaptureData, PaymentsCompleteRefundSurchrgeData,
+        PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData, PaymentsSessionData,
         PaymentsSurchargeCalculationData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, PushNotificationRequestData, RefundsData,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
@@ -228,7 +229,18 @@ pub type PaymentsVoidType =
 /// Type alias for `ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>`
 pub type PaymentsPostCaptureVoidType =
     dyn ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>;
-
+/// Type alias for `ConnectorIntegration<PostCaptureVoidSync, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>`
+pub type PaymentsPostCaptureVoidSyncType = dyn ConnectorIntegration<
+    PostCaptureVoidSync,
+    PaymentsCancelPostCaptureSyncData,
+    PaymentsResponseData,
+>;
+/// Type alias for `ConnectorIntegration<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, PaymentsResponseData>`
+pub type PaymentsPreAuthorizeVoidType = dyn ConnectorIntegration<
+    PreAuthorizeVoid,
+    PaymentsPreAuthorizeCancelData,
+    PaymentsResponseData,
+>;
 /// Type alias for `ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>`
 pub type TokenizationType = dyn ConnectorIntegration<
     PaymentMethodToken,

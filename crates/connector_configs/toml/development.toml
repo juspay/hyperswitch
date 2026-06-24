@@ -2429,6 +2429,24 @@ key1="Username"
   payment_method_type = "UnionPay"
 [[dlocal.voucher]]
   payment_method_type = "oxxo"
+[[dlocal.voucher]]
+  payment_method_type = "boleto"
+[[dlocal.voucher]]
+  payment_method_type = "efecty"
+[[dlocal.voucher]]
+  payment_method_type = "pago_efectivo"
+[[dlocal.voucher]]
+  payment_method_type = "red_pagos"
+[[dlocal.voucher]]
+  payment_method_type = "indomaret"
+[[dlocal.wallet]]
+  payment_method_type = "gcash"
+[[dlocal.wallet]]
+  payment_method_type = "dana"
+[[dlocal.bank_transfer]]
+  payment_method_type = "pix"
+[[dlocal.bank_transfer]]
+  payment_method_type = "pse"
 [dlocal.connector_auth.SignatureKey]
 api_key="X Login"
 key1="X Trans Key"
@@ -7208,10 +7226,16 @@ key1="API Password"
 [worldpayxml_payout]
 [[worldpayxml_payout.wallet]]
   payment_method_type = "apple_pay"
+[[worldpayxml_payout.wallet]]
+  payment_method_type = "google_pay"
 [[worldpayxml_payout.credit]]
   payment_method_type = "Visa"
+[[worldpayxml_payout.credit]]
+  payment_method_type = "Mastercard"
 [[worldpayxml_payout.debit]]
   payment_method_type = "Visa"
+[[worldpayxml_payout.debit]]
+  payment_method_type = "Mastercard"
 [worldpayxml_payout.metadata.purpose_of_payment]
 name="purpose_of_payment"
 label="Purpose of Payment"
@@ -8614,3 +8638,24 @@ api_key = "API Key"
 [hyperswitch]
 [hyperswitch.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[payconex]
+[[payconex.credit]]
+  payment_method_type = "Visa"
+[[payconex.credit]]
+  payment_method_type = "Mastercard"
+[[payconex.credit]]
+  payment_method_type = "AmericanExpress"
+[[payconex.credit]]
+  payment_method_type = "Discover"
+[[payconex.debit]]
+  payment_method_type = "Visa"
+[[payconex.debit]]
+  payment_method_type = "Mastercard"
+[[payconex.debit]]
+  payment_method_type = "AmericanExpress"
+[[payconex.debit]]
+  payment_method_type = "Discover"
+[payconex.connector_auth.BodyKey]
+api_key = "API Key"
+key1 = "Account Id"

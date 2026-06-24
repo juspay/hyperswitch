@@ -16,6 +16,7 @@ use hyperswitch_interfaces::{
     relay::{ConnectorRelayIntegration, UnreferencedRefundRouterData},
 };
 use hyperswitch_masking::Secret;
+use router_env::tracing::{self, instrument};
 
 use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
 use crate::{
@@ -994,6 +995,7 @@ pub async fn sync_relay_refund_with_gateway(
     Ok(relay_response)
 }
 
+#[instrument(skip_all)]
 async fn process_unreferenced_refund(
     state: &SessionState,
     platform: &domain::Platform,
@@ -1126,7 +1128,7 @@ async fn process_unreferenced_refund(
                 status: relay_status,
                 error_code: connector_resp.error_code,
                 error_message: connector_resp.error_message,
-                response_data: connector_resp.raw_response,
+                response_data: None,
             };
             (bytes, relay_update)
         }

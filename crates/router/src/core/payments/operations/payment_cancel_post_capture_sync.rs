@@ -1,0 +1,346 @@
+use std::marker::PhantomData;
+
+use api_models::enums::FrmSuggestion;
+use async_trait::async_trait;
+use common_utils::id_type;
+use error_stack::ResultExt;
+use router_env::{instrument, tracing};
+
+use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+use crate::{
+    core::{
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        errors::{self, RouterResult, StorageErrorExt},
+        payments::{self, helpers, operations, PaymentData},
+    },
+    routes::{app::ReqState, SessionState},
+    services,
+    types::{
+        self as core_types,
+        api::{self, PaymentIdTypeExt},
+        domain,
+        storage::{self, enums},
+    },
+    utils::OptionExt,
+};
+
+#[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
+#[operation(operations = "all", flow = "cancel_post_capture_sync")]
+pub struct PaymentCancelPostCaptureSync;
+
+type PaymentCancelPostCaptureSyncOperation<'b, F> =
+    BoxedOperation<'b, F, id_type::PaymentId, PaymentData<F>>;
+
+#[async_trait]
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, id_type::PaymentId>
+    for PaymentCancelPostCaptureSync
+{
+    #[instrument(skip_all)]
+    async fn get_trackers<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_id: &api::PaymentIdType,
+        _request: &id_type::PaymentId,
+        platform: &domain::Platform,
+        _auth_flow: services::AuthFlow,
+        _flow_kind: operations::PaymentFlowKind,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_fetch_data: operations::PaymentMethodFetchData,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, id_type::PaymentId, PaymentData<F>>>
+    {
+        let db = &*state.store;
+
+        let merchant_id = platform.get_processor().get_account().get_id();
+        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let payment_id = payment_id
+            .get_payment_intent_id()
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        let payment_intent = db
+            .find_payment_intent_by_payment_id_processor_merchant_id(
+                &payment_id,
+                merchant_id,
+                platform.get_processor().get_key_store(),
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        helpers::validate_payment_status_against_allowed_statuses(
+            payment_intent.status,
+            &[
+                enums::IntentStatus::Succeeded,
+                enums::IntentStatus::PartiallyCaptured,
+                enums::IntentStatus::PartiallyCapturedAndCapturable,
+            ],
+            "cancel_post_capture",
+        )?;
+
+        let payment_attempt = db
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                &payment_intent.payment_id,
+                merchant_id,
+                payment_intent.active_attempt.get_id().as_str(),
+                storage_scheme,
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        let shipping_address = helpers::get_address_by_id(
+            state,
+            payment_intent.shipping_address_id.clone(),
+            platform.get_processor().get_key_store(),
+            &payment_intent.payment_id,
+            merchant_id,
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await?;
+
+        let billing_address = helpers::get_address_by_id(
+            state,
+            payment_intent.billing_address_id.clone(),
+            platform.get_processor().get_key_store(),
+            &payment_intent.payment_id,
+            merchant_id,
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await?;
+
+        let payment_method_billing = helpers::get_address_by_id(
+            state,
+            payment_attempt.payment_method_billing_address_id.clone(),
+            platform.get_processor().get_key_store(),
+            &payment_intent.payment_id,
+            merchant_id,
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await?;
+
+        let currency = payment_attempt.currency.get_required_value("currency")?;
+        let amount = payment_attempt.get_total_amount().into();
+
+        let profile_id = payment_intent
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
+
+        let business_profile = db
+            .find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            })?;
+
+        let payment_data = PaymentData {
+            flow: PhantomData,
+            payment_intent,
+            payment_attempt,
+            currency,
+            amount,
+            mandate_id: None,
+            mandate_connector: None,
+            setup_mandate: None,
+            customer_acceptance: None,
+            token: None,
+            token_data: None,
+            address: core_types::PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
+                business_profile.use_billing_as_payment_method_billing,
+            ),
+            confirm: None,
+            payment_method_data: None,
+            payment_method_token: None,
+            payment_method_info: None,
+            force_sync: None,
+            all_keys_required: None,
+            refunds: vec![],
+            disputes: vec![],
+            attempts: None,
+            sessions_token: vec![],
+            card_cvc: None,
+            creds_identifier: None,
+            pm_token: None,
+            connector_customer_id: None,
+            recurring_mandate_payment_data: None,
+            multiple_capture_data: None,
+            redirect_response: None,
+            surcharge_details: None,
+            frm_message: None,
+            payment_link_data: None,
+            incremental_authorization_details: None,
+            authorizations: vec![],
+            authentication: None,
+            recurring_details: None,
+            poll_config: None,
+            tax_data: None,
+            session_id: None,
+            service_details: None,
+            card_testing_guard_data: None,
+            vault_operation: None,
+            threeds_method_comp_ind: None,
+            whole_connector_response: None,
+            is_manual_retry_enabled: None,
+            is_l2_l3_enabled: false,
+            external_authentication_data: None,
+            client_session_id: None,
+            vault_session_details: None,
+            external_vault_pmd: None,
+        };
+
+        let get_trackers_response = operations::GetTrackerResponse {
+            operation: Box::new(self),
+            customer_details: None,
+            payment_data,
+            business_profile,
+            mandate_type: None,
+        };
+
+        Ok(get_trackers_response)
+    }
+
+    async fn validate_request_with_state(
+        &self,
+        _state: &SessionState,
+        _request: &id_type::PaymentId,
+        payment_data: &mut PaymentData<F>,
+        _business_profile: &domain::Profile,
+    ) -> RouterResult<()> {
+        let is_post_capture_void_pending = payment_data
+            .payment_intent
+            .state_metadata
+            .as_ref()
+            .map(|state_metadata| state_metadata.post_capture_void.is_some())
+            .unwrap_or(false);
+
+        if !is_post_capture_void_pending {
+            Err(error_stack::report!(
+                errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Post-capture sync is allowed only after a post-capture void has been initiated"
+                        .into()
+                }
+            ))?
+        };
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl<F: Clone + Send + Sync> Domain<F, id_type::PaymentId, PaymentData<F>>
+    for PaymentCancelPostCaptureSync
+{
+    #[instrument(skip_all)]
+    async fn get_or_create_customer_details<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut PaymentData<F>,
+        _request: Option<payments::CustomerDetails>,
+        _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
+        _dimensions: &operations::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<payments::mandates::MandateTransactionType>,
+    ) -> errors::CustomResult<
+        (
+            PaymentCancelPostCaptureSyncOperation<'a, F>,
+            Option<domain::Customer>,
+        ),
+        errors::StorageError,
+    > {
+        Ok((Box::new(self), None))
+    }
+
+    #[instrument(skip_all)]
+    async fn make_pm_data<'a>(
+        &'a self,
+        _state: &'a SessionState,
+        _payment_data: &mut PaymentData<F>,
+        _storage_scheme: enums::MerchantStorageScheme,
+        _platform: &domain::Platform,
+        _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
+    ) -> RouterResult<(
+        PaymentCancelPostCaptureSyncOperation<'a, F>,
+        Option<domain::PaymentMethodData>,
+        Option<String>,
+    )> {
+        Ok((Box::new(self), None, None))
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        _processor: &domain::Processor,
+        state: &SessionState,
+        _request: &id_type::PaymentId,
+        _payment_intent: &storage::PaymentIntent,
+    ) -> errors::CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, None).await
+    }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &SessionState,
+        _processor: &domain::Processor,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+        _payment_data: &mut PaymentData<F>,
+        _business_profile: &domain::Profile,
+    ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
+    }
+}
+
+#[async_trait]
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, id_type::PaymentId>
+    for PaymentCancelPostCaptureSync
+{
+    #[instrument(skip_all)]
+    async fn update_trackers<'b>(
+        &'b self,
+        _state: &'b SessionState,
+        _req_state: ReqState,
+        _processor: &domain::Processor,
+        payment_data: PaymentData<F>,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+    ) -> RouterResult<(PaymentCancelPostCaptureSyncOperation<'b, F>, PaymentData<F>)>
+    where
+        F: 'b + Send,
+    {
+        Ok((Box::new(self), payment_data))
+    }
+}
+
+impl<F: Send + Clone + Sync> ValidateRequest<F, id_type::PaymentId, PaymentData<F>>
+    for PaymentCancelPostCaptureSync
+{
+    #[instrument(skip_all)]
+    fn validate_request<'a, 'b>(
+        &'b self,
+        request: &id_type::PaymentId,
+        processor: &'a domain::Processor,
+    ) -> RouterResult<(
+        PaymentCancelPostCaptureSyncOperation<'b, F>,
+        operations::ValidateResult,
+    )> {
+        Ok((
+            Box::new(self),
+            operations::ValidateResult {
+                merchant_id: processor.get_account().get_id().to_owned(),
+                payment_id: api::PaymentIdType::PaymentIntentId(request.to_owned()),
+                storage_scheme: processor.get_account().storage_scheme,
+                requeue: false,
+            },
+        ))
+    }
+}
