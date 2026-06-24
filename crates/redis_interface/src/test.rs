@@ -2338,23 +2338,3 @@ fn redis_config_has_protected_mode_enabled() {
     );
 }
 
-#[test]
-fn redis_config_has_protected_mode_enabled() {
-    let config = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../config/redis.conf"
-    ))
-    .expect("config/redis.conf must be readable");
-
-    let active_line = config
-        .lines()
-        .filter(|l| !l.trim().starts_with('#'))
-        .find(|l| l.contains("protected-mode"));
-
-    assert!(
-        active_line.map(|l| l.contains("yes")).unwrap_or(true),
-        "redis.conf must have `protected-mode yes` (or rely on the secure Redis default); \
-         found: {:?}",
-        active_line
-    );
-}
