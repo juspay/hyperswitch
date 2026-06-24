@@ -32,6 +32,82 @@ pub struct SdkPaymentContext {
     pub is_cit_transaction: bool,
 }
 
+struct PaymentContextSuperposition {
+    pub currency : Option<String>,
+    pub amount: Option<i64>,
+    pub payment_method: Option<api_enums::PaymentMethod>,
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    pub country: Option<common_enums::CountryAlpha2>,
+    pub connector: Option<String>,
+}
+
+/// Build a random `PaymentsRequest` from the `[pm_filters.worldpayxml]` country/currency lists.
+///
+/// Picks a random amount, currency, country (billing address) and payment method, then materialises
+/// the request through JSON (the same shape a real create call uses) so we don't have to construct
+/// the 80+ field `PaymentsRequest` by hand. Currency/country are validated against their enums and
+/// fall back to `USD`/`US` so the request always deserializes.
+#[cfg(feature = "v1")]
+pub fn build_random_payment_create_request(
+) -> error_stack::Result<api_models::payments::PaymentsRequest, errors::ApiErrorResponse> {
+    use rand::{seq::SliceRandom, Rng};
+
+    // CountryAlpha2 codes configured for worldpayxml.
+    const COUNTRIES: &[&str] = &[
+        "AF", "DZ", "AW", "AU", "AZ", "BS", "BH", "BD", "BB", "BZ", "BM", "BT", "BO", "BA", "BW",
+        "BR", "BN", "BG", "BI", "KH", "CA", "CV", "KY", "CL", "CO", "KM", "CD", "CR", "CZ", "DK",
+        "DJ", "ST", "DO", "EC", "EG", "SV", "ER", "ET", "FK", "FJ", "GM", "GE", "GH", "GI", "GT",
+        "GN", "GY", "HT", "HN", "HK", "HU", "IS", "IN", "ID", "IR", "IQ", "IE", "IL", "IT", "JM",
+        "JP", "JO", "KZ", "KE", "KW", "LA", "LB", "LS", "LR", "LY", "LT", "MO", "MK", "MG", "MW",
+        "MY", "MV", "MR", "MU", "MX", "MD", "MN", "MA", "MZ", "MM", "NA", "NZ", "NI", "NG", "KP",
+        "NO", "AR", "PK", "PG", "PY", "PE", "UY", "PH", "PL", "GB", "QA", "OM", "RO", "RU", "RW",
+        "WS", "SG", "ZA", "KR", "LK", "SH", "SD", "SR", "SZ", "SE", "CH", "SY", "TW", "TJ", "TZ",
+        "TH", "TT", "TN", "TR", "UG", "UA", "US", "UZ", "VU", "VE", "VN", "ZM", "ZW",
+    ];
+    // ISO 4217 currency codes configured for worldpayxml.
+    const CURRENCIES: &[&str] = &[
+        "AFN", "DZD", "ANG", "AWG", "AUD", "AZN", "BSD", "BHD", "BDT", "BBD", "BZD", "BMD", "BTN",
+        "BOB", "BAM", "BWP", "BRL", "BND", "BGN", "BIF", "KHR", "CAD", "CVE", "KYD", "XOF", "XAF",
+        "XPF", "CLP", "COP", "KMF", "CDF", "CRC", "EUR", "CZK", "DKK", "DJF", "DOP", "XCD", "EGP",
+        "SVC", "ERN", "ETB", "FKP", "FJD", "GMD", "GEL", "GHS", "GIP", "GTQ", "GNF", "GYD", "HTG",
+        "HNL", "HKD", "HUF", "ISK", "INR", "IDR", "IRR", "IQD", "ILS", "JMD", "JPY", "JOD", "KZT",
+        "KES", "KWD", "LAK", "LBP", "LSL", "LRD", "LYD", "MOP", "MKD", "MGA", "MWK", "MYR", "MVR",
+        "MRU", "MUR", "MXN", "MDL", "MNT", "MAD", "MZN", "MMK", "NAD", "NPR", "NZD", "NIO", "NGN",
+        "KPW", "NOK", "ARS", "PKR", "PAB", "PGK", "PYG", "PEN", "UYU", "PHP", "PLN", "GBP", "QAR",
+        "OMR", "RON", "RUB", "RWF", "WST", "SAR", "RSD", "SCR", "SLL", "SGD", "STN", "SBD", "SOS",
+        "ZAR", "KRW", "LKR", "SHP", "SDG", "SRD", "SZL", "SEK", "CHF", "SYP", "TWD", "TJS", "TZS",
+        "THB", "TOP", "TTD", "TND", "TRY", "TMT", "AED", "UGX", "UAH", "USD", "UZS", "VUV", "VND",
+        "YER", "CNY", "ZMW", "ZWL",
+    ];
+    const PAYMENT_METHODS: &[&str] = &["card", "wallet"];
+
+    let mut rng = rand::thread_rng();
+
+    let amount = rng.gen_range(100..1_000_000_u64);
+    let currency = CURRENCIES
+        .choose(&mut rng)
+        .copied()
+        .filter(|code| code.parse::<api_enums::Currency>().is_ok())
+        .unwrap_or("USD");
+    let country = COUNTRIES
+        .choose(&mut rng)
+        .copied()
+        .filter(|code| code.parse::<common_enums::CountryAlpha2>().is_ok())
+        .unwrap_or("US");
+    let payment_method = PAYMENT_METHODS.choose(&mut rng).copied().unwrap_or("card");
+
+    let request_json = serde_json::json!({
+        "amount": amount,
+        "currency": currency,
+        "payment_method": payment_method,
+        "billing": { "address": { "country": country } },
+    });
+
+    serde_json::from_value::<api_models::payments::PaymentsRequest>(request_json)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to build random payment create request")
+}
+
 async fn get_payment_context(
     state: &SessionState,
     platform: &domain::Platform,
@@ -362,6 +438,21 @@ pub async fn get_superposition_sdk_config(
         },
     )?;
 
+    let merchant_connector_accounts = db
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            merchant_account.get_id(),
+            false,
+            platform.get_processor().get_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let all_active_connectors = merchant_connector_accounts
+        .into_iter()
+        .filter(|mca| mca.profile_id == profile_id)
+        .map(|mca| mca.connector_name)
+        .collect::<Vec<String>>();
+
     let business_profile = db
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
@@ -406,6 +497,101 @@ pub async fn get_superposition_sdk_config(
                 .collect(),
         ),
     );
+
+    // Resolve a superposition config per active connector, evaluating each connector against
+    // its own payment context. Connectors that superposition marks with `is_processing: true`
+    // are collected into the evaluated-connector list.
+    let mut superposition_evaluated_connectors: Vec<String> = Vec::new();
+
+    for connector in &all_active_connectors {
+        let payment_context_for_superposition = PaymentContextSuperposition {
+            currency: payment_intent.currency.map(|c| c.to_string()),
+            amount: Some(payment_intent.amount.get_amount_as_i64()),
+            payment_method: payment_context.payment_attempt.as_ref().and_then(|pa| pa.payment_method),
+            payment_method_type: payment_context.payment_attempt.as_ref().and_then(|pa| pa.payment_method_type),
+            country: payment_context.billing_address.as_ref().and_then(|c| c.country),
+            connector: Some(connector.clone()),
+        };
+
+        // Build the evaluation context for this connector from the shared dimensions plus the
+        // per-payment context fields.
+        let mut config_context = external_services::superposition::ConfigContext::new()
+            .with("profile_id", profile_id.get_string_repr())
+            .with("merchant_id", merchant_account.get_id().get_string_repr())
+            .with(
+                "organization_id",
+                merchant_account.get_org_id().get_string_repr(),
+            );
+
+        if let Some(connector_name) = payment_context_for_superposition.connector.as_ref() {
+            config_context = config_context.with("connector", connector_name);
+        }
+        if let Some(currency) = payment_context_for_superposition.currency.as_ref() {
+            config_context = config_context.with("currency", currency);
+        }
+        if let Some(amount) = payment_context_for_superposition.amount {
+            config_context = config_context.with("amount", &amount.to_string());
+        }
+        if let Some(payment_method) = payment_context_for_superposition.payment_method {
+            config_context = config_context.with("payment_method", &payment_method.to_string());
+        }
+        if let Some(payment_method_type) = payment_context_for_superposition.payment_method_type {
+            config_context =
+                config_context.with("payment_method_type", &payment_method_type.to_string());
+        }
+        if let Some(country) = payment_context_for_superposition.country.as_ref() {
+            config_context = config_context.with("country", &country.to_string());
+        }
+
+        let resolved_config = state
+            .superposition_service
+            .resolve_full_config(Some(&config_context), None)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| {
+                format!("Failed to resolve superposition config for connector: {connector}")
+            })?;
+
+        // If superposition resolved this connector as currently processing, record it.
+        let is_processing = resolved_config
+            .get("is_processing")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
+
+        if is_processing {
+            superposition_evaluated_connectors.push(connector.clone());
+        }
+    }
+
+    let eligible_connectors: Vec<String> = merchant_enabled_context
+        .get_eligible_connectors()
+        .into_iter()
+        .collect();
+
+    // Compare the eligible connectors against the connectors that superposition evaluated as
+    // processing. If the two sets differ, surface the mismatching connector names as an error.
+    let eligible_connector_set: std::collections::HashSet<&String> =
+        eligible_connectors.iter().collect();
+    let evaluated_connector_set: std::collections::HashSet<&String> =
+        superposition_evaluated_connectors.iter().collect();
+
+    let mut mismatched_connectors: Vec<String> = eligible_connector_set
+        .symmetric_difference(&evaluated_connector_set)
+        .map(|connector| connector.to_string())
+        .collect();
+    mismatched_connectors.sort();
+
+    if !mismatched_connectors.is_empty() {
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: format!(
+                    "Connector mismatch between eligible connectors and superposition evaluated \
+                     connectors: [{}]",
+                    mismatched_connectors.join(", ")
+                ),
+            }
+        ));
+    }
 
     let raw_configs = state
         .superposition_service

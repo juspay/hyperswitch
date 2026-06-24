@@ -124,3 +124,81 @@ pub async fn get_profile_sdk_config(
     ))
     .await
 }
+
+/// Number of random payments `validate` seeds per invocation before resolving the config.
+#[cfg(feature = "v1")]
+const RANDOM_PAYMENTS_COUNT: usize = 5;
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::GetSuperpositionSdkConfig))]
+pub async fn validate(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::GetSuperpositionSdkConfig;
+
+    // Seed random payments by invoking the payments create endpoint, reading the generated
+    // payment_id back from each create response so we can resolve the config against it.
+    let mut last_payment_id = None;
+    for _ in 0..RANDOM_PAYMENTS_COUNT {
+        let payment_request =
+            match superposition_sdk_config::build_random_payment_create_request() {
+                Ok(payment_request) => payment_request,
+                Err(err) => return api::log_and_return_error_response(err),
+            };
+
+        let create_response = actix_web::Responder::respond_to(
+            crate::routes::payments::payments_create(
+                state.clone(),
+                req.clone(),
+                web::Json(payment_request),
+            )
+            .await,
+            &req,
+        );
+
+        // `PaymentsResponse` is serialize-only, so read the `payment_id` field out of the JSON body.
+        if let Some(payment_id) = actix_web::body::to_bytes(create_response.into_body())
+            .await
+            .ok()
+            .and_then(|body| serde_json::from_slice::<serde_json::Value>(body.as_ref()).ok())
+            .and_then(|value| {
+                value
+                    .get("payment_id")
+                    .and_then(serde_json::Value::as_str)
+                    .map(ToOwned::to_owned)
+            })
+            .and_then(|payment_id| common_utils::id_type::PaymentId::wrap(payment_id).ok())
+        {
+            last_payment_id = Some(payment_id);
+        }
+    }
+
+    let payment_id = match last_payment_id {
+        Some(payment_id) => payment_id,
+        None => {
+            return api::log_and_return_error_response(error_stack::report!(
+                errors::ApiErrorResponse::InternalServerError
+            ))
+        }
+    };
+
+    // Resolve the superposition SDK config against the last seeded payment.
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state: super::SessionState, auth_data, _req, _| {
+            superposition_sdk_config::get_superposition_sdk_config(
+                state,
+                auth_data.platform,
+                payment_id.clone(),
+            )
+        },
+        &auth::HeaderAuth(auth::PublishableKeyAuth {
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: false,
+        }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
