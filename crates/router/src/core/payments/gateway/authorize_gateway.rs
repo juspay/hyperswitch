@@ -309,6 +309,11 @@ where
                                         network_error_message: network_error_message.clone(),
                                         connector_metadata: None,
                                     });
+                                // Surface the connector's HTTP status code on the router data,
+                                // mirroring the success path (and the Direct gateway). Without
+                                // this the field stays `None` on UCS connector errors while the
+                                // Direct path reports the real status, producing a shadow diff.
+                                router_data.connector_http_status_code = Some(status_code);
                                 // Return Ok with router_data containing the error response
                                 // This ensures the connector error flows through the normal
                                 // response handling path (same as direct connector errors)
