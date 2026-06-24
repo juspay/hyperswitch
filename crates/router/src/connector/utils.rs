@@ -2600,6 +2600,7 @@ pub enum PaymentMethodDataType {
     MandiriVaBankTransfer,
     Pix,
     PixEmv,
+    PixQr,
     PixAutomaticoPush,
     PixAutomaticoQr,
     Pse,
