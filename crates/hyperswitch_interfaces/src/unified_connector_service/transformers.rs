@@ -266,6 +266,14 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
             .as_ref()
             .and_then(|e| e.connector_details.as_ref());
 
+        // Parse connector_metadata round-tripped from UCS via the response `metadata`
+        // field, so PSync mirrors HS-native which carries request.connector_meta into
+        // the response connector_metadata.
+        let parsed_connector_metadata: Option<serde_json::Value> = response
+            .metadata
+            .clone()
+            .and_then(|secret| serde_json::from_str(&secret.expose()).ok());
+
         let response = if let Some(error_code) =
             connector_details.and_then(|details| details.code.clone())
         {
@@ -330,7 +338,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                             .transpose()?,
                     ),
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
-                    connector_metadata: None,
+                    connector_metadata: parsed_connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
                     connector_response_reference_id: response.merchant_transaction_id,
