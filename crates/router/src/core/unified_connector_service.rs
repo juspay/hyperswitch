@@ -1163,7 +1163,8 @@ pub fn build_unified_connector_service_payment_method(
             }),
             hyperswitch_domain_models::payment_method_data::BankTransferData::PixAutomaticoPush { .. }
             | hyperswitch_domain_models::payment_method_data::BankTransferData::PixAutomaticoQr {}
-            | hyperswitch_domain_models::payment_method_data::BankTransferData::PixEmv {} => {
+            | hyperswitch_domain_models::payment_method_data::BankTransferData::PixEmv {}
+            | hyperswitch_domain_models::payment_method_data::BankTransferData::PixQr {} => {
                 Err(UnifiedConnectorServiceError::NotImplemented(format!(
                     "Unimplemented payment method subtype: {payment_method_type:?}"
                 ))

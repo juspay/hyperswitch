@@ -690,7 +690,7 @@ crypto_currency = { country = "AL, AD, AT, BE, BA, BG, HR, CZ, DK, EE, FI, FR, D
 eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 
 [pm_filters.santander]
-pix_emv = { country = "BR", currency = "BRL" }
+pix_qr = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.calida]
