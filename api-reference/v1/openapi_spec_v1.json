@@ -27762,8 +27762,7 @@
           "merchant_id",
           "event_id",
           "event_type",
-          "content",
-          "timestamp"
+          "content"
         ],
         "properties": {
           "merchant_id": {
@@ -27905,25 +27904,6 @@
               },
               "object": {
                 "$ref": "#/components/schemas/ConfirmSubscriptionResponse"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "title": "ResponseSurchargeDetails",
-            "required": [
-              "type",
-              "object"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "surcharge_details"
-                ]
-              },
-              "object": {
-                "$ref": "#/components/schemas/ResponseSurchargeDetails"
               }
             }
           }
@@ -40784,32 +40764,6 @@
               "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
             },
             "description": "The list of payment method types enabled for a connector account"
-          }
-        }
-      },
-      "ResponseSurchargeDetails": {
-        "type": "object",
-        "description": "Details of surcharge applied on this payment, if applicable",
-        "required": [
-          "surcharge_amount",
-          "external_surcharge_id",
-          "attempt_id"
-        ],
-        "properties": {
-          "surcharge_amount": {
-            "type": "integer",
-            "format": "int64",
-            "example": 6540
-          },
-          "external_surcharge_id": {
-            "type": "string"
-          },
-          "payment_id": {
-            "type": "string",
-            "nullable": true
-          },
-          "attempt_id": {
-            "type": "string"
           }
         }
       },
