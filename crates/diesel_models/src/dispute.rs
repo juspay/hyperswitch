@@ -90,7 +90,7 @@ impl Dispute {
         dispute_id: &str,
     ) -> String {
         format!(
-            "dspt_dispute_id_{}_{}",
+            "dispute_{}_{}",
             merchant_id.get_string_repr(),
             dispute_id
         )
@@ -102,7 +102,7 @@ impl Dispute {
         connector_dispute_id: &str,
     ) -> String {
         format!(
-            "dspt_conn_dispute_id_{}_{}_{}",
+            "dispute_{}_{}_{}",
             merchant_id.get_string_repr(),
             payment_id.get_string_repr(),
             connector_dispute_id
