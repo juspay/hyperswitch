@@ -1379,8 +1379,10 @@ max_random_schedule_delay_in_seconds = 300  # max random delay in seconds to sch
 redis_ttl_buffer_in_seconds= 300 # buffer time in seconds to be added to redis ttl for Revenue Recovery
 
 [clone_connector_allowlist]
-merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
-connector_names = "connector_names"     # Comma-separated list of allowed connector names
+connector_names = "connector_names"     # Comma-separated list of cloneable connector names
+
+[clone_connector_allowlist.payment_method_types]
+payment_method = "payment_method_types" # <payment_method> = comma-separated cloneable payment_method_types
 
 [infra_values]
 cluster = "CLUSTER"         # value of CLUSTER from deployment

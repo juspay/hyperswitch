@@ -1389,8 +1389,11 @@ job_schedule_buffer_time_in_seconds = 3600  # time in seconds to be added in sch
 reopen_workflow_buffer_time_in_seconds = 60  # time in seconds to be added in scheduling for calculate workflow
 
 [clone_connector_allowlist]
-merchant_ids = "merchant_123, merchant_234"     # Comma-separated list of allowed merchant IDs
-connector_names = "stripe, adyen"               # Comma-separated list of allowed connector names
+connector_names = "stripe, adyen, peachpayments"    # Comma-separated list of cloneable connector names
+
+[clone_connector_allowlist.payment_method_types]
+card = "credit, debit"                          # <payment_method> = comma-separated cloneable payment_method_types
+network_token = "network_token"
 
 [infra_values]
 cluster = "CLUSTER"         # value of CLUSTER from deployment
