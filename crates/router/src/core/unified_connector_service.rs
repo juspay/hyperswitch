@@ -46,7 +46,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_ucs_enabled, should_execute_based_on_rollout,
+                is_ucs_enabled, should_execute_based_on_rollout_for_webhooks,
                 should_execute_based_on_rollout_with_precedence, MerchantConnectorAccountType,
                 ProxyOverride,
             },
@@ -701,10 +701,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
     processor: &Processor,
     connector_name: &str,
-) -> RouterResult<(
-    ExecutionPath,
-    Option<Vec<api_models::webhooks::WebhookFlow>>,
-)> {
+) -> RouterResult<(ExecutionPath, Vec<api_models::webhooks::WebhookFlow>)> {
     // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
 
@@ -732,7 +729,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
     let previous_gateway = None;
 
-    let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
+    let rollout_result = should_execute_based_on_rollout_for_webhooks(state, &rollout_key).await?;
 
     // Use the same decision logic as payments, with no call_connector_action to consider
     let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {

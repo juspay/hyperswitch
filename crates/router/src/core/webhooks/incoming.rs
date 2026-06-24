@@ -201,6 +201,17 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
     Ok(application_response)
 }
 
+fn confirm_path_for_flow(
+    candidate_flow: common_enums::ExecutionPath,
+    flow: Option<api::WebhookFlow>,
+    enabled_flows: &[api::WebhookFlow],
+) -> common_enums::ExecutionPath {
+    match flow {
+        Some(f) if enabled_flows.contains(&f) => candidate_flow,
+        _ => common_enums::ExecutionPath::Direct,
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
@@ -272,7 +283,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             let connector_name = mca_data.connector_name.clone();
             let mca_ref = mca_data.merchant_connector_account.as_ref();
 
-            let (mut execution_path, supported_webhook_flows) =
+            let (candidate_path, enabled_flows) =
                 unified_connector_service::should_call_unified_connector_service_for_webhooks(
                     &state,
                     platform.get_processor(),
@@ -281,11 +292,11 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 .await?;
             logger::info!(
                 connector = %connector_name,
-                ?execution_path,
-                "Selected webhook execution path"
+                ?candidate_path,
+                "Selected webhook execution path for event parsing"
             );
 
-            let (ucs_event_reference, ucs_event_type) = match execution_path {
+            let (ucs_event_reference, ucs_event_type) = match candidate_path {
                 common_enums::ExecutionPath::UnifiedConnectorService
                 | common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
                     super::gateway::get_webhook_event_details_from_ucs(
@@ -301,14 +312,9 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 _ => (None, None),
             };
 
-            let webhook_flow = ucs_event_type.map(api::WebhookFlow::from);
+            let flow = ucs_event_type.map(api::WebhookFlow::from);
 
-            match (&webhook_flow, &supported_webhook_flows) {
-                (Some(flow), Some(flows)) if !flows.is_empty() && flows.contains(flow) => {}
-                _ => {
-                    execution_path = common_enums::ExecutionPath::Direct;
-                }
-            }
+            let execution_path = confirm_path_for_flow(candidate_path, flow, &enabled_flows);
 
             let execution_mode = match execution_path {
                 common_enums::ExecutionPath::UnifiedConnectorService => {
@@ -319,6 +325,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 }
                 common_enums::ExecutionPath::Direct => common_enums::ExecutionMode::NotApplicable,
             };
+            logger::info!(?execution_path, "Selected webhook execution path");
 
             let ctx = super::gateway::WebhookGatewayContext {
                 state: state.clone(),
@@ -328,14 +335,12 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 merchant_connector_account: mca_ref.cloned(),
                 execution_path,
                 execution_mode,
-            };
-            let outcome = super::gateway::execute_incoming_webhook_gateway(
-                &ctx,
-                &request_details,
-                ucs_event_reference,
+                ucs_reference: ucs_event_reference,
                 ucs_event_type,
-            )
-            .await;
+            };
+
+            let outcome =
+                super::gateway::execute_incoming_webhook_gateway(&ctx, &request_details).await;
 
             (connector, connector_name, outcome)
         }
@@ -3003,6 +3008,8 @@ pub async fn process_uas_incoming_webhook<'a>(
         merchant_connector_account: None,
         execution_path: common_enums::ExecutionPath::Direct,
         execution_mode: common_enums::ExecutionMode::NotApplicable,
+        ucs_reference: None,
+        ucs_event_type: None,
     };
 
     // Reuse inbound request metadata, but parse using UAS response body.

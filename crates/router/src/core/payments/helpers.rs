@@ -2483,7 +2483,25 @@ pub struct RolloutConfig {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
     pub execution_mode: ExecutionMode,
-    pub webhook_flows: Option<Vec<api::WebhookFlow>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct WebhookRolloutConfig {
+    #[serde(flatten)]
+    pub rollout_configs: RolloutConfig,
+    #[serde(default, deserialize_with = "deserialize_webhook_flows")]
+    pub webhook_flows: Vec<api::WebhookFlow>,
+}
+
+fn deserialize_webhook_flows<'de, D>(deserializer: D) -> Result<Vec<api::WebhookFlow>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let raw = Vec::<serde_json::Value>::deserialize(deserializer)?;
+    Ok(raw
+        .into_iter()
+        .filter_map(|value| serde_json::from_value::<api::WebhookFlow>(value).ok())
+        .collect())
 }
 
 impl Default for RolloutConfig {
@@ -2493,7 +2511,6 @@ impl Default for RolloutConfig {
             http_url: None,
             https_url: None,
             execution_mode: ExecutionMode::NotApplicable,
-            webhook_flows: None,
         }
     }
 }
@@ -2506,7 +2523,7 @@ pub struct RolloutExecutionResult {
     pub should_execute: bool,
     pub proxy_override: Option<ProxyOverride>,
     pub execution_mode: ExecutionMode,
-    pub webhook_flows: Option<Vec<api::WebhookFlow>>,
+    pub webhook_flows: Vec<api::WebhookFlow>,
 }
 
 impl Default for RolloutExecutionResult {
@@ -2515,7 +2532,7 @@ impl Default for RolloutExecutionResult {
             should_execute: false,
             proxy_override: None,
             execution_mode: ExecutionMode::NotApplicable,
-            webhook_flows: None,
+            webhook_flows: Vec::new(),
         }
     }
 }
@@ -2597,7 +2614,7 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                             should_execute: true,
                             proxy_override,
                             execution_mode: config.execution_mode,
-                            webhook_flows: config.webhook_flows,
+                            webhook_flows: Vec::new(),
                         }
                     }
                     false => {
@@ -2610,6 +2627,15 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                 }
             }
         }
+    }
+}
+
+impl From<WebhookRolloutConfig> for RolloutExecutionResult {
+    fn from(config: WebhookRolloutConfig) -> Self {
+        let webhook_flows = config.webhook_flows;
+        let mut result = RolloutExecutionResult::from(config.rollout_configs);
+        result.webhook_flows = webhook_flows;
+        result
     }
 }
 
@@ -2648,6 +2674,46 @@ pub async fn should_execute_based_on_rollout(
                     logger::error!(
                         error = ?err,
                         "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+                    );
+                }
+            }
+            Ok(RolloutExecutionResult::default())
+        }
+    }
+}
+
+pub async fn should_execute_based_on_rollout_for_webhooks(
+    state: &SessionState,
+    config_key: &str,
+) -> RouterResult<RolloutExecutionResult> {
+    let db = state.store.as_ref();
+
+    match db.find_config_by_key(config_key).await {
+        Ok(rollout_config) => {
+            Ok(serde_json::from_str::<WebhookRolloutConfig>(&rollout_config.config)
+                .map(RolloutExecutionResult::from)
+                .map_err(|err| {
+                    logger::error!(
+                        error = ?err,
+                        config = %rollout_config.config,
+                        "Failed to parse webhook rollout config as JSON. Defaulting to not execute and setting should_execute to false."
+                    );
+                    RolloutExecutionResult::default()
+                })
+                .unwrap_or_default())
+        }
+        Err(err) => {
+            match err.current_context() {
+                errors::StorageError::ValueNotFound(_) => {
+                    logger::warn!(
+                        error = ?err,
+                        "Failed to fetch webhook rollout config from DB. Defaulting to not execute and setting should_execute to false."
+                    );
+                }
+                _ => {
+                    logger::error!(
+                        error = ?err,
+                        "Failed to fetch webhook rollout config from DB. Defaulting to not execute and setting should_execute to false."
                     );
                 }
             }
