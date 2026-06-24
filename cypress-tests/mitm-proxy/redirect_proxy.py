@@ -54,11 +54,12 @@ _REDIRECT_COMPLETE_RE = re.compile(r".*/redirect/(complete|response)/[^/?]+")
 _lock = threading.Lock()
 # testIdHash → rid reserved for the next redirect/complete POST
 _reserved: dict[str, str] = {}
+# testIdHash → number of redirects saved so far (for sequential filename)
+_redirect_count: dict[str, int] = {}
 
 
 def _save_redirect(
     test_id_hash: str,
-    rid: str,
     method: str,
     path_only: str,
     query_string: str,
@@ -108,8 +109,11 @@ def _save_redirect(
         if redirect_segment:
             data["__redirect_segment"] = redirect_segment
 
-    # Extract sequence number from rid: "{testIdHash}-{NNN}" → "NNN"
-    seq = rid.split("-")[-1] if rid and "-" in rid else "000"
+    # Sequential counter per test (1st redirect = 001, 2nd = 002, …)
+    # matches the _redirectReadCount counter in commands.js during replay.
+    with _lock:
+        _redirect_count[test_id_hash] = _redirect_count.get(test_id_hash, 0) + 1
+        seq = str(_redirect_count[test_id_hash]).zfill(3)
     filename = f"{test_id_hash}-{seq}-redirect-body.json"
 
     # Save to fixtures/proxy-bodies/ for local replay
@@ -167,7 +171,6 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 query_string = self.path.split("?", 1)[1] if "?" in self.path else ""
                 _save_redirect(
                     test_id_hash,
-                    rid,
                     self.command,
                     path_only,
                     query_string,
@@ -230,6 +233,7 @@ class AdminHandler(BaseHTTPRequestHandler):
             test_id_hash = (data.get("testIdHash") or "").strip()
             with _lock:
                 _reserved.pop(test_id_hash, None)
+                _redirect_count.pop(test_id_hash, None)
             print(f"[redirect-proxy] test/start hash={test_id_hash or '(none)'}")
             self._json(200, {"ok": True})
 
