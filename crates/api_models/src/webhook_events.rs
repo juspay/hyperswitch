@@ -172,7 +172,7 @@ pub struct OutgoingWebhookRequestContent {
 }
 
 /// The response information (headers, body and status code) received for the webhook sent.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct OutgoingWebhookResponseContent {
     /// The response body received for the webhook sent.
     #[schema(value_type = Option<String>)]
