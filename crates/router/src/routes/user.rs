@@ -39,6 +39,41 @@ pub async fn get_active_user_details(state: web::Data<AppState>, req: HttpReques
     .await
 }
 
+/// `POST /user/launch_trace` — mint a federated HyperSage Trace
+/// session for a Control Center user who clicked the Trace launcher.
+///
+/// The body is empty by design; the identity is read from the
+/// verified `AuthToken`. The handler proxies a mint request to
+/// HyperSage's `POST /api/sage/session` and returns the handoff URL
+/// the browser navigates to (Phase 5's `/handoff` endpoint on the
+/// HyperSage side will swap the URL token for an HttpOnly cookie).
+///
+/// Tracking: juspay/hypersage#1040 (parent), #1066 (spike), #1067 (impl).
+///
+/// TODO(launch_trace#1040): auth strategy. Using
+/// `DashboardNoPermissionAuth` because federation is an identity-
+/// attestation step, not a payment/account permission. HyperSage
+/// performs the authoritative merchant-access gate against its
+/// `auth_users.merchant_ids` allowlist. Dashboard team to confirm
+/// this is the right call vs. forcing a specific `Permission`.
+#[cfg(feature = "olap")]
+pub async fn launch_trace(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
+    let flow = Flow::LaunchTrace;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &http_req,
+        (),
+        |state, user: auth::UserFromToken, _, _| user_core::launch_trace::launch_trace(state, user),
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "email")]
 pub async fn user_signup_with_merchant_id(
     state: web::Data<AppState>,

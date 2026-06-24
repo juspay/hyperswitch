@@ -57,6 +57,7 @@ use crate::{db::user_role::ListUserRolesByOrgIdPayload, types::transformers::For
 use crate::{services::email::types as email_types, utils::user as user_utils};
 
 pub mod dashboard_metadata;
+pub mod launch_trace;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
 pub mod theme;

@@ -359,3 +359,36 @@ impl super::settings::ChatSettings {
         })
     }
 }
+
+impl super::settings::TraceIntegrationSettings {
+    /// Boot-time validator for the federated HyperSage Trace session
+    /// flag (juspay/hypersage#1040). Mirrors HyperSage's own
+    /// `_validate_tokens` guard — refuses to boot the process when
+    /// the flag is on with no upstream URL or no shared infra key.
+    /// Catches sandbox typos before they reach prod; without this, a
+    /// misconfigured deploy would 401 every federated mint and leave
+    /// CC users with a broken Trace launcher silently.
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.enabled && self.sage_base_url.trim().is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "trace_integration.sage_base_url must be set if \
+                 trace_integration.enabled is true"
+                    .into(),
+            ))
+        })?;
+        when(
+            self.enabled && self.infra_key.peek().trim().is_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "trace_integration.infra_key must be set if \
+                     trace_integration.enabled is true \
+                     (HYPERSAGE_INFRA_KEY in env). Refusing to boot \
+                     rather than serving a half-configured federated path."
+                        .into(),
+                ))
+            },
+        )
+    }
+}

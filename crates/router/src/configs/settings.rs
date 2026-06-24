@@ -83,6 +83,7 @@ pub struct Settings<S: SecretState> {
     pub proxy: Proxy,
     pub env: Env,
     pub chat: SecretStateContainer<ChatSettings, S>,
+    pub trace_integration: SecretStateContainer<TraceIntegrationSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
@@ -241,6 +242,21 @@ pub struct ChatSettings {
     pub enabled: bool,
     pub hyperswitch_ai_host: String,
     pub encryption_key: Secret<String>,
+}
+
+/// Federated HyperSage Trace session settings (issue
+/// juspay/hypersage#1040). Off by default everywhere. The
+/// `validate()` impl lives in `crates/router/src/configs/validations.rs`
+/// alongside the other config validators; the boot-time chain in
+/// `Settings::validate` calls it to refuse boot when
+/// `enabled=true` with no `sage_base_url` / `infra_key` — fail-closed
+/// for a half-configured rollout.
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct TraceIntegrationSettings {
+    pub enabled: bool,
+    pub sage_base_url: String,
+    pub infra_key: Secret<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -1214,6 +1230,7 @@ impl Settings<SecuredSecret> {
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
         self.chat.get_inner().validate()?;
+        self.trace_integration.get_inner().validate()?;
         self.cors.validate()?;
 
         self.scheduler

@@ -315,6 +315,32 @@ impl SecretsHandler for settings::ChatSettings {
 }
 
 #[async_trait::async_trait]
+impl SecretsHandler for settings::TraceIntegrationSettings {
+    /// KMS-decrypt the federated infra key only when the flag is on.
+    /// Matches the `ChatSettings` impl above so a disabled
+    /// integration costs zero secret-fetch calls at boot.
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let trace_settings = value.get_inner();
+
+        let infra_key = if trace_settings.enabled {
+            secret_management_client
+                .get_secret(trace_settings.infra_key.clone())
+                .await?
+        } else {
+            trace_settings.infra_key.clone()
+        };
+
+        Ok(value.transition_state(|trace_settings| Self {
+            infra_key,
+            ..trace_settings
+        }))
+    }
+}
+
+#[async_trait::async_trait]
 impl SecretsHandler for settings::NetworkTokenizationService {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -516,6 +542,14 @@ pub(crate) async fn fetch_raw_secrets(
         .expect("Failed to decrypt chat configs");
 
     #[allow(clippy::expect_used)]
+    let trace_integration = settings::TraceIntegrationSettings::convert_to_raw_secret(
+        conf.trace_integration,
+        secret_management_client,
+    )
+    .await
+    .expect("Failed to decrypt trace_integration configs");
+
+    #[allow(clippy::expect_used)]
     let superposition =
         external_services::superposition::SuperpositionClientConfig::convert_to_raw_secret(
             conf.superposition,
@@ -533,6 +567,7 @@ pub(crate) async fn fetch_raw_secrets(
         server: conf.server,
         application_source: conf.application_source,
         chat,
+        trace_integration,
         master_database,
         redis: conf.redis,
         log: conf.log,
