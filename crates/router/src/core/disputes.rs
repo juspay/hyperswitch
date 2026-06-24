@@ -85,9 +85,10 @@ pub async fn retrieve_dispute(
             core_utils::validate_profile_id_from_auth_layer(profile_id.clone(), &dispute)?;
 
             let payment_attempt = db
-                .find_payment_attempt_by_attempt_id_processor_merchant_id(
-                    &dispute.attempt_id,
+                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                    &dispute.payment_id,
                     platform.get_processor().get_account().get_id(),
+                    &dispute.attempt_id,
                     platform.get_processor().get_account().storage_scheme,
                     platform.get_processor().get_key_store(),
                 )
@@ -330,9 +331,10 @@ pub async fn accept_dispute(
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_processor_merchant_id(
-            &dispute.attempt_id,
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            &dispute.payment_id,
             processor.get_account().get_id(),
+            &dispute.attempt_id,
             processor.get_account().storage_scheme,
             processor.get_key_store(),
         )
@@ -454,9 +456,10 @@ pub async fn submit_evidence(
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_processor_merchant_id(
-            &dispute.attempt_id,
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            &dispute.payment_id,
             processor.get_account().get_id(),
+            &dispute.attempt_id,
             processor.get_account().storage_scheme,
             processor.get_key_store(),
         )

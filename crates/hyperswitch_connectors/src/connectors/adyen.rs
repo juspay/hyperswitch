@@ -99,11 +99,17 @@ use crate::{
     },
     utils::{
         convert_amount, convert_payment_authorize_router_response,
-        convert_setup_mandate_router_data_to_authorize_router_data, is_mandate_supported,
-        ForeignTryFrom, PaymentMethodDataType,
+        convert_setup_mandate_router_data_to_authorize_router_data, ForeignTryFrom,
     },
 };
 const ADYEN_API_VERSION: &str = "v68";
+
+const ADYEN_IMAGE_MAX_SIZE: i32 = 10_000_000;
+const ADYEN_PDF_MAX_SIZE: i32 = 2_000_000;
+const ADYEN_PDF_FORMAT: &str = "application/pdf";
+const ADYEN_SUPPORTED_DISPUTE_EVIDENCE_FILE_TYPES: [&str; 4] =
+    ["image/jpeg", "image/jpg", "image/tiff", ADYEN_PDF_FORMAT];
+const ADYEN_IMAGE_FILE_TYPES: [&str; 3] = ["image/jpeg", "image/jpg", "image/tiff"];
 
 #[derive(Clone)]
 pub struct Adyen {
@@ -379,34 +385,6 @@ impl ConnectorValidation for Adyen {
                 }
             },
         }
-    }
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        pm_data: payment_method_data::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::PaypalRedirect,
-            PaymentMethodDataType::MomoRedirect,
-            PaymentMethodDataType::KakaoPayRedirect,
-            PaymentMethodDataType::GoPayRedirect,
-            PaymentMethodDataType::GcashRedirect,
-            PaymentMethodDataType::DanaRedirect,
-            PaymentMethodDataType::TwintRedirect,
-            PaymentMethodDataType::VippsRedirect,
-            PaymentMethodDataType::KlarnaRedirect,
-            PaymentMethodDataType::Ideal,
-            PaymentMethodDataType::OpenBankingUk,
-            PaymentMethodDataType::Trustly,
-            PaymentMethodDataType::BancontactCard,
-            PaymentMethodDataType::AchBankDebit,
-            PaymentMethodDataType::SepaBankDebit,
-            PaymentMethodDataType::BecsBankDebit,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 
     fn validate_psync_reference_id(
@@ -745,7 +723,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ady
                 }),
             },
         };
-
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -1226,7 +1203,6 @@ impl
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::AdyenBalanceRequest::try_from(req)?;
-
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -2343,6 +2319,7 @@ impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeRespons
             .response
             .parse_struct("AdyenDisputeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         RouterData::foreign_try_from((data, response))
             .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -2421,7 +2398,7 @@ impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeRespons
             .response
             .parse_struct("AdyenDisputeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        RouterData::foreign_try_from((data, response))
+        RouterData::foreign_try_from((data, res, response))
             .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -2526,28 +2503,24 @@ impl FileUpload for Adyen {
     ) -> CustomResult<(), errors::ConnectorError> {
         match purpose {
             FilePurpose::DisputeEvidence => {
-                let supported_file_types =
-                    ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
-                if !supported_file_types.contains(&file_type.to_string().as_str()) {
+                let file_type_str = file_type.to_string();
+                if !ADYEN_SUPPORTED_DISPUTE_EVIDENCE_FILE_TYPES.contains(&file_type_str.as_str()) {
                     Err(errors::ConnectorError::FileValidationFailed {
-                        reason: "file_type does not match JPEG, JPG, PNG, or PDF format".to_owned(),
+                        reason: "file_type does not match JPEG, JPG, TIFF, or PDF format"
+                            .to_owned(),
                     })?
                 }
-                //10 MB
-                if (file_type.to_string().as_str() == "image/jpeg"
-                    || file_type.to_string().as_str() == "image/jpg"
-                    || file_type.to_string().as_str() == "image/png")
-                    && file_size > 10000000
+                if ADYEN_IMAGE_FILE_TYPES.contains(&file_type_str.as_str())
+                    && file_size > ADYEN_IMAGE_MAX_SIZE
                 {
                     Err(errors::ConnectorError::FileValidationFailed {
                         reason: "file_size exceeded the max file size of 10MB for Image formats"
                             .to_owned(),
                     })?
                 }
-                //2 MB
-                if file_type.to_string().as_str() == "application/pdf" && file_size > 2000000 {
+                if file_type_str.as_str() == ADYEN_PDF_FORMAT && file_size > ADYEN_PDF_MAX_SIZE {
                     Err(errors::ConnectorError::FileValidationFailed {
-                        reason: "file_size exceeded the max file size of 2MB for PDF formats"
+                        reason: "file_size exceeded the max file size of 2MB for PDF format"
                             .to_owned(),
                     })?
                 }

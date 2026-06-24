@@ -171,6 +171,7 @@ pub struct PaymentAttempt {
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     pub network_transaction_link_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
+    pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -308,6 +309,7 @@ pub struct PaymentAttempt {
     pub network_transaction_link_id: Option<String>,
     /// A connector-specific identifier representing the stored payment instrument
     pub sender_payment_instrument_id: Option<String>,
+    pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
 }
 
 #[cfg(feature = "v1")]
@@ -422,6 +424,7 @@ pub struct PaymentAttemptNew {
     pub unified_message: Option<String>,
     pub net_amount: MinorUnit,
     pub external_three_ds_authentication_attempted: Option<bool>,
+    pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<id_type::AuthenticationId>,
     pub fingerprint_id: Option<String>,
@@ -560,6 +563,7 @@ pub struct PaymentAttemptNew {
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     pub network_transaction_link_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
+    pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
 }
 
 #[cfg(feature = "v1")]
@@ -628,6 +632,7 @@ pub enum PaymentAttemptUpdate {
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         payment_method_id: Option<String>,
         external_three_ds_authentication_attempted: Option<bool>,
+        external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
         authentication_connector: Option<String>,
         authentication_id: Option<id_type::AuthenticationId>,
         payment_method_billing_address_id: Option<String>,
@@ -646,6 +651,7 @@ pub enum PaymentAttemptUpdate {
         network_transaction_link_id: Option<String>,
         is_stored_credential: Option<bool>,
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+        external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -778,6 +784,7 @@ pub enum PaymentAttemptUpdate {
     AuthenticationUpdate {
         status: storage_enums::AttemptStatus,
         external_three_ds_authentication_attempted: Option<bool>,
+        external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
         authentication_connector: Option<String>,
         authentication_id: Option<id_type::AuthenticationId>,
         updated_by: String,
@@ -1031,6 +1038,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     // external_three_ds_authentication_attempted: Option<bool>,
+    // external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     // authentication_connector: Option<String>,
     // authentication_id: Option<String>,
     // fingerprint_id: Option<String>,
@@ -1121,6 +1129,7 @@ impl PaymentAttemptUpdateInternal {
             net_amount: source.net_amount,
             external_three_ds_authentication_attempted: source
                 .external_three_ds_authentication_attempted,
+            external_threeds_authentication_type: source.external_threeds_authentication_type,
             authentication_connector: source.authentication_connector,
             authentication_id: source.authentication_id,
             fingerprint_id: source.fingerprint_id,
@@ -1219,6 +1228,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub unified_code: Option<Option<String>>,
     pub unified_message: Option<Option<String>>,
     pub external_three_ds_authentication_attempted: Option<bool>,
+    pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<id_type::AuthenticationId>,
     pub fingerprint_id: Option<String>,
@@ -1252,6 +1262,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub authorized_amount: Option<MinorUnit>,
     pub error_details: Option<Option<ErrorDetails>>,
     pub sender_payment_instrument_id: Option<String>,
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1428,6 +1439,7 @@ impl PaymentAttemptUpdate {
             unified_code,
             unified_message,
             external_three_ds_authentication_attempted,
+            external_threeds_authentication_type,
             authentication_connector,
             authentication_id,
             payment_method_billing_address_id,
@@ -1462,6 +1474,7 @@ impl PaymentAttemptUpdate {
             error_details,
             installment_data,
             sender_payment_instrument_id,
+            external_surcharge_details,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -1507,6 +1520,8 @@ impl PaymentAttemptUpdate {
             unified_message: unified_message.unwrap_or(source.unified_message),
             external_three_ds_authentication_attempted: external_three_ds_authentication_attempted
                 .or(source.external_three_ds_authentication_attempted),
+            external_threeds_authentication_type: external_threeds_authentication_type
+                .or(source.external_threeds_authentication_type),
             authentication_connector: authentication_connector.or(source.authentication_connector),
             authentication_id: authentication_id.or(source.authentication_id),
             payment_method_billing_address_id: payment_method_billing_address_id
@@ -1549,6 +1564,8 @@ impl PaymentAttemptUpdate {
             error_details: error_details.unwrap_or(source.error_details),
             sender_payment_instrument_id: sender_payment_instrument_id
                 .or(source.sender_payment_instrument_id),
+            external_surcharge_details: external_surcharge_details
+                .or(source.external_surcharge_details),
             ..source
         }
     }
@@ -2887,6 +2904,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code: None,
                 unified_message: None,
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 client_source: None,
@@ -2918,6 +2936,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -2961,6 +2980,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code: None,
                 unified_message: None,
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 fingerprint_id: None,
@@ -2995,6 +3015,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 sender_payment_instrument_id: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -3018,6 +3039,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 external_three_ds_authentication_attempted,
+                external_threeds_authentication_type,
                 authentication_connector,
                 authentication_id,
                 payment_method_billing_address_id,
@@ -3038,6 +3060,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_link_id,
                 is_stored_credential,
                 request_extended_authorization,
+                external_surcharge_details,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -3061,6 +3084,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 external_three_ds_authentication_attempted,
+                external_threeds_authentication_type,
                 authentication_connector,
                 authentication_id,
                 payment_method_billing_address_id,
@@ -3111,6 +3135,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                external_surcharge_details,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -3155,6 +3180,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code: None,
                 unified_message: None,
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 fingerprint_id: None,
@@ -3189,6 +3215,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_details: None,
                 installment_data: None,
                 sender_payment_instrument_id: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -3234,6 +3261,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code: None,
                 unified_message: None,
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 fingerprint_id: None,
@@ -3268,6 +3296,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_details: None,
                 installment_data: None,
                 sender_payment_instrument_id: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -3313,6 +3342,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code: None,
                 unified_message: None,
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 fingerprint_id: None,
@@ -3347,6 +3377,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_details: None,
                 installment_data: None,
                 sender_payment_instrument_id: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
@@ -3392,6 +3423,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code: None,
                 unified_message: None,
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 fingerprint_id: None,
@@ -3425,6 +3457,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_details: None,
                 installment_data: None,
                 sender_payment_instrument_id: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -3468,6 +3501,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code: None,
                 unified_message: None,
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 fingerprint_id: None,
@@ -3502,6 +3536,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_details: None,
                 installment_data: None,
                 sender_payment_instrument_id: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -3586,6 +3621,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     tax_amount: None,
                     merchant_connector_id: None,
                     external_three_ds_authentication_attempted: None,
+                    external_threeds_authentication_type: None,
                     authentication_connector: None,
                     authentication_id: None,
                     tokenization,
@@ -3617,6 +3653,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     error_details,
                     installment_data: None,
                     sender_payment_instrument_id,
+                    external_surcharge_details: None,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -3687,6 +3724,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     authentication_data: None,
                     encoded_data: None,
                     external_three_ds_authentication_attempted: None,
+                    external_threeds_authentication_type: None,
                     authentication_connector: None,
                     authentication_id: None,
                     fingerprint_id: None,
@@ -3718,6 +3756,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     encrypted_payment_method_data,
                     error_details,
                     sender_payment_instrument_id: None,
+                    external_surcharge_details: None,
                 }
             }
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
@@ -3759,6 +3798,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code: None,
                 unified_message: None,
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 fingerprint_id: None,
@@ -3793,6 +3833,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 sender_payment_instrument_id: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
@@ -3845,6 +3886,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code: None,
                 unified_message: None,
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 fingerprint_id: None,
@@ -3878,6 +3920,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -3937,6 +3980,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     unified_code: None,
                     unified_message: None,
                     external_three_ds_authentication_attempted: None,
+                    external_threeds_authentication_type: None,
                     authentication_connector: None,
                     authentication_id: None,
                     fingerprint_id: None,
@@ -3970,6 +4014,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     encrypted_payment_method_data: None,
                     error_details,
                     sender_payment_instrument_id: None,
+                    external_surcharge_details: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -4026,6 +4071,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     unified_code: None,
                     unified_message: None,
                     external_three_ds_authentication_attempted: None,
+                    external_threeds_authentication_type: None,
                     authentication_connector: None,
                     authentication_id: None,
                     fingerprint_id: None,
@@ -4059,6 +4105,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     encrypted_payment_method_data: None,
                     error_details: None,
                     sender_payment_instrument_id: None,
+                    external_surcharge_details: None,
                 }
             }
             PaymentAttemptUpdate::CaptureUpdate {
@@ -4104,6 +4151,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code: None,
                 unified_message: None,
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 fingerprint_id: None,
@@ -4138,6 +4186,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 sender_payment_instrument_id: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
@@ -4182,6 +4231,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code: None,
                 unified_message: None,
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 fingerprint_id: None,
@@ -4216,6 +4266,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 sender_payment_instrument_id: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
@@ -4271,6 +4322,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     unified_code: None,
                     unified_message: None,
                     external_three_ds_authentication_attempted: None,
+                    external_threeds_authentication_type: None,
                     authentication_connector: None,
                     authentication_id: None,
                     fingerprint_id: None,
@@ -4303,6 +4355,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     encrypted_payment_method_data: None,
                     error_details: None,
                     sender_payment_instrument_id: None,
+                    external_surcharge_details: None,
                 }
             }
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
@@ -4347,6 +4400,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code: None,
                 unified_message: None,
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 fingerprint_id: None,
@@ -4381,10 +4435,12 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 sender_payment_instrument_id: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
                 external_three_ds_authentication_attempted,
+                external_threeds_authentication_type,
                 authentication_connector,
                 authentication_id,
                 updated_by,
@@ -4392,6 +4448,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 status: Some(status),
                 modified_at: common_utils::date_time::now(),
                 external_three_ds_authentication_attempted,
+                external_threeds_authentication_type,
                 authentication_connector,
                 authentication_id,
                 updated_by,
@@ -4461,6 +4518,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 sender_payment_instrument_id: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
                 status,
@@ -4518,6 +4576,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     authentication_data: None,
                     encoded_data: None,
                     external_three_ds_authentication_attempted: None,
+                    external_threeds_authentication_type: None,
                     authentication_connector: None,
                     authentication_id: None,
                     fingerprint_id: None,
@@ -4551,6 +4610,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     encrypted_payment_method_data: None,
                     error_details: None,
                     sender_payment_instrument_id: None,
+                    external_surcharge_details: None,
                 }
             }
             PaymentAttemptUpdate::PostSessionTokensUpdate {
@@ -4595,6 +4655,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_data: None,
                 encoded_data: None,
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 fingerprint_id: None,
@@ -4629,6 +4690,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 sender_payment_instrument_id: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::RecurrenceUpdate {
                 status,
@@ -4678,6 +4740,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code: None,
                 unified_message: None,
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 fingerprint_id: None,
@@ -4710,6 +4773,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 sender_payment_instrument_id: None,
+                external_surcharge_details: None,
             },
         }
     }

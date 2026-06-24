@@ -586,6 +586,7 @@ impl
                     sdk_next_action: {
                         SdkNextAction {
                             next_action: NextActionCall::Confirm,
+                            should_block_confirm: None,
                         }
                     },
                     connector_reference_id: None,

@@ -91,6 +91,8 @@ pub const GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX: &str = "GUEST_USER_CARD_BLO
 
 pub const CUSTOMER_ID_BLOCKING_PREFIX: &str = "CUSTOMER_ID_BLOCKING";
 
+pub const GUEST_IP_BLOCKING_CACHE_KEY_PREFIX: &str = "GUEST_IP_BLOCKING";
+
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
 #[cfg(feature = "olap")]
@@ -126,6 +128,9 @@ pub const POLL_ID_TTL: i64 = 900;
 
 // 15 minutes = 900 seconds
 pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_TTL: i64 = 900;
+
+// TTL for external surcharge details stored in Redis (15 minutes)
+pub const EXTERNAL_SURCHARGE_TTL: i64 = 900;
 
 // Prefix key for storing authentication eligibility check data in redis
 pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY: &str = "AUTH_ELIGIBILITY_CHECK_DATA_";
@@ -176,6 +181,9 @@ pub const DEFAULT_BACKGROUND_COLOR: &str = "#212E46";
 /// Default product Img Link
 pub const DEFAULT_PRODUCT_IMG: &str =
     "https://live.hyperswitch.io/payment-link-assets/cart_placeholder.png";
+
+/// Show merchant name by default for payment links
+pub const DEFAULT_SHOW_MERCHANT_NAME: bool = true;
 
 /// Default SDK Layout
 pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
@@ -330,6 +338,10 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
 // Rollout percentage config prefix
 pub const UCS_ROLLOUT_PERCENT_CONFIG_PREFIX: &str = "ucs_rollout_config";
 
+// Sentinel value cached when a rollout config key is absent, so subsequent lookups
+// skip the DB entirely instead of hitting it on every cache miss.
+pub const UCS_ROLLOUT_CONFIG_NOT_CONFIGURED: &str = "not_configured";
+
 // UCS feature enabled config
 pub const UCS_ENABLED: &str = "ucs_enabled";
 
@@ -403,6 +415,8 @@ pub mod superposition {
     /// Trigger PM modular backward compatibility inline configuration key
     pub const SHOULD_TRIGGER_BACKWARDS_COMPATIBILITY_INLINE: &str =
         "should_trigger_backwards_compatibility_inline";
+    /// Trigger fingerprint migration configuration key
+    pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str = "should_trigger_fingerprint_migration";
     /// dynamic fields configuration key for sdk config
     pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
     /// payout sync tracker configuration key

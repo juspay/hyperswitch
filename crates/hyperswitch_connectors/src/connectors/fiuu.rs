@@ -1,11 +1,6 @@
 pub mod transformers;
 
-use std::{
-    any::type_name,
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    sync::LazyLock,
-};
+use std::{any::type_name, borrow::Cow, collections::HashMap, sync::LazyLock};
 
 use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
@@ -17,7 +12,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -58,7 +52,7 @@ use transformers::{self as fiuu, ExtraParameters, FiuuWebhooksResponse};
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, PaymentMethodDataType},
+    utils::{self},
 };
 
 pub fn parse_and_log_keys_in_url_encoded_response<T>(data: &[u8]) {
@@ -275,17 +269,7 @@ pub fn build_form_from_struct<T: Serialize + Send + 'static>(
     Ok(RequestContent::FormData((form, Box::new(data))))
 }
 
-impl ConnectorValidation for Fiuu {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd: HashSet<PaymentMethodDataType> =
-            HashSet::from([PaymentMethodDataType::Card]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Fiuu {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Fiuu {
     //TODO: implement sessions flow

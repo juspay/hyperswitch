@@ -271,6 +271,11 @@ pub struct CardTestingGuardConfig {
     pub customer_id_blocking_threshold: i32,
     /// Determines Redis Expiry for Card Testing Guard for profile
     pub card_testing_guard_expiry: i32,
+    /// Determines if Guest IP Blocking is enabled for profile
+    pub guest_ip_blocking_status: Option<CardTestingGuardStatus>,
+    /// Determines the unsuccessful payment threshold for Guest IP Blocking for profile
+    #[schema(default = 10)]
+    pub guest_ip_blocking_threshold: Option<i32>,
 }
 
 /// Configuration for payment method blocking based on card attributes
@@ -3540,6 +3545,9 @@ pub struct PaymentLinkConfigRequest {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
+    /// Flag to display the merchant name in the payment link
+    #[schema(default = true, example = true)]
+    pub show_merchant_name: Option<bool>,
 }
 
 impl PaymentLinkConfigRequest {
@@ -3652,6 +3660,8 @@ pub struct PaymentLinkConfig {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
+    /// Flag to display the merchant name in the payment link
+    pub show_merchant_name: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
