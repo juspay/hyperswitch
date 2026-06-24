@@ -761,6 +761,15 @@ jobs:
                   "parallel": 3,
                   "report_artifact_name": "cypress-mock-test-results-payments-batch-2",
                   "server_logs_artifact": "mock-server-logs-payments-batch-2"
+                },
+                {
+                  "name": "mock-payments-batch-3",
+                  "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_3}"'",
+                  "payouts_connectors": "",
+                  "platform_connectors": "",
+                  "parallel": 5,
+                  "report_artifact_name": "cypress-mock-test-results-payments-batch-3",
+                  "server_logs_artifact": "mock-server-logs-payments-batch-3"
                 }
               ]
             }'
