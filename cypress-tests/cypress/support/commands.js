@@ -5192,7 +5192,8 @@ Cypress.Commands.add(
       const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
       const captureDir = Cypress.env("CAPTURE_DIR");
-      _redirectReadCount[testIdHash] = (_redirectReadCount[testIdHash] || 0) + 1;
+      _redirectReadCount[testIdHash] =
+        (_redirectReadCount[testIdHash] || 0) + 1;
       const seq = String(_redirectReadCount[testIdHash]).padStart(3, "0");
       const redirectBodyFile = captureDir
         ? `${captureDir}/${connectorId}/Payment/redirect-bodies/${testIdHash}-${seq}-redirect-body.json`
@@ -5270,10 +5271,9 @@ Cypress.Commands.add(
             saved.__redirect_method === "POST" && saved.__body
               ? saved.__body
               : saved;
-          const postUrl =
-            saved.__redirect_segment
-              ? `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`
-              : notificationUrl;
+          const postUrl = saved.__redirect_segment
+            ? `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`
+            : notificationUrl;
           cy.request({
             method: "POST",
             url: postUrl,
@@ -5356,7 +5356,8 @@ Cypress.Commands.add(
       const baseUrl = globalState.get("baseUrl");
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
       const captureDir = Cypress.env("CAPTURE_DIR");
-      _redirectReadCount[testIdHash] = (_redirectReadCount[testIdHash] || 0) + 1;
+      _redirectReadCount[testIdHash] =
+        (_redirectReadCount[testIdHash] || 0) + 1;
       const seq = String(_redirectReadCount[testIdHash]).padStart(3, "0");
       const redirectBodyFile = captureDir
         ? `${captureDir}/${connectorId}/Payment/redirect-bodies/${testIdHash}-${seq}-redirect-body.json`
@@ -5511,7 +5512,8 @@ Cypress.Commands.add(
       const baseUrl = globalState.get("baseUrl");
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
       const captureDir = Cypress.env("CAPTURE_DIR");
-      _redirectReadCount[testIdHash] = (_redirectReadCount[testIdHash] || 0) + 1;
+      _redirectReadCount[testIdHash] =
+        (_redirectReadCount[testIdHash] || 0) + 1;
       const seq = String(_redirectReadCount[testIdHash]).padStart(3, "0");
       const redirectBodyFile = captureDir
         ? `${captureDir}/${connectorId}/Payment/redirect-bodies/${testIdHash}-${seq}-redirect-body.json`
@@ -5521,7 +5523,11 @@ Cypress.Commands.add(
         Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
 
       cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
-        if (saved && saved.__redirect_method === "GET" && saved.__redirect_segment) {
+        if (
+          saved &&
+          saved.__redirect_method === "GET" &&
+          saved.__redirect_segment
+        ) {
           const url = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`;
           const qs = new URLSearchParams(saved.__query || {}).toString();
           cy.request({
@@ -5574,7 +5580,10 @@ Cypress.Commands.add(
     const redirectionUrlFallback = new URL(nextActionUrl);
     handleRedirection(
       "bank_redirect",
-      { redirectionUrl: redirectionUrlFallback, expectedUrl: expectedUrlFallback },
+      {
+        redirectionUrl: redirectionUrlFallback,
+        expectedUrl: expectedUrlFallback,
+      },
       connectorId,
       paymentMethodType
     );
