@@ -277,8 +277,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::Unspecified => None,
                 _ => {
-                    let mapped =
-                        AttemptStatus::foreign_try_from((response.status(), prev_status))?;
+                    let mapped = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
                     (mapped != prev_status).then_some(mapped)
                 }
             };
