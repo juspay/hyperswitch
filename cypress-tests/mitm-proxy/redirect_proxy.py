@@ -49,7 +49,8 @@ UPSTREAM_PORT = int(os.environ.get("REDIRECT_PROXY_UPSTREAM_PORT", "8080"))
 
 # Matches both /redirect/complete/{connector} (ACS form POST / GET, e.g. Redsys, Cybersource)
 # and /redirect/response/{connector} (JS iframe return URL, e.g. Stripe).
-_REDIRECT_COMPLETE_RE = re.compile(r".*/redirect/(complete|response)/[^/?]+")
+# Anchored at a path segment boundary to avoid polynomial backtracking on adversarial input.
+_REDIRECT_COMPLETE_RE = re.compile(r"/redirect/(?:complete|response)/[^/?]+")
 
 _lock = threading.Lock()
 # testIdHash → rid reserved for the next redirect/complete POST
@@ -127,10 +128,16 @@ def _save_redirect(
     # packaged with the cassettes tarball and is available in CI.
     redirect_segment = data.get("__redirect_segment")
     if redirect_segment:
-        connector = redirect_segment.split("/")[-1]
+        raw_connector = redirect_segment.split("/")[-1]
+        # Sanitize: only allow alphanumeric and hyphens to prevent path traversal.
+        connector = re.sub(r"[^a-zA-Z0-9\-]", "", raw_connector)
+        if not connector:
+            return
         captures_body_dir = os.path.join(CAPTURE_DIR, connector, "Payment", "redirect-bodies")
         os.makedirs(captures_body_dir, exist_ok=True)
-        captures_path = os.path.join(captures_body_dir, filename)
+        # Use basename to strip any traversal sequences from the filename.
+        safe_filename = os.path.basename(filename)
+        captures_path = os.path.join(captures_body_dir, safe_filename)
         with open(captures_path, "w") as f:
             json.dump(data, f, indent=2)
         print(f"[redirect-proxy] body also saved → {captures_path}")
