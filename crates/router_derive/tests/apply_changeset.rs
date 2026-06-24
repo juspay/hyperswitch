@@ -358,7 +358,10 @@ pub struct NonOptionalToOptionUpdate {
 
 #[test]
 fn test_non_optional_update_for_optional_target_none_start() {
-    let target = OptionTargetWithNonOptionalUpdate { name: None, count: None };
+    let target = OptionTargetWithNonOptionalUpdate {
+        name: None,
+        count: None,
+    };
 
     let update = NonOptionalToOptionUpdate {
         name: "new name".to_string(),
