@@ -29,6 +29,10 @@ use common_utils::{
         StringMajorUnitForConnector,
     },
 };
+#[cfg(all(feature = "v1", feature = "olap"))]
+use diesel_models::{
+    payment_attempt::PaymentAttempt as DieselPaymentAttempt, PaymentIntent as DieselPaymentIntent,
+};
 use diesel_models::{
     ephemeral_key,
     payment_attempt::{
@@ -36,8 +40,6 @@ use diesel_models::{
         NetworkDetails as DieselNetworkDetails,
     },
 };
-#[cfg(all(feature = "v1", feature = "olap"))]
-use diesel_models::{PaymentAttempt as DieselPaymentAttempt, PaymentIntent as DieselPaymentIntent};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     mandates,
@@ -4628,6 +4630,9 @@ pub fn construct_connector_invoke_hidden_frame(
 
 #[cfg(all(feature = "v1", feature = "olap"))]
 impl ForeignFrom<(DieselPaymentIntent, DieselPaymentAttempt)> for api::PlatformPaymentListItem {
+    // Maps raw (undecrypted) diesel rows to the slim platform list item. Only non-encrypted
+    // columns are read, so no merchant key store / decryption is required. Intent fields come
+    // from `pi`, active-attempt fields from `pa`.
     fn foreign_from((pi, pa): (DieselPaymentIntent, DieselPaymentAttempt)) -> Self {
         Self {
             payment_id: pi.payment_id,
@@ -4637,30 +4642,29 @@ impl ForeignFrom<(DieselPaymentIntent, DieselPaymentAttempt)> for api::PlatformP
             status: pi.status,
             amount: pi.amount,
             amount_captured: pi.amount_captured,
+            net_amount: pa.net_amount,
+            amount_capturable: pa.amount_capturable,
             currency: pi.currency,
             customer_id: pi.customer_id,
             description: pi.description,
             metadata: pi.metadata,
             created: Some(pi.created_at),
             modified_at: pi.modified_at,
+            setup_future_usage: pa.setup_future_usage_applied.or(pi.setup_future_usage),
+            capture_method: pa.capture_method,
+            authentication_type: pa.authentication_type,
             attempt_count: pi.attempt_count,
-            setup_future_usage: pi.setup_future_usage,
             merchant_order_reference_id: pi.merchant_order_reference_id,
             return_url: pi.return_url,
-            // Attempt-level fields surfaced for the dashboard listing.
             connector: pa.connector,
+            merchant_connector_id: pa.merchant_connector_id,
             payment_method: pa.payment_method,
             payment_method_type: pa.payment_method_type,
-            card_network: pa.card_network,
-            connector_transaction_id: pa
-                .connector_transaction_id
-                .as_ref()
-                .map(|tid| tid.get_id().clone()),
-            amount_capturable: pa.amount_capturable,
-            authentication_type: pa.authentication_type,
-            capture_method: pa.capture_method,
-            client_secret: pi.client_secret,
+            payment_method_id: pa.payment_method_id,
+            connector_response_reference_id: pa.connector_response_reference_id,
             error_message: pa.error_message,
+            error_code: pa.error_code,
+            cancellation_reason: pa.cancellation_reason,
         }
     }
 }

@@ -31,7 +31,40 @@ use common_utils::{
 use error_stack::ResultExt;
 
 use crate::customers::CustomerDocumentDetails;
-#[cfg(feature = "v2")]
+
+/// Deserializes a comma-separated string of merchant ids into `Option<Vec<MerchantId>>`.
+/// `MerchantId` does not implement `FromStr`, so it cannot use [`parse_comma_separated`].
+#[cfg(feature = "v1")]
+fn parse_comma_separated_merchant_ids<'de, D>(
+    v: D,
+) -> Result<Option<Vec<id_type::MerchantId>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let opt_str: Option<String> = Option::deserialize(v)?;
+    match opt_str {
+        Some(s) if s.trim().is_empty() => Ok(None),
+        Some(s) => {
+            let mut result = Vec::with_capacity(s.matches(',').count() + 1);
+            for item in s.split(',') {
+                let trimmed_item = item.trim();
+                if !trimmed_item.is_empty() {
+                    let merchant_id = id_type::MerchantId::wrap(trimmed_item.to_string())
+                        .map_err(|e| {
+                            <D::Error as serde::de::Error>::custom(format!(
+                                "Invalid merchant_id '{trimmed_item}': {e}"
+                            ))
+                        })?;
+                    result.push(merchant_id);
+                }
+            }
+            Ok(Some(result))
+        }
+        None => Ok(None),
+    }
+}
+
+#[cfg(any(feature = "v1", feature = "v2"))]
 fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -8982,6 +9015,128 @@ pub struct PaymentListResponse {
     pub data: Vec<PaymentsListResponseItem>,
 }
 
+/// Query constraints for the platform payments list (`GET /payments/list-platform`).
+///
+/// Mirrors the rich POST filter list (`PaymentListFilterConstraints`) but is designed to be
+/// passed as query parameters: list-valued filters are accepted as comma-separated strings.
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, utoipa::IntoParams)]
+#[serde(deny_unknown_fields)]
+pub struct PlatformPaymentListConstraints {
+    /// The identifier for payment
+    #[param(example = "pay_fafa124123", value_type = Option<String>)]
+    pub payment_id: Option<id_type::PaymentId>,
+
+    /// The identifier for business profile
+    #[param(example = "pro_abcdefghijklmnop", value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
+
+    /// The comma separated list of connected (processor) merchant ids to filter the list.
+    /// When omitted, payments across all connected merchants under the platform are returned.
+    #[param(value_type = Option<Vec<String>>, example = "connected_merchant_1,connected_merchant_2")]
+    #[serde(deserialize_with = "parse_comma_separated_merchant_ids", default)]
+    pub processor_merchant_id: Option<Vec<id_type::MerchantId>>,
+
+    /// The identifier for customer
+    #[param(
+        max_length = 64,
+        min_length = 1,
+        example = "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+        value_type = Option<String>,
+    )]
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// The customer email to filter payments list
+    #[param(value_type = Option<String>)]
+    pub customer_email: Option<Email>,
+
+    /// limit on the number of objects to return
+    #[param(default = 10, maximum = 100)]
+    #[serde(default = "default_payments_list_limit")]
+    pub limit: u32,
+
+    /// The starting point within a list of objects
+    pub offset: Option<u32>,
+
+    /// The start time (inclusive) of the created-at window to filter payments by.
+    #[param(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub start_time: Option<PrimitiveDateTime>,
+
+    /// The end time (inclusive) of the created-at window to filter payments by.
+    #[param(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub end_time: Option<PrimitiveDateTime>,
+
+    /// The start amount to filter list of transactions which are greater than or equal to the start amount
+    pub start_amount: Option<i64>,
+    /// The end amount to filter list of transactions which are less than or equal to the end amount
+    pub end_amount: Option<i64>,
+    /// The comma separated list of connectors to filter payments list
+    #[param(value_type = Option<Vec<Connector>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub connector: Option<Vec<api_enums::Connector>>,
+    /// The comma separated list of currencies to filter payments list
+    #[param(value_type = Option<Vec<Currency>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub currency: Option<Vec<enums::Currency>>,
+    /// The comma separated list of payment status to filter payments list
+    #[param(value_type = Option<Vec<IntentStatus>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub status: Option<Vec<enums::IntentStatus>>,
+    /// The comma separated list of payment methods to filter payments list
+    #[param(value_type = Option<Vec<PaymentMethod>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub payment_method: Option<Vec<enums::PaymentMethod>>,
+    /// The comma separated list of payment method types to filter payments list
+    #[param(value_type = Option<Vec<PaymentMethodType>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub payment_method_type: Option<Vec<enums::PaymentMethodType>>,
+    /// The comma separated list of authentication types to filter payments list
+    #[param(value_type = Option<Vec<AuthenticationType>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub authentication_type: Option<Vec<enums::AuthenticationType>>,
+    /// The comma separated list of merchant connector ids to filter payments list for selected label
+    #[param(value_type = Option<Vec<String>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+    /// The comma separated list of card networks to filter payments list
+    #[param(value_type = Option<Vec<CardNetwork>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub card_network: Option<Vec<enums::CardNetwork>>,
+    /// The comma separated list of card discovery methods to filter payments list
+    #[param(value_type = Option<Vec<CardDiscovery>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub card_discovery: Option<Vec<enums::CardDiscovery>>,
+    /// The identifier for merchant order reference id
+    pub merchant_order_reference_id: Option<String>,
+    /// The field on which the payments list should be sorted
+    #[serde(default)]
+    pub order_on: SortOn,
+    /// The order in which payments list should be sorted
+    #[serde(default)]
+    pub order_by: SortBy,
+}
+
+#[cfg(feature = "v1")]
+impl PlatformPaymentListConstraints {
+    pub fn has_no_attempt_filters(&self) -> bool {
+        self.connector.is_none()
+            && self.payment_method.is_none()
+            && self.payment_method_type.is_none()
+            && self.authentication_type.is_none()
+            && self.merchant_connector_id.is_none()
+            && self.card_network.is_none()
+            && self.card_discovery.is_none()
+    }
+}
+
+/// A single item in the platform payments list.
+///
+/// Intentionally a slim, non-PII summary: a platform listing aggregates payments across many
+/// connected merchants, each with PII encrypted under its own key store, so this view exposes
+/// only non-encrypted columns and performs no decryption. Use the single-payment retrieve
+/// (scoped to the connected merchant) when full PII is required.
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PlatformPaymentListItem {
@@ -9012,6 +9167,14 @@ pub struct PlatformPaymentListItem {
     #[schema(value_type = Option<i64>, example = 6540)]
     pub amount_captured: Option<MinorUnit>,
 
+    /// Net amount of the active attempt (amount + surcharge + tax - any adjustments).
+    #[schema(value_type = Option<i64>, example = 6540)]
+    pub net_amount: Option<MinorUnit>,
+
+    /// Amount still capturable on the active attempt.
+    #[schema(value_type = i64, example = 6540)]
+    pub amount_capturable: MinorUnit,
+
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<api_enums::Currency>,
 
@@ -9033,12 +9196,18 @@ pub struct PlatformPaymentListItem {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
 
+    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+
+    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    pub capture_method: Option<api_enums::CaptureMethod>,
+
+    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds")]
+    pub authentication_type: Option<api_enums::AuthenticationType>,
+
     /// Total number of payment attempts associated with this payment.
     #[schema(example = 1)]
     pub attempt_count: i16,
-
-    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
-    pub setup_future_usage: Option<api_enums::FutureUsage>,
 
     /// Merchant-supplied order reference id.
     #[schema(max_length = 255, example = "Custom_Order_id_123")]
@@ -9048,52 +9217,46 @@ pub struct PlatformPaymentListItem {
     #[schema(example = "https://example.com/return")]
     pub return_url: Option<String>,
 
-    /// Connector used for the active attempt.
-    #[schema(value_type = Option<Connector>, example = "stripe")]
+    /// Connector used on the active attempt.
+    #[schema(example = "stripe")]
     pub connector: Option<String>,
 
-    /// Payment method category used for the active attempt (e.g. card, wallet).
+    /// The merchant connector account id used on the active attempt.
+    #[schema(value_type = Option<String>, example = "mca_abcdefghijklmnop")]
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Payment method of the active attempt.
     #[schema(value_type = Option<PaymentMethod>, example = "card")]
     pub payment_method: Option<api_enums::PaymentMethod>,
 
-    /// Payment method subtype used for the active attempt (e.g. credit, apple_pay).
+    /// Payment method type of the active attempt.
     #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
-    /// Card network used for the active attempt, when applicable.
-    #[schema(example = "Visa")]
-    pub card_network: Option<String>,
+    /// Identifier of the payment method used on the active attempt.
+    pub payment_method_id: Option<String>,
 
-    /// Identifier of the transaction at the connector for the active attempt.
-    #[schema(example = "993672945374576J")]
-    pub connector_transaction_id: Option<String>,
+    /// Connector's reference id for the active attempt.
+    pub connector_response_reference_id: Option<String>,
 
-    /// Amount still capturable on the active attempt.
-    #[schema(value_type = i64, example = 6540)]
-    pub amount_capturable: MinorUnit,
-
-    /// Authentication type used for the active attempt (e.g. three_ds, no_three_ds).
-    #[schema(value_type = Option<AuthenticationType>, example = "three_ds")]
-    pub authentication_type: Option<api_enums::AuthenticationType>,
-
-    /// Capture method used for the active attempt (manual, automatic, etc.).
-    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
-    pub capture_method: Option<api_enums::CaptureMethod>,
-
-    /// Client secret used by SDKs to confirm the payment.
-    #[schema(example = "pay_..._secret_...")]
-    pub client_secret: Option<String>,
-
-    /// Error message from the connector for the active attempt, if any.
+    /// Error message from the active attempt, if the payment failed.
     #[schema(example = "Your card was declined.")]
     pub error_message: Option<String>,
+
+    /// Error code from the active attempt, if the payment failed.
+    pub error_code: Option<String>,
+
+    /// If the payment was cancelled, the reason will be provided here.
+    pub cancellation_reason: Option<String>,
 }
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PlatformPaymentListResponse {
-    /// The number of payments included in the list.
-    pub size: usize,
+    /// The number of payments included in the current response.
+    pub count: usize,
+    /// The total number of payments matching the given constraints (ignores limit/offset).
+    pub total_count: i64,
     /// The list of payment summaries across the platform's connected merchants.
     pub data: Vec<PlatformPaymentListItem>,
 }

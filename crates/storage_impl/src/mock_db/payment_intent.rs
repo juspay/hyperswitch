@@ -54,8 +54,23 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _platform_merchant_id: &common_utils::id_type::MerchantId,
         _filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<(DieselPaymentIntent, DieselPaymentAttempt)>, StorageError> {
+    ) -> CustomResult<
+        Vec<(
+            DieselPaymentIntent,
+            diesel_models::payment_attempt::PaymentAttempt,
+        )>,
+        StorageError,
+    > {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn get_payment_intents_attempt_count_for_platform(
+        &self,
+        _platform_merchant_id: &common_utils::id_type::MerchantId,
+        _filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+    ) -> CustomResult<i64, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }

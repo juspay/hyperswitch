@@ -98,23 +98,35 @@ pub trait PaymentIntentInterface {
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, Self::Error>;
 
-    /// List raw payment intent + active attempt rows for a platform merchant across
-    /// all its connected merchants. Filters on `payment_intent.merchant_id`
-    /// (which equals the platform's id on connected-merchant rows) instead of
-    /// `processor_merchant_id`, and inner-joins `payment_attempt` on the intent's
-    /// `active_attempt_id` (scoped by `merchant_id` since `attempt_id` is unique
-    /// per merchant only) so the response can include attempt-level fields
-    /// (connector, payment_method, card_network, connector_transaction_id, etc.).
-    /// Returns undecrypted diesel rows because the caller maps to a slim DTO that
-    /// omits PII fields - this avoids fetching each connected merchant's key store
-    /// at list time.
+    /// List raw payment intent + active attempt rows for a platform merchant across all
+    /// its connected merchants. Filters on `payment_intent.merchant_id` (which equals the
+    /// platform's id on connected-merchant rows) instead of `processor_merchant_id`, with
+    /// an optional `processor_merchant_id` filter to narrow to specific connected merchants.
+    ///
+    /// Returns undecrypted diesel rows: a platform listing exposes only non-PII columns, so
+    /// the caller maps the raw rows to a slim DTO without any per-merchant decryption. This is
+    /// an OLAP read served entirely from Postgres (no KV), so no storage scheme is needed.
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt_for_platform(
         &self,
         platform_merchant_id: &id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
-        storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(DieselPaymentIntent, DieselPaymentAttempt)>, Self::Error>;
+    ) -> error_stack::Result<
+        Vec<(
+            DieselPaymentIntent,
+            diesel_models::payment_attempt::PaymentAttempt,
+        )>,
+        Self::Error,
+    >;
+
+    /// Total count of payment intents matching a platform listing's constraints (ignores
+    /// limit/offset). Used to populate `total_count` in the platform list response.
+    #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn get_payment_intents_attempt_count_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        filters: &PaymentIntentFetchConstraints,
+    ) -> error_stack::Result<i64, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
@@ -1818,7 +1830,9 @@ pub struct PaymentIntentListParams {
     pub card_discovery: Option<Vec<common_enums::CardDiscovery>>,
     pub merchant_order_reference_id: Option<String>,
     pub customer_email: Option<Email>,
-    pub processor_merchant_id: Option<id_type::MerchantId>,
+    /// Connected (processor) merchant ids to narrow a platform listing to specific
+    /// connected merchants. Only applicable to platform payment listings.
+    pub processor_merchant_id: Option<Vec<id_type::MerchantId>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1882,46 +1896,6 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             merchant_order_reference_id: None,
             customer_email: None,
             processor_merchant_id: None,
-        }))
-    }
-}
-
-#[cfg(feature = "v1")]
-impl From<api_models::payments::PlatformPaymentListConstraints> for PaymentIntentFetchConstraints {
-    fn from(value: api_models::payments::PlatformPaymentListConstraints) -> Self {
-        let api_models::payments::PlatformPaymentListConstraints {
-            customer_id,
-            limit,
-            created,
-            created_lt,
-            created_gt,
-            created_lte,
-            created_gte,
-            processor_merchant_id,
-        } = value;
-        Self::List(Box::new(PaymentIntentListParams {
-            offset: 0,
-            starting_at: created_gte.or(created_gt).or(created),
-            ending_at: created_lte.or(created_lt).or(created),
-            amount_filter: None,
-            connector: None,
-            currency: None,
-            status: None,
-            payment_method: None,
-            payment_method_type: None,
-            authentication_type: None,
-            merchant_connector_id: None,
-            profile_id: None,
-            customer_id,
-            starting_after_id: None,
-            ending_before_id: None,
-            limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
-            order: Default::default(),
-            card_network: None,
-            card_discovery: None,
-            merchant_order_reference_id: None,
-            customer_email: None,
-            processor_merchant_id,
         }))
     }
 }
@@ -2069,6 +2043,73 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 merchant_order_reference_id,
                 customer_email,
                 processor_merchant_id: None,
+            }))
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<api_models::payments::PlatformPaymentListConstraints> for PaymentIntentFetchConstraints {
+    fn from(value: api_models::payments::PlatformPaymentListConstraints) -> Self {
+        let api_models::payments::PlatformPaymentListConstraints {
+            payment_id,
+            profile_id,
+            processor_merchant_id,
+            customer_id,
+            customer_email,
+            limit,
+            offset,
+            start_time,
+            end_time,
+            start_amount,
+            end_amount,
+            connector,
+            currency,
+            status,
+            payment_method,
+            payment_method_type,
+            authentication_type,
+            merchant_connector_id,
+            card_network,
+            card_discovery,
+            merchant_order_reference_id,
+            order_on,
+            order_by,
+        } = value;
+        if let Some(payment_intent_id) = payment_id {
+            Self::Single { payment_intent_id }
+        } else {
+            Self::List(Box::new(PaymentIntentListParams {
+                offset: offset.unwrap_or_default(),
+                starting_at: start_time,
+                ending_at: end_time,
+                amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some(
+                    api_models::payments::AmountFilter {
+                        start_amount,
+                        end_amount,
+                    },
+                ),
+                connector,
+                currency,
+                status,
+                payment_method,
+                payment_method_type,
+                authentication_type,
+                merchant_connector_id,
+                profile_id: profile_id.map(|profile_id| vec![profile_id]),
+                customer_id,
+                starting_after_id: None,
+                ending_before_id: None,
+                limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+                order: api_models::payments::Order {
+                    on: order_on,
+                    by: order_by,
+                },
+                card_network,
+                card_discovery,
+                merchant_order_reference_id,
+                customer_email,
+                processor_merchant_id,
             }))
         }
     }
