@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 use api_models::superposition_proxy::{
     AuditLogResponse, ContextResponse, DefaultConfigResponse, DimensionResponse,
+    PaginatedListResponse,
 };
 pub use aws_smithy_types::DateTime;
 use aws_smithy_types::{Document, Number};
@@ -25,6 +26,10 @@ pub use superposition_sdk::{
         list_dimensions::builders::ListDimensionsInputBuilder,
     },
     types::{AuditAction, ContextFilterSortOn, DimensionMatchStrategy, SortBy},
+};
+use superposition_sdk::operation::{
+    list_audit_logs::ListAuditLogsOutput, list_contexts::ListContextsOutput,
+    list_default_configs::ListDefaultConfigsOutput, list_dimensions::ListDimensionsOutput,
 };
 pub use superposition_types::api::{
     config::ContextPayload as ResolveConfigBody, context::PutRequest as ContextPutRequest,
@@ -211,6 +216,58 @@ pub fn audit_log_full_to_struct(log: &superposition_sdk::types::AuditLogFull) ->
         original_data: log.original_data().map(|d| document_to_value(d.clone())),
         new_data: log.new_data().map(|d| document_to_value(d.clone())),
         query: log.query().to_owned(),
+    }
+}
+
+/// Convert a Superposition SDK `ListContextsOutput` into the paginated response.
+pub fn list_contexts_to_response(
+    output: &ListContextsOutput,
+) -> PaginatedListResponse<ContextResponse> {
+    PaginatedListResponse {
+        total_pages: output.total_pages(),
+        total_items: output.total_items(),
+        data: output.data().iter().map(context_response_to_struct).collect(),
+    }
+}
+
+/// Convert a Superposition SDK `ListDefaultConfigsOutput` into the paginated response.
+pub fn list_default_configs_to_response(
+    output: &ListDefaultConfigsOutput,
+) -> PaginatedListResponse<DefaultConfigResponse> {
+    PaginatedListResponse {
+        total_pages: output.total_pages(),
+        total_items: output.total_items(),
+        data: output
+            .data()
+            .iter()
+            .map(default_config_response_to_struct)
+            .collect(),
+    }
+}
+
+/// Convert a Superposition SDK `ListDimensionsOutput` into the paginated response.
+pub fn list_dimensions_to_response(
+    output: &ListDimensionsOutput,
+) -> PaginatedListResponse<DimensionResponse> {
+    PaginatedListResponse {
+        total_pages: output.total_pages(),
+        total_items: output.total_items(),
+        data: output
+            .data()
+            .iter()
+            .map(dimension_response_to_struct)
+            .collect(),
+    }
+}
+
+/// Convert a Superposition SDK `ListAuditLogsOutput` into the paginated response.
+pub fn list_audit_logs_to_response(
+    output: &ListAuditLogsOutput,
+) -> PaginatedListResponse<AuditLogResponse> {
+    PaginatedListResponse {
+        total_pages: output.total_pages(),
+        total_items: output.total_items(),
+        data: output.data().iter().map(audit_log_full_to_struct).collect(),
     }
 }
 
