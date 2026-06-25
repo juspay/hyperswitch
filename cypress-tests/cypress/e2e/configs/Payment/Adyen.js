@@ -1562,12 +1562,14 @@ export const connectorDetails = {
     },
   },
 
+  // Billing data (phone, email, address) in card_redirect_pm are Adyen-simulator-specific
+  // test values. Phone numbers (e.g. "1234567890") are accepted by the Adyen test sandbox
+  // and may fail regional validation in production.
   card_redirect_pm: {
     PaymentIntent: (paymentMethodType) => {
-      const currencyMap = { Knet: "KWD", Benefit: "BHD", MomoAtm: "VND" };
       return {
         Request: {
-          currency: currencyMap[paymentMethodType] || "USD",
+          currency: getCurrency(paymentMethodType),
         },
         Response: {
           status: 200,
@@ -1578,6 +1580,9 @@ export const connectorDetails = {
       };
     },
     Knet: {
+      // TRIGGER_SKIP: Adyen test sandbox does not support knet card redirect.
+      // API testing confirmed: knet is NOT ENABLED on Adyen test merchant.
+      // Remove TRIGGER_SKIP when Adyen sandbox enables this payment method or production credentials are available.
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -1613,6 +1618,9 @@ export const connectorDetails = {
       },
     },
     Benefit: {
+      // TRIGGER_SKIP: Adyen test sandbox does not support benefit card redirect.
+      // API testing confirmed: Adyen returns HTTP 500 "Invalid type internal error".
+      // Remove TRIGGER_SKIP when Adyen sandbox enables this payment method or production credentials are available.
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -1648,6 +1656,9 @@ export const connectorDetails = {
       },
     },
     MomoAtm: {
+      // TRIGGER_SKIP: Adyen test sandbox does not support momo_atm card redirect.
+      // API testing confirmed: Adyen returns error with null error_code/message.
+      // Remove TRIGGER_SKIP when Adyen sandbox enables this payment method or production credentials are available.
       Configs: {
         TRIGGER_SKIP: true,
       },

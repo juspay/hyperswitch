@@ -2264,6 +2264,14 @@ function cardRedirectRedirection(
             case "knet":
             case "benefit":
             case "momo_atm":
+              // Adyen Acquirer Simulator selectors: h1 "Acquirer Simulator" and
+              // [value="authorised"] button. These are specific to the Adyen test
+              // simulator UI and may break if Adyen updates their simulator.
+              cy.document({ timeout: constants.WAIT_TIME }).should(
+                "have.property",
+                "readyState",
+                "complete"
+              );
               cy.get("h1", { timeout: constants.TIMEOUT }).should(
                 "contain.text",
                 "Acquirer Simulator"
