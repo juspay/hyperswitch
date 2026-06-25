@@ -6100,6 +6100,268 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
 }
 
 #[cfg(feature = "v1")]
+fn changed<T: PartialEq>(stored: &Option<T>, requested: Option<T>) -> Option<T> {
+    requested.filter(|req_val| stored.as_ref() != Some(req_val))
+}
+
+#[cfg(feature = "v1")]
+fn changed_nested<T: PartialEq + Clone, F: FnOnce(&T, T) -> T>(
+    stored: &Option<T>,
+    requested: Option<T>,
+    diff: F,
+) -> Option<T> {
+    requested
+        .map(|req_val| {
+            stored
+                .as_ref()
+                .map(|stored_val| diff(stored_val, req_val.clone()))
+                .unwrap_or(req_val)
+        })
+        .filter(|diffed| stored.as_ref() != Some(diffed))
+}
+
+#[cfg(feature = "v1")]
+fn diff_boleto_additional_details(
+    stored: &api_payments::BoletoAdditionalDetails,
+    requested: api_payments::BoletoAdditionalDetails,
+) -> api_payments::BoletoAdditionalDetails {
+    api_payments::BoletoAdditionalDetails {
+        due_date: changed(&stored.due_date, requested.due_date),
+        document_kind: changed(&stored.document_kind, requested.document_kind),
+        payment_type: changed(&stored.payment_type, requested.payment_type),
+        covenant_code: changed(&stored.covenant_code, requested.covenant_code),
+        pix_key: changed(&stored.pix_key, requested.pix_key),
+        discount_rules: changed_nested(
+            &stored.discount_rules,
+            requested.discount_rules,
+            diff_discount_rules,
+        ),
+        penalties: changed_nested(&stored.penalties, requested.penalties, diff_penalty_rules),
+        collection_actions: changed_nested(
+            &stored.collection_actions,
+            requested.collection_actions,
+            diff_collection_actions,
+        ),
+        payment_constraints: changed_nested(
+            &stored.payment_constraints,
+            requested.payment_constraints,
+            diff_payment_constraints,
+        ),
+        beneficiary: changed_nested(
+            &stored.beneficiary,
+            requested.beneficiary,
+            diff_beneficiary_details,
+        ),
+    }
+}
+
+#[cfg(feature = "v1")]
+fn diff_discount_rules(
+    stored: &api_payments::SantanderPaymentDiscountRules,
+    requested: api_payments::SantanderPaymentDiscountRules,
+) -> api_payments::SantanderPaymentDiscountRules {
+    api_payments::SantanderPaymentDiscountRules {
+        discount_type: changed(&stored.discount_type, requested.discount_type),
+        tiers: if stored.tiers != requested.tiers {
+            requested.tiers
+        } else {
+            Vec::new()
+        },
+    }
+}
+
+#[cfg(feature = "v1")]
+fn diff_penalty_rules(
+    stored: &api_payments::PenaltyRules,
+    requested: api_payments::PenaltyRules,
+) -> api_payments::PenaltyRules {
+    api_payments::PenaltyRules {
+        fixed_penalty: changed_nested(
+            &stored.fixed_penalty,
+            requested.fixed_penalty,
+            diff_penalty_detail,
+        ),
+        interest: changed_nested(&stored.interest, requested.interest, diff_interest_detail),
+    }
+}
+
+#[cfg(feature = "v1")]
+fn diff_penalty_detail(
+    stored: &api_payments::PenaltyDetail,
+    requested: api_payments::PenaltyDetail,
+) -> api_payments::PenaltyDetail {
+    api_payments::PenaltyDetail {
+        value: changed(&stored.value, requested.value),
+        grace_period_days: changed(&stored.grace_period_days, requested.grace_period_days),
+    }
+}
+
+#[cfg(feature = "v1")]
+fn diff_interest_detail(
+    stored: &api_payments::InterestDetail,
+    requested: api_payments::InterestDetail,
+) -> api_payments::InterestDetail {
+    api_payments::InterestDetail {
+        interest_percentage: changed(&stored.interest_percentage, requested.interest_percentage),
+        iof_percentage: changed(&stored.iof_percentage, requested.iof_percentage),
+    }
+}
+
+#[cfg(feature = "v1")]
+fn diff_collection_actions(
+    stored: &api_payments::CollectionActions,
+    requested: api_payments::CollectionActions,
+) -> api_payments::CollectionActions {
+    api_payments::CollectionActions {
+        legal_protest: changed_nested(
+            &stored.legal_protest,
+            requested.legal_protest,
+            diff_protest_rules,
+        ),
+        auto_write_off_days: changed(&stored.auto_write_off_days, requested.auto_write_off_days),
+    }
+}
+
+#[cfg(feature = "v1")]
+fn diff_protest_rules(
+    stored: &api_payments::ProtestRules,
+    requested: api_payments::ProtestRules,
+) -> api_payments::ProtestRules {
+    api_payments::ProtestRules {
+        protest_type: changed(&stored.protest_type, requested.protest_type),
+        days_after_due_date: changed(&stored.days_after_due_date, requested.days_after_due_date),
+    }
+}
+
+#[cfg(feature = "v1")]
+fn diff_payment_constraints(
+    stored: &api_payments::BoletoPaymentTypeConstraints,
+    requested: api_payments::BoletoPaymentTypeConstraints,
+) -> api_payments::BoletoPaymentTypeConstraints {
+    use api_payments::BoletoPaymentTypeConstraints::*;
+    match (stored, requested) {
+        (
+            FlexibleAmount(stored_details),
+            FlexibleAmount(requested_details),
+        ) => FlexibleAmount(diff_flexible_amount_details(stored_details, requested_details)),
+        (
+            Installment(stored_details),
+            Installment(requested_details),
+        ) => Installment(diff_installment_details(stored_details, requested_details)),
+        (_, requested) => requested,
+    }
+}
+
+#[cfg(feature = "v1")]
+fn diff_flexible_amount_details(
+    stored: &api_payments::FlexibleAmountDetails,
+    requested: api_payments::FlexibleAmountDetails,
+) -> api_payments::FlexibleAmountDetails {
+    api_payments::FlexibleAmountDetails {
+        min_value: changed(&stored.min_value, requested.min_value),
+        max_value: changed(&stored.max_value, requested.max_value),
+        value_type: changed(&stored.value_type, requested.value_type),
+    }
+}
+
+#[cfg(feature = "v1")]
+fn diff_installment_details(
+    stored: &api_payments::InstallmentDetails,
+    requested: api_payments::InstallmentDetails,
+) -> api_payments::InstallmentDetails {
+    api_payments::InstallmentDetails {
+        max_partial_payments: changed(&stored.max_partial_payments, requested.max_partial_payments),
+        value_type: changed(&stored.value_type, requested.value_type),
+    }
+}
+
+#[cfg(feature = "v1")]
+fn diff_beneficiary_details(
+    stored: &api_payments::BeneficiaryDetails,
+    requested: api_payments::BeneficiaryDetails,
+) -> api_payments::BeneficiaryDetails {
+    api_payments::BeneficiaryDetails {
+        name: changed(&stored.name, requested.name),
+        document_number: changed(&stored.document_number, requested.document_number),
+        document_type: changed(&stored.document_type, requested.document_type),
+    }
+}
+
+#[cfg(feature = "v1")]
+fn diff_pix_additional_details(
+    stored: &api_payments::PixAdditionalDetails,
+    requested: api_payments::PixAdditionalDetails,
+) -> api_payments::PixAdditionalDetails {
+    use api_payments::PixAdditionalDetails::*;
+    match (stored, requested) {
+        (
+            Immediate(stored_imm),
+            Immediate(requested_imm),
+        ) => Immediate(api_payments::ImmediateExpirationTime {
+            time: requested_imm.time,
+            pix_key: changed(&stored_imm.pix_key, requested_imm.pix_key),
+        }),
+        (
+            Scheduled(stored_sch),
+            Scheduled(requested_sch),
+        ) => Scheduled(api_payments::ScheduledExpirationTime {
+            date: requested_sch.date,
+            validity_after_expiration: changed(
+                &stored_sch.validity_after_expiration,
+                requested_sch.validity_after_expiration,
+            ),
+            pix_key: changed(&stored_sch.pix_key, requested_sch.pix_key),
+        }),
+        (_, requested) => requested,
+    }
+}
+
+#[cfg(feature = "v1")]
+fn diff_feature_metadata(
+    stored: Option<api_payments::FeatureMetadata>,
+    requested: Option<api_payments::FeatureMetadata>,
+) -> Option<api_payments::FeatureMetadata> {
+    let requested = requested?;
+    let stored = match stored {
+        Some(stored) => stored,
+        None => return Some(requested),
+    };
+
+    let diffed = api_payments::FeatureMetadata {
+        redirect_response: changed(&stored.redirect_response, requested.redirect_response),
+        search_tags: changed(&stored.search_tags, requested.search_tags),
+        apple_pay_recurring_details: changed(
+            &stored.apple_pay_recurring_details,
+            requested.apple_pay_recurring_details,
+        ),
+        pix_additional_details: changed_nested(
+            &stored.pix_additional_details,
+            requested.pix_additional_details,
+            diff_pix_additional_details,
+        ),
+        boleto_additional_details: changed_nested(
+            &stored.boleto_additional_details,
+            requested.boleto_additional_details,
+            diff_boleto_additional_details,
+        ),
+        pix_automatico_additional_details: changed(
+            &stored.pix_automatico_additional_details,
+            requested.pix_automatico_additional_details,
+        ),
+        finix_additional_details: changed(
+            &stored.finix_additional_details,
+            requested.finix_additional_details,
+        ),
+    };
+
+    if diffed == stored {
+        None
+    } else {
+        Some(diffed)
+    }
+}
+
+#[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePostConfirmData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -6130,17 +6392,18 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse request payload")?;
 
-        let feature_metadata = match (
-            payment_data_feature_metadata,
-            request_payments.as_ref().and_then(|req| req.feature_metadata.clone()),
-        ) {
-            (Some(stored), req_meta) => stored.compare_with_request_payload(req_meta.as_ref()),
-            (None, req_meta) => req_meta,
-        };
+        let request_feature_metadata = request_payments
+            .as_ref()
+            .and_then(|req| req.feature_metadata.clone());
+
+        let feature_metadata =
+            diff_feature_metadata(payment_data_feature_metadata, request_feature_metadata);
 
         let billing_descriptor = match (
             payment_data.payment_intent.get_billing_descriptor(),
-            request_payments.clone().and_then(|req| req.billing_descriptor.clone()),
+            request_payments
+                .clone()
+                .and_then(|req| req.billing_descriptor.clone()),
         ) {
             (Some(stored_val), Some(req_val)) => {
                 if req_val != stored_val {
@@ -6155,7 +6418,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
 
         let metadata = match (
             payment_data.payment_intent.metadata.clone(),
-            request_payments.as_ref().and_then(|req| req.metadata.clone()),
+            request_payments
+                .as_ref()
+                .and_then(|req| req.metadata.clone()),
         ) {
             (Some(stored_val), Some(req_val)) => {
                 if req_val != stored_val {
@@ -6168,16 +6433,46 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
             _ => None,
         };
 
+        let amount = request_payments
+            .as_ref()
+            .and_then(|req| req.amount)
+            .map(MinorUnit::from)
+            .unwrap_or(payment_data.payment_intent.amount);
+
+        let request_merchant_order_reference_id = request_payments
+            .as_ref()
+            .and_then(|req| req.merchant_order_reference_id.clone());
+        let stored_merchant_order_reference_id = payment_data
+            .payment_intent
+            .merchant_order_reference_id
+            .clone();
+        let merchant_order_reference_id = request_merchant_order_reference_id
+            .filter(|m| Some(m) != stored_merchant_order_reference_id.as_ref());
+
+        let billing_address = request_payments
+            .as_ref()
+            .and_then(|req| req.billing.as_ref())
+            .and_then(|billing| billing.address.clone());
+
         Ok(Self {
             feature_metadata,
+            amount,
+            currency: payment_data.currency,
             connector_transaction_id: connector
                 .connector
                 .connector_transaction_id(&payment_data.payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             connector_attempt_metadata: payment_data.payment_attempt.connector_metadata.clone(),
             billing_descriptor,
+            billing_address,
             metadata,
-            customer_document_details: None,
+            merchant_order_reference_id,
+            customer_document_details: payment_data
+                .payment_intent
+                .get_customer_document_details()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to extract customer document details from payment_intent")?,
+            deferred_payment_updates: payment_data.deferred_payment_updates.clone(),
         })
     }
 }

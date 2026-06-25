@@ -1,5 +1,7 @@
+use crate::core::errors::ApiErrorResponse;
+use error_stack::{Report, ResultExt};
 /// Helper functions and utilities for propagating JSON request payloads through the payment processing pipeline
-/// 
+///
 /// This module provides utilities to:
 /// 1. Store and retrieve original request payloads in PaymentAdditionalData
 /// 2. Extract specific fields from stored payloads
@@ -12,10 +14,7 @@
 ///     let field_value = request_payload.get("some_field").and_then(|v| v.as_str());
 /// }
 /// ```
-
 use serde_json::{json, Value};
-use error_stack::{Report, ResultExt};
-use crate::core::errors::ApiErrorResponse;
 
 /// Serializes any serde-serializable request into a JSON Value for generic storage
 pub fn serialize_request_to_json<T: serde::Serialize>(
@@ -27,18 +26,12 @@ pub fn serialize_request_to_json<T: serde::Serialize>(
 }
 
 /// Extracts a specific field from the stored request payload
-pub fn get_field_from_payload(
-    payload: &Option<Value>,
-    field_name: &str,
-) -> Option<Value> {
+pub fn get_field_from_payload(payload: &Option<Value>, field_name: &str) -> Option<Value> {
     payload.as_ref().and_then(|v| v.get(field_name).cloned())
 }
 
 /// Extracts a string value from the stored request payload
-pub fn get_string_field_from_payload(
-    payload: &Option<Value>,
-    field_name: &str,
-) -> Option<String> {
+pub fn get_string_field_from_payload(payload: &Option<Value>, field_name: &str) -> Option<String> {
     payload
         .as_ref()
         .and_then(|v| v.get(field_name))
@@ -47,10 +40,7 @@ pub fn get_string_field_from_payload(
 }
 
 /// Extracts an i64 value from the stored request payload
-pub fn get_i64_field_from_payload(
-    payload: &Option<Value>,
-    field_name: &str,
-) -> Option<i64> {
+pub fn get_i64_field_from_payload(payload: &Option<Value>, field_name: &str) -> Option<i64> {
     payload
         .as_ref()
         .and_then(|v| v.get(field_name))
@@ -58,10 +48,7 @@ pub fn get_i64_field_from_payload(
 }
 
 /// Extracts a boolean value from the stored request payload
-pub fn get_bool_field_from_payload(
-    payload: &Option<Value>,
-    field_name: &str,
-) -> Option<bool> {
+pub fn get_bool_field_from_payload(payload: &Option<Value>, field_name: &str) -> Option<bool> {
     payload
         .as_ref()
         .and_then(|v| v.get(field_name))
@@ -69,10 +56,7 @@ pub fn get_bool_field_from_payload(
 }
 
 /// Extracts a nested object from the stored request payload
-pub fn get_object_field_from_payload(
-    payload: &Option<Value>,
-    field_name: &str,
-) -> Option<Value> {
+pub fn get_object_field_from_payload(payload: &Option<Value>, field_name: &str) -> Option<Value> {
     payload
         .as_ref()
         .and_then(|v| v.get(field_name))
@@ -81,27 +65,24 @@ pub fn get_object_field_from_payload(
 }
 
 /// Merges multiple field values from different payloads
-pub fn merge_payload_fields(
-    payload: &Option<Value>,
-    fields: Vec<&str>,
-) -> Value {
+pub fn merge_payload_fields(payload: &Option<Value>, fields: Vec<&str>) -> Value {
     let mut merged = json!({});
-    
+
     if let Some(p) = payload {
         for field in fields {
             if let Some(value) = p.get(field) {
-                merged[field] = value.clone();
+                if let Some(merged_obj) = merged.as_object_mut() {
+                    merged_obj.insert(field.to_owned(), value.clone());
+                }
             }
         }
     }
-    
+
     merged
 }
 
 /// Convenience function to try serialize and return Option instead of Result
-pub fn try_serialize_request_to_json<T: serde::Serialize>(
-    request: &T,
-) -> Option<Value> {
+pub fn try_serialize_request_to_json<T: serde::Serialize>(request: &T) -> Option<Value> {
     serialize_request_to_json(request).ok()
 }
 

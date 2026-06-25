@@ -4295,27 +4295,32 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdatePostCon
             Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { status, .. }) => {
                 if status.is_success() {
                     let m_db = db.clone().store;
-                    let payment_intent = payment_data.payment_intent.clone();
-                    let payment_intent_update =
-                        hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::MetadataUpdate {
-                            metadata: payment_data
-                                .payment_intent
-                                .metadata
-                                .clone(),
-                            updated_by: payment_data.payment_intent.updated_by.clone(),
-                        };
+                    let storage_scheme = processor.get_account().storage_scheme;
+                    let key_store = processor.get_key_store();
 
-                    let updated_payment_intent = m_db
-                        .update_payment_intent(
-                            payment_intent,
-                            payment_intent_update,
-                            processor.get_key_store(),
-                            processor.get_account().storage_scheme,
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                    if let Some((attempt_update, intent_update)) =
+                        router_data.request.deferred_payment_updates
+                    {
+                        payment_data.payment_attempt = m_db
+                            .update_payment_attempt_with_attempt_id(
+                                payment_data.payment_attempt.clone(),
+                                attempt_update,
+                                storage_scheme,
+                                key_store,
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-                    payment_data.payment_intent = updated_payment_intent;
+                        payment_data.payment_intent = m_db
+                            .update_payment_intent(
+                                payment_data.payment_intent.clone(),
+                                intent_update,
+                                key_store,
+                                storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                    }
                 } else {
                     router_data.response.map_err(|err| {
                         errors::ApiErrorResponse::ExternalConnectorError {

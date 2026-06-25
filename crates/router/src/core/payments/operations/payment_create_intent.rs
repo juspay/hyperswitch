@@ -180,7 +180,6 @@ impl<F: Send + Clone + Sync>
             client_secret: Some(client_secret.secret),
             sessions_token: vec![],
             vault_session_details: None,
-            request_payload: None,
             connector_customer_id: None,
         };
 

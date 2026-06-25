@@ -9897,8 +9897,8 @@ impl ConnectorMetadata {
 
     pub fn compare_with_request_payload(
         &self,
-        request_connector_metadata: Option<&ConnectorMetadata>,
-    ) -> Option<ConnectorMetadata> {
+        request_connector_metadata: Option<&Self>,
+    ) -> Option<Self> {
         request_connector_metadata.and_then(|req_metadata| {
             if req_metadata != self {
                 Some(req_metadata.clone())

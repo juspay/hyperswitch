@@ -278,6 +278,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             vault_session_details: None,
             external_vault_pmd: None,
             request_payload: None,
+            deferred_payment_updates: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

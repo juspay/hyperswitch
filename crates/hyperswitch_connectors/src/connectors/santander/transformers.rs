@@ -33,7 +33,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::{self},
 };
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::Url;
@@ -1905,11 +1905,9 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
             .boleto
             .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
 
-        println!("Feature Metadata from connectors crate: {:?}", value.request.feature_metadata);
+        let feature_metadata = value.request.feature_metadata.clone();
 
-        let due_date = value
-            .request
-            .feature_metadata
+        let due_date = feature_metadata
             .as_ref()
             .and_then(|fm| fm.boleto_additional_details.as_ref())
             .and_then(|details| details.due_date);
@@ -1917,12 +1915,71 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
         let due_date_str = due_date
             .map(|dt| format_as_date_only(Some(dt)))
             .transpose()?;
-        
-        println!("covenant code from MCA: {:?}", boleto_mca_metadata.covenant_code);
 
-        let covenant_code = value.request.feature_metadata.clone().and_then(|data| {
+        let covenant_code = feature_metadata.clone().and_then(|data| {
             data.get_optional_boleto_covenant_code()
                 .or(Some(boleto_mca_metadata.covenant_code.clone()))
+        });
+
+        let (
+            (beneficiary, discount, document_kind),
+            (fine_percentage, fine_quantity_days, interest_percentage, iof_percentage),
+            (protest_type, protest_quantity_days, write_off_quantity_days),
+            (
+                payment_type,
+                value_type,
+                parcels_quantity,
+                min_value_or_percentage,
+                max_value_or_percentage,
+            ),
+        ) = get_boleto_additional_fields_from_connector_metadata(feature_metadata.clone());
+
+        let nominal_value = StringMajorUnitForConnector
+            .convert(value.request.amount, value.request.currency)
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+
+        let client_number = value.request.merchant_order_reference_id.clone();
+        let participant_code = value.request.merchant_order_reference_id.clone();
+
+        let payer = value.request.billing_address.as_ref().and_then(|address| {
+            let name = address.get_optional_full_name()?;
+            let customer_document_details = value.request.customer_document_details.as_ref()?;
+            let document_type = match customer_document_details.document_type {
+                common_types::customers::DocumentKind::Cpf => SantanderDocumentKind::Cpf,
+                common_types::customers::DocumentKind::Cnpj => SantanderDocumentKind::Cnpj,
+                common_types::customers::DocumentKind::Psn
+                | common_types::customers::DocumentKind::Other => SantanderDocumentKind::Cpf,
+            };
+            let line1 = address.line1.clone()?;
+            let line2 = address.line2.clone().unwrap_or_else(|| Secret::new(String::new()));
+            let city = address.city.clone()?;
+            let state = address.state.clone()?;
+            let zip = address.zip.clone()?;
+            Some(Payer {
+                name,
+                document_type,
+                document_number: Some(customer_document_details.document_number.clone()),
+                address: Some(Secret::new(format!(
+                    "{} {}",
+                    line1.peek(),
+                    line2.peek()
+                ))),
+                neighborhood: Some(line1),
+                city: Some(Secret::new(city)),
+                state: Some(state),
+                zip_code: Some(zip),
+            })
+        });
+
+        let (pix_key_type, pix_key_value) = feature_metadata
+            .as_ref()
+            .map(|data| data.get_boleto_pix_key_and_value())
+            .map(|(key_type, value)| (key_type.map(SantanderPixKeyType::from), value))
+            .unwrap_or((boleto_mca_metadata.pix_key_type, None));
+
+        let key = Some(Key {
+            key_type: pix_key_type,
+            dict_key: pix_key_value.or(boleto_mca_metadata.pix_key_value.clone()),
         });
 
         Ok(Self {
@@ -1932,29 +1989,29 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
             due_date: due_date_str,
             nsu_code: None,
             nsu_date: None,
-            client_number: None,
+            client_number,
             issue_date: None,
-            nominal_value: None,
-            participant_code: None,
-            payer: None,
-            beneficiary: None,
-            document_kind: None,
-            discount: None,
-            fine_percentage: None,
-            fine_quantity_days: None,
-            interest_percentage: None,
+            nominal_value: Some(nominal_value),
+            participant_code,
+            payer,
+            beneficiary,
+            document_kind,
+            discount,
+            fine_percentage,
+            fine_quantity_days,
+            interest_percentage,
             deduction_value: None,
-            protest_type: None,
-            protest_quantity_days: None,
-            write_off_quantity_days: None,
-            payment_type: None,
-            parcels_quantity: None,
-            value_type: None,
-            min_value_or_percentage: None,
-            max_value_or_percentage: None,
-            iof_percentage: None,
+            protest_type,
+            protest_quantity_days,
+            write_off_quantity_days,
+            payment_type,
+            parcels_quantity,
+            value_type,
+            min_value_or_percentage,
+            max_value_or_percentage,
+            iof_percentage,
             sharing: None,
-            key: None,
+            key,
             tx_id: None,
             messages: None,
         })

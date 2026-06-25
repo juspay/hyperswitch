@@ -277,8 +277,8 @@ impl FeatureMetadata {
     /// Returns None if not present in request payload
     pub fn compare_with_request_payload(
         &self,
-        request_feature_metadata: Option<&FeatureMetadata>,
-    ) -> Option<FeatureMetadata> {
+        request_feature_metadata: Option<&Self>,
+    ) -> Option<Self> {
         request_feature_metadata.and_then(|req_metadata| {
             // If they differ, return the request version (indicating updates from original request)
             // If they match, return None (indicating they're the same)

@@ -481,17 +481,6 @@ impl Connector {
                 | Self::DummyConnector7
         ) && !is_dummy_connector_enabled
     }
-
-    pub fn supports_pre_authorize_update(
-        self,
-        payment_method_type: Option<PaymentMethodType>,
-    ) -> bool {
-        matches!(self, Self::Santander)
-            && matches!(
-                payment_method_type,
-                Some(PaymentMethodType::Pix) | Some(PaymentMethodType::Boleto)
-            )
-    }
 }
 
 // Enum representing different status an invoice can have.

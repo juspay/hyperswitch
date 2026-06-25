@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::marker::PhantomData;
 
 use api_models::{
     customers::CustomerDocumentDetails, enums::FrmSuggestion, mandates::RecurringDetails,
@@ -14,6 +14,7 @@ use hyperswitch_domain_models::{
     mandates::{self, MandateTransactionType},
     payments::payment_intent::{CustomerData, PaymentIntentUpdateFields},
 };
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -293,7 +294,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         //     .attach_printable("Error converting feature_metadata to Value")?
         //     .or(payment_intent.feature_metadata);
 
-        println!("Payment Intent from get_trackers: {:?}", payment_intent);
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
         payment_intent.psd2_sca_exemption_type = request
@@ -411,40 +411,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             } else {
                 (Box::new(self), amount)
             };
-
-        payment_intent.status = {
-            let connector_enum = payment_attempt
-                .connector
-                .clone()
-                .map(|c| {
-                    common_enums::connector_enums::Connector::from_str(&c)
-                        .change_context(
-                            payment_methods::errors::ApiErrorResponse::InternalServerError,
-                        )
-                        .attach_printable("Failed to parse connector enum from string")
-                })
-                .transpose()?;
-
-            // Santander supports updating a pre-authorized payment intent
-            if connector_enum.is_some_and(|c| {
-                c.supports_pre_authorize_update(payment_attempt.payment_method_type)
-            }) && payment_intent.status == storage_enums::IntentStatus::RequiresCustomerAction
-            {
-                payment_intent.status
-            } else if request
-                .payment_method_data
-                .as_ref()
-                .is_some_and(|pmd| pmd.payment_method_data.is_some())
-            {
-                if request.confirm.unwrap_or(false) {
-                    payment_intent.status
-                } else {
-                    storage_enums::IntentStatus::RequiresConfirmation
-                }
-            } else {
-                storage_enums::IntentStatus::RequiresPaymentMethod
-            }
-        };
 
         payment_intent.request_external_three_ds_authentication = request
             .request_external_three_ds_authentication
@@ -608,6 +574,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             vault_session_details: None,
             external_vault_pmd: None,
             request_payload: payments::request_payload_context::get_request_payload(),
+            deferred_payment_updates: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -875,334 +842,36 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
-        let key_store = processor.get_key_store();
-        let is_payment_method_unavailable =
-            payment_data.payment_attempt.payment_method_id.is_none()
-                && payment_data.payment_intent.status
-                    == storage_enums::IntentStatus::RequiresPaymentMethod;
-
-        let payment_method = payment_data.payment_attempt.payment_method;
-        let connector_enum = payment_data
+        let will_call_connector = payment_data
             .payment_attempt
             .connector
-            .clone()
-            .map(|c| {
-                common_enums::connector_enums::Connector::from_str(&c)
-                    .change_context(payment_methods::errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to parse connector enum from string")
+            .as_deref()
+            .and_then(|connector_name| {
+                api::connector_mapping::ConnectorData::convert_connector(connector_name)
+                    .ok()
             })
-            .transpose()?;
-        let get_attempt_status = || {
-            if connector_enum.is_some_and(|c| {
-                c.supports_pre_authorize_update(payment_data.payment_attempt.payment_method_type)
-            }) && payment_data.payment_intent.status
-                == storage_enums::IntentStatus::RequiresCustomerAction
-            {
-                payment_data.payment_attempt.status
-            } else if is_payment_method_unavailable {
-                storage_enums::AttemptStatus::PaymentMethodAwaited
-            } else {
-                storage_enums::AttemptStatus::ConfirmationAwaited
-            }
-        };
-        let profile_id = payment_data
-            .payment_intent
-            .profile_id
-            .as_ref()
-            .get_required_value("profile_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("'profile_id' not set in payment intent")?;
-        let customer_id = payment_data.payment_intent.customer_id.as_ref();
-
-        let additional_pm_data = payment_data
-            .payment_method_data
-            .as_ref()
-            .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(
-                    payment_method_data,
-                    &*state.store,
-                    state.superposition_service.as_ref(),
-                    &dimensions.with_profile_id(profile_id.clone()),
-                    customer_id,
-                    payment_data.payment_method_token.as_ref(),
+            .is_some_and(|connector| {
+                connector.should_call_connector_for_update_post_confirm(
+                    payment_data.payment_attempt.payment_method_type,
+                    payment_data.payment_intent.status,
                 )
-                .await
-            })
-            .await
-            .transpose()?
-            .flatten();
-
-        let encoded_pm_data = additional_pm_data
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode additional pm data")?;
-
-        let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
-
-        let payment_method_type = payment_data.payment_attempt.payment_method_type;
-        let payment_experience = payment_data.payment_attempt.payment_experience;
-        let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
-        let capture_method = payment_data.payment_attempt.capture_method;
-        let payment_method_billing_address_id = payment_data
-            .payment_attempt
-            .payment_method_billing_address_id
-            .clone();
-
-        let surcharge_amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.surcharge_amount);
-        let tax_amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
-        let network_transaction_id = payment_data.payment_attempt.network_transaction_id.clone();
-        let network_transaction_link_id = payment_data
-            .payment_attempt
-            .network_transaction_link_id
-            .clone();
-        payment_data.payment_attempt = state
-            .store
-            .update_payment_attempt_with_attempt_id(
-                payment_data.payment_attempt.clone(),
-                storage::PaymentAttemptUpdate::Update {
-                    currency: payment_data.currency,
-                    status: get_attempt_status(),
-                    authentication_type: None,
-                    payment_method,
-                    payment_token: payment_data.token.clone(),
-                    payment_method_data: encoded_pm_data,
-                    payment_experience,
-                    payment_method_type,
-                    business_sub_label,
-                    amount_to_capture,
-                    capture_method,
-                    fingerprint_id: None,
-                    payment_method_billing_address_id,
-                    updated_by: storage_scheme.to_string(),
-                    network_transaction_id,
-                    network_transaction_link_id,
-                    net_amount:
-                        hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
-                            payment_data.amount.into(),
-                            payment_data.payment_intent.shipping_cost,
-                            payment_data
-                                .payment_attempt
-                                .net_amount
-                                .get_order_tax_amount(),
-                            surcharge_amount,
-                            tax_amount,
-                            None,
-                        ),
-                    shipping_cost: payment_data.payment_intent.shipping_cost,
-                    order_tax_amount: payment_data
-                        .payment_attempt
-                        .net_amount
-                        .get_order_tax_amount(),
-                },
-                storage_scheme,
-                key_store,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-        let customer_id = payment_data.payment_intent.customer_id.clone();
-
-        let intent_status = {
-            let current_intent_status = payment_data.payment_intent.status;
-            if connector_enum.is_some_and(|c| {
-                c.supports_pre_authorize_update(payment_data.payment_attempt.payment_method_type)
-            }) && payment_data.payment_intent.status
-                == storage_enums::IntentStatus::RequiresCustomerAction
-            {
-                payment_data.payment_intent.status
-            } else if is_payment_method_unavailable {
-                storage_enums::IntentStatus::RequiresPaymentMethod
-            } else if !payment_data.confirm.unwrap_or(true)
-                || current_intent_status == storage_enums::IntentStatus::RequiresCustomerAction
-            {
-                storage_enums::IntentStatus::RequiresConfirmation
-            } else {
-                payment_data.payment_intent.status
-            }
-        };
-
-        let (shipping_address, billing_address) = (
-            payment_data.payment_intent.shipping_address_id.clone(),
-            payment_data.payment_intent.billing_address_id.clone(),
-        );
-
-        let customer_details = payment_data.payment_intent.customer_details.clone();
-
-        let return_url = payment_data.payment_intent.return_url.clone();
-        let setup_future_usage = payment_data.payment_intent.setup_future_usage;
-        let business_label = payment_data.payment_intent.business_label.clone();
-        let business_country = payment_data.payment_intent.business_country;
-        let description = payment_data.payment_intent.description.clone();
-        let statement_descriptor_name = payment_data
-            .payment_intent
-            .statement_descriptor_name
-            .clone();
-        let statement_descriptor_suffix = payment_data
-            .payment_intent
-            .statement_descriptor_suffix
-            .clone();
-        let key_manager_state = state.into();
-        let billing_details = payment_data
-            .address
-            .get_payment_billing()
-            .async_map(|billing_details| {
-                core_utils::create_encrypted_data(
-                    &key_manager_state,
-                    key_store,
-                    billing_details,
-                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
-                )
-            })
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt billing details")?;
-
-        let shipping_details = payment_data
-            .address
-            .get_shipping()
-            .async_map(|shipping_details| {
-                core_utils::create_encrypted_data(
-                    &key_manager_state,
-                    key_store,
-                    shipping_details,
-                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
-                )
-            })
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt shipping details")?;
-
-        let order_details = payment_data.payment_intent.order_details.clone();
-        let metadata = payment_data.payment_intent.metadata.clone();
-        let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
-        let session_expiry = payment_data.payment_intent.session_expiry;
-        let merchant_order_reference_id = payment_data
-            .payment_intent
-            .merchant_order_reference_id
-            .clone();
-
-        let tax_details = payment_data
-            .payment_attempt
-            .net_amount
-            .get_order_tax_amount()
-            .map(|order_tax_amount| diesel_models::TaxDetails {
-                default: Some(diesel_models::DefaultTax { order_tax_amount }),
-                payment_method_type: None,
             });
-
-        let shipping_cost = payment_data.payment_intent.shipping_cost;
-
-        // Deserialize request_payload to PaymentsRequest for comparison
-        let request_payments = payment_data
-            .request_payload
-            .as_ref()
-            .map(|payload| {
-                payload
-                    .clone()
-                    .parse_value::<api_models::payments::PaymentsRequest>("PaymentsRequest")
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse request payload")?;
-
-        let payment_intent_feature_metadata = payment_data
-            .payment_intent
-            .get_optional_feature_metadata()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse payment intent feature metadata")?;
-
-        let feature_metadata = match (
-            request_payments.and_then(|req| req.feature_metadata),
-            payment_intent_feature_metadata,
-        ) {
-            (Some(request_meta), intent_meta) => Some(request_meta.merge(intent_meta)),
-            (None, intent_meta) => intent_meta,
-        };
-
-        let feature_metadata_value = feature_metadata
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to serialize feature metadata")?;
-
-        payment_data.payment_intent = state
-            .store
-            .update_payment_intent(
-                payment_data.payment_intent.clone(),
-                storage::PaymentIntentUpdate::Update(Box::new(PaymentIntentUpdateFields {
-                    amount: payment_data.amount.into(),
-                    currency: payment_data.currency,
-                    setup_future_usage,
-                    status: intent_status,
-                    customer_id: customer_id.clone(),
-                    shipping_address_id: shipping_address,
-                    billing_address_id: billing_address,
-                    return_url,
-                    business_country,
-                    business_label,
-                    description,
-                    statement_descriptor_name,
-                    statement_descriptor_suffix,
-                    order_details,
-                    metadata,
-                    payment_confirm_source: None,
-                    updated_by: storage_scheme.to_string(),
-                    fingerprint_id: None,
-                    session_expiry,
-                    request_external_three_ds_authentication: payment_data
-                        .payment_intent
-                        .request_external_three_ds_authentication,
-                    frm_metadata,
-                    customer_details,
-                    merchant_order_reference_id,
-                    billing_details,
-                    shipping_details,
-                    is_payment_processor_token_flow: None,
-                    tax_details,
-                    force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
-                    is_iframe_redirection_enabled: payment_data
-                        .payment_intent
-                        .is_iframe_redirection_enabled,
-                    is_confirm_operation: false, // this is not a confirm operation
-                    payment_channel: payment_data.payment_intent.payment_channel,
-                    feature_metadata: feature_metadata_value
-                        .map(hyperswitch_masking::Secret::new),
-                    tax_status: payment_data.payment_intent.tax_status,
-                    discount_amount: payment_data.payment_intent.discount_amount,
-                    order_date: payment_data.payment_intent.order_date,
-                    shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
-                    duty_amount: payment_data.payment_intent.duty_amount,
-                    enable_partial_authorization: payment_data
-                        .payment_intent
-                        .enable_partial_authorization,
-                    enable_overcapture: payment_data.payment_intent.enable_overcapture,
-                    shipping_cost,
-                    installment_options: payment_data.payment_intent.installment_options.clone(),
-                    profile_acquirer_id: payment_data.payment_intent.profile_acquirer_id.clone(),
-                    external_surcharge_strategy: payment_data
-                        .payment_intent
-                        .external_surcharge_strategy,
-                    external_surcharge_applicable: payment_data
-                        .payment_intent
-                        .external_surcharge_applicable,
-                })),
-                key_store,
-                storage_scheme,
+        if will_call_connector {
+            let (payment_data_with_changes, attempt_update, intent_update) = Box::pin(
+                Self::compute_payment_update_changes(state, processor, dimensions, payment_data),
             )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            .await?;
+            payment_data = payment_data_with_changes;
+            payment_data.deferred_payment_updates = Some((attempt_update, intent_update));
+        } else {
+            payment_data = Box::pin(Self::persist_payment_update_changes(
+                state,
+                processor,
+                dimensions,
+                payment_data,
+            ))
+            .await?;
+        }
 
         let processor_merchant_id = processor.get_account().get_id().clone();
         let payment_id = payment_data.payment_intent.payment_id.clone();
@@ -1355,6 +1024,334 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 }
 
 impl PaymentUpdate {
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    pub(crate) async fn compute_payment_update_changes<F>(
+        state: &SessionState,
+        processor: &domain::Processor,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        payment_data: PaymentData<F>,
+    ) -> RouterResult<(
+        PaymentData<F>,
+        storage::PaymentAttemptUpdate,
+        storage::PaymentIntentUpdate,
+    )>
+    where
+        F: Clone + Send + Sync,
+    {
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
+        let profile_id = payment_data
+            .payment_intent
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
+        let customer_id = payment_data.payment_intent.customer_id.as_ref();
+
+        let additional_pm_data = payment_data
+            .payment_method_data
+            .as_ref()
+            .async_map(|payment_method_data| async {
+                helpers::get_additional_payment_data(
+                    payment_method_data,
+                    &*state.store,
+                    state.superposition_service.as_ref(),
+                    &dimensions.with_profile_id(profile_id.clone()),
+                    customer_id,
+                    payment_data.payment_method_token.as_ref(),
+                )
+                .await
+            })
+            .await
+            .transpose()?
+            .flatten();
+
+        let encoded_pm_data = additional_pm_data
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional pm data")?;
+
+        let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
+
+        let payment_method = payment_data.payment_attempt.payment_method;
+        let payment_method_type = payment_data.payment_attempt.payment_method_type;
+        let payment_experience = payment_data.payment_attempt.payment_experience;
+        let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
+        let capture_method = payment_data.payment_attempt.capture_method;
+        let payment_method_billing_address_id = payment_data
+            .payment_attempt
+            .payment_method_billing_address_id
+            .clone();
+
+        let surcharge_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.surcharge_amount);
+        let tax_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
+        let network_transaction_id = payment_data.payment_attempt.network_transaction_id.clone();
+        let network_transaction_link_id = payment_data
+            .payment_attempt
+            .network_transaction_link_id
+            .clone();
+        let attempt_update = storage::PaymentAttemptUpdate::Update {
+            currency: payment_data.currency,
+            status: payment_data.payment_attempt.status,
+            authentication_type: None,
+            payment_method,
+            payment_token: payment_data.token.clone(),
+            payment_method_data: encoded_pm_data,
+            payment_experience,
+            payment_method_type,
+            business_sub_label,
+            amount_to_capture,
+            capture_method,
+            fingerprint_id: None,
+            payment_method_billing_address_id,
+            updated_by: storage_scheme.to_string(),
+            network_transaction_id,
+            network_transaction_link_id,
+            net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
+                payment_data.amount.into(),
+                payment_data.payment_intent.shipping_cost,
+                payment_data
+                    .payment_attempt
+                    .net_amount
+                    .get_order_tax_amount(),
+                surcharge_amount,
+                tax_amount,
+                None,
+            ),
+            shipping_cost: payment_data.payment_intent.shipping_cost,
+            order_tax_amount: payment_data
+                .payment_attempt
+                .net_amount
+                .get_order_tax_amount(),
+        };
+
+        let customer_id = payment_data.payment_intent.customer_id.clone();
+
+        let intent_status = payment_data.payment_intent.status;
+
+        let (shipping_address, billing_address) = (
+            payment_data.payment_intent.shipping_address_id.clone(),
+            payment_data.payment_intent.billing_address_id.clone(),
+        );
+
+        let customer_details = payment_data.payment_intent.customer_details.clone();
+
+        let return_url = payment_data.payment_intent.return_url.clone();
+        let setup_future_usage = payment_data.payment_intent.setup_future_usage;
+        let business_label = payment_data.payment_intent.business_label.clone();
+        let business_country = payment_data.payment_intent.business_country;
+        let description = payment_data.payment_intent.description.clone();
+        let statement_descriptor_name = payment_data
+            .payment_intent
+            .statement_descriptor_name
+            .clone();
+        let statement_descriptor_suffix = payment_data
+            .payment_intent
+            .statement_descriptor_suffix
+            .clone();
+        let key_manager_state = state.into();
+        let billing_details = payment_data
+            .address
+            .get_payment_billing()
+            .async_map(|billing_details| {
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    billing_details,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                )
+            })
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt billing details")?;
+
+        let shipping_details = payment_data
+            .address
+            .get_shipping()
+            .async_map(|shipping_details| {
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    shipping_details,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                )
+            })
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt shipping details")?;
+
+        let order_details = payment_data.payment_intent.order_details.clone();
+        let metadata = payment_data.payment_intent.metadata.clone();
+        let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
+        let session_expiry = payment_data.payment_intent.session_expiry;
+        let merchant_order_reference_id = payment_data
+            .payment_intent
+            .merchant_order_reference_id
+            .clone();
+
+        let tax_details = payment_data
+            .payment_attempt
+            .net_amount
+            .get_order_tax_amount()
+            .map(|order_tax_amount| diesel_models::TaxDetails {
+                default: Some(diesel_models::DefaultTax { order_tax_amount }),
+                payment_method_type: None,
+            });
+
+        let shipping_cost = payment_data.payment_intent.shipping_cost;
+
+        // Deserialize request_payload to PaymentsRequest for comparison
+        let request_payments = payment_data
+            .request_payload
+            .as_ref()
+            .map(|payload| {
+                payload
+                    .clone()
+                    .parse_value::<api_models::payments::PaymentsRequest>("PaymentsRequest")
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse request payload")?;
+
+        let payment_intent_feature_metadata = payment_data
+            .payment_intent
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse payment intent feature metadata")?;
+
+        let feature_metadata = match (
+            request_payments.and_then(|req| req.feature_metadata),
+            payment_intent_feature_metadata,
+        ) {
+            (Some(request_meta), intent_meta) => Some(request_meta.merge(intent_meta)),
+            (None, intent_meta) => intent_meta,
+        };
+
+        let feature_metadata_value = feature_metadata
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to serialize feature metadata")?;
+
+        let intent_update = storage::PaymentIntentUpdate::Update(Box::new(
+            PaymentIntentUpdateFields {
+                amount: payment_data.amount.into(),
+                currency: payment_data.currency,
+                setup_future_usage,
+                status: intent_status,
+                customer_id: customer_id.clone(),
+                shipping_address_id: shipping_address,
+                billing_address_id: billing_address,
+                return_url,
+                business_country,
+                business_label,
+                description,
+                statement_descriptor_name,
+                statement_descriptor_suffix,
+                order_details,
+                metadata,
+                payment_confirm_source: None,
+                updated_by: storage_scheme.to_string(),
+                fingerprint_id: None,
+                session_expiry,
+                request_external_three_ds_authentication: payment_data
+                    .payment_intent
+                    .request_external_three_ds_authentication,
+                frm_metadata,
+                customer_details,
+                merchant_order_reference_id,
+                billing_details,
+                shipping_details,
+                is_payment_processor_token_flow: None,
+                tax_details,
+                force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
+                is_iframe_redirection_enabled: payment_data
+                    .payment_intent
+                    .is_iframe_redirection_enabled,
+                is_confirm_operation: false, // this is not a confirm operation
+                    payment_channel: payment_data.payment_intent.payment_channel.clone(),
+                feature_metadata: feature_metadata_value.map(hyperswitch_masking::Secret::new),
+                tax_status: payment_data.payment_intent.tax_status,
+                discount_amount: payment_data.payment_intent.discount_amount,
+                order_date: payment_data.payment_intent.order_date,
+                shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                duty_amount: payment_data.payment_intent.duty_amount,
+                enable_partial_authorization: payment_data
+                    .payment_intent
+                    .enable_partial_authorization,
+                enable_overcapture: payment_data.payment_intent.enable_overcapture,
+                shipping_cost,
+                installment_options: payment_data.payment_intent.installment_options.clone(),
+                profile_acquirer_id: payment_data.payment_intent.profile_acquirer_id.clone(),
+                external_surcharge_strategy: payment_data
+                    .payment_intent
+                    .external_surcharge_strategy,
+                external_surcharge_applicable: payment_data
+                    .payment_intent
+                    .external_surcharge_applicable,
+            },
+        ));
+
+        Ok((payment_data, attempt_update, intent_update))
+    }
+
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    pub(crate) async fn persist_payment_update_changes<F>(
+        state: &SessionState,
+        processor: &domain::Processor,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        payment_data: PaymentData<F>,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: Clone + Send + Sync,
+    {
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
+
+        let (mut payment_data, attempt_update, intent_update) = Box::pin(
+            Self::compute_payment_update_changes(state, processor, dimensions, payment_data),
+        )
+        .await?;
+
+        payment_data.payment_attempt = state
+            .store
+            .update_payment_attempt_with_attempt_id(
+                payment_data.payment_attempt.clone(),
+                attempt_update,
+                storage_scheme,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        payment_data.payment_intent = state
+            .store
+            .update_payment_intent(
+                payment_data.payment_intent.clone(),
+                intent_update,
+                key_store,
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        Ok(payment_data)
+    }
+
     fn populate_payment_attempt_with_request(
         payment_attempt: &mut storage::PaymentAttempt,
         request: &api::PaymentsRequest,

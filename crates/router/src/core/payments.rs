@@ -9,6 +9,8 @@ pub mod operations;
 pub mod session_token;
 
 pub mod client_session;
+pub mod request_payload_context;
+pub mod request_payload_helpers;
 #[cfg(feature = "retry")]
 pub mod retry;
 pub mod routing;
@@ -18,8 +20,6 @@ pub mod tokenization;
 pub mod transformers;
 pub mod types;
 pub mod vault_session;
-pub mod request_payload_helpers;
-pub mod request_payload_context;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 use std::{
@@ -75,6 +75,7 @@ use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::{AccessToken, FeatureData},
 };
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
@@ -9506,6 +9507,11 @@ where
     /// Optional: Original request payload from the route handler
     /// Stored as generic serde_json::Value to support multiple request types
     pub request_payload: Option<serde_json::Value>,
+    /// Optional: Deferred DB updates for PaymentUpdate post-confirm connector flows.
+    /// These updates are computed in update_trackers but only executed after the
+    /// connector returns a successful response.
+    pub deferred_payment_updates:
+        Option<(storage::PaymentAttemptUpdate, storage::PaymentIntentUpdate)>,
 }
 
 #[cfg(feature = "v1")]
@@ -9983,10 +9989,25 @@ where
         "PaymentSessionUpdate" => true,
         "PaymentPostSessionTokens" => true,
         "PaymentUpdateMetadata" => true,
-        "PaymentUpdate" => matches!(
-            payment_data.get_payment_intent().status,
-            storage_enums::IntentStatus::RequiresCustomerAction
-        ),
+        "PaymentUpdate" => {
+            let connector_name = payment_data.get_payment_attempt_connector();
+            let payment_method_type = payment_data.get_payment_attempt().payment_method_type;
+            let intent_status = payment_data.get_payment_intent().status;
+            let should_call = connector_name
+                .and_then(|name| api::connector_mapping::ConnectorData::convert_connector(name).ok())
+                .map(|connector| {
+                    connector.should_call_connector_for_update_post_confirm(
+                        payment_method_type,
+                        intent_status,
+                    )
+                })
+                .unwrap_or(false);
+            logger::info!(
+                "should_call_connector PaymentUpdate: connector_name={:?}, payment_method_type={:?}, intent_status={:?}, should_call={}",
+                connector_name, payment_method_type, intent_status, should_call
+            );
+            should_call
+        }
         "PaymentExtendAuthorization" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture

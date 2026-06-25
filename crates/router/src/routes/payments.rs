@@ -816,8 +816,8 @@ pub async fn payments_update(
 
     // Serialize and store the incoming request payload before enriching it with path-derived fields.
     // This keeps the payload in the same shape as client input for downstream deserialization.
-    let serialized_payload = payments::request_payload_helpers
-        ::try_serialize_request_to_json(&payload);
+    let serialized_payload =
+        payments::request_payload_helpers::try_serialize_request_to_json(&payload);
     payments::request_payload_context::set_request_payload(serialized_payload);
 
     let payment_id = path.into_inner();

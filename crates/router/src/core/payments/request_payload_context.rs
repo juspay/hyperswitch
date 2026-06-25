@@ -1,21 +1,20 @@
 /// Request payload context storage using thread-local storage
-/// 
+///
 /// This module provides a thread-safe way to store and retrieve request payloads
 /// throughout the payment processing pipeline without modifying all function signatures.
 ///
 /// The approach uses thread-local storage which is automatically cleaned up at the
 /// end of each request, ensuring no cross-request contamination.
-
 use serde_json::Value;
 use std::cell::RefCell;
 
 thread_local! {
     /// Thread-local storage for the current request's serialized payload
-    static REQUEST_PAYLOAD: RefCell<Option<Value>> = RefCell::new(None);
+    static REQUEST_PAYLOAD: RefCell<Option<Value>> = const { RefCell::new(None) };
 }
 
 /// Store a request payload in thread-local context
-/// 
+///
 /// This should be called early in the request handling, typically in route handlers.
 /// The payload is stored as JSON Value to support multiple request types generically.
 ///
@@ -32,7 +31,7 @@ pub fn set_request_payload(payload: Option<Value>) {
 }
 
 /// Retrieve a request payload from thread-local context
-/// 
+///
 /// Returns a clone of the stored payload, or None if no payload was set.
 /// This is safe to call from anywhere in the request processing pipeline.
 ///
@@ -47,7 +46,7 @@ pub fn get_request_payload() -> Option<Value> {
 }
 
 /// Clear the request payload context
-/// 
+///
 /// This is automatically called at the end of each request, but can be manually
 /// invoked if needed for cleanup.
 pub fn clear_request_payload() {
@@ -64,7 +63,7 @@ mod tests {
     fn test_set_and_get_payload() {
         let payload = serde_json::json!({"field": "value"});
         set_request_payload(Some(payload.clone()));
-        
+
         let retrieved = get_request_payload();
         assert_eq!(retrieved, Some(payload));
     }
@@ -80,7 +79,7 @@ mod tests {
     fn test_clear_payload() {
         let payload = serde_json::json!({"field": "value"});
         set_request_payload(Some(payload));
-        
+
         clear_request_payload();
         let retrieved = get_request_payload();
         assert_eq!(retrieved, None);

@@ -1288,7 +1288,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
             ))
         } else {
             match req.payment_method {
-            enums::PaymentMethod::BankTransfer => match req.payment_method_type {
+                enums::PaymentMethod::BankTransfer => match req.payment_method_type {
                     Some(enums::PaymentMethodType::PixEmv)
                     | Some(enums::PaymentMethodType::PixAutomaticoQr) => {
                         let santander_variant =
@@ -2115,6 +2115,18 @@ impl ConnectorSpecifications for Santander {
             payment_method_type,
             Some(enums::PaymentMethodType::PixEmv) | Some(enums::PaymentMethodType::Boleto)
         )
+    }
+
+    fn should_call_connector_for_update_post_confirm(
+        &self,
+        payment_method_type: Option<enums::PaymentMethodType>,
+        intent_status: enums::IntentStatus,
+    ) -> bool {
+        matches!(intent_status, enums::IntentStatus::RequiresCustomerAction)
+            && matches!(
+                payment_method_type,
+                Some(enums::PaymentMethodType::PixEmv) | Some(enums::PaymentMethodType::Boleto)
+            )
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {

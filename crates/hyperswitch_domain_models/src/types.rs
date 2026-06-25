@@ -19,7 +19,8 @@ use crate::{
         IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostCaptureVoid,
         PostCaptureVoidSync, PostSessionTokens, PreAuthenticate, PreAuthorizeVoid, PreProcessing,
         ProcessIncomingWebhook, PushNotification, RSync, SdkSessionUpdate, Session,
-        SettlementSplitCreate, SetupMandate, UpdateMetadata, UpdatePostConfirm, VerifyWebhookSource, Void,
+        SettlementSplitCreate, SetupMandate, UpdateMetadata, UpdatePostConfirm,
+        VerifyWebhookSource, Void,
     },
     router_request_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,

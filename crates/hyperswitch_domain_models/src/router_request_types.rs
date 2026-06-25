@@ -285,11 +285,19 @@ pub struct PaymentsUpdateMetadataData {
 pub struct PaymentsUpdatePostConfirmData {
     // add amount, billing full name
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub amount: MinorUnit,
+    pub currency: storage_enums::Currency,
     pub connector_attempt_metadata: Option<serde_json::Value>,
     pub connector_transaction_id: String,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub billing_address: Option<AddressDetails>,
     pub metadata: Option<serde_json::Value>,
+    pub merchant_order_reference_id: Option<String>,
     pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
+    /// Deferred DB updates computed during PaymentUpdate but only executed
+    /// after a successful connector response.
+    pub deferred_payment_updates:
+        Option<(payments::payment_attempt::PaymentAttemptUpdate, payments::payment_intent::PaymentIntentUpdate)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
