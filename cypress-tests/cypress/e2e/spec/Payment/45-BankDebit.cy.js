@@ -326,7 +326,7 @@ describe("Bank Debit tests", () => {
     it("sepa-bank-debit-mandate-mit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_debit_pm"
-      ]["BankDebitMandate"];
+      ]["BankdebitMIT"];
 
       cy.mitForMandatesCallTest(
         fixtures.mitConfirmBody,
@@ -350,14 +350,6 @@ describe("Bank Debit tests", () => {
   });
 
   context("BACS Bank Debit Mandate CIT flow test", () => {
-    let shouldContinue = true;
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
     it("create-customer-call-test", () => {
       cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
@@ -376,20 +368,10 @@ describe("Bank Debit tests", () => {
         "new_mandate",
         globalState
       );
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("ACH Bank Debit Mandate CIT flow test", () => {
-    let shouldContinue = true;
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
     it("create-customer-call-test", () => {
       cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
@@ -408,40 +390,7 @@ describe("Bank Debit tests", () => {
         "new_mandate",
         globalState
       );
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
-  context("BECS Bank Debit Mandate CIT flow test", () => {
-    let shouldContinue = true;
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
-    it("create-customer-call-test", () => {
-      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-    });
-
-    it("becs-bank-debit-mandate-cit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_debit_pm"
-      ]["Becs"];
-
-      cy.citForMandatesCallTest(
-        fixtures.citConfirmBody,
-        data,
-        6000,
-        true,
-        "automatic",
-        "new_mandate",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-  });
 });

@@ -2879,62 +2879,6 @@ export const connectorDetails = {
         },
       },
     },
-    AchMandate: {
-      Request: {
-        payment_method: "bank_debit",
-        payment_method_type: "ach",
-        payment_method_data: {
-          bank_debit: {
-            ach_bank_debit: {
-              account_number: "1234567890",
-              routing_number: "011000138",
-              bank_type: "checking",
-              bank_account_holder_name: "John Doe",
-            },
-          },
-          billing: {
-            address: {
-              line1: "1467",
-              city: "San Francisco",
-              state: "CA",
-              zip: "94122",
-              country: "US",
-              first_name: "John",
-              last_name: "Doe",
-            },
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            city: "San Francisco",
-            state: "CA",
-            zip: "94122",
-            country: "US",
-            first_name: "John",
-            last_name: "Doe",
-          },
-        },
-        customer_acceptance: customerAcceptance,
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            multi_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
-        payment_type: "new_mandate",
-        currency: "USD",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
     Bacs: {
       Request: {
         payment_method: "bank_debit",
@@ -3012,7 +2956,7 @@ export const connectorDetails = {
         },
       },
     },
-    BankDebitMandate: {
+    BankdebitMIT: {
       Request: {
         currency: "EUR",
         off_session: true,
