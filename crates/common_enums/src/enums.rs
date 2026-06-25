@@ -11358,7 +11358,8 @@ impl PixKey {
     Debug,
     Hash,
     Eq,
-    PartialEq,
+    Parti
+    
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
@@ -11408,7 +11409,7 @@ pub enum WebhookRegistrationStatus {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+
 #[strum(serialize_all = "snake_case")]
 pub enum WebhookSecretGenerationStatus {
     /// HMAC key generation is successful
