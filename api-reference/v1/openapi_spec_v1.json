@@ -17219,6 +17219,21 @@
         ],
         "description": "Charge Information"
       },
+      "ConnectorErrorDetails": {
+        "type": "object",
+        "description": "Connector-reported error code and message for a single registration step.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "ConnectorFeatureMatrixResponse": {
         "type": "object",
         "required": [
@@ -40216,30 +40231,28 @@
             ],
             "nullable": true
           },
-          "error_code": {
-            "type": "string",
-            "nullable": true
-          },
-          "error_message": {
-            "type": "string",
-            "nullable": true
-          },
-          "hmac_generation_status": {
+          "connector_error": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/WebhookHmacGenerationStatus"
+                "$ref": "#/components/schemas/ConnectorErrorDetails"
               }
             ],
             "nullable": true
           },
-          "hmac_error_code": {
-            "type": "string",
-            "description": "Connector error code when the HMAC generation step fails.",
+          "secret_generation_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookSecretGenerationStatus"
+              }
+            ],
             "nullable": true
           },
-          "hmac_error_message": {
-            "type": "string",
-            "description": "Connector error message when the HMAC generation step fails.",
+          "secret_error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorErrorDetails"
+              }
+            ],
             "nullable": true
           }
         },
@@ -45778,17 +45791,17 @@
         },
         "additionalProperties": false
       },
-      "WebhookHmacGenerationStatus": {
+      "WebhookRegistrationStatus": {
         "type": "string",
-        "description": "The status of HMAC key generation for a connector webhook",
+        "description": "The status of webhook registration",
         "enum": [
           "Success",
           "Failure"
         ]
       },
-      "WebhookRegistrationStatus": {
+      "WebhookSecretGenerationStatus": {
         "type": "string",
-        "description": "The status of webhook registration",
+        "description": "The status of HMAC key generation for a connector webhook",
         "enum": [
           "Success",
           "Failure"
