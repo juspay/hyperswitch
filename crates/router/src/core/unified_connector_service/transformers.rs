@@ -834,7 +834,7 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
     }
 }
 
-impl transformers::ForeignFrom<AttemptStatus> for payments_grpc::PaymentStatus {
+impl ForeignFrom<AttemptStatus> for payments_grpc::PaymentStatus {
     fn foreign_from(status: AttemptStatus) -> Self {
         match status {
             AttemptStatus::Started => Self::Started,
