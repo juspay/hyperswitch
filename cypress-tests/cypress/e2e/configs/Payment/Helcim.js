@@ -1,4 +1,3 @@
-import { customerAcceptance, standardBillingAddress } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 if (Cypress.env("CONNECTOR") === "helcim") {
@@ -19,26 +18,6 @@ const failedNo3DSCardDetails = {
   card_exp_year: "30",
   card_holder_name: "joseph Doe",
   card_cvc: "999",
-};
-
-const singleUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    single_use: {
-      amount: 6000,
-      currency: "USD",
-    },
-  },
-};
-
-const multiUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    multi_use: {
-      amount: 6000,
-      currency: "USD",
-    },
-  },
 };
 
 const paymentScenarios = {
@@ -129,33 +108,6 @@ const paymentScenarios = {
       body: {},
     },
   }),
-  SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
-    Configs: { TRIGGER_SKIP: true },
-    Request: {
-      setup_future_usage: "off_session",
-      billing: null,
-    },
-    Response: {
-      status: 200,
-      body: { status: "succeeded" },
-    },
-  },
-  SaveCardConfirmAutoCaptureOffSession: {
-    Configs: { TRIGGER_SKIP: true },
-    Request: { setup_future_usage: "off_session" },
-    Response: {
-      status: 200,
-      body: { status: "succeeded" },
-    },
-  },
-  SaveCardConfirmManualCaptureOffSession: {
-    Configs: { TRIGGER_SKIP: true },
-    Request: { setup_future_usage: "off_session" },
-    Response: {
-      status: 200,
-      body: { status: "requires_capture" },
-    },
-  },
   Capture: getCustomExchange({
     Request: { amount_to_capture: 6000 },
     Response: {
@@ -192,196 +144,6 @@ const paymentScenarios = {
   }),
 };
 
-const mandateScenarios = {
-  MandateMultiUseNo3DSAutoCapture: {
-    Configs: { TRIGGER_SKIP: true },
-    Request: {
-      payment_method: "card",
-      payment_method_data: {
-        card: successfulNo3DSCardDetails,
-        billing: standardBillingAddress,
-      },
-      currency: "USD",
-      mandate_data: multiUseMandateData,
-    },
-    Response: {
-      status: 200,
-      body: { status: "succeeded" },
-    },
-  },
-  MandateMultiUseNo3DSManualCapture: {
-    Configs: { TRIGGER_SKIP: true },
-    Request: {
-      payment_method: "card",
-      payment_method_data: {
-        card: successfulNo3DSCardDetails,
-        billing: standardBillingAddress,
-      },
-      currency: "USD",
-      mandate_data: multiUseMandateData,
-    },
-    Response: {
-      status: 200,
-      body: { status: "requires_capture" },
-    },
-  },
-  MandateSingleUseNo3DSAutoCapture: {
-    Configs: { TRIGGER_SKIP: true },
-    Request: {
-      payment_method: "card",
-      payment_method_data: {
-        card: successfulNo3DSCardDetails,
-        billing: standardBillingAddress,
-      },
-      currency: "USD",
-      mandate_data: singleUseMandateData,
-    },
-    Response: {
-      status: 200,
-      body: { status: "succeeded" },
-    },
-  },
-  MandateSingleUseNo3DSManualCapture: {
-    Configs: { TRIGGER_SKIP: true },
-    Request: {
-      payment_method: "card",
-      payment_method_data: {
-        card: successfulNo3DSCardDetails,
-        billing: standardBillingAddress,
-      },
-      currency: "USD",
-      mandate_data: singleUseMandateData,
-    },
-    Response: {
-      status: 200,
-      body: { status: "requires_capture" },
-    },
-  },
-  PaymentMethodIdMandateNo3DSAutoCapture: {
-    Configs: { TRIGGER_SKIP: true },
-    Request: {
-      payment_method: "card",
-      payment_method_data: {
-        card: successfulNo3DSCardDetails,
-        billing: standardBillingAddress,
-      },
-      currency: "USD",
-      mandate_data: null,
-      customer_acceptance: customerAcceptance,
-    },
-    Response: {
-      status: 200,
-      body: { status: "succeeded" },
-    },
-  },
-  PaymentMethodIdMandateNo3DSManualCapture: {
-    Configs: { TRIGGER_SKIP: true },
-    Request: {
-      payment_method: "card",
-      payment_method_data: {
-        card: successfulNo3DSCardDetails,
-        billing: standardBillingAddress,
-      },
-      currency: "USD",
-      mandate_data: null,
-      customer_acceptance: customerAcceptance,
-    },
-    Response: {
-      status: 200,
-      body: { status: "requires_capture" },
-    },
-  },
-  ZeroAuthMandate: {
-    Configs: { TRIGGER_SKIP: true },
-    Request: {
-      payment_method: "card",
-      payment_method_data: { card: failedNo3DSCardDetails },
-      currency: "USD",
-      mandate_data: singleUseMandateData,
-    },
-    Response: {
-      status: 200,
-      body: { status: "succeeded" },
-    },
-  },
-  SaveCardUseNo3DSAutoCapture: {
-    Configs: { TRIGGER_SKIP: true },
-    Request: {
-      payment_method: "card",
-      payment_method_data: {
-        card: successfulNo3DSCardDetails,
-        billing: standardBillingAddress,
-      },
-      currency: "USD",
-      setup_future_usage: "on_session",
-      customer_acceptance: customerAcceptance,
-    },
-    Response: {
-      status: 200,
-      body: { status: "succeeded" },
-    },
-  },
-  SaveCardUseNo3DSAutoCaptureOffSession: {
-    Configs: { TRIGGER_SKIP: true },
-    Request: {
-      payment_method: "card",
-      payment_method_data: {
-        card: successfulNo3DSCardDetails,
-        billing: standardBillingAddress,
-      },
-      currency: "USD",
-      setup_future_usage: "off_session",
-      customer_acceptance: customerAcceptance,
-    },
-    Response: {
-      status: 200,
-      body: { status: "succeeded" },
-    },
-  },
-  SaveCardUseNo3DSManualCapture: {
-    Configs: { TRIGGER_SKIP: true },
-    Request: {
-      payment_method: "card",
-      payment_method_data: {
-        card: successfulNo3DSCardDetails,
-        billing: standardBillingAddress,
-      },
-      currency: "USD",
-      setup_future_usage: "on_session",
-      customer_acceptance: customerAcceptance,
-    },
-    Response: {
-      status: 200,
-      body: { status: "requires_capture" },
-    },
-  },
-  SaveCardUseNo3DSManualCaptureOffSession: {
-    Configs: { TRIGGER_SKIP: true },
-    Request: {
-      payment_method: "card",
-      payment_method_data: {
-        card: successfulNo3DSCardDetails,
-        billing: standardBillingAddress,
-      },
-      currency: "USD",
-      setup_future_usage: "off_session",
-      customer_acceptance: customerAcceptance,
-    },
-    Response: {
-      status: 200,
-      body: { status: "requires_capture" },
-    },
-  },
-  MITManualCapture: {
-    Configs: { TRIGGER_SKIP: true },
-    Request: {},
-    Response: {
-      status: 200,
-      body: { status: "requires_capture" },
-    },
-  },
-};
-
 function stampPaymentMethodType(scenarios, paymentMethodType) {
   const cloned = JSON.parse(JSON.stringify(scenarios));
   for (const scenario of Object.values(cloned)) {
@@ -393,14 +155,12 @@ function stampPaymentMethodType(scenarios, paymentMethodType) {
 }
 
 export const connectorDetails = {
-  card_pm: { ...paymentScenarios, ...mandateScenarios },
+  card_pm: { ...paymentScenarios },
   card_credit_pm: {
     ...stampPaymentMethodType(paymentScenarios, "credit"),
-    ...stampPaymentMethodType(mandateScenarios, "credit"),
   },
   card_debit_pm: {
     ...stampPaymentMethodType(paymentScenarios, "debit"),
-    ...stampPaymentMethodType(mandateScenarios, "debit"),
   },
 };
 
