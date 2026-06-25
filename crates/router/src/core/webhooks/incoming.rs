@@ -1907,6 +1907,7 @@ async fn external_authentication_incoming_webhook_flow(
             eci: authentication_details.eci,
             challenge_cancel: authentication_details.challenge_cancel,
             challenge_code_reason: authentication_details.challenge_code_reason,
+            updated_by: platform.get_processor().get_account().storage_scheme.to_string(),
         };
         let authentication =
             if let webhooks::ObjectReferenceId::ExternalAuthenticationID(authentication_id_type) =
@@ -1920,6 +1921,7 @@ async fn external_authentication_incoming_webhook_flow(
                             &authentication_id,
                             platform.get_processor().get_key_store(),
                             &key_manager_state,
+                            platform.get_processor().get_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
@@ -1935,6 +1937,7 @@ async fn external_authentication_incoming_webhook_flow(
                             connector_authentication_id.clone(),
                             platform.get_processor().get_key_store(),
                             &key_manager_state,
+                            platform.get_processor().get_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
@@ -1954,6 +1957,7 @@ async fn external_authentication_incoming_webhook_flow(
                 authentication_update,
                 platform.get_processor().get_key_store(),
                 &key_manager_state,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
