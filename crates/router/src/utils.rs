@@ -1316,6 +1316,7 @@ pub async fn trigger_refund_outgoing_webhook(
         let refund_response: api_models::refunds::RefundResponse = refund.clone().foreign_into();
         let refund_id = refund_response.refund_id.clone();
         let cloned_state = state.clone();
+        let cloned_payment_attempt = payment_attempt.clone();
         let primary_object_created_at = refund_response.created_at;
         if let Some(outgoing_event_type) = event_type {
             let created_by = refund
@@ -1333,7 +1334,7 @@ pub async fn trigger_refund_outgoing_webhook(
             let cloned_platform = platform.clone();
             tokio::spawn(
                 async move {
-                    let webhook_resource_data = WebhookResourceData::Refund { payment_attempt };
+                    let webhook_resource_data = WebhookResourceData::Refund { payment_attempt: cloned_payment_attempt };
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                         cloned_state,
                         cloned_platform,
