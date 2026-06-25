@@ -33,7 +33,7 @@ time = "0.3.41"
 tonic = "0.14"
 url = { version = "2.5.4", features = ["serde"] }
 
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "d29837cdde69fb26aac326cff669f4f7995d3957", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "8c30000437dfc4a70536119cce8781ad6d270b58", package = "rust-grpc-client" }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 
 # First party crates
