@@ -2093,9 +2093,6 @@ export const connectorDetails = {
       },
     }),
     "3DSManualCapture": getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -2104,11 +2101,6 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-      },
-      Response: {
-        body: {
-          status: "failed",
-        },
       },
     }),
     "3DSAutoCapture": getCustomExchange({
