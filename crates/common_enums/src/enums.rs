@@ -11408,7 +11408,6 @@ pub enum WebhookRegistrationStatus {
     strum::EnumString,
     ToSchema,
 )]
-
 #[strum(serialize_all = "snake_case")]
 pub enum WebhookSecretGenerationStatus {
     /// HMAC key generation is successful
