@@ -9,10 +9,10 @@ pub struct ConnectorWebhookRegisterRequest {
     pub event_type: common_enums::ConnectorWebhookEventType,
 }
 
-/// Connector-reported error code and message for a single registration step.
+/// Connector-reported error code and message from the webhook secret generation step.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct ConnectorErrorDetails {
+pub struct WebhookSecretErrorDetails {
     pub code: Option<String>,
     pub message: Option<String>,
 }
@@ -25,15 +25,15 @@ pub struct RegisterConnectorWebhookResponse {
     pub connector_webhook_id: Option<String>,
     #[schema(value_type = Option<WebhookRegistrationStatus>)]
     pub webhook_registration_status: common_enums::WebhookRegistrationStatus,
-    /// Connector error reported during webhook registration. `None` when registration succeeded.
-    pub connector_error: Option<ConnectorErrorDetails>,
-    /// Status of the HMAC key generation. `None` when the connector does not require a
-    /// separate HMAC generation step after registration.
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    /// Status of the webhook secret key generation. `None` when the connector does not require a
+    /// separate webhook secret generation step after registration.
     #[schema(value_type = Option<WebhookSecretGenerationStatus>)]
     pub secret_generation_status: Option<common_enums::WebhookSecretGenerationStatus>,
     /// Connector error reported during the HMAC generation step. `None` when HMAC generation
     /// wasn't attempted or succeeded.
-    pub secret_error: Option<ConnectorErrorDetails>,
+    pub secret_error: Option<WebhookSecretErrorDetails>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

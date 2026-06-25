@@ -350,20 +350,12 @@ pub fn construct_connector_webhook_registration_response(
         })
         .unwrap_or((None, None));
 
-    let connector_error = (register_webhook_response.error_code.is_some()
-        || register_webhook_response.error_message.is_some())
-    .then(
-        || api_models::merchant_connector_webhook_management::ConnectorErrorDetails {
-            code: register_webhook_response.error_code.clone(),
-            message: register_webhook_response.error_message.clone(),
-        },
-    );
-
     Ok(RegisterConnectorWebhookResponse {
         event_type: connector_webhook_register_data.event_type,
         connector_webhook_id: register_webhook_response.connector_webhook_id.clone(),
         webhook_registration_status: register_webhook_response.status,
-        connector_error,
+        error_code: register_webhook_response.error_code.clone(),
+        error_message: register_webhook_response.error_message.clone(),
         secret_generation_status,
         secret_error,
     })
