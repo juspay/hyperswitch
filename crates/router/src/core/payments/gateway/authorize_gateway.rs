@@ -178,6 +178,7 @@ where
                                         network_error_message: network_error_message.clone(),
                                         connector_metadata: None,
                                     });
+                                router_data.connector_http_status_code = Some(status_code);
                                 return Ok((
                                     router_data,
                                     (),
@@ -312,6 +313,7 @@ where
                                 // Return Ok with router_data containing the error response
                                 // This ensures the connector error flows through the normal
                                 // response handling path (same as direct connector errors)
+                                router_data.connector_http_status_code = Some(status_code);
                                 return Ok((
                                     router_data,
                                     (),

@@ -153,6 +153,7 @@ where
                                     connector_metadata: None,
                                 },
                             );
+                            router_data.connector_http_status_code = Some(status_code);
                             return Ok((
                                 router_data,
                                 (),
