@@ -3,6 +3,8 @@ use std::fmt;
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use utoipa::ToSchema;
 
+use crate::enums::{EventType, PaymentMethodType, WebhookRegistrationStatus};
+
 /// The scope of webhook registration.
 /// Determines which entities the connector should register webhooks for.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -13,9 +15,9 @@ pub enum Scope {
     /// Single registration call
     NotSpecific,
     /// Scoped by payment method types (e.g., Pix, Boleto)
-    PaymentMethodTypes(Vec<common_enums::PaymentMethodType>),
+    PaymentMethodTypes(Vec<PaymentMethodType>),
     /// Scoped by event types (e.g., Payments, Refunds, Disputes)
-    EventTypes(Vec<common_enums::EventType>),
+    EventTypes(Vec<EventType>),
 }
 
 /// Discriminator for the scope type in the response
@@ -30,8 +32,8 @@ pub enum ScopeType {
 #[derive(Debug, Clone, ToSchema)]
 pub enum ScopeIdentifier {
     NotSpecific,
-    PaymentMethodType(common_enums::PaymentMethodType),
-    EventType(common_enums::EventType),
+    PaymentMethodType(PaymentMethodType),
+    EventType(EventType),
 }
 
 impl Serialize for ScopeIdentifier {
@@ -77,10 +79,10 @@ impl Visitor<'_> for ScopeIdentifierVisitor {
         if v == "not_specific" {
             return Ok(ScopeIdentifier::NotSpecific);
         }
-        if let Ok(pmt) = v.parse::<common_enums::PaymentMethodType>() {
+        if let Ok(pmt) = v.parse::<PaymentMethodType>() {
             return Ok(ScopeIdentifier::PaymentMethodType(pmt));
         }
-        if let Ok(evt) = v.parse::<common_enums::EventType>() {
+        if let Ok(evt) = v.parse::<EventType>() {
             return Ok(ScopeIdentifier::EventType(evt));
         }
         Err(E::custom(format!("unknown ScopeIdentifier: {v}")))
@@ -99,7 +101,7 @@ pub struct WebhookRegistrationResult {
     /// The scope identifier this result corresponds to.
     pub identifier: ScopeIdentifier,
     /// Whether the registration succeeded or failed.
-    pub status: common_enums::WebhookRegistrationStatus,
+    pub status: WebhookRegistrationStatus,
     /// The connector-generated webhook ID, if successful.
     pub connector_webhook_id: Option<String>,
     /// Error details, if the registration failed.
@@ -150,10 +152,10 @@ pub struct ConnectorWebhookListResponse {
 pub enum ConnectorWebhookScope {
     NotSpecific,
     PaymentMethodType {
-        value: common_enums::PaymentMethodType,
+        value: PaymentMethodType,
     },
     EventType {
-        value: common_enums::EventType,
+        value: EventType,
     },
 }
 
