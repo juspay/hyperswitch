@@ -2721,7 +2721,7 @@ export const connectorDetails = {
       if (paymentMethodType === "Ach") {
         return {
           Configs: {
-            TRIGGER_SKIP: true,
+            TRIGGER_SKIP: true, // TODO: remove when hyperswitch-oss Adyen ACH HTTP 500 server panic is fixed (see BAN-186)
           },
           Request: {
             currency: "USD",
@@ -2847,7 +2847,7 @@ export const connectorDetails = {
     },
     Ach: {
       Configs: {
-        TRIGGER_SKIP: true,
+        TRIGGER_SKIP: true, // TODO: remove when hyperswitch-oss Adyen ACH HTTP 500 server panic is fixed (see BAN-186)
       },
       Request: {
         payment_method: "bank_debit",
@@ -2855,8 +2855,8 @@ export const connectorDetails = {
         payment_method_data: {
           bank_debit: {
             ach_bank_debit: {
-              account_number: "000123456789",
-              routing_number: "121000358",
+              account_number: "1234567890",
+              routing_number: "011000138",
               bank_type: "checking",
               bank_account_holder_name: "John Doe",
             },
