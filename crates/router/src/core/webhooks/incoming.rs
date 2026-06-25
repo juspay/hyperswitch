@@ -202,12 +202,12 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
 }
 
 fn confirm_path_for_flow(
-    candidate_flow: common_enums::ExecutionPath,
+    candidate_path: common_enums::ExecutionPath,
     flow: Option<api::WebhookFlow>,
     enabled_flows: &[api::WebhookFlow],
 ) -> common_enums::ExecutionPath {
     match flow {
-        Some(f) if enabled_flows.contains(&f) => candidate_flow,
+        Some(f) if enabled_flows.contains(&f) => candidate_path,
         _ => common_enums::ExecutionPath::Direct,
     }
 }

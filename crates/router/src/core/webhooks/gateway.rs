@@ -326,8 +326,7 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
         let ack_creds = match reference {
             Some(ref reference) => {
                 mca = resolve_mca(ctx, reference).await.ok();
-                mca.clone()
-                    .and_then(|mca| Some(mca.connector_account_details.clone()))
+                mca.clone().map(|mca| mca.connector_account_details.clone())
             }
             None => ctx
                 .merchant_connector_account

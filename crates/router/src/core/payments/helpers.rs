@@ -69,7 +69,8 @@ use rand::Rng;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, logger, tracing};
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_with::{serde_as, VecSkipError};
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
@@ -2485,23 +2486,14 @@ pub struct RolloutConfig {
     pub execution_mode: ExecutionMode,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[serde_as]
+#[derive(Default, Debug, Clone, Deserialize)]
 pub struct WebhookRolloutConfig {
     #[serde(flatten)]
     pub rollout_configs: RolloutConfig,
-    #[serde(default, deserialize_with = "deserialize_webhook_flows")]
+    #[serde_as(as = "VecSkipError<_>")]
+    #[serde(default)]
     pub webhook_flows: Vec<api::WebhookFlow>,
-}
-
-fn deserialize_webhook_flows<'de, D>(deserializer: D) -> Result<Vec<api::WebhookFlow>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let raw = Vec::<serde_json::Value>::deserialize(deserializer)?;
-    Ok(raw
-        .into_iter()
-        .filter_map(|value| serde_json::from_value::<api::WebhookFlow>(value).ok())
-        .collect())
 }
 
 impl Default for RolloutConfig {
@@ -2523,7 +2515,6 @@ pub struct RolloutExecutionResult {
     pub should_execute: bool,
     pub proxy_override: Option<ProxyOverride>,
     pub execution_mode: ExecutionMode,
-    pub webhook_flows: Vec<api::WebhookFlow>,
 }
 
 impl Default for RolloutExecutionResult {
@@ -2532,9 +2523,14 @@ impl Default for RolloutExecutionResult {
             should_execute: false,
             proxy_override: None,
             execution_mode: ExecutionMode::NotApplicable,
-            webhook_flows: Vec::new(),
         }
     }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct WebhookRolloutExecutionResult {
+    pub rollout_execution_result: RolloutExecutionResult,
+    pub webhook_flows: Vec<api::WebhookFlow>,
 }
 
 /// Validates a proxy URL, filtering out invalid ones and logging warnings
@@ -2614,7 +2610,6 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                             should_execute: true,
                             proxy_override,
                             execution_mode: config.execution_mode,
-                            webhook_flows: Vec::new(),
                         }
                     }
                     false => {
@@ -2630,33 +2625,39 @@ impl From<RolloutConfig> for RolloutExecutionResult {
     }
 }
 
-impl From<WebhookRolloutConfig> for RolloutExecutionResult {
+impl From<WebhookRolloutConfig> for WebhookRolloutExecutionResult {
     fn from(config: WebhookRolloutConfig) -> Self {
         let webhook_flows = config.webhook_flows;
-        let mut result = Self::from(config.rollout_configs);
-        result.webhook_flows = webhook_flows;
-        result
+        let rollout_execution_result = RolloutExecutionResult::from(config.rollout_configs);
+        Self {
+            rollout_execution_result,
+            webhook_flows,
+        }
     }
 }
 
-pub async fn should_execute_based_on_rollout(
+pub async fn should_execute_based_on_rollout<C, R>(
     state: &SessionState,
     config_key: &str,
-) -> RouterResult<RolloutExecutionResult> {
+) -> RouterResult<R>
+where
+    C: DeserializeOwned,
+    R: From<C> + Default,
+{
     let db = state.store.as_ref();
 
     match db.find_config_by_key(config_key).await {
         Ok(rollout_config) => {
             // Parse as JSON - log error if it fails but don't propagate
-            Ok(serde_json::from_str::<RolloutConfig>(&rollout_config.config)
-                .map(RolloutExecutionResult::from)
+            Ok(serde_json::from_str::<C>(&rollout_config.config)
+                .map(R::from)
                 .map_err(|err| {
                     logger::error!(
                         error = ?err,
                         config = %rollout_config.config,
                         "Failed to parse rollout config as JSON. Defaulting to not execute and setting should_execute to false."
                     );
-                    RolloutExecutionResult::default()
+                    R::default()
                 })
                 .unwrap_or_default())
         }
@@ -2677,47 +2678,7 @@ pub async fn should_execute_based_on_rollout(
                     );
                 }
             }
-            Ok(RolloutExecutionResult::default())
-        }
-    }
-}
-
-pub async fn should_execute_based_on_rollout_for_webhooks(
-    state: &SessionState,
-    config_key: &str,
-) -> RouterResult<RolloutExecutionResult> {
-    let db = state.store.as_ref();
-
-    match db.find_config_by_key(config_key).await {
-        Ok(rollout_config) => {
-            Ok(serde_json::from_str::<WebhookRolloutConfig>(&rollout_config.config)
-                .map(RolloutExecutionResult::from)
-                .map_err(|err| {
-                    logger::error!(
-                        error = ?err,
-                        config = %rollout_config.config,
-                        "Failed to parse webhook rollout config as JSON. Defaulting to not execute and setting should_execute to false."
-                    );
-                    RolloutExecutionResult::default()
-                })
-                .unwrap_or_default())
-        }
-        Err(err) => {
-            match err.current_context() {
-                errors::StorageError::ValueNotFound(_) => {
-                    logger::warn!(
-                        error = ?err,
-                        "Failed to fetch webhook rollout config from DB. Defaulting to not execute and setting should_execute to false."
-                    );
-                }
-                _ => {
-                    logger::error!(
-                        error = ?err,
-                        "Failed to fetch webhook rollout config from DB. Defaulting to not execute and setting should_execute to false."
-                    );
-                }
-            }
-            Ok(RolloutExecutionResult::default())
+            Ok(R::default())
         }
     }
 }
