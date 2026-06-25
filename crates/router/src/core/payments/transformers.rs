@@ -1837,6 +1837,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         feature_metadata: None,
         connector_intent_metadata: None,
         merchant_order_reference_id: None,
+        mit_category: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
