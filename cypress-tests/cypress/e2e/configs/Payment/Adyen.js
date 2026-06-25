@@ -1562,6 +1562,128 @@ export const connectorDetails = {
     },
   },
 
+  card_redirect_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      const currencyMap = { Knet: "KWD", Benefit: "BHD", MomoAtm: "VND" };
+      return {
+        Request: {
+          currency: currencyMap[paymentMethodType] || "USD",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Knet: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "knet",
+        payment_method_data: {
+          card_redirect: {
+            knet: {},
+          },
+        },
+        billing: {
+          address: {
+            country: "KW",
+            city: "Kuwait City",
+            line1: "123 Test St",
+            zip: "12345",
+            first_name: "Test",
+            last_name: "User",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "1234567890",
+            country_code: "+965",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Benefit: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "benefit",
+        payment_method_data: {
+          card_redirect: {
+            benefit: {},
+          },
+        },
+        billing: {
+          address: {
+            country: "BH",
+            city: "Manama",
+            line1: "123 Test St",
+            zip: "12345",
+            first_name: "Test",
+            last_name: "User",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "1234567890",
+            country_code: "+973",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    MomoAtm: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "momo_atm",
+        payment_method_data: {
+          card_redirect: {
+            momo_atm: {},
+          },
+        },
+        billing: {
+          address: {
+            country: "VN",
+            city: "Ho Chi Minh City",
+            line1: "123 Test St",
+            zip: "12345",
+            first_name: "Test",
+            last_name: "User",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "1234567890",
+            country_code: "+84",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
+
   upi_pm: {
     PaymentIntent: {
       Request: {

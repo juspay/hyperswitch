@@ -57,6 +57,14 @@ export function handleRedirection(
         paymentMethodType
       );
       break;
+    case "card_redirect":
+      cardRedirectRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId,
+        paymentMethodType
+      );
+      break;
     case "bank_transfer":
       bankTransferRedirection(
         urls.redirectionUrl,
@@ -2227,6 +2235,60 @@ function bankRedirectRedirection(
   }
   cy.then(() => {
     // The value of verifyUrl determined by the specific flow (Adyen iDEAL or handleFlow callback)
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+  });
+}
+
+function cardRedirectRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
+  connectorId = normalizeConnectorForRedirect(connectorId);
+  let verifyUrl = false;
+
+  cy.on("uncaught:exception", () => false);
+
+  cy.visit(redirectionUrl.href);
+  waitForRedirect(redirectionUrl.href);
+
+  handleFlow(
+    redirectionUrl,
+    expectedUrl,
+    connectorId,
+    ({ connectorId, paymentMethodType, constants }) => {
+      switch (connectorId) {
+        case "adyen":
+          switch (paymentMethodType) {
+            case "knet":
+            case "benefit":
+            case "momo_atm":
+              cy.get("h1", { timeout: constants.TIMEOUT }).should(
+                "contain.text",
+                "Acquirer Simulator"
+              );
+              cy.get('[value="authorised"]', {
+                timeout: constants.TIMEOUT,
+              }).click();
+              verifyUrl = true;
+              break;
+            default:
+              throw new Error(
+                `Unsupported card_redirect payment method type: ${paymentMethodType}`
+              );
+          }
+          break;
+        default:
+          throw new Error(
+            `Unsupported connector for card_redirect: ${connectorId}`
+          );
+      }
+    },
+    { paymentMethodType }
+  );
+
+  cy.then(() => {
     verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
   });
 }
