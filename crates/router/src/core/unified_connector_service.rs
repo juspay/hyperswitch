@@ -3435,7 +3435,7 @@ pub fn build_notify_connector_request(
                 notify_feature_data,
             )?),
             timestamp: event.created_at.assume_utc().unix_timestamp(),
-            state: None, 
+            state: None,
         },
         connector_auth_metadata,
         notify_event_type,
