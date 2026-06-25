@@ -1964,6 +1964,7 @@ impl
             Some(mandate) => match &mandate.mandate_reference_id {
                 Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_id)) => {
                     Some(payments_grpc::MandateReference {
+                        mandate_metadata: None,
                         mandate_id_type: Some(
                             payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(
                                 payments_grpc::ConnectorMandateReferenceId {
@@ -1979,6 +1980,7 @@ impl
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(network_mandate_id)) => {
                     Some(payments_grpc::MandateReference {
+                        mandate_metadata: None,
                         mandate_id_type: Some(
                             payments_grpc::mandate_reference::MandateIdType::NetworkMandateId(
                                 network_mandate_id.network_transaction_id.clone(),
@@ -1988,6 +1990,7 @@ impl
                 }
                 Some(mandates::MandateReferenceId::NetworkTokenWithNTI(network_token_with_nti)) => {
                     Some(payments_grpc::MandateReference {
+                        mandate_metadata: None,
                         mandate_id_type: Some(
                             payments_grpc::mandate_reference::MandateIdType::NetworkTokenWithNti(
                                 payments_grpc::NetworkTokenWithNti {
