@@ -2720,9 +2720,6 @@ export const connectorDetails = {
     PaymentIntent: (paymentMethodType) => {
       if (paymentMethodType === "Ach") {
         return {
-          Configs: {
-            TRIGGER_SKIP: true, // TODO: remove when hyperswitch-oss Adyen ACH HTTP 500 server panic is fixed (see BAN-186)
-          },
           Request: {
             currency: "USD",
             setup_future_usage: "off_session",
@@ -2846,9 +2843,6 @@ export const connectorDetails = {
       },
     },
     Ach: {
-      Configs: {
-        TRIGGER_SKIP: true, // TODO: remove when hyperswitch-oss Adyen ACH HTTP 500 server panic is fixed (see BAN-186)
-      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "ach",
@@ -2876,15 +2870,7 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: customerAcceptance,
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            multi_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
+        mandate_data: null,
         payment_type: "new_mandate",
         currency: "USD",
       },
