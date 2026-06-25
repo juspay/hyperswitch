@@ -1188,6 +1188,7 @@ impl PaymentUpdate {
 
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
+        let connector_metadata = payment_data.payment_intent.connector_metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
         let session_expiry = payment_data.payment_intent.session_expiry;
         let merchant_order_reference_id = payment_data
@@ -1257,6 +1258,7 @@ impl PaymentUpdate {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
+                connector_metadata,
                 payment_confirm_source: None,
                 updated_by: storage_scheme.to_string(),
                 fingerprint_id: None,

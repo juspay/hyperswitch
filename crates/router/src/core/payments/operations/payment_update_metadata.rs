@@ -22,7 +22,7 @@ use crate::{
         domain,
         storage::{self, enums as storage_enums},
     },
-    utils::OptionExt,
+    utils::{OptionExt, ValueExt},
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
@@ -127,6 +127,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
                 .map(|value| {
                     value
                         .clone()
+                        .expose()
                         .parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to parse feature metadata from payment intent")
@@ -293,7 +294,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsUpdateMetada
         let storage_scheme = processor.get_account().storage_scheme;
         let key_store = processor.get_key_store();
         let metadata = payment_data.payment_intent.metadata.clone();
-        let feature_metadata = payment_data.payment_intent.feature_metadata.clone();
 
         payment_data.payment_intent = state
             .store

@@ -1879,7 +1879,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, SantanderRefundResponse>> for Refun
 impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderPaymentRequest {
     type Error = Error;
     fn try_from(value: &PaymentsUpdatePostConfirmRouterData) -> Result<Self, Self::Error> {
-        match value.request.payment_method_type {
+        match value.payment_method_type {
             Some(common_enums::PaymentMethodType::PixQr) => {
                 let pix_qr = SantanderPixQRPaymentRequest::try_from(value)?;
                 Ok(Self::PixQR(Box::new(pix_qr)))
@@ -2021,13 +2021,8 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderPixQRPaymentRequ
     type Error = Error;
 
     fn try_from(value: &PaymentsUpdatePostConfirmRouterData) -> Result<Self, Self::Error> {
-        match value.request.payment_method_type {
+        match value.payment_method_type {
             Some(common_enums::PaymentMethodType::PixQr) => {
-                let santander_mca_metadata =
-                    SantanderMetadataObject::try_from(&value.connector_meta_data)?;
-                let pix_mca_metadata = santander_mca_metadata
-                    .pix_emv
-                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
                 let calendar = match &value
                     .request
                     .feature_metadata
