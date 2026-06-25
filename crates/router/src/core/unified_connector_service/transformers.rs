@@ -5871,6 +5871,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
             .map(|domain_mandate_type| match domain_mandate_type {
                 MandateDataType::SingleUse(amount_data) => payments_grpc::MandateType {
                     mandate_type: Some(payments_grpc::mandate_type::MandateType::SingleUse(
+                        #[allow(deprecated)]
                         payments_grpc::MandateAmountData {
                             amount: amount_data.amount.get_amount_as_i64(),
                             amount_type: None,
@@ -5891,6 +5892,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                 },
                 MandateDataType::MultiUse(amount_data_opt) => payments_grpc::MandateType {
                     mandate_type: amount_data_opt.as_ref().map(|amount_data| {
+                        #[allow(deprecated)]
                         payments_grpc::mandate_type::MandateType::MultiUse(
                             payments_grpc::MandateAmountData {
                                 amount: amount_data.amount.get_amount_as_i64(),
