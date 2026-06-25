@@ -483,7 +483,7 @@ pub async fn trigger_refund_to_gateway(
                 refund.refund_id
             )
         })?;
-    utils::trigger_refund_outgoing_webhook(state, platform, &response, &payment_attempt)
+    utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
         .await
         .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
         .ok();
@@ -1111,7 +1111,7 @@ pub async fn sync_refund_with_gateway(
                 refund.refund_id
             )
         })?;
-    utils::trigger_refund_outgoing_webhook(state, platform, &response, &payment_attempt)
+    utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
         .await
         .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
         .ok();
