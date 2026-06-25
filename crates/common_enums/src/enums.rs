@@ -11358,8 +11358,7 @@ impl PixKey {
     Debug,
     Hash,
     Eq,
-    Parti
-    
+    PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
