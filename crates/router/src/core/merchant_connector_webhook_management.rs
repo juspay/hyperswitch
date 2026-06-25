@@ -104,7 +104,10 @@ pub async fn register_connector_webhook(
     // Conditionally run the GenerateSecret flow for connectors that need it (e.g. Adyen). If the
     // register step succeeded but secret generation fails, we still surface register success and
     // report the secret-generation failure in the response.
-    let generate_secret_response = if connector_data.connector.requires_webhook_secret_generation() {
+    let generate_secret_response = if connector_data
+        .connector
+        .requires_webhook_secret_generation()
+    {
         Some(
             generate_connector_webhook_secret(
                 &state,

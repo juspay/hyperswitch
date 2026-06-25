@@ -277,7 +277,9 @@ fn build_connector_webhook_details_with_secret(
     let serialized = merged
         .encode_to_value()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize MerchantConnectorWebhookDetails with generated secret")?;
+        .attach_printable(
+            "Failed to serialize MerchantConnectorWebhookDetails with generated secret",
+        )?;
 
     Ok(Secret::new(serialized))
 }
@@ -337,12 +339,13 @@ pub fn construct_connector_webhook_registration_response(
 ) -> RouterResult<RegisterConnectorWebhookResponse> {
     let (secret_generation_status, secret_error) = generate_secret_response
         .map(|resp| {
-            let secret_error = (resp.error_code.is_some() || resp.error_message.is_some()).then(
-                || api_models::merchant_connector_webhook_management::ConnectorErrorDetails {
-                    code: resp.error_code.clone(),
-                    message: resp.error_message.clone(),
-                },
-            );
+            let secret_error =
+                (resp.error_code.is_some() || resp.error_message.is_some()).then(|| {
+                    api_models::merchant_connector_webhook_management::ConnectorErrorDetails {
+                        code: resp.error_code.clone(),
+                        message: resp.error_message.clone(),
+                    }
+                });
             (Some(resp.status), secret_error)
         })
         .unwrap_or((None, None));
