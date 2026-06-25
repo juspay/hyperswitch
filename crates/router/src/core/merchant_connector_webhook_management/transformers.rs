@@ -341,7 +341,7 @@ pub fn construct_connector_webhook_registration_response(
         .map(|resp| {
             let secret_error =
                 (resp.error_code.is_some() || resp.error_message.is_some()).then(|| {
-                    api_models::merchant_connector_webhook_management::ConnectorErrorDetails {
+                    api_models::merchant_connector_webhook_management::WebhookSecretErrorDetails {
                         code: resp.error_code.clone(),
                         message: resp.error_message.clone(),
                     }

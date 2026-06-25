@@ -101,21 +101,19 @@ pub async fn register_connector_webhook(
         }
     })?;
 
-    // Conditionally run the GenerateSecret flow for connectors that need it (e.g. Adyen). If the
-    // register step succeeded but secret generation fails, we still surface register success and
-    // report the secret-generation failure in the response.
-    let generate_secret_response = if connector_data
+    // Run the GenerateSecret flow only when the connector requires it (e.g. Adyen) AND the
+    // register step returned a connector_webhook_id to operate on. A failure here does not
+    // fail registration — register success is still surfaced and the secret-generation error
+    // is reported alongside it in the response.
+    let generate_secret_response = if let Some(connector_webhook_id) = connector_data
         .connector
         .requires_webhook_secret_generation()
+        .then(|| register_webhook_response.connector_webhook_id.clone())
+        .flatten()
     {
         Some(
-            generate_connector_webhook_secret(
-                &state,
-                &connector_data,
-                &mca,
-                register_webhook_response,
-            )
-            .await?,
+            generate_connector_webhook_secret(&state, &connector_data, &mca, connector_webhook_id)
+                .await?,
         )
     } else {
         None
@@ -172,22 +170,15 @@ pub async fn register_connector_webhook(
 
 /// Runs the GenerateSecret connector call. Returns the success payload or a synthesized failure
 /// payload when the connector call itself returned a non-network error. Callers MUST check
-/// [`requires_webhook_secret_generation`] before invoking this.
+/// [`requires_webhook_secret_generation`] and ensure a `connector_webhook_id` is available
+/// before invoking this.
 #[cfg(feature = "v1")]
 async fn generate_connector_webhook_secret(
     state: &SessionState,
     connector_data: &api::ConnectorData,
     mca: &domain::MerchantConnectorAccount,
-    register_webhook_response: &ConnectorWebhookRegisterResponse,
+    connector_webhook_id: String,
 ) -> errors::RouterResult<ConnectorWebhookGenerateSecretResponse> {
-    let connector_webhook_id = register_webhook_response
-        .connector_webhook_id
-        .clone()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Connector reported successful webhook registration but did not return a connector_webhook_id",
-        )?;
-
     let generate_secret_integration: services::BoxedConnectorWebhookConfigurationInterface<
         api::ConnectorWebhookGenerateSecret,
         ConnectorWebhookGenerateSecretRequest,
