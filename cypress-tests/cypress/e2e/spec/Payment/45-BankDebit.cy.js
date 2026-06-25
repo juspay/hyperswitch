@@ -392,5 +392,4 @@ describe("Bank Debit tests", () => {
       );
     });
   });
-
 });
