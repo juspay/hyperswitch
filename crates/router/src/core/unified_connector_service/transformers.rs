@@ -1970,6 +1970,7 @@ impl
                                     connector_mandate_id: connector_mandate_id
                                         .get_connector_mandate_id(),
                                     payment_method_id: connector_mandate_id.get_payment_method_id(),
+                                    mandate_metadata: None,
                                     connector_mandate_request_reference_id: connector_mandate_id
                                         .get_connector_mandate_request_reference_id(),
                                 },
