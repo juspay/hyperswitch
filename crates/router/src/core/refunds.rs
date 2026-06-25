@@ -293,6 +293,7 @@ pub async fn trigger_refund_to_gateway(
                     platform.get_processor(),
                     router_data.clone(),
                     ExecutionMode::Primary,
+                    all_keys_required,
                     merchant_connector_account,
                 )
                 .await
@@ -651,6 +652,7 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
                     ucs_platform.get_processor(),
                     ucs_router_data,
                     ExecutionMode::Shadow,
+                    all_keys_required,
                     merchant_connector_account,
                 )
                 .await;
@@ -966,6 +968,7 @@ pub async fn sync_refund_with_gateway(
                     platform.get_processor(),
                     router_data.clone(),
                     ExecutionMode::Primary,
+                    all_keys_required,
                     merchant_connector_account,
                 )
                 .await
@@ -990,6 +993,7 @@ pub async fn sync_refund_with_gateway(
                     platform.get_processor(),
                     router_data,
                     merchant_connector_account,
+                    all_keys_required,
                 ))
                 .await?
             }
@@ -1180,6 +1184,7 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
     processor: &domain::Processor,
     router_data: types::RefundSyncRouterData,
     merchant_connector_account: MerchantConnectorAccountType,
+    all_keys_required: Option<bool>,
 ) -> RouterResult<types::RefundSyncRouterData> {
     // Execute Direct connector (PRIMARY)
     let direct_result = Box::pin(execute_refund_sync_via_direct(
@@ -1208,6 +1213,7 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
                     &processor,
                     router_data,
                     ExecutionMode::Shadow,
+                    all_keys_required,
                     merchant_connector_account,
                 )
                 .await;

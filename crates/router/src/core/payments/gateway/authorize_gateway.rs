@@ -61,7 +61,7 @@ where
         router_data: &RouterData<Self, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<Self, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
@@ -122,9 +122,12 @@ where
             );
 
             let recurring_payment_charge_request =
-                payments_grpc::RecurringPaymentServiceChargeRequest::foreign_try_from(router_data)
-                    .change_context(ConnectorError::RequestEncodingFailed)
-                    .attach_printable("Failed to construct Recurring Payment Charge Request")?;
+                payments_grpc::RecurringPaymentServiceChargeRequest::foreign_try_from((
+                    router_data,
+                    return_raw_connector_response,
+                ))
+                .change_context(ConnectorError::RequestEncodingFailed)
+                .attach_printable("Failed to construct Recurring Payment Charge Request")?;
 
             Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
                 router_data.clone(),
@@ -240,6 +243,7 @@ where
                 payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from((
                     router_data,
                     call_connector_action,
+                    return_raw_connector_response,
                 ))
                 .change_context(ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to construct Payment Authorize Request")?;

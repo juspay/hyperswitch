@@ -54,7 +54,7 @@ where
         router_data: &RouterData<Self, types::PaymentsCaptureData, types::PaymentsResponseData>,
         _call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<Self, types::PaymentsCaptureData, types::PaymentsResponseData>,
@@ -73,9 +73,12 @@ where
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
         let payment_capture_request =
-            payments_grpc::PaymentServiceCaptureRequest::foreign_try_from(router_data)
-                .change_context(ConnectorError::RequestEncodingFailed)
-                .attach_printable("Failed to construct Payment Capture Request")?;
+            payments_grpc::PaymentServiceCaptureRequest::foreign_try_from((
+                router_data,
+                return_raw_connector_response,
+            ))
+            .change_context(ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to construct Payment Capture Request")?;
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(

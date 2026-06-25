@@ -57,7 +57,7 @@ where
         router_data: &RouterData<Self, types::CompleteAuthorizeData, types::PaymentsResponseData>,
         call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<Self, types::CompleteAuthorizeData, types::PaymentsResponseData>,
@@ -79,6 +79,7 @@ where
             payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from((
                 router_data,
                 call_connector_action,
+                return_raw_connector_response,
             ))
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct Payment Authorize Request")?;

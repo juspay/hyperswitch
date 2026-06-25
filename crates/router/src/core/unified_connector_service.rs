@@ -3007,6 +3007,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
     processor: &Processor,
     router_data: RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
     execution_mode: ExecutionMode,
+    return_raw_connector_response: Option<bool>,
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<RouterData<refunds::Execute, RefundsData, RefundsResponseData>> {
@@ -3023,10 +3024,12 @@ pub async fn call_unified_connector_service_for_refund_execute(
     .attach_printable("Failed to build UCS auth metadata for refund execute")?;
 
     // Transform router data to UCS refund request
-    let ucs_refund_request =
-        payments_grpc::PaymentServiceRefundRequest::foreign_try_from(&router_data)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to transform router data to UCS refund request")?;
+    let ucs_refund_request = payments_grpc::PaymentServiceRefundRequest::foreign_try_from((
+        &router_data,
+        return_raw_connector_response,
+    ))
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to transform router data to UCS refund request")?;
 
     // Build gRPC headers
     // Use merchant_id as profile_id fallback since RouterData doesn't have profile_id field
@@ -3141,6 +3144,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
     processor: &Processor,
     router_data: RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
     execution_mode: ExecutionMode,
+    return_raw_connector_response: Option<bool>,
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<RouterData<refunds::RSync, RefundsData, RefundsResponseData>> {
@@ -3157,10 +3161,12 @@ pub async fn call_unified_connector_service_for_refund_sync(
     .attach_printable("Failed to build UCS auth metadata for refund sync")?;
 
     // Transform router data to UCS refund sync request
-    let ucs_refund_sync_request =
-        payments_grpc::RefundServiceGetRequest::foreign_try_from(&router_data)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to transform router data to UCS refund sync request")?;
+    let ucs_refund_sync_request = payments_grpc::RefundServiceGetRequest::foreign_try_from((
+        &router_data,
+        return_raw_connector_response,
+    ))
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to transform router data to UCS refund sync request")?;
 
     // Build gRPC headers
     // Use merchant_id as profile_id fallback since RouterData doesn't have profile_id field
