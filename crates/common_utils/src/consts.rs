@@ -141,8 +141,6 @@ pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
 pub const ROLE_ID_INTERNAL_VIEW_ONLY_USER: &str = "internal_view_only";
 /// Role ID for Internal Admin
 pub const ROLE_ID_INTERNAL_ADMIN: &str = "internal_admin";
-/// Role ID for Internal Demo
-pub const ROLE_ID_INTERNAL_DEMO: &str = "internal_demo";
 
 /// Max length allowed for Description
 pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
@@ -213,6 +211,12 @@ pub const DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD: i32 = 5;
 
 /// Default Card Testing Guard Redis Expiry in seconds
 pub const DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS: i32 = 3600;
+
+/// Default status of Guest IP Blocking
+pub const DEFAULT_GUEST_IP_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Guest IP Blocking
+pub const DEFAULT_GUEST_IP_BLOCKING_THRESHOLD: i32 = 10;
 
 /// SOAP 1.1 Envelope Namespace
 pub const SOAP_ENV_NAMESPACE: &str = "http://schemas.xmlsoap.org/soap/envelope/";

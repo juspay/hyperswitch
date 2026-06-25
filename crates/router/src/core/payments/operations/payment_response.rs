@@ -1392,7 +1392,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
                                 .payment_intent
                                 .metadata
                                 .clone(),
-                            feature_metadata: payment_intent.feature_metadata.clone().map(hyperswitch_masking::Secret::new),
+                            feature_metadata: payment_intent.feature_metadata.clone(),
                             updated_by: payment_data.payment_intent.updated_by.clone(),
                         };
 
@@ -2877,6 +2877,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             Some(mut authentication_store) => {
                 let authentication_update = hyperswitch_domain_models::authentication::AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status: enums::AuthenticationLifecycleStatus::Used,
+                updated_by: processor.get_account().storage_scheme.to_string(),
             };
                 let updated_authentication = state
                     .store
@@ -2885,6 +2886,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         authentication_update,
                         processor.get_key_store(),
                         &key_manager_state,
+                        processor.get_account().storage_scheme,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -2893,7 +2895,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             }
             None => None,
         };
-    };
+    }
 
     let amount_captured = get_total_amount_captured(
         &router_data.request,
@@ -3021,7 +3023,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     });
 
     if payment_data.payment_attempt.status == enums::AttemptStatus::Failure {
-        let _ = card_testing_guard_utils::increment_blocked_count_in_cache(
+        card_testing_guard_utils::increment_blocked_count_in_cache(
             state,
             payment_data.card_testing_guard_data.clone(),
         )
@@ -3079,11 +3081,7 @@ fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
             ),
             updated_by: processor.get_account().storage_scheme.to_string(),
             incremental_authorization_allowed: Some(false),
-            feature_metadata: payment_data
-                .payment_intent
-                .feature_metadata
-                .clone()
-                .map(hyperswitch_masking::Secret::new),
+            feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
         },
         Ok(types::PaymentsResponseData::PostCaptureVoidResponse {
             post_capture_void_status,
@@ -3118,11 +3116,7 @@ fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
             incremental_authorization_allowed: payment_data
                 .payment_intent
                 .incremental_authorization_allowed,
-            feature_metadata: payment_data
-                .payment_intent
-                .feature_metadata
-                .clone()
-                .map(hyperswitch_masking::Secret::new),
+            feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
         },
     }
 }

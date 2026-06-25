@@ -2701,6 +2701,43 @@ pub struct CardToken {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub card_cvc: Option<Secret<String>>,
+
+    /// Token referencing a CVC vaulted in the hyperswitch (self-hosted) vault. Used by the
+    /// self-hosted default-vault repeat-customer flow, where the card is referenced by the
+    /// top-level `payment_token` and the freshly-tokenized CVC arrives as this token; the server
+    /// resolves it to the raw CVC. Not used by the external vault proxy flow.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub card_cvc_token: Option<Secret<String>>,
+}
+
+/// Card token data carried by the external vault proxy `vault_card_token_data` variant. Its
+/// `card_cvc` is a vault token detokenized on the wire by the external vault (e.g. VGS). Kept as a
+/// distinct type from [`CardToken`] so the self-hosted `card_cvc_token` field does not leak into
+/// the proxy contract.
+#[derive(
+    Eq,
+    PartialEq,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    ToSchema,
+    Default,
+    SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct VaultCardToken {
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The CVC number for the card (a vault token for the external vault proxy flow)
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub card_cvc: Option<Secret<String>>,
 }
 
 #[derive(
@@ -3498,14 +3535,16 @@ pub enum PaymentMethodData {
     NetworkToken(NetworkTokenData),
     /// Vault card data used for external vault proxy payments.
     /// When this variant is used, the payment will be routed through the external vault proxy flow.
-    #[schema(title = "ProxyCard")]
+    #[schema(title = "VaultDataCard")]
+    #[serde(rename = "vault_data_card", alias = "vault_card")]
     ProxyCard(Box<ProxyCardData>),
     /// Vault card token data used for external vault proxy payments with an already-saved card.
     /// The top-level `payment_token` resolves to a stored payment method whose external vault
     /// tokens are retrieved from the modular PM service; this variant carries the CVC / card
     /// holder name to combine with those tokens. Routed through the external vault proxy flow.
     #[schema(title = "VaultCardTokenData")]
-    VaultCardTokenData(CardToken),
+    #[serde(rename = "vault_card_token_data", alias = "vault_card_token")]
+    VaultCardTokenData(VaultCardToken),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -3720,6 +3759,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
             Self::PixEmv { .. } => api_enums::PaymentMethodType::PixEmv,
+            Self::PixQr { .. } => api_enums::PaymentMethodType::PixQr,
             Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
             Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
@@ -4767,6 +4807,8 @@ pub enum BankTransferData {
     #[smithy(nested_value_type)]
     PixEmv {},
     #[smithy(nested_value_type)]
+    PixQr {},
+    #[smithy(nested_value_type)]
     PixAutomaticoQr {},
     #[smithy(nested_value_type)]
     PixAutomaticoPush {
@@ -4905,6 +4947,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
             Self::LocalBankTransfer { .. }
             | Self::Pix { .. }
             | Self::PixEmv {}
+            | Self::PixQr {}
             | Self::PixAutomaticoPush { .. }
             | Self::PixAutomaticoQr {}
             | Self::Pse {}
@@ -10213,6 +10256,62 @@ pub struct HyperswitchVaultSessionDetails {
     pub sdk_authorization: Secret<String>,
 }
 
+/// V1-facing vault details for the session-tokens response, serialized as a tagged
+/// `{ "vault_type": ..., "vault_data": { ... } }` object. Exactly one variant is returned:
+/// external vault details when configured, otherwise the internal Hyperswitch vault session.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(tag = "vault_type", content = "vault_data", rename_all = "snake_case")]
+pub enum VaultDetailsResponse {
+    /// Internal/default Hyperswitch vault session
+    Hyperswitch(HyperswitchVaultData),
+    /// External VGS vault session
+    Vgs(VgsVaultData),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct HyperswitchVaultData {
+    /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
+    #[schema(value_type = String)]
+    pub sdk_authorization: Secret<String>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct VgsVaultData {
+    /// The identifier of the external vault
+    #[schema(value_type = String)]
+    pub vault_id: Secret<String>,
+    /// The environment for the external vault initiation
+    pub environment: String,
+}
+
+#[cfg(feature = "v1")]
+impl From<VaultDetails> for Option<VaultDetailsResponse> {
+    fn from(details: VaultDetails) -> Self {
+        match details.external_vault_details {
+            // An external vault is configured: surface it as-is (VGS or Hyperswitch Vault).
+            Some(VaultSessionDetails::Vgs(vgs)) => Some(VaultDetailsResponse::Vgs(VgsVaultData {
+                vault_id: vgs.external_vault_id,
+                environment: vgs.sdk_env,
+            })),
+            Some(VaultSessionDetails::HyperswitchVault(hs)) => {
+                Some(VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
+                    sdk_authorization: hs.sdk_authorization,
+                }))
+            }
+            // No external vault configured (the SaaS default): fall back to the internal
+            // Hyperswitch vault SDK authorization.
+            None => details.internal_vault.map(|internal| {
+                VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
+                    sdk_authorization: Secret::new(internal.sdk_authorization),
+                })
+            }),
+        }
+    }
+}
+
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
 )]
@@ -10945,8 +11044,8 @@ pub struct PaymentsSessionResponse {
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
-    /// Vault details containing internal vault (SDK auth) and external vault info
-    pub vault_details: Option<VaultDetails>,
+    /// Vault details for the session, returned as a tagged `{ vault_type, vault_data }` object
+    pub vault_details: Option<VaultDetailsResponse>,
 }
 
 #[cfg(feature = "v2")]

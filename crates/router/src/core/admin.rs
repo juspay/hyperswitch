@@ -2737,6 +2737,28 @@ pub async fn create_connector(
         },
     )?;
 
+    fp_utils::when(
+        processor.get_account().merchant_account_type == MerchantAccountType::Connected
+            && api_models::enums::VaultConnectors::try_from(req.connector_name).is_ok(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "Vault connectors can only be configured by platform or standard merchants, not connected merchants"
+                        .to_string(),
+            })
+        },
+    )?;
+
+    fp_utils::when(
+        processor.get_account().merchant_account_type == MerchantAccountType::Platform
+            && api_models::enums::VaultConnectors::try_from(req.connector_name).is_err(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Platform merchants can only configure vault connectors".to_string(),
+            })
+        },
+    )?;
+
     let connector_metadata = ConnectorMetadata {
         connector_metadata: &req.metadata,
     };
@@ -3879,13 +3901,67 @@ impl ProfileCreateBridge for api::ProfileCreate {
     }
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
+/// External vault can only be configured on the provider merchant in the Platform setup. Connected
+/// merchants share the platform's vault pool and must not configure their own external vault.
+fn validate_external_vault_config_for_merchant_account_type(
+    merchant_account_type: MerchantAccountType,
+    is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+    has_external_vault_connector_details: bool,
+) -> RouterResult<()> {
+    let is_external_vault_being_configured = matches!(
+        is_external_vault_enabled,
+        Some(common_enums::ExternalVaultEnabled::Enable)
+    ) || has_external_vault_connector_details;
+    fp_utils::when(
+        is_external_vault_being_configured
+            && merchant_account_type == MerchantAccountType::Connected,
+        || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "External vault can only be configured for platform merchant, not for connected merchants"
+                        .to_string(),
+            }))
+        },
+    )
+}
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+/// External vault can only be configured on the provider merchant in the Platform setup. Connected
+/// merchants share the platform's vault pool and must not configure their own external vault.
+fn validate_external_vault_config_for_merchant_account_type(
+    merchant_account_type: MerchantAccountType,
+    is_external_vault_enabled: Option<bool>,
+    has_external_vault_connector_details: bool,
+) -> RouterResult<()> {
+    let is_external_vault_being_configured =
+        is_external_vault_enabled == Some(true) || has_external_vault_connector_details;
+    fp_utils::when(
+        is_external_vault_being_configured
+            && merchant_account_type == MerchantAccountType::Connected,
+        || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "External vault can only be configured for platform merchant, not for connected merchants"
+                        .to_string(),
+            }))
+        },
+    )
+}
+
 pub async fn create_profile(
     state: SessionState,
     request: api::ProfileCreate,
     processor: domain::Processor,
 ) -> RouterResponse<api_models::admin::ProfileResponse> {
     let db = state.store.as_ref();
+
+    validate_external_vault_config_for_merchant_account_type(
+        processor.get_account().merchant_account_type,
+        request.is_external_vault_enabled,
+        request.external_vault_connector_details.is_some(),
+    )?;
+
     #[cfg(feature = "v1")]
     let business_profile = request
         .create_domain_model_from_request(&state, &processor)
@@ -4414,6 +4490,17 @@ pub async fn update_profile(
     request: api::ProfileUpdate,
 ) -> RouterResponse<api::ProfileResponse> {
     let db = state.store.as_ref();
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    validate_external_vault_config_for_merchant_account_type(
+        merchant_account.merchant_account_type,
+        request.is_external_vault_enabled,
+        request.external_vault_connector_details.is_some(),
+    )?;
+
     let business_profile = db
         .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, profile_id)
         .await

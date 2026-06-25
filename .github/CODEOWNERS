@@ -17,9 +17,9 @@ crates/router/src/types/ @juspay/hyperswitch-framework
 crates/router/src/services/ @juspay/hyperswitch-framework
 crates/router/src/db/ @juspay/hyperswitch-framework
 crates/router/src/routes/ @juspay/hyperswitch-framework
-migrations/ @juspay/hyperswitch-framework
-v2_migrations/ @juspay/hyperswitch-framework
-v2_compatible_migrations/ @juspay/hyperswitch-framework
+migrations/ @juspay/hyperswitch-framework @juspay/hyperswitch-kv-team
+v2_migrations/ @juspay/hyperswitch-framework @juspay/hyperswitch-kv-team
+v2_compatible_migrations/ @juspay/hyperswitch-framework @juspay/hyperswitch-kv-team
 api-reference/ @juspay/hyperswitch-framework
 Cargo.toml @juspay/hyperswitch-framework
 Cargo.lock @juspay/hyperswitch-framework
@@ -76,14 +76,20 @@ crates/external_services/src/grpc_client/dynamic_routing.rs @juspay/hyperswitch-
 crates/external_services/src/grpc_client/dynamic_routing/ @juspay/hyperswitch-routing
 crates/external_services/src/grpc_client/health_check_client.rs @juspay/hyperswitch-routing
 
+crates/redis_interface/ @juspay/hyperswitch-kv-team
+crates/storage_impl/src/redis/* @juspay/hyperswitch-kv-team
+crates/storage_impl/src/redis.rs @juspay/hyperswitch-kv-team
+crates/storage_impl/src/mock_db/redis_conn.rs @juspay/hyperswitch-kv-team
+crates/diesel_models/ @juspay/hyperswitch-kv-team
+
 crates/api_models/src/payment_methods.rs @juspay/hyperswitch-payment-methods
 crates/router/src/core/payment_methods.rs @juspay/hyperswitch-payment-methods
 crates/router/src/routes/payment_methods.rs @juspay/hyperswitch-payment-methods
 crates/router/src/types/api/payment_methods.rs @juspay/hyperswitch-payment-methods
 crates/router/src/types/storage/payment_method.rs @juspay/hyperswitch-payment-methods
 crates/router/src/db/payment_method.rs @juspay/hyperswitch-payment-methods
-crates/diesel_models/src/payment_method.rs @juspay/hyperswitch-payment-methods
-crates/diesel_models/src/query/payment_method.rs @juspay/hyperswitch-payment-methods
+crates/diesel_models/src/payment_method.rs @juspay/hyperswitch-payment-methods @juspay/hyperswitch-kv-team
+crates/diesel_models/src/query/payment_method.rs @juspay/hyperswitch-payment-methods @juspay/hyperswitch-kv-team
 crates/storage_impl/src/payment_method.rs @juspay/hyperswitch-payment-methods
 crates/openapi/src/routes/payment_method.rs @juspay/hyperswitch-payment-methods
 crates/router/src/workflows/payment_method_status_update.rs @juspay/hyperswitch-payment-methods
@@ -99,13 +105,13 @@ crates/api_models/src/user_role.rs @juspay/hyperswitch-dashboard
 crates/api_models/src/events/user_role.rs @juspay/hyperswitch-dashboard
 crates/api_models/src/verify_connector.rs @juspay/hyperswitch-dashboard
 crates/api_models/src/connector_onboarding.rs @juspay/hyperswitch-dashboard
-crates/diesel_models/src/query/dashboard_metadata.rs @juspay/hyperswitch-dashboard
-crates/diesel_models/src/query/user @juspay/hyperswitch-dashboard
-crates/diesel_models/src/query/user_role.rs @juspay/hyperswitch-dashboard
-crates/diesel_models/src/query/user.rs @juspay/hyperswitch-dashboard
-crates/diesel_models/src/user @juspay/hyperswitch-dashboard
-crates/diesel_models/src/user.rs @juspay/hyperswitch-dashboard
-crates/diesel_models/src/user_role.rs @juspay/hyperswitch-dashboard
+crates/diesel_models/src/query/dashboard_metadata.rs @juspay/hyperswitch-dashboard @juspay/hyperswitch-kv-team
+crates/diesel_models/src/query/user @juspay/hyperswitch-dashboard @juspay/hyperswitch-kv-team
+crates/diesel_models/src/query/user_role.rs @juspay/hyperswitch-dashboard @juspay/hyperswitch-kv-team
+crates/diesel_models/src/query/user.rs @juspay/hyperswitch-dashboard @juspay/hyperswitch-kv-team
+crates/diesel_models/src/user @juspay/hyperswitch-dashboard @juspay/hyperswitch-kv-team
+crates/diesel_models/src/user.rs @juspay/hyperswitch-dashboard @juspay/hyperswitch-kv-team
+crates/diesel_models/src/user_role.rs @juspay/hyperswitch-dashboard @juspay/hyperswitch-kv-team
 crates/router/src/consts/user.rs @juspay/hyperswitch-dashboard
 crates/router/src/consts/user_role.rs @juspay/hyperswitch-dashboard
 crates/router/src/core/connector_onboarding @juspay/hyperswitch-dashboard
@@ -170,10 +176,10 @@ crates/api_models/src/payouts.rs @juspay/hyperswitch-payouts
 
 crates/common_utils/src/payout_method_utils.rs @juspay/hyperswitch-payouts
 
-crates/diesel_models/src/payouts.rs @juspay/hyperswitch-payouts
-crates/diesel_models/src/payout_attempt.rs @juspay/hyperswitch-payouts
-crates/diesel_models/src/query/payouts.rs @juspay/hyperswitch-payouts
-crates/diesel_models/src/query/payout_attempt.rs @juspay/hyperswitch-payouts
+crates/diesel_models/src/payouts.rs @juspay/hyperswitch-payouts @juspay/hyperswitch-kv-team
+crates/diesel_models/src/payout_attempt.rs @juspay/hyperswitch-payouts @juspay/hyperswitch-kv-team
+crates/diesel_models/src/query/payouts.rs @juspay/hyperswitch-payouts @juspay/hyperswitch-kv-team
+crates/diesel_models/src/query/payout_attempt.rs @juspay/hyperswitch-payouts @juspay/hyperswitch-kv-team
 crates/hyperswitch_domain_models/src/payouts/ @juspay/hyperswitch-payouts
 crates/hyperswitch_domain_models/src/payouts.rs @juspay/hyperswitch-payouts
 crates/storage_impl/src/payouts/ @juspay/hyperswitch-payouts
