@@ -6620,6 +6620,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 })
                 .transpose()?,
             merchant_order_reference_id,
+            mit_category: payment_data.payment_intent.mit_category,
         })
     }
 }
