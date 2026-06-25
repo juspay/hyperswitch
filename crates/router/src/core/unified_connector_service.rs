@@ -3429,13 +3429,13 @@ pub fn build_notify_connector_request(
     // Build NotifyConnectorRequest
     Ok((
         payments_grpc::NotifyConnectorRequest {
-            merchant_id: merchant_id.get_string_repr().to_owned(),
             event_id: event.event_id.clone(),
             event_type: notify_event_type.into(),
             content: Some(extract_notify_connector_content_from_request(
                 notify_feature_data,
             )?),
             timestamp: event.created_at.assume_utc().unix_timestamp(),
+            state: None, 
         },
         connector_auth_metadata,
         notify_event_type,

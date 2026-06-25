@@ -1453,10 +1453,10 @@ impl ForeignTryFrom<&types::WebhookPayload> for storage::EventMetadata {
             types::WebhookRecipientData::Merchant { .. } => webhook_payload
                 .event_content
                 .as_ref()
-                .map(storage::EventMetadata::foreign_from)
+                .map(Self::EventMetadata::foreign_from)
                 .ok_or(errors::ApiErrorResponse::WebhookResourceNotFound),
             types::WebhookRecipientData::Connector { feature_data, .. } => {
-                Ok(storage::EventMetadata::foreign_from(feature_data))
+                Ok(Self::foreign_from(feature_data))
             }
         }
     }
