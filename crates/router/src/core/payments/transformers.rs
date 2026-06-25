@@ -6240,14 +6240,12 @@ fn diff_payment_constraints(
 ) -> api_payments::BoletoPaymentTypeConstraints {
     use api_payments::BoletoPaymentTypeConstraints::*;
     match (stored, requested) {
-        (
-            FlexibleAmount(stored_details),
-            FlexibleAmount(requested_details),
-        ) => FlexibleAmount(diff_flexible_amount_details(stored_details, requested_details)),
-        (
-            Installment(stored_details),
-            Installment(requested_details),
-        ) => Installment(diff_installment_details(stored_details, requested_details)),
+        (FlexibleAmount(stored_details), FlexibleAmount(requested_details)) => FlexibleAmount(
+            diff_flexible_amount_details(stored_details, requested_details),
+        ),
+        (Installment(stored_details), Installment(requested_details)) => {
+            Installment(diff_installment_details(stored_details, requested_details))
+        }
         (_, requested) => requested,
     }
 }
@@ -6294,24 +6292,22 @@ fn diff_pix_additional_details(
 ) -> api_payments::PixAdditionalDetails {
     use api_payments::PixAdditionalDetails::*;
     match (stored, requested) {
-        (
-            Immediate(stored_imm),
-            Immediate(requested_imm),
-        ) => Immediate(api_payments::ImmediateExpirationTime {
-            time: requested_imm.time,
-            pix_key: changed(&stored_imm.pix_key, requested_imm.pix_key),
-        }),
-        (
-            Scheduled(stored_sch),
-            Scheduled(requested_sch),
-        ) => Scheduled(api_payments::ScheduledExpirationTime {
-            date: requested_sch.date,
-            validity_after_expiration: changed(
-                &stored_sch.validity_after_expiration,
-                requested_sch.validity_after_expiration,
-            ),
-            pix_key: changed(&stored_sch.pix_key, requested_sch.pix_key),
-        }),
+        (Immediate(stored_imm), Immediate(requested_imm)) => {
+            Immediate(api_payments::ImmediateExpirationTime {
+                time: requested_imm.time,
+                pix_key: changed(&stored_imm.pix_key, requested_imm.pix_key),
+            })
+        }
+        (Scheduled(stored_sch), Scheduled(requested_sch)) => {
+            Scheduled(api_payments::ScheduledExpirationTime {
+                date: requested_sch.date,
+                validity_after_expiration: changed(
+                    &stored_sch.validity_after_expiration,
+                    requested_sch.validity_after_expiration,
+                ),
+                pix_key: changed(&stored_sch.pix_key, requested_sch.pix_key),
+            })
+        }
         (_, requested) => requested,
     }
 }
@@ -6471,8 +6467,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
                 .payment_intent
                 .get_customer_document_details()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to extract customer document details from payment_intent")?,
-            deferred_payment_updates: payment_data.deferred_payment_updates.clone(),
+                .attach_printable(
+                    "Failed to extract customer document details from payment_intent",
+                )?,
         })
     }
 }

@@ -50,12 +50,12 @@ pub async fn payments_create(
 ) -> impl Responder {
     let flow = Flow::PaymentsCreate;
     let mut payload = json_payload.into_inner();
-    
+
     // // NEW: Serialize and store request payload in thread-local context
     // let serialized_payload = payments::request_payload_helpers
     //     ::try_serialize_request_to_json(&payload);
     // payments::request_payload_context::set_request_payload(serialized_payload);
-    
+
     if let Err(err) = payload
         .validate()
         .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
@@ -191,12 +191,12 @@ pub async fn payments_create_intent(
     use hyperswitch_domain_models::payments::PaymentIntentData;
 
     let flow = Flow::PaymentsCreateIntent;
-    
+
     // NEW: Serialize and store request payload in thread-local context
     // let serialized_payload = payments::request_payload_helpers
     //     ::try_serialize_request_to_json(&json_payload.as_ref());
     // payments::request_payload_context::set_request_payload(serialized_payload);
-    
+
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
         Err(err) => {
@@ -512,12 +512,12 @@ pub async fn payments_update_intent(
     use hyperswitch_domain_models::payments::PaymentIntentData;
 
     let flow = Flow::PaymentsUpdateIntent;
-    
+
     // NEW: Serialize and store request payload in thread-local context
     // let serialized_payload = payments::request_payload_helpers
     //     ::try_serialize_request_to_json(&json_payload.as_ref().payload);
     // payments::request_payload_context::set_request_payload(serialized_payload);
-    
+
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
         Err(err) => {

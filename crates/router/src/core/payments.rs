@@ -1123,6 +1123,7 @@ where
                             routable_connectors,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             &business_profile,
+                            &dimensions.without_profile_id(),
                         )
                         .await?;
 
@@ -1346,6 +1347,7 @@ where
                             routable_connectors,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             &business_profile,
+                            &dimensions.without_profile_id(),
                         )
                         .await?;
 
@@ -1619,7 +1621,7 @@ where
     )?;
 
     common_utils::fp_utils::when(
-        !should_call_connector(&operation, &payment_data, call_connector_action.clone()),
+        !should_call_connector(&operation, &payment_data, call_connector_action.clone())?,
         || {
             Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration).attach_printable(format!(
             "Nti and card details based mit flow is not support for this {operation:?} payment operation"
@@ -1738,6 +1740,7 @@ where
             routable_connectors,
             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
             &business_profile,
+            &dimensions.without_profile_id(),
         )
         .await?;
 
@@ -3157,6 +3160,7 @@ where
             routable_connectors,
             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
             &business_profile,
+            &dimensions.without_profile_id(),
         )
         .await?;
 
@@ -9507,11 +9511,6 @@ where
     /// Optional: Original request payload from the route handler
     /// Stored as generic serde_json::Value to support multiple request types
     pub request_payload: Option<serde_json::Value>,
-    /// Optional: Deferred DB updates for PaymentUpdate post-confirm connector flows.
-    /// These updates are computed in update_trackers but only executed after the
-    /// connector returns a successful response.
-    pub deferred_payment_updates:
-        Option<(storage::PaymentAttemptUpdate, storage::PaymentIntentUpdate)>,
 }
 
 #[cfg(feature = "v1")]
@@ -9896,11 +9895,11 @@ pub fn should_call_connector<Op: Debug, F: Clone, D>(
     operation: &Op,
     payment_data: &D,
     call_connector_action: CallConnectorAction,
-) -> bool
+) -> RouterResult<bool>
 where
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
-    match format!("{operation:?}").as_str() {
+    Ok(match format!("{operation:?}").as_str() {
         "PaymentConfirm" => true,
         "PaymentExternalVaultProxyConfirm" => true,
         "PaymentStart" => {
@@ -9994,7 +9993,12 @@ where
             let payment_method_type = payment_data.get_payment_attempt().payment_method_type;
             let intent_status = payment_data.get_payment_intent().status;
             let should_call = connector_name
-                .and_then(|name| api::connector_mapping::ConnectorData::convert_connector(name).ok())
+                .map(|name| {
+                    api::connector_mapping::ConnectorData::convert_connector(name)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Invalid connector name stored in payment_attempt")
+                })
+                .transpose()?
                 .map(|connector| {
                     connector.should_call_connector_for_update_post_confirm(
                         payment_method_type,
@@ -10022,7 +10026,7 @@ where
             storage_enums::IntentStatus::RequiresCustomerAction
         ),
         _ => false,
-    }
+    })
 }
 
 pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
@@ -10805,7 +10809,7 @@ where
         Ok(backend_input) => {
             let transaction_type = enums::TransactionType::Payment;
 
-            if should_call_connector(operation, payment_data, call_connector_action) {
+            if should_call_connector(operation, payment_data, call_connector_action)? {
                 Some(match connector_choice {
                     api::ConnectorChoice::SessionMultiple(connectors) => {
                         let routing_output = perform_session_token_routing(

@@ -574,7 +574,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             vault_session_details: None,
             external_vault_pmd: None,
             request_payload: payments::request_payload_context::get_request_payload(),
-            deferred_payment_updates: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -846,24 +845,19 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .payment_attempt
             .connector
             .as_deref()
-            .and_then(|connector_name| {
+            .map(|connector_name| {
                 api::connector_mapping::ConnectorData::convert_connector(connector_name)
-                    .ok()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Invalid connector name stored in payment_attempt")
             })
+            .transpose()?
             .is_some_and(|connector| {
                 connector.should_call_connector_for_update_post_confirm(
                     payment_data.payment_attempt.payment_method_type,
                     payment_data.payment_intent.status,
                 )
             });
-        if will_call_connector {
-            let (payment_data_with_changes, attempt_update, intent_update) = Box::pin(
-                Self::compute_payment_update_changes(state, processor, dimensions, payment_data),
-            )
-            .await?;
-            payment_data = payment_data_with_changes;
-            payment_data.deferred_payment_updates = Some((attempt_update, intent_update));
-        } else {
+        if !will_call_connector {
             payment_data = Box::pin(Self::persist_payment_update_changes(
                 state,
                 processor,
@@ -1246,8 +1240,8 @@ impl PaymentUpdate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to serialize feature metadata")?;
 
-        let intent_update = storage::PaymentIntentUpdate::Update(Box::new(
-            PaymentIntentUpdateFields {
+        let intent_update =
+            storage::PaymentIntentUpdate::Update(Box::new(PaymentIntentUpdateFields {
                 amount: payment_data.amount.into(),
                 currency: payment_data.currency,
                 setup_future_usage,
@@ -1282,7 +1276,7 @@ impl PaymentUpdate {
                     .payment_intent
                     .is_iframe_redirection_enabled,
                 is_confirm_operation: false, // this is not a confirm operation
-                    payment_channel: payment_data.payment_intent.payment_channel.clone(),
+                payment_channel: payment_data.payment_intent.payment_channel.clone(),
                 feature_metadata: feature_metadata_value.map(hyperswitch_masking::Secret::new),
                 tax_status: payment_data.payment_intent.tax_status,
                 discount_amount: payment_data.payment_intent.discount_amount,
@@ -1302,8 +1296,7 @@ impl PaymentUpdate {
                 external_surcharge_applicable: payment_data
                     .payment_intent
                     .external_surcharge_applicable,
-            },
-        ));
+            }));
 
         Ok((payment_data, attempt_update, intent_update))
     }

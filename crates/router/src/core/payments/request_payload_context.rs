@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 /// Request payload context storage using thread-local storage
 ///
 /// This module provides a thread-safe way to store and retrieve request payloads
@@ -6,7 +8,6 @@
 /// The approach uses thread-local storage which is automatically cleaned up at the
 /// end of each request, ensuring no cross-request contamination.
 use serde_json::Value;
-use std::cell::RefCell;
 
 thread_local! {
     /// Thread-local storage for the current request's serialized payload

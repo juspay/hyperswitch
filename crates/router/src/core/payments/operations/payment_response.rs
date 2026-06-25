@@ -32,11 +32,15 @@ use router_env::{instrument, logger, tracing};
 #[cfg(feature = "v1")]
 use tracing_futures::Instrument;
 
+#[cfg(feature = "v1")]
+use super::payment_update::PaymentUpdate;
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
 #[cfg(feature = "v1")]
 use crate::core::payment_methods::transformers::call_modular_payment_method_update;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::core::routing::helpers as routing_helpers;
+#[cfg(feature = "v1")]
+use crate::core::configs::dimension_state;
 #[cfg(feature = "v2")]
 use crate::utils::OptionExt;
 use crate::{
@@ -430,6 +434,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             RoutableConnectorChoice,
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b,
@@ -840,6 +845,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
         _business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -1002,6 +1008,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             RoutableConnectorChoice,
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -1143,6 +1150,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
             RoutableConnectorChoice,
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -1182,6 +1190,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
         _locale: &Option<String>,
         #[cfg(feature = "dynamic_routing")] _routable_connector: Vec<RoutableConnectorChoice>,
         #[cfg(feature = "dynamic_routing")] _business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -1309,6 +1318,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
         _business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -1370,6 +1380,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
         _business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -1453,6 +1464,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
             RoutableConnectorChoice,
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -1494,6 +1506,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPreAuthorizeC
             RoutableConnectorChoice,
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -1529,6 +1542,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
             RoutableConnectorChoice,
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -1570,6 +1584,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCap
             RoutableConnectorChoice,
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -1611,6 +1626,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCap
             RoutableConnectorChoice,
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -1652,6 +1668,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsExtendAuthori
             RoutableConnectorChoice,
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -1689,6 +1706,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
             RoutableConnectorChoice,
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -1724,6 +1742,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
             RoutableConnectorChoice,
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -1764,6 +1783,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             RoutableConnectorChoice,
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -1979,6 +1999,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             RoutableConnectorChoice,
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -3689,6 +3710,7 @@ impl
             RoutableConnectorChoice,
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>>
     where
         hyperswitch_domain_models::router_flow_types::ExternalVaultProxy: 'b + Send + Sync,
@@ -4261,8 +4283,8 @@ impl<F: Clone + Send + Sync>
 // change the code inside
 #[cfg(feature = "v1")]
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdatePostConfirmData>
-    for PaymentResponse
+impl<F: Clone + Send + Sync>
+    PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdatePostConfirmData> for PaymentResponse
 {
     async fn update_tracker<'b>(
         &'b self,
@@ -4280,6 +4302,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdatePostCon
         >,
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
         _business_profile: &domain::Profile,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -4298,29 +4321,34 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdatePostCon
                     let storage_scheme = processor.get_account().storage_scheme;
                     let key_store = processor.get_key_store();
 
-                    if let Some((attempt_update, intent_update)) =
-                        router_data.request.deferred_payment_updates
-                    {
-                        payment_data.payment_attempt = m_db
-                            .update_payment_attempt_with_attempt_id(
-                                payment_data.payment_attempt.clone(),
-                                attempt_update,
-                                storage_scheme,
-                                key_store,
-                            )
-                            .await
-                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                    let (_, attempt_update, intent_update) =
+                        Box::pin(PaymentUpdate::compute_payment_update_changes(
+                            db,
+                            processor,
+                            dimensions,
+                            payment_data.clone(),
+                        ))
+                        .await?;
 
-                        payment_data.payment_intent = m_db
-                            .update_payment_intent(
-                                payment_data.payment_intent.clone(),
-                                intent_update,
-                                key_store,
-                                storage_scheme,
-                            )
-                            .await
-                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-                    }
+                    payment_data.payment_attempt = m_db
+                        .update_payment_attempt_with_attempt_id(
+                            payment_data.payment_attempt.clone(),
+                            attempt_update,
+                            storage_scheme,
+                            key_store,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                    payment_data.payment_intent = m_db
+                        .update_payment_intent(
+                            payment_data.payment_intent.clone(),
+                            intent_update,
+                            key_store,
+                            storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
                 } else {
                     router_data.response.map_err(|err| {
                         errors::ApiErrorResponse::ExternalConnectorError {

@@ -1,4 +1,3 @@
-use crate::core::errors::ApiErrorResponse;
 use error_stack::{Report, ResultExt};
 /// Helper functions and utilities for propagating JSON request payloads through the payment processing pipeline
 ///
@@ -15,6 +14,8 @@ use error_stack::{Report, ResultExt};
 /// }
 /// ```
 use serde_json::{json, Value};
+
+use crate::core::errors::ApiErrorResponse;
 
 /// Serializes any serde-serializable request into a JSON Value for generic storage
 pub fn serialize_request_to_json<T: serde::Serialize>(

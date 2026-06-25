@@ -1951,7 +1951,10 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
                 | common_types::customers::DocumentKind::Other => SantanderDocumentKind::Cpf,
             };
             let line1 = address.line1.clone()?;
-            let line2 = address.line2.clone().unwrap_or_else(|| Secret::new(String::new()));
+            let line2 = address
+                .line2
+                .clone()
+                .unwrap_or_else(|| Secret::new(String::new()));
             let city = address.city.clone()?;
             let state = address.state.clone()?;
             let zip = address.zip.clone()?;
@@ -1959,11 +1962,7 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
                 name,
                 document_type,
                 document_number: Some(customer_document_details.document_number.clone()),
-                address: Some(Secret::new(format!(
-                    "{} {}",
-                    line1.peek(),
-                    line2.peek()
-                ))),
+                address: Some(Secret::new(format!("{} {}", line1.peek(), line2.peek()))),
                 neighborhood: Some(line1),
                 city: Some(Secret::new(city)),
                 state: Some(state),

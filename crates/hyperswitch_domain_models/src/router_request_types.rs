@@ -294,10 +294,6 @@ pub struct PaymentsUpdatePostConfirmData {
     pub metadata: Option<serde_json::Value>,
     pub merchant_order_reference_id: Option<String>,
     pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
-    /// Deferred DB updates computed during PaymentUpdate but only executed
-    /// after a successful connector response.
-    pub deferred_payment_updates:
-        Option<(payments::payment_attempt::PaymentAttemptUpdate, payments::payment_intent::PaymentIntentUpdate)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
