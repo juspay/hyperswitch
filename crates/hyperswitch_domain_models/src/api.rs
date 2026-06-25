@@ -18,6 +18,19 @@ pub enum ApplicationResponse<R> {
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, hyperswitch_masking::Maskable<String>)>)),
     GenericLinkForm(Box<GenericLinks>),
+    /// `response` contains the HTTP response; `metadata` is consumed by `server_wrap_util`
+    /// for the ApiEvent log
+    IncomingWebhookEvent {
+        response: Box<Self>,
+        metadata: IncomingWebhookEventMetadata,
+    },
+}
+
+#[derive(Debug, PartialEq)]
+pub struct IncomingWebhookEventMetadata {
+    pub event_type: ApiEventsType,
+    pub serialized_request: serde_json::Value,
+    pub webhook_tracker_data: Option<serde_json::Value>,
 }
 
 impl<R> ApplicationResponse<R> {
@@ -28,6 +41,7 @@ impl<R> ApplicationResponse<R> {
     ) -> common_utils::errors::CustomResult<R, common_utils::errors::ValidationError> {
         match self {
             Self::Json(body) | Self::JsonWithHeaders((body, _)) => Ok(body),
+            Self::IncomingWebhookEvent { response, .. } => response.get_json_body(),
             Self::TextPlain(_)
             | Self::JsonForRedirection(_)
             | Self::Form(_)
@@ -47,6 +61,7 @@ impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
         match self {
             Self::Json(r) => r.get_api_event_type(),
             Self::JsonWithHeaders((r, _)) => r.get_api_event_type(),
+            Self::IncomingWebhookEvent { metadata, .. } => Some(metadata.event_type.clone()),
             _ => None,
         }
     }

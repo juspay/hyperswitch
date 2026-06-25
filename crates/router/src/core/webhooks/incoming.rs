@@ -1,6 +1,5 @@
-use std::{str::FromStr, time::Instant};
+use std::str::FromStr;
 
-use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
 use api_models::{
@@ -20,6 +19,7 @@ use hyperswitch_connectors::connectors::unified_authentication_service::transfor
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::payouts::PayoutsUpdate;
 use hyperswitch_domain_models::{
+    api::IncomingWebhookEventMetadata,
     mandates::CommonMandateReference,
     payments::{payment_attempt::PaymentAttempt, HeaderPayload},
     router_request_types::unified_authentication_service::UasAuthenticationResponseData,
@@ -28,7 +28,7 @@ use hyperswitch_interfaces::webhooks::{
     IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext, WebhookResourceData,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
-use router_env::{instrument, tracing, RequestId};
+use router_env::{instrument, tracing};
 
 use super::{types, MERCHANT_ID};
 use crate::{
@@ -47,16 +47,9 @@ use crate::{
         unified_connector_service, utils as core_utils,
         webhooks::{network_tokenization_incoming, utils},
     },
-    events::api_logs::ApiEvent,
     logger,
-    routes::{
-        app::{ReqState, SessionStateInfo},
-        lock_utils, SessionState,
-    },
-    services::{
-        self, authentication as auth, connector_integration_interface::ConnectorEnum,
-        ConnectorValidation,
-    },
+    routes::{app::ReqState, lock_utils, SessionState},
+    services::{self, connector_integration_interface::ConnectorEnum, ConnectorValidation},
     types::{
         api::{
             self, mandates::MandateResponseExt, ConnectorCommon, ConnectorData, GetToken,
@@ -73,7 +66,7 @@ use crate::{core::payouts, types::storage::PayoutAttemptUpdate};
 
 #[allow(clippy::too_many_arguments)]
 pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
-    flow: &impl router_env::types::FlowMetric,
+    _flow: &impl router_env::types::FlowMetric,
     state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
@@ -82,7 +75,6 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     body: actix_web::web::Bytes,
     is_relay_webhook: bool,
 ) -> RouterResponse<serde_json::Value> {
-    let start_instant = Instant::now();
     let (application_response, webhooks_response_tracker, serialized_req) =
         Box::pin(incoming_webhooks_core::<W>(
             state.clone(),
@@ -97,57 +89,32 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
 
     logger::info!(incoming_webhook_payload = ?serialized_req.peek());
 
-    let request_duration = Instant::now()
-        .saturating_duration_since(start_instant)
-        .as_millis();
+    let metadata = IncomingWebhookEventMetadata {
+        event_type: ApiEventsType::Webhooks {
+            connector: connector_name_or_mca_id.to_string(),
+            payment_id: webhooks_response_tracker.get_payment_id(),
+            refund_id: webhooks_response_tracker.get_refund_id(),
+        },
+        serialized_request: serialized_req.peek().clone(),
+        webhook_tracker_data: serde_json::to_value(&webhooks_response_tracker)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not convert webhook effect to string")
+            .ok(),
+    };
 
-    let request_id = RequestId::extract(req)
-        .await
-        .attach_printable("Unable to extract request id from request")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let auth_type = auth::AuthenticationType::WebhookAuth {
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
-    };
-    let status_code = 200;
-    let api_event = ApiEventsType::Webhooks {
-        connector: connector_name_or_mca_id.to_string(),
-        payment_id: webhooks_response_tracker.get_payment_id(),
-        refund_id: webhooks_response_tracker.get_refund_id(),
-    };
-    let response_value = serde_json::to_value(&webhooks_response_tracker)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Could not convert webhook effect to string")?;
-    let infra = state.infra_components.clone();
-    let api_event = ApiEvent::new(
-        state.tenant.tenant_id.clone(),
-        Some(platform.get_processor().get_account().get_id().clone()),
-        flow,
-        &request_id,
-        request_duration,
-        status_code,
-        serialized_req.peek().clone(),
-        Some(response_value),
-        None,
-        auth_type,
-        None,
-        api_event,
-        req,
-        req.method(),
-        infra,
-    );
-    state.event_handler().log_event(&api_event);
-    Ok(application_response)
+    Ok(services::ApplicationResponse::IncomingWebhookEvent {
+        response: Box::new(application_response),
+        metadata,
+    })
 }
 
 #[cfg(feature = "v1")]
 pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
-    flow: &impl router_env::types::FlowMetric,
+    _flow: &impl router_env::types::FlowMetric,
     state: SessionState,
     req: &actix_web::HttpRequest,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
-    let start_instant = Instant::now();
-
     let request_details: IncomingWebhookRequestDetails<'_> = IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
@@ -156,49 +123,28 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
         body: &body,
     };
 
-    let (application_response, webhooks_response_tracker, serialized_req, merchant_id) = Box::pin(
+    let (application_response, webhooks_response_tracker, serialized_req, _merchant_id) = Box::pin(
         network_token_incoming_webhooks_core::<W>(&state, request_details),
     )
     .await?;
 
     logger::info!(incoming_webhook_payload = ?serialized_req);
 
-    let request_duration = Instant::now()
-        .saturating_duration_since(start_instant)
-        .as_millis();
-
-    let request_id = RequestId::extract(req)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to extract request id from request")?;
-    let auth_type = auth::AuthenticationType::NoAuth;
-    let status_code = 200;
-    let api_event = ApiEventsType::NetworkTokenWebhook {
-        payment_method_id: webhooks_response_tracker.get_payment_method_id(),
+    let metadata = IncomingWebhookEventMetadata {
+        event_type: ApiEventsType::NetworkTokenWebhook {
+            payment_method_id: webhooks_response_tracker.get_payment_method_id(),
+        },
+        serialized_request: serialized_req,
+        webhook_tracker_data: serde_json::to_value(&webhooks_response_tracker)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not convert webhook effect to string")
+            .ok(),
     };
-    let response_value = serde_json::to_value(&webhooks_response_tracker)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Could not convert webhook effect to string")?;
-    let infra = state.infra_components.clone();
-    let api_event = ApiEvent::new(
-        state.tenant.tenant_id.clone(),
-        Some(merchant_id),
-        flow,
-        &request_id,
-        request_duration,
-        status_code,
-        serialized_req,
-        Some(response_value),
-        None,
-        auth_type,
-        None,
-        api_event,
-        req,
-        req.method(),
-        infra,
-    );
-    state.event_handler().log_event(&api_event);
-    Ok(application_response)
+
+    Ok(services::ApplicationResponse::IncomingWebhookEvent {
+        response: Box::new(application_response),
+        metadata,
+    })
 }
 
 #[allow(clippy::too_many_arguments)]

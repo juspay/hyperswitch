@@ -190,7 +190,7 @@ where
     let mut app_state = state.get_ref().clone();
 
     let start_instant = Instant::now();
-    let serialized_request = hyperswitch_masking::masked_serialize(&payload)
+    let mut serialized_request = hyperswitch_masking::masked_serialize(&payload)
         .attach_printable("Failed to serialize json request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
@@ -316,6 +316,24 @@ where
                     .conf
                     .proxy_status_mapping
                     .extract_connector_http_status_code(headers);
+            } else if let ApplicationResponse::IncomingWebhookEvent { response, metadata } = res {
+                serialized_request = metadata.serialized_request.clone();
+
+                if let Some(tracker_data) = &metadata.webhook_tracker_data {
+                    serialized_response = Some(tracker_data.clone());
+                }
+
+                if let ApplicationResponse::JsonWithHeaders((_, headers)) = response.as_ref() {
+                    if let Some((_, value)) = headers.iter().find(|(key, _)| key == X_HS_LATENCY) {
+                        if let Ok(external_latency) = value.clone().into_inner().parse::<u128>() {
+                            overhead_latency.replace(external_latency);
+                        }
+                    }
+                    extracted_status_code = state
+                        .conf
+                        .proxy_status_mapping
+                        .extract_connector_http_status_code(headers);
+                }
             }
             event_type = res.get_api_event_type().or(event_type);
 
@@ -432,6 +450,12 @@ where
     )
     .await
     .map(|response| {
+        let response = match response {
+            ApplicationResponse::IncomingWebhookEvent {
+                response: inner, ..
+            } => *inner,
+            other => other,
+        };
         logger::info!(api_response =? response);
         response
     });
@@ -558,6 +582,7 @@ where
                 ),
             }
         }
+        Ok(ApplicationResponse::IncomingWebhookEvent { .. }) => http_response_ok(),
         Err(error) => log_and_return_error_response(error),
     };
 
