@@ -348,17 +348,27 @@ fn translate_to_sdk_payment_methods(
     for (payment_method_type, connectors) in &pms_ctx.banks_consolidated_hm {
         let bank_names = get_banks(state, *payment_method_type, connectors.clone())
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let (_, rules) = consolidated_rules
+        let (criteria, rules) = consolidated_rules
             .entry((api_enums::PaymentMethod::BankRedirect, *payment_method_type))
             .or_insert_with(|| (Some(PaymentMethodCriteria::BankName), Vec::new()));
+        let mut has_banks = false;
         for bank_code_res in bank_names {
             for bank_name in bank_code_res.bank_name {
+                has_banks = true;
                 let criteria_value = format_criteria_value(None, Some(bank_name.to_string()), None);
                 rules.push(SdkCriteriaRule {
                     criteria_value,
                     eligible_connectors: bank_code_res.eligible_connectors.clone(),
                 });
             }
+        }
+        if !has_banks {
+            *criteria = None;
+            let criteria_value = format_criteria_value(None, None, None);
+            rules.push(SdkCriteriaRule {
+                criteria_value,
+                eligible_connectors: connectors.clone(),
+            });
         }
     }
 
