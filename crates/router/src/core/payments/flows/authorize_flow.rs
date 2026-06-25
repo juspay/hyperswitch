@@ -1373,7 +1373,8 @@ fn transform_redirection_response_for_pre_authenticate_flow(
 > {
     match (connector, &response_data) {
         (
-            enums::connector_enums::Connector::Cybersource,
+            enums::connector_enums::Connector::Cybersource
+            | enums::connector_enums::Connector::Barclaycard,
             router_response_types::RedirectForm::Form {
                 endpoint,
                 method: _,
@@ -1391,11 +1392,25 @@ fn transform_redirection_response_for_pre_authenticate_flow(
                     field_name: "reference_id",
                 },
             )?;
-            Ok(router_response_types::RedirectForm::CybersourceAuthSetup {
-                access_token,
-                ddc_url,
-                reference_id,
-            })
+            // Cybersource and Barclaycard share the same Cardinal device-data-collection (DDC)
+            // setup. UCS flattens the typed DDC form into a generic `Form` over gRPC, so we
+            // reconstruct the connector-specific typed variant here. This makes HS render the
+            // hidden-iframe DDC form (services/api.rs) instead of a top-level auto-submitting
+            // form, which is required for the `Collect` response to run inside the iframe.
+            match connector {
+                enums::connector_enums::Connector::Barclaycard => {
+                    Ok(router_response_types::RedirectForm::BarclaycardAuthSetup {
+                        access_token,
+                        ddc_url,
+                        reference_id,
+                    })
+                }
+                _ => Ok(router_response_types::RedirectForm::CybersourceAuthSetup {
+                    access_token,
+                    ddc_url,
+                    reference_id,
+                }),
+            }
         }
         _ => Ok(response_data),
     }
@@ -1409,7 +1424,8 @@ fn transform_response_for_pre_authenticate_flow(
 > {
     match (connector, response_data.clone()) {
         (
-            enums::connector_enums::Connector::Cybersource,
+            enums::connector_enums::Connector::Cybersource
+            | enums::connector_enums::Connector::Barclaycard,
             router_response_types::PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
