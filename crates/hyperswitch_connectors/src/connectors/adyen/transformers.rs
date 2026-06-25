@@ -30,26 +30,26 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::{
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateHmac, ConnectorWebhookRegister,
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
         },
         GiftCardBalanceCheck,
     },
     router_request_types::{
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateHmacRequest, ConnectorWebhookRegisterRequest,
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
         },
         GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateHmacResponse, ConnectorWebhookRegisterResponse,
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
         },
         AcceptDisputeResponse, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
         SubmitEvidenceResponse,
     },
     types::{
-        ConnectorWebhookGenerateHmacRouterData, ConnectorWebhookRegisterRouterData,
+        ConnectorWebhookGenerateSecretRouterData, ConnectorWebhookRegisterRouterData,
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
         PaymentsPreProcessingRouterData, RefundsRouterData,
@@ -7246,31 +7246,31 @@ pub struct AdyenGenerateHmacResponse {
 impl
     TryFrom<
         ResponseRouterData<
-            ConnectorWebhookGenerateHmac,
+            ConnectorWebhookGenerateSecret,
             AdyenGenerateHmacResponse,
-            ConnectorWebhookGenerateHmacRequest,
-            ConnectorWebhookGenerateHmacResponse,
+            ConnectorWebhookGenerateSecretRequest,
+            ConnectorWebhookGenerateSecretResponse,
         >,
     >
     for RouterData<
-        ConnectorWebhookGenerateHmac,
-        ConnectorWebhookGenerateHmacRequest,
-        ConnectorWebhookGenerateHmacResponse,
+        ConnectorWebhookGenerateSecret,
+        ConnectorWebhookGenerateSecretRequest,
+        ConnectorWebhookGenerateSecretResponse,
     >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
-            ConnectorWebhookGenerateHmac,
+            ConnectorWebhookGenerateSecret,
             AdyenGenerateHmacResponse,
-            ConnectorWebhookGenerateHmacRequest,
-            ConnectorWebhookGenerateHmacResponse,
+            ConnectorWebhookGenerateSecretRequest,
+            ConnectorWebhookGenerateSecretResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(ConnectorWebhookGenerateHmacRouterData {
-            response: Ok(ConnectorWebhookGenerateHmacResponse {
-                hmac_key: Some(item.response.hmac_key),
-                status: common_enums::WebhookHmacGenerationStatus::Success,
+        Ok(ConnectorWebhookGenerateSecretRouterData {
+            response: Ok(ConnectorWebhookGenerateSecretResponse {
+                secret: Some(item.response.hmac_key),
+                status: common_enums::WebhookSecretGenerationStatus::Success,
                 error_code: None,
                 error_message: None,
             }),

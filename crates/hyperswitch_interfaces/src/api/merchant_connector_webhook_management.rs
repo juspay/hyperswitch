@@ -1,13 +1,13 @@
 //! Connector Webhooks Interface for V1
 use hyperswitch_domain_models::{
     router_flow_types::merchant_connector_webhook_management::{
-        ConnectorWebhookGenerateHmac, ConnectorWebhookRegister,
+        ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
     },
     router_request_types::merchant_connector_webhook_management::{
-        ConnectorWebhookGenerateHmacRequest, ConnectorWebhookRegisterRequest,
+        ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
     },
     router_response_types::merchant_connector_webhook_management::{
-        ConnectorWebhookGenerateHmacResponse, ConnectorWebhookRegisterResponse,
+        ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
     },
 };
 
@@ -21,27 +21,23 @@ pub trait WebhookRegister:
     ConnectorWebhookRegisterResponse,
 >
 {
-}
-
-/// trait WebhookGenerateHmac for V1
-pub trait WebhookGenerateHmac:
-    ConnectorIntegration<
-    ConnectorWebhookGenerateHmac,
-    ConnectorWebhookGenerateHmacRequest,
-    ConnectorWebhookGenerateHmacResponse,
->
-{
-}
-
-/// trait ConfigureConnectorWebhook for V1
-pub trait ConfigureConnectorWebhook: ConnectorCommon + WebhookRegister {
     /// Whether this connector requires a separate HMAC generation call after registering the
     /// webhook. Connectors that override this to `true` MUST also implement
-    /// [`GenerateConnectorWebhookHmac`].
-    fn requires_webhook_hmac_generation(&self) -> bool {
+    /// [`GenerateConnectorWebhookSecret`].
+    fn requires_webhook_secret_generation(&self) -> bool {
         false
     }
 }
 
-/// trait GenerateConnectorWebhookHmac for V1
-pub trait GenerateConnectorWebhookHmac: ConnectorCommon + WebhookGenerateHmac {}
+/// trait WebhookGenerateSecret for V1
+pub trait WebhookGenerateSecret:
+    ConnectorIntegration<
+    ConnectorWebhookGenerateSecret,
+    ConnectorWebhookGenerateSecretRequest,
+    ConnectorWebhookGenerateSecretResponse,
+>
+{
+}
+
+/// trait GenerateConnectorWebhookSecret for V1
+pub trait GenerateConnectorWebhookSecret: ConnectorCommon + WebhookGenerateSecret {}

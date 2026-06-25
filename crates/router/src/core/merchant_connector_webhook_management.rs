@@ -4,10 +4,10 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccountUpdate,
     router_request_types::merchant_connector_webhook_management::{
-        ConnectorWebhookGenerateHmacRequest, ConnectorWebhookRegisterRequest,
+        ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
     },
     router_response_types::merchant_connector_webhook_management::{
-        ConnectorWebhookGenerateHmacResponse, ConnectorWebhookRegisterResponse,
+        ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
     },
 };
 use transformers as configure_connector_webhook_flow;
@@ -23,7 +23,7 @@ use crate::{
         self,
         api::{self as service_api},
     },
-    types::api,
+    types::{api, domain},
 };
 
 #[cfg(feature = "v1")]
@@ -101,66 +101,33 @@ pub async fn register_connector_webhook(
         }
     })?;
 
-    // Conditionally run the GenerateHmac flow for connectors that need it (e.g. Adyen). If the
-    // register step succeeded but generateHmac fails, we still surface register success and
-    // report the hmac failure in the response.
-    let generate_hmac_response = if connector_data.connector.requires_webhook_hmac_generation() {
-        let connector_webhook_id =
-                register_webhook_response.connector_webhook_id.clone().ok_or(
-                    errors::ApiErrorResponse::InternalServerError,
-                ).attach_printable(
-                    "Connector reported successful webhook registration but did not return a connector_webhook_id",
-                )?;
-
-        let generate_hmac_integration: services::BoxedConnectorWebhookConfigurationInterface<
-            api::ConnectorWebhookGenerateHmac,
-            ConnectorWebhookGenerateHmacRequest,
-            ConnectorWebhookGenerateHmacResponse,
-        > = connector_data.connector.get_connector_integration();
-
-        let generate_hmac_router_data =
-            configure_connector_webhook_flow::construct_generate_hmac_router_data(
+    // Conditionally run the GenerateSecret flow for connectors that need it (e.g. Adyen). If the
+    // register step succeeded but secret generation fails, we still surface register success and
+    // report the secret-generation failure in the response.
+    let generate_secret_response = if connector_data.connector.requires_webhook_secret_generation() {
+        Some(
+            generate_connector_webhook_secret(
                 &state,
+                &connector_data,
                 &mca,
-                connector_webhook_id,
+                register_webhook_response,
             )
-            .await?;
-
-        let generate_hmac_router_data = services::execute_connector_processing_step(
-            &state,
-            generate_hmac_integration,
-            &generate_hmac_router_data,
-            common_enums::CallConnectorAction::Trigger,
-            None,
-            None,
+            .await?,
         )
-        .await
-        .to_webhook_configuration_failed_response()
-        .attach_printable("Failed while calling generate HMAC connector api")?;
-
-        Some(match generate_hmac_router_data.response {
-            Ok(success) => success,
-            Err(err) => ConnectorWebhookGenerateHmacResponse {
-                hmac_key: None,
-                status: common_enums::WebhookHmacGenerationStatus::Failure,
-                error_code: Some(err.code),
-                error_message: Some(err.message),
-            },
-        })
     } else {
         None
     };
 
-    let generated_hmac_key = generate_hmac_response
+    let generated_secret = generate_secret_response
         .as_ref()
-        .and_then(|resp| resp.hmac_key.clone());
+        .and_then(|resp| resp.secret.clone());
 
     let mca_update =
         configure_connector_webhook_flow::construct_connector_webhook_registration_details(
             register_webhook_response,
             &mca,
             &register_router_data.request,
-            generated_hmac_key,
+            generated_secret,
         )?;
 
     let should_update_db = matches!(
@@ -194,10 +161,65 @@ pub async fn register_connector_webhook(
         configure_connector_webhook_flow::construct_connector_webhook_registration_response(
             register_webhook_response,
             &register_router_data.request,
-            generate_hmac_response.as_ref(),
+            generate_secret_response.as_ref(),
         )?;
 
     Ok(service_api::ApplicationResponse::Json(response))
+}
+
+/// Runs the GenerateSecret connector call. Returns the success payload or a synthesized failure
+/// payload when the connector call itself returned a non-network error. Callers MUST check
+/// [`requires_webhook_secret_generation`] before invoking this.
+#[cfg(feature = "v1")]
+async fn generate_connector_webhook_secret(
+    state: &SessionState,
+    connector_data: &api::ConnectorData,
+    mca: &domain::MerchantConnectorAccount,
+    register_webhook_response: &ConnectorWebhookRegisterResponse,
+) -> errors::RouterResult<ConnectorWebhookGenerateSecretResponse> {
+    let connector_webhook_id = register_webhook_response
+        .connector_webhook_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Connector reported successful webhook registration but did not return a connector_webhook_id",
+        )?;
+
+    let generate_secret_integration: services::BoxedConnectorWebhookConfigurationInterface<
+        api::ConnectorWebhookGenerateSecret,
+        ConnectorWebhookGenerateSecretRequest,
+        ConnectorWebhookGenerateSecretResponse,
+    > = connector_data.connector.get_connector_integration();
+
+    let generate_secret_router_data =
+        configure_connector_webhook_flow::construct_generate_secret_router_data(
+            state,
+            mca,
+            connector_webhook_id,
+        )
+        .await?;
+
+    let generate_secret_router_data = services::execute_connector_processing_step(
+        state,
+        generate_secret_integration,
+        &generate_secret_router_data,
+        common_enums::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await
+    .to_webhook_configuration_failed_response()
+    .attach_printable("Failed while calling generate secret connector api")?;
+
+    Ok(match generate_secret_router_data.response {
+        Ok(success) => success,
+        Err(err) => ConnectorWebhookGenerateSecretResponse {
+            secret: None,
+            status: common_enums::WebhookSecretGenerationStatus::Failure,
+            error_code: Some(err.code),
+            error_message: Some(err.message),
+        },
+    })
 }
 
 #[cfg(feature = "v1")]

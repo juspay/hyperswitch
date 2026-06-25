@@ -6,7 +6,7 @@ use crate::{
     router_flow_types::{
         mandate_revoke::MandateRevoke,
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateHmac, ConnectorWebhookRegister,
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
         },
         revenue_recovery::InvoiceRecordBack,
         subscriptions::{
@@ -25,7 +25,7 @@ use crate::{
     },
     router_request_types::{
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateHmacRequest, ConnectorWebhookRegisterRequest,
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
         },
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
@@ -58,7 +58,7 @@ use crate::{
     },
     router_response_types::{
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateHmacResponse, ConnectorWebhookRegisterResponse,
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
         },
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
@@ -274,8 +274,8 @@ pub type ConnectorWebhookRegisterRouterData = RouterData<
     ConnectorWebhookRegisterResponse,
 >;
 
-pub type ConnectorWebhookGenerateHmacRouterData = RouterData<
-    ConnectorWebhookGenerateHmac,
-    ConnectorWebhookGenerateHmacRequest,
-    ConnectorWebhookGenerateHmacResponse,
+pub type ConnectorWebhookGenerateSecretRouterData = RouterData<
+    ConnectorWebhookGenerateSecret,
+    ConnectorWebhookGenerateSecretRequest,
+    ConnectorWebhookGenerateSecretResponse,
 >;

@@ -97,7 +97,7 @@ pub enum Flow {
     /// Merchant Connector Webhook list flow.
     MerchantConnectorWebhookList,
     /// Merchant Connector Webhook HMAC key generation flow.
-    MerchantConnectorWebhookGenerateHmac,
+    MerchantConnectorWebhookGenerateSecret,
     /// ConfigKey create flow.
     ConfigKeyCreate,
     /// ConfigKey fetch flow.

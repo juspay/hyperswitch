@@ -11381,7 +11381,7 @@ pub enum WebhookRegistrationStatus {
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[strum(serialize_all = "snake_case")]
-pub enum WebhookHmacGenerationStatus {
+pub enum WebhookSecretGenerationStatus {
     /// HMAC key generation is successful
     Success,
     /// HMAC key generation has failed

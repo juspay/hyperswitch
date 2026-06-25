@@ -61,7 +61,7 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         mandate_revoke::MandateRevoke,
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateHmac, ConnectorWebhookRegister,
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
         },
         AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook, VerifyWebhookSource,
@@ -69,7 +69,7 @@ use hyperswitch_domain_models::{
     router_request_types::{
         self,
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateHmacRequest, ConnectorWebhookRegisterRequest,
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -82,7 +82,7 @@ use hyperswitch_domain_models::{
     router_response_types::{
         self,
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateHmacResponse, ConnectorWebhookRegisterResponse,
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
         },
         ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
         VerifyWebhookSourceResponseData,
@@ -100,8 +100,7 @@ pub use self::payouts::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts_v2::*;
 pub use self::{
-    merchant_connector_webhook_management::*, merchant_connector_webhook_management_v2::*,
-    payments::*, refunds::*, vault::*, vault_v2::*,
+    merchant_connector_webhook_management::*, payments::*, refunds::*, vault::*, vault_v2::*,
 };
 use crate::{
     api::subscriptions::Subscriptions, connector_integration_v2::ConnectorIntegrationV2, consts,
@@ -131,8 +130,7 @@ pub trait Connector:
     + ExternalVault
     + Subscriptions
     + WebhookRegister
-    + WebhookGenerateHmac
-    + ConfigureConnectorWebhook
+    + WebhookGenerateSecret
 {
 }
 
@@ -143,8 +141,7 @@ impl<
             + Send
             + webhooks::IncomingWebhook
             + WebhookRegister
-            + WebhookGenerateHmac
-            + ConfigureConnectorWebhook
+            + WebhookGenerateSecret
             + ConnectorAccessToken
             + ConnectorAuthenticationToken
             + disputes::Dispute
@@ -847,13 +844,13 @@ pub trait WebhookRegisterV2:
 {
 }
 
-/// trait WebhookGenerateHmacV2
-pub trait WebhookGenerateHmacV2:
+/// trait WebhookGenerateSecretV2
+pub trait WebhookGenerateSecretV2:
     ConnectorIntegrationV2<
-    ConnectorWebhookGenerateHmac,
+    ConnectorWebhookGenerateSecret,
     ConnectorWebhookConfigurationFlowData,
-    ConnectorWebhookGenerateHmacRequest,
-    ConnectorWebhookGenerateHmacResponse,
+    ConnectorWebhookGenerateSecretRequest,
+    ConnectorWebhookGenerateSecretResponse,
 >
 {
 }

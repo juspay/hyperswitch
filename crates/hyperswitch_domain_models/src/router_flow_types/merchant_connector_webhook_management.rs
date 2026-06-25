@@ -2,4 +2,4 @@
 pub struct ConnectorWebhookRegister;
 
 #[derive(Debug, Clone)]
-pub struct ConnectorWebhookGenerateHmac;
+pub struct ConnectorWebhookGenerateSecret;

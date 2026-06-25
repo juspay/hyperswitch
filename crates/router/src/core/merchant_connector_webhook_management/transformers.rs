@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use api_models::merchant_connector_webhook_management::{
     ConnectorWebhookRegisterRequest, RegisterConnectorWebhookResponse,
 };
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, Secret};
@@ -15,8 +15,8 @@ use crate::{
     errors, types,
     types::{
         api::ConnectorData, domain,
-        ConnectorWebhookGenerateHmacRequest as ConnectorWebhookGenerateHmacData,
-        ConnectorWebhookGenerateHmacResponse, ConnectorWebhookGenerateHmacRouterData,
+        ConnectorWebhookGenerateSecretRequest as ConnectorWebhookGenerateSecretData,
+        ConnectorWebhookGenerateSecretResponse, ConnectorWebhookGenerateSecretRouterData,
         ConnectorWebhookRegisterRequest as ConnectorWebhookRegisterData,
         ConnectorWebhookRegisterResponse, ConnectorWebhookRegisterRouterData, ErrorResponse,
     },
@@ -120,18 +120,19 @@ pub async fn construct_webhook_register_router_data<'a>(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn construct_generate_hmac_router_data<'a>(
+pub async fn construct_generate_secret_router_data<'a>(
     state: &'a SessionState,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     connector_webhook_id: String,
-) -> RouterResult<ConnectorWebhookGenerateHmacRouterData> {
-    let request = ConnectorWebhookGenerateHmacData {
+) -> RouterResult<ConnectorWebhookGenerateSecretRouterData> {
+    let request = ConnectorWebhookGenerateSecretData {
         connector_webhook_id,
     };
 
     let auth_type = merchant_connector_account
         .get_connector_account_details()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get connector auth details for HMAC generation")?;
 
     Ok(types::RouterData {
         flow: PhantomData,
@@ -201,7 +202,7 @@ pub fn construct_connector_webhook_registration_details(
     register_webhook_response: &ConnectorWebhookRegisterResponse,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     connector_webhook_register_data: &ConnectorWebhookRegisterData,
-    generated_hmac_key: Option<Secret<String>>,
+    generated_secret: Option<Secret<String>>,
 ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
     let connector_webhook_registration_details = if let Some(connector_webhook_id) =
         register_webhook_response.connector_webhook_id.clone()
@@ -228,8 +229,11 @@ pub fn construct_connector_webhook_registration_details(
         None
     };
 
-    let connector_webhook_details =
-        build_connector_webhook_details_with_hmac(merchant_connector_account, generated_hmac_key)?;
+    let connector_webhook_details = generated_secret
+        .map(|secret| {
+            build_connector_webhook_details_with_secret(merchant_connector_account, secret)
+        })
+        .transpose()?;
 
     Ok(
         domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
@@ -240,14 +244,10 @@ pub fn construct_connector_webhook_registration_details(
 }
 
 #[cfg(feature = "v1")]
-fn build_connector_webhook_details_with_hmac(
+fn build_connector_webhook_details_with_secret(
     merchant_connector_account: &domain::MerchantConnectorAccount,
-    generated_hmac_key: Option<Secret<String>>,
-) -> RouterResult<Option<common_utils::pii::SecretSerdeValue>> {
-    let Some(hmac_key) = generated_hmac_key else {
-        return Ok(None);
-    };
-
+    secret: Secret<String>,
+) -> RouterResult<common_utils::pii::SecretSerdeValue> {
     let existing_additional_secret = merchant_connector_account
         .connector_webhook_details
         .as_ref()
@@ -258,20 +258,28 @@ fn build_connector_webhook_details_with_hmac(
                 .parse_value::<api_models::admin::MerchantConnectorWebhookDetails>(
                     "MerchantConnectorWebhookDetails",
                 )
+                .inspect_err(|err| {
+                    router_env::logger::warn!(
+                        ?err,
+                        "Failed to parse existing MerchantConnectorWebhookDetails; \
+                         dropping additional_secret while persisting generated secret"
+                    );
+                })
                 .ok()
                 .and_then(|parsed| parsed.additional_secret)
         });
 
     let merged = api_models::admin::MerchantConnectorWebhookDetails {
-        merchant_secret: hmac_key,
+        merchant_secret: secret,
         additional_secret: existing_additional_secret,
     };
 
-    let serialized = serde_json::to_value(merged)
+    let serialized = merged
+        .encode_to_value()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize MerchantConnectorWebhookDetails with HMAC key")?;
+        .attach_printable("Failed to serialize MerchantConnectorWebhookDetails with generated secret")?;
 
-    Ok(Some(Secret::new(serialized)))
+    Ok(Secret::new(serialized))
 }
 
 #[cfg(feature = "v1")]
@@ -325,27 +333,36 @@ pub async fn validate_webhook_registration_request(
 pub fn construct_connector_webhook_registration_response(
     register_webhook_response: &ConnectorWebhookRegisterResponse,
     connector_webhook_register_data: &ConnectorWebhookRegisterData,
-    generate_hmac_response: Option<&ConnectorWebhookGenerateHmacResponse>,
+    generate_secret_response: Option<&ConnectorWebhookGenerateSecretResponse>,
 ) -> RouterResult<RegisterConnectorWebhookResponse> {
-    let (hmac_generation_status, hmac_error_code, hmac_error_message) = generate_hmac_response
+    let (secret_generation_status, secret_error) = generate_secret_response
         .map(|resp| {
-            (
-                Some(resp.status),
-                resp.error_code.clone(),
-                resp.error_message.clone(),
-            )
+            let secret_error = (resp.error_code.is_some() || resp.error_message.is_some()).then(
+                || api_models::merchant_connector_webhook_management::ConnectorErrorDetails {
+                    code: resp.error_code.clone(),
+                    message: resp.error_message.clone(),
+                },
+            );
+            (Some(resp.status), secret_error)
         })
-        .unwrap_or((None, None, None));
+        .unwrap_or((None, None));
+
+    let connector_error = (register_webhook_response.error_code.is_some()
+        || register_webhook_response.error_message.is_some())
+    .then(
+        || api_models::merchant_connector_webhook_management::ConnectorErrorDetails {
+            code: register_webhook_response.error_code.clone(),
+            message: register_webhook_response.error_message.clone(),
+        },
+    );
 
     Ok(RegisterConnectorWebhookResponse {
         event_type: connector_webhook_register_data.event_type,
         connector_webhook_id: register_webhook_response.connector_webhook_id.clone(),
         webhook_registration_status: register_webhook_response.status,
-        error_code: register_webhook_response.error_code.clone(),
-        error_message: register_webhook_response.error_message.clone(),
-        hmac_generation_status,
-        hmac_error_code,
-        hmac_error_message,
+        connector_error,
+        secret_generation_status,
+        secret_error,
     })
 }
 #[cfg(feature = "v1")]

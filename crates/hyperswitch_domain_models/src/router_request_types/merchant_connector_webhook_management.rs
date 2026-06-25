@@ -10,6 +10,6 @@ pub struct ConnectorWebhookData {
 }
 
 #[derive(Debug, Clone)]
-pub struct ConnectorWebhookGenerateHmacRequest {
+pub struct ConnectorWebhookGenerateSecretRequest {
     pub connector_webhook_id: String,
 }

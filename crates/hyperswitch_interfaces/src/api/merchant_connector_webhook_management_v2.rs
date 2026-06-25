@@ -2,13 +2,13 @@
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::ConnectorWebhookConfigurationFlowData,
     router_flow_types::merchant_connector_webhook_management::{
-        ConnectorWebhookGenerateHmac, ConnectorWebhookRegister,
+        ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
     },
     router_request_types::merchant_connector_webhook_management::{
-        ConnectorWebhookGenerateHmacRequest, ConnectorWebhookRegisterRequest,
+        ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
     },
     router_response_types::merchant_connector_webhook_management::{
-        ConnectorWebhookGenerateHmacResponse, ConnectorWebhookRegisterResponse,
+        ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
     },
 };
 
@@ -23,26 +23,20 @@ pub trait WebhookRegisterV2:
     ConnectorWebhookRegisterResponse,
 >
 {
-}
-
-/// trait WebhookGenerateHmacV2
-pub trait WebhookGenerateHmacV2:
-    ConnectorIntegrationV2<
-    ConnectorWebhookGenerateHmac,
-    ConnectorWebhookConfigurationFlowData,
-    ConnectorWebhookGenerateHmacRequest,
-    ConnectorWebhookGenerateHmacResponse,
->
-{
-}
-
-/// trait ConfigureConnectorWebhook for V2
-pub trait ConfigureConnectorWebhookV2:
-    super::ConnectorCommon + WebhookRegisterV2 + WebhookGenerateHmacV2
-{
     /// Whether this connector requires a separate HMAC generation call after registering the
     /// webhook.
-    fn requires_webhook_hmac_generation(&self) -> bool {
+    fn requires_webhook_secret_generation(&self) -> bool {
         false
     }
+}
+
+/// trait WebhookGenerateSecretV2
+pub trait WebhookGenerateSecretV2:
+    ConnectorIntegrationV2<
+    ConnectorWebhookGenerateSecret,
+    ConnectorWebhookConfigurationFlowData,
+    ConnectorWebhookGenerateSecretRequest,
+    ConnectorWebhookGenerateSecretResponse,
+>
+{
 }

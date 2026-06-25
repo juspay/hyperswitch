@@ -36,7 +36,7 @@ use hyperswitch_domain_models::router_flow_types::{
     files::{Retrieve, Upload},
     mandate_revoke::MandateRevoke,
     merchant_connector_webhook_management::{
-        ConnectorWebhookGenerateHmac, ConnectorWebhookRegister,
+        ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
     },
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateSurcharge, CalculateTax,
@@ -64,7 +64,7 @@ pub use hyperswitch_domain_models::{
     },
     router_request_types::{
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateHmacRequest, ConnectorWebhookRegisterRequest,
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
         },
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
@@ -97,7 +97,7 @@ pub use hyperswitch_domain_models::{
     },
     router_response_types::{
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateHmacResponse, ConnectorWebhookRegisterResponse,
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
         },
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
@@ -302,10 +302,10 @@ pub type ConnectorWebhookRegisterRouterData = RouterData<
     ConnectorWebhookRegisterResponse,
 >;
 
-pub type ConnectorWebhookGenerateHmacRouterData = RouterData<
-    ConnectorWebhookGenerateHmac,
-    ConnectorWebhookGenerateHmacRequest,
-    ConnectorWebhookGenerateHmacResponse,
+pub type ConnectorWebhookGenerateSecretRouterData = RouterData<
+    ConnectorWebhookGenerateSecret,
+    ConnectorWebhookGenerateSecretRequest,
+    ConnectorWebhookGenerateSecretResponse,
 >;
 
 #[cfg(feature = "payouts")]

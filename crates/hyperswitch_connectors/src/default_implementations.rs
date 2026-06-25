@@ -32,7 +32,7 @@ use hyperswitch_domain_models::{
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateHmac, ConnectorWebhookRegister,
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
         },
         payments::{
             Approve, AuthorizeSessionToken, CalculateSurcharge, CalculateTax, CompleteAuthorize,
@@ -55,7 +55,7 @@ use hyperswitch_domain_models::{
     router_request_types::{
         authentication,
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateHmacRequest, ConnectorWebhookRegisterRequest,
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
         },
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
@@ -85,7 +85,7 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateHmacResponse, ConnectorWebhookRegisterResponse,
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
         },
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
@@ -149,8 +149,7 @@ use hyperswitch_interfaces::{
         },
         files::{FileUpload, RetrieveFile, UploadFile},
         merchant_connector_webhook_management::{
-            ConfigureConnectorWebhook, GenerateConnectorWebhookHmac, WebhookGenerateHmac,
-            WebhookRegister,
+            GenerateConnectorWebhookSecret, WebhookGenerateSecret, WebhookRegister,
         },
         payments::{
             ConnectorCustomer, ExternalVaultProxyPaymentsCreateV1, PaymentApprove,
@@ -10564,9 +10563,8 @@ macro_rules! default_imp_for_connector_webhook_register {
     ($($path:ident::$connector:ident),*) => {
         $(
             impl WebhookRegister for $path::$connector {}
-            impl ConfigureConnectorWebhook for $path::$connector {}
-            impl WebhookGenerateHmac for $path::$connector {}
-            impl GenerateConnectorWebhookHmac for $path::$connector {}
+            impl WebhookGenerateSecret for $path::$connector {}
+            impl GenerateConnectorWebhookSecret for $path::$connector {}
             impl
             ConnectorIntegration<
             ConnectorWebhookRegister,
@@ -10576,9 +10574,9 @@ macro_rules! default_imp_for_connector_webhook_register {
         {}
             impl
             ConnectorIntegration<
-            ConnectorWebhookGenerateHmac,
-            ConnectorWebhookGenerateHmacRequest,
-            ConnectorWebhookGenerateHmacResponse,
+            ConnectorWebhookGenerateSecret,
+            ConnectorWebhookGenerateSecretRequest,
+            ConnectorWebhookGenerateSecretResponse,
         > for $path::$connector
         {}
     )*
@@ -11302,11 +11300,9 @@ impl<const T: u8>
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> WebhookRegister for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> ConfigureConnectorWebhook for connectors::DummyConnector<T> {}
+impl<const T: u8> WebhookGenerateSecret for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> WebhookGenerateHmac for connectors::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> GenerateConnectorWebhookHmac for connectors::DummyConnector<T> {}
+impl<const T: u8> GenerateConnectorWebhookSecret for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     ConnectorIntegration<
@@ -11319,9 +11315,9 @@ impl<const T: u8>
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     ConnectorIntegration<
-        ConnectorWebhookGenerateHmac,
-        ConnectorWebhookGenerateHmacRequest,
-        ConnectorWebhookGenerateHmacResponse,
+        ConnectorWebhookGenerateSecret,
+        ConnectorWebhookGenerateSecretRequest,
+        ConnectorWebhookGenerateSecretResponse,
     > for connectors::DummyConnector<T>
 {
 }

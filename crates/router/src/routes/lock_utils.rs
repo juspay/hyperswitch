@@ -394,7 +394,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::GetSuperpositionSdkConfig => Self::Superposition,
             Flow::MerchantConnectorWebhookRegister
             | Flow::MerchantConnectorWebhookList
-            | Flow::MerchantConnectorWebhookGenerateHmac => {
+            | Flow::MerchantConnectorWebhookGenerateSecret => {
                 Self::MerchantConnectorWebhookManagement
             }
             Flow::AddCardIssuer
