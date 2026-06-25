@@ -58,13 +58,13 @@ pub(crate) async fn get_webhook_events(
     provider_profile: &domain::Profile,
     webhook_recipient: &utils::WebhookRecipientContext,
 ) -> CustomResult<Vec<types::WebhookPayload>, errors::ApiErrorResponse> {
-      let mut webhook_events = vec![types::WebhookPayload {
-	        event_type: primary_event_type,
-	        event_content: Some(primary_content.clone()),
-	        recipient_data: types::WebhookRecipientData::Merchant {
-	            merchant_id: webhook_recipient.merchant_account.get_id().clone(),
-	        },
-	    }];
+    let mut webhook_events = vec![types::WebhookPayload {
+        event_type: primary_event_type,
+        event_content: Some(primary_content.clone()),
+        recipient_data: types::WebhookRecipientData::Merchant {
+            merchant_id: webhook_recipient.merchant_account.get_id().clone(),
+        },
+    }];
 
     #[cfg(feature = "v1")]
     if let Some(surcharge_connector_id) = provider_profile
