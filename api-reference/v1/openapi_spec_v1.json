@@ -17246,21 +17246,6 @@
         ],
         "description": "Charge Information"
       },
-      "ConnectorErrorDetails": {
-        "type": "object",
-        "description": "Connector-reported error code and message for a single registration step.",
-        "properties": {
-          "code": {
-            "type": "string",
-            "nullable": true
-          },
-          "message": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
       "ConnectorFeatureMatrixResponse": {
         "type": "object",
         "required": [
@@ -40259,12 +40244,12 @@
             ],
             "nullable": true
           },
-          "connector_error": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorErrorDetails"
-              }
-            ],
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
             "nullable": true
           },
           "secret_generation_status": {
@@ -40278,7 +40263,7 @@
           "secret_error": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ConnectorErrorDetails"
+                "$ref": "#/components/schemas/WebhookSecretErrorDetails"
               }
             ],
             "nullable": true
@@ -45845,6 +45830,21 @@
           "Success",
           "Failure"
         ]
+      },
+      "WebhookSecretErrorDetails": {
+        "type": "object",
+        "description": "Connector-reported error code and message from the webhook secret generation step.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "WebhookSecretGenerationStatus": {
         "type": "string",
