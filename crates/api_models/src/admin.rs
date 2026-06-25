@@ -271,6 +271,11 @@ pub struct CardTestingGuardConfig {
     pub customer_id_blocking_threshold: i32,
     /// Determines Redis Expiry for Card Testing Guard for profile
     pub card_testing_guard_expiry: i32,
+    /// Determines if Guest IP Blocking is enabled for profile
+    pub guest_ip_blocking_status: Option<CardTestingGuardStatus>,
+    /// Determines the unsuccessful payment threshold for Guest IP Blocking for profile
+    #[schema(default = 10)]
+    pub guest_ip_blocking_threshold: Option<i32>,
 }
 
 /// Configuration for payment method blocking based on card attributes
