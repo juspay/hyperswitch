@@ -151,12 +151,8 @@ pub struct ConnectorWebhookListResponse {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ConnectorWebhookScope {
     NotSpecific,
-    PaymentMethodType {
-        value: PaymentMethodType,
-    },
-    EventType {
-        value: EventType,
-    },
+    PaymentMethodType { value: PaymentMethodType },
+    EventType { value: EventType },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

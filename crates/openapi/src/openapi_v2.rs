@@ -191,6 +191,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PixKey,
         api_models::enums::BoletoDocumentKind,
         api_models::enums::BoletoPaymentType,
+        api_models::enums::WebhookRegistrationStatus,
         common_utils::types::MinorUnit,
         common_utils::types::StringMinorUnit,
         common_utils::types::TimeRange,
