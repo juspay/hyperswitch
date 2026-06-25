@@ -1760,7 +1760,7 @@ fn get_ucs_client(
 pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
-    processor_id: &id_type::MerchantId,
+    processor_merchant_id: &id_type::MerchantId,
     connector_name: String,
 ) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
     #[cfg(feature = "v1")]
@@ -1775,7 +1775,7 @@ pub fn build_unified_connector_service_auth_metadata(
         .get_connector_account_details()
         .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
         .attach_printable("Failed to obtain ConnectorAuthType")?;
-    let merchant_id = processor_id.get_string_repr();
+    let merchant_id = processor_merchant_id.get_string_repr();
     // Extract connector metadata from MCA for connector-specific config
     let merchant_account_metadata = merchant_connector_account.get_metadata();
     let merchant_account_metadata_value = merchant_account_metadata

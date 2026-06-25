@@ -1292,7 +1292,7 @@ pub async fn trigger_refund_outgoing_webhook(
     state: &SessionState,
     platform: &domain::Platform,
     refund: &diesel_models::Refund,
-    payment_attempt: domain::PaymentAttempt,
+    payment_attempt: &domain::PaymentAttempt,
 ) -> RouterResult<()> {
     let profile_id = payment_attempt.profile_id.clone();
     let refund_status = refund.refund_status;
