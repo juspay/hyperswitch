@@ -20,7 +20,7 @@ const failedNo3DSCardDetails = {
   card_cvc: "999",
 };
 
-const paymentScenarios = {
+const card_pm = {
   PaymentIntent: getCustomExchange({
     Request: {
       currency: "USD",
@@ -155,13 +155,9 @@ function stampPaymentMethodType(scenarios, paymentMethodType) {
 }
 
 export const connectorDetails = {
-  card_pm: { ...paymentScenarios },
-  card_credit_pm: {
-    ...stampPaymentMethodType(paymentScenarios, "credit"),
-  },
-  card_debit_pm: {
-    ...stampPaymentMethodType(paymentScenarios, "debit"),
-  },
+  card_pm,
+  card_credit_pm: stampPaymentMethodType(card_pm, "credit"),
+  card_debit_pm: stampPaymentMethodType(card_pm, "debit"),
 };
 
 // Rotate cards to avoid Helcim's duplicate-decline window.
