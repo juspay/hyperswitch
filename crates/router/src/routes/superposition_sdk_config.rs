@@ -117,8 +117,8 @@ pub async fn get_profile_sdk_config(
             )
         },
         &auth::HeaderAuth(auth::PublishableKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: false,
+           allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
