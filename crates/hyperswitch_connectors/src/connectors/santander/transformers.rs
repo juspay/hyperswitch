@@ -2855,7 +2855,7 @@ pub fn decide_access_token_key_suffix(
                 ) => Some(AccessTokenUrlPath::Leg2),
                 (
                     Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }),
-                    Some(enums::PaymentMethodType::PixEmv),
+                    Some(enums::PaymentMethodType::PixQr),
                 ) => Some(AccessTokenUrlPath::Leg1),
                 // No payment method type or unsupported payment method type
                 (_, None) => None,

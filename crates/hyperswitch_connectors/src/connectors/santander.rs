@@ -2139,7 +2139,7 @@ impl ConnectorSpecifications for Santander {
                 let plan: Vec<(ScopeIdentifier, String)> = requested_pmts
                     .iter()
                     .flat_map(|pmt| match *pmt {
-                        enums::PaymentMethodType::PixEmv => vec![(
+                        enums::PaymentMethodType::PixQr => vec![(
                             ScopeIdentifier::PaymentMethodType(*pmt),
                             format!(
                                 "{}api/v1/webhook/{{chaveKey}}",
@@ -2418,7 +2418,7 @@ impl
                 SantanderMetadataObject::try_from(&req.connector_meta_data)?;
             let pix_key = match req.payment_method_type {
                 Some(enums::PaymentMethodType::PixEmv) => santander_mca_metadata
-                    .pix_emv
+                    .pix_qr
                     .ok_or(errors::ConnectorError::NoConnectorMetaData)?
                     .pix_key_value
                     .peek()

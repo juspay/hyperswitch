@@ -103,6 +103,7 @@ pub struct WebhookRegistrationResult {
     /// The connector-generated webhook ID, if successful.
     pub connector_webhook_id: Option<String>,
     /// Error details, if the registration failed.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<WebhookRegistrationError>,
 }
 
