@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use api_models::merchant_connector_webhook_management::{
-    ConnectorWebhookRegisterRequest as ApiConnectorWebhookRegisterRequest,
+    ConnectorWebhookRegisterRequest as ApiConnectorWebhookRegisterRequest, ConnectorWebhookScope,
     RegisterConnectorWebhookResponse, Scope, ScopeIdentifier, ScopeType, WebhookRegistrationResult,
 };
 use error_stack::{Report, ResultExt};
@@ -16,11 +16,7 @@ use crate::{
     consts,
     core::errors::{ConnectorErrorExt, RouterResult},
     errors, types,
-    types::{
-        api::ConnectorData, domain,
-        ConnectorWebhookRegisterRequest as ConnectorWebhookRegisterData,
-        ConnectorWebhookRegisterRouterData, ErrorResponse,
-    },
+    types::{api::ConnectorData, domain, ConnectorWebhookRegisterRouterData, ErrorResponse},
     SessionState,
 };
 
@@ -135,18 +131,6 @@ pub async fn construct_webhook_register_router_data<'a>(
     })
 }
 
-#[derive(serde::Serialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum ConnectorWebhookRegistrationEntry {
-    NotSpecific,
-    PaymentMethodType {
-        value: common_enums::PaymentMethodType,
-    },
-    EventType {
-        value: common_enums::EventType,
-    },
-}
-
 #[cfg(feature = "v1")]
 pub fn construct_connector_webhook_registration_details(
     merchant_connector_account: &domain::MerchantConnectorAccount,
@@ -167,15 +151,13 @@ pub fn construct_connector_webhook_registration_details(
     for (connector_webhook_id, scope) in registration_entries {
         let entry_value = match &scope {
             ScopeIdentifier::NotSpecific => {
-                serde_json::to_value(ConnectorWebhookRegistrationEntry::NotSpecific)
+                serde_json::to_value(ConnectorWebhookScope::NotSpecific)
             }
             ScopeIdentifier::PaymentMethodType(pmt) => {
-                serde_json::to_value(ConnectorWebhookRegistrationEntry::PaymentMethodType {
-                    value: *pmt,
-                })
+                serde_json::to_value(ConnectorWebhookScope::PaymentMethodType { value: *pmt })
             }
             ScopeIdentifier::EventType(evt) => {
-                serde_json::to_value(ConnectorWebhookRegistrationEntry::EventType { value: *evt })
+                serde_json::to_value(ConnectorWebhookScope::EventType { value: *evt })
             }
         }
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -200,7 +182,7 @@ pub async fn validate_webhook_registration_request(
     let is_supported =
         is_webhook_auto_configuration_supported_from_toml(connector_data.connector_name)?;
 
-    if !is_supported {
+    if !is_supported.unwrap_or(false) {
         return Err(errors::ApiErrorResponse::FlowNotSupported {
             flow: "Webhook Registration".to_string(),
             connector: connector_data.connector_name.to_string(),
@@ -266,8 +248,7 @@ pub fn get_connector_webhook_list_response(
 {
     use std::collections::HashMap;
 
-    let webhook_map: HashMap<String, domain::ConnectorWebhookData> = match register_webhook_response
-    {
+    let webhook_map: HashMap<String, ConnectorWebhookScope> = match register_webhook_response {
         Some(webhook_response) => serde_json::from_value(webhook_response.clone())
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
         None => HashMap::new(),
@@ -275,10 +256,10 @@ pub fn get_connector_webhook_list_response(
 
     let webhooks = webhook_map
         .into_iter()
-        .map(|(connector_webhook_id, webhook_data)| {
+        .map(|(connector_webhook_id, scope)| {
             api_models::merchant_connector_webhook_management::ConnectorWebhookResponse {
-                event_type: webhook_data.event_type,
                 connector_webhook_id,
+                scope,
             }
         })
         .collect();

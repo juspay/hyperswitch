@@ -7,8 +7,3 @@ pub struct ConnectorWebhookRegisterRequest {
     /// The entire URL of the connector
     pub base_url: String,
 }
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ConnectorWebhookData {
-    pub event_type: common_enums::ConnectorWebhookEventType,
-}

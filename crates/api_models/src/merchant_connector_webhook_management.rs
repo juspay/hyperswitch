@@ -143,10 +143,22 @@ pub struct ConnectorWebhookListResponse {
     pub webhooks: Vec<ConnectorWebhookResponse>,
 }
 
+/// Scope of a single registered connector webhook.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ConnectorWebhookScope {
+    NotSpecific,
+    PaymentMethodType {
+        value: common_enums::PaymentMethodType,
+    },
+    EventType {
+        value: common_enums::EventType,
+    },
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ConnectorWebhookResponse {
-    #[schema(value_type = Option<ConnectorWebhookEventType>)]
-    pub event_type: common_enums::ConnectorWebhookEventType,
     pub connector_webhook_id: String,
+    pub scope: ConnectorWebhookScope,
 }

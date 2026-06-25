@@ -2907,6 +2907,16 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for SantanderBoletoWebhookRegi
     }
 }
 
+fn santander_composite_webhook_id(
+    payment_method_type: Option<enums::PaymentMethodType>,
+    connector_webhook_id: &str,
+) -> String {
+    let pmt_slug = payment_method_type
+        .map(|pmt| format!("{:?}", pmt).to_lowercase())
+        .unwrap_or_else(|| "unknown".to_string());
+    format!("santander_{}_{}", pmt_slug, connector_webhook_id)
+}
+
 impl
     TryFrom<
         ResponseRouterData<
@@ -2929,7 +2939,10 @@ impl
         Ok(ConnectorWebhookRegisterRouterData {
             response: Ok(ConnectorWebhookRegisterResponse {
                 identifier: item.data.request.scope.clone(),
-                connector_webhook_id: Some(item.response.chave.clone()),
+                connector_webhook_id: Some(santander_composite_webhook_id(
+                    item.data.payment_method_type,
+                    &item.response.chave,
+                )),
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,
                 error_message: None,
@@ -2961,7 +2974,10 @@ impl
         Ok(ConnectorWebhookRegisterRouterData {
             response: Ok(ConnectorWebhookRegisterResponse {
                 identifier: item.data.request.scope.clone(),
-                connector_webhook_id: Some(item.response.id.clone()),
+                connector_webhook_id: Some(santander_composite_webhook_id(
+                    item.data.payment_method_type,
+                    &item.response.id,
+                )),
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,
                 error_message: None,
@@ -2990,18 +3006,12 @@ impl
             ConnectorWebhookRegisterResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        let pmt_slug = item
-            .data
-            .payment_method_type
-            .map(|pmt| format!("{:?}", pmt).to_lowercase())
-            .unwrap_or_else(|| "unknown".to_string());
         Ok(ConnectorWebhookRegisterRouterData {
             response: Ok(ConnectorWebhookRegisterResponse {
                 identifier: item.data.request.scope.clone(),
-                connector_webhook_id: Some(format!(
-                    "santander_{}_{}",
-                    pmt_slug,
-                    uuid::Uuid::new_v4()
+                connector_webhook_id: Some(santander_composite_webhook_id(
+                    item.data.payment_method_type,
+                    &uuid::Uuid::new_v4().to_string(),
                 )),
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,

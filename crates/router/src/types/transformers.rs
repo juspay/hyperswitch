@@ -17,7 +17,6 @@ use common_utils::{
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{mandates, payments::payment_intent::CustomerData};
-use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
@@ -1000,6 +999,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
     for api_models::admin::MerchantConnectorResponse
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
+    #[allow(deprecated)]
     fn foreign_try_from(item: domain::MerchantConnectorAccount) -> Result<Self, Self::Error> {
         let payment_methods_enabled = match item.payment_methods_enabled.clone() {
             Some(secret_val) => {
@@ -1101,12 +1101,6 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .transpose()?,
         };
 
-        let webhook_setup_capabilities = item
-            .should_construct_webhook_setup_capability()
-            .then(|| api_types::ConnectorData::convert_connector(item.connector_name.as_str()))
-            .transpose()?
-            .map(|connector_enum| connector_enum.get_api_webhook_config().clone());
-
         #[cfg(feature = "v1")]
         let response = Self {
             connector_type: item.connector_type,
@@ -1162,7 +1156,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
-            webhook_setup_capabilities,
+            webhook_setup_capabilities: None,
         };
         Ok(response)
     }
