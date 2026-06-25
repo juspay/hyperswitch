@@ -1334,7 +1334,9 @@ pub async fn trigger_refund_outgoing_webhook(
             let cloned_platform = platform.clone();
             tokio::spawn(
                 async move {
-                    let webhook_resource_data = WebhookResourceData::Refund { payment_attempt: cloned_payment_attempt };
+                    let webhook_resource_data = WebhookResourceData::Refund {
+                        payment_attempt: cloned_payment_attempt,
+                    };
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                         cloned_state,
                         cloned_platform,
