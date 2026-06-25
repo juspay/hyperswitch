@@ -188,7 +188,6 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
     let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
     let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
-    let now = common_utils::date_time::now();
 
     for event_data in events_to_trigger {
         let event_type = event_data.event_type;
@@ -202,7 +201,6 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
             primary_object_id.clone(),
             primary_object_type,
             primary_object_created_at,
-            now,
             event_class,
         )
         .await
@@ -229,9 +227,9 @@ async fn insert_event_and_spawn_webhook_delivery(
     primary_object_id: String,
     primary_object_type: enums::EventObjectType,
     primary_object_created_at: Option<time::PrimitiveDateTime>,
-    now: time::PrimitiveDateTime,
     event_class: enums::EventClass,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
+    let now = common_utils::date_time::now();
     let delivery_attempt = enums::WebhookDeliveryAttempt::InitialAttempt;
     let idempotent_event_id =
         utils::get_idempotent_event_id(&primary_object_id, event_data.event_type, delivery_attempt)
@@ -356,13 +354,13 @@ async fn insert_event_and_spawn_webhook_delivery(
         logger::debug!(
             "Event with idempotent ID `{idempotent_event_id}` already exists in the database"
         );
-        let _ = utils::free_redis_lock(
+        utils::free_redis_lock(
             &state,
             &idempotent_event_id,
             webhook_recipient.key_store.merchant_id.clone(),
             lock_value,
         )
-        .await;
+        .await?;
         return Ok(());
     }
 
@@ -381,13 +379,13 @@ async fn insert_event_and_spawn_webhook_delivery(
         }
     }?;
 
-    let _ = utils::free_redis_lock(
+    utils::free_redis_lock(
         &state,
         &idempotent_event_id,
         webhook_recipient.key_store.merchant_id.clone(),
         lock_value,
     )
-    .await;
+    .await?;
 
     let process_tracker = add_outgoing_webhook_retry_task_to_process_tracker(
         &*state.store,
@@ -556,7 +554,7 @@ impl WebhookTrigger for types::ConnectorWebhook {
         provider_merchant_id: common_utils::id_type::MerchantId,
         processor_merchant_id: common_utils::id_type::MerchantId,
         event: domain::Event,
-        request_content: Option<OutgoingWebhookRequestContent>,
+        _request_content: Option<OutgoingWebhookRequestContent>,
         delivery_attempt: enums::WebhookDeliveryAttempt,
         content: Option<api::OutgoingWebhookContent>,
         process_tracker: Option<storage::ProcessTracker>,
@@ -573,7 +571,6 @@ impl WebhookTrigger for types::ConnectorWebhook {
             merchant_key_store.clone(),
             event.clone(),
             delivery_attempt,
-            request_content,
             process_tracker,
             recipient_data,
         ))
@@ -598,7 +595,6 @@ async fn trigger_webhook_to_connector(
     merchant_key_store: domain::MerchantKeyStore,
     event: domain::Event,
     delivery_attempt: enums::WebhookDeliveryAttempt,
-    _request_content: Option<OutgoingWebhookRequestContent>,
     process_tracker: Option<storage::ProcessTracker>,
     recipient_data: types::WebhookRecipientData,
 ) -> CustomResult<
@@ -789,7 +785,7 @@ async fn update_payment_attempt_from_webhook_response(
         };
         let update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ExternalSurchargeUpdate {
         external_surcharge_details: updated_details,
-        updated_by: "OutgoingWebhookFlow".to_string(),
+        updated_by: storage_scheme.to_string(),
     };
         let _ = state
             .store
@@ -1776,7 +1772,7 @@ async fn handle_failed_delivery(
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     utils::increment_webhook_outgoing_not_received_count(&recipient_data);
 
-    let error = report!(errors::WebhooksFlowError::NotReceivedByReceipt);
+    let error = report!(errors::WebhooksFlowError::NotReceivedByRecipient);
     logger::warn!(?error, status_code, %log_message);
 
     if let ScheduleWebhookRetry::WithProcessTracker(process_tracker) = schedule_webhook_retry {

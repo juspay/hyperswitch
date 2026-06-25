@@ -590,7 +590,7 @@ config! {
     default = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    targeting_key = id_type::PaymentId
+    targeting_key = id_type::MerchantId
 }
 
 impl DatabaseBackedConfig for PtMappingOutgoingConnectorWebhooks {

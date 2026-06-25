@@ -30,7 +30,6 @@ use hyperswitch_domain_models::{
     router_response_types::revenue_recovery as revenue_recovery_response,
     ApiModelToDieselModelConvertor,
 };
-use hyperswitch_interfaces::webhooks::WebhookResourceData;
 use time::PrimitiveDateTime;
 
 use super::errors::StorageErrorExt;
