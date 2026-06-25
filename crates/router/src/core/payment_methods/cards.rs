@@ -3161,7 +3161,7 @@ pub async fn update_payment_method_connector_mandate_details(
         .transpose()?;
 
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-        connector_mandate_details: connector_mandate_details_value,
+        connector_mandate_details: connector_mandate_details_value.map(Secret::new),
         last_modified_by: initiator
             .and_then(|initiator| initiator.to_created_by())
             .map(|last_modified_by| last_modified_by.to_string()),
