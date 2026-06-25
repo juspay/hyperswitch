@@ -1403,6 +1403,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
                                 .payment_intent
                                 .metadata
                                 .clone(),
+                            feature_metadata: payment_intent.feature_metadata.clone(),
                             updated_by: payment_data.payment_intent.updated_by.clone(),
                         };
 
@@ -3101,11 +3102,7 @@ fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
             ),
             updated_by: processor.get_account().storage_scheme.to_string(),
             incremental_authorization_allowed: Some(false),
-            feature_metadata: payment_data
-                .payment_intent
-                .feature_metadata
-                .clone()
-                .map(hyperswitch_masking::Secret::new),
+            feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
         },
         Ok(types::PaymentsResponseData::PostCaptureVoidResponse {
             post_capture_void_status,
@@ -3140,11 +3137,7 @@ fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
             incremental_authorization_allowed: payment_data
                 .payment_intent
                 .incremental_authorization_allowed,
-            feature_metadata: payment_data
-                .payment_intent
-                .feature_metadata
-                .clone()
-                .map(hyperswitch_masking::Secret::new),
+            feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
         },
     }
 }

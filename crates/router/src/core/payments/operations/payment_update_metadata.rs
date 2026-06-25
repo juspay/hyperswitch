@@ -120,6 +120,29 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
             payment_intent.metadata = Some(merged_metadata);
         }
 
+        if let Some(feature_metadata) = request.feature_metadata.clone() {
+            let existing_feature_metadata = payment_intent
+                .feature_metadata
+                .as_ref()
+                .map(|value| {
+                    value
+                        .clone()
+                        .parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse feature metadata from payment intent")
+                })
+                .transpose()?;
+
+            let merged_feature_metadata = feature_metadata.clone().merge(existing_feature_metadata);
+
+            payment_intent.feature_metadata = Some(
+                serde_json::to_value(merged_feature_metadata)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize feature metadata")?
+                    .into(),
+            );
+        }
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -270,6 +293,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsUpdateMetada
         let storage_scheme = processor.get_account().storage_scheme;
         let key_store = processor.get_key_store();
         let metadata = payment_data.payment_intent.metadata.clone();
+        let feature_metadata = payment_data.payment_intent.feature_metadata.clone();
 
         payment_data.payment_intent = state
             .store

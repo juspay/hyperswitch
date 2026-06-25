@@ -556,6 +556,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                     Some(domain::CardToken {
                         card_cvc: token_data.card_cvc.clone(),
                         card_holder_name: token_data.card_holder_name.clone(),
+                        card_cvc_token: None,
                     })
                 }
                 _ => None,

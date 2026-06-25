@@ -9054,7 +9054,10 @@ async fn decide_payment_method_tokenize_action(
         payment_intent_data.split_payments,
         Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
     ) {
-        Ok(TokenizationAction::TokenizeInConnector)
+        match pm_parent_token {
+            None => Ok(TokenizationAction::TokenizeInConnector),
+            Some(_) => Ok(TokenizationAction::TokenizeInConnectorAndRouter),
+        }
     } else {
         match pm_parent_token {
             None => Ok(if is_connector_tokenization_enabled {

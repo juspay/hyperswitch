@@ -288,12 +288,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .attach_printable("Error converting connector_metadata to Value")?
             .or(payment_intent.connector_metadata);
 
-        // payment_intent.feature_metadata = request
-        //     .get_feature_metadata_as_value()
-        //     .change_context(errors::ApiErrorResponse::InternalServerError)
-        //     .attach_printable("Error converting feature_metadata to Value")?
-        //     .or(payment_intent.feature_metadata);
-
+        payment_intent.feature_metadata = request
+            .get_feature_metadata_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting feature_metadata to Value")?
+            .map(hyperswitch_masking::Secret::new)
+            .or(payment_intent.feature_metadata);
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
         payment_intent.psd2_sca_exemption_type = request

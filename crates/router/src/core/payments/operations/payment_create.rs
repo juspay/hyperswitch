@@ -1940,7 +1940,7 @@ impl PaymentCreate {
             connector_id: None,
             allowed_payment_method_types,
             connector_metadata,
-            feature_metadata,
+            feature_metadata: feature_metadata.map(Secret::new),
             attempt_count: 1,
             profile_id: Some(profile_id),
             merchant_decision: None,
