@@ -6509,17 +6509,6 @@ pub async fn payment_methods_session_update_payment_method(
                     message: "No associated payment method found in the session".to_string(),
                 })?;
 
-            // If CVC is present, refresh the TemporaryCardToken in Redis under the same token
-            if has_cvc_and_card_holder_name_only_data {
-                store_cvc_and_card_holder_name_as_payment_token_in_redis(
-                    &state,
-                    &pm_token,
-                    card_cvc,
-                    card_holder_name,
-                )
-                .await?;
-            }
-
             let payment_method_id =
                 utils::retrieve_payment_method_id_from_payment_method_token_data(
                     &state,
