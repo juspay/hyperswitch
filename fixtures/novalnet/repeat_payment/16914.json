@@ -1,0 +1,7 @@
+{
+  "amount": 1390, "currency": "EUR", "confirm": true, "off_session": true,
+  "customer_id": "novalnet_cust_16914",
+  "payment_method": "card", "payment_method_type": "credit",
+  "authentication_type": "three_ds",
+  "recurring_details": {"type": "processor_payment_token", "data": {"processor_payment_token": "<NOVALNET_TID>", "merchant_connector_id": "<MCA>"}}
+}

@@ -709,6 +709,32 @@ impl
     ) -> Result<Self, Self::Error> {
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
+        // Mirror the payment-request mapping so connectors (e.g. Payload) that build
+        // the CreateConnectorCustomer request from mandate context can match HS:
+        // `processing_id` from metadata, `keep_active` from the mandate signals.
+        let metadata = router_data
+            .request
+            .metadata
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+            .map(|s| s.into());
+
+        let setup_future_usage = router_data
+            .request
+            .setup_future_usage
+            .map(payments_grpc::FutureUsage::foreign_try_from)
+            .transpose()?
+            .map(|s| s.into());
+
+        let customer_acceptance = router_data
+            .request
+            .customer_acceptance
+            .clone()
+            .map(payments_grpc::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             split_payments: router_data
                 .request
@@ -731,9 +757,11 @@ impl
                 .map(|e| e.expose().expose().into()),
             phone_number: router_data.request.phone.clone(),
             address: Some(address),
-            metadata: None,
+            metadata,
             connector_feature_data: None,
             test_mode: router_data.test_mode,
+            setup_future_usage,
+            customer_acceptance,
         })
     }
 }
