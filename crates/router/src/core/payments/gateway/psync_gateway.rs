@@ -233,6 +233,14 @@ where
                                             connector_metadata: None,
                                         },
                                     );
+                                    // The Direct gateway always populates
+                                    // connector_http_status_code from the connector HTTP
+                                    // status. This early-return branch builds the
+                                    // ErrorResponse and returns before the success path
+                                    // sets it, so set it here from the ConnectorError
+                                    // status_code to keep the UCS RouterData in sync with
+                                    // Direct (else a connector_http_status_code typeDiff).
+                                    router_data.connector_http_status_code = Some(status_code);
                                     return Ok((
                                         router_data,
                                         (),
