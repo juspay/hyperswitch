@@ -13,6 +13,9 @@ pub struct DisputeListConstraints {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub currency: Option<Vec<common_enums::Currency>>,
     pub time_range: Option<common_utils::types::TimeRange>,
+    /// Connected (processor) merchant ids to narrow a platform listing to specific
+    /// connected merchants. Only applicable to platform dispute listings.
+    pub processor_merchant_id: Option<Vec<common_utils::id_type::MerchantId>>,
 }
 
 impl
@@ -84,6 +87,78 @@ impl
             merchant_connector_id,
             currency,
             time_range,
+            processor_merchant_id: None,
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl
+    TryFrom<(
+        api_models::disputes::PlatformDisputeListConstraints,
+        Option<Vec<common_utils::id_type::ProfileId>>,
+    )> for DisputeListConstraints
+{
+    type Error = error_stack::Report<errors::api_error_response::ApiErrorResponse>;
+    fn try_from(
+        (value, auth_profile_id_list): (
+            api_models::disputes::PlatformDisputeListConstraints,
+            Option<Vec<common_utils::id_type::ProfileId>>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let api_models::disputes::PlatformDisputeListConstraints {
+            dispute_id,
+            payment_id,
+            processor_merchant_id,
+            limit,
+            offset,
+            profile_id,
+            dispute_status,
+            dispute_stage,
+            reason,
+            connector,
+            currency,
+            merchant_connector_id,
+            time_range,
+        } = value;
+        let profile_id_from_request_body = profile_id;
+        // Match both the profile ID from the request body and the list of authenticated profile IDs coming from auth layer
+        let profile_id_list = match (profile_id_from_request_body, auth_profile_id_list) {
+            (None, None) => None,
+            (None, Some(auth_profile_id_list)) => Some(auth_profile_id_list),
+            (Some(profile_id_from_request_body), None) => Some(vec![profile_id_from_request_body]),
+            (Some(profile_id_from_request_body), Some(auth_profile_id_list)) => {
+                let profile_id_from_request_body_is_available_in_auth_profile_id_list =
+                    auth_profile_id_list.contains(&profile_id_from_request_body);
+
+                if profile_id_from_request_body_is_available_in_auth_profile_id_list {
+                    Some(vec![profile_id_from_request_body])
+                } else {
+                    return Err(error_stack::Report::new(
+                        errors::api_error_response::ApiErrorResponse::PreconditionFailed {
+                            message: format!(
+                                "Access not available for the given profile_id {profile_id_from_request_body:?}",
+                            ),
+                        },
+                    ));
+                }
+            }
+        };
+
+        Ok(Self {
+            dispute_id,
+            payment_id,
+            limit,
+            offset,
+            profile_id: profile_id_list,
+            dispute_status,
+            dispute_stage,
+            reason,
+            connector,
+            merchant_connector_id,
+            currency,
+            time_range,
+            processor_merchant_id,
         })
     }
 }

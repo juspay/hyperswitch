@@ -646,6 +646,28 @@ impl DisputeInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v1")]
+    async fn find_disputes_by_constraints_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
+        self.diesel_store
+            .find_disputes_by_constraints_for_platform(platform_merchant_id, dispute_constraints)
+            .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn get_disputes_count_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_disputes_count_for_platform(platform_merchant_id, dispute_constraints)
+            .await
+    }
+
     async fn update_dispute(
         &self,
         this: storage::Dispute,

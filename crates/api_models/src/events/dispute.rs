@@ -48,3 +48,17 @@ impl ApiEventMetric for DisputesAggregateResponse {
         Some(ApiEventsType::ResourceListAPI)
     }
 }
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for super::PlatformDisputeListConstraints {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for super::PlatformDisputeListResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
+    }
+}
