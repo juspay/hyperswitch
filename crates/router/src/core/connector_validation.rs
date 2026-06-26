@@ -316,8 +316,8 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 )?;
                 Ok(())
             }
-            api_enums::Connector::Hyperswitchpeach => {
-                hyperswitchpeach::transformers::HyperswitchpeachAuthType::try_from(self.auth_type)?;
+            api_enums::Connector::Hyperswitch => {
+                hyperswitch_connectors::connectors::hyperswitch::transformers::HyperswitchAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Hyperpg => {

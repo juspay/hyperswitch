@@ -9,7 +9,7 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -49,7 +49,7 @@ use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Hyperswitch {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
 }
 
 impl Hyperswitch {
@@ -586,29 +586,143 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Hyperswit
     }
 }
 
+const HYPERSWITCH_WEBHOOK_SIGNATURE_HEADER: &str = "x-webhook-signature-512";
+
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Hyperswitch {
+    // ── Webhook signature verification (HMAC-SHA512, keyed by payment_response_hash_key) ──
+    fn get_webhook_source_verification_algorithm(
+        &self,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Box<dyn common_utils::crypto::VerifySignature + Send>,
+        errors::ConnectorError,
+    > {
+        Ok(Box::new(common_utils::crypto::HmacSha512))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let signature_hex =
+            utils::get_header_key_value(HYPERSWITCH_WEBHOOK_SIGNATURE_HEADER, request.headers)?;
+        hex::decode(signature_hex)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        Ok(request.body.to_vec())
+    }
+
+    // ── get_webhook_object_reference_id ──────────────────────────────────────
+    // Recovery path: return the invoice ID so the recovery flow can look up
+    // the payment intent by merchant_reference_id.
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let body = hyperswitch::HyperswitchWebhookBody::get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let payment = body
+            .parse_payment_object()
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let invoice_id = payment
+            .merchant_reference_id
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "merchant_reference_id",
+            })?;
+        Ok(api_models::webhooks::ObjectReferenceId::InvoiceId(
+            api_models::webhooks::InvoiceIdType::ConnectorInvoiceId(invoice_id),
+        ))
     }
 
+    // Payment path: return the v1 payment_id as a connector transaction id.
+    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        let body = hyperswitch::HyperswitchWebhookBody::get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let payment = body
+            .parse_payment_object()
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(payment.payment_id),
+        ))
+    }
+
+    // ── get_webhook_event_type ───────────────────────────────────────────────
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let body = hyperswitch::HyperswitchWebhookBody::get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        Ok(hyperswitch::map_event_type_to_recovery_webhook_event(
+            &body.event_type,
+        ))
     }
 
+    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
+    fn get_webhook_event_type(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
+    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
+        let body = hyperswitch::HyperswitchWebhookBody::get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        Ok(hyperswitch::map_event_type_to_payment_webhook_event(
+            &body.event_type,
+        ))
+    }
+
+    // ── get_webhook_resource_object ──────────────────────────────────────────
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
     {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let body = hyperswitch::HyperswitchWebhookBody::get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(Box::new(body))
+    }
+
+    // ── Recovery-specific methods (v2 + revenue_recovery only) ───────────────
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    fn get_revenue_recovery_attempt_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryAttemptData,
+        errors::ConnectorError,
+    > {
+        let body = hyperswitch::HyperswitchWebhookBody::get_webhook_object_from_body(request.body)?;
+        let payment = body.parse_payment_object()?;
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryAttemptData::try_from(payment)
+    }
+
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    fn get_revenue_recovery_invoice_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryInvoiceData,
+        errors::ConnectorError,
+    > {
+        let body = hyperswitch::HyperswitchWebhookBody::get_webhook_object_from_body(request.body)?;
+        let payment = body.parse_payment_object()?;
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryInvoiceData::try_from(payment)
     }
 }
 
@@ -622,7 +736,8 @@ static HYPERSWITCH_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
-static HYPERSWITCH_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static HYPERSWITCH_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] =
+    [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Hyperswitch {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

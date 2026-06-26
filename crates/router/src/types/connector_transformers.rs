@@ -88,7 +88,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
                     message: "Hyperswitch Vault is not a routable connector".to_string(),
                 })?
             }
-            api_enums::Connector::Hyperswitchpeach => Self::Hyperswitchpeach,
+            api_enums::Connector::Hyperswitch => Self::Hyperswitch,
             api_enums::Connector::Iatapay => Self::Iatapay,
             api_enums::Connector::Imerchantsolutions => Self::Imerchantsolutions,
             api_enums::Connector::Inespay => Self::Inespay,

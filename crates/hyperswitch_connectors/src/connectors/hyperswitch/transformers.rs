@@ -1,5 +1,7 @@
 use common_enums::enums;
-use common_utils::types::MinorUnit;
+use common_utils::{ext_traits::ByteSliceExt, types::MinorUnit};
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
@@ -9,6 +11,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use error_stack::{report, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::types::{RefundsResponseRouterData, ResponseRouterData};
@@ -142,24 +145,43 @@ pub enum HyperswitchPaymentStatus {
     Processing,
     RequiresCapture,
     Cancelled,
+    CancelledPostCapture,
     RequiresCustomerAction,
+    RequiresMerchantAction,
     RequiresPaymentMethod,
     RequiresConfirmation,
     PartiallyCaptured,
+    PartiallyCapturedAndCapturable,
+    PartiallyAuthorizedAndRequiresCapture,
+    PartiallyCapturedAndProcessing,
+    Conflicted,
+    Expired,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<HyperswitchPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: HyperswitchPaymentStatus) -> Self {
         match item {
             HyperswitchPaymentStatus::Succeeded => Self::Charged,
-            HyperswitchPaymentStatus::Failed => Self::Failure,
-            HyperswitchPaymentStatus::Processing => Self::Authorizing,
-            HyperswitchPaymentStatus::RequiresCapture => Self::Authorized,
-            HyperswitchPaymentStatus::Cancelled => Self::Voided,
+            HyperswitchPaymentStatus::Failed
+            | HyperswitchPaymentStatus::Conflicted
+            | HyperswitchPaymentStatus::Unknown => Self::Failure,
+            HyperswitchPaymentStatus::Expired => Self::Expired,
+            HyperswitchPaymentStatus::Processing
+            | HyperswitchPaymentStatus::PartiallyCapturedAndProcessing
+            | HyperswitchPaymentStatus::RequiresMerchantAction => Self::Authorizing,
+            HyperswitchPaymentStatus::RequiresCapture
+            | HyperswitchPaymentStatus::PartiallyAuthorizedAndRequiresCapture => Self::Authorized,
+            HyperswitchPaymentStatus::Cancelled
+            | HyperswitchPaymentStatus::CancelledPostCapture => Self::Voided,
             HyperswitchPaymentStatus::RequiresCustomerAction => Self::AuthenticationPending,
             HyperswitchPaymentStatus::RequiresPaymentMethod => Self::PaymentMethodAwaited,
             HyperswitchPaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
             HyperswitchPaymentStatus::PartiallyCaptured => Self::PartialCharged,
+            HyperswitchPaymentStatus::PartiallyCapturedAndCapturable => {
+                Self::PartialChargedAndChargeable
+            }
         }
     }
 }
@@ -321,5 +343,258 @@ impl HyperswitchErrorResponse {
             network_error_message: None,
             connector_metadata: None,
         }
+    }
+}
+
+// =============================================================================
+// INCOMING WEBHOOKS
+// =============================================================================
+// Hyperswitch (v1) sends outgoing webhooks shaped as:
+//   { "event_type": "payment_succeeded",
+//     "content": { "type": "payment_details", "object": { ...PaymentsResponse... } } }
+// `content` is adjacently tagged on `type` + `object`. The `object` field is
+// kept as raw JSON and parsed lazily, so unknown content types never break
+// deserialization of the envelope.
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HyperswitchWebhookBody {
+    pub merchant_id: Option<String>,
+    pub event_id: Option<String>,
+    pub event_type: String,
+    pub content: HyperswitchWebhookContent,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HyperswitchWebhookContent {
+    #[serde(rename = "type")]
+    pub content_type: String,
+    pub object: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HyperswitchWebhookPaymentObject {
+    pub payment_id: String,
+    pub status: HyperswitchPaymentStatus,
+    pub connector_transaction_id: Option<String>,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    // Fields populated for revenue recovery flows
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<enums::Currency>,
+    pub merchant_reference_id: Option<String>,
+    pub connector_mandate_id: Option<String>,
+    pub customer_id: Option<String>,
+    pub merchant_connector_id: Option<String>,
+    pub payment_method: Option<enums::PaymentMethod>,
+    pub payment_method_type: Option<enums::PaymentMethodType>,
+}
+
+const CONTENT_TYPE_PAYMENT: &str = "payment_details";
+
+impl HyperswitchWebhookBody {
+    pub fn get_webhook_object_from_body(
+        body: &[u8],
+    ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
+        body.parse_struct::<Self>("HyperswitchWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+    }
+
+    pub fn parse_payment_object(
+        &self,
+    ) -> Result<HyperswitchWebhookPaymentObject, error_stack::Report<errors::ConnectorError>> {
+        if self.content.content_type != CONTENT_TYPE_PAYMENT {
+            return Err(report!(
+                errors::ConnectorError::WebhookResourceObjectNotFound
+            ));
+        }
+        serde_json::from_value(self.content.object.clone())
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+    }
+}
+
+pub fn map_event_type_to_payment_webhook_event(
+    event_type: &str,
+) -> api_models::webhooks::IncomingWebhookEvent {
+    match event_type {
+        "payment_succeeded" => api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess,
+        "payment_failed" => api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure,
+        "payment_processing" => {
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing
+        }
+        "payment_cancelled" | "payment_cancelled_post_capture" => {
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled
+        }
+        "payment_authorized" => {
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess
+        }
+        "payment_captured" => {
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureSuccess
+        }
+        "payment_expired" => api_models::webhooks::IncomingWebhookEvent::PaymentIntentExpired,
+        "action_required" => api_models::webhooks::IncomingWebhookEvent::PaymentActionRequired,
+        _ => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
+    }
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+pub fn map_event_type_to_recovery_webhook_event(
+    event_type: &str,
+) -> api_models::webhooks::IncomingWebhookEvent {
+    match event_type {
+        "payment_succeeded" => api_models::webhooks::IncomingWebhookEvent::RecoveryPaymentSuccess,
+        "payment_failed" => api_models::webhooks::IncomingWebhookEvent::RecoveryPaymentFailure,
+        "payment_processing" => api_models::webhooks::IncomingWebhookEvent::RecoveryPaymentPending,
+        "payment_cancelled" | "payment_cancelled_post_capture" | "payment_expired" => {
+            api_models::webhooks::IncomingWebhookEvent::RecoveryInvoiceCancel
+        }
+        _ => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
+    }
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl TryFrom<HyperswitchWebhookPaymentObject>
+    for revenue_recovery::RevenueRecoveryAttemptData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(payment: HyperswitchWebhookPaymentObject) -> Result<Self, Self::Error> {
+        use std::str::FromStr as _;
+
+        let amount = payment
+            .amount
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            })?;
+        let currency =
+            payment
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
+        let merchant_reference_id = {
+            let id = payment
+                .merchant_reference_id
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "merchant_reference_id",
+                })?;
+            common_utils::id_type::PaymentReferenceId::from_str(&id)
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?
+        };
+        let processor_payment_method_token = payment
+            .connector_mandate_id
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_mandate_id",
+            })?;
+        let connector_customer_id =
+            payment
+                .customer_id
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "customer_id",
+                })?;
+        let connector_account_reference_id = payment
+            .merchant_connector_id
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "merchant_connector_id",
+            })?;
+        let status = common_enums::AttemptStatus::from(payment.status);
+        let payment_method_type =
+            payment
+                .payment_method
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method",
+                })?;
+        let payment_method_sub_type = payment
+            .payment_method_type
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_method_type",
+            })?;
+
+        Ok(Self {
+            amount,
+            currency,
+            merchant_reference_id,
+            connector_transaction_id: Some(common_utils::types::ConnectorTransactionId::TxnId(
+                payment.payment_id,
+            )),
+            error_code: payment.error_code,
+            error_message: payment.error_message,
+            processor_payment_method_token,
+            connector_customer_id,
+            connector_account_reference_id,
+            transaction_created_at: None,
+            status,
+            payment_method_type,
+            payment_method_sub_type,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            retry_count: None,
+            invoice_next_billing_time: None,
+            invoice_billing_started_at_time: None,
+            charge_id: None,
+            card_info: api_models::payments::AdditionalCardInfo {
+                card_network: None,
+                card_isin: None,
+                card_issuer: None,
+                card_type: None,
+                card_issuing_country: None,
+                card_issuing_country_code: None,
+                bank_code: None,
+                last4: None,
+                card_extended_bin: None,
+                card_exp_month: None,
+                card_exp_year: None,
+                card_holder_name: None,
+                payment_checks: None,
+                authentication_data: None,
+                is_regulated: None,
+                signature_network: None,
+                auth_code: None,
+            },
+        })
+    }
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl TryFrom<HyperswitchWebhookPaymentObject>
+    for revenue_recovery::RevenueRecoveryInvoiceData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(payment: HyperswitchWebhookPaymentObject) -> Result<Self, Self::Error> {
+        use std::str::FromStr as _;
+
+        let amount = payment
+            .amount
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            })?;
+        let currency =
+            payment
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
+        let merchant_reference_id = {
+            let id = payment
+                .merchant_reference_id
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "merchant_reference_id",
+                })?;
+            common_utils::id_type::PaymentReferenceId::from_str(&id)
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?
+        };
+
+        Ok(Self {
+            amount,
+            currency,
+            merchant_reference_id,
+            billing_address: None,
+            retry_count: None,
+            next_billing_at: None,
+            billing_started_at: None,
+            metadata: None,
+            enable_partial_authorization: None,
+        })
     }
 }
