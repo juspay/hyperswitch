@@ -269,12 +269,17 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
         let response = if let Some(error_code) =
             connector_details.and_then(|details| details.code.clone())
         {
+            // Only surface an attempt_status when the connector's sync actually moves
+            // the status. On an errored sync that leaves the status unchanged (e.g.
+            // Redsys xml0024 while still authentication_pending) the native gateway
+            // keeps attempt_status None and preserves the prior status, so mirror that
+            // by leaving it None — the caller then retains prev_status.
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::Unspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from((
-                    response.status(),
-                    prev_status,
-                ))?),
+                _ => {
+                    let mapped = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
+                    (mapped != prev_status).then_some(mapped)
+                }
             };
 
             Err(ErrorResponse {
@@ -291,8 +296,16 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                 reason: connector_details.as_ref().and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_transaction_id.get_optional_response_id(),
-                connector_response_reference_id: response.merchant_transaction_id,
+                // The proto carries a non-optional connector_transaction_id, so an
+                // absent id arrives as "" — treat empty as None to match the native
+                // gateway (which leaves connector_transaction_id None on sync errors).
+                connector_transaction_id: connector_transaction_id
+                    .get_optional_response_id()
+                    .filter(|id| !id.is_empty()),
+                // The native gateway does not echo the merchant's own reference back as
+                // the connector response reference on a sync error, so leave it None for
+                // parity (the merchant_transaction_id here is the caller-supplied ref).
+                connector_response_reference_id: None,
                 network_decline_code: response.error.as_ref().and_then(|error| {
                     error.issuer_details.as_ref().and_then(|id| {
                         id.network_details
