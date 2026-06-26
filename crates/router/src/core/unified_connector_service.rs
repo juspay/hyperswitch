@@ -3120,6 +3120,10 @@ pub async fn call_unified_connector_service_for_refund_execute(
                             network_error_message: network_error_message.clone(),
                             connector_metadata: None,
                         });
+                        // Propagate the connector HTTP status code so the shadow/UCS
+                        // RouterData matches the Direct path (which always sets it on
+                        // connector errors), avoiding a spurious connector_http_status_code diff.
+                        router_data.connector_http_status_code = Some(status_code);
                         return Ok((router_data, (), payments_grpc::RefundResponse::default()));
                     }
                     let api_error = report.current_context().switch();
@@ -3255,6 +3259,10 @@ pub async fn call_unified_connector_service_for_refund_sync(
                             network_error_message: network_error_message.clone(),
                             connector_metadata: None,
                         });
+                        // Propagate the connector HTTP status code so the shadow/UCS
+                        // RouterData matches the Direct path (which always sets it on
+                        // connector errors), avoiding a spurious connector_http_status_code diff.
+                        router_data.connector_http_status_code = Some(status_code);
                         return Ok((router_data, (), payments_grpc::RefundResponse::default()));
                     }
                     let api_error = report.current_context().switch();
