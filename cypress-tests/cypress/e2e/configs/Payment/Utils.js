@@ -619,7 +619,7 @@ export const CONNECTOR_LISTS = {
     ],
     AFFIRM: ["stripe"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
-    STEP_UP_AUTH: ["cybersource"],
+    STEP_UP_AUTH: ["cybersource", "barclaycard"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
     PAYMENT_RESPONSE_HASH: ["stripe"],
     MULTIPLE_CAPTURE: ["adyen", "checkout"],

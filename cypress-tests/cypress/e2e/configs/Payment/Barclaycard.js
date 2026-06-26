@@ -1,5 +1,5 @@
 import { customerAcceptance } from "./Commons";
-import { getIframeRedirectionConfig } from "./Modifiers";
+import { getCustomExchange, getIframeRedirectionConfig } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4000000000001091",
@@ -11,6 +11,22 @@ const successfulNo3DSCardDetails = {
 
 const successfulThreeDSTestCardDetails = {
   card_number: "4000000000002701",
+  card_exp_month: "01",
+  card_exp_year: "50",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
+
+const visaFrictionlessCardDetails = {
+  card_number: "4929251897047956",
+  card_exp_month: "01",
+  card_exp_year: "50",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
+
+const mastercardChallengeCardDetails = {
+  card_number: "5306889942833340",
   card_exp_month: "01",
   card_exp_year: "50",
   card_holder_name: "joseph Doe",
@@ -712,5 +728,93 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  step_up_auth: {
+    ConfirmPayment: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    StepUpAuthWithMerchantCodes: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    ThreeDSAuthenticationWithMerchantCodes: getCustomExchange({
+      Request: {
+        device_channel: "BRW",
+        threeds_method_comp_ind: "Y",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ConfirmPaymentVisaFrictionless: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: visaFrictionlessCardDetails,
+        },
+        currency: "USD",
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    ConfirmPaymentMastercardChallenge: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: mastercardChallengeCardDetails,
+        },
+        currency: "USD",
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
   },
 };
