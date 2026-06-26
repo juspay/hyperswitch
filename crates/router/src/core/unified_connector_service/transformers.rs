@@ -1177,6 +1177,7 @@ impl
             metadata,
             return_url: router_data.request.router_return_url.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            webhook_url: router_data.request.webhook_url.clone(),
             state: None,
             browser_info: router_data
                 .request
