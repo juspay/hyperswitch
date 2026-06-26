@@ -1,0 +1,24 @@
+{
+  "_comment": "Regression for issue #17182 (adyen/authorize router.valueDiff:response.Err.code). Wrong-length CVC -> Adyen errorCode 103. UCS shadow response.Err.code must equal Direct (103), not the CONNECTOR_ERROR_RESPONSE discriminator.",
+  "amount": 7034,
+  "currency": "USD",
+  "confirm": true,
+  "capture_method": "automatic",
+  "payment_method": "card",
+  "payment_method_type": "credit",
+  "payment_method_data": {
+    "card": {
+      "card_number": "4111111111111111",
+      "card_exp_month": "03",
+      "card_exp_year": "2030",
+      "card_holder_name": "Test User",
+      "card_cvc": "1234"
+    }
+  },
+  "browser_info": {
+    "user_agent": "Mozilla/5.0", "accept_header": "text/html", "language": "en-US",
+    "color_depth": 24, "screen_height": 1080, "screen_width": 1920,
+    "time_zone": -330, "java_enabled": false, "java_script_enabled": true, "ip_address": "127.0.0.1"
+  },
+  "email": "test@example.com"
+}

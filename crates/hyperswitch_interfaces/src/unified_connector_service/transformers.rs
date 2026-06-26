@@ -981,7 +981,17 @@ impl UnifiedConnectorServiceError {
         let status_code = u16::try_from(connector_error.http_status_code?).ok()?;
 
         Some(Self::ConnectorError(Box::new(ConnectorErrorInner {
-            code: connector_error.error_code,
+            // The connector's own error code is carried in
+            // `error_info.connector_details.code` (e.g. Adyen `"103"`); the top-level
+            // `error_code` is only the `CONNECTOR_ERROR_RESPONSE` discriminator. Prefer the
+            // connector-specific code so the shadow UCS path's `response.Err.code` matches
+            // the Direct gateway, falling back to the discriminator when it is absent.
+            code: connector_error
+                .error_info
+                .as_ref()
+                .and_then(|ei| ei.connector_details.as_ref())
+                .and_then(|cd| cd.code.clone())
+                .unwrap_or(connector_error.error_code),
             message: connector_error.error_message,
             status_code,
             reason: connector_error
