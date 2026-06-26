@@ -201,6 +201,7 @@ pub enum AuthenticationType {
         merchant_id: id_type::MerchantId,
         profile_id: id_type::ProfileId,
     },
+    InternalApiKey,
     NoAuth,
 }
 
@@ -235,6 +236,7 @@ impl AuthenticationType {
             | Self::EmbeddedJwt { merchant_id, .. }
             | Self::SdkAuthorization { merchant_id, .. } => Some(merchant_id),
             Self::AdminApiKey
+            | Self::InternalApiKey
             | Self::OrganizationJwt { .. }
             | Self::BasicAuth { .. }
             | Self::UserJwt { .. }
@@ -2760,6 +2762,47 @@ where
                     profile_id: Some(validated_data.profile.get_id().clone()),
                 },
             )),
+            None => self.0.authenticate_and_fetch(request_headers, state).await,
+        }
+    }
+}
+
+pub struct InternalApiKeyAuth<F>(pub F);
+
+#[async_trait]
+impl<A, F> AuthenticateAndFetch<(), A> for InternalApiKeyAuth<F>
+where
+    A: SessionStateInfo + Sync + Send,
+    F: AuthenticateAndFetch<(), A> + Sync + Send,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        if !state.conf().internal_merchant_id_profile_id_auth.enabled {
+            return self.0.authenticate_and_fetch(request_headers, state).await;
+        }
+
+        let internal_api_key = HeaderMapStruct::new(request_headers)
+            .get_header_value_by_key(headers::X_INTERNAL_API_KEY)
+            .map(|s| s.to_string());
+
+        match internal_api_key {
+            Some(key) => {
+                if key
+                    == *state
+                        .conf()
+                        .internal_merchant_id_profile_id_auth
+                        .internal_api_key
+                        .peek()
+                {
+                    Ok(((), AuthenticationType::InternalApiKey))
+                } else {
+                    Err(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Internal API key authentication failed")
+                }
+            }
             None => self.0.authenticate_and_fetch(request_headers, state).await,
         }
     }

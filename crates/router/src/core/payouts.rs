@@ -2445,7 +2445,9 @@ pub async fn create_recipient_disburse_account(
                     let pm_update =
                         diesel_models::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                             #[cfg(feature = "v1")]
-                            connector_mandate_details: Some(connector_mandate_details_value),
+                            connector_mandate_details: Some(Secret::new(
+                                connector_mandate_details_value,
+                            )),
 
                             #[cfg(feature = "v2")]
                             connector_mandate_details: Some(common_connector_mandate),
