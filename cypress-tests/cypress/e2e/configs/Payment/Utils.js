@@ -645,6 +645,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
+    PAYOUT_PRIORITY: ["adyenplatform"],
     // Add more inclusion lists
   },
 };
