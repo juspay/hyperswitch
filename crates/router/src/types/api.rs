@@ -43,6 +43,7 @@ pub mod refunds_v2;
 use std::{fmt::Debug, str::FromStr};
 
 use api_models::routing::{self as api_routing, RoutableConnectorChoice};
+pub use common_utils::id_type::PaymentId;
 use error_stack::ResultExt;
 use euclid::enums::RoutableConnectors;
 pub use hyperswitch_domain_models::router_flow_types::{

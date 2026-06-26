@@ -77,7 +77,7 @@ const getMandateData = (currency) => ({
     },
   },
   mandate_type: {
-    single_use: {
+    multi_use: {
       amount: 6540,
       currency,
     },
@@ -410,6 +410,38 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    SyncRefundScheduled: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    RefundInstant: {
+      Request: {
+        amount: 6000,
+        refund_type: "instant",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    RefundScheduled: {
+      Request: {
+        amount: 6000,
+        refund_type: "scheduled",
+      },
       Response: {
         status: 200,
         body: {
@@ -1633,6 +1665,171 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    }),
+    PaypalWalletMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        customer_acceptance: customerAcceptance,
+        mandate_data: getMandateData("USD"),
+        setup_future_usage: "off_session",
+        currency: "USD",
+        return_url: "https://example.com",
+        billing: {
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method_status: null,
+        },
+      },
+    }),
+    KakaoPayWalletMandateCIT: getCustomExchange({
+      Configs: {
+        // KakaoPay redirects to the KakaoPay mobile app; cannot be completed in a headless CI browser
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "kakao_pay",
+        payment_method_data: {
+          wallet: {
+            kakao_pay_redirect: {},
+          },
+        },
+        customer_acceptance: customerAcceptance,
+        mandate_data: getMandateData("KRW"),
+        setup_future_usage: "off_session",
+        currency: "KRW",
+        return_url: "https://example.com",
+        billing: {
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method_status: null,
+        },
+      },
+    }),
+    GcashWalletMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "gcash",
+        payment_method_data: {
+          wallet: {
+            gcash_redirect: {},
+          },
+        },
+        customer_acceptance: customerAcceptance,
+        mandate_data: getMandateData("PHP"),
+        setup_future_usage: "off_session",
+        currency: "PHP",
+        return_url: "https://example.com",
+        billing: {
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method_status: null,
+        },
+      },
+    }),
+    TwintWalletMandateCIT: getCustomExchange({
+      Configs: {
+        // Twint uses a QR-code scanned via a Swiss banking app; cannot be automated in a headless CI browser
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "twint",
+        payment_method_data: {
+          wallet: {
+            twint_redirect: {},
+          },
+        },
+        customer_acceptance: customerAcceptance,
+        mandate_data: getMandateData("CHF"),
+        setup_future_usage: "off_session",
+        currency: "CHF",
+        return_url: "https://example.com",
+        billing: {
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method_status: null,
+        },
+      },
+    }),
+    DanaWalletMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "dana",
+        payment_method_data: {
+          wallet: {
+            dana_redirect: {},
+          },
+        },
+        customer_acceptance: customerAcceptance,
+        mandate_data: getMandateData("IDR"),
+        setup_future_usage: "off_session",
+        currency: "IDR",
+        return_url: "https://example.com",
+        billing: {
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method_status: null,
+        },
+      },
+    }),
+    GoPayWalletMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "go_pay",
+        payment_method_data: {
+          wallet: {
+            go_pay_redirect: {},
+          },
+        },
+        browser_info: mandateBrowserInfo,
+        customer_acceptance: customerAcceptance,
+        mandate_data: getMandateData("IDR"),
+        setup_future_usage: "off_session",
+        currency: "IDR",
+        return_url: "https://example.com",
+        billing: {
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method_status: null,
         },
       },
     }),

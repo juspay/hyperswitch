@@ -23,6 +23,10 @@ pub struct ConnectorEvent {
     pub request_id: String,
     latency: u128,
     status_code: u16,
+    /// Whether this call went to the connector directly or to the Unified Connector Service.
+    destination: common_enums::EventDestination,
+    /// Whether this call is the real execution or a shadow mirror.
+    execution_mode: common_enums::EventExecutionMode,
     #[serde(flatten)]
     connector_event_type: common_utils::events::ConnectorEventsType,
 }
@@ -45,6 +49,8 @@ impl ConnectorEvent {
         dispute_id: Option<String>,
         payout_id: Option<String>,
         status_code: u16,
+        destination: common_enums::EventDestination,
+        execution_mode: common_enums::EventExecutionMode,
     ) -> Self {
         let connector_event_type = common_utils::events::ConnectorEventsType::new(
             payment_id, refund_id, payout_id, dispute_id,
@@ -69,6 +75,8 @@ impl ConnectorEvent {
                 .unwrap_or("NO_REQUEST_ID".to_string()),
             latency,
             status_code,
+            destination,
+            execution_mode,
             connector_event_type,
         }
     }

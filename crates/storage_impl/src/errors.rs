@@ -37,6 +37,8 @@ pub enum StorageError {
     DecryptionError,
     #[error("RedisError: {0:?}")]
     RedisError(error_stack::Report<RedisError>),
+    #[error("InvalidDataFormat: {0}")]
+    InvalidDataFormat(String),
 }
 
 impl From<error_stack::Report<RedisError>> for StorageError {

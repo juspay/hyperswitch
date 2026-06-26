@@ -186,23 +186,19 @@ impl SessionState {
             ExecutionMode::Shadow => Some(true),
             ExecutionMode::NotApplicable => None,
         };
-        // For shadow mode, disable event publishing in UCS
-        let config_override = match unified_connector_service_execution_mode {
-            ExecutionMode::Shadow => Some(
-                serde_json::json!({
-                    "events": {
-                        "enabled": false
-                    }
-                })
-                .to_string(),
-            ),
-            _ => None,
+        // UCS selects the proxy to route through based on this header
+        let proxy_name = match unified_connector_service_execution_mode {
+            ExecutionMode::Primary => Some("primary"),
+            ExecutionMode::Shadow => Some("shadow"),
+            ExecutionMode::NotApplicable => None,
         };
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
             .shadow_mode(shadow_mode)
-            .config_override(config_override)
+            .proxy_name(proxy_name)
+            // no override: UCS emits in all modes, distinguished downstream by `execution_mode`
+            .config_override(None)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -990,7 +986,9 @@ impl Payments {
                     web::resource("/{payment_id}/cancel").route(web::post().to(payments::payments_cancel)),
                 )
                 .service(
-                    web::resource("/{payment_id}/cancel_post_capture").route(web::post().to(payments::payments_cancel_post_capture)),
+                    web::resource("/{payment_id}/cancel_post_capture")
+                    .route(web::post().to(payments::payments_cancel_post_capture))
+                    .route(web::get().to(payments::payments_cancel_post_capture_retrieve))
                 )
                 .service(
                     web::resource("/{payment_id}/capture").route(web::post().to(payments::payments_capture)),
@@ -1004,12 +1002,16 @@ impl Payments {
                         .route(web::post().to(payments::payments_reject)),
                 )
                 .service(
-                    web::resource("/{payment_id}/eligibility")
-                        .route(web::post().to(payments::payments_submit_eligibility)),
+                    web::resource("/{payment_id}/eligibility_check")
+                        .route(web::post().to(payments::payments_submit_eligibility_check)),
                 )
                 .service(
                     web::resource("/{payment_id}/client")
                         .route(web::get().to(payment_methods::list_payment_methods_for_payments_client)),
+                )
+                .service(
+                    web::resource("/{payment_id}/eligibility")
+                        .route(web::post().to(payments::payments_submit_eligibility)),
                 )
                 .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
@@ -1413,6 +1415,10 @@ impl Customers {
         {
             route = route
                 .service(web::resource("").route(web::post().to(customers::customers_create)))
+                .service(
+                    web::resource("/migrate/global-id")
+                        .route(web::post().to(customers::migrate::migrate_global_id)),
+                )
                 .service(
                     web::resource("/{id}")
                         .route(web::put().to(customers::customers_update))
@@ -3386,8 +3392,12 @@ impl SdkConfig {
         web::scope("/v1/sdk/configs")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("{profile_id}/{platform}/{sdk_config.json}")
+                web::resource("{platform}/sdk_config.json")
                     .route(web::get().to(super::superposition_sdk_config::get_sdk_config)),
+            )
+            .service(
+                web::resource("{platform}/{profile_id}/sdk_config.json")
+                    .route(web::get().to(super::superposition_sdk_config::get_profile_sdk_config)),
             )
     }
 }

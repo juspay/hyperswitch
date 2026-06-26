@@ -166,7 +166,7 @@ pub async fn update_payment_intent_api(
         revenue_recovery_payment_data.key_store.clone(),
         None,
     );
-    let (payment_data, _req, _) = payments::payments_intent_operation_core::<
+    let (payment_data, _req, _) = Box::pin(payments::payments_intent_operation_core::<
         api_types::PaymentUpdateIntent,
         _,
         _,
@@ -180,7 +180,7 @@ pub async fn update_payment_intent_api(
         update_req,
         global_payment_id,
         payments_domain::HeaderPayload::default(),
-    )
+    ))
     .await?;
     Ok(payment_data)
 }

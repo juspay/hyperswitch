@@ -217,7 +217,18 @@ const CURRENCY_MAP = {
   PayEasy: "JPY",
   Skrill: "USD", // Skrill wallet payment method
   PaySafeCard: "USD", // PaySafeCard gift card payment method
+
+  // Wallet redirect and mandate payment methods
   PaypalRedirect: "USD",
+
+  // Wallet mandate payment methods
+  KakaoPay: "KRW",
+  Gcash: "PHP",
+  Momo: "VND",
+  Twint: "CHF",
+  Vipps: "NOK",
+  Dana: "IDR",
+  GoPay: "IDR",
 };
 
 export const getCurrency = (paymentMethodType) => {

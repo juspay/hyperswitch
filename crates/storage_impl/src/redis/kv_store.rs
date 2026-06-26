@@ -42,13 +42,12 @@ pub enum PartitionKey<'a> {
         merchant_id: &'a common_utils::id_type::MerchantId,
         payout_id: &'a common_utils::id_type::PayoutId,
     },
-    MerchantIdPayoutAttemptId {
-        merchant_id: &'a common_utils::id_type::MerchantId,
-        payout_attempt_id: &'a str,
-    },
     MerchantIdMandateId {
         merchant_id: &'a common_utils::id_type::MerchantId,
         mandate_id: &'a str,
+    },
+    AuthenticationId {
+        authentication_id: &'a common_utils::id_type::AuthenticationId,
     },
     #[cfg(feature = "v2")]
     GlobalId {
@@ -96,13 +95,6 @@ impl std::fmt::Display for PartitionKey<'_> {
                 merchant_id.get_string_repr(),
                 payout_id.get_string_repr()
             )),
-            PartitionKey::MerchantIdPayoutAttemptId {
-                merchant_id,
-                payout_attempt_id,
-            } => f.write_str(&format!(
-                "mid_{}_poa_{payout_attempt_id}",
-                merchant_id.get_string_repr()
-            )),
             PartitionKey::MerchantIdMandateId {
                 merchant_id,
                 mandate_id,
@@ -110,6 +102,9 @@ impl std::fmt::Display for PartitionKey<'_> {
                 "mid_{}_mandate_{mandate_id}",
                 merchant_id.get_string_repr()
             )),
+            PartitionKey::AuthenticationId { authentication_id } => {
+                f.write_str(authentication_id.get_string_repr())
+            }
 
             #[cfg(feature = "v2")]
             PartitionKey::GlobalId { id } => f.write_str(&format!("global_cust_{id}")),
