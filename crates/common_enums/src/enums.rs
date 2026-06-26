@@ -1761,6 +1761,25 @@ impl Currency {
     strum::Display,
     strum::EnumString,
 )]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EventRecipient {
+    Merchant,
+    Connector,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -1813,8 +1832,13 @@ impl EventClass {
                 EventType::PaymentCaptured,
                 EventType::PaymentExpired,
                 EventType::ActionRequired,
+                EventType::SurchargePaymentSucceeded,
             ]),
-            Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
+            Self::Refunds => HashSet::from([
+                EventType::RefundSucceeded,
+                EventType::RefundFailed,
+                EventType::SurchargeRefundSucceeded,
+            ]),
             Self::Disputes => HashSet::from([
                 EventType::DisputeOpened,
                 EventType::DisputeExpired,
@@ -1896,6 +1920,24 @@ pub enum EventType {
     #[cfg(feature = "payouts")]
     PayoutReversed,
     InvoicePaid,
+    SurchargePaymentSucceeded,
+    SurchargeRefundSucceeded,
+}
+
+/// Maps primary payment/refund events to their corresponding surcharge events
+pub trait SurchargeEventMapper {
+    /// Returns the surcharge event type corresponding to this primary event
+    fn to_surcharge_event(&self) -> Option<EventType>;
+}
+
+impl SurchargeEventMapper for EventType {
+    fn to_surcharge_event(&self) -> Option<Self> {
+        match self {
+            Self::PaymentSucceeded => Some(Self::SurchargePaymentSucceeded),
+            Self::RefundSucceeded => Some(Self::SurchargeRefundSucceeded),
+            _ => None,
+        }
+    }
 }
 
 #[derive(
