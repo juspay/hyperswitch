@@ -682,7 +682,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
                         .join(" ");
                     let response = Err(ErrorResponse {
                         code: error_code,
-                        message: item.response.messages.result_code.to_string(),
+                        message: error_reason.clone(),
                         reason: Some(error_reason),
                         status_code: item.http_code,
                         attempt_status: None,
