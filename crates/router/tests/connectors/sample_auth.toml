@@ -370,6 +370,10 @@ api_key="API Key"
 [calida]
 api_key="EOrder Token"
 
+[capitecvrp]
+api_key="Client ID"
+key1="Client Secret"
+
 [peachpayments]
 api_key="API Key"
 key1="Tenant ID"

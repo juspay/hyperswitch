@@ -7715,3 +7715,11 @@ api_key = "API Key"
 [payconex.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "Account Id"
+[capitecvrp]
+[[capitecvrp.open_banking]]
+  payment_method_type = "open_banking_capitec"
+[capitecvrp.connector_auth.MultiAuthKey]
+api_key = "Client ID"
+key1 = "Client Secret"
+api_secret = "Username"
+key2 = "Password"
