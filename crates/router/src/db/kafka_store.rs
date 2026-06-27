@@ -587,8 +587,12 @@ impl DisputeInterface for KafkaStore {
     async fn insert_dispute(
         &self,
         dispute_new: storage::DisputeNew,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        let dispute = self.diesel_store.insert_dispute(dispute_new).await?;
+        let dispute = self
+            .diesel_store
+            .insert_dispute(dispute_new, storage_scheme)
+            .await?;
 
         if let Err(er) = self
             .kafka_producer
@@ -606,12 +610,14 @@ impl DisputeInterface for KafkaStore {
         processor_merchant_id: &id_type::MerchantId,
         payment_id: &id_type::PaymentId,
         connector_dispute_id: &str,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
         self.diesel_store
             .find_by_processor_merchant_id_payment_id_connector_dispute_id(
                 processor_merchant_id,
                 payment_id,
                 connector_dispute_id,
+                storage_scheme,
             )
             .await
     }
@@ -620,9 +626,14 @@ impl DisputeInterface for KafkaStore {
         &self,
         processor_merchant_id: &id_type::MerchantId,
         dispute_id: &str,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         self.diesel_store
-            .find_dispute_by_processor_merchant_id_dispute_id(processor_merchant_id, dispute_id)
+            .find_dispute_by_processor_merchant_id_dispute_id(
+                processor_merchant_id,
+                dispute_id,
+                storage_scheme,
+            )
             .await
     }
 
@@ -630,9 +641,14 @@ impl DisputeInterface for KafkaStore {
         &self,
         processor_merchant_id: &id_type::MerchantId,
         payment_id: &id_type::PaymentId,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         self.diesel_store
-            .find_disputes_by_processor_merchant_id_payment_id(processor_merchant_id, payment_id)
+            .find_disputes_by_processor_merchant_id_payment_id(
+                processor_merchant_id,
+                payment_id,
+                storage_scheme,
+            )
             .await
     }
 
@@ -640,9 +656,14 @@ impl DisputeInterface for KafkaStore {
         &self,
         processor_merchant_id: &id_type::MerchantId,
         dispute_constraints: &disputes::DisputeListConstraints,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         self.diesel_store
-            .find_disputes_by_constraints(processor_merchant_id, dispute_constraints)
+            .find_disputes_by_constraints(
+                processor_merchant_id,
+                dispute_constraints,
+                storage_scheme,
+            )
             .await
     }
 
@@ -650,10 +671,11 @@ impl DisputeInterface for KafkaStore {
         &self,
         this: storage::Dispute,
         dispute: storage::DisputeUpdate,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let dispute_new = self
             .diesel_store
-            .update_dispute(this.clone(), dispute)
+            .update_dispute(this.clone(), dispute, storage_scheme)
             .await?;
         if let Err(er) = self
             .kafka_producer
@@ -671,9 +693,15 @@ impl DisputeInterface for KafkaStore {
         processor_merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
         self.diesel_store
-            .get_dispute_status_with_count(processor_merchant_id, profile_id_list, time_range)
+            .get_dispute_status_with_count(
+                processor_merchant_id,
+                profile_id_list,
+                time_range,
+                storage_scheme,
+            )
             .await
     }
 }
