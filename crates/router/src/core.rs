@@ -62,6 +62,8 @@ pub mod relay;
 pub mod revenue_recovery;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_reports;
 pub mod routing;
 #[cfg(feature = "v1")]
 pub mod superposition_sdk_config;

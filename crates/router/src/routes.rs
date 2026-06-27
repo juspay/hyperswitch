@@ -50,6 +50,8 @@ pub mod refunds;
 pub mod revenue_recovery_data_backfill;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_redis;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_reports;
 #[cfg(feature = "olap")]
 pub mod routing;
 #[cfg(feature = "v1")]
@@ -88,6 +90,9 @@ pub use self::app::DummyConnector;
 pub use self::app::PaymentMethodSession;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 pub use self::app::Proxy;
+// Update exports:
+#[cfg(feature = "v2")]
+pub use self::app::RecoveryReports;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
     Chat, Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, FeatureMatrix,
