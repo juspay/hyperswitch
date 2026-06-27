@@ -1,6 +1,7 @@
 pub(crate) mod api_error;
 pub(crate) mod apply_changeset;
 pub(crate) mod diesel;
+pub(crate) mod domain_status;
 pub(crate) mod generate_permissions;
 pub(crate) mod generate_schema;
 pub(crate) mod misc;
