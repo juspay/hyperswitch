@@ -476,8 +476,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 connector.connector_name
             );
             let mut authorize_request_data = self.request.clone();
-            let pre_authenticate_request_data =
+            let mut pre_authenticate_request_data =
                 types::PaymentsPreAuthenticateData::try_from(self.request.to_owned())?;
+
+            // Pass the session_token from PaymentFlowData to the PreAuthenticate request
+            pre_authenticate_request_data.session_token = self.session_token.clone();
 
             let pre_authenticate_response_data: Result<
                 types::PaymentsResponseData,
