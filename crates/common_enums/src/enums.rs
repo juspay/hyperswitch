@@ -2611,7 +2611,7 @@ impl PaymentMethodType {
             Self::GooglePay => "Google Pay",
             Self::GoPay => "GoPay",
             Self::Gcash => "GCash",
-            Self::Ideal => "iDEAL",
+            Self::Ideal => "iDEAL | Wero",
             Self::Interac => "Interac",
             Self::Indomaret => "Indomaret",
             Self::InstantBankTransfer => "Instant Bank Transfer",
