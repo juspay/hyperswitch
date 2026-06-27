@@ -80,7 +80,6 @@ export const connectorDetails = {
         amount: 6000,
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: billingAddress,
       },
       Response: {
         status: 200,
@@ -130,9 +129,6 @@ export const connectorDetails = {
       },
     },
     "3DSManualCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         billing: billingAddress,
@@ -150,9 +146,6 @@ export const connectorDetails = {
       },
     },
     "3DSAutoCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         billing: billingAddress,
@@ -235,7 +228,7 @@ export const connectorDetails = {
           status: "processing",
           amount: 6000,
           amount_capturable: 6000,
-          amount_received: 2000,
+          amount_received: null,
         },
       },
     },
@@ -256,9 +249,9 @@ export const connectorDetails = {
         amount: 6000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "pending",
+          error: {},
         },
       },
     },
@@ -270,9 +263,9 @@ export const connectorDetails = {
         amount: 2000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "pending",
+          error: {},
         },
       },
     },

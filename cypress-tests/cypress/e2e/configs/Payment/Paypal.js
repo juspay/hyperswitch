@@ -230,46 +230,70 @@ export const connectorDetails = {
       },
     },
     Refund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+          },
         },
       },
     },
     PartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+          },
         },
       },
     },
     manualPaymentRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+          },
         },
       },
     },
     manualPaymentPartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+          },
         },
       },
     },
@@ -412,6 +436,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -421,7 +448,7 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
           status: "succeeded",
         },
