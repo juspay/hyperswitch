@@ -1199,6 +1199,8 @@ pub struct NexixpayTransactionResponse {
     operation_id: String,
     operation_result: NexixpayPaymentStatus,
     operation_type: NexixpayOperationType,
+    operation_amount: StringMinorUnit,
+    operation_currency: Currency,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1208,6 +1210,8 @@ pub struct NexixpayRSyncResponse {
     operation_id: String,
     operation_result: NexixpayRefundResultStatus,
     operation_type: NexixpayRefundOperationType,
+    operation_amount: StringMinorUnit,
+    operation_currency: Currency,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
