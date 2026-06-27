@@ -8,6 +8,7 @@ use router::{
 
 #[tokio::main]
 async fn main() -> ApplicationResult<()> {
+    // Initialize the Hyperswitch application
     // get commandline config before initializing config
     let cmd_line = <CmdLineConf as clap::Parser>::parse();
 
