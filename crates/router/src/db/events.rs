@@ -1961,9 +1961,6 @@ mod tests {
                 webhook_url: Some(hyperswitch_masking::Secret::new(
                     "https://example.com/webhooks".to_string(),
                 )),
-                payment_created_enabled: None,
-                payment_succeeded_enabled: Some(true),
-                payment_failed_enabled: None,
                 payment_statuses_enabled: None,
                 refund_statuses_enabled: None,
                 payout_statuses_enabled: None,
@@ -2029,9 +2026,6 @@ mod tests {
                 webhook_url: Some(hyperswitch_masking::Secret::new(
                     "https://example.com/webhooks".to_string(),
                 )),
-                payment_created_enabled: None,
-                payment_succeeded_enabled: Some(true),
-                payment_failed_enabled: None,
                 payment_statuses_enabled: None,
                 refund_statuses_enabled: None,
                 payout_statuses_enabled: None,
