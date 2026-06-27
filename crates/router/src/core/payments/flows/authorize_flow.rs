@@ -344,7 +344,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         self.request.currency
                     );
                     logger::info!(
-                        "Balance amount and currency recieved from connector : {}, {}",
+                        "Balance amount and currency received from connector : {}, {}",
                         balance,
                         currency
                     );
@@ -376,7 +376,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 Err(err) => Err(err.clone()),
             };
             Ok(types::BalanceCheckResult {
-                // Continue with the payment only if ok response is recieved from balance check
+                // Continue with the payment only if ok response is received from balance check
                 should_continue_payment: balance_check_result.is_ok(),
                 balance_check_result,
             })
