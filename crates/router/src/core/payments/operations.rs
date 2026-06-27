@@ -80,6 +80,7 @@ use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
+use tracing_futures::Instrument;
 
 #[cfg(feature = "v2")]
 pub use self::payment_attempt_list::PaymentGetListAttempts;
@@ -784,8 +785,11 @@ where
 
 #[cfg(feature = "v1")]
 #[async_trait]
-impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCaptureRequest, Data = D>>
-    Domain<F, api::PaymentsCaptureRequest, D> for Op
+impl<
+        D,
+        F: Clone + Send,
+        Op: Clone + Send + Sync + 'static + Operation<F, api::PaymentsCaptureRequest, Data = D>,
+    > Domain<F, api::PaymentsCaptureRequest, D> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsCaptureRequest, Data = D>,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
@@ -870,6 +874,34 @@ where
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
+    }
+
+    #[instrument(skip_all)]
+    async fn add_task_to_process_tracker<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_attempt: &storage::PaymentAttempt,
+        requeue: bool,
+        schedule_time: Option<time::PrimitiveDateTime>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let m_payment_attempt = payment_attempt.clone();
+        let m_state = state.clone();
+        let m_self = self.clone();
+        tokio::spawn(
+            async move {
+                helpers::add_domain_task_to_pt(
+                    &m_self,
+                    &m_state,
+                    &m_payment_attempt,
+                    requeue,
+                    schedule_time,
+                )
+                .await
+            }
+            .in_current_span(),
+        );
+
+        Ok(())
     }
 }
 
