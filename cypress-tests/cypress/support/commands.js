@@ -2090,6 +2090,36 @@ Cypress.Commands.add(
   }
 );
 
+Cypress.Commands.add(
+  "customerRetrieveAndAssertCall",
+  (globalState, expectedFields) => {
+    const customer_id = globalState.get("customerId");
+
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/customers/${customer_id}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(200);
+        expect(response.body.customer_id).to.equal(customer_id);
+
+        for (const [field, expectedValue] of Object.entries(expectedFields)) {
+          expect(response.body[field], `customer.${field}`).to.equal(
+            expectedValue
+          );
+        }
+      });
+    });
+  }
+);
+
 Cypress.Commands.add("ephemeralGenerateCall", (globalState) => {
   const customer_id = globalState.get("customerId");
   const merchant_id = globalState.get("merchantId");
