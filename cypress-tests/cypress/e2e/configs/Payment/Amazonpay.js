@@ -52,7 +52,6 @@ export const connectorDetails = {
         currency: "USD",
         amount: 5044,
         shipping_cost: 2000,
-        order_tax_amount: 1000,
         metadata: {
           delivery_options: amazonPayDeliveryOptions,
         },
