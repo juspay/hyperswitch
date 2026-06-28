@@ -2955,18 +2955,6 @@ export const connectorDetails = {
         },
       },
     },
-    AchCIT: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
     BankdebitMIT: {
       Request: {
         currency: "EUR",

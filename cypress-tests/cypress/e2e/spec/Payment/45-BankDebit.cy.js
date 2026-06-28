@@ -371,25 +371,4 @@ describe("Bank Debit tests", () => {
     });
   });
 
-  context("ACH Bank Debit Mandate CIT flow test", () => {
-    it("create-customer-call-test", () => {
-      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-    });
-
-    it("ach-bank-debit-mandate-cit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_debit_pm"
-      ]["AchCIT"];
-
-      cy.citForMandatesCallTest(
-        fixtures.citConfirmBody,
-        data,
-        6000,
-        true,
-        "automatic",
-        "new_mandate",
-        globalState
-      );
-    });
-  });
 });

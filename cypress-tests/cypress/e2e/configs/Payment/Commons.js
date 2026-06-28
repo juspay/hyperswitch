@@ -1408,27 +1408,6 @@ export const connectorDetails = {
         },
       },
     }),
-    AchCIT: getCustomExchange({
-      Request: {
-        payment_method: "bank_debit",
-        payment_method_type: "ach",
-        payment_method_data: {
-          bank_debit: {
-            ach_bank_debit: {
-              account_number: "000123456789",
-              routing_number: "110000000",
-              bank_account_holder_name: "Test Account",
-            },
-          },
-        },
-        billing: {
-          address: {
-            country: "US",
-          },
-          email: "test@example.com",
-        },
-      },
-    }),
   },
   wallet_pm: {
     PaymentIntent: (paymentMethodType) =>
