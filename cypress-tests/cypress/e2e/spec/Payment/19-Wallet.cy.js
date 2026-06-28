@@ -879,11 +879,11 @@ describe("Wallet tests", () => {
       }
     });
 
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Wallet Redirection -> Retrieve Payment", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Session Token Call -> Confirm Payment -> Retrieve Payment", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "wallet_pm"
-        ]["PaymentIntent"]("AmazonPay");
+        ]["PaymentIntent"];
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -904,6 +904,17 @@ describe("Wallet tests", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
+      cy.step("Session Token Call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Session Token Call");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["SessionToken"];
+        cy.sessionTokenCall(fixtures.sessionTokenBody, data, globalState);
+      });
+
       cy.step("Confirm Payment", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm Payment");
@@ -921,20 +932,6 @@ describe("Wallet tests", () => {
         if (!should_continue_further(confirmData)) {
           shouldContinue = false;
         }
-      });
-
-      cy.step("Handle Wallet Redirection", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Handle Wallet Redirection");
-          return;
-        }
-        const expected_redirection = fixtures.confirmBody["return_url"];
-        const payment_method_type = globalState.get("paymentMethodType");
-        cy.handleBankRedirectRedirection(
-          globalState,
-          payment_method_type,
-          expected_redirection
-        );
       });
 
       cy.step("Retrieve Payment", () => {
