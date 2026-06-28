@@ -5,6 +5,7 @@ import { updateDefaultStatusCode } from "./Modifiers.js";
 import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as affirmConnectorDetails } from "./Affirm.js";
+import { connectorDetails as amazonpayConnectorDetails } from "./Amazonpay.js";
 import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 import { connectorDetails as authipayConnectorDetails } from "./Authipay.js";
@@ -85,6 +86,7 @@ const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
   affirm: affirmConnectorDetails,
+  amazonpay: amazonpayConnectorDetails,
   airwallex: airwallexConnectorDetails,
   archipel: archipelConnectorDetails,
   authipay: authipayConnectorDetails,
@@ -556,6 +558,7 @@ export const CONNECTOR_LISTS = {
       "paypal",
     ],
     MIFINITY_WALLET: ["mifinity"],
+    AMAZONPAY_WALLET: ["amazonpay"],
     ALIPAY_WALLET: ["multisafepay"],
     WECHATPAY_WALLET: ["multisafepay"],
     MBWAY_WALLET: ["multisafepay"],

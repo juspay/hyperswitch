@@ -203,6 +203,7 @@ const CURRENCY_MAP = {
   Paypal: "EUR",
   MbWay: "EUR",
   Mifinity: "EUR", // Mifinity wallet payment method
+  AmazonPay: "USD", // Amazon Pay wallet payment method
 
   // Voucher payment methods
   Boleto: "BRL",
