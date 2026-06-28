@@ -272,6 +272,11 @@ function createUcsConfigs(globalState, flow, type) {
     });
 }
 
+/**
+ * Deletes a business profile by ID, resolving the profile from globalState.
+ * @param {Object} globalState - The global state object
+ * @param {string} [profilePrefix="profile"] - Prefix used to namespace the profile ID in globalState (e.g. "webhookConfigProfile" resolves to globalState.get("webhookConfigProfileId")). Defaults to "profile" for backward compatibility.
+ */
 Cypress.Commands.add(
   "deleteBusinessProfileTest",
   (globalState, profilePrefix = "profile") => {
@@ -777,6 +782,13 @@ Cypress.Commands.add(
   }
 );
 
+/**
+ * Creates a business profile and stores the resulting profile_id in globalState.
+ * @param {Object} createBusinessProfile - The business profile creation request body
+ * @param {Object} globalState - The global state object
+ * @param {string} [profilePrefix="profile"] - Prefix used to namespace the stored profile ID in globalState (e.g. "webhookConfigProfile" stores as globalState.set("webhookConfigProfileId", ...)). Defaults to "profile" for backward compatibility.
+ * @param {number} [expectedStatus=200] - Expected HTTP status code. Use 400 for negative test cases that assert validation errors.
+ */
 Cypress.Commands.add(
   "createBusinessProfileTest",
   (
@@ -815,6 +827,26 @@ Cypress.Commands.add(
           if (response.status === 200) {
             globalState.set(`${profilePrefix}Id`, response.body.profile_id);
             expect(response.body.profile_id).to.not.to.be.null;
+            if (createBusinessProfile.webhook_details) {
+              const reqWebhook = createBusinessProfile.webhook_details;
+              const respWebhook = response.body.webhook_details;
+              expect(respWebhook).to.not.be.undefined;
+              if (reqWebhook.payment_statuses_enabled) {
+                expect(respWebhook.payment_statuses_enabled).to.deep.equal(
+                  reqWebhook.payment_statuses_enabled
+                );
+              }
+              if (reqWebhook.refund_statuses_enabled) {
+                expect(respWebhook.refund_statuses_enabled).to.deep.equal(
+                  reqWebhook.refund_statuses_enabled
+                );
+              }
+              if (reqWebhook.payout_statuses_enabled) {
+                expect(respWebhook.payout_statuses_enabled).to.deep.equal(
+                  reqWebhook.payout_statuses_enabled
+                );
+              }
+            }
           } else {
             throw new Error(
               `Business Profile call failed ${response.body.error.message}`
@@ -1044,6 +1076,12 @@ Cypress.Commands.add(
   }
 );
 
+/**
+ * Updates a business profile's webhook configuration and asserts the response echoes the requested webhook_details.
+ * @param {Object} webhookConfigBody - The webhook config update request body (must contain a webhook_details object)
+ * @param {Object} globalState - The global state object
+ * @param {string} [profilePrefix="profile"] - Prefix used to resolve the profile ID from globalState (e.g. "webhookConfigProfile" resolves to globalState.get("webhookConfigProfileId")). Defaults to "profile" for backward compatibility.
+ */
 Cypress.Commands.add(
   "updateBusinessProfileWebhookConfigTest",
   (webhookConfigBody, globalState, profilePrefix = "profile") => {
@@ -1098,6 +1136,11 @@ Cypress.Commands.add(
   }
 );
 
+/**
+ * Registers a webhook URL and event configuration for a connector and asserts the configured response.
+ * @param {Object} data - Connector config entry containing Request and Response (with optional Configs for DELAY/CONNECTOR_CREDENTIAL/TRIGGER_SKIP)
+ * @param {Object} globalState - The global state object
+ */
 Cypress.Commands.add("registerConnectorWebhookTest", (data, globalState) => {
   const {
     Configs: configs = {},
@@ -1140,6 +1183,11 @@ Cypress.Commands.add("registerConnectorWebhookTest", (data, globalState) => {
   });
 });
 
+/**
+ * Retrieves the list of webhooks registered for a connector and asserts the configured response.
+ * @param {Object} data - Connector config entry containing Response (with optional Configs for DELAY/CONNECTOR_CREDENTIAL/TRIGGER_SKIP)
+ * @param {Object} globalState - The global state object
+ */
 Cypress.Commands.add("retrieveConnectorWebhooksTest", (data, globalState) => {
   const { Configs: configs = {}, Response: resData } = data || {};
 

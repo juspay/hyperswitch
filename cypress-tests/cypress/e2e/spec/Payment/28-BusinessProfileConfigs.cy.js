@@ -539,5 +539,43 @@ describe("Config Tests", () => {
         400
       );
     });
+
+    it("Create Business Profile with invalid payment_statuses_enabled — expect error", () => {
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        profile_name: "neg_payment_status_test",
+        webhook_details: {
+          webhook_version: "1.0.2",
+          payment_statuses_enabled: ["invalid_status"],
+          refund_statuses_enabled: ["success", "failure"],
+          payout_statuses_enabled: ["success", "failed"],
+        },
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookNegPaymentProfile",
+        400
+      );
+    });
+
+    it("Create Business Profile with invalid payout_statuses_enabled — expect error", () => {
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        profile_name: "neg_payout_status_test",
+        webhook_details: {
+          webhook_version: "1.0.2",
+          payment_statuses_enabled: ["succeeded"],
+          refund_statuses_enabled: ["success", "failure"],
+          payout_statuses_enabled: ["invalid_payout"],
+        },
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookNegPayoutProfile",
+        400
+      );
+    });
   });
 });
