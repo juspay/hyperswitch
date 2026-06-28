@@ -72,7 +72,12 @@ describe("Bank Debit tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["Sepa"];
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -127,7 +132,12 @@ describe("Bank Debit tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["Ach"];
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -182,7 +192,12 @@ describe("Bank Debit tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["Becs"];
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -237,7 +252,12 @@ describe("Bank Debit tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["Bacs"];
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -318,7 +338,7 @@ describe("Bank Debit tests", () => {
   });
 
   context("BACS Bank Debit - Mandate flow", () => {
-    let shouldContinue = true;
+    const shouldContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue) {
