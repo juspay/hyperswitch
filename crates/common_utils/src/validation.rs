@@ -182,13 +182,38 @@ mod tests {
 
     #[test]
     fn test_validate_email() {
+        // Valid email cases
         let result = validate_email("abc@example.com");
         assert!(result.is_ok());
 
         let result = validate_email("abc+123@example.com");
         assert!(result.is_ok());
 
+        let result = validate_email("user.name@example.co.uk");
+        assert!(result.is_ok());
+
+        let result = validate_email("test_email@domain-name.org");
+        assert!(result.is_ok());
+
+        // Invalid email cases
         let result = validate_email("");
+        assert!(result.is_err());
+
+        let result = validate_email("invalid.email");
+        assert!(result.is_err());
+
+        let result = validate_email("@example.com");
+        assert!(result.is_err());
+
+        let result = validate_email("user@");
+        assert!(result.is_err());
+
+        let result = validate_email("user..name@example.com");
+        assert!(result.is_err());
+
+        // Test maximum length (320 characters should fail)
+        let long_email = format!("{}@example.com", "a".repeat(310));
+        let result = validate_email(&long_email);
         assert!(result.is_err());
     }
 
@@ -196,11 +221,18 @@ mod tests {
     #[test_case("+34912345678" ; "Spanish valid phone number")]
     #[test_case("+41 79 123 45 67" ; "Swiss valid phone number")]
     #[test_case("+66 81 234 5678" ; "Thailand valid phone number")]
+    #[test_case("+1 555 123 4567" ; "US valid phone number")]
+    #[test_case("+44 20 7946 0958" ; "UK valid phone number")]
+    #[test_case("+91 98765 43210" ; "India valid phone number")]
     fn test_validate_phone_number(phone_number: &str) {
         assert!(validate_phone_number(phone_number).is_ok());
     }
 
     #[test_case("9123456789" ; "Romanian invalid phone number")]
+    #[test_case("123" ; "Too short phone number")]
+    #[test_case("+999 999 999 999" ; "Invalid country code")]
+    #[test_case("abc123def" ; "Non-numeric phone number")]
+    #[test_case("+1 555 123 456789" ; "Too long phone number")]
     fn test_invalid_phone_number(phone_number: &str) {
         let res = validate_phone_number(phone_number);
         assert!(res.is_err());
@@ -322,5 +354,48 @@ mod tests {
     #[test]
     fn allows_percent_char_without_encoding() {
         assert!(!contains_potential_xss_or_sqli("Get 50% off today"));
+    }
+
+    #[test]
+    fn test_validate_domain_against_allowed_domains() {
+        let mut allowed_domains = HashSet::new();
+        allowed_domains.insert("example.com".to_string());
+        allowed_domains.insert("*.test.com".to_string());
+        allowed_domains.insert("secure-*.org".to_string());
+
+        // Test exact match
+        assert!(validate_domain_against_allowed_domains(
+            "example.com",
+            allowed_domains.clone()
+        ));
+
+        // Test wildcard match
+        assert!(validate_domain_against_allowed_domains(
+            "api.test.com",
+            allowed_domains.clone()
+        ));
+
+        assert!(validate_domain_against_allowed_domains(
+            "secure-payment.org",
+            allowed_domains.clone()
+        ));
+
+        // Test non-matching domains
+        assert!(!validate_domain_against_allowed_domains(
+            "malicious.com",
+            allowed_domains.clone()
+        ));
+
+        assert!(!validate_domain_against_allowed_domains(
+            "api.other.com",
+            allowed_domains.clone()
+        ));
+
+        // Test empty allowed domains
+        let empty_domains = HashSet::new();
+        assert!(!validate_domain_against_allowed_domains(
+            "example.com",
+            empty_domains
+        ));
     }
 }
