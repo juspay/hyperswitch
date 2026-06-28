@@ -9,6 +9,7 @@ import customerCreateBody from "./create-customer-body.json";
 import citConfirmBody from "./create-mandate-cit.json";
 import mitConfirmBody from "./create-mandate-mit.json";
 import createPaymentBody from "./create-payment-body.json";
+import createPayoutLinkBody from "./create-payout-link-body.json";
 import createPayoutBody from "./create-payout-confirm-body.json";
 import payoutRoutingConfigBody from "./payout-routing-config-body.json";
 import pmIdConfirmBody from "./create-pm-id-mit.json";
@@ -55,6 +56,7 @@ export {
   createConnectorBody,
   createPaymentBody,
   createPayoutBody,
+  createPayoutLinkBody,
   customerCreateBody,
   customerUpdateBody,
   disputeEvidenceBody,

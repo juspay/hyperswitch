@@ -289,6 +289,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Pix
                 | PaymentMethodType::PixKey
                 | PaymentMethodType::PixEmv
+                | PaymentMethodType::PixQr
                 | PaymentMethodType::Swish
                 | PaymentMethodType::TouchNGo
                 | PaymentMethodType::Trustly
