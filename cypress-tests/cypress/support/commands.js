@@ -282,7 +282,7 @@ Cypress.Commands.add(
     const url = `${baseUrl}/account/${merchantId}/business_profile/${profileId}`;
 
     if (!profileId) {
-      cy.log("No profileId found in globalState, skipping delete");
+      cy.log(`No ${profilePrefix}Id found in globalState, skipping delete`);
       return;
     }
 

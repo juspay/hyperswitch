@@ -921,6 +921,9 @@ export const connectorDetails = {
         },
       },
     },
+    // WebhookConfig: webhook_username and webhook_password are test-only
+    // fixture values — not real credentials. They are safe to use in any
+    // connector config as placeholder webhook auth data.
     WebhookConfig: {
       Create: getCustomExchange({
         Request: {

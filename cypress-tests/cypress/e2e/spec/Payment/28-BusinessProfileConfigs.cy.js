@@ -441,14 +441,6 @@ describe("Config Tests", () => {
   });
 
   context("Webhook Config Disabled Events — Create and Update", () => {
-    const shouldContinue = true;
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
     it("Create Business Profile with webhook disabled events", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -484,14 +476,6 @@ describe("Config Tests", () => {
   });
 
   context("Connector Webhook Registration and Retrieval", () => {
-    const shouldContinue = true;
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
     it("Create Business Profile", () => {
       cy.createBusinessProfileTest(
         fixtures.businessProfile.bpCreate,
@@ -537,14 +521,6 @@ describe("Config Tests", () => {
   });
 
   context("Webhook Config Disabled Events — Negative Cases", () => {
-    const shouldContinue = true;
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
     it("Create Business Profile with invalid refund_statuses_enabled — expect error", () => {
       const createBody = {
         ...fixtures.businessProfile.bpCreate,
