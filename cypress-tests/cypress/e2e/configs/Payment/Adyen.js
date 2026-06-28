@@ -2869,7 +2869,6 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: customerAcceptance,
-        mandate_data: null,
         currency: "USD",
       },
       Response: {
@@ -2953,6 +2952,18 @@ export const connectorDetails = {
             message: "Selected payment method through Adyen is not implemented",
             code: "IR_00",
           },
+        },
+      },
+    },
+    AchCIT: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },

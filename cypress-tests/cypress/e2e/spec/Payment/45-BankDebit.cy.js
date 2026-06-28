@@ -379,7 +379,7 @@ describe("Bank Debit tests", () => {
     it("ach-bank-debit-mandate-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_debit_pm"
-      ]["Ach"];
+      ]["AchCIT"];
 
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
