@@ -980,8 +980,21 @@ impl UnifiedConnectorServiceError {
 
         let status_code = u16::try_from(connector_error.http_status_code?).ok()?;
 
+        // Prefer the connector-specific error code (the value the native/direct-connector
+        // path surfaces, e.g. noon's `order.errorCode` / `resultCode`) which UCS carries in
+        // `error_info.connector_details.code`. Fall back to the UCS discriminator
+        // (`CONNECTOR_ERROR_RESPONSE`) only when the connector code is absent. Using the
+        // discriminator directly produced a `response.Err.code` shadow-validation valueDiff
+        // against the native path.
+        let code = connector_error
+            .error_info
+            .as_ref()
+            .and_then(|ei| ei.connector_details.as_ref())
+            .and_then(|cd| cd.code.clone())
+            .unwrap_or_else(|| connector_error.error_code.clone());
+
         Some(Self::ConnectorError(Box::new(ConnectorErrorInner {
-            code: connector_error.error_code,
+            code,
             message: connector_error.error_message,
             status_code,
             reason: connector_error
@@ -1129,6 +1142,67 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             | Self::SurchargeCalculateFailure
             | Self::PayoutEnrollDisburseAccountFailure
             | Self::NotifyConnectorFailure => ConnectorError::ResponseHandlingFailed,
+        }
+    }
+}
+
+#[cfg(test)]
+mod connector_error_decode_tests {
+    use prost::Message;
+
+    use super::*;
+
+    fn status_with(connector_error: payments_grpc::ConnectorError) -> tonic::Status {
+        let details = connector_error.encode_to_vec();
+        tonic::Status::with_details(tonic::Code::Internal, "connector error", details.into())
+    }
+
+    // The UCS connector-error path must surface the connector-specific error code
+    // (carried in `error_info.connector_details.code`), matching the native/direct
+    // connector path — not the generic `CONNECTOR_ERROR_RESPONSE` discriminator.
+    #[test]
+    fn decode_prefers_connector_details_code() {
+        let connector_error = payments_grpc::ConnectorError {
+            error_message: "Order declined".to_string(),
+            error_code: CONNECTOR_ERROR_RESPONSE_CODE.to_string(),
+            http_status_code: Some(400),
+            error_info: Some(payments_grpc::ErrorInfo {
+                connector_details: Some(payments_grpc::ConnectorErrorDetails {
+                    code: Some("19001".to_string()),
+                    message: Some("Order declined".to_string()),
+                    reason: Some("declined".to_string()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+        };
+
+        match UnifiedConnectorServiceError::from_grpc_error(&status_with(connector_error), "noon") {
+            UnifiedConnectorServiceError::ConnectorError(inner) => {
+                assert_eq!(inner.code, "19001");
+                assert_eq!(inner.status_code, 400);
+                assert_eq!(inner.reason.as_deref(), Some("declined"));
+            }
+            other => panic!("expected ConnectorError, got {other:?}"),
+        }
+    }
+
+    // When the connector code is absent, fall back to the UCS discriminator so the
+    // field is never empty.
+    #[test]
+    fn decode_falls_back_to_discriminator_when_connector_code_absent() {
+        let connector_error = payments_grpc::ConnectorError {
+            error_message: "Bad gateway".to_string(),
+            error_code: CONNECTOR_ERROR_RESPONSE_CODE.to_string(),
+            http_status_code: Some(502),
+            error_info: None,
+        };
+
+        match UnifiedConnectorServiceError::from_grpc_error(&status_with(connector_error), "noon") {
+            UnifiedConnectorServiceError::ConnectorError(inner) => {
+                assert_eq!(inner.code, CONNECTOR_ERROR_RESPONSE_CODE);
+            }
+            other => panic!("expected ConnectorError, got {other:?}"),
         }
     }
 }
