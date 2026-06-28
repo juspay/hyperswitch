@@ -2,6 +2,7 @@ import { execConfig, validateConfig } from "../../../utils/featureFlags.js";
 
 import { updateDefaultStatusCode } from "./Modifiers.js";
 
+import { connectorDetails as amazonpayConnectorDetails } from "./Amazonpay.js";
 import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as affirmConnectorDetails } from "./Affirm.js";
@@ -82,6 +83,7 @@ import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
 import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
 const connectorDetails = {
+  amazonpay: amazonpayConnectorDetails,
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
   affirm: affirmConnectorDetails,
