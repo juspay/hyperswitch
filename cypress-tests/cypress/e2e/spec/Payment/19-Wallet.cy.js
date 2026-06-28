@@ -879,7 +879,7 @@ describe("Wallet tests", () => {
       }
     });
 
-    it("Create Payment Intent -> List Merchant Payment Methods -> Session Token Call -> Confirm Payment -> Retrieve Payment", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Retrieve Payment", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "wallet_pm"
@@ -902,17 +902,6 @@ describe("Wallet tests", () => {
           return;
         }
         cy.paymentMethodsCallTest(globalState);
-      });
-
-      cy.step("Session Token Call", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Session Token Call");
-          return;
-        }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "wallet_pm"
-        ]["SessionToken"];
-        cy.sessionTokenCall(fixtures.sessionTokenBody, data, globalState);
       });
 
       cy.step("Confirm Payment", () => {

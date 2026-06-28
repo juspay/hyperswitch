@@ -64,19 +64,6 @@ export const connectorDetails = {
         },
       },
     }),
-    SessionToken: getCustomExchange({
-      Response: {
-        status: 200,
-        body: {
-          session_token: [
-            {
-              wallet_name: "amazon_pay",
-              connector: "amazonpay",
-            },
-          ],
-        },
-      },
-    }),
     AmazonPay: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
