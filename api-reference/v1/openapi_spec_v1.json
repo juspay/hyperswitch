@@ -40253,6 +40253,22 @@
           "error_message": {
             "type": "string",
             "nullable": true
+          },
+          "secret_generation_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookSecretGenerationStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "secret_error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookSecretErrorDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -45812,6 +45828,29 @@
       "WebhookRegistrationStatus": {
         "type": "string",
         "description": "The status of webhook registration",
+        "enum": [
+          "Success",
+          "Failure"
+        ]
+      },
+      "WebhookSecretErrorDetails": {
+        "type": "object",
+        "description": "Connector-reported error code and message from the webhook secret generation step.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WebhookSecretGenerationStatus": {
+        "type": "string",
+        "description": "The status of HMAC key generation for a connector webhook",
         "enum": [
           "Success",
           "Failure"
