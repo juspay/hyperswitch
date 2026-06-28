@@ -178,6 +178,11 @@ where
                                         network_error_message: network_error_message.clone(),
                                         connector_metadata: None,
                                     });
+                                // Mirror the success path: propagate the connector HTTP status
+                                // code from the UCS connector error so that
+                                // `connector_http_status_code` is populated (matching the
+                                // direct-connector authorize path) instead of being left `None`.
+                                router_data.connector_http_status_code = Some(status_code);
                                 return Ok((
                                     router_data,
                                     (),
@@ -309,6 +314,11 @@ where
                                         network_error_message: network_error_message.clone(),
                                         connector_metadata: None,
                                     });
+                                // Mirror the success path: propagate the connector HTTP status
+                                // code from the UCS connector error so that
+                                // `connector_http_status_code` is populated (matching the
+                                // direct-connector authorize path) instead of being left `None`.
+                                router_data.connector_http_status_code = Some(status_code);
                                 // Return Ok with router_data containing the error response
                                 // This ensures the connector error flows through the normal
                                 // response handling path (same as direct connector errors)
