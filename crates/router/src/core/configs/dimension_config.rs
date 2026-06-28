@@ -585,6 +585,25 @@ impl DatabaseBackedConfig for PollConfigExternalThreeDs {
 }
 
 config! {
+    superposition_key = PT_MAPPING_OUTGOING_CONNECTOR_WEBHOOKS,
+    output = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping,
+    default = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for PtMappingOutgoingConnectorWebhooks {
+    const KEY: &'static str = "pt_mapping_outgoing_connector_webhooks";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_connector()
+            .map(|connector| format!("{}_{}", Self::KEY, connector))
+    }
+}
+
+config! {
     superposition_key = PT_MAPPING_OUTGOING_WEBHOOKS,
     output = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping,
     default = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping::default(),
