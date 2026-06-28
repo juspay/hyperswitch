@@ -4,6 +4,9 @@ import { standardBillingAddress } from "./Commons";
 export const connectorDetails = {
   wallet_pm: {
     AmazonPay: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "amazon_pay",
@@ -11,7 +14,9 @@ export const connectorDetails = {
         billing: standardBillingAddress,
         payment_method_data: {
           wallet: {
-            amazon_pay_redirect: {},
+            amazon_pay: {
+              checkout_session_id: "test_checkout_session_id",
+            },
           },
         },
       },
