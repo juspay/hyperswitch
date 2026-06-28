@@ -72,7 +72,12 @@ describe("Bank Debit tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["Sepa"];
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -127,7 +132,12 @@ describe("Bank Debit tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["Ach"];
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -182,7 +192,12 @@ describe("Bank Debit tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["Becs"];
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -237,7 +252,12 @@ describe("Bank Debit tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["Bacs"];
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -256,94 +276,102 @@ describe("Bank Debit tests", () => {
     });
   });
 
-  context("SEPA Bank Debit - Mandate flow", () => {
-    let shouldContinue = true;
+  context(
+    "SEPA Bank Debit - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test",
+    () => {
+      let shouldContinue = true;
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
 
-    it("create-customer-call-test", () => {
-      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-    });
+      it("create-customer-call-test", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
 
-    it("sepa-bank-debit-mandate-cit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_debit_pm"
-      ]["SepaMandate"];
+      it("sepa-bank-debit-mandate-cit-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["SepaMandate"];
 
-      cy.citForMandatesCallTest(
-        fixtures.citConfirmBody,
-        data,
-        6000,
-        true,
-        "automatic",
-        "new_mandate",
-        globalState
-      );
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          6000,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
 
-    it("retrieve-mandate-call-test", () => {
-      cy.mandateGETCallTest(globalState);
-    });
+      it("retrieve-mandate-call-test", () => {
+        cy.mandateGETCallTest(globalState);
+      });
 
-    it("sepa-bank-debit-mandate-mit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_debit_pm"
-      ]["BankdebitMIT"];
+      it("sepa-bank-debit-mandate-mit-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["BankdebitMIT"];
 
-      cy.mitForMandatesCallTest(
-        fixtures.mitConfirmBody,
-        data,
-        6000,
-        true,
-        "automatic",
-        globalState
-      );
+        cy.mitForMandatesCallTest(
+          fixtures.mitConfirmBody,
+          data,
+          6000,
+          true,
+          "automatic",
+          globalState
+        );
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
 
-    it("list-mandate-call-test", () => {
-      cy.listMandateCallTest(globalState);
-    });
+      it("list-mandate-call-test", () => {
+        cy.listMandateCallTest(globalState);
+      });
 
-    it("revoke-mandate-call-test", () => {
-      cy.revokeMandateCallTest(globalState);
-    });
-  });
+      it("revoke-mandate-call-test", () => {
+        cy.revokeMandateCallTest(globalState);
+      });
+    }
+  );
 
-  context("BACS Bank Debit - Mandate flow", () => {
-    let shouldContinue = true;
+  context(
+    "BACS Bank Debit - NoThreeDS Create + Confirm Automatic CIT payment flow test",
+    () => {
+      const shouldContinue = true;
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
 
-    it("bacs-create-customer-call-test", () => {
-      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-    });
+      it("bacs-create-customer-call-test", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
 
-    it("bacs-bank-debit-mandate-cit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_debit_pm"
-      ]["Bacs"];
+      it("bacs-bank-debit-mandate-cit-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["Bacs"];
 
-      cy.citForMandatesCallTest(
-        fixtures.citConfirmBody,
-        data,
-        6000,
-        true,
-        "automatic",
-        "new_mandate",
-        globalState
-      );
-    });
-  });
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          6000,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+      });
+    }
+  );
 });
