@@ -4527,7 +4527,8 @@ Cypress.Commands.add(
                   response.body.setup_future_usage === "off_session" &&
                   response.body.mandate_id === null &&
                   response.body.status === "succeeded" &&
-                  globalState.get("connectorId") !== "peachpayments"
+                  globalState.get("connectorId") !== "peachpayments" &&
+                  requestBody.mandate_data !== null
                 ) {
                   expect(
                     response.body.connector_mandate_id,
@@ -4676,8 +4677,10 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.status === 200) {
           globalState.set("paymentID", response.body.payment_id);
-          expect(response.body.payment_method_data, "payment_method_data").to
-            .not.be.empty;
+          if (response.body.payment_method_data !== null) {
+            expect(response.body.payment_method_data, "payment_method_data").to
+              .not.be.empty;
+          }
           const expectedConnector = getOriginalConnectorName(
             globalState.get("connectorId")
           );

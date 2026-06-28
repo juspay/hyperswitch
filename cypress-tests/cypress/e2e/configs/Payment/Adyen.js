@@ -2722,7 +2722,6 @@ export const connectorDetails = {
         return {
           Request: {
             currency: "USD",
-            setup_future_usage: "off_session",
           },
           Response: {
             status: 200,
@@ -2870,6 +2869,7 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: customerAcceptance,
+        mandate_data: null,
         currency: "USD",
       },
       Response: {
