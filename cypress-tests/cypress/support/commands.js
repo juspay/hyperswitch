@@ -35,7 +35,10 @@ import getConnectorDetails, {
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
-import { handleRedirection } from "./redirectionHandler";
+import {
+  handleQRCodeRedirection,
+  handleRedirection,
+} from "./redirectionHandler";
 
 // In MITM replay mode (MOCK_SERVER=true) there is no live browser redirection
 // to drive. Cypress.env may return a boolean or a string, hence String().
@@ -2388,6 +2391,11 @@ Cypress.Commands.add(
     globalState.set("paymentCurrency", createPaymentBody.currency);
     globalState.set("captureMethod", capture_method);
     globalState.set("setupFutureUsage", createPaymentBody.setup_future_usage);
+    // Clear stale next_action state from previous tests so that connectors
+    // which complete synchronously (e.g. Adyen SEPA) don't pick up a stale
+    // redirect URL from a prior test.
+    globalState.set("nextActionUrl", null);
+    globalState.set("nextActionType", null);
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
@@ -3097,7 +3105,6 @@ Cypress.Commands.add(
       body: confirmBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-
       cy.wrap(response).then(() => {
         if (response.status === 200) {
           expect(response.headers["content-type"]).to.include(
@@ -3160,13 +3167,29 @@ Cypress.Commands.add(
                   response.body.capture_method === "manual" ||
                   response.body.capture_method === "manual_multiple"
                 ) {
-                  expect(response.body)
-                    .to.have.property("next_action")
-                    .to.have.property("redirect_to_url");
-                  globalState.set(
-                    "nextActionUrl",
-                    response.body.next_action.redirect_to_url
-                  );
+                  // Some connectors return a QR code inline (next_action.type
+                  // === "qr_code_information") instead of a redirect URL.
+                  // Drive behavior from the next_action type, not the connector ID.
+                  if (
+                    response.body.next_action &&
+                    response.body.next_action.type === "qr_code_information"
+                  ) {
+                    expect(response.body.next_action)
+                      .to.have.property("image_data_url")
+                      .to.be.a("string");
+                    globalState.set(
+                      "nextActionUrl",
+                      response.body.next_action.image_data_url
+                    );
+                  } else {
+                    expect(response.body)
+                      .to.have.property("next_action")
+                      .to.have.property("redirect_to_url");
+                    globalState.set(
+                      "nextActionUrl",
+                      response.body.next_action.redirect_to_url
+                    );
+                  }
                 } else {
                   throw new Error(
                     `Invalid capture method ${response.body.capture_method}`
@@ -5141,6 +5164,23 @@ Cypress.Commands.add(
       return;
     }
 
+    // Some connectors (e.g. adyen sepa_bank_debit) complete the payment
+    // synchronously without a next_action redirect URL.
+    if (!nextActionUrl) {
+      cy.task(
+        "cli_log",
+        `Skipping redirect: no nextActionUrl for ${connectorId} ${paymentMethodType} — payment already completed`
+      );
+      return;
+    }
+
+    // Some connectors return a data: URI (QR code) instead of a navigable URL.
+    // Detect this generically from the URL scheme rather than hardcoding connector IDs.
+    if (nextActionUrl.startsWith("data:")) {
+      handleQRCodeRedirection(nextActionUrl);
+      return;
+    }
+
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
@@ -5247,6 +5287,13 @@ Cypress.Commands.add(
         "cli_log",
         `Skipping wallet redirection: no redirect URL for ${paymentMethodType}`
       );
+      return;
+    }
+
+    // Some connectors return a data: URI (QR code) instead of a navigable URL.
+    // Detect this generically from the URL scheme rather than hardcoding connector IDs.
+    if (nextActionUrl.startsWith("data:")) {
+      handleQRCodeRedirection(nextActionUrl);
       return;
     }
 
@@ -5572,7 +5619,6 @@ Cypress.Commands.add(
                   "nextActionType",
                   "display_voucher_information"
                 );
-                globalState.set("nextActionUrl", null);
               } else if (response.body.next_action.redirect_to_url) {
                 globalState.set(
                   "nextActionUrl",

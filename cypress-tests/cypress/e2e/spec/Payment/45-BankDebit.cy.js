@@ -83,6 +83,18 @@ describe("Bank Debit tests", () => {
         }
       });
 
+      cy.step("Handle SEPA Redirect", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle SEPA Redirect");
+          return;
+        }
+        cy.handleBankRedirectRedirection(
+          globalState,
+          "sepa",
+          fixtures.confirmBody["return_url"]
+        );
+      });
+
       cy.step("Retrieve Payment", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
