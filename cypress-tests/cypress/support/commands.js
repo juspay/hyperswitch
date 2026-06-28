@@ -5184,26 +5184,6 @@ Cypress.Commands.add(
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
-    // Known exception: Adyen wallet types (dana, go_pay, momo, vipps) legitimately
-    // return a redirect URL with a null hostname — these wallets complete via the
-    // wallet app, not a web redirect. redirectionHandler.js handles this at line 1332.
-    const adyenWalletTypesWithNullRedirect = [
-      "dana",
-      "go_pay",
-      "momo",
-      "vipps",
-    ];
-    if (
-      connectorId === "adyen" &&
-      adyenWalletTypesWithNullRedirect.includes(paymentMethodType) &&
-      redirectionUrl.hostname === "null"
-    ) {
-      cy.task(
-        "cli_log",
-        `Adyen ${paymentMethodType} redirect URL has null hostname - expected for this wallet type`
-      );
-    }
-
     // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
     // trying to handle that specific case results in stripe 3ds tests to fail
     if (!(connectorId == "adyen" && paymentMethodType == "sofort")) {

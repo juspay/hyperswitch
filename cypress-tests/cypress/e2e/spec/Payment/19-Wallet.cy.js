@@ -591,7 +591,6 @@ describe("Wallet tests", () => {
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
-
         cy.handleBankRedirectRedirection(
           globalState,
           payment_method_type,
@@ -705,7 +704,6 @@ describe("Wallet tests", () => {
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
-
         cy.handleBankRedirectRedirection(
           globalState,
           payment_method_type,
