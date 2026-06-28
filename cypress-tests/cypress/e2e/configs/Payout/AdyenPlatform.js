@@ -392,6 +392,10 @@ export const connectorDetails = {
         },
         billing: billing,
       },
+      // Status "initiated" is correct for instant priority with auto_fulfill=true
+      // (create+confirm+fulfil flow). Verified via API Testing — confirm=true,
+      // auto_fulfill=true returns status "initiated". TRIGGER_SKIP=true because
+      // AdyenPlatform test IBAN does not support instant priority payouts.
       Response: {
         status: 200,
         body: {
@@ -433,6 +437,9 @@ export const connectorDetails = {
         },
         billing: billing,
       },
+      // Status "requires_fulfillment" is correct for regular priority with
+      // auto_fulfill=false (create+confirm only, no fulfil). Verified by Runner —
+      // PayoutPriority spec passes 6/6 with this value.
       Response: {
         status: 200,
         body: {
@@ -453,6 +460,9 @@ export const connectorDetails = {
         },
         billing: billing,
       },
+      // Status "requires_fulfillment" is correct for wire priority with
+      // auto_fulfill=false (create+confirm only, no fulfil). Verified by Runner —
+      // PayoutPriority spec passes 6/6 with this value.
       Response: {
         status: 200,
         body: {
