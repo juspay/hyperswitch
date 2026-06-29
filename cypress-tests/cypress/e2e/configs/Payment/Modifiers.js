@@ -205,6 +205,7 @@ const CURRENCY_MAP = {
   Mifinity: "EUR", // Mifinity wallet payment method
   Alma: "EUR", // French pay_later
   Atome: "SGD", // Singapore pay_later
+  Walley: "SEK", // Swedish pay_later
 
   // Voucher payment methods
   Boleto: "BRL",
