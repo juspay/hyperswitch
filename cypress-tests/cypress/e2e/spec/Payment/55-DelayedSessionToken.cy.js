@@ -70,7 +70,7 @@ describe("Delayed Session Token flow test", () => {
           "wallet_pm"
         ]["DelayedSessionToken"];
 
-        cy.delayedSessionTokenCall(
+        cy.sessionTokenCall(
           fixtures.sessionTokenBody,
           data,
           globalState
@@ -113,7 +113,7 @@ describe("Delayed Session Token flow test", () => {
           "wallet_pm"
         ]["DelayedSessionTokenMissingClientSecret"];
 
-        cy.delayedSessionTokenCall(
+        cy.sessionTokenCall(
           fixtures.sessionTokenBody,
           data,
           globalState
@@ -128,7 +128,7 @@ describe("Delayed Session Token flow test", () => {
         "wallet_pm"
       ]["DelayedSessionTokenInvalidPaymentId"];
 
-      cy.delayedSessionTokenCall(fixtures.sessionTokenBody, data, globalState);
+      cy.sessionTokenCall(fixtures.sessionTokenBody, data, globalState);
     });
   });
 });
