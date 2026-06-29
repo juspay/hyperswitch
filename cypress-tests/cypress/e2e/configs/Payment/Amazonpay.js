@@ -85,8 +85,10 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 500,
-        body: {},
+        status: 200,
+        body: {
+          status: "failed",
+        },
       },
     }),
   },
