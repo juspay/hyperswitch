@@ -461,6 +461,18 @@ fn normalize_cardholder_name(name: Secret<String>) -> Secret<String> {
     Secret::new(unidecode::unidecode(&name.expose()))
 }
 
+// Worldpay's `instruction.customer.phone` must contain digits only, so any
+// formatting characters (e.g. a leading `+` carried over from the country code)
+// are stripped. Returns `None` if nothing numeric remains.
+fn normalize_phone_number(phone: Secret<String>) -> Option<Secret<String>> {
+    let digits: String = phone
+        .expose()
+        .chars()
+        .filter(|c| c.is_ascii_digit())
+        .collect();
+    (!digits.is_empty()).then(|| Secret::new(digits))
+}
+
 // Dangling helper function to build the optional `instruction.customer` object
 // holding the additional Mastercard authentication data (email, phone number
 // and IP address). Returns `None` when none of the fields are available so the
@@ -657,7 +669,9 @@ impl<T: WorldpayPaymentsRequestData> TryFrom<(&WorldpayRouterData<&T>, &Secret<S
         // Additional Mastercard authentication data, forwarded whenever available.
         let customer = create_instruction_customer(
             item.router_data.get_optional_email(),
-            item.router_data.get_optional_phone_number(),
+            item.router_data
+                .get_optional_phone_number()
+                .and_then(normalize_phone_number),
             item.router_data.get_optional_ip_address(),
         );
         let shipping = create_shipping(item.router_data.get_optional_shipping_address());
