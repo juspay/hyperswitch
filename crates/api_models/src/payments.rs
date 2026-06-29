@@ -45,8 +45,7 @@ where
     match comma_separated_ids {
         Some(comma_separated_ids) if comma_separated_ids.trim().is_empty() => Ok(None),
         Some(comma_separated_ids) => {
-            let mut merchant_ids =
-                Vec::with_capacity(comma_separated_ids.matches(',').count() + 1);
+            let mut merchant_ids = Vec::with_capacity(comma_separated_ids.matches(',').count() + 1);
             for raw_merchant_id in comma_separated_ids.split(',') {
                 let trimmed_merchant_id = raw_merchant_id.trim();
                 if !trimmed_merchant_id.is_empty() {
