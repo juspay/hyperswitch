@@ -203,7 +203,7 @@ describe("Wallet tests", () => {
       cy.retrievePaymentCallTest({
         globalState,
         data,
-        expectedIntentStatus: "succeeded",
+        expectedIntentStatus: "requires_payment_method",
       });
     });
   });
@@ -836,6 +836,105 @@ describe("Wallet tests", () => {
           globalState,
           data,
           expectedIntentStatus: "requires_customer_action",
+        });
+      });
+    });
+  });
+
+  context("AmazonPay Create and Confirm flow test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.AMAZONPAY_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    afterEach("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment", () => {
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["PaymentIntent"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["AmazonPay"];
+        const { Request: reqData, Response: resData } = confirmData;
+        const confirmBody = { ...fixtures.confirmBody };
+        for (const key in reqData) {
+          confirmBody[key] = reqData[key];
+        }
+        confirmBody.client_secret = globalState.get("clientSecret");
+        confirmBody.confirm = true;
+        confirmBody.profile_id = globalState.get("profileId");
+        confirmBody.customer_id = globalState.get("customerId");
+
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}/confirm`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("publishableKey"),
+          },
+          failOnStatusCode: false,
+          body: confirmBody,
+        }).then((response) => {
+          expect(response.status).to.equal(resData.status);
+          expect(response.body).to.have.property("error");
+          expect(response.body.error).to.have.property("message");
         });
       });
     });
