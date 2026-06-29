@@ -1479,6 +1479,25 @@ export const connectorDetails = {
         Request: {
           currency: overrideCurrency || currencyMap[walletType] || "USD",
           amount: 1000,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    PaymentIntentMandate: (walletType, overrideCurrency) => {
+      const currencyMap = {
+        AmazonPay: "USD",
+        Cashapp: "USD",
+        RevolutPay: "EUR",
+      };
+      return {
+        Request: {
+          currency: overrideCurrency || currencyMap[walletType] || "USD",
+          amount: 1000,
           setup_future_usage: "off_session",
         },
         Response: {

@@ -1259,7 +1259,7 @@ describe("Stripe AmazonPay Wallet tests", () => {
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["PaymentIntent"]("AmazonPay");
+      ]["PaymentIntentMandate"]("AmazonPay");
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -1526,7 +1526,7 @@ describe("Stripe Cashapp Wallet tests", () => {
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["PaymentIntent"]("Cashapp");
+      ]["PaymentIntentMandate"]("Cashapp");
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
