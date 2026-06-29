@@ -268,6 +268,9 @@ export function getValueByKey(jsonObject, key, keyNumber = 0) {
 }
 
 export const should_continue_further = (data) => {
+  if (!data) {
+    return false;
+  }
   const resData = data.Response || {};
   const configData = validateConfig(data.Configs) || {};
 
@@ -618,6 +621,7 @@ export const CONNECTOR_LISTS = {
       "affirm",
     ],
     AFFIRM: ["stripe"],
+    ATOME: ["adyen"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],

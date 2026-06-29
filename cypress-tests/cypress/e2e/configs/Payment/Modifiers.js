@@ -203,6 +203,8 @@ const CURRENCY_MAP = {
   Paypal: "EUR",
   MbWay: "EUR",
   Mifinity: "EUR", // Mifinity wallet payment method
+  Alma: "EUR", // French pay_later
+  Atome: "SGD", // Singapore pay_later
 
   // Voucher payment methods
   Boleto: "BRL",
