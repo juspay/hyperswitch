@@ -564,7 +564,7 @@ export const CONNECTOR_LISTS = {
     MBWAY_WALLET: ["multisafepay"],
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
-    PAYPAL_MANDATE: ["globalpay", "paypal"],
+    PAYPAL_MANDATE: ["globalpay", "novalnet", "paypal"],
     PAYPAL_WALLET_MANDATE: ["adyen"],
     KAKAO_PAY_WALLET_MANDATE: ["adyen"],
     GCASH_WALLET_MANDATE: ["adyen"],
