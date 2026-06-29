@@ -782,3 +782,22 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
             .map(|event| disabled_events.contains(&event))
     }
 }
+
+config! {
+    superposition_key = SAVE_WALLET_DECRYPTED_DATA,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for SaveWalletDecryptedData {
+    const KEY: &'static str = "save_wallet_decrypted_data";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Matches the existing key format: "save_wallet_decrypted_data_{merchant_id}"
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}

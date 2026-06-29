@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.29.0
+
+### Features
+
+- **core:**
+  - [Webhooks] add support for HMAC generation ([#12869](https://github.com/juspay/hyperswitch/pull/12869)) ([`8249d9d`](https://github.com/juspay/hyperswitch/commit/8249d9de166e6e72bb23b5fc66e095b17495e2a3))
+  - Add superposition config to enable saving data in apple pay decryption flow ([#12612](https://github.com/juspay/hyperswitch/pull/12612)) ([`a556c02`](https://github.com/juspay/hyperswitch/commit/a556c020b797c38452f7d13603fb8f7bed570b58))
+- **dispute:** Add KV (Redis) storage support for disputes ([#12703](https://github.com/juspay/hyperswitch/pull/12703)) ([`a6a02e6`](https://github.com/juspay/hyperswitch/commit/a6a02e63595e1bffbc88c71265a0c9cbaa9bd32b))
+- Add support to notify connectors ([#12502](https://github.com/juspay/hyperswitch/pull/12502)) ([`96a4e85`](https://github.com/juspay/hyperswitch/commit/96a4e857e25976aee1cae61eed27cb783da52c48))
+
+**Full Changelog:** [`2026.06.26.0...2026.06.29.0`](https://github.com/juspay/hyperswitch/compare/2026.06.26.0...2026.06.29.0)
+
+- - -
+
 ## 2026.06.26.0
 
 ### Features
