@@ -2742,11 +2742,11 @@ Cypress.Commands.add(
       confirmBody.split_payments = reqData.split_payments;
     }
 
-  const headers = {
-    "Content-Type": "application/json",
-    "api-key": apiKey,
-    "X-Profile-Id": globalState.get("profileId"),
-  };
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+      "X-Profile-Id": globalState.get("profileId"),
+    };
 
     if (connectedMerchantId) {
       headers["x-connected-merchant-id"] = connectedMerchantId;
