@@ -46,6 +46,8 @@ pub struct UnifiedConnectorServiceClient {
         payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
         /// The Payout Service Client
     pub payout_service_client: payments_grpc::payout_service_client::PayoutServiceClient<tonic::transport::Channel>,
+    /// The Surcharge Service Client
+    pub surcharge_service_client: payments_grpc::surcharge_service_client::SurchargeServiceClient<tonic::transport::Channel>,
 }
 
 /// Contains the Unified Connector Service Client config
@@ -292,6 +294,15 @@ impl UnifiedConnectorServiceClient {
                     timeout
                 );
 
+                let surcharge_service_client = build_grpc_client!(
+                    payments_grpc::surcharge_service_client::SurchargeServiceClient<
+                        tonic::transport::Channel,
+                    >,
+                    "surcharge_service_client",
+                    uri,
+                    timeout
+                );
+
                 logger::info!("Successfully connected to Unified Connector Service");
 
                 Some(Self {
@@ -305,6 +316,7 @@ impl UnifiedConnectorServiceClient {
                     merchant_authentication_service_client,
                     payment_method_authentication_service_client,
                     payout_service_client,
+                    surcharge_service_client,
                 })
             }
             None => {
@@ -659,9 +671,9 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.payment_service_client
-            .clone()
-            .authorize(request)
+        // Box the authorize future: the merged UCS proto request types are large enough
+        // to trip clippy::large_futures when this is awaited inline.
+        Box::pin(self.payment_service_client.clone().authorize(request))
             .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
@@ -801,24 +813,26 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.recurring_payment_service_client
-            .clone()
-            .charge(request)
-            .await
-            .map_err(|error| {
-                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
-                    &error,
-                    &connector_name,
-                ))
-            })
-            .inspect_err(|error| {
-                logger::error!(
-                    grpc_error=?error,
-                    method="recurring_payment_charge",
-                    connector_name=?connector_name,
-                    "UCS recurring payment charge gRPC call failed"
-                )
-            })
+        Box::pin(
+            self.recurring_payment_service_client
+                .clone()
+                .charge(request),
+        )
+        .await
+        .map_err(|error| {
+            error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                &error,
+                &connector_name,
+            ))
+        })
+        .inspect_err(|error| {
+            logger::error!(
+                grpc_error=?error,
+                method="recurring_payment_charge",
+                connector_name=?connector_name,
+                "UCS recurring payment charge gRPC call failed"
+            )
+        })
     }
 
     /// Performs Payment Cancel/Void
@@ -1298,6 +1312,75 @@ impl UnifiedConnectorServiceClient {
                 )
             })
     }
+
+    /// Performs surcharge calculation via the Surcharge Service
+    pub async fn surcharge_calculate(
+        &self,
+        surcharge_calculate_request: payments_grpc::SurchargeServiceCalculateRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::SurchargeServiceCalculateResponse>,
+    > {
+        let mut request = tonic::Request::new(surcharge_calculate_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata = build_unified_connector_service_grpc_headers_for_surcharge(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
+
+        *request.metadata_mut() = metadata;
+
+        self.surcharge_service_client
+            .clone()
+            .calculate(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::SurchargeCalculateFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="surcharge_calculate",
+                    connector_name=?connector_name,
+                    "UCS surcharge_calculate gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs notify connector via the Event Service
+    pub async fn notify_connector(
+        &self,
+        notify_connector_request: payments_grpc::NotifyConnectorRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+        event_type: payments_grpc::NotifyEventType,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::NotifyConnectorResponse>>
+    {
+        let mut request = tonic::Request::new(notify_connector_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata = build_unified_connector_service_grpc_headers_for_notify_connector(
+            connector_auth_metadata,
+            grpc_headers,
+            event_type,
+        )?;
+
+        *request.metadata_mut() = metadata;
+
+        self.event_service_client
+            .clone()
+            .notify_connector(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::NotifyConnectorFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="notify_connector",
+                    connector_name=?connector_name,
+                    "UCS notify_connector gRPC call failed"
+                )
+            })
+    }
 }
 
 /// Build the gRPC Headers for Unified Connector Service Request
@@ -1333,6 +1416,7 @@ fn build_grpc_headers_internal(
         merchant_reference_id,
         resource_id,
         shadow_mode,
+        proxy_name,
         config_override,
     } = grpc_headers;
 
@@ -1449,6 +1533,13 @@ fn build_grpc_headers_internal(
         );
     }
 
+    if let Some(proxy_name) = proxy_name {
+        metadata.append(
+            common_utils_consts::X_PROXY_NAME,
+            parse(common_utils_consts::X_PROXY_NAME, proxy_name)?,
+        );
+    }
+
     if let Some(config_override) = config_override {
         metadata.append(
             common_utils_consts::X_CONFIG_OVERRIDE,
@@ -1466,6 +1557,83 @@ fn build_grpc_headers_internal(
             "Failed to parse tenant_id header for UCS gRPC request: {}",
             common_utils_consts::TENANT_HEADER
         );
+    }
+
+    Ok(metadata)
+}
+
+/// Build gRPC headers for UCS surcharge requests.
+/// Same as [`build_unified_connector_service_grpc_headers`] but uses
+/// `x-surcharge-connector` instead of `x-connector` for the connector name,
+/// since surcharge uses a distinct connector type.
+pub fn build_unified_connector_service_grpc_headers_for_surcharge(
+    meta: ConnectorAuthMetadata,
+    grpc_headers: GrpcHeadersUcs,
+) -> Result<MetadataMap, UnifiedConnectorServiceError> {
+    let mut metadata = build_unified_connector_service_grpc_headers(meta.clone(), grpc_headers)?;
+
+    metadata.remove(consts::UCS_HEADER_CONNECTOR);
+
+    // Add the surcharge-specific connector header
+    let connector_name = meta.connector_name.clone();
+    let surcharge_connector_value =
+        connector_name
+            .parse::<MetadataValue<_>>()
+            .map_err(|error| {
+                logger::error!(?error);
+                UnifiedConnectorServiceError::HeaderInjectionFailed(
+                    consts::UCS_HEADER_SURCHARGE_CONNECTOR.to_string(),
+                )
+            })?;
+    metadata.append(
+        consts::UCS_HEADER_SURCHARGE_CONNECTOR,
+        surcharge_connector_value,
+    );
+
+    Ok(metadata)
+}
+
+/// Build gRPC headers for UCS notify requests.
+/// Build gRPC headers for UCS notify requests.
+/// Same as [`build_unified_connector_service_grpc_headers`] but uses
+/// `x-surcharge-connector` for surcharge events and `x-connector` for other events.
+pub fn build_unified_connector_service_grpc_headers_for_notify_connector(
+    meta: ConnectorAuthMetadata,
+    grpc_headers: GrpcHeadersUcs,
+    event_type: payments_grpc::NotifyEventType,
+) -> Result<MetadataMap, UnifiedConnectorServiceError> {
+    let mut metadata = build_unified_connector_service_grpc_headers(meta.clone(), grpc_headers)?;
+
+    // Remove the default connector header
+    metadata.remove(consts::UCS_HEADER_CONNECTOR);
+
+    // Choose header based on event type
+    let is_surcharge_event = matches!(
+        event_type,
+        payments_grpc::NotifyEventType::SurchargePaymentSucceeded
+            | payments_grpc::NotifyEventType::SurchargeRefundSucceeded
+    );
+
+    let connector_name = meta.connector_name.clone();
+    let connector_value = connector_name
+        .parse::<MetadataValue<_>>()
+        .map_err(|error| {
+            logger::error!(?error);
+            if is_surcharge_event {
+                UnifiedConnectorServiceError::HeaderInjectionFailed(
+                    consts::UCS_HEADER_SURCHARGE_CONNECTOR.to_string(),
+                )
+            } else {
+                UnifiedConnectorServiceError::HeaderInjectionFailed(
+                    consts::UCS_HEADER_CONNECTOR.to_string(),
+                )
+            }
+        })?;
+
+    if is_surcharge_event {
+        metadata.append(consts::UCS_HEADER_SURCHARGE_CONNECTOR, connector_value);
+    } else {
+        metadata.append(consts::UCS_HEADER_CONNECTOR, connector_value);
     }
 
     Ok(metadata)

@@ -1,9 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    marker::PhantomData,
-    str::FromStr,
-    sync::LazyLock,
-};
+use std::{collections::HashMap, marker::PhantomData, str::FromStr, sync::LazyLock};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
@@ -37,6 +32,7 @@ use common_enums::{
         UsStatesAbbreviation,
     },
 };
+use common_types::primitive_wrappers;
 use common_utils::{
     consts::{
         BASE64_ENGINE, BASE64_ENGINE_STD_NO_PAD, BASE64_ENGINE_URL_SAFE,
@@ -547,6 +543,14 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::IntegrityFailure
         | AttemptStatus::PartiallyAuthorized
         | AttemptStatus::CaptureReview => false,
+    }
+}
+
+pub(crate) fn is_post_capture_void_failure(status: common_enums::PostCaptureVoidStatus) -> bool {
+    match status {
+        common_enums::PostCaptureVoidStatus::Failed => true,
+        common_enums::PostCaptureVoidStatus::Pending
+        | common_enums::PostCaptureVoidStatus::Succeeded => false,
     }
 }
 
@@ -1661,6 +1665,115 @@ impl CardData for api_models::payouts::ApplePayDecrypt {
         self.card_holder_name
             .clone()
             .ok_or_else(missing_field_err("card.card_holder_name"))
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl CardData for api_models::payouts::GooglePayDecrypt {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding = self.expiry_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+    fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let exp_month = self
+            .expiry_month
+            .peek()
+            .to_string()
+            .parse::<u8>()
+            .map_err(|_| errors::ConnectorError::InvalidDataFormat {
+                field_name: "payout_method_data.google_pay_decrypt.expiry_month",
+            })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "payout_method_data.google_pay_decrypt.expiry_month",
+            }
+        })?;
+        Ok(Secret::new(month.two_digits()))
+    }
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        Err(errors::ConnectorError::ParsingFailed)
+            .attach_printable("get_card_issuer is not supported for Google Pay Decrypted Payout")
+    }
+    fn get_card_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        Ok(Secret::new(format!(
+            "{}{}{}",
+            self.expiry_month.peek(),
+            delimiter,
+            year.peek()
+        )))
+    }
+    fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            year.peek(),
+            delimiter,
+            self.expiry_month.peek()
+        ))
+    }
+    fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            self.expiry_month.peek(),
+            delimiter,
+            year.peek()
+        ))
+    }
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.expiry_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{year}");
+        }
+        Secret::new(year)
+    }
+    fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.expiry_month.clone().expose();
+        Ok(Secret::new(format!("{year}{month}")))
+    }
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.expiry_month.clone().expose();
+        Ok(Secret::new(format!("{month}{year}")))
+    }
+    fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
+        self.expiry_month
+            .peek()
+            .clone()
+            .parse::<i8>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.expiry_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_4_digit_i32(&self) -> Result<Secret<i32>, Error> {
+        self.get_expiry_year_4_digit()
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
+        self.card_holder_name
+            .clone()
+            .ok_or_else(missing_field_err("google_pay_decrypt.card_holder_name"))
     }
 }
 
@@ -6584,30 +6697,6 @@ mod tests {
     }
 }
 
-pub fn is_mandate_supported(
-    selected_pmd: PaymentMethodData,
-    payment_method_type: Option<enums::PaymentMethodType>,
-    mandate_implemented_pmds: HashSet<PaymentMethodDataType>,
-    connector: &'static str,
-) -> Result<(), Error> {
-    if mandate_implemented_pmds.contains(&PaymentMethodDataType::from(selected_pmd.clone())) {
-        Ok(())
-    } else {
-        match payment_method_type {
-            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{pm_type} mandate payment"),
-                connector,
-            }
-            .into()),
-            None => Err(errors::ConnectorError::NotSupported {
-                message: "mandate payment".to_string(),
-                connector,
-            }
-            .into()),
-        }
-    }
-}
-
 pub fn get_mandate_details(
     setup_mandate_details: Option<mandates::MandateData>,
 ) -> Result<Option<mandates::MandateAmountData>, error_stack::Report<errors::ConnectorError>> {
@@ -6756,6 +6845,7 @@ pub enum PaymentMethodDataType {
     Pix,
     PixKey,
     PixEmv,
+    PixQr,
     PixAutomaticoPush,
     PixAutomaticoQr,
     Pse,
@@ -6963,6 +7053,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::BankTransferData::Pix { .. } => Self::Pix,
                 payment_method_data::BankTransferData::PixEmv { .. } => Self::PixEmv,
+                payment_method_data::BankTransferData::PixQr { .. } => Self::PixQr,
                 payment_method_data::BankTransferData::PixAutomaticoPush { .. } => {
                     Self::PixAutomaticoPush
                 }
@@ -7607,7 +7698,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         enable_partial_authorization: data.request.enable_partial_authorization,
         enable_overcapture: None,
         is_stored_credential: data.request.is_stored_credential,
-        mit_category: None,
+        mit_category: data.request.mit_category,
         billing_descriptor: data.request.billing_descriptor.clone(),
         tokenization: None,
         partner_merchant_identifier_details: data
@@ -8127,4 +8218,50 @@ macro_rules! convert_connector_response_to_domain_response {
             }
         }
     };
+}
+
+pub trait ExtendedAuthorizationData {
+    fn extended_authorization_requested(
+        &self,
+    ) -> Option<primitive_wrappers::RequestExtendedAuthorizationBool>;
+}
+
+impl ExtendedAuthorizationData for PaymentsAuthorizeData {
+    fn extended_authorization_requested(
+        &self,
+    ) -> Option<primitive_wrappers::RequestExtendedAuthorizationBool> {
+        self.request_extended_authorization
+    }
+}
+
+impl ExtendedAuthorizationData for PaymentsSyncData {
+    fn extended_authorization_requested(
+        &self,
+    ) -> Option<primitive_wrappers::RequestExtendedAuthorizationBool> {
+        None
+    }
+}
+
+impl ExtendedAuthorizationData for PaymentsCaptureData {
+    fn extended_authorization_requested(
+        &self,
+    ) -> Option<primitive_wrappers::RequestExtendedAuthorizationBool> {
+        None
+    }
+}
+
+impl ExtendedAuthorizationData for CompleteAuthorizeData {
+    fn extended_authorization_requested(
+        &self,
+    ) -> Option<primitive_wrappers::RequestExtendedAuthorizationBool> {
+        None
+    }
+}
+
+impl ExtendedAuthorizationData for PaymentsCancelData {
+    fn extended_authorization_requested(
+        &self,
+    ) -> Option<primitive_wrappers::RequestExtendedAuthorizationBool> {
+        None
+    }
 }

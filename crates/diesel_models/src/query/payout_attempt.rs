@@ -83,6 +83,22 @@ impl PayoutAttempt {
         .await
     }
 
+    pub async fn find_by_merchant_id_payout_id_payout_attempt_id(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payout_id: &common_utils::id_type::PayoutId,
+        payout_attempt_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::payout_id.eq(payout_id.to_owned()))
+                .and(dsl::payout_attempt_id.eq(payout_attempt_id.to_owned())),
+        )
+        .await
+    }
+
     pub async fn find_by_merchant_id_payout_attempt_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,

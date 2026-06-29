@@ -80,7 +80,7 @@ where
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                processor,
+                processor.get_account().get_id(),
                 router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
@@ -155,6 +155,7 @@ where
                                     connector_metadata: None,
                                 },
                             );
+                            router_data.connector_http_status_code = Some(status_code);
                             return Ok((
                                 router_data,
                                 (),
@@ -167,14 +168,14 @@ where
 
                 let payment_capture_response = response.into_inner();
 
-                let (router_data_response, status_code) =
+                let ucs_data =
                     unified_connector_service::handle_unified_connector_service_response_for_payment_capture(
                         payment_capture_response.clone(),
                         router_data.status,
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                let router_data_response = match router_data_response {
+                let router_data_response = match ucs_data.router_data_response {
                     Ok((response, status)) => {
                         router_data.status = status;
                         Ok(response)
@@ -192,7 +193,11 @@ where
                 router_data.minor_amount_captured = payment_capture_response
                     .captured_amount
                     .map(MinorUnit::new);
-                router_data.connector_http_status_code = Some(status_code);
+                router_data.connector_http_status_code = Some(ucs_data.status_code);
+
+                ucs_data.connector_response.map(|connector_response| {
+                    router_data.connector_response = Some(connector_response);
+                });
 
                 Ok((router_data, (), payment_capture_response))
             },

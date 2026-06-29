@@ -44,9 +44,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
         request: &api::PaymentsCancelRequest,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
+        _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsCancelRequest, PaymentData<F>>,
     > {
@@ -219,6 +221,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             external_authentication_data: None,
             client_session_id: None,
             vault_session_details: None,
+            external_vault_pmd: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -261,11 +264,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelReques
                     status: enums::IntentStatus::Cancelled,
                     updated_by: storage_scheme.to_string(),
                     incremental_authorization_allowed: None,
-                    feature_metadata: payment_data
-                        .payment_intent
-                        .feature_metadata
-                        .clone()
-                        .map(hyperswitch_masking::Secret::new),
+                    feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
                 };
                 (Some(payment_intent_update), enums::AttemptStatus::Voided)
             } else {

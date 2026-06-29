@@ -368,6 +368,7 @@ impl
             merchant_country_code: None,
             processor_merchant_id: None,
             created_by: None,
+            updated_by: None,
         }
     }
 }
@@ -492,6 +493,7 @@ impl
             merchant_country_code: None,
             processor_merchant_id: None,
             created_by: None,
+            updated_by: None,
         }
     }
 }

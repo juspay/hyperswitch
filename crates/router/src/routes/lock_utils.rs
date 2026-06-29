@@ -120,9 +120,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CreateConfigKey => Self::Configs,
             Flow::CustomersCreate
             | Flow::CustomersRetrieve
+            | Flow::CustomersRetrieveByReferenceId
             | Flow::CustomersUpdate
             | Flow::CustomersDelete
             | Flow::CustomersGetMandates
+            | Flow::CustomersGlobalIdMigration
             | Flow::CustomersList
             | Flow::CustomersListWithConstraints => Self::Customers,
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
@@ -187,7 +189,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsRetrieveUsingMerchantReferenceId
             | Flow::PaymentAttemptsList
             | Flow::RecoveryPaymentsCreate
-            | Flow::PaymentsSubmitEligibility => Self::Payments,
+            | Flow::PaymentsSubmitCheckEligibility
+            | Flow::PaymentsSubmitEligibility
+            | Flow::PaymentsCancelPostCaptureSync => Self::Payments,
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
             | Flow::PayoutsUpdate
@@ -389,7 +393,9 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::RecoveryDataBackfill | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
             Flow::GetSuperpositionSdkConfig => Self::Superposition,
-            Flow::MerchantConnectorWebhookRegister | Flow::MerchantConnectorWebhookList => {
+            Flow::MerchantConnectorWebhookRegister
+            | Flow::MerchantConnectorWebhookList
+            | Flow::MerchantConnectorWebhookGenerateSecret => {
                 Self::MerchantConnectorWebhookManagement
             }
             Flow::AddCardIssuer

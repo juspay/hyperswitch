@@ -86,6 +86,13 @@ pub enum PaymentTokenData {
     BankRedirect(BankRedirectTokenData),
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TemporaryCardTokenData {
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[cfg(feature = "v2")]
@@ -94,6 +101,9 @@ pub enum PaymentTokenData {
     PermanentCard(CardTokenData),
     AuthBankDebit(payment_methods::BankAccountTokenData),
     BankDebit(BankDebitTokenData),
+    /// Temporary token that carries only CVC + card holder name for the repeat CIT
+    /// (session confirm) flow. The card number/expiry come from the internal PM service.
+    TemporaryCardToken(TemporaryCardTokenData),
 }
 
 impl PaymentTokenData {
@@ -129,6 +139,17 @@ impl PaymentTokenData {
 
     pub fn temporary_generic(token: String) -> Self {
         Self::TemporaryGeneric(GenericTokenData { token })
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn temporary_card_token(
+        card_cvc: Option<hyperswitch_masking::Secret<String>>,
+        card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+    ) -> Self {
+        Self::TemporaryCardToken(TemporaryCardTokenData {
+            card_cvc,
+            card_holder_name,
+        })
     }
 
     #[cfg(feature = "v2")]

@@ -4,7 +4,7 @@ use crate::errors;
 ///
 /// The format will be `<cell_id>_<entity_prefix>_<time_ordered_id>`.
 ///
-/// Example: `cell1_cus_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p`
+/// Example: `0a_cus_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p`
 #[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, diesel::expression::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Text)]
 pub struct GlobalCustomerId(super::GlobalId);

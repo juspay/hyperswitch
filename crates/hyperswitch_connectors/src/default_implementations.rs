@@ -31,13 +31,16 @@ use hyperswitch_domain_models::{
         dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
         payments::{
             Approve, AuthorizeSessionToken, CalculateSurcharge, CalculateTax, CompleteAuthorize,
             CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer, CreateOrder,
             ExtendAuthorization, GenerateQr, GiftCardBalanceCheck, IncrementalAuthorization,
-            PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, PushNotification,
-            Reject, SdkSessionUpdate, SettlementSplitCreate, UpdateMetadata,
+            PostCaptureVoid, PostCaptureVoidSync, PostProcessing, PostSessionTokens,
+            PreAuthorizeVoid, PreProcessing, PushNotification, Reject, SdkSessionUpdate,
+            SettlementSplitCreate, UpdateMetadata,
         },
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
@@ -51,7 +54,9 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication,
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
@@ -68,18 +73,20 @@ use hyperswitch_domain_models::{
         DefendDisputeRequestData, DisputeSyncData, ExternalVaultProxyPaymentsData,
         FetchDisputesRequestData, GenerateQrRequestData, GiftCardBalanceCheckRequestData,
         MandateRevokeRequestData, PaymentsApproveData, PaymentsAuthenticateData,
-        PaymentsCancelPostCaptureData, PaymentsCompleteRefundSurchrgeData,
-        PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSurchargeCalculationData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData,
+        PaymentsCompleteRefundSurchrgeData, PaymentsCompleteSurchargeData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSurchargeCalculationData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, PushNotificationRequestData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
@@ -141,17 +148,19 @@ use hyperswitch_interfaces::{
             AcceptDispute, DefendDispute, Dispute, DisputeSync, FetchDisputes, SubmitEvidence,
         },
         files::{FileUpload, RetrieveFile, UploadFile},
-        merchant_connector_webhook_management::WebhookRegister,
+        merchant_connector_webhook_management::{
+            GenerateConnectorWebhookSecret, WebhookGenerateSecret, WebhookRegister,
+        },
         payments::{
             ConnectorCustomer, ExternalVaultProxyPaymentsCreateV1, PaymentApprove,
             PaymentAuthorizeSessionToken, PaymentExtendAuthorization,
-            PaymentIncrementalAuthorization, PaymentPostCaptureVoid, PaymentPostSessionTokens,
-            PaymentReject, PaymentSessionUpdate, PaymentUpdateMetadata, PaymentsAuthenticate,
-            PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsGenerateQr,
-            PaymentsGiftCardBalanceCheck, PaymentsPostAuthenticate, PaymentsPostProcessing,
-            PaymentsPreAuthenticate, PaymentsPreProcessing, PaymentsPushNotification,
-            PaymentsSettlementSplitCreate, SurchargeCalculation, SurchargeComplete,
-            SurchargeRefund, TaxCalculation,
+            PaymentIncrementalAuthorization, PaymentPostCaptureVoid, PaymentPostCaptureVoidSync,
+            PaymentPostSessionTokens, PaymentPreAuthorizeVoid, PaymentReject, PaymentSessionUpdate,
+            PaymentUpdateMetadata, PaymentsAuthenticate, PaymentsCompleteAuthorize,
+            PaymentsCreateOrder, PaymentsGenerateQr, PaymentsGiftCardBalanceCheck,
+            PaymentsPostAuthenticate, PaymentsPostProcessing, PaymentsPreAuthenticate,
+            PaymentsPreProcessing, PaymentsPushNotification, PaymentsSettlementSplitCreate,
+            SurchargeCalculation, SurchargeComplete, SurchargeRefund, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
         subscriptions::{
@@ -265,6 +274,7 @@ default_imp_for_authorize_session_token!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Paybox,
@@ -425,6 +435,7 @@ default_imp_for_payment_settlement_split_create!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Paybox,
@@ -587,6 +598,7 @@ default_imp_for_calculate_tax!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Paybox,
@@ -763,6 +775,7 @@ default_imp_for_session_update!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -925,6 +938,7 @@ default_imp_for_post_session_tokens!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -1082,6 +1096,7 @@ default_imp_for_create_order!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -1241,6 +1256,7 @@ default_imp_for_update_metadata!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -1414,6 +1430,7 @@ default_imp_for_cancel_post_capture!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nmi,
@@ -1468,6 +1485,178 @@ default_imp_for_cancel_post_capture!(
     connectors::CtpMastercard
 );
 
+macro_rules! default_imp_for_cancel_post_capture_sync {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl PaymentPostCaptureVoidSync for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            PostCaptureVoidSync,
+            PaymentsCancelPostCaptureSyncData,
+            PaymentsResponseData,
+        > for $path::$connector
+        {
+             fn build_request(
+                &self,
+                _req: &hyperswitch_domain_models::types::PaymentsCancelPostCaptureSyncRouterData,
+                _connectors: &hyperswitch_interfaces::configs::Connectors
+            ) -> CustomResult<Option<common_utils::request::Request>, hyperswitch_interfaces::errors::ConnectorError> {
+                Err(hyperswitch_interfaces::errors::ConnectorError::NotImplemented(
+                    "Cancel post capture not implemented for this connector".to_string(),
+                ).into())
+            }
+        }
+    )*
+    };
+}
+
+default_imp_for_cancel_post_capture_sync!(
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Affirm,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authipay,
+    connectors::Authorizedotnet,
+    connectors::AbsaSanlam,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Barclaycard,
+    connectors::Bitpay,
+    connectors::Blackhawknetwork,
+    connectors::Calida,
+    connectors::Bluesnap,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Breadpay,
+    connectors::Billwerk,
+    connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Chargebee,
+    connectors::Checkbook,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::Custombilling,
+    connectors::Cybersource,
+    connectors::Cybersourcedecisionmanager,
+    connectors::Datatrans,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Envoy,
+    connectors::Facilitapay,
+    connectors::Finix,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiservcommercehub,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Gigadat,
+    connectors::Helcim,
+    connectors::HyperswitchVault,
+    connectors::Hyperwallet,
+    connectors::Hyperpg,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Imerchantsolutions,
+    connectors::Interpayments,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Katapult,
+    connectors::Klarna,
+    connectors::Loonio,
+    connectors::Paypal,
+    connectors::Paysafe,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Revolv3,
+    connectors::Santander,
+    connectors::Shift4,
+    connectors::Sift,
+    connectors::Silverflow,
+    connectors::Signifyd,
+    connectors::Square,
+    connectors::Stax,
+    connectors::Stripe,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Tesouro,
+    connectors::Truelayer,
+    connectors::Trustly,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Mpgs,
+    connectors::Multisafepay,
+    connectors::Netcetera,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Nordea,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Nmi,
+    connectors::Paybox,
+    connectors::Payconex,
+    connectors::Payeezy,
+    connectors::Payjustnow,
+    connectors::Payjustnowinstore,
+    connectors::Payload,
+    connectors::Payme,
+    connectors::Paystack,
+    connectors::Paytm,
+    connectors::Payu,
+    connectors::Peachpayments,
+    connectors::Phonepe,
+    connectors::Placetopay,
+    connectors::Plaid,
+    connectors::Payone,
+    connectors::Fiuu,
+    connectors::Flexiti,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Hipay,
+    connectors::Wise,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Worldpaymodular,
+    connectors::Worldpayxml,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
+    connectors::Xendit,
+    connectors::Zift,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Riskified,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenex,
+    connectors::Tokenio,
+    connectors::Trustpay,
+    connectors::Trustpayments,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Deutschebank,
+    connectors::Vgs,
+    connectors::Volt,
+    connectors::Zen,
+    connectors::Zsl,
+    connectors::CtpMastercard
+);
+
 use crate::connectors;
 macro_rules! default_imp_for_complete_authorize {
     ($($path:ident::$connector:ident),*) => {
@@ -1485,6 +1674,7 @@ macro_rules! default_imp_for_complete_authorize {
 }
 
 default_imp_for_complete_authorize!(
+    connectors::Payconex,
     connectors::Revolv3,
     connectors::Worldpaymodular,
     connectors::Silverflow,
@@ -1701,6 +1891,7 @@ default_imp_for_incremental_authorization!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -1870,6 +2061,7 @@ default_imp_for_extend_authorization!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
@@ -2018,6 +2210,7 @@ default_imp_for_create_customer!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -2168,6 +2361,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nordea,
     connectors::Opayo,
     connectors::Opennode,
@@ -2236,6 +2430,7 @@ macro_rules! default_imp_for_pre_authenticate_steps{
 }
 
 default_imp_for_pre_authenticate_steps!(
+    connectors::Payconex,
     connectors::Revolv3,
     connectors::AbsaSanlam,
     connectors::Aci,
@@ -2470,6 +2665,7 @@ default_imp_for_authenticate_steps!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Nomupay,
     connectors::Noon,
@@ -2554,6 +2750,7 @@ macro_rules! default_imp_for_post_authenticate_steps{
 
 default_imp_for_post_authenticate_steps!(
     connectors::AbsaSanlam,
+    connectors::Payconex,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2713,6 +2910,7 @@ macro_rules! default_imp_for_pre_processing_steps{
 }
 
 default_imp_for_pre_processing_steps!(
+    connectors::Payconex,
     connectors::Revolv3,
     connectors::Zift,
     connectors::Trustpayments,
@@ -2940,6 +3138,7 @@ default_imp_for_post_processing_steps!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -3102,6 +3301,7 @@ default_imp_for_approve!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nmi,
@@ -3267,6 +3467,7 @@ default_imp_for_reject!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -3433,6 +3634,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -3592,6 +3794,7 @@ default_imp_for_accept_dispute!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -3753,6 +3956,7 @@ default_imp_for_submit_evidence!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -3913,6 +4117,7 @@ default_imp_for_defend_dispute!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -4077,6 +4282,7 @@ default_imp_for_fetch_disputes!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -4240,6 +4446,7 @@ default_imp_for_dispute_sync!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -4410,6 +4617,7 @@ default_imp_for_file_upload!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -4559,6 +4767,7 @@ default_imp_for_payouts!(
     connectors::Multisafepay,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nordea,
     connectors::Opayo,
     connectors::Opennode,
@@ -4708,6 +4917,7 @@ default_imp_for_payouts_create!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nordea,
     connectors::Opayo,
     connectors::Opennode,
@@ -4869,6 +5079,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -5027,6 +5238,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -5185,6 +5397,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nmi,
@@ -5339,6 +5552,7 @@ default_imp_for_payouts_cancel!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -5499,6 +5713,7 @@ default_imp_for_payouts_quote!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -5662,6 +5877,7 @@ default_imp_for_payouts_recipient!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -5824,6 +6040,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -5989,6 +6206,7 @@ default_imp_for_frm_sale!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -6152,6 +6370,7 @@ default_imp_for_frm_checkout!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -6315,6 +6534,7 @@ default_imp_for_frm_transaction!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -6479,6 +6699,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -6643,6 +6864,7 @@ default_imp_for_frm_record_return!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -6801,6 +7023,7 @@ default_imp_for_revoking_mandates!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -6963,6 +7186,7 @@ default_imp_for_uas_pre_authentication!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -7124,6 +7348,7 @@ default_imp_for_uas_webhook!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -7285,6 +7510,7 @@ default_imp_for_uas_post_authentication!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -7447,6 +7673,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -7600,6 +7827,7 @@ default_imp_for_connector_request_id!(
     connectors::Novalnet,
     connectors::Noon,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
@@ -7757,6 +7985,7 @@ default_imp_for_fraud_check!(
     connectors::Noon,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Payeezy,
@@ -7941,6 +8170,7 @@ default_imp_for_connector_authentication!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
@@ -8100,6 +8330,7 @@ default_imp_for_uas_authentication!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Payeezy,
     connectors::Payjustnow,
@@ -8256,6 +8487,7 @@ default_imp_for_revenue_recovery!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
@@ -8470,6 +8702,7 @@ default_imp_for_subscriptions!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
@@ -8634,6 +8867,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
@@ -8790,6 +9024,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
@@ -8953,6 +9188,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
@@ -9110,6 +9346,7 @@ default_imp_for_external_vault!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
@@ -9272,6 +9509,7 @@ default_imp_for_external_vault_insert!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
@@ -9431,6 +9669,7 @@ default_imp_for_gift_card_balance_check!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Nomupay,
     connectors::Noon,
@@ -9595,6 +9834,7 @@ default_imp_for_external_vault_retrieve!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
@@ -9757,6 +9997,7 @@ default_imp_for_external_vault_delete!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
@@ -9920,6 +10161,7 @@ default_imp_for_external_vault_create!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
@@ -10084,6 +10326,7 @@ default_imp_for_connector_authentication_token!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
@@ -10250,6 +10493,7 @@ default_imp_for_external_vault_proxy_payments_create!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -10319,11 +10563,20 @@ macro_rules! default_imp_for_connector_webhook_register {
     ($($path:ident::$connector:ident),*) => {
         $(
             impl WebhookRegister for $path::$connector {}
+            impl WebhookGenerateSecret for $path::$connector {}
+            impl GenerateConnectorWebhookSecret for $path::$connector {}
             impl
             ConnectorIntegration<
             ConnectorWebhookRegister,
             ConnectorWebhookRegisterRequest,
             ConnectorWebhookRegisterResponse,
+        > for $path::$connector
+        {}
+            impl
+            ConnectorIntegration<
+            ConnectorWebhookGenerateSecret,
+            ConnectorWebhookGenerateSecretRequest,
+            ConnectorWebhookGenerateSecretResponse,
         > for $path::$connector
         {}
     )*
@@ -10410,6 +10663,7 @@ default_imp_for_connector_webhook_register!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
@@ -10477,6 +10731,15 @@ default_imp_for_connector_webhook_register!(
     connectors::Zen,
     connectors::Zsl
 );
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentPreAuthorizeVoid for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> PaymentsCompleteAuthorize for connectors::DummyConnector<T> {}
@@ -10955,6 +11218,18 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentPostCaptureVoidSync for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        PostCaptureVoidSync,
+        PaymentsCancelPostCaptureSyncData,
+        PaymentsResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8> PaymentExtendAuthorization for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
@@ -11025,11 +11300,24 @@ impl<const T: u8>
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> WebhookRegister for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
+impl<const T: u8> WebhookGenerateSecret for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> GenerateConnectorWebhookSecret for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     ConnectorIntegration<
         ConnectorWebhookRegister,
         ConnectorWebhookRegisterRequest,
         ConnectorWebhookRegisterResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        ConnectorWebhookGenerateSecret,
+        ConnectorWebhookGenerateSecretRequest,
+        ConnectorWebhookGenerateSecretResponse,
     > for connectors::DummyConnector<T>
 {
 }
@@ -11334,6 +11622,7 @@ default_imp_for_generate_qr_flow!(
     connectors::Klarna,
     connectors::Loonio,
     connectors::Netcetera,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Nomupay,
     connectors::Noon,
@@ -11504,6 +11793,7 @@ default_imp_for_push_notification_flow!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -11569,4 +11859,177 @@ default_imp_for_push_notification_flow!(
     connectors::Zen,
     connectors::Zsl,
     connectors::CtpMastercard
+);
+
+macro_rules! default_imp_for_pre_authorize_void {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl PaymentPreAuthorizeVoid for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            PreAuthorizeVoid,
+            PaymentsPreAuthorizeCancelData,
+            PaymentsResponseData,
+        > for $path::$connector
+        {
+             fn build_request(
+                &self,
+                _req: &hyperswitch_domain_models::types::PaymentsPreAuthorizeCancelRouterData,
+                _connectors: &hyperswitch_interfaces::configs::Connectors
+            ) -> CustomResult<Option<common_utils::request::Request>, hyperswitch_interfaces::errors::ConnectorError> {
+                Err(hyperswitch_interfaces::errors::ConnectorError::NotImplemented(
+                    "Pre-authorize void not implemented for this connector".to_string(),
+                ).into())
+            }
+        }
+    )*
+    };
+}
+
+default_imp_for_pre_authorize_void!(
+    connectors::Payconex,
+    connectors::Nuvei,
+    connectors::Worldpayvantiv,
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Affirm,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authipay,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Barclaycard,
+    connectors::Bitpay,
+    connectors::Blackhawknetwork,
+    connectors::Calida,
+    connectors::Bluesnap,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Breadpay,
+    connectors::Billwerk,
+    connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Chargebee,
+    connectors::Checkbook,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::Custombilling,
+    connectors::Cybersource,
+    connectors::Cybersourcedecisionmanager,
+    connectors::Datatrans,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Envoy,
+    connectors::Facilitapay,
+    connectors::Finix,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Gigadat,
+    connectors::Helcim,
+    connectors::HyperswitchVault,
+    connectors::Hyperwallet,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Katapult,
+    connectors::Klarna,
+    connectors::Loonio,
+    connectors::Paypal,
+    connectors::Paysafe,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Shift4,
+    connectors::Sift,
+    connectors::Silverflow,
+    connectors::Signifyd,
+    connectors::Square,
+    connectors::Stax,
+    connectors::Stripe,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Tesouro,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Mpgs,
+    connectors::Multisafepay,
+    connectors::Netcetera,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Nordea,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Nmi,
+    connectors::Paybox,
+    connectors::Payeezy,
+    connectors::Payjustnow,
+    connectors::Payjustnowinstore,
+    connectors::Payload,
+    connectors::Payme,
+    connectors::Paystack,
+    connectors::Paytm,
+    connectors::Payu,
+    connectors::Peachpayments,
+    connectors::Phonepe,
+    connectors::Placetopay,
+    connectors::Plaid,
+    connectors::Payone,
+    connectors::Fiuu,
+    connectors::Flexiti,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Hipay,
+    connectors::Hyperpg,
+    connectors::Wise,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Worldpaymodular,
+    connectors::Worldpayxml,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
+    connectors::Xendit,
+    connectors::Zift,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Riskified,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenex,
+    connectors::Tokenio,
+    connectors::Truelayer,
+    connectors::Trustpay,
+    connectors::Trustpayments,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Deutschebank,
+    connectors::Vgs,
+    connectors::Volt,
+    connectors::Zen,
+    connectors::Zsl,
+    connectors::CtpMastercard,
+    connectors::Fiservcommercehub,
+    connectors::Imerchantsolutions,
+    connectors::Interpayments,
+    connectors::Revolv3,
+    connectors::AbsaSanlam,
+    connectors::Trustly
 );

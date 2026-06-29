@@ -40,8 +40,8 @@ tokenization_v2 = ["api_models/tokenization_v2", "diesel_models/tokenization_v2"
 # The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
 # This is named as partial-auth because the router will still try to authenticate if the `x-merchant-id` header is not present.
 partial-auth = []
-fred    = ["redis_interface/fred",     "storage_impl/fred",    "scheduler/fred"]
-redis-rs = ["redis_interface/redis-rs", "storage_impl/redis-rs", "scheduler/redis-rs"]
+fred    = ["redis_interface/fred",     "redis_interface/metrics", "storage_impl/fred",    "scheduler/fred"]
+redis-rs = ["redis_interface/redis-rs", "redis_interface/metrics", "storage_impl/redis-rs", "scheduler/redis-rs"]
 
 [dependencies]
 actix-cors = "0.6.5"
