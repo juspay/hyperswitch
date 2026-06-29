@@ -334,16 +334,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                             .transpose()?,
                     ),
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
-                    connector_metadata: response.metadata.as_ref().and_then(|secret| {
-                        serde_json::from_str(secret.clone().expose().as_str())
-                            .map_err(|err| {
-                                router_env::logger::warn!(
-                                    ?err,
-                                    "Failed to parse connector_metadata from UCS PSync response"
-                                );
-                            })
-                            .ok()
-                    }),
+                    connector_metadata: None,
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
                     connector_response_reference_id: response.merchant_transaction_id,
