@@ -28,7 +28,7 @@ describe("Subscription Management tests", () => {
     }
   });
 
-  after("flush global state", () => {
+  afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -90,10 +90,9 @@ describe("Subscription Management tests", () => {
       }
     });
 
-    it("retrieve-created-subscription-test", () => {
+    it("retrieve-created-subscription-test", function () {
       if (!shouldContinue) {
-        cy.task("cli_log", "Skipping step: Retrieve Subscription");
-        return;
+        this.skip();
       }
 
       const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -131,10 +130,9 @@ describe("Subscription Management tests", () => {
   });
 
   context("Update Subscription", () => {
-    it("update-subscription-test", () => {
+    it("update-subscription-test", function () {
       if (!shouldContinue) {
-        cy.task("cli_log", "Skipping step: Update Subscription");
-        return;
+        this.skip();
       }
 
       const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -152,10 +150,9 @@ describe("Subscription Management tests", () => {
       }
     });
 
-    it("verify-updated-subscription-test", () => {
+    it("verify-updated-subscription-test", function () {
       if (!shouldContinue) {
-        cy.task("cli_log", "Skipping step: Verify Updated Subscription");
-        return;
+        this.skip();
       }
 
       const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -167,10 +164,9 @@ describe("Subscription Management tests", () => {
   });
 
   context("Cancel Subscription", () => {
-    it("cancel-subscription-test", () => {
+    it("cancel-subscription-test", function () {
       if (!shouldContinue) {
-        cy.task("cli_log", "Skipping step: Cancel Subscription");
-        return;
+        this.skip();
       }
 
       const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -184,10 +180,9 @@ describe("Subscription Management tests", () => {
       }
     });
 
-    it("verify-cancelled-subscription-test", () => {
+    it("verify-cancelled-subscription-test", function () {
       if (!shouldContinue) {
-        cy.task("cli_log", "Skipping step: Verify Cancelled Subscription");
-        return;
+        this.skip();
       }
 
       const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -199,10 +194,9 @@ describe("Subscription Management tests", () => {
   });
 
   context("Reactivate Subscription", () => {
-    it("reactivate-subscription-test", () => {
+    it("reactivate-subscription-test", function () {
       if (!shouldContinue) {
-        cy.task("cli_log", "Skipping step: Reactivate Subscription");
-        return;
+        this.skip();
       }
 
       const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -216,10 +210,9 @@ describe("Subscription Management tests", () => {
       }
     });
 
-    it("verify-reactivated-subscription-test", () => {
+    it("verify-reactivated-subscription-test", function () {
       if (!shouldContinue) {
-        cy.task("cli_log", "Skipping step: Verify Reactivated Subscription");
-        return;
+        this.skip();
       }
 
       const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -231,7 +224,11 @@ describe("Subscription Management tests", () => {
   });
 
   context("Subscription Lifecycle Flow", () => {
-    it("full-lifecycle-create-subscription-test", () => {
+    it("full-lifecycle-create-subscription-test", function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "subscription_pm"
       ]["Create"];
