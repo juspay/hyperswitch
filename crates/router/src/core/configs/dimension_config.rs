@@ -501,6 +501,24 @@ impl DatabaseBackedConfig for ShouldTriggerFingerprintMigration {
 }
 
 config! {
+    superposition_key = SHOULD_PERFORM_SDK_VAULTING,
+    output = bool,
+    default = true,
+    requires = dimension_state::DimensionsWithProviderMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldPerformSdkVaulting {
+    const KEY: &'static str = "should_perform_sdk_vaulting";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_provider_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
     superposition_key = PAYOUT_TRACKER_MAPPING,
     output = RetryMapping,
     default = RetryMapping::default(),
