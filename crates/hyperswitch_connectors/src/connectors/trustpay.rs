@@ -527,21 +527,18 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         req: &PaymentsCompleteAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        println!(
-            "Getting URL for PaymentsCompleteAuthorize with request: {:?}",
-            &req.request.payment_method_data
-        );
-        let instance_id =
-            match &req.request.payment_method_data {
-                Some(payment_method_data::PaymentMethodData::Wallet(
-                    payment_method_data::WalletData::ApplePayThirdPartySdk(ref data),
-                )) => data.token.clone().ok_or_else(|| {
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "token",
-                    }
-                })?,
-                _ => todo!(),
-            };
+        let instance_id = match &req.request.payment_method_data {
+            Some(payment_method_data::PaymentMethodData::Wallet(
+                payment_method_data::WalletData::ApplePayThirdPartySdk(ref data),
+            )) => data
+                .token
+                .clone()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "token",
+                })
+                .attach_printable("Missing instance id for applepay , Trustpay")?,
+            _ => todo!(),
+        };
 
         Ok(format!(
             "{}{}/{}",
@@ -1699,7 +1696,6 @@ impl ConnectorSpecifications for Trustpay {
     fn supported_payment_method_types_for_sdk_client_token_generation(
         &self,
     ) -> Vec<enums::PaymentMethodType> {
-        print!("Trustpay supported_payment_method_types_for_sdk_client_token_generation");
         vec![enums::PaymentMethodType::ApplePay]
     }
 

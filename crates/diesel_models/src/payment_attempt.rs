@@ -2851,6 +2851,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_details: None,
                 installment_data: None,
                 sender_payment_instrument_id: None,
+                external_surcharge_details: None,
+                external_threeds_authentication_type: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,

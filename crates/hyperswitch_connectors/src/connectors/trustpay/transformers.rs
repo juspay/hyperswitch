@@ -1506,7 +1506,7 @@ impl TryFrom<PaymentsSessionResponseRouterData<TrustpayCreateIntentResponse>>
                     api_models::payments::ApplePaySessionResponse::ThirdPartySdk(
                         api_models::payments::ThirdPartySdkSessionResponse {
                             secrets: secrets.into(),
-                            ref_id: Some(instance_id),
+                            session_response_id: Some(instance_id),
                         },
                     ),
                 ),
@@ -1526,6 +1526,7 @@ impl TryFrom<PaymentsSessionResponseRouterData<TrustpayCreateIntentResponse>>
                 sdk_next_action: {
                     api_models::payments::SdkNextAction {
                         next_action: api_models::payments::NextActionCall::CompleteAuthorize,
+                        should_block_confirm: None,
                     }
                 },
                 connector_reference_id: None,
@@ -1558,7 +1559,7 @@ pub(crate) fn get_apple_pay_session<F, T>(
                         api_models::payments::ApplePaySessionResponse::ThirdPartySdk(
                             api_models::payments::ThirdPartySdkSessionResponse {
                                 secrets: secrets.to_owned().into(),
-                                ref_id: Some(instance_id.clone()),
+                                session_response_id: Some(instance_id.clone()),
                             },
                         ),
                     ),

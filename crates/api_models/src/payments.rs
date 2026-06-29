@@ -10703,7 +10703,7 @@ pub struct ThirdPartySdkSessionResponse {
     #[smithy(value_type = "SecretInfoToInitiateSdk")]
     pub secrets: SecretInfoToInitiateSdk,
     #[smithy(value_type = "Option<String>")]
-    pub ref_id: Option<String>,
+    pub session_response_id: Option<String>,
 }
 
 #[derive(

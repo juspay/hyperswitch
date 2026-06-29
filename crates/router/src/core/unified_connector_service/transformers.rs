@@ -5335,8 +5335,8 @@ impl transformers::ForeignTryFrom<&payments_grpc::ThirdPartySdkSessionResponse>
 
         Ok(Self {
             secrets: SecretInfoToInitiateSdk::foreign_try_from(secrets)?,
-            //TODO : Add ref_id to ThirdPartySdkSessionResponse in Prism proto
-            ref_id: None,
+            //TODO : Add session_response_id to ThirdPartySdkSessionResponse in Prism proto
+            session_response_id: None,
         })
     }
 }
