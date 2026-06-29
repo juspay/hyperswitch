@@ -759,7 +759,7 @@ fn build_ucs_auth_metadata(
             #[cfg(feature = "v1")]
             let auth_metadata = build_unified_connector_service_auth_metadata(
                 MerchantConnectorAccountType::DbVal(Box::new(mca.clone())),
-                ctx.platform.get_processor(),
+                ctx.platform.get_processor().get_account().get_id(),
                 ctx.connector_name.to_string(),
             );
             #[cfg(feature = "v2")]
@@ -767,7 +767,7 @@ fn build_ucs_auth_metadata(
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
                     mca.clone(),
                 )),
-                ctx.platform.get_processor(),
+                ctx.platform.get_processor().get_account().get_id(),
                 ctx.connector_name.to_string(),
             );
             auth_metadata

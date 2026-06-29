@@ -1,7 +1,7 @@
 use api_models::payments::{
-    AccountType, BeneficiaryDetails, BoletoPaymentTypeConstraints, CalculationType,
-    ConnectorMetadata, DiscountTier, DiscountType, PollConfig, ProtestType, QrCodeInformation,
-    SantanderData, SantanderMandatePeriodicity, SantanderPaymentDiscountRules, VoucherNextStepData,
+    AccountType, BeneficiaryDetails, BoletoPaymentTypeConstraints, CalculationType, DiscountTier,
+    DiscountType, FeatureMetadata, PollConfig, ProtestType, QrCodeInformation, SantanderData,
+    SantanderMandatePeriodicity, SantanderPaymentDiscountRules, VoucherNextStepData,
 };
 use common_enums::{enums, AttemptStatus, BoletoDocumentKind, ExpiryType, PixKey};
 use common_utils::{
@@ -400,10 +400,10 @@ impl TryFrom<(&RefreshTokenRouterData, &SantanderMetadataObject)> for SantanderA
         item: (&RefreshTokenRouterData, &SantanderMetadataObject),
     ) -> Result<Self, Self::Error> {
         let (client_id, client_secret) = match item.0.payment_method_type {
-            Some(enums::PaymentMethodType::PixEmv) => {
+            Some(enums::PaymentMethodType::PixQr) => {
                 let pix_mca_metadata = item
                     .1
-                    .pix_emv
+                    .pix_qr
                     .as_ref()
                     .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
                 Ok((
@@ -720,12 +720,7 @@ impl
                 max_value_or_percentage,
             ),
         ) = get_boleto_additional_fields_from_connector_metadata(
-            value
-                .0
-                .router_data
-                .request
-                .connector_intent_metadata
-                .clone(),
+            value.0.router_data.request.feature_metadata.clone(),
         );
 
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
@@ -792,11 +787,11 @@ impl
             SantanderMetadataObject::try_from(&value.0.router_data.connector_meta_data)?;
 
         let mca_chave = match value.0.router_data.payment_method_type {
-            Some(enums::PaymentMethodType::PixEmv) => Some(
+            Some(enums::PaymentMethodType::PixQr) => Some(
                 santander_mca_metadata
-                    .pix_emv
+                    .pix_qr
                     .ok_or(errors::ConnectorError::NoConnectorMetaData)
-                    .attach_printable("Failed to get pix emv mca metadata")?
+                    .attach_printable("Failed to get pix qr mca metadata")?
                     .pix_key_value,
             ),
             Some(enums::PaymentMethodType::PixAutomaticoQr) => Some(
@@ -1786,7 +1781,7 @@ fn get_qr_code_data<F, T>(
     let santander_mca_metadata = SantanderMetadataObject::try_from(&item.data.connector_meta_data)?;
 
     let pix_mca_metadata = santander_mca_metadata
-        .pix_emv
+        .pix_qr
         .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
 
     let response = pix_data.clone();
@@ -1838,7 +1833,7 @@ fn convert_pix_data_to_value(
 
     let qr_code_info = QrCodeInformation::QrCodeUrl {
         image_data_url: image_data_url.clone(),
-        qr_code_url: None,
+        qr_code_url: Some(image_data_url),
         display_to_timestamp: None,
         expiry_type: variant,
         raw_qr_data: Some(data),
@@ -1887,7 +1882,7 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderPaymentRequest {
     type Error = Error;
     fn try_from(value: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
         match value.request.payment_method_type {
-            Some(common_enums::PaymentMethodType::PixEmv) => {
+            Some(common_enums::PaymentMethodType::PixQr) => {
                 let pix_qr = SantanderPixQRPaymentRequest::try_from(value)?;
                 Ok(Self::PixQR(Box::new(pix_qr)))
             }
@@ -1989,11 +1984,11 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderPixQRPaymentRequest
 
     fn try_from(value: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
         match value.request.payment_method_type {
-            Some(common_enums::PaymentMethodType::PixEmv) => {
+            Some(common_enums::PaymentMethodType::PixQr) => {
                 let santander_mca_metadata =
                     SantanderMetadataObject::try_from(&value.connector_meta_data)?;
                 let pix_mca_metadata = santander_mca_metadata
-                    .pix_emv
+                    .pix_qr
                     .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
                 let calendar = match &value
                     .request
@@ -2198,11 +2193,10 @@ impl From<BoletoPaymentTypeConstraints> for SantanderBoletoPaymentType {
 }
 
 fn get_boleto_additional_fields_from_connector_metadata(
-    metadata: Option<ConnectorMetadata>,
+    metadata: Option<FeatureMetadata>,
 ) -> BoletoAdditionalFields {
     metadata
-        .and_then(|m| m.santander)
-        .and_then(|s| s.boleto)
+        .and_then(|m| m.boleto_additional_details)
         .map(|b| {
             let fine = b.penalties.as_ref().and_then(|p| p.fixed_penalty.as_ref());
             let fine_quantity_days = fine.and_then(|f| f.grace_period_days.map(|d| d.to_string()));
@@ -2748,7 +2742,7 @@ pub fn decide_access_token_key_suffix(
         true => Some(AccessTokenUrlPath::Leg2),
         false => {
             match (current_flow_info, payment_method_type) {
-                (Some(CurrentFlowInfo::Psync { .. }), Some(enums::PaymentMethodType::PixEmv)) => {
+                (Some(CurrentFlowInfo::Psync { .. }), Some(enums::PaymentMethodType::PixQr)) => {
                     Some(AccessTokenUrlPath::Leg1)
                 }
                 // Authorize flow
@@ -2758,7 +2752,7 @@ pub fn decide_access_token_key_suffix(
                 ) => Some(AccessTokenUrlPath::Boleto),
                 (
                     Some(CurrentFlowInfo::Authorize { .. }),
-                    Some(enums::PaymentMethodType::PixEmv),
+                    Some(enums::PaymentMethodType::PixQr),
                 ) => Some(AccessTokenUrlPath::Leg1),
                 (
                     Some(CurrentFlowInfo::Authorize { .. }),
@@ -2778,7 +2772,7 @@ pub fn decide_access_token_key_suffix(
                 ) => Some(AccessTokenUrlPath::Boleto),
                 (
                     Some(CurrentFlowInfo::CompleteAuthorize { .. }),
-                    Some(enums::PaymentMethodType::PixEmv),
+                    Some(enums::PaymentMethodType::PixQr),
                 ) => Some(AccessTokenUrlPath::Leg1),
                 (
                     Some(CurrentFlowInfo::CompleteAuthorize { .. }),
@@ -2801,7 +2795,7 @@ pub fn decide_access_token_key_suffix(
                 ) => Some(AccessTokenUrlPath::Boleto),
                 (
                     Some(CurrentFlowInfo::SetupMandate { .. }),
-                    Some(enums::PaymentMethodType::PixEmv),
+                    Some(enums::PaymentMethodType::PixQr),
                 ) => Some(AccessTokenUrlPath::Leg1),
                 (
                     Some(CurrentFlowInfo::SetupMandate { .. }),
@@ -2813,7 +2807,7 @@ pub fn decide_access_token_key_suffix(
                 ) => Some(AccessTokenUrlPath::Leg2),
 
                 (None, Some(enums::PaymentMethodType::Boleto)) => Some(AccessTokenUrlPath::Boleto),
-                (None, Some(enums::PaymentMethodType::PixEmv)) => Some(AccessTokenUrlPath::Leg1),
+                (None, Some(enums::PaymentMethodType::PixQr)) => Some(AccessTokenUrlPath::Leg1),
                 (
                     Some(CurrentFlowInfo::Psync { .. }),
                     Some(enums::PaymentMethodType::PixAutomaticoPush),
