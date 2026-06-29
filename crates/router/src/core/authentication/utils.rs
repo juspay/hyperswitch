@@ -63,6 +63,7 @@ pub async fn update_trackers<F: Clone, Req>(
     acquirer_details: Option<super::types::AcquirerDetails>,
     merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     authentication_info: router_request_types::authentication::AuthenticationInfo,
+    storage_scheme: diesel_models::enums::MerchantStorageScheme,
 ) -> RouterResult<authentication::Authentication> {
     let key_manager_state = state.into();
     let authentication_update = match router_data.response {
@@ -204,6 +205,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     ),
                     earliest_supported_version: Some(maximum_supported_3ds_version.clone()),
                     latest_supported_version: Some(maximum_supported_3ds_version.clone()),
+                    updated_by: storage_scheme.to_string(),
                 }
             }
             AuthenticationResponseData::AuthNResponse {
@@ -270,6 +272,7 @@ pub async fn update_trackers<F: Clone, Req>(
                         .device_details
                         .as_ref()
                         .and_then(|device_details| device_details.device_display.clone()),
+                    updated_by: storage_scheme.to_string(),
                 }
             }
             AuthenticationResponseData::PostAuthNResponse {
@@ -302,6 +305,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     eci,
                     challenge_cancel,
                     challenge_code_reason,
+                    updated_by: storage_scheme.to_string(),
                 }
             }
             AuthenticationResponseData::PreAuthVersionCallResponse {
@@ -309,6 +313,7 @@ pub async fn update_trackers<F: Clone, Req>(
             } => authentication::AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
                 message_version: maximum_supported_3ds_version.clone(),
                 maximum_supported_3ds_version,
+                updated_by: storage_scheme.to_string(),
             },
             AuthenticationResponseData::PreAuthThreeDsMethodCallResponse {
                 threeds_server_transaction_id,
@@ -325,6 +330,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
                 acquirer_merchant_id: acquirer_details
                     .map(|acquirer_details| acquirer_details.acquirer_merchant_id),
+                updated_by: storage_scheme.to_string(),
             },
         },
         Err(error) => authentication::AuthenticationUpdate::ErrorUpdate {
@@ -335,6 +341,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 .map(|reason| format!("message: {}, reason: {}", error.message, reason))
                 .or(Some(error.message)),
             error_code: Some(error.code),
+            updated_by: storage_scheme.to_string(),
         },
     };
     state
@@ -344,6 +351,7 @@ pub async fn update_trackers<F: Clone, Req>(
             authentication_update,
             merchant_key_store,
             &key_manager_state,
+            storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -464,6 +472,8 @@ pub async fn create_new_authentication(
         merchant_country_code: None,
         processor_merchant_id: Some(processor.get_account().get_id().clone()),
         created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+        // Seed with the configured scheme; the insert layer overwrites with the decided one.
+        updated_by: Some(processor.get_account().storage_scheme.to_string()),
     };
 
     state
@@ -472,6 +482,7 @@ pub async fn create_new_authentication(
             &key_manager_state,
             processor.get_key_store(),
             new_authentication,
+            processor.get_account().storage_scheme,
         )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {

@@ -1761,6 +1761,25 @@ impl Currency {
     strum::Display,
     strum::EnumString,
 )]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EventRecipient {
+    Merchant,
+    Connector,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -1813,8 +1832,13 @@ impl EventClass {
                 EventType::PaymentCaptured,
                 EventType::PaymentExpired,
                 EventType::ActionRequired,
+                EventType::SurchargePaymentSucceeded,
             ]),
-            Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
+            Self::Refunds => HashSet::from([
+                EventType::RefundSucceeded,
+                EventType::RefundFailed,
+                EventType::SurchargeRefundSucceeded,
+            ]),
             Self::Disputes => HashSet::from([
                 EventType::DisputeOpened,
                 EventType::DisputeExpired,
@@ -1896,6 +1920,24 @@ pub enum EventType {
     #[cfg(feature = "payouts")]
     PayoutReversed,
     InvoicePaid,
+    SurchargePaymentSucceeded,
+    SurchargeRefundSucceeded,
+}
+
+/// Maps primary payment/refund events to their corresponding surcharge events
+pub trait SurchargeEventMapper {
+    /// Returns the surcharge event type corresponding to this primary event
+    fn to_surcharge_event(&self) -> Option<EventType>;
+}
+
+impl SurchargeEventMapper for EventType {
+    fn to_surcharge_event(&self) -> Option<Self> {
+        match self {
+            Self::PaymentSucceeded => Some(Self::SurchargePaymentSucceeded),
+            Self::RefundSucceeded => Some(Self::SurchargeRefundSucceeded),
+            _ => None,
+        }
+    }
 }
 
 #[derive(
@@ -2446,6 +2488,7 @@ pub enum PaymentMethodType {
     Pix,
     PixKey,
     PixEmv,
+    PixQr,
     PixAutomaticoQr,
     PixAutomaticoPush,
     PaySafeCard,
@@ -2602,6 +2645,7 @@ impl PaymentMethodType {
             Self::Pix => "Pix",
             Self::PixKey => "Pix Key",
             Self::PixEmv => "Pix EMV",
+            Self::PixQr => "Pix QR",
             Self::PixAutomaticoQr => "Pix Automático QR",
             Self::PixAutomaticoPush => "Pix Automático Push",
             Self::PaySafeCard => "PaySafeCard",
@@ -2874,6 +2918,33 @@ pub enum ExecutionMode {
     Primary,
     Shadow,
     NotApplicable,
+}
+
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+/// Whether a connector event is the real call or a shadow mirror.
+pub enum EventExecutionMode {
+    Primary,
+    Shadow,
+}
+
+impl From<ExecutionMode> for EventExecutionMode {
+    fn from(mode: ExecutionMode) -> Self {
+        match mode {
+            ExecutionMode::Shadow => Self::Shadow,
+            ExecutionMode::Primary | ExecutionMode::NotApplicable => Self::Primary,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+/// Where a connector event's call was sent.
+pub enum EventDestination {
+    /// A direct call to the connector.
+    Connector,
+    /// A call to the Unified Connector Service.
+    UnifiedConnectorService,
 }
 
 #[derive(
@@ -9634,7 +9705,7 @@ pub enum PermissionGroup {
     WebhooksManage,
     ApiKeysView,
     ApiKeysManage,
-    InternalManage,
+    CloneConnectorManage,
     ThemeView,
     ThemeManage,
     ReconSourcesView,
@@ -9659,7 +9730,7 @@ pub enum ParentGroup {
     Account,
     Webhook,
     ApiKeys,
-    Internal,
+    CloneConnector,
     Theme,
     ReconSources,
     ReconExceptions,
@@ -9688,7 +9759,7 @@ pub enum Resource {
     Report,
     RevenueRecovery,
     Subscription,
-    InternalConnector,
+    CloneConnector,
     Theme,
     ReconIngestion,
     ReconTransformation,
@@ -11402,6 +11473,27 @@ pub enum WebhookRegistrationStatus {
     #[default]
     Success,
     // Webhook registration has failed
+    Failure,
+}
+
+/// The status of HMAC key generation for a connector webhook
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum WebhookSecretGenerationStatus {
+    /// HMAC key generation is successful
+    Success,
+    /// HMAC key generation has failed
     Failure,
 }
 
