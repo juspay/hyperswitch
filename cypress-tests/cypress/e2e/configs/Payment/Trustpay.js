@@ -310,6 +310,9 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSAutoCapture: {
       //Skipping this test as Trustpay does not support mandates and however setup future usage is downgraded to on_session
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -326,6 +329,9 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -342,6 +348,9 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -358,6 +367,9 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -374,6 +386,9 @@ export const connectorDetails = {
       },
     },
     MandateMultiUse3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -390,6 +405,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -407,6 +425,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -440,6 +461,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -457,6 +481,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -474,6 +501,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -492,6 +522,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
