@@ -32,39 +32,6 @@ use error_stack::ResultExt;
 
 use crate::customers::CustomerDocumentDetails;
 
-/// Deserializes a comma-separated string of merchant ids into `Option<Vec<MerchantId>>`.
-/// `MerchantId` does not implement `FromStr`, so it cannot use [`parse_comma_separated`].
-#[cfg(feature = "v1")]
-fn parse_comma_separated_merchant_ids<'de, D>(
-    deserializer: D,
-) -> Result<Option<Vec<id_type::MerchantId>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let comma_separated_ids: Option<String> = Option::deserialize(deserializer)?;
-    match comma_separated_ids {
-        Some(comma_separated_ids) if comma_separated_ids.trim().is_empty() => Ok(None),
-        Some(comma_separated_ids) => {
-            let mut merchant_ids =
-                Vec::with_capacity(comma_separated_ids.matches(',').count() + 1);
-            for raw_merchant_id in comma_separated_ids.split(',') {
-                let trimmed_merchant_id = raw_merchant_id.trim();
-                if !trimmed_merchant_id.is_empty() {
-                    let merchant_id = id_type::MerchantId::wrap(trimmed_merchant_id.to_string())
-                        .map_err(|error| {
-                            <D::Error as de::Error>::custom(format!(
-                                "Invalid merchant_id '{trimmed_merchant_id}': {error}"
-                            ))
-                        })?;
-                    merchant_ids.push(merchant_id);
-                }
-            }
-            Ok(Some(merchant_ids))
-        }
-        None => Ok(None),
-    }
-}
-
 #[cfg(any(feature = "v1", feature = "v2"))]
 fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
 where
@@ -8959,8 +8926,9 @@ pub struct PaymentListResponse {
 ///
 /// Mirrors the rich POST filter list (`PaymentListFilterConstraints`) but is designed to be
 /// passed as query parameters: list-valued filters are accepted as comma-separated strings,
-/// and the amount range, time range and sort order are grouped into their shared structs
-/// (`AmountFilter`, `TimeRange`, `Order`) flattened into the query string.
+/// the time range and sort order are grouped into their shared `TimeRange` / `Order` structs
+/// (flattened into the query string), and the amount range is passed as flat `start_amount` /
+/// `end_amount` scalars (`serde_urlencoded` cannot deserialize integers through `#[serde(flatten)]`).
 ///
 /// Customer email is intentionally not a filter here: it is PII stored encrypted per connected
 /// merchant, and the platform list only has access to the platform key store, so only
@@ -8974,10 +8942,9 @@ pub struct PlatformPaymentListConstraints {
     /// The identifier for business profile
     pub profile_id: Option<id_type::ProfileId>,
 
-    /// The comma separated list of connected (processor) merchant ids to filter the list.
+    /// The connected (processor) merchant id to filter the list by.
     /// When omitted, payments across all connected merchants under the platform are returned.
-    #[serde(deserialize_with = "parse_comma_separated_merchant_ids", default)]
-    pub processor_merchant_id: Option<Vec<id_type::MerchantId>>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
 
     /// The identifier for customer
     pub customer_id: Option<id_type::CustomerId>,
@@ -9002,32 +8969,42 @@ pub struct PlatformPaymentListConstraints {
     /// The comma separated list of connectors to filter payments list
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub connector: Option<Vec<api_enums::Connector>>,
+
     /// The comma separated list of currencies to filter payments list
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub currency: Option<Vec<enums::Currency>>,
+
     /// The comma separated list of payment status to filter payments list
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub status: Option<Vec<enums::IntentStatus>>,
+
     /// The comma separated list of payment methods to filter payments list
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub payment_method: Option<Vec<enums::PaymentMethod>>,
+
     /// The comma separated list of payment method types to filter payments list
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub payment_method_type: Option<Vec<enums::PaymentMethodType>>,
+
     /// The comma separated list of authentication types to filter payments list
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub authentication_type: Option<Vec<enums::AuthenticationType>>,
+
     /// The comma separated list of merchant connector ids to filter payments list for selected label
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+
     /// The comma separated list of card networks to filter payments list
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub card_network: Option<Vec<enums::CardNetwork>>,
+
     /// The comma separated list of card discovery methods to filter payments list
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub card_discovery: Option<Vec<enums::CardDiscovery>>,
+
     /// The identifier for merchant order reference id
     pub merchant_order_reference_id: Option<String>,
+
     /// The field (`on`) and direction (`by`) on which the payments list should be sorted.
     #[serde(flatten)]
     pub order: Order,

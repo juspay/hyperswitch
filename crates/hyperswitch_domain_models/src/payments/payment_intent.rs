@@ -2105,7 +2105,8 @@ impl From<api_models::payments::PlatformPaymentListConstraints> for PaymentInten
                 // Customer email is PII encrypted per connected merchant; the platform list only
                 // has the platform key store and therefore cannot filter on it.
                 customer_email: None,
-                processor_merchant_id,
+                processor_merchant_id: processor_merchant_id
+                    .map(|processor_merchant_id| vec![processor_merchant_id]),
             }))
         }
     }
