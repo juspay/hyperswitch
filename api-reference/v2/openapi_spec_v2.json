@@ -19723,10 +19723,6 @@
       },
       "Order": {
         "type": "object",
-        "required": [
-          "on",
-          "by"
-        ],
         "properties": {
           "on": {
             "$ref": "#/components/schemas/SortOn"
