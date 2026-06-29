@@ -1711,7 +1711,6 @@ export const connectorDetails = {
             ali_pay_redirect: {},
           },
         },
-        currency: "INR",
       },
       Response: {
         status: 200,
@@ -1732,7 +1731,6 @@ export const connectorDetails = {
             amazon_pay_redirect: {},
           },
         },
-        currency: "INR",
       },
       Response: {
         status: 200,
@@ -1753,7 +1751,6 @@ export const connectorDetails = {
             cashapp_qr: {},
           },
         },
-        currency: "INR",
       },
       Response: {
         status: 200,
@@ -1774,7 +1771,6 @@ export const connectorDetails = {
             revolut_pay: {},
           },
         },
-        currency: "INR",
         mandate_data: null,
         setup_future_usage: null,
       },
@@ -1797,7 +1793,6 @@ export const connectorDetails = {
             we_chat_pay_qr: {},
           },
         },
-        currency: "INR",
         mandate_data: null,
         setup_future_usage: null,
       },
