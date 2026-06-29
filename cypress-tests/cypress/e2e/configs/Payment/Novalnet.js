@@ -828,9 +828,6 @@ export const connectorDetails = {
       },
     },
     SepaMandate: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
