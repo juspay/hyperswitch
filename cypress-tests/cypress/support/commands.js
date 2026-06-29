@@ -1842,10 +1842,12 @@ Cypress.Commands.add("connectorDeleteCall", (globalState) => {
   });
 });
 
-Cypress.Commands.add("setFrmRoutingAlgorithm", (globalState) => {
+Cypress.Commands.add("setFrmRoutingAlgorithm", (body, globalState) => {
   const merchantId = globalState.get("merchantId");
   const adminApiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
+
+  body.merchant_id = merchantId;
 
   cy.request({
     method: "POST",
@@ -1855,13 +1857,7 @@ Cypress.Commands.add("setFrmRoutingAlgorithm", (globalState) => {
       Accept: "application/json",
       "api-key": adminApiKey,
     },
-    body: {
-      merchant_id: merchantId,
-      frm_routing_algorithm: {
-        data: "signifyd",
-        type: "single",
-      },
-    },
+    body: body,
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
