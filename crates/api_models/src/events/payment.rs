@@ -388,6 +388,8 @@ impl ApiEventMetric for PaymentMethodMigrateResponse {
     }
 }
 
+impl ApiEventMetric for payment_methods::ModularPaymentMethodMigrationResponse {}
+
 impl ApiEventMetric for PaymentMethodUpdate {}
 
 #[cfg(feature = "v1")]
