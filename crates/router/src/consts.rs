@@ -375,6 +375,9 @@ pub mod superposition {
     pub const POLL_CONFIG_EXTERNAL_THREE_DS: &str = "poll_config_external_three_ds";
     /// Outgoing webhook retry process tracker mapping key
     pub const PT_MAPPING_OUTGOING_WEBHOOKS: &str = "pt_mapping_outgoing_webhooks";
+    /// Outgoing connector webhook retry process tracker mapping key
+    pub const PT_MAPPING_OUTGOING_CONNECTOR_WEBHOOKS: &str =
+        "pt_mapping_outgoing_connector_webhooks";
     /// PCR (Revenue Recovery) payments retry process tracker mapping key
     pub const PT_MAPPING_PCR_RETRIES: &str = "pt_mapping_pcr_retries";
     /// Payment sync (psync) retry process tracker mapping key
@@ -429,6 +432,8 @@ pub mod superposition {
     pub const THREEDS_ROUTING_REGION_UAS: &str = "threeds_routing_region_uas";
     /// disabled webhook events configuration key per merchant and connector
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
+    /// save wallet decrypted data in locker
+    pub const SAVE_WALLET_DECRYPTED_DATA: &str = "save_wallet_decrypted_data";
 }
 
 #[cfg(test)]

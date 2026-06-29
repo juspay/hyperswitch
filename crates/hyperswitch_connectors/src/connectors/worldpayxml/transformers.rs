@@ -374,14 +374,14 @@ struct Order {
     shipping_address: Option<WorldpayxmlPayinAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     billing_address: Option<WorldpayxmlPayinAddress>,
-    #[serde(skip_serializing_if = "Option::is_none", rename = "additional3DSData")]
-    additional_threeds_data: Option<AdditionalThreeDSData>,
     #[serde(skip_serializing_if = "Option::is_none", rename = "info3DSecure")]
     info_threed_secure: Option<Info3DSecure>,
     #[serde(skip_serializing_if = "Option::is_none")]
     session: Option<CompleteAuthSession>,
     #[serde(skip_serializing_if = "Option::is_none")]
     create_token: Option<CreateToken>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "additional3DSData")]
+    additional_threeds_data: Option<AdditionalThreeDSData>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -512,9 +512,9 @@ struct PaymentDetails {
     #[serde(flatten)]
     payment_method: PaymentMethod,
     #[serde(skip_serializing_if = "Option::is_none")]
-    session: Option<Session>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     stored_credentials: Option<StoredCredentials>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    session: Option<Session>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
