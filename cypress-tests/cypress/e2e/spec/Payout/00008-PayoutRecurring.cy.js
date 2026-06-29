@@ -66,7 +66,7 @@ describe("[Payout] Recurring", () => {
         // Verify recurring=true is echoed back. payout_method_id is not checked
         // here because Wise does not return a connector-level recurring mandate
         // ID in the payout create response.
-        cy.verifyRecurringPayoutResponse(response, true, null);
+        expect(response.body.recurring).to.eq(true);
       });
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -95,9 +95,8 @@ describe("[Payout] Recurring", () => {
         globalState
       ).then((response) => {
         // Verify recurring=true for payout using saved method
-        cy.verifyRecurringPayoutResponse(
-          response,
-          true,
+        expect(response.body.recurring).to.eq(true);
+        expect(response.body.payout_method_id).to.eq(
           globalState.get("payoutMethodId")
         );
       });
@@ -139,7 +138,7 @@ describe("[Payout] Recurring", () => {
         globalState
       ).then((response) => {
         // Verify recurring=false for non-recurring payouts
-        cy.verifyRecurringPayoutResponse(response, false, null);
+        expect(response.body.recurring).to.eq(false);
       });
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -179,7 +178,7 @@ describe("[Payout] Recurring", () => {
         globalState
       ).then((response) => {
         // Verify recurring defaults to false when omitted
-        cy.verifyRecurringPayoutResponse(response, false, null);
+        expect(response.body.recurring).to.eq(false);
       });
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
