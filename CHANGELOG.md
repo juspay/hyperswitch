@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.25.0-hotfix1
+
+### Bug Fixes
+
+- **core:** Propagate mit_category in Setup Mandate flows ([#13064](https://github.com/juspay/hyperswitch/pull/13064)) ([`ad2f4d7`](https://github.com/juspay/hyperswitch/commit/ad2f4d799b73094c3bb3a584c7ffbae663bcad68))
+
+**Full Changelog:** [`2026.06.25.0...2026.06.25.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.06.25.0...2026.06.25.0-hotfix1)
+
+- - -
+
 ## 2026.06.25.0
 
 ### Features
