@@ -1736,6 +1736,7 @@ pub struct PaymentsSessionData {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub payment_method: Option<common_enums::PaymentMethod>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    pub complete_authorize_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]

@@ -1854,6 +1854,7 @@ impl
                                     display: res.data.create_client_token.client_token.clone(),
                                     payment: None,
                                 },
+                                ref_id: None,
                             },
                         ));
                         SessionToken::ApplePay(Box::new(

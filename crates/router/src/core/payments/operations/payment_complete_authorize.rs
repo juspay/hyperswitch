@@ -192,6 +192,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         };
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
+
+        println!(
+            "$$ Payment method: {:?} : request payment method{:?} ",
+            payment_attempt.payment_method, request.payment_method
+        );
         payment_attempt.browser_info = browser_info.or(payment_attempt.browser_info);
         payment_attempt.payment_method_type =
             payment_method_type.or(payment_attempt.payment_method_type);
@@ -321,6 +326,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .attach_printable(
                 "failed while fetching customer_document_details from payment_intent",
             )?;
+        let payment_method_data = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into));
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -341,10 +350,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 business_profile.use_billing_as_payment_method_billing,
             ),
             confirm: request.confirm,
-            payment_method_data: request
-                .payment_method_data
-                .as_ref()
-                .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into)),
+            payment_method_data,
             payment_method_token: None,
             payment_method_info,
             force_sync: None,
@@ -529,12 +535,56 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let storage_scheme = processor.get_account().storage_scheme;
         let key_store = processor.get_key_store();
 
+        let profile_id = payment_data
+            .payment_intent
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let customer_id = payment_data.payment_intent.customer_id.as_ref();
+        let dimensions = _dimensions.with_profile_id(profile_id.clone());
+        let additional_pm_data = payment_data
+            .payment_method_data
+            .as_ref()
+            .async_map(|payment_method_data| async {
+                helpers::get_additional_payment_data(
+                    payment_method_data,
+                    &*state.store,
+                    state.superposition_service.as_ref(),
+                    &dimensions,
+                    customer_id,
+                    payment_data.payment_method_token.as_ref(),
+                )
+                .await
+            })
+            .await
+            .transpose()?
+            .flatten();
+
+        let encoded_additional_pm_data = additional_pm_data
+            .as_ref()
+            .map(utils::Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional pm data")?;
+
         let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::CompleteAuthorizeUpdate {
             shipping_address_id: payment_data.payment_intent.shipping_address_id.clone()
         };
 
+        let payment_attempt_update = storage::PaymentAttemptUpdate::CompleteAuthorizeUpdate {
+            payment_method: payment_data.payment_attempt.payment_method,
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
+            payment_method_data: encoded_additional_pm_data
+                .or(payment_data.payment_attempt.payment_method_data.clone()),
+            connector: payment_data.payment_attempt.connector.clone(),
+            merchant_connector_id: payment_data.payment_attempt.merchant_connector_id.clone(),
+            updated_by: storage_scheme.to_string(),
+        };
+
         let db = &*state.store;
         let payment_intent = payment_data.payment_intent.clone();
+        let payment_attempt = payment_data.payment_attempt.clone();
 
         let updated_payment_intent = db
             .update_payment_intent(
@@ -546,6 +596,16 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        let updated_payment_attempt = db
+            .update_payment_attempt_with_attempt_id(
+                payment_attempt,
+                payment_attempt_update,
+                storage_scheme,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
         req_state
             .event_context
             .event(AuditEvent::new(AuditEventType::PaymentCompleteAuthorize))
@@ -553,6 +613,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .emit();
 
         payment_data.payment_intent = updated_payment_intent;
+        payment_data.payment_attempt = updated_payment_attempt;
         Ok((Box::new(self), payment_data))
     }
 }

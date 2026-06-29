@@ -2597,6 +2597,11 @@ where
     let dimensions = Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
+    println!(
+        "$$ Eligible routable connectors: {:?}",
+        eligible_routable_connectors
+    );
     let (payment_data, _req, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, _>(
             &state,
@@ -3535,6 +3540,9 @@ pub struct PaymentsRedirectResponseData {
     pub resource_id: api::PaymentIdType,
     pub force_sync: bool,
     pub creds_identifier: Option<String>,
+    pub payment_method: Option<enums::PaymentMethod>,
+    pub payment_method_data: Option<payments_api::PaymentMethodDataRequest>,
+    pub payment_method_type: Option<enums::PaymentMethodType>,
 }
 
 #[cfg(feature = "v2")]
@@ -3615,6 +3623,8 @@ pub trait PaymentRedirectFlow: Sync {
         let connector = req.connector.clone().get_required_value("connector")?;
 
         let query_params = req.param.clone().get_required_value("param")?;
+
+        println!("fadsfasfjaslfjals {:?}", req.clone());
 
         #[cfg(feature = "v1")]
         let resource_id = api::PaymentIdTypeExt::get_payment_intent_id(&req.resource_id)
@@ -3726,8 +3736,18 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 pix_automatico_additional_details: None,
                 finix_additional_details: None,
             }),
+            payment_method_type: req.payment_method_type.clone(),
+            payment_method: req.payment_method.clone(),
+            payment_method_data: req.payment_method_data.clone(),
             ..Default::default()
         };
+        println!(
+            "Pjhkjhkj ddd. ayload: compl {:?} {:?} {:?} {:?}",
+            req.payment_method_data.clone(),
+            req.payment_method_type.clone(),
+            req.payment_method.clone(),
+            payment_confirm_req
+        );
         let response = Box::pin(payments_core::<
             api::CompleteAuthorize,
             api::PaymentsResponse,
@@ -3927,6 +3947,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             expand_captures: None,
             all_keys_required: None,
         };
+        println!("paymentredirect sync req: {:?}", payment_sync_req);
         let response = Box::pin(
             payments_core::<api::PSync, api::PaymentsResponse, _, _, _, _>(
                 state.clone(),
@@ -4302,6 +4323,9 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     pix_automatico_additional_details: None,
                     finix_additional_details: None,
                 }),
+                payment_method: req.payment_method,
+                payment_method_data: req.payment_method_data.clone(),
+                payment_method_type: req.payment_method_type.clone(),
                 ..Default::default()
             };
             let is_setup_mandate = payment_intent.is_setup_mandate();

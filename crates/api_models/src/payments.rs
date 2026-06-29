@@ -10523,6 +10523,8 @@ pub enum ApplePaySessionResponse {
 pub struct ThirdPartySdkSessionResponse {
     #[smithy(value_type = "SecretInfoToInitiateSdk")]
     pub secrets: SecretInfoToInitiateSdk,
+    #[smithy(value_type = "Option<String>")]
+    pub ref_id: Option<String>,
 }
 
 #[derive(
@@ -10919,6 +10921,15 @@ pub struct PaymentsCompleteAuthorizeRequest {
     pub client_secret: Option<Secret<String>>,
     /// Indicates if 3DS method data was successfully completed or not
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
+    /// The payment method to be used for the payment
+    #[schema(value_type = Option<PaymentMethod>, example = "card")]
+    pub payment_method: Option<api_enums::PaymentMethod>,
+    /// The payment method type to be used for the payment
+    #[schema(value_type = Option<PaymentMethodType>)]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    /// The payment method data to be used for the payment
+    #[serde(with = "payment_method_data_serde", default)]
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
 }
 
 #[cfg(feature = "v1")]
