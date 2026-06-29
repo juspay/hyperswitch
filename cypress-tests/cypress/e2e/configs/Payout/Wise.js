@@ -257,6 +257,21 @@ export const connectorDetails = {
           },
         },
       },
+      RecurringTrueFulfill: {
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          recurring: true,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "initiated",
+            payout_type: "bank",
+            recurring: true,
+          },
+        },
+      },
       RecurringFalse: {
         Request: {
           currency: "EUR",
@@ -333,10 +348,10 @@ export const connectorDetails = {
           },
         },
       },
-      // RecurringUseMethod tests the happy-path recurring payout flow: using a
-      // payout_method_id saved from a prior RecurringTrue payout to create a new
-      // payout without re-supplying full bank details. TRIGGER_SKIP matches the
-      // rest of the recurring suite — depends on RecurringTrue completing.
+      // TRIGGER_SKIP because Wise does not return payout_method_id — this
+      // requires Rust changes in crates/router/src/core/payouts.rs and the
+      // Wise transformer. This test will be enabled once the backend
+      // propagates payout_method_id for recurring payouts.
       RecurringUseMethod: {
         Configs: {
           TRIGGER_SKIP: true,

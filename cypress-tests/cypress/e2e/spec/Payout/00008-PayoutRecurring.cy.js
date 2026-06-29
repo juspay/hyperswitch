@@ -72,6 +72,21 @@ describe("[Payout] Recurring", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
+    it("fulfill-recurring-payout-test", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["sepa_bank_transfer"]["RecurringTrueFulfill"];
+
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+        return;
+      }
+
+      cy.fulfillPayoutCallTest({}, data, globalState);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
     it("create-recurring-payout-using-saved-method", () => {
       payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
 
