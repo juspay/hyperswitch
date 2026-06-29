@@ -2665,7 +2665,7 @@ pub async fn create_or_update_bank_redirect_payment_method(
     initiator: Option<domain::Initiator>,
     payment_method_id: &str,
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    bank_redirect_update: hyperswitch_domain_models::payment_method_data::BankRedirectUpdate,
+    bank_redirect_update: hyperswitch_domain_models::payment_method_data::BankRedirectData,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     let db = state.store.as_ref();
     let key_manager_state = (&state).into();
@@ -2691,13 +2691,18 @@ pub async fn create_or_update_bank_redirect_payment_method(
         .get_required_value("customer_id")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let hyperswitch_domain_models::payment_method_data::BankRedirectUpdate::OpenBanking {
+    let hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBanking {
         account_number,
         iban,
         sort_code,
         account_holder_name,
-        connector_payment_method_details,
-    } = bank_redirect_update;
+        additional_details,
+    } = bank_redirect_update
+    else {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Payment method type is not OpenBanking type".to_string(),
+        }));
+    };
 
     let bank_redirect_data = api_models::payment_methods::BankRedirectData::OpenBanking {
         account_number: account_number.clone(),
@@ -2804,7 +2809,7 @@ pub async fn create_or_update_bank_redirect_payment_method(
     );
 
     let connector_payment_method_details = merchant_connector_id
-        .zip(connector_payment_method_details)
+        .zip(additional_details)
         .map(|(mca_id, details)| {
             serde_json::json!({ mca_id.get_string_repr().to_string(): details })
         });

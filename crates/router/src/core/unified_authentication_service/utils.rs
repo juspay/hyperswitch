@@ -151,6 +151,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     })
 }
 
@@ -705,6 +706,7 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     })
 }
 

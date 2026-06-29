@@ -1476,6 +1476,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             customer_document_details: data.customer_document_details.clone(),
             feature_data: data.feature_data.clone(),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         }
     }
 }
@@ -1552,6 +1553,7 @@ impl<F1, F2>
             customer_document_details: None,
             feature_data: data.feature_data.clone(),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         }
     }
 }

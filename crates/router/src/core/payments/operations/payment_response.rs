@@ -68,50 +68,16 @@ use crate::{
 };
 
 #[cfg(feature = "v1")]
-fn extract_bank_redirect_update_from_psync_metadata(
-    connector_metadata: &serde_json::Value,
-) -> Option<hyperswitch_domain_models::payment_method_data::BankRedirectUpdate> {
-    serde_json::from_value(connector_metadata.clone())
-        .map_err(|err| {
-            logger::warn!(
-                ?err,
-                "Failed to deserialize connector_metadata into BankRedirectUpdate"
-            );
-        })
-        .ok()
-}
-
-#[cfg(feature = "v1")]
-fn extract_pm_update_from_psync_response<F: Clone>(
-    payment_method: enums::PaymentMethod,
-    response: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
-) -> Option<hyperswitch_domain_models::payment_method_data::PaymentMethodPsyncUpdate> {
-    match payment_method {
-        enums::PaymentMethod::BankRedirect => {
-            let connector_metadata = response.response.as_ref().ok().and_then(|r| match r {
-                types::PaymentsResponseData::TransactionResponse {
-                    connector_metadata, ..
-                } => connector_metadata.as_ref(),
-                _ => None,
-            })?;
-            extract_bank_redirect_update_from_psync_metadata(connector_metadata)
-                .map(hyperswitch_domain_models::payment_method_data::PaymentMethodPsyncUpdate::BankRedirect)
-        }
-        _ => None,
-    }
-}
-
-#[cfg(feature = "v1")]
 async fn persist_pm_update_from_psync(
     state: SessionState,
     provider: domain::Provider,
     initiator: Option<domain::Initiator>,
     payment_method_id: &str,
     merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    update: hyperswitch_domain_models::payment_method_data::PaymentMethodPsyncUpdate,
+    update: &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     match update {
-        hyperswitch_domain_models::payment_method_data::PaymentMethodPsyncUpdate::BankRedirect(
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
             bank_redirect_update,
         ) => {
             payment_methods::cards::create_or_update_bank_redirect_payment_method(
@@ -120,10 +86,13 @@ async fn persist_pm_update_from_psync(
                 initiator,
                 payment_method_id,
                 merchant_connector_id,
-                bank_redirect_update,
+                bank_redirect_update.clone(),
             )
             .await
         }
+        _ => Err(report!(errors::ApiErrorResponse::NotImplemented{message: errors::NotImplementedMessage::Reason(
+                            "Payment Method Update is not implemented".to_string(),
+                        )})),
     }
 }
 
@@ -1133,27 +1102,25 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         )
         .await?;
 
-        if let (Some(payment_method), Some(payment_method_id)) = (
-            payment_data.payment_attempt.payment_method,
+        if let (Some(payment_method_id), Some(pm_update)) = (
             payment_data.payment_attempt.payment_method_id.clone(),
+            resp.connector_returned_payment_method_details.as_ref(),
         ) {
-            if let Some(pm_update) = extract_pm_update_from_psync_response(payment_method, resp) {
-                if let Err(error) = Box::pin(persist_pm_update_from_psync(
-                    state.clone(),
-                    platform.get_provider().clone(),
-                    platform.get_initiator().cloned(),
-                    payment_method_id.as_str(),
-                    payment_data.payment_attempt.merchant_connector_id.clone(),
-                    pm_update,
-                ))
-                .await
-                {
-                    logger::error!(
-                        ?error,
-                        payment_method_id = %payment_method_id,
-                        "Failed to persist payment method details from PSync response"
-                    );
-                }
+            if let Err(error) = Box::pin(persist_pm_update_from_psync(
+                state.clone(),
+                platform.get_provider().clone(),
+                platform.get_initiator().cloned(),
+                payment_method_id.as_str(),
+                payment_data.payment_attempt.merchant_connector_id.clone(),
+                pm_update,
+            ))
+            .await
+            {
+                logger::error!(
+                    ?error,
+                    payment_method_id = %payment_method_id,
+                    "Failed to persist payment method details from PSync response"
+                );
             }
         }
         Ok(())
