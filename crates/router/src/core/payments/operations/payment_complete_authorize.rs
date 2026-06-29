@@ -210,11 +210,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         };
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
-
-        println!(
-            "$$ Payment method: {:?} : request payment method{:?} ",
-            payment_attempt.payment_method, request.payment_method
-        );
         payment_attempt.browser_info = browser_info.or(payment_attempt.browser_info);
         payment_attempt.payment_method_type =
             payment_method_type.or(payment_attempt.payment_method_type);

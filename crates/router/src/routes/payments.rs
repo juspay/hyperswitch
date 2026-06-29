@@ -1411,7 +1411,6 @@ pub async fn payments_redirect_response(
     let flow = Flow::PaymentsRedirect;
     let (payment_id, merchant_id, connector) = path.into_inner();
     let param_string = req.query_string();
-    println!("$$json_payload 5 {:?}", &json_payload);
 
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
     let (payment_method, payment_method_data, payment_method_type) = json_payload
@@ -1480,7 +1479,6 @@ pub async fn payments_redirect_response_with_creds_identifier(
     let param_string = req.query_string();
 
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
-    println!("$$json_payload 4 ");
 
     let payload = payments::PaymentsRedirectResponseData {
         resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
@@ -1532,7 +1530,6 @@ pub async fn payments_complete_authorize_redirect(
     let flow = Flow::PaymentsRedirect;
 
     let json_payload = json_body.map(|j| j.0).or(form_body.map(|f| f.0));
-    println!("$$json_payload 3 {:?}", &json_payload);
 
     let (payment_id, merchant_id, connector) = path.into_inner();
     let param_string = req.query_string();
@@ -1605,7 +1602,6 @@ pub async fn payments_complete_authorize_redirect_with_creds_identifier(
     let param_string = req.query_string();
 
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
-    println!("$$json_payload 2 {:?}", &json_payload);
 
     let (payment_method, payment_method_data, payment_method_type) = json_payload
         .as_ref()
@@ -1666,7 +1662,6 @@ pub async fn payments_complete_authorize(
     path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl Responder {
     let flow = Flow::PaymentsCompleteAuthorize;
-    println!("$$json_payload 1 {:?}", json_payload.clone());
 
     let mut payload = json_payload.into_inner();
 

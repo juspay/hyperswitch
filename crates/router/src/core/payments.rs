@@ -2799,11 +2799,6 @@ where
     let dimensions = Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
-
-    println!(
-        "$$ Eligible routable connectors: {:?}",
-        eligible_routable_connectors
-    );
     let (payment_data, _req, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, _>(
             &state,
@@ -4473,8 +4468,6 @@ pub trait PaymentRedirectFlow: Sync {
 
         let query_params = req.param.clone().get_required_value("param")?;
 
-        println!("fadsfasfjaslfjals {:?}", req.clone());
-
         #[cfg(feature = "v1")]
         let resource_id = api::PaymentIdTypeExt::get_payment_intent_id(&req.resource_id)
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
@@ -4590,13 +4583,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             payment_method_data: req.payment_method_data.clone(),
             ..Default::default()
         };
-        println!(
-            "Pjhkjhkj ddd. ayload: compl {:?} {:?} {:?} {:?}",
-            req.payment_method_data.clone(),
-            req.payment_method_type.clone(),
-            req.payment_method.clone(),
-            payment_confirm_req
-        );
+
         let response = Box::pin(payments_core::<
             api::CompleteAuthorize,
             api::PaymentsResponse,
