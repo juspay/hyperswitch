@@ -1729,6 +1729,10 @@ impl PaymentMethods {
                         .route(web::get().to(payment_methods::payment_methods_batch_retrieve_api)),
                 )
                 .service(
+                    web::resource("/fingerprint/migrate-batch")
+                        .route(web::post().to(payment_methods::modular_migrate_payment_methods)),
+                )
+                .service(
                     web::resource("/tokenize-card")
                         .route(web::post().to(payment_methods::tokenize_card_api)),
                 )
