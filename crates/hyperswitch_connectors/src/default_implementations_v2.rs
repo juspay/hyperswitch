@@ -17,13 +17,16 @@ use hyperswitch_domain_models::{
         dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateSurcharge, CalculateTax, Capture,
             CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
             CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr, GiftCardBalanceCheck,
-            IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
-            PostSessionTokens, PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
+            IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid,
+            PostCaptureVoidSync, PostProcessing, PostSessionTokens, PreAuthorizeVoid,
+            PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
             SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
@@ -37,7 +40,9 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication,
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -48,19 +53,22 @@ use hyperswitch_domain_models::{
         ExternalVaultProxyPaymentsData, FetchDisputesRequestData, GenerateQrRequestData,
         GiftCardBalanceCheckRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData,
         PaymentsApproveData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsCompleteRefundSurchrgeData,
-        PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData,
-        PaymentsSurchargeCalculationData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, PushNotificationRequestData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
-        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData, PaymentsCaptureData,
+        PaymentsCompleteRefundSurchrgeData, PaymentsCompleteSurchargeData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSurchargeCalculationData,
+        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
+        PushNotificationRequestData, RefundsData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
@@ -114,21 +122,19 @@ use hyperswitch_interfaces::{
             SubmitEvidenceV2,
         },
         files_v2::{FileUploadV2, RetrieveFileV2, UploadFileV2},
-        merchant_connector_webhook_management_v2::{
-            ConfigureConnectorWebhookV2, WebhookRegisterV2,
-        },
+        merchant_connector_webhook_management_v2::{WebhookGenerateSecretV2, WebhookRegisterV2},
         payments_v2::{
             CompleteRefundSurchrgeV2, CompleteSurchargeV2, ConnectorCustomerV2,
             ExternalVaultProxyPaymentsCreate, MandateSetupV2, PaymentApproveV2,
             PaymentAuthorizeSessionTokenV2, PaymentAuthorizeV2, PaymentCaptureV2,
             PaymentCreateOrderV2, PaymentExtendAuthorizationV2, PaymentIncrementalAuthorizationV2,
-            PaymentPostCaptureVoidV2, PaymentPostSessionTokensV2, PaymentRejectV2,
-            PaymentSessionUpdateV2, PaymentSessionV2, PaymentSyncV2, PaymentTokenV2,
-            PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2, PaymentsAuthenticateV2,
-            PaymentsCompleteAuthorizeV2, PaymentsGenerateQrV2, PaymentsGiftCardBalanceCheckV2,
-            PaymentsPostAuthenticateV2, PaymentsPostProcessingV2, PaymentsPreAuthenticateV2,
-            PaymentsPreProcessingV2, PaymentsPushNotificationV2, PaymentsSettlementSplitCreate,
-            SurchargeCalculationV2, TaxCalculationV2,
+            PaymentPostCaptureVoidSyncV2, PaymentPostCaptureVoidV2, PaymentPostSessionTokensV2,
+            PaymentPreAuthorizeVoidV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
+            PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2,
+            PaymentsAuthenticateV2, PaymentsCompleteAuthorizeV2, PaymentsGenerateQrV2,
+            PaymentsGiftCardBalanceCheckV2, PaymentsPostAuthenticateV2, PaymentsPostProcessingV2,
+            PaymentsPreAuthenticateV2, PaymentsPreProcessingV2, PaymentsPushNotificationV2,
+            PaymentsSettlementSplitCreate, SurchargeCalculationV2, TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         revenue_recovery_v2::{
@@ -156,6 +162,8 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentSyncV2 for $path::$connector{}
             impl PaymentVoidV2 for $path::$connector{}
             impl PaymentPostCaptureVoidV2 for $path::$connector{}
+            impl PaymentPostCaptureVoidSyncV2 for $path::$connector{}
+            impl PaymentPreAuthorizeVoidV2 for $path::$connector{}
             impl PaymentApproveV2 for $path::$connector{}
             impl PaymentRejectV2 for $path::$connector{}
             impl PaymentCaptureV2 for $path::$connector{}
@@ -195,6 +203,11 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             for $path::$connector{}
             impl
             ConnectorIntegrationV2<PostCaptureVoid, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<PostCaptureVoidSync, PaymentFlowData, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>
+            for $path::$connector{}
+            impl ConnectorIntegrationV2<PreAuthorizeVoid, PaymentFlowData, PaymentsPreAuthorizeCancelData, PaymentsResponseData>
             for $path::$connector{}
             impl
             ConnectorIntegrationV2<Approve,PaymentFlowData, PaymentsApproveData, PaymentsResponseData>
@@ -438,6 +451,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -602,6 +616,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -758,6 +773,7 @@ default_imp_for_new_connector_integration_connector_authentication_token!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -913,6 +929,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -1077,6 +1094,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -1242,6 +1260,7 @@ default_imp_for_new_connector_integration_fetch_disputes!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Nomupay,
     connectors::Noon,
@@ -1407,6 +1426,7 @@ default_imp_for_new_connector_integration_dispute_sync!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Nomupay,
     connectors::Noon,
@@ -1571,6 +1591,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -1734,6 +1755,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -1908,6 +1930,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Nuvei,
     connectors::Opayo,
@@ -2074,6 +2097,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -2240,6 +2264,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -2406,6 +2431,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -2572,6 +2598,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -2738,6 +2765,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -2904,6 +2932,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -3070,6 +3099,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -3236,6 +3266,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -3400,6 +3431,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -3566,6 +3598,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -3732,6 +3765,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -3898,6 +3932,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -4064,6 +4099,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -4230,6 +4266,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -4394,6 +4431,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Payone,
     connectors::Opayo,
@@ -4534,6 +4572,7 @@ default_imp_for_new_connector_integration_frm!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Nomupay,
     connectors::Nordea,
@@ -4697,6 +4736,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nomupay,
     connectors::Nordea,
     connectors::Novalnet,
@@ -4849,6 +4889,7 @@ default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Nomupay,
     connectors::Nordea,
@@ -5027,6 +5068,7 @@ default_imp_for_new_connector_integration_external_vault!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -5196,6 +5238,7 @@ default_imp_for_new_connector_integration_external_vault_proxy!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nuvei,
@@ -5264,14 +5307,22 @@ default_imp_for_new_connector_integration_external_vault_proxy!(
 macro_rules! default_imp_for_new_connector_integration_webhook_register {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl ConfigureConnectorWebhookV2 for $path::$connector {}
             impl WebhookRegisterV2 for $path::$connector {}
+            impl WebhookGenerateSecretV2 for $path::$connector {}
             impl
                 ConnectorIntegrationV2<
                 ConnectorWebhookRegister,
                 ConnectorWebhookConfigurationFlowData,
                 ConnectorWebhookRegisterRequest,
                 ConnectorWebhookRegisterResponse,
+            > for $path::$connector
+            {}
+            impl
+                ConnectorIntegrationV2<
+                ConnectorWebhookGenerateSecret,
+                ConnectorWebhookConfigurationFlowData,
+                ConnectorWebhookGenerateSecretRequest,
+                ConnectorWebhookGenerateSecretResponse,
             > for $path::$connector
             {}
         )*
@@ -5359,6 +5410,7 @@ default_imp_for_new_connector_integration_webhook_register!(
     connectors::Netcetera,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payconex,
     connectors::Nmi,
     connectors::Nomupay,
     connectors::Noon,

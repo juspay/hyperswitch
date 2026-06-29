@@ -225,6 +225,7 @@ pub struct PaymentMethodNew {
     pub last_modified_by: Option<String>,
     pub customer_details: Option<Encryption>,
     pub compatibility_updated_at: Option<PrimitiveDateTime>,
+    pub external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 impl PaymentMethodNew {
@@ -301,7 +302,7 @@ pub enum PaymentMethodUpdate {
         network_tokenization_data: Option<Encryption>,
     },
     ConnectorMandateDetailsUpdate {
-        connector_mandate_details: Option<serde_json::Value>,
+        connector_mandate_details: Option<pii::SecretSerdeValue>,
         last_modified_by: Option<String>,
     },
     NetworkTokenDataUpdate {
@@ -415,6 +416,7 @@ impl PaymentMethodUpdate {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods)]
+#[router_derive::apply_changeset(target = PaymentMethod)]
 pub struct PaymentMethodUpdateInternal {
     payment_method_data: Option<Encryption>,
     last_used_at: Option<PrimitiveDateTime>,
@@ -439,77 +441,6 @@ pub struct PaymentMethodUpdateInternal {
     compatibility_updated_at: Option<PrimitiveDateTime>,
 }
 
-#[cfg(feature = "v2")]
-impl PaymentMethodUpdateInternal {
-    pub fn apply_changeset(self, source: PaymentMethod) -> PaymentMethod {
-        let Self {
-            payment_method_data,
-            last_used_at,
-            network_transaction_id,
-            network_transaction_link_id,
-            status,
-            locker_id,
-            payment_method_type_v2,
-            connector_mandate_details,
-            updated_by,
-            payment_method_subtype,
-            last_modified,
-            payment_method,
-            payment_method_type,
-            network_token_requestor_reference_id,
-            network_token_locker_id,
-            network_token_payment_method_data,
-            locker_fingerprint_id,
-            external_vault_source,
-            last_modified_by,
-            customer_details,
-            compatibility_updated_at,
-        } = self;
-
-        PaymentMethod {
-            customer_id: source.customer_id,
-            merchant_id: source.merchant_id,
-            created_at: source.created_at,
-            last_modified,
-            payment_method: payment_method.or(source.payment_method),
-            payment_method_type: payment_method_type.or(source.payment_method_type),
-            payment_method_data: payment_method_data.or(source.payment_method_data),
-            locker_id: locker_id.or(source.locker_id),
-            last_used_at: last_used_at.unwrap_or(source.last_used_at),
-            connector_mandate_details: connector_mandate_details
-                .or(source.connector_mandate_details),
-            customer_acceptance: source.customer_acceptance,
-            status: status.unwrap_or(source.status),
-            network_transaction_id: network_transaction_id.or(source.network_transaction_id),
-            network_transaction_link_id: network_transaction_link_id
-                .or(source.network_transaction_link_id),
-            client_secret: source.client_secret,
-            payment_method_billing_address: source.payment_method_billing_address,
-            updated_by: updated_by.or(source.updated_by),
-            locker_fingerprint_id: locker_fingerprint_id.or(source.locker_fingerprint_id),
-            payment_method_type_v2: payment_method_type_v2.or(source.payment_method_type_v2),
-            payment_method_subtype: payment_method_subtype.or(source.payment_method_subtype),
-            id: source.id,
-            payment_method_id: source.payment_method_id,
-            version: source.version,
-            network_token_requestor_reference_id: network_token_requestor_reference_id
-                .or(source.network_token_requestor_reference_id),
-            network_token_locker_id: network_token_locker_id.or(source.network_token_locker_id),
-            network_token_payment_method_data: network_token_payment_method_data
-                .or(source.network_token_payment_method_data),
-            external_vault_source: external_vault_source.or(source.external_vault_source),
-            external_vault_token_data: source.external_vault_token_data,
-            vault_type: source.vault_type,
-            created_by: source.created_by,
-            last_modified_by: last_modified_by.or(source.last_modified_by),
-            customer_details: customer_details.or(source.customer_details),
-            network_tokenization_data: source.network_tokenization_data,
-            auxiliary_fingerprint_id: source.auxiliary_fingerprint_id,
-            compatibility_updated_at,
-        }
-    }
-}
-
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 // Diesel derive assumes `id` as primary key unless explicitly configured.
@@ -518,8 +449,9 @@ impl PaymentMethodUpdateInternal {
 // Ref: https://diesel.rs/guides/all-about-updates/
 #[diesel(table_name = payment_methods)]
 #[diesel(primary_key(payment_method_id))]
+#[router_derive::apply_changeset(target = PaymentMethod)]
 pub struct PaymentMethodUpdateInternal {
-    metadata: Option<serde_json::Value>,
+    metadata: Option<pii::SecretSerdeValue>,
     payment_method_data: Option<Encryption>,
     last_used_at: Option<PrimitiveDateTime>,
     network_transaction_id: Option<String>,
@@ -540,97 +472,9 @@ pub struct PaymentMethodUpdateInternal {
     customer_details: Option<Encryption>,
     network_tokenization_data: Option<Encryption>,
     payment_method_type_v2: Option<storage_enums::PaymentMethod>,
-    payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+    payment_method_subtype: Option<String>,
     id: Option<String>,
     compatibility_updated_at: Option<PrimitiveDateTime>,
-}
-
-#[cfg(feature = "v1")]
-impl PaymentMethodUpdateInternal {
-    pub fn apply_changeset(self, source: PaymentMethod) -> PaymentMethod {
-        let Self {
-            metadata,
-            payment_method_data,
-            last_used_at,
-            network_transaction_id,
-            network_transaction_link_id,
-            status,
-            locker_id,
-            network_token_requestor_reference_id,
-            payment_method,
-            connector_mandate_details,
-            updated_by,
-            payment_method_type,
-            payment_method_issuer,
-            last_modified,
-            network_token_locker_id,
-            network_token_payment_method_data,
-            scheme,
-            last_modified_by,
-            customer_details,
-            network_tokenization_data,
-            payment_method_type_v2,
-            payment_method_subtype,
-            id,
-            compatibility_updated_at,
-        } = self;
-
-        PaymentMethod {
-            customer_id: source.customer_id,
-            merchant_id: source.merchant_id,
-            payment_method_id: source.payment_method_id,
-            accepted_currency: source.accepted_currency,
-            scheme: scheme.or(source.scheme),
-            token: source.token,
-            cardholder_name: source.cardholder_name,
-            issuer_name: source.issuer_name,
-            issuer_country: source.issuer_country,
-            payer_country: source.payer_country,
-            is_stored: source.is_stored,
-            swift_code: source.swift_code,
-            direct_debit_token: source.direct_debit_token,
-            created_at: source.created_at,
-            locker_fingerprint_id: source.locker_fingerprint_id,
-            last_modified,
-            payment_method: payment_method.or(source.payment_method),
-            payment_method_type: payment_method_type.or(source.payment_method_type),
-            payment_method_issuer: payment_method_issuer.or(source.payment_method_issuer),
-            payment_method_issuer_code: source.payment_method_issuer_code,
-            metadata: metadata.map_or(source.metadata, |v| Some(v.into())),
-            payment_method_data: payment_method_data.or(source.payment_method_data),
-            locker_id: locker_id.or(source.locker_id),
-            last_used_at: last_used_at.unwrap_or(source.last_used_at),
-            connector_mandate_details: connector_mandate_details
-                .or(source.connector_mandate_details),
-            customer_acceptance: source.customer_acceptance,
-            status: status.unwrap_or(source.status),
-            network_transaction_id: network_transaction_id.or(source.network_transaction_id),
-            network_transaction_link_id: network_transaction_link_id
-                .or(source.network_transaction_link_id),
-            client_secret: source.client_secret,
-            payment_method_billing_address: source.payment_method_billing_address,
-            updated_by: updated_by.or(source.updated_by),
-            version: source.version,
-            network_token_requestor_reference_id: network_token_requestor_reference_id
-                .or(source.network_token_requestor_reference_id),
-            network_token_locker_id: network_token_locker_id.or(source.network_token_locker_id),
-            network_token_payment_method_data: network_token_payment_method_data
-                .or(source.network_token_payment_method_data),
-            external_vault_source: source.external_vault_source,
-            vault_type: source.vault_type,
-            created_by: source.created_by,
-            last_modified_by: last_modified_by.or(source.last_modified_by),
-            customer_details: customer_details.or(source.customer_details),
-            network_tokenization_data: network_tokenization_data
-                .or(source.network_tokenization_data),
-            payment_method_type_v2: payment_method_type_v2.or(source.payment_method_type_v2),
-            payment_method_subtype: payment_method_subtype
-                .map(|payment_method_subtype| payment_method_subtype.to_string())
-                .or(source.payment_method_subtype),
-            id: id.or(source.id),
-            compatibility_updated_at: compatibility_updated_at.or(source.compatibility_updated_at),
-        }
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -642,7 +486,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_used_at,
                 last_modified_by,
             } => Self {
-                metadata,
+                metadata: metadata.map(Secret::new),
                 payment_method_data: None,
                 last_used_at: Some(last_used_at),
                 network_transaction_id: None,
@@ -858,7 +702,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details,
                 network_tokenization_data,
             } => Self {
-                metadata,
+                metadata: metadata.map(Secret::new),
                 payment_method_data,
                 last_used_at,
                 network_transaction_id: None,
@@ -895,7 +739,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 locker_id: None,
                 network_token_requestor_reference_id: None,
                 payment_method: None,
-                connector_mandate_details,
+                connector_mandate_details: connector_mandate_details.map(|v| v.expose()),
                 network_transaction_id: None,
                 network_transaction_link_id: None,
                 updated_by: None,
@@ -1040,7 +884,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                     customer_details: None,
                     network_tokenization_data: None,
                     payment_method_type_v2,
-                    payment_method_subtype,
+                    payment_method_subtype: payment_method_subtype.map(|x| x.to_string()),
                     id: Some(id),
                     compatibility_updated_at: Some(now),
                 }
@@ -1441,7 +1285,6 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             network_token_payment_method_data: payment_method_new
                 .network_token_payment_method_data
                 .clone(),
-            external_vault_source: None,
             external_vault_token_data: payment_method_new.external_vault_token_data.clone(),
             vault_type: payment_method_new.vault_type,
             created_by: payment_method_new.created_by.clone(),
@@ -1449,6 +1292,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             customer_details: payment_method_new.customer_details.clone(),
             network_tokenization_data: None,
             compatibility_updated_at: payment_method_new.compatibility_updated_at,
+            external_vault_source: payment_method_new.external_vault_source.clone(),
         }
     }
 }

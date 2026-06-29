@@ -398,3 +398,7 @@ api_key = "API Key"
 [absa_sanlam]
 api_key = "API Key"
 key1 = "Merchant Id"
+
+[payconex]
+api_key = "API Key"
+key1 = "Account Id"

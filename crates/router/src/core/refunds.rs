@@ -483,15 +483,10 @@ pub async fn trigger_refund_to_gateway(
                 refund.refund_id
             )
         })?;
-    utils::trigger_refund_outgoing_webhook(
-        state,
-        platform,
-        &response,
-        payment_attempt.profile_id.clone(),
-    )
-    .await
-    .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
-    .ok();
+    utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
+        .await
+        .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
+        .ok();
     Ok((response, router_data_res.raw_connector_response))
 }
 
@@ -740,10 +735,10 @@ pub async fn refund_retrieve_core(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let payment_attempt = db
-        .find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
-            &refund.connector_transaction_id,
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             payment_id,
             processor_merchant_id,
+            &refund.attempt_id,
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store(),
         )
@@ -1116,15 +1111,10 @@ pub async fn sync_refund_with_gateway(
                 refund.refund_id
             )
         })?;
-    utils::trigger_refund_outgoing_webhook(
-        state,
-        platform,
-        &response,
-        payment_attempt.profile_id.clone(),
-    )
-    .await
-    .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
-    .ok();
+    utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
+        .await
+        .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
+        .ok();
     Ok((response, router_data_res.raw_connector_response))
 }
 
@@ -2136,10 +2126,10 @@ pub async fn trigger_refund_execute_workflow(
     match (&refund.sent_to_gateway, &refund.refund_status) {
         (false, enums::RefundStatus::Pending) => {
             let payment_attempt = db
-                .find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
-                    &refund.connector_transaction_id,
-                    &refund_core.payment_id,
+                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                    &refund.payment_id,
                     processor_merchant_id,
+                    &refund.attempt_id,
                     processor_storage_scheme,
                     platform.get_processor().get_key_store(),
                 )

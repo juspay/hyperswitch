@@ -5,12 +5,18 @@ pub mod payment_approve;
 pub mod payment_cancel;
 #[cfg(feature = "v1")]
 pub mod payment_cancel_post_capture;
+
+#[cfg(feature = "v1")]
+pub mod payment_cancel_post_capture_sync;
+
 #[cfg(feature = "v1")]
 pub mod payment_capture;
 #[cfg(feature = "v1")]
 pub mod payment_complete_authorize;
 #[cfg(feature = "v1")]
 pub mod payment_confirm;
+#[cfg(feature = "v1")]
+pub mod payment_confirm_external_vault_proxy;
 #[cfg(feature = "v1")]
 pub mod payment_create;
 #[cfg(feature = "v1")]
@@ -87,11 +93,14 @@ pub use self::payment_update_intent::PaymentUpdateIntent;
 #[cfg(feature = "v1")]
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
-    payment_cancel_post_capture::PaymentCancelPostCapture, payment_capture::PaymentCapture,
-    payment_confirm::PaymentConfirm, payment_create::PaymentCreate,
-    payment_post_session_tokens::PaymentPostSessionTokens, payment_reject::PaymentReject,
-    payment_session::PaymentSession, payment_start::PaymentStart, payment_status::PaymentStatus,
-    payment_update::PaymentUpdate, payment_update_metadata::PaymentUpdateMetadata,
+    payment_cancel_post_capture::PaymentCancelPostCapture,
+    payment_cancel_post_capture_sync::PaymentCancelPostCaptureSync,
+    payment_capture::PaymentCapture, payment_confirm::PaymentConfirm,
+    payment_confirm_external_vault_proxy::PaymentExternalVaultProxyConfirm,
+    payment_create::PaymentCreate, payment_post_session_tokens::PaymentPostSessionTokens,
+    payment_reject::PaymentReject, payment_session::PaymentSession, payment_start::PaymentStart,
+    payment_status::PaymentStatus, payment_update::PaymentUpdate,
+    payment_update_metadata::PaymentUpdateMetadata,
     payments_extend_authorization::PaymentExtendAuthorization,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
@@ -196,6 +205,27 @@ pub trait ValidateRequest<F, R, D> {
     ) -> RouterResult<ValidateResult>;
 }
 
+#[cfg(feature = "v1")]
+/// Minimal payment information that can be passed to get_trackers to avoid redundant DB calls
+pub struct PaymentPreFetchedInformation {
+    pub payment_intent: storage::PaymentIntent,
+    pub payment_attempt: storage::PaymentAttempt,
+}
+
+/// Identifies the payments core that invoked `get_trackers`.
+///
+/// Threaded into the v1 `get_trackers` (like `auth_flow`) so that, on a single-call
+/// create+confirm (`confirm = true`), `PaymentCreate` knows which confirm operation to
+/// hand off to: the standard `PaymentConfirm` or, for the external vault proxy core,
+/// `PaymentExternalVaultProxyConfirm`. Every other operation ignores it.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PaymentFlowKind {
+    #[default]
+    Standard,
+    ExternalVaultProxy,
+}
+
 #[cfg(feature = "v2")]
 pub struct GetTrackerResponse<D> {
     pub payment_data: D,
@@ -223,9 +253,11 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         request: &R,
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
+        flow_kind: PaymentFlowKind,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        payment_pre_fetched_info: Option<PaymentPreFetchedInformation>,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
     #[cfg(feature = "v2")]
@@ -614,6 +646,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _platform: &domain::Platform,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -650,6 +683,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
         _request_payment_method_data: Option<&domain::PaymentMethodData>,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
