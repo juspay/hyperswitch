@@ -35,8 +35,7 @@ use hyperswitch_domain_models::{
         SetupMandateRequestData, SyncRequestType,
     },
     router_response_types::{
-        NotifyConnectorResponseData, PaymentsResponseData, PayoutsResponseData, RedirectForm,
-        RefundsResponseData,
+        PaymentsResponseData, PayoutsResponseData, RedirectForm, RefundsResponseData,
     },
 };
 pub use hyperswitch_interfaces::{
@@ -827,6 +826,60 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 .map(payments_grpc::PaymentMethodType::foreign_try_from)
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
+            mandate_reference: Option::<payments_grpc::ConnectorMandateReferenceId>::foreign_from(
+                router_data,
+            ),
+        })
+    }
+}
+
+impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
+    for payments_grpc::ConnectorMandateReferenceId
+{
+    fn foreign_from(value: &mandates::ConnectorMandateReferenceId) -> Self {
+        Self {
+            connector_mandate_id: value.get_connector_mandate_id(),
+            payment_method_id: value.get_payment_method_id(),
+            connector_mandate_request_reference_id: value
+                .get_connector_mandate_request_reference_id(),
+        }
+    }
+}
+
+impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
+    for Option<payments_grpc::ConnectorMandateReferenceId>
+{
+    fn foreign_from(
+        router_data: &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+    ) -> Self {
+        let structured = router_data.request.mandate_id.as_ref().and_then(|m| {
+            match m.mandate_reference_id.as_ref()? {
+                mandates::MandateReferenceId::ConnectorMandateId(r) => Some(r),
+                _ => None,
+            }
+        });
+
+        // Each field is sourced independently — propagate whatever HS has,
+        // None where it doesn't. `connector_mandate_id` additionally falls
+        // back to the bare stored reference id on RouterData (the common
+        // PSync case for off-session-mandate setups, e.g. nexixpay).
+        let connector_mandate_id = structured
+            .and_then(|r| r.get_connector_mandate_id())
+            .or_else(|| router_data.connector_mandate_request_reference_id.clone());
+        let payment_method_id = structured.and_then(|r| r.get_payment_method_id());
+        let connector_mandate_request_reference_id =
+            structured.and_then(|r| r.get_connector_mandate_request_reference_id());
+
+        if connector_mandate_id.is_none()
+            && payment_method_id.is_none()
+            && connector_mandate_request_reference_id.is_none()
+        {
+            return None;
+        }
+        Some(payments_grpc::ConnectorMandateReferenceId {
+            connector_mandate_id,
+            payment_method_id,
+            connector_mandate_request_reference_id,
         })
     }
 }
@@ -8002,33 +8055,5 @@ impl ForeignFrom<&common_types::payments::StripeSplitPaymentRequest>
             transfer_account_id: stripe.transfer_account_id.clone(),
             on_behalf_of: stripe.on_behalf_of.clone(),
         }
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::NotifyConnectorResponse>
-    for NotifyConnectorResponseData
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        grpc_response: payments_grpc::NotifyConnectorResponse,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status_code: u16::try_from(grpc_response.status_code)
-                .change_context(UnifiedConnectorServiceError::ParsingFailed)
-                .attach_printable("Failed to parse status code from UCS response")?,
-            error_code: grpc_response.error.as_ref().and_then(|error_info| {
-                error_info
-                    .connector_details
-                    .as_ref()
-                    .and_then(|cd| cd.code.clone())
-            }),
-            error_message: grpc_response.error.as_ref().and_then(|error_info| {
-                error_info
-                    .connector_details
-                    .as_ref()
-                    .and_then(|cd| cd.message.clone())
-            }),
-        })
     }
 }
