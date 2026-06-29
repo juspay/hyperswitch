@@ -960,13 +960,19 @@ export const connectorDetails = {
               wallet_name: "apple_pay",
               connector: "trustpay",
               delayed_session_token: true,
-              sdk_next_action: { next_action: "confirm", should_block_confirm: null },
+              sdk_next_action: {
+                next_action: "confirm",
+                should_block_confirm: null,
+              },
             },
             {
               wallet_name: "google_pay",
               connector: "trustpay",
               delayed_session_token: true,
-              sdk_next_action: { next_action: "confirm", should_block_confirm: null },
+              sdk_next_action: {
+                next_action: "confirm",
+                should_block_confirm: null,
+              },
             },
           ],
         },
