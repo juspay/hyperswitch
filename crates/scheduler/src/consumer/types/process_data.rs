@@ -48,12 +48,12 @@ impl ConnectorPTMapping {
             default_mapping: RetryMapping {
                 start_after: 60,
                 frequencies: vec![
-                    (300, 3),      // 5 min * 3 = 15 min
-                    (900, 3),      // 15 min * 3 = 45 min
-                    (3600, 5),     // 1 hour * 5 = 5 hours
-                    (10800, 6),    // 3 hour * 6 = 18 hours
-                    (21600, 12),   // 6 hour * 12 = 72 hours
-                    (43200, 6),    // 12 hour * 6 = 72 hours
+                    (300, 3),    // 5 min * 3 = 15 min
+                    (900, 3),    // 15 min * 3 = 45 min
+                    (3600, 5),   // 1 hour * 5 = 5 hours
+                    (10800, 6),  // 3 hour * 6 = 18 hours
+                    (21600, 12), // 6 hour * 12 = 72 hours
+                    (43200, 6),  // 12 hour * 6 = 72 hours
                 ],
             },
             max_retries_count: 35,
