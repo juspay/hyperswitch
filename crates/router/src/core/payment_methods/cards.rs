@@ -1655,15 +1655,17 @@ impl PaymentMethodsController for PmCards<'_> {
             api_enums::PaymentMethod::BankDebit => match req.payment_method_data.clone() {
                 Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
                     bank_debit_data,
-                )) => Box::pin(self.add_bank_debit_to_locker(
-                    req.clone(),
-                    bank_debit_data,
-                    self.provider.get_key_store(),
-                    &customer_id,
-                    customer_obj
-                        .get_global_id()
-                        .map(|id| id.get_string_repr().to_owned()),
-                ))
+                )) => Box::pin(
+                    self.add_bank_debit_to_locker(
+                        req.clone(),
+                        bank_debit_data,
+                        self.provider.get_key_store(),
+                        &customer_id,
+                        customer_obj
+                            .get_global_id()
+                            .map(|id| id.get_string_repr().to_owned()),
+                    ),
+                )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Add BankDebit Failed"),
