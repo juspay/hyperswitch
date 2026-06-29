@@ -6318,16 +6318,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             .metadata
             .clone()
             .map(Secret::new);
-        let router_base_url = &additional_data.router_base_url;
-        let connector_name = &additional_data.connector_name;
-        let attempt = &payment_data.payment_attempt;
-        let complete_authorize_url = Some(helpers::create_complete_authorize_url(
-            router_base_url,
-            attempt,
-            connector_name,
-            payment_data.creds_identifier.as_deref(),
-        ));
-
         Ok(Self {
             amount: net_amount.get_amount_as_i64(), //need to change once we move to connector module
             minor_amount: amount,
@@ -6354,7 +6344,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             payment_method: payment_data.payment_attempt.payment_method,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             split_payments: payment_data.payment_intent.split_payments,
-            complete_authorize_url,
             capture_method: payment_data.payment_attempt.capture_method,
         })
     }
