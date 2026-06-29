@@ -537,7 +537,9 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
                     field_name: "token",
                 })
                 .attach_printable("Missing instance id for applepay , Trustpay")?,
-            _ => todo!(),
+            _ => Err(errors::ConnectorError::MismatchedPaymentData).attach_printable(
+                "Complete Authorize is supported only supported for Applepay for trustpay",
+            )?,
         };
 
         Ok(format!(
