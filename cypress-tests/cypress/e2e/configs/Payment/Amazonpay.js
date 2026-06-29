@@ -65,6 +65,9 @@ export const connectorDetails = {
       },
     }),
     AmazonPay: getCustomExchange({
+      Configs: {
+        skipBillingAssertion: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "amazon_pay",
