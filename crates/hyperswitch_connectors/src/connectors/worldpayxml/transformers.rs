@@ -574,7 +574,7 @@ enum PaymentMethod {
     CardSSL(CardSSL),
 
     #[serde(rename = "FF_DISBURSE-SSL")]
-    FastAccessSSL(FastAccessData),
+    FastAccessSSL(Box<FastAccessData>),
 
     #[serde(rename = "PAYWITHGOOGLE-SSL")]
     PayWithGoogleSSL(GooglePayData),
@@ -3071,13 +3071,13 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
 
         let payment_details = PaymentDetails {
             action: None,
-            payment_method: PaymentMethod::FastAccessSSL(FastAccessData {
+            payment_method: PaymentMethod::FastAccessSSL(Box::new(FastAccessData {
                 recipient: Recipient {
                     payment_instrument,
                     address,
                 },
                 purpose_of_payment: purpose_of_payment_code,
-            }),
+            })),
             session: None,
             stored_credentials: None,
         };
