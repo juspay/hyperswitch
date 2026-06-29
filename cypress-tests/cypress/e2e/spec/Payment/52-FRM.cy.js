@@ -29,7 +29,10 @@ describe("FRM - Fraud Risk Management Tests", () => {
       })
       .then(() => {
         if (skip) return;
-        cy.setFrmRoutingAlgorithm(fixtures.frmRoutingAlgorithmBody, globalState);
+        cy.setFrmRoutingAlgorithm(
+          fixtures.frmRoutingAlgorithmBody,
+          globalState
+        );
       });
   });
 
