@@ -99,6 +99,8 @@ Corse-du-Sud = "Corse-du-Sud" # Is a state in France
 Haute-Corse = "Haute-Corse" # Is a state in France
 Fram = "Fram" # Is a state in Slovenia
 typ = "typ" # Token.io JWT header required parameter
+fo = "fo" # Rust match arm variable binding in gateway.rs UCS shadow execution
+nd = "nd" # Rust closure parameter for network_details in transformers.rs
 
 
 [default.extend-words]
@@ -118,6 +120,8 @@ requestor = "requestor" #Used in external 3ds flows
 substituters = "substituters" # Present in `flake.nix`
 unsuccess = "unsuccess" # Used in cryptopay request
 automatico = "automatico" # Pix Automático (Portuguese for Automatic) - payment method name
+IOF = "IOF" # Brazilian Imposto sobre Operações Financeiras (Financial Operations Tax)
+iof = "iof" # Brazilian IOF tax abbreviation, used in iof_percentage field name
 
 [files]
 extend-exclude = [
