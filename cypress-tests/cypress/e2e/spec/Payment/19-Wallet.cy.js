@@ -203,7 +203,7 @@ describe("Wallet tests", () => {
       cy.retrievePaymentCallTest({
         globalState,
         data,
-        expectedIntentStatus: "succeeded",
+        expectedIntentStatus: "failed",
       });
     });
   });

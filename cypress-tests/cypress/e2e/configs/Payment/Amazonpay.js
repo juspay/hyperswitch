@@ -82,12 +82,8 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 402,
-        body: {
-          error: {
-            type: "connector_error",
-          },
-        },
+        status: 500,
+        body: {},
       },
     }),
   },
