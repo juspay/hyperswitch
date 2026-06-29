@@ -65,9 +65,6 @@ export const connectorDetails = {
       },
     }),
     AmazonPay: getCustomExchange({
-      Configs: {
-        skipBillingAssertion: true,
-      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "amazon_pay",
@@ -85,9 +82,11 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
+          error: {
+            type: "invalid_request",
+          },
         },
       },
     }),

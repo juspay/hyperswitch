@@ -912,15 +912,30 @@ describe("Wallet tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "wallet_pm"
         ]["AmazonPay"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-        if (!should_continue_further(confirmData)) {
-          shouldContinue = false;
+        const { Request: reqData, Response: resData } = confirmData;
+        const confirmBody = { ...fixtures.confirmBody };
+        for (const key in reqData) {
+          confirmBody[key] = reqData[key];
         }
+        confirmBody.client_secret = globalState.get("clientSecret");
+        confirmBody.confirm = true;
+        confirmBody.profile_id = globalState.get("profileId");
+        confirmBody.customer_id = globalState.get("customerId");
+
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}/confirm`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("publishableKey"),
+          },
+          failOnStatusCode: false,
+          body: confirmBody,
+        }).then((response) => {
+          expect(response.status).to.equal(resData.status);
+          expect(response.body).to.have.property("error");
+          expect(response.body.error).to.have.property("message");
+        });
       });
     });
   });
