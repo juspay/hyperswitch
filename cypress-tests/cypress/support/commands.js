@@ -3143,6 +3143,16 @@ Cypress.Commands.add(
                         response.body.next_action.redirect_to_url
                       );
                     }
+                    if (
+                      resData.Response &&
+                      resData.Response.body &&
+                      resData.Response.body.status
+                    ) {
+                      expect(
+                        response.body.status,
+                        "status should match config"
+                      ).to.equal(resData.Response.body.status);
+                    }
                   } else if (response.body.status === "failed") {
                     expect(response.body.error_code).to.equal(
                       resData.body.error_code

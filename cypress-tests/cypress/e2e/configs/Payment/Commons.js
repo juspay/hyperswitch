@@ -1711,6 +1711,170 @@ export const connectorDetails = {
     }),
     SyncRefund: getCustomExchange({}),
     SyncRefundScheduled: getCustomExchange({}),
+    AfterpayClearplay: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "afterpay_clearpay",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            afterpay_clearpay_redirect: {},
+          },
+        },
+        billing: {
+          phone: {
+            number: "4155552671",
+            country_code: "+1",
+          },
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+    }),
+    Alma: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "alma",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            alma_redirect: {},
+          },
+        },
+        billing: {
+          phone: {
+            number: "612345678",
+            country_code: "+33",
+          },
+          address: {
+            line1: "123 Rue de Test",
+            city: "Paris",
+            state: "Ile-de-France",
+            zip: "75001",
+            country: "FR",
+            first_name: "Jean",
+            last_name: "Dupont",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123 Rue de Test",
+            city: "Paris",
+            state: "Ile-de-France",
+            zip: "75001",
+            country: "FR",
+            first_name: "Jean",
+            last_name: "Dupont",
+          },
+        },
+      },
+    }),
+    Atome: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "atome",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            atome_redirect: {},
+          },
+        },
+        billing: {
+          phone: {
+            number: "91234567",
+            country_code: "+65",
+          },
+          address: {
+            line1: "123 Test Street",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+    }),
+    CaptureOnWrongStatus: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially_captured_and_capturable, processing",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    ConfirmWithoutPmData: getCustomExchange({
+      Request: {
+        payment_method: undefined,
+        payment_method_type: undefined,
+        payment_experience: undefined,
+        payment_method_data: undefined,
+        order_details: undefined,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+          },
+        },
+      },
+    }),
   },
   real_time_payment_pm: {
     PaymentIntent: getCustomExchange({
