@@ -1148,8 +1148,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 // function cannot box over on stable Rust (see the `[#350]` note above).
                 // Narrow to specific connected merchants when requested.
                 if let Some(processor_merchant_id) = &params.processor_merchant_id {
-                    query = query
-                        .filter(pi_dsl::processor_merchant_id.eq_any(processor_merchant_id.clone()));
+                    query = query.filter(
+                        pi_dsl::processor_merchant_id.eq_any(processor_merchant_id.clone()),
+                    );
                 }
                 if let Some(customer_id) = &params.customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
@@ -1208,8 +1209,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         .filter(pa_dsl::authentication_type.eq_any(authentication_type.clone()));
                 }
                 if let Some(merchant_connector_id) = &params.merchant_connector_id {
-                    query = query
-                        .filter(pa_dsl::merchant_connector_id.eq_any(merchant_connector_id.clone()));
+                    query = query.filter(
+                        pa_dsl::merchant_connector_id.eq_any(merchant_connector_id.clone()),
+                    );
                 }
                 if let Some(card_network) = &params.card_network {
                     query = query.filter(pa_dsl::card_network.eq_any(card_network.clone()));
@@ -1267,8 +1269,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             PaymentIntentFetchConstraints::List(params) => {
                 // Narrow to specific connected merchants when requested.
                 if let Some(processor_merchant_id) = &params.processor_merchant_id {
-                    query = query
-                        .filter(pi_dsl::processor_merchant_id.eq_any(processor_merchant_id.clone()));
+                    query = query.filter(
+                        pi_dsl::processor_merchant_id.eq_any(processor_merchant_id.clone()),
+                    );
                 }
                 if let Some(customer_id) = &params.customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
@@ -1327,8 +1330,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         .filter(pa_dsl::authentication_type.eq_any(authentication_type.clone()));
                 }
                 if let Some(merchant_connector_id) = &params.merchant_connector_id {
-                    query = query
-                        .filter(pa_dsl::merchant_connector_id.eq_any(merchant_connector_id.clone()));
+                    query = query.filter(
+                        pa_dsl::merchant_connector_id.eq_any(merchant_connector_id.clone()),
+                    );
                 }
                 if let Some(card_network) = &params.card_network {
                     query = query.filter(pa_dsl::card_network.eq_any(card_network.clone()));
