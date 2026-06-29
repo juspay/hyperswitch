@@ -827,6 +827,53 @@ export const connectorDetails = {
         },
       },
     },
+    SepaMandate: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE24300209002411761956",
+              bank_account_holder_name: "Max Mustermann",
+            },
+          },
+        },
+        billing: {
+          email: "test.accepted@novalnet.de",
+          address: {
+            country: "DE",
+            first_name: "Max",
+            last_name: "Mustermann",
+          },
+        },
+        customer_acceptance: customerAcceptance,
+        setup_future_usage: "off_session",
+        mandate_data: multiUseMandateData,
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    BankdebitMIT: {
+      Request: {
+        currency: "EUR",
+        off_session: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
   wallet_pm: {
     PaymentIntent: () =>
