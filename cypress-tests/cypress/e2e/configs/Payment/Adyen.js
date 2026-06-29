@@ -2720,12 +2720,8 @@ export const connectorDetails = {
     PaymentIntent: (paymentMethodType) => {
       if (paymentMethodType === "Ach") {
         return {
-          Configs: {
-            TRIGGER_SKIP: true,
-          },
           Request: {
             currency: "USD",
-            setup_future_usage: "off_session",
           },
           Response: {
             status: 200,
@@ -2799,18 +2795,61 @@ export const connectorDetails = {
         },
       },
     },
-    Ach: {
-      Configs: {
-        TRIGGER_SKIP: true,
+    SepaMandate: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "John Doe",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Amsterdam",
+            state: "North Holland",
+            zip: "1012",
+            country: "NL",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        customer_acceptance: customerAcceptance,
+        setup_future_usage: "off_session",
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "EUR",
+            },
+          },
+        },
+        payment_type: "new_mandate",
+        currency: "EUR",
       },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    Ach: {
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "ach",
         payment_method_data: {
           bank_debit: {
             ach_bank_debit: {
-              account_number: "000123456789",
-              routing_number: "121000358",
+              account_number: "1234567890",
+              routing_number: "011000138",
               bank_type: "checking",
               bank_account_holder_name: "John Doe",
             },
@@ -2822,7 +2861,7 @@ export const connectorDetails = {
             line2: "Harrison Street",
             line3: "Harrison Street",
             city: "San Francisco",
-            state: "California",
+            state: "CA",
             zip: "94122",
             country: "US",
             first_name: "John",
@@ -2830,16 +2869,7 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: customerAcceptance,
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            multi_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
-        payment_type: "new_mandate",
+        currency: "USD",
       },
       Response: {
         status: 200,
@@ -2885,6 +2915,7 @@ export const connectorDetails = {
           },
         },
         payment_type: "new_mandate",
+        currency: "GBP",
       },
       Response: {
         status: 200,
@@ -2921,6 +2952,18 @@ export const connectorDetails = {
             message: "Selected payment method through Adyen is not implemented",
             code: "IR_00",
           },
+        },
+      },
+    },
+    BankdebitMIT: {
+      Request: {
+        currency: "EUR",
+        off_session: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
