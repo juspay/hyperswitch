@@ -1835,7 +1835,7 @@
         ]
       }
     },
-    "/v2/customers/ref/{merchant_reference_id}": {
+    "/v1/customers/reference/{merchant_reference_id}": {
       "get": {
         "tags": [
           "Customers"

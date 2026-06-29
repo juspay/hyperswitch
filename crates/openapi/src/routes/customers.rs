@@ -207,7 +207,7 @@ pub async fn customers_retrieve() {}
 /// Retrieves a customer's details using the merchant supplied reference ID.
 #[utoipa::path(
     get,
-    path = "/v2/customers/ref/{merchant_reference_id}",
+    path = "/v1/customers/reference/{merchant_reference_id}",
     params (
         (
             "merchant_reference_id" = String,

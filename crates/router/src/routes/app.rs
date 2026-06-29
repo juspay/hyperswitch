@@ -1420,7 +1420,7 @@ impl Customers {
                         web::resource("/migrate/global-id")
                             .route(web::post().to(customers::migrate::migrate_global_id)),
                     )
-                    .service(web::resource("/ref/{merchant_reference_id}").route(
+                    .service(web::resource("/reference/{merchant_reference_id}").route(
                         web::get().to(customers::customers_retrieve_by_merchant_reference_id),
                     ))
                     .service(
