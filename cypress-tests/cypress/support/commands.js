@@ -2336,17 +2336,32 @@ Cypress.Commands.add(
 
     // Build request body - handle override from config
     const body = { ...sessionTokenBody };
+    const explicitlyRemoved = new Set();
     if (reqData) {
       for (const key in reqData) {
-        body[key] = reqData[key];
+        if (reqData[key] === null) {
+          delete body[key];
+          explicitlyRemoved.add(key);
+        } else {
+          body[key] = reqData[key];
+        }
       }
     }
 
     // Set payment_id and client_secret from globalState unless overridden
-    if (!body.payment_id) {
+    // or explicitly removed via null in config
+    if (
+      !body.payment_id ||
+      (typeof body.payment_id === "string" && body.payment_id.includes("{{"))
+    ) {
       body.payment_id = globalState.get("paymentID");
     }
-    if (!body.client_secret) {
+    if (
+      !explicitlyRemoved.has("client_secret") &&
+      (!body.client_secret ||
+        (typeof body.client_secret === "string" &&
+          body.client_secret.includes("{{")))
+    ) {
       body.client_secret = globalState.get("clientSecret");
     }
 
@@ -2373,31 +2388,45 @@ Cypress.Commands.add(
 
         // Handle success case (200)
         if (response.status === 200 && resData?.body) {
-          const expectedSessionToken = resData.body.session_token;
-          const actualSessionToken = response.body.session_token;
+          const expectedTokens = resData.body.session_token;
+          const actualTokens = response.body.session_token;
 
-          // Verify session_token object exists
-          expect(actualSessionToken, "session_token exists").to.exist;
+          // Verify session_token array exists
+          expect(actualTokens, "session_token exists").to.exist;
 
-          // Verify expected fields
-          if (expectedSessionToken) {
-            if (expectedSessionToken.delayed_session_token !== undefined) {
-              expect(
-                actualSessionToken.delayed_session_token,
-                "delayed_session_token"
-              ).to.equal(expectedSessionToken.delayed_session_token);
-            }
-            if (expectedSessionToken.connector) {
-              expect(actualSessionToken.connector, "connector").to.equal(
-                expectedSessionToken.connector
-              );
-            }
-            if (expectedSessionToken.sdk_next_action) {
-              expect(
-                actualSessionToken.sdk_next_action,
-                "sdk_next_action"
-              ).to.deep.equal(expectedSessionToken.sdk_next_action);
-            }
+          if (Array.isArray(expectedTokens)) {
+            // Verify array length
+            expect(actualTokens.length, "arrayLength").to.equal(
+              expectedTokens.length
+            );
+
+            // Verify specific fields in each session_token object
+            expectedTokens.forEach((expectedToken, index) => {
+              const actualToken = actualTokens[index];
+
+              if (expectedToken.wallet_name) {
+                expect(actualToken.wallet_name, "wallet_name").to.equal(
+                  expectedToken.wallet_name
+                );
+              }
+              if (expectedToken.connector) {
+                expect(actualToken.connector, "connector").to.equal(
+                  expectedToken.connector
+                );
+              }
+              if (expectedToken.delayed_session_token !== undefined) {
+                expect(
+                  actualToken.delayed_session_token,
+                  "delayed_session_token"
+                ).to.equal(expectedToken.delayed_session_token);
+              }
+              if (expectedToken.sdk_next_action) {
+                expect(
+                  actualToken.sdk_next_action,
+                  "sdk_next_action"
+                ).to.deep.equal(expectedToken.sdk_next_action);
+              }
+            });
           }
         }
         // Handle error cases
