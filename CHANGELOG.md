@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.25.0-hotfix2
+
+### Bug Fixes
+
+- **events:** Suppress shadow UCS connector logs ([#13069](https://github.com/juspay/hyperswitch/pull/13069)) ([`42204e9`](https://github.com/juspay/hyperswitch/commit/42204e9eed91180bda3cff0b35d6f245fd500169))
+
+**Full Changelog:** [`2026.06.25.0-hotfix1...2026.06.25.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.06.25.0-hotfix1...2026.06.25.0-hotfix2)
+
+- - -
+
 ## 2026.06.25.0-hotfix1
 
 ### Bug Fixes
