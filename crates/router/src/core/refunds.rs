@@ -740,10 +740,10 @@ pub async fn refund_retrieve_core(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let payment_attempt = db
-        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+        .find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
+            &refund.connector_transaction_id,
             payment_id,
             processor_merchant_id,
-            &refund.attempt_id,
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store(),
         )
@@ -2136,10 +2136,10 @@ pub async fn trigger_refund_execute_workflow(
     match (&refund.sent_to_gateway, &refund.refund_status) {
         (false, enums::RefundStatus::Pending) => {
             let payment_attempt = db
-                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                    &refund.payment_id,
+                .find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
+                    &refund.connector_transaction_id,
+                    &refund_core.payment_id,
                     processor_merchant_id,
-                    &refund.attempt_id,
                     processor_storage_scheme,
                     platform.get_processor().get_key_store(),
                 )

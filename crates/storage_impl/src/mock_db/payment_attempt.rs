@@ -321,6 +321,19 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     #[cfg(feature = "v1")]
+    async fn find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
+        &self,
+        _connector_transaction_id: &common_utils::types::ConnectorTransactionId,
+        _payment_id: &common_utils::id_type::PaymentId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _merchant_key_store: &MerchantKeyStore,
+    ) -> CustomResult<PaymentAttempt, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "v1")]
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_processor_merchant_id(

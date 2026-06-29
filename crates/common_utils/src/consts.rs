@@ -178,9 +178,6 @@ pub const X_SUB_FLOW_NAME: &str = "x-sub-flow";
 /// Unified Connector Service Mode
 pub const X_UNIFIED_CONNECTOR_SERVICE_MODE: &str = "x-shadow-mode";
 
-/// Proxy name for UCS to select the proxy to route the request through
-pub const X_PROXY_NAME: &str = "x-proxy-name";
-
 /// Config Override Header for UCS
 pub const X_CONFIG_OVERRIDE: &str = "x-config-override";
 

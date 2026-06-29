@@ -110,6 +110,16 @@ pub trait PaymentAttemptInterface {
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
+    async fn find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
+        &self,
+        connector_transaction_id: &ConnectorTransactionId,
+        payment_id: &id_type::PaymentId,
+        processor_merchant_id: &id_type::MerchantId,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
+
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_processor_merchant_id(
         &self,
         payment_id: &id_type::PaymentId,

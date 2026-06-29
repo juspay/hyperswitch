@@ -257,10 +257,9 @@ pub async fn find_payment_intent_from_refund_id_type(
             .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?,
     };
     let attempt = db
-        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-            &refund.payment_id,
-            platform.get_processor().get_account().get_id(),
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &refund.attempt_id,
+            platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store(),
         )
@@ -381,10 +380,9 @@ pub async fn get_mca_from_payment_intent(
 
     #[cfg(feature = "v1")]
     let payment_attempt = db
-        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-            &payment_intent.payment_id,
-            platform.get_processor().get_account().get_id(),
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &payment_intent.active_attempt.get_id(),
+            platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store(),
         )

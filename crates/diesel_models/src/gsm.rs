@@ -67,8 +67,6 @@ pub struct GatewayStatusMappingNew {
     pub standardised_code: Option<common_enums::StandardisedCode>,
     pub description: Option<String>,
     pub user_guidance_message: Option<String>,
-    pub created_at: PrimitiveDateTime,
-    pub last_modified: PrimitiveDateTime,
 }
 
 #[derive(

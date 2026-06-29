@@ -168,8 +168,6 @@ pub struct GrpcHeadersUcs {
     resource_id: Option<ucs_types::UcsResourceId>,
 
     shadow_mode: Option<bool>,
-    /// Proxy name for UCS to select the proxy to route the request through
-    proxy_name: Option<&'static str>,
     /// Config override as JSON string to pass to UCS
     config_override: Option<String>,
 }
@@ -183,7 +181,6 @@ pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<(
     (),
     (),
     (Option<bool>,),
-    (Option<&'static str>,),
     (Option<String>,),
 )>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
@@ -195,7 +192,6 @@ pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (Option<ucs_types::UcsReferenceId>,),
     (Option<ucs_types::UcsResourceId>,),
     (Option<bool>,),
-    (Option<&'static str>,),
     (Option<String>,),
 )>;
 
