@@ -1835,6 +1835,57 @@
         ]
       }
     },
+    "/v1/customers/reference/{merchant_reference_id}": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Retrieve using Merchant Reference ID",
+        "description": "Retrieves a customer's details using the merchant supplied reference ID.",
+        "operationId": "Retrieve a Customer using Merchant Reference ID",
+        "parameters": [
+          {
+            "name": "merchant_reference_id",
+            "in": "path",
+            "description": "The merchant supplied reference identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v1/customers/{id}": {
       "get": {
         "tags": [
@@ -8742,6 +8793,17 @@
           {
             "type": "object",
             "required": [
+              "pix_qr"
+            ],
+            "properties": {
+              "pix_qr": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pix_automatico_push"
             ],
             "properties": {
@@ -9135,6 +9197,17 @@
             ],
             "properties": {
               "pix_emv": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_qr"
+            ],
+            "properties": {
+              "pix_qr": {
                 "type": "object"
               }
             }
@@ -10870,6 +10943,11 @@
           "card_cvc": {
             "type": "string",
             "description": "The CVC number for the card",
+            "nullable": true
+          },
+          "card_cvc_token": {
+            "type": "string",
+            "description": "Token referencing a CVC vaulted in the hyperswitch (self-hosted) vault. Used by the\nself-hosted default-vault repeat-customer flow, where the card is referenced by the\ntop-level `payment_token` and the freshly-tokenized CVC arrives as this token; the server\nresolves it to the raw CVC. Not used by the external vault proxy flow.",
             "nullable": true
           }
         }
@@ -14213,7 +14291,9 @@
           "payout_cancelled",
           "payout_expired",
           "payout_reversed",
-          "invoice_paid"
+          "invoice_paid",
+          "surcharge_payment_succeeded",
+          "surcharge_refund_succeeded"
         ]
       },
       "ExemptionIndicator": {
@@ -22019,7 +22099,7 @@
             ],
             "properties": {
               "vault_card_token_data": {
-                "$ref": "#/components/schemas/CardToken"
+                "$ref": "#/components/schemas/VaultCardToken"
               }
             }
           }
@@ -23183,6 +23263,7 @@
           "pix",
           "pix_key",
           "pix_emv",
+          "pix_qr",
           "pix_automatico_qr",
           "pix_automatico_push",
           "pay_safe_card",
@@ -32505,6 +32586,25 @@
         "description": "Represents a value in the DSL",
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "VaultCardToken": {
+        "type": "object",
+        "description": "Card token data carried by the external vault proxy `vault_card_token_data` variant. Its\n`card_cvc` is a vault token detokenized on the wire by the external vault (e.g. VGS). Kept as a\ndistinct type from [`CardToken`] so the self-hosted `card_cvc_token` field does not leak into\nthe proxy contract.",
+        "required": [
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card (a vault token for the external vault proxy flow)",
+            "nullable": true
+          }
         }
       },
       "VaultDetails": {

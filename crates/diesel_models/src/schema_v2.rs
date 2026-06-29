@@ -181,6 +181,8 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        #[max_length = 32]
+        updated_by -> Nullable<Varchar>,
     }
 }
 
@@ -620,6 +622,8 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 64]
         initiator_merchant_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        recipient -> Nullable<Varchar>,
     }
 }
 
