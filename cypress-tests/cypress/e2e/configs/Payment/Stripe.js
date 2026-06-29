@@ -1497,8 +1497,6 @@ export const connectorDetails = {
             ali_pay_redirect: {},
           },
         },
-        currency: "USD",
-        billing: null,
       },
       Response: {
         status: 200,
@@ -1519,8 +1517,6 @@ export const connectorDetails = {
             amazon_pay_redirect: {},
           },
         },
-        currency: "USD",
-        billing: null,
       },
       Response: {
         status: 200,
@@ -1541,8 +1537,6 @@ export const connectorDetails = {
             amazon_pay_redirect: {},
           },
         },
-        currency: "USD",
-        billing: null,
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "offline",
@@ -1579,8 +1573,6 @@ export const connectorDetails = {
             cashapp_qr: {},
           },
         },
-        currency: "USD",
-        billing: null,
       },
       Response: {
         status: 200,
@@ -1601,8 +1593,6 @@ export const connectorDetails = {
             cashapp_qr: {},
           },
         },
-        currency: "USD",
-        billing: null,
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "offline",
@@ -1639,8 +1629,6 @@ export const connectorDetails = {
             revolut_pay: {},
           },
         },
-        currency: "EUR",
-        billing: null,
         mandate_data: null,
         setup_future_usage: null,
       },
@@ -1664,8 +1652,6 @@ export const connectorDetails = {
             revolut_pay: {},
           },
         },
-        currency: "EUR",
-        billing: null,
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "offline",
@@ -1703,8 +1689,6 @@ export const connectorDetails = {
             we_chat_pay_qr: {},
           },
         },
-        currency: "USD",
-        billing: null,
         mandate_data: null,
         setup_future_usage: null,
       },
@@ -1728,7 +1712,6 @@ export const connectorDetails = {
           },
         },
         currency: "INR",
-        billing: null,
       },
       Response: {
         status: 200,
@@ -1750,7 +1733,6 @@ export const connectorDetails = {
           },
         },
         currency: "INR",
-        billing: null,
       },
       Response: {
         status: 200,
@@ -1772,7 +1754,6 @@ export const connectorDetails = {
           },
         },
         currency: "INR",
-        billing: null,
       },
       Response: {
         status: 200,
@@ -1794,7 +1775,6 @@ export const connectorDetails = {
           },
         },
         currency: "INR",
-        billing: null,
         mandate_data: null,
         setup_future_usage: null,
       },
@@ -1818,7 +1798,6 @@ export const connectorDetails = {
           },
         },
         currency: "INR",
-        billing: null,
         mandate_data: null,
         setup_future_usage: null,
       },
