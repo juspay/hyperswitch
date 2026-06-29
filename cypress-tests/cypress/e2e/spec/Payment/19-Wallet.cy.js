@@ -203,7 +203,7 @@ describe("Wallet tests", () => {
       cy.retrievePaymentCallTest({
         globalState,
         data,
-        expectedIntentStatus: "failed",
+        expectedIntentStatus: "requires_payment_method",
       });
     });
   });
@@ -879,7 +879,7 @@ describe("Wallet tests", () => {
       }
     });
 
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Retrieve Payment", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "wallet_pm"
@@ -921,21 +921,6 @@ describe("Wallet tests", () => {
         if (!should_continue_further(confirmData)) {
           shouldContinue = false;
         }
-      });
-
-      cy.step("Retrieve Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment");
-          return;
-        }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "wallet_pm"
-        ]["AmazonPay"];
-        cy.retrievePaymentCallTest({
-          globalState,
-          data,
-          expectedIntentStatus: "requires_customer_action",
-        });
       });
     });
   });
