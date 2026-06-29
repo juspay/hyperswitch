@@ -1899,13 +1899,13 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
     type Error = Error;
 
     fn try_from(value: &PaymentsUpdatePostConfirmRouterData) -> Result<Self, Self::Error> {
+        let feature_metadata = value.request.feature_metadata.clone();
+
         let santander_mca_metadata = SantanderMetadataObject::try_from(&value.connector_meta_data)?;
 
         let boleto_mca_metadata = santander_mca_metadata
             .boleto
             .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
-
-        let feature_metadata = value.request.feature_metadata.clone();
 
         let due_date = feature_metadata
             .as_ref()
@@ -1934,9 +1934,15 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
             ),
         ) = get_boleto_additional_fields_from_connector_metadata(feature_metadata.clone());
 
-        let nominal_value = StringMajorUnitForConnector
-            .convert(value.request.amount, value.request.currency)
-            .change_context(errors::ConnectorError::ParsingFailed)?;
+        let nominal_value = value
+            .request
+            .amount
+            .map(|amount| {
+                StringMajorUnitForConnector
+                    .convert(amount, value.request.currency)
+                    .change_context(errors::ConnectorError::ParsingFailed)
+            })
+            .transpose()?;
 
         let client_number = value.request.merchant_order_reference_id.clone();
         let participant_code = value.request.merchant_order_reference_id.clone();
@@ -1970,15 +1976,12 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
             })
         });
 
-        let (pix_key_type, pix_key_value) = feature_metadata
-            .as_ref()
-            .map(|data| data.get_boleto_pix_key_and_value())
-            .map(|(key_type, value)| (key_type.map(SantanderPixKeyType::from), value))
-            .unwrap_or((boleto_mca_metadata.pix_key_type, None));
-
-        let key = Some(Key {
-            key_type: pix_key_type,
-            dict_key: pix_key_value.or(boleto_mca_metadata.pix_key_value.clone()),
+        let key = feature_metadata.as_ref().and_then(|data| {
+            let (key_type, value) = data.get_boleto_pix_key_and_value();
+            key_type.map(|key_type| Key {
+                key_type: Some(key_type.into()),
+                dict_key: value,
+            })
         });
 
         Ok(Self {
@@ -1990,7 +1993,7 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
             nsu_date: None,
             client_number,
             issue_date: None,
-            nominal_value: Some(nominal_value),
+            nominal_value,
             participant_code,
             payer,
             beneficiary,
@@ -2748,7 +2751,6 @@ impl From<SantanderMandatePeriodicity> for Periodicidade {
     }
 }
 
-// TODO: Add match case for UpdatePostConfirm Flow as well, once that enum variant is added to CurrentFlowInfo
 pub fn decide_access_token_key_suffix(
     current_flow_info: Option<CurrentFlowInfo>,
     payment_method_type: Option<enums::PaymentMethodType>,

@@ -1522,7 +1522,7 @@ pub struct PaymentsRequest {
 
     /// Indicates whether the `payment_id` was provided by the merchant
     /// This value is inferred internally based on the request
-    #[serde(default)]
+    #[serde(skip_deserializing, skip_serializing)]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub is_payment_id_from_merchant: bool,
 
@@ -9556,12 +9556,13 @@ pub struct PaymentsUpdateMetadataResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// The status of the payment intent after the metadata update
-    /// Depcreated because there is no change in the status of payment intent after metadata update, and it might create confusion for the integrators.
+    /// Deprecated because there is no change in the status of payment intent after metadata update, and it might create confusion for the integrators.
     #[schema(value_type = Option<IntentStatus>, example = "failed", default = "requires_confirmation", deprecated)]
     pub status: Option<api_enums::IntentStatus>,
     /// Additional data that might be required by hyperswitch, to enable some specific features.
-    /// Depcreated because feature_metadata update will be done via the /update api from now on
-    #[schema(value_type = Option<FeatureMetadata>, deprecated)]
+    /// Deprecated because feature_metadata update will be done via the /update api from now on
+    #[deprecated(note = "feature_metadata update will be done via the /update api from now on")]
+    #[schema(value_type = Option<FeatureMetadata>)]
     pub feature_metadata: Option<FeatureMetadata>,
 }
 

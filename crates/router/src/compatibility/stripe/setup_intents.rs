@@ -79,6 +79,7 @@ pub async fn setup_intents_create(
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
                 None,
+                None,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -162,6 +163,7 @@ pub async fn setup_intents_retrieve(
                 None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
                 None,
             )
         },
@@ -249,6 +251,7 @@ pub async fn setup_intents_update(
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
                 None,
+                None,
             )
         },
         &*auth_type,
@@ -335,6 +338,7 @@ pub async fn setup_intents_confirm(
                 None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None,
                 None,
             )
         },

@@ -283,9 +283,8 @@ pub struct PaymentsUpdateMetadataData {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsUpdatePostConfirmData {
-    // add amount, billing full name
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
-    pub amount: MinorUnit,
+    pub amount: Option<MinorUnit>,
     pub currency: storage_enums::Currency,
     pub connector_attempt_metadata: Option<serde_json::Value>,
     pub connector_transaction_id: String,
