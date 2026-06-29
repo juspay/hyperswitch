@@ -1,11 +1,13 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
+import { payment_methods_enabled } from "../../configs/Payment/Commons";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
 describe("Subscription Management tests", () => {
   let shouldContinue = true;
+  let connectorSupported = true;
 
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -15,19 +17,60 @@ describe("Subscription Management tests", () => {
           globalState.get("connectorId")
         )
       ) {
-        shouldContinue = false;
+        connectorSupported = false;
       }
     });
   });
 
   beforeEach(function () {
-    if (!shouldContinue) {
+    if (!connectorSupported) {
       this.skip();
     }
   });
 
   after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
+  });
+
+  context("Prerequisites", () => {
+    const prereqContinue = true;
+
+    beforeEach(function () {
+      if (!prereqContinue) {
+        this.skip();
+      }
+    });
+
+    it("create-payment-method-for-subscription-test", () => {
+      const data = getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
+      cy.createPaymentMethodTest(globalState, data);
+    });
+
+    it("create-billing-connector-test", () => {
+      cy.createBillingConnectorTest(
+        fixtures.createConnectorBody,
+        payment_methods_enabled,
+        globalState,
+        globalState.get("connectorId"),
+        "stripebilling"
+      );
+    });
+
+    it("configure-billing-processor-id-test", () => {
+      const bpBody = {
+        ...fixtures.businessProfile.bpUpdate,
+        billing_processor_id: globalState.get("billingProcessorConnectorId"),
+      };
+      cy.UpdateBusinessProfileTest(
+        bpBody,
+        true,
+        false,
+        false,
+        false,
+        false,
+        globalState
+      );
+    });
   });
 
   context("Create Subscription", () => {
@@ -72,10 +115,6 @@ describe("Subscription Management tests", () => {
         data,
         globalState
       );
-
-      if (shouldContinue) {
-        shouldContinue = utils.should_continue_further(data);
-      }
     });
 
     it("create-subscription-missing-fields-test", () => {
@@ -88,10 +127,6 @@ describe("Subscription Management tests", () => {
         data,
         globalState
       );
-
-      if (shouldContinue) {
-        shouldContinue = utils.should_continue_further(data);
-      }
     });
   });
 

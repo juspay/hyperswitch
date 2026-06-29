@@ -10478,6 +10478,14 @@ Cypress.Commands.add(
       subscriptionBody.customer_id = globalState.get("customerId");
     }
 
+    if (
+      subscriptionBody.payment_details &&
+      subscriptionBody.payment_details.payment_method_id === ""
+    ) {
+      subscriptionBody.payment_details.payment_method_id =
+        globalState.get("paymentMethodId");
+    }
+
     const headers = {
       "Content-Type": "application/json",
       "api-key": apiKey,
@@ -10501,7 +10509,9 @@ Cypress.Commands.add(
           globalState.set("subscriptionId", response.body.subscription_id);
         }
 
-        if (resData.body) {
+        if (response.status !== 200) {
+          defaultErrorHandler(response, resData);
+        } else if (resData.body) {
           for (const key in resData.body) {
             expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
           }
@@ -10672,7 +10682,7 @@ Cypress.Commands.add(
     };
 
     cy.request({
-      method: "POST",
+      method: "PUT",
       url: `${baseUrl}/subscriptions/${subscriptionId}/update`,
       headers: headers,
       failOnStatusCode: false,
@@ -10750,9 +10760,10 @@ Cypress.Commands.add("reactivateSubscriptionTest", (data, globalState) => {
 
   cy.request({
     method: "POST",
-    url: `${baseUrl}/subscriptions/${subscriptionId}/reactivate`,
+    url: `${baseUrl}/subscriptions/${subscriptionId}/resume`,
     headers: headers,
     failOnStatusCode: false,
+    body: {},
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
 
@@ -10768,3 +10779,65 @@ Cypress.Commands.add("reactivateSubscriptionTest", (data, globalState) => {
     });
   });
 });
+
+Cypress.Commands.add(
+  "createBillingConnectorTest",
+  (
+    createConnectorBody,
+    paymentMethodsEnabled,
+    globalState,
+    authConnectorName,
+    targetConnectorName,
+    mcaKey = "billingProcessorConnectorId"
+  ) => {
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get("profileId");
+
+    createConnectorBody.profile_id = profileId;
+    createConnectorBody.connector_type = "payment_processor";
+    createConnectorBody.connector_name = targetConnectorName;
+    createConnectorBody.payment_methods_enabled = paymentMethodsEnabled;
+
+    cy.readFile(globalState.get("connectorAuthFilePath")).then(
+      (jsonContent) => {
+        const { authDetails } = getValueByKey(
+          JSON.stringify(jsonContent),
+          authConnectorName
+        );
+        createConnectorBody.connector_account_details =
+          authDetails.connector_account_details;
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          body: createConnectorBody,
+          failOnStatusCode: false,
+        }).then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+
+          cy.wrap(response).then(() => {
+            if (response.status === 200) {
+              expect(targetConnectorName).to.equal(
+                response.body.connector_name
+              );
+              globalState.set(mcaKey, response.body.merchant_connector_id);
+            } else {
+              cy.task(
+                "cli_log",
+                "response status -> " + JSON.stringify(response.status)
+              );
+
+              throw new Error(
+                `Billing Connector Create Call Failed ${response.body.error.message}`
+              );
+            }
+          });
+        });
+      }
+    );
+  }
+);

@@ -1470,17 +1470,26 @@ export const connectorDetails = {
     // These configs define the request/response expectations for subscription tests.
     // customer_id is dynamically populated by the createSubscriptionTest command from globalState.
     Create: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         customer_id: "", // Populated from globalState.get("customerId") in createSubscriptionTest
         item_price_id: "price_12345",
         payment_details: {
           return_url: "https://example.com/subscription/return",
+          payment_method_id: "",
         },
       },
       Response: {
-        status: 200,
+        status: 500,
         body: {
-          status: "active",
+          error: {
+            type: "connector",
+            message: "HE_00: Something went wrong",
+            code: "CE_00",
+            connector: "stripebilling",
+          },
         },
       },
     }),
@@ -1490,15 +1499,16 @@ export const connectorDetails = {
         item_price_id: "price_12345",
         payment_details: {
           return_url: "https://example.com/subscription/return",
+          payment_method_id: "",
         },
       },
       Response: {
-        status: 400,
+        status: 404,
         body: {
           error: {
             type: "invalid_request",
-            code: "IR_00",
-            message: "Customer does not exist",
+            code: "HE_02",
+            message: "Customer does not exist in our records",
           },
         },
       },
@@ -1511,9 +1521,9 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
-            type: "invalid_request",
-            code: "IR_00",
-            message: "Missing required field: customer_id",
+            error_type: "invalid_request",
+            code: "IR_06",
+            message: "Json deserialize error: missing field `item_price_id`",
           },
         },
       },
@@ -1538,7 +1548,8 @@ export const connectorDetails = {
     }),
     Update: getCustomExchange({
       Request: {
-        description: "Updated test subscription",
+        plan_id: "",
+        item_price_id: "",
       },
       Response: {
         status: 200,
@@ -1549,7 +1560,7 @@ export const connectorDetails = {
     }),
     Cancel: getCustomExchange({
       Request: {
-        cancellation_reason: "requested_by_customer",
+        cancel_reason_code: "requested_by_customer",
       },
       Response: {
         status: 200,

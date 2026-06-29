@@ -2,6 +2,7 @@
   "customer_id": "",
   "item_price_id": "price_12345",
   "payment_details": {
-    "return_url": "https://example.com/subscription/return"
+    "return_url": "https://example.com/subscription/return",
+    "payment_method_id": ""
   }
 }
