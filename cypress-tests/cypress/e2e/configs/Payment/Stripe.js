@@ -1470,9 +1470,6 @@ export const connectorDetails = {
     // These configs define the request/response expectations for subscription tests.
     // customer_id is dynamically populated by the createSubscriptionTest command from globalState.
     Create: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         customer_id: "", // Populated from globalState.get("customerId") in createSubscriptionTest
         item_price_id: "price_12345",
@@ -1482,14 +1479,9 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 500,
+        status: 200,
         body: {
-          error: {
-            type: "connector",
-            message: "HE_00: Something went wrong",
-            code: "CE_00",
-            connector: "stripebilling",
-          },
+          status: "active",
         },
       },
     }),
@@ -1548,8 +1540,8 @@ export const connectorDetails = {
     }),
     Update: getCustomExchange({
       Request: {
-        plan_id: "",
-        item_price_id: "",
+        plan_id: "price_12345",
+        item_price_id: "price_12345",
       },
       Response: {
         status: 200,

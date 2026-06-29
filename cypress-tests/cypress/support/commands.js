@@ -2742,11 +2742,10 @@ Cypress.Commands.add(
       confirmBody.split_payments = reqData.split_payments;
     }
 
-  const headers = {
-    "Content-Type": "application/json",
-    "api-key": apiKey,
-    "X-Profile-Id": globalState.get("profileId"),
-  };
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    };
 
     if (connectedMerchantId) {
       headers["x-connected-merchant-id"] = connectedMerchantId;
@@ -10505,8 +10504,8 @@ Cypress.Commands.add(
       cy.wrap(response).then(() => {
         expect(response.status, "status_code").to.equal(resData.status);
 
-        if (response.status === 200 && response.body.subscription_id) {
-          globalState.set("subscriptionId", response.body.subscription_id);
+        if (response.status === 200 && response.body.id) {
+          globalState.set("subscriptionId", response.body.id);
         }
 
         if (response.status !== 200) {
@@ -10651,7 +10650,9 @@ Cypress.Commands.add("retrieveSubscriptionTest", (data, globalState) => {
     cy.wrap(response).then(() => {
       expect(response.status, "status_code").to.equal(resData.status);
 
-      if (resData.body) {
+      if (response.status !== 200) {
+        defaultErrorHandler(response, resData);
+      } else if (resData.body) {
         for (const key in resData.body) {
           expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
         }
@@ -10694,7 +10695,9 @@ Cypress.Commands.add(
       cy.wrap(response).then(() => {
         expect(response.status, "status_code").to.equal(resData.status);
 
-        if (resData.body) {
+        if (response.status !== 200) {
+          defaultErrorHandler(response, resData);
+        } else if (resData.body) {
           for (const key in resData.body) {
             expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
           }
@@ -10735,7 +10738,9 @@ Cypress.Commands.add("cancelSubscriptionTest", (data, globalState) => {
     cy.wrap(response).then(() => {
       expect(response.status, "status_code").to.equal(resData.status);
 
-      if (resData.body) {
+      if (response.status !== 200) {
+        defaultErrorHandler(response, resData);
+      } else if (resData.body) {
         for (const key in resData.body) {
           expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
         }
@@ -10771,7 +10776,9 @@ Cypress.Commands.add("reactivateSubscriptionTest", (data, globalState) => {
     cy.wrap(response).then(() => {
       expect(response.status, "status_code").to.equal(resData.status);
 
-      if (resData.body) {
+      if (response.status !== 200) {
+        defaultErrorHandler(response, resData);
+      } else if (resData.body) {
         for (const key in resData.body) {
           expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
         }
