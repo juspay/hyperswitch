@@ -504,7 +504,7 @@ config! {
     superposition_key = SHOULD_PERFORM_SDK_VAULTING,
     output = bool,
     default = true,
-    requires = dimension_state::DimensionsWithProviderMerchantId,
+    requires = dimension_state::DimensionsWithOrgId,
     targeting_key = id_type::CustomerId
 }
 
@@ -513,7 +513,7 @@ impl DatabaseBackedConfig for ShouldPerformSdkVaulting {
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
-            .get_provider_merchant_id()
+            .get_organization_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }

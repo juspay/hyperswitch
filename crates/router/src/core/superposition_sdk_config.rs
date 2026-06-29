@@ -447,13 +447,18 @@ async fn build_account_config(
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let feature_config = crate::core::utils::get_feature_config(state, platform, &dimensions).await;
 
-    // Merchant level override on top of the modular service flag. Defaults to `true` for all
-    // merchants; when set to `false` for a specific merchant, the SDK is told to skip vaulting.
+    // Org level override on top of the modular service flag. Defaults to `true` for all merchants;
+    // when set to `false` for a specific org, the SDK is told to skip vaulting.
     let should_perform_sdk_vaulting =
         crate::core::payment_methods::utils::get_should_perform_sdk_vaulting(
             state,
-            &Dimensions::new()
-                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id()),
+            &Dimensions::new().with_organization_id(
+                platform
+                    .get_processor()
+                    .get_account()
+                    .organization_id
+                    .clone(),
+            ),
         )
         .await;
 
