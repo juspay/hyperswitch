@@ -2190,6 +2190,287 @@ export const connectorDetails = {
         },
       },
     }),
+    AfterpayClearpayAutoCapture: getCustomExchange({
+      Request: {
+        currency: "GBP",
+        capture_method: "automatic",
+        billing: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Test City",
+            zip: "12345",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@test.com",
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    AfterpayClearpay: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "afterpay_clearpay",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            afterpay_clearpay_redirect: {},
+          },
+        },
+        currency: "GBP",
+        billing: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Test City",
+            zip: "12345",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@test.com",
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    AlmaAutoCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "automatic",
+        billing: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Test City",
+            zip: "12345",
+            country: "FR",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@test.com",
+          phone: {
+            number: "612345678",
+            country_code: "+33",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Alma: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "alma",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            alma_redirect: {},
+          },
+        },
+        currency: "EUR",
+        billing: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Test City",
+            zip: "12345",
+            country: "FR",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@test.com",
+          phone: {
+            number: "612345678",
+            country_code: "+33",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    WalleyAutoCapture: getCustomExchange({
+      Request: {
+        currency: "SEK",
+        capture_method: "automatic",
+        billing: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Test City",
+            zip: "12345",
+            country: "SE",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@test.com",
+          phone: {
+            number: "9123456789",
+            country_code: "+46",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Walley: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "walley",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            walley_redirect: {},
+          },
+        },
+        currency: "SEK",
+        billing: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Test City",
+            zip: "12345",
+            country: "SE",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@test.com",
+          phone: {
+            number: "9123456789",
+            country_code: "+46",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
     CaptureOnWrongStatus: getCustomExchange({
       Request: {
         amount_to_capture: 6000,

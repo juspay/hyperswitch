@@ -576,7 +576,7 @@ describe("PayLater tests", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
-        ]["AutoCapture"];
+        ]["AfterpayClearpayAutoCapture"];
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -664,7 +664,7 @@ describe("PayLater tests", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
-        ]["AutoCapture"];
+        ]["AlmaAutoCapture"];
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -752,7 +752,7 @@ describe("PayLater tests", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
-        ]["AutoCapture"];
+        ]["WalleyAutoCapture"];
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
