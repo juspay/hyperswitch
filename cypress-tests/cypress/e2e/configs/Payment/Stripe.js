@@ -1479,6 +1479,7 @@ export const connectorDetails = {
         Request: {
           currency: overrideCurrency || currencyMap[walletType] || "USD",
           amount: 1000,
+          setup_future_usage: "off_session",
         },
         Response: {
           status: 200,
@@ -1495,6 +1496,11 @@ export const connectorDetails = {
         payment_method_data: {
           wallet: {
             ali_pay_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            country: "CN",
           },
         },
       },
@@ -1691,6 +1697,11 @@ export const connectorDetails = {
         },
         mandate_data: null,
         setup_future_usage: null,
+        billing: {
+          address: {
+            country: "CN",
+          },
+        },
       },
       Response: {
         status: 200,
