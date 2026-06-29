@@ -227,6 +227,11 @@ impl PaymentMethodVaultingData {
                         application_primary_account_number,
                         expiry_month,
                         expiry_year,
+                    }
+                    | payment_method_data::WalletDetail::GooglePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month,
+                        expiry_year,
                     } => payment_methods::PaymentMethodDataWalletInfo {
                         last4: Some(application_primary_account_number.get_last4()),
                         card_network: None,
@@ -264,6 +269,11 @@ impl PaymentMethodVaultingData {
                         application_primary_account_number,
                         expiry_month,
                         expiry_year,
+                    }
+                    | payment_method_data::WalletDetail::GooglePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month,
+                        expiry_year,
                     } => (
                         application_primary_account_number.clone(),
                         expiry_month.clone(),
@@ -297,10 +307,16 @@ impl PaymentMethodVaultingData {
                 };
                 AuxiliaryFingerprintData::BankDebit(account_number)
             }
-            Self::Wallet(payment_method_data::WalletDetail::ApplePayDecryptedData {
-                application_primary_account_number,
-                ..
-            }) => AuxiliaryFingerprintData::CardNumber(application_primary_account_number.clone()),
+            Self::Wallet(
+                payment_method_data::WalletDetail::ApplePayDecryptedData {
+                    application_primary_account_number,
+                    ..
+                }
+                | payment_method_data::WalletDetail::GooglePayDecryptedData {
+                    application_primary_account_number,
+                    ..
+                },
+            ) => AuxiliaryFingerprintData::CardNumber(application_primary_account_number.clone()),
         }
     }
 

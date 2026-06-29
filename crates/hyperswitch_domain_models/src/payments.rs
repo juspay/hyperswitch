@@ -99,7 +99,7 @@ pub struct PaymentIntent {
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub allowed_payment_method_types: Option<Value>,
     pub connector_metadata: Option<Value>,
-    pub feature_metadata: Option<Value>,
+    pub feature_metadata: Option<pii::SecretSerdeValue>,
     pub attempt_count: i16,
     pub profile_id: Option<id_type::ProfileId>,
     pub payment_link_id: Option<String>,
@@ -176,14 +176,34 @@ impl PaymentIntent {
     }
 
     #[cfg(feature = "v1")]
-    pub fn get_surcharge_mode(&self) -> Option<SurchargeMode> {
+    pub fn get_surcharge_mode(
+        &self,
+        profile: &crate::business_profile::Profile,
+    ) -> Option<SurchargeMode> {
         if self.surcharge_applicable.unwrap_or(false) {
             Some(SurchargeMode::Internal)
-        } else if self.external_surcharge_applicable.unwrap_or(false) {
+        } else if self.external_surcharge_applicable.unwrap_or(false)
+            || self.is_mit_with_external_surcharge_enabled(profile)
+        {
+            // External covers two paths: a CIT where /eligibility already cached the surcharge,
+            // and an MIT off-session payment that needs to compute it inline.
             Some(SurchargeMode::External)
         } else {
             None
         }
+    }
+
+    #[cfg(feature = "v1")]
+    fn is_mit_with_external_surcharge_enabled(
+        &self,
+        profile: &crate::business_profile::Profile,
+    ) -> bool {
+        self.off_session == Some(true)
+            && profile
+                .surcharge_connector_details
+                .as_ref()
+                .and_then(|details| details.surcharge_connector_id.as_ref())
+                .is_some()
     }
 
     #[cfg(feature = "v2")]

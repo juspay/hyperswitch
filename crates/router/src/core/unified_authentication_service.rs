@@ -686,6 +686,8 @@ pub async fn create_new_authentication(
         merchant_country_code: None,
         processor_merchant_id: Some(processor.get_account().get_id().clone()),
         created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+        // Seed with the configured scheme; the insert layer overwrites with the decided one.
+        updated_by: Some(processor.get_account().storage_scheme.to_string()),
     };
 
     state
@@ -694,6 +696,7 @@ pub async fn create_new_authentication(
             &key_manager_state,
             processor.get_key_store(),
             new_authentication,
+            processor.get_account().storage_scheme,
         )
         .await
         .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
@@ -1052,6 +1055,7 @@ pub async fn authentication_eligibility_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -1203,9 +1207,11 @@ pub async fn authentication_eligibility_core(
                     acquirer_bin: acquirer_details.as_ref().and_then(|d| d.acquirer_bin.clone()),
                     acquirer_merchant_id: acquirer_details.as_ref().and_then(|d| d.acquirer_assigned_merchant_id.clone()),
                     acquirer_country_code: acquirer_details.as_ref().and_then(|d| d.acquirer_country_code.clone()),
+                    updated_by: merchant_account.storage_scheme.to_string(),
                 },
                 platform.get_processor().get_key_store(),
                 key_manager_state_ref,
+                merchant_account.storage_scheme,
             )
             .await
             .change_context(ApiErrorResponse::InternalServerError)
@@ -1318,6 +1324,7 @@ pub async fn authentication_eligibility_core(
         None,
         merchant_category_code,
         merchant_country_code.clone(),
+        merchant_account.storage_scheme,
     ))
     .await?;
 
@@ -1359,6 +1366,7 @@ pub async fn authentication_authenticate_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -1467,6 +1475,7 @@ pub async fn authentication_authenticate_core(
             .and_then(|sdk_information| sdk_information.device_details),
         None,
         None,
+        merchant_account.storage_scheme,
     ))
     .await?;
 
@@ -1691,6 +1700,7 @@ pub async fn authentication_eligibility_check_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -1975,6 +1985,7 @@ async fn execute_post_authentication_flow(
         None,
         None,
         None,
+        merchant_account.storage_scheme,
     )
     .await?;
 
@@ -2070,6 +2081,7 @@ pub async fn authentication_sync_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -2192,11 +2204,10 @@ pub async fn authentication_sync_core(
         .await?;
     }
 
-    let dimensions = dimensions.without_organization_id();
-
     // Determine whether to tokenise or not
 
     let should_disable_vault_tokenization = dimensions
+        .without_profile_id()
         .get_should_disable_vault_tokenization(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
@@ -2385,6 +2396,7 @@ pub async fn authentication_post_sync_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -2441,6 +2453,7 @@ pub async fn authentication_post_sync_core(
         None,
         None,
         None,
+        merchant_account.storage_scheme,
     )
     .await?;
 
@@ -2509,6 +2522,7 @@ pub async fn authentication_session_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {

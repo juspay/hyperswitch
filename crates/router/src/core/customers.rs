@@ -635,6 +635,32 @@ pub async fn retrieve_customer(
     ))
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip(state))]
+pub async fn retrieve_customer_by_merchant_reference_id(
+    state: SessionState,
+    provider: domain::Provider,
+    merchant_reference_id: id_type::CustomerId,
+) -> errors::CustomerResponse<customers::CustomerResponse> {
+    let db = state.store.as_ref();
+
+    let response = db
+        .find_customer_by_merchant_reference_id_merchant_id(
+            &merchant_reference_id,
+            provider.get_account().get_id(),
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
+        )
+        .await
+        .switch()?;
+
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerResponse::try_from(response)
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert domain customer to CustomerResponse")?,
+    ))
+}
+
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
@@ -792,9 +818,11 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
         {
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
-                    delete_payment_method_by_record(db, state, platform, &profile, pm)
-                        .await
-                        .switch()?;
+                    Box::pin(delete_payment_method_by_record(
+                        db, state, platform, &profile, pm,
+                    ))
+                    .await
+                    .switch()?;
                 }
             }
             Err(error) => {
