@@ -1740,6 +1740,7 @@ pub enum BankTransferData {
         expiry_date: Option<time::PrimitiveDateTime>,
     },
     PixEmv {},
+    PixQr {},
     PixAutomaticoPush {
         account_number: Option<Secret<String>>,
         branch_code: Option<Secret<String>>,
@@ -3083,6 +3084,7 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
                 expiry_date,
             },
             api_models::payments::BankTransferData::PixEmv {} => Self::PixEmv {},
+            api_models::payments::BankTransferData::PixQr {} => Self::PixQr {},
             api_models::payments::BankTransferData::PixAutomaticoPush {
                 account_number,
                 branch_code,
@@ -3153,6 +3155,7 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                 },
             )),
             BankTransferData::PixEmv {} => Self::PixEmv {},
+            BankTransferData::PixQr {} => Self::PixQr {},
             BankTransferData::PixAutomaticoPush {
                 account_number,
                 branch_code,
@@ -3486,6 +3489,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
             Self::PixEmv {} => api_enums::PaymentMethodType::PixEmv,
+            Self::PixQr {} => api_enums::PaymentMethodType::PixQr,
             Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
             Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
