@@ -4630,9 +4630,6 @@ pub fn construct_connector_invoke_hidden_frame(
 
 #[cfg(all(feature = "v1", feature = "olap"))]
 impl ForeignFrom<(DieselPaymentIntent, DieselPaymentAttempt)> for api::PlatformPaymentListItem {
-    // Maps raw (undecrypted) diesel rows to the platform list item. Only non-encrypted columns
-    // are read, so no merchant key store / decryption is required. Intent fields come from `pi`,
-    // active-attempt fields from `pa`.
     fn foreign_from((pi, pa): (DieselPaymentIntent, DieselPaymentAttempt)) -> Self {
         let connector_transaction_id =
             common_utils::types::ConnectorTransactionIdTrait::get_optional_connector_transaction_id(

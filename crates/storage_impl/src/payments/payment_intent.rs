@@ -6,9 +6,7 @@ use common_utils::ext_traits::{AsyncExt, Encode};
 #[cfg(feature = "v2")]
 use common_utils::fallback_reverse_lookup_not_found;
 #[cfg(feature = "olap")]
-use diesel::{
-    associations::HasTable, BoolExpressionMethods, ExpressionMethods, JoinOnDsl, QueryDsl,
-};
+use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 #[cfg(feature = "v1")]
 use diesel_models::payment_intent::PaymentIntentUpdate as DieselPaymentIntentUpdate;
 #[cfg(feature = "v2")]
@@ -27,8 +25,6 @@ use diesel_models::schema_v2::{
     payment_attempt::{self as payment_attempt_schema, dsl as pa_dsl},
     payment_intent::dsl as pi_dsl,
 };
-#[cfg(all(feature = "v1", feature = "olap"))]
-use diesel_models::PaymentAttempt as DieselPaymentAttempt;
 use diesel_models::{
     enums::MerchantStorageScheme, payment_intent::PaymentIntent as DieselPaymentIntent,
 };

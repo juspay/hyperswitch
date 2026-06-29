@@ -8922,17 +8922,6 @@ pub struct PaymentListResponse {
     pub data: Vec<PaymentsListResponseItem>,
 }
 
-/// Query constraints for the platform payments list (`GET /payments/platform/list`).
-///
-/// Mirrors the rich POST filter list (`PaymentListFilterConstraints`) but is designed to be
-/// passed as query parameters: list-valued filters are accepted as comma-separated strings,
-/// the time range and sort order are grouped into their shared `TimeRange` / `Order` structs
-/// (flattened into the query string), and the amount range is passed as flat `start_amount` /
-/// `end_amount` scalars (`serde_urlencoded` cannot deserialize integers through `#[serde(flatten)]`).
-///
-/// Customer email is intentionally not a filter here: it is PII stored encrypted per connected
-/// merchant, and the platform list only has access to the platform key store, so only
-/// non-PII columns can be filtered.
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PlatformPaymentListConstraints {
@@ -9007,7 +8996,7 @@ pub struct PlatformPaymentListConstraints {
 
     /// The field (`on`) and direction (`by`) on which the payments list should be sorted.
     #[serde(flatten)]
-    pub order: Order,
+    pub order: Option<Order>,
 }
 
 #[cfg(feature = "v1")]
@@ -9435,10 +9424,8 @@ pub struct AmountFilter {
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct Order {
     /// The field to sort, such as Amount or Created etc.
-    #[serde(default)]
     pub on: SortOn,
     /// The order in which to sort the items, either Ascending or Descending
-    #[serde(default)]
     pub by: SortBy,
 }
 

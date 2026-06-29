@@ -19,8 +19,6 @@ use common_utils::{
         CreatedBy, MinorUnit,
     },
 };
-#[cfg(all(feature = "v1", feature = "olap"))]
-use diesel_models::PaymentAttempt as DieselPaymentAttempt;
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
@@ -98,14 +96,6 @@ pub trait PaymentIntentInterface {
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, Self::Error>;
 
-    /// List raw payment intent + active attempt rows for a platform merchant across all
-    /// its connected merchants. Filters on `payment_intent.merchant_id` (which equals the
-    /// platform's id on connected-merchant rows) instead of `processor_merchant_id`, with
-    /// an optional `processor_merchant_id` filter to narrow to specific connected merchants.
-    ///
-    /// Returns undecrypted diesel rows: a platform listing exposes only non-PII columns, so
-    /// the caller maps the raw rows to a slim DTO without any per-merchant decryption. This is
-    /// an OLAP read served entirely from Postgres (no KV), so no storage scheme is needed.
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt_for_platform(
         &self,
@@ -119,8 +109,6 @@ pub trait PaymentIntentInterface {
         Self::Error,
     >;
 
-    /// Total count of payment intents matching a platform listing's constraints (ignores
-    /// limit/offset). Used to populate `total_count` in the platform list response.
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_payment_intents_attempt_count_for_platform(
         &self,
@@ -1830,8 +1818,6 @@ pub struct PaymentIntentListParams {
     pub card_discovery: Option<Vec<common_enums::CardDiscovery>>,
     pub merchant_order_reference_id: Option<String>,
     pub customer_email: Option<Email>,
-    /// Connected (processor) merchant ids to narrow a platform listing to specific
-    /// connected merchants. Only applicable to platform payment listings.
     pub processor_merchant_id: Option<Vec<id_type::MerchantId>>,
 }
 
@@ -2098,7 +2084,7 @@ impl From<api_models::payments::PlatformPaymentListConstraints> for PaymentInten
                 starting_after_id: None,
                 ending_before_id: None,
                 limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
-                order,
+                order: order.unwrap_or_default(),
                 card_network,
                 card_discovery,
                 merchant_order_reference_id,

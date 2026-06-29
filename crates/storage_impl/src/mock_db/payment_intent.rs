@@ -1,7 +1,7 @@
 use common_utils::errors::CustomResult;
 use diesel_models::enums as storage_enums;
 #[cfg(all(feature = "v1", feature = "olap"))]
-use diesel_models::{PaymentAttempt as DieselPaymentAttempt, PaymentIntent as DieselPaymentIntent};
+use diesel_models::PaymentIntent as DieselPaymentIntent;
 #[cfg(feature = "v1")]
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
