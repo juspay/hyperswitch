@@ -1253,6 +1253,10 @@ Cypress.Commands.add(
         );
         createConnectorBody.connector_account_details =
           authDetails.connector_account_details;
+        if (authDetails && authDetails.connector_wallets_details) {
+          createConnectorBody.connector_wallets_details =
+            authDetails.connector_wallets_details;
+        }
         cy.request({
           method: "POST",
           url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
@@ -1341,6 +1345,11 @@ Cypress.Commands.add(
 
         createConnectorBody.connector_account_details =
           authDetails.connector_account_details;
+
+        if (authDetails && authDetails.connector_wallets_details) {
+          createConnectorBody.connector_wallets_details =
+            authDetails.connector_wallets_details;
+        }
 
         if (authDetails && authDetails.metadata) {
           createConnectorBody.metadata = {
