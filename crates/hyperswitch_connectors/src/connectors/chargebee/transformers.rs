@@ -496,8 +496,36 @@ pub struct ChargebeePaymentMethodDetails {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeCardDetails {
     funding_type: ChargebeeFundingType,
+    #[serde(deserialize_with = "deserialize_chargebee_card_network")]
     brand: common_enums::CardNetwork,
     iin: String,
+}
+
+fn deserialize_chargebee_card_network<'de, D>(
+    deserializer: D,
+) -> Result<common_enums::CardNetwork, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    match s.to_lowercase().replace('-', "_").as_str() {
+        "visa" => Ok(common_enums::CardNetwork::Visa),
+        "mastercard" => Ok(common_enums::CardNetwork::Mastercard),
+        "american_express" | "amex" | "americanexpress" => {
+            Ok(common_enums::CardNetwork::AmericanExpress)
+        }
+        "jcb" => Ok(common_enums::CardNetwork::JCB),
+        "diners_club" | "dinersclub" => Ok(common_enums::CardNetwork::DinersClub),
+        "discover" => Ok(common_enums::CardNetwork::Discover),
+        "cartes_bancaires" | "cartesbancaires" => Ok(common_enums::CardNetwork::CartesBancaires),
+        "union_pay" | "unionpay" => Ok(common_enums::CardNetwork::UnionPay),
+        "interac" => Ok(common_enums::CardNetwork::Interac),
+        "ru_pay" | "rupay" => Ok(common_enums::CardNetwork::RuPay),
+        "maestro" => Ok(common_enums::CardNetwork::Maestro),
+        _ => Err(serde::de::Error::custom(format!(
+            "unknown card network from Chargebee: {s}"
+        ))),
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]

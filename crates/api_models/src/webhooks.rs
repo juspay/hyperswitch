@@ -319,9 +319,9 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::RecoveryInvoiceCancel
             | IncomingWebhookEvent::RecoveryPaymentFailure
             | IncomingWebhookEvent::RecoveryPaymentPending
-            | IncomingWebhookEvent::RecoveryPaymentSuccess => Self::Recovery,
+            | IncomingWebhookEvent::RecoveryPaymentSuccess
+            | IncomingWebhookEvent::InvoiceGenerated => Self::Recovery,
             IncomingWebhookEvent::SetupWebhook => Self::Setup,
-            IncomingWebhookEvent::InvoiceGenerated => Self::Subscription,
         }
     }
 }
