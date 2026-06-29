@@ -10,11 +10,6 @@ pub struct WorldpayPaymentsRequest {
     pub instruction: Instruction,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer: Option<Customer>,
-    /// Additional Mastercard authentication data (email, phone number and shipping address)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub risk_data: Option<RiskData>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub device_data: Option<DeviceData>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -44,6 +39,13 @@ pub struct Instruction {
     pub token_creation: Option<TokenCreation>,
     /// For specifying CIT vs MIT
     pub customer_agreement: Option<CustomerAgreement>,
+    /// Additional Mastercard authentication data (shopper email, phone number
+    /// and IP address), sent whenever available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer: Option<InstructionCustomer>,
+    /// Shipping details used for Mastercard authentication / risk assessment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping: Option<Shipping>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -167,49 +169,43 @@ pub struct BillingAddress {
     pub country_code: common_enums::CountryAlpha2,
 }
 
-/// Additional Mastercard authentication data, sent whenever available.
-/// As per Worldpay's updated Mastercard requirements (effective 1 April 2026)
-/// the request should contain, when available, the shopper's email, a phone
-/// number and the shipping address.
+/// Additional Mastercard authentication data, sent under `instruction.customer`
+/// whenever available.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RiskData {
+pub struct InstructionCustomer {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub account: Option<RiskDataAccount>,
+    pub email: Option<pii::Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub transaction: Option<RiskDataTransaction>,
+    pub phone: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub shipping: Option<RiskDataShipping>,
+    pub ip_address: Option<Secret<String, pii::IpAddress>>,
+}
+
+/// Shipping details, sent under `instruction.shipping` whenever available.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shipping {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
+    pub address: ShippingAddress,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RiskDataAccount {
-    pub email: pii::Email,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RiskDataTransaction {
-    pub phone_number: Secret<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RiskDataShipping {
-    pub address: RiskDataShippingAddress,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RiskDataShippingAddress {
+pub struct ShippingAddress {
     pub address1: Secret<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DeviceData {
-    pub ip_address: Secret<String, pii::IpAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address3: Option<Secret<String>>,
+    pub city: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<Secret<String>>,
+    pub postal_code: Secret<String>,
+    pub country_code: common_enums::CountryAlpha2,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]

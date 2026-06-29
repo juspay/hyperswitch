@@ -265,15 +265,9 @@ trait WorldpayPaymentsRequestData {
     fn get_payment_method_type(&self) -> Option<enums::PaymentMethodType>;
     fn get_connector_request_reference_id(&self) -> String;
     fn get_is_mandate_payment(&self) -> bool;
-    /// Shopper email used to populate `riskData.account.email`.
     fn get_optional_email(&self) -> Option<pii::Email>;
-    /// Phone number (home/mobile/work) used to populate
-    /// `riskData.transaction.phoneNumber`.
     fn get_optional_phone_number(&self) -> Option<Secret<String>>;
-    /// Shipping address line 1 used to populate
-    /// `riskData.shipping.address.address1`.
-    fn get_optional_shipping_address_line1(&self) -> Option<Secret<String>>;
-    /// Shopper IP address used to populate `deviceData.ipAddress`.
+    fn get_optional_shipping_address(&self) -> Option<&address::Address>;
     fn get_optional_ip_address(&self) -> Option<Secret<String, pii::IpAddress>>;
     fn get_settlement_info(&self, _amount: i64) -> Option<AutoSettlement> {
         None
@@ -351,8 +345,8 @@ impl WorldpayPaymentsRequestData
             .or_else(|| self.get_optional_shipping_phone_number())
     }
 
-    fn get_optional_shipping_address_line1(&self) -> Option<Secret<String>> {
-        self.get_optional_shipping_line1()
+    fn get_optional_shipping_address(&self) -> Option<&address::Address> {
+        self.get_optional_shipping()
     }
 
     fn get_optional_ip_address(&self) -> Option<Secret<String, pii::IpAddress>> {
@@ -435,8 +429,8 @@ impl WorldpayPaymentsRequestData
             .or_else(|| self.get_optional_shipping_phone_number())
     }
 
-    fn get_optional_shipping_address_line1(&self) -> Option<Secret<String>> {
-        self.get_optional_shipping_line1()
+    fn get_optional_shipping_address(&self) -> Option<&address::Address> {
+        self.get_optional_shipping()
     }
 
     fn get_optional_ip_address(&self) -> Option<Secret<String, pii::IpAddress>> {
@@ -467,29 +461,53 @@ fn normalize_cardholder_name(name: Secret<String>) -> Secret<String> {
     Secret::new(unidecode::unidecode(&name.expose()))
 }
 
-// Dangling helper function to build optional Mastercard risk data.
-// Returns `None` when none of the underlying fields are available so that the
-// `riskData` object is omitted entirely from the request.
-fn create_risk_data(
+// Dangling helper function to build the optional `instruction.customer` object
+// holding the additional Mastercard authentication data (email, phone number
+// and IP address). Returns `None` when none of the fields are available so the
+// object is omitted entirely from the request.
+fn create_instruction_customer(
     email: Option<pii::Email>,
-    phone_number: Option<Secret<String>>,
-    shipping_address_line1: Option<Secret<String>>,
-) -> Option<RiskData> {
-    let account = email.map(|email| RiskDataAccount { email });
-    let transaction = phone_number.map(|phone_number| RiskDataTransaction { phone_number });
-    let shipping = shipping_address_line1.map(|address1| RiskDataShipping {
-        address: RiskDataShippingAddress { address1 },
-    });
-
-    if account.is_some() || transaction.is_some() || shipping.is_some() {
-        Some(RiskData {
-            account,
-            transaction,
-            shipping,
+    phone: Option<Secret<String>>,
+    ip_address: Option<Secret<String, pii::IpAddress>>,
+) -> Option<InstructionCustomer> {
+    if email.is_some() || phone.is_some() || ip_address.is_some() {
+        Some(InstructionCustomer {
+            email,
+            phone,
+            ip_address,
         })
     } else {
         None
     }
+}
+
+// Dangling helper function to build the optional `instruction.shipping` object.
+// Worldpay requires the shipping address to contain at least address line 1,
+// city, postal code and country, so the object is omitted unless all of these
+// are present.
+fn create_shipping(shipping_address: Option<&address::Address>) -> Option<Shipping> {
+    shipping_address
+        .and_then(|addr| addr.address.clone())
+        .and_then(
+            |address| match (address.line1, address.city, address.zip, address.country) {
+                (Some(address1), Some(city), Some(postal_code), Some(country_code)) => {
+                    Some(Shipping {
+                        first_name: address.first_name,
+                        last_name: address.last_name,
+                        address: ShippingAddress {
+                            address1,
+                            address2: address.line2,
+                            address3: address.line3,
+                            city,
+                            state: address.state,
+                            postal_code,
+                            country_code,
+                        },
+                    })
+                }
+                _ => None,
+            },
+        )
 }
 
 // Dangling helper function to create ThreeDS request
@@ -637,15 +655,12 @@ impl<T: WorldpayPaymentsRequestData> TryFrom<(&WorldpayRouterData<&T>, &Secret<S
         );
 
         // Additional Mastercard authentication data, forwarded whenever available.
-        let risk_data = create_risk_data(
+        let customer = create_instruction_customer(
             item.router_data.get_optional_email(),
             item.router_data.get_optional_phone_number(),
-            item.router_data.get_optional_shipping_address_line1(),
+            item.router_data.get_optional_ip_address(),
         );
-        let device_data = item
-            .router_data
-            .get_optional_ip_address()
-            .map(|ip_address| DeviceData { ip_address });
+        let shipping = create_shipping(item.router_data.get_optional_shipping_address());
 
         Ok(Self {
             instruction: Instruction {
@@ -670,6 +685,8 @@ impl<T: WorldpayPaymentsRequestData> TryFrom<(&WorldpayRouterData<&T>, &Secret<S
                 three_ds,
                 token_creation,
                 customer_agreement,
+                customer,
+                shipping,
             },
             merchant: Merchant {
                 entity: entity_id.clone(),
@@ -677,8 +694,6 @@ impl<T: WorldpayPaymentsRequestData> TryFrom<(&WorldpayRouterData<&T>, &Secret<S
             },
             transaction_reference: item.router_data.get_connector_request_reference_id(),
             customer: None,
-            risk_data,
-            device_data,
         })
     }
 }
