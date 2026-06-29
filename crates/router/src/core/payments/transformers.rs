@@ -1010,6 +1010,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)

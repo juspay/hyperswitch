@@ -296,8 +296,6 @@ where
                                     .connector_returned_payment_method_details
                                     .clone(),
                             );
-                        println!("{:?} >>> ", payment_get_response.connector_returned_payment_method_details);
-                        println!("{:?} >>> ", router_data.connector_returned_payment_method_details);
                         Ok((router_data, (), payment_get_response))
                     },
                 ))
