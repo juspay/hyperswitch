@@ -1325,7 +1325,9 @@ pub async fn save_in_locker_internal(
             bank_debit_create_data,
             provider.get_key_store(),
             &customer_id,
-            customer_obj.get_global_customer_id().clone(),
+            customer_obj
+                .get_global_id()
+                .map(|id| id.get_string_repr().to_owned()),
         ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1339,7 +1341,9 @@ pub async fn save_in_locker_internal(
             wallet_create_data,
             provider.get_key_store(),
             &customer_id,
-            customer_obj.get_global_customer_id().clone(),
+            customer_obj
+                .get_global_id()
+                .map(|id| id.get_string_repr().to_owned()),
         ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
