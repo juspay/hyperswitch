@@ -2781,24 +2781,23 @@ where
         }
     };
 
-    // Emit the Hyperswitch -> UCS connector event (shared with the other wrapper); it lands in
-    // connector_events with `destination = unified_connector_service`, `execution_mode` primary
-    // or shadow.
-    emit_ucs_connector_event(
-        state,
-        std::any::type_name::<T>(),
-        connector_name,
-        payment_id,
-        merchant_id,
-        refund_id,
-        dispute_id,
-        payout_id,
-        grpc_request_body,
-        status_code,
-        response_body,
-        external_latency,
-        execution_mode,
-    );
+    if let ExecutionMode::Primary = execution_mode {
+        emit_ucs_connector_event(
+            state,
+            std::any::type_name::<T>(),
+            connector_name,
+            payment_id,
+            merchant_id,
+            refund_id,
+            dispute_id,
+            payout_id,
+            grpc_request_body,
+            status_code,
+            response_body,
+            external_latency,
+            execution_mode,
+        );
+    }
 
     // Set external latency on router data
     router_result.map(|mut router_data| {
@@ -2913,24 +2912,23 @@ where
         }
     };
 
-    // Emit the Hyperswitch -> UCS connector event (shared with the other wrapper); it lands in
-    // connector_events with `destination = unified_connector_service`, `execution_mode` primary
-    // or shadow.
-    emit_ucs_connector_event(
-        state,
-        std::any::type_name::<T>(),
-        connector_name,
-        payment_id,
-        merchant_id,
-        refund_id,
-        dispute_id,
-        payout_id,
-        grpc_request_body,
-        status_code,
-        response_body,
-        external_latency,
-        execution_mode,
-    );
+    if let ExecutionMode::Primary = execution_mode {
+        emit_ucs_connector_event(
+            state,
+            std::any::type_name::<T>(),
+            connector_name,
+            payment_id,
+            merchant_id,
+            refund_id,
+            dispute_id,
+            payout_id,
+            grpc_request_body,
+            status_code,
+            response_body,
+            external_latency,
+            execution_mode,
+        );
+    }
 
     // Set external latency on router data
     router_result.map(|mut router_data| {
