@@ -70,11 +70,7 @@ describe("Delayed Session Token flow test", () => {
           "wallet_pm"
         ]["DelayedSessionToken"];
 
-        cy.sessionTokenCall(
-          fixtures.sessionTokenBody,
-          data,
-          globalState
-        );
+        cy.sessionTokenCall(fixtures.sessionTokenBody, data, globalState);
       });
     });
   });
@@ -113,11 +109,7 @@ describe("Delayed Session Token flow test", () => {
           "wallet_pm"
         ]["DelayedSessionTokenMissingClientSecret"];
 
-        cy.sessionTokenCall(
-          fixtures.sessionTokenBody,
-          data,
-          globalState
-        );
+        cy.sessionTokenCall(fixtures.sessionTokenBody, data, globalState);
       });
     });
   });
