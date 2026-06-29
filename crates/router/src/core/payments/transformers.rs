@@ -1808,6 +1808,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         feature_metadata: None,
         connector_intent_metadata: None,
         merchant_order_reference_id: None,
+        mit_category: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -2768,7 +2769,9 @@ where
                     .clone()
                     .get_required_value("client_secret")?
                     .into(),
-                vault_details: payment_data.get_optional_external_vault_session_details(),
+                vault_details: payment_data
+                    .get_optional_external_vault_session_details()
+                    .and_then(Into::into),
             },
             vec![],
         )))
@@ -4709,7 +4712,12 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             feature_metadata: None,
             reference_id: None,
             payment_link: None,
-            surcharge_details: None,
+            surcharge_details: pa.net_amount.get_surcharge_amount().map(|surcharge_amount| {
+                RequestSurchargeDetails {
+                    surcharge_amount,
+                    tax_amount: pa.net_amount.get_tax_on_surcharge(),
+                }
+            }),
             merchant_decision: None,
             incremental_authorization_allowed: None,
             authorization_count: None,
@@ -4860,6 +4868,8 @@ pub fn bank_transfer_next_steps_check(
                 != Some(diesel_models::enums::PaymentMethodType::PixAutomaticoPush)
             && payment_attempt.payment_method_type
                 != Some(diesel_models::enums::PaymentMethodType::PixEmv)
+            && payment_attempt.payment_method_type
+                != Some(diesel_models::enums::PaymentMethodType::PixQr)
         {
             let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
                 payment_attempt
@@ -5842,6 +5852,29 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
     }
 }
 
+#[cfg(feature = "v1")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreAuthorizeCancelData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        let connector = api::ConnectorData::get_connector_by_name(
+            &additional_data.state.conf.connectors,
+            &additional_data.connector_name,
+            api::GetToken::Connector,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
+        )?;
+
+        Ok(Self {
+            connector_transaction_id: connector
+                .connector
+                .connector_transaction_id(&payment_data.payment_attempt)?
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
+            connector_meta: payment_data.payment_attempt.connector_metadata.clone(),
+        })
+    }
+}
+
 #[cfg(feature = "v2")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPostCaptureData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
@@ -6559,6 +6592,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 })
                 .transpose()?,
             merchant_order_reference_id,
+            mit_category: payment_data.payment_intent.mit_category,
         })
     }
 }

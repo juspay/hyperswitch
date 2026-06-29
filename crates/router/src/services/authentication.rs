@@ -201,6 +201,7 @@ pub enum AuthenticationType {
         merchant_id: id_type::MerchantId,
         profile_id: id_type::ProfileId,
     },
+    InternalApiKey,
     NoAuth,
 }
 
@@ -235,6 +236,7 @@ impl AuthenticationType {
             | Self::EmbeddedJwt { merchant_id, .. }
             | Self::SdkAuthorization { merchant_id, .. } => Some(merchant_id),
             Self::AdminApiKey
+            | Self::InternalApiKey
             | Self::OrganizationJwt { .. }
             | Self::BasicAuth { .. }
             | Self::UserJwt { .. }
@@ -832,6 +834,37 @@ impl GetAuthType for ApiKeyAuthWithMerchantIdFromRoute {
 }
 
 #[cfg(feature = "v1")]
+/// Shared API-key authentication for profile and connector CRUD operations keyed off a
+/// merchant id from the route. `allow_platform_self_operation` controls whether a platform
+/// merchant may perform the operation on its own resources (e.g. configuring external vault).
+async fn api_key_auth_with_merchant_id_from_route<A>(
+    merchant_id_from_route: &id_type::MerchantId,
+    allow_platform_self_operation: bool,
+    request_headers: &HeaderMap,
+    state: &A,
+) -> RouterResult<(AuthenticationData, AuthenticationType)>
+where
+    A: SessionStateInfo + Sync,
+{
+    let api_auth = ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation,
+    };
+    let (auth_data, auth_type): (AuthenticationData, AuthenticationType) = api_auth
+        .authenticate_and_fetch(request_headers, state)
+        .await?;
+
+    let processor_merchant_id = auth_data.platform.get_processor().get_account().get_id();
+
+    fp_utils::when(merchant_id_from_route != processor_merchant_id, || {
+        Err(report!(errors::ApiErrorResponse::Unauthorized))
+            .attach_printable("Merchant ID from route and Processor Merchant Id do not match")
+    })?;
+
+    Ok((auth_data, auth_type))
+}
+
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for ApiKeyAuthWithMerchantIdFromRoute
 where
@@ -842,24 +875,35 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        // This is currently used for profile and connector CRUD operations
-        let api_auth = ApiKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: false,
-        };
-        let (auth_data, auth_type): (AuthenticationData, AuthenticationType) = api_auth
-            .authenticate_and_fetch(request_headers, state)
-            .await?;
+        api_key_auth_with_merchant_id_from_route(&self.0, false, request_headers, state).await
+    }
+}
 
-        let merchant_id_from_route = self.0.clone();
-        let processor_merchant_id = auth_data.platform.get_processor().get_account().get_id();
+/// Same as [`ApiKeyAuthWithMerchantIdFromRoute`] but also permits a platform merchant to
+/// operate on its own resources. Used by endpoints the platform merchant needs to configure
+/// and manage its external vault (connector create/retrieve/update/list, profile update).
+pub struct ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(pub id_type::MerchantId);
 
-        if merchant_id_from_route != *processor_merchant_id {
-            return Err(report!(errors::ApiErrorResponse::Unauthorized))
-                .attach_printable("Merchant ID from route and Processor Merchant Id do not match");
-        }
+#[cfg(feature = "partial-auth")]
+impl GetAuthType for ApiKeyAuthWithMerchantIdFromRouteAllowPlatform {
+    fn get_auth_type(&self) -> detached::PayloadType {
+        detached::PayloadType::ApiKey
+    }
+}
 
-        Ok((auth_data, auth_type))
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A>
+    for ApiKeyAuthWithMerchantIdFromRouteAllowPlatform
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        api_key_auth_with_merchant_id_from_route(&self.0, true, request_headers, state).await
     }
 }
 
@@ -2718,6 +2762,47 @@ where
                     profile_id: Some(validated_data.profile.get_id().clone()),
                 },
             )),
+            None => self.0.authenticate_and_fetch(request_headers, state).await,
+        }
+    }
+}
+
+pub struct InternalApiKeyAuth<F>(pub F);
+
+#[async_trait]
+impl<A, F> AuthenticateAndFetch<(), A> for InternalApiKeyAuth<F>
+where
+    A: SessionStateInfo + Sync + Send,
+    F: AuthenticateAndFetch<(), A> + Sync + Send,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        if !state.conf().internal_merchant_id_profile_id_auth.enabled {
+            return self.0.authenticate_and_fetch(request_headers, state).await;
+        }
+
+        let internal_api_key = HeaderMapStruct::new(request_headers)
+            .get_header_value_by_key(headers::X_INTERNAL_API_KEY)
+            .map(|s| s.to_string());
+
+        match internal_api_key {
+            Some(key) => {
+                if key
+                    == *state
+                        .conf()
+                        .internal_merchant_id_profile_id_auth
+                        .internal_api_key
+                        .peek()
+                {
+                    Ok(((), AuthenticationType::InternalApiKey))
+                } else {
+                    Err(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Internal API key authentication failed")
+                }
+            }
             None => self.0.authenticate_and_fetch(request_headers, state).await,
         }
     }
@@ -5712,6 +5797,14 @@ impl ClientSecretFetch for api_models::authentication::AuthenticationSessionToke
     }
 }
 
+impl ClientSecretFetch for api_models::superposition_sdk_config::SdkConfigRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
+    }
+}
+
 pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
     api_auth: ApiKeyAuth,
@@ -5824,6 +5917,54 @@ where
         None => {
             // Use existing client_secret and publishable key check
             check_client_secret_and_get_auth(headers, payload, api_auth)
+        }
+    }
+}
+
+/// Checks SDK authorization first, then falls back to publishable-key auth with
+/// a required client secret. Merchant secret-key auth is intentionally rejected.
+#[cfg(feature = "v1")]
+pub fn check_sdk_auth_or_client_secret_auth<T>(
+    headers: &HeaderMap,
+    payload: &impl ClientSecretFetch,
+    api_auth: ApiKeyAuth,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+    api::AuthFlow,
+)>
+where
+    T: SessionStateInfo + Sync + Send,
+    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    SdkAuthorizationAuth: AuthenticateAndFetch<AuthenticationData, T>,
+{
+    match get_header_value_by_key(headers::AUTHORIZATION.into(), headers)? {
+        Some(_) => Ok((
+            Box::new(SdkAuthorizationAuth {
+                allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                allow_platform_self_operation: api_auth.allow_platform_self_operation,
+            }),
+            api::AuthFlow::Client,
+        )),
+        None => {
+            let api_key = get_api_key(headers)?;
+
+            match (
+                api_key.starts_with("pk_"),
+                payload.get_client_secret().is_some(),
+            ) {
+                (true, true) => Ok((
+                    Box::new(HeaderAuth(PublishableKeyAuth {
+                        allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
+                        allow_platform_self_operation: api_auth.allow_platform_self_operation,
+                    })),
+                    api::AuthFlow::Client,
+                )),
+                (true, false) => Err(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "client_secret",
+                }
+                .into()),
+                (false, _) => Err(errors::ApiErrorResponse::Unauthorized.into()),
+            }
         }
     }
 }

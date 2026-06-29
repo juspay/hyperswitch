@@ -214,6 +214,8 @@ impl PaymentAttemptInterface for MockDb {
             unified_message: payment_attempt.unified_message,
             external_three_ds_authentication_attempted: payment_attempt
                 .external_three_ds_authentication_attempted,
+            external_threeds_authentication_type: payment_attempt
+                .external_threeds_authentication_type,
             authentication_connector: payment_attempt.authentication_connector,
             authentication_id: payment_attempt.authentication_id,
             mandate_data: payment_attempt.mandate_data,

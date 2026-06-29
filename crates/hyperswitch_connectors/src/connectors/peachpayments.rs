@@ -38,6 +38,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -469,27 +470,66 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: peachpayments::PeachpaymentsErrorResponse = res
+        let response: peachpayments::Peachpayments5xxErrorResponse = res
             .response
-            .parse_struct("PeachpaymentsErrorResponse")
+            .parse_struct("Peachpayments5xxErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_ref.clone(),
-            message: response.message.clone(),
-            reason: Some(response.message.clone()),
-            attempt_status: Some(enums::AttemptStatus::Authorized),
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+        match response {
+            peachpayments::Peachpayments5xxErrorResponse::Standard(error_response) => {
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: error_response.error_ref.clone(),
+                    message: error_response.message.clone(),
+                    reason: Some(error_response.message.clone()),
+                    attempt_status: Some(enums::AttemptStatus::Authorized),
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            peachpayments::Peachpayments5xxErrorResponse::Detailed(decline_response) => {
+                let (code, message, reason) = match &decline_response.response.response_code {
+                    Some(peachpayments::ResponseCode::Text(text)) => {
+                        (text.clone(), text.clone(), Some(text.clone()))
+                    }
+                    Some(peachpayments::ResponseCode::Structured {
+                        value,
+                        description,
+                        explanation,
+                        ..
+                    }) => (value.clone(), description.clone(), explanation.clone()),
+                    None => (
+                        NO_ERROR_CODE.to_string(),
+                        NO_ERROR_MESSAGE.to_string(),
+                        None,
+                    ),
+                };
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code,
+                    message,
+                    reason,
+                    attempt_status: Some(enums::AttemptStatus::Authorized),
+                    connector_transaction_id: Some(
+                        decline_response.response.transaction_id.clone(),
+                    ),
+                    connector_response_reference_id: Some(
+                        decline_response.response.reference_id.clone(),
+                    ),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+        }
     }
 }
 
@@ -830,8 +870,12 @@ impl webhooks::IncomingWebhook for Peachpayments {
                                 Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
                             }
                         }
+                        // `FailedRetry` is returned by PeachPayments for 5xx capture failures.
+                        // In this state, the transaction remains retryable and Capture/Void
+                        // operations can be re-attempted.
                         peachpayments::PeachpaymentsPaymentStatus::Authorized
-                        | peachpayments::PeachpaymentsPaymentStatus::Approved => {
+                        | peachpayments::PeachpaymentsPaymentStatus::Approved
+                        | peachpayments::PeachpaymentsPaymentStatus::FailedRetry => {
                             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
                         }
                         peachpayments::PeachpaymentsPaymentStatus::Pending => {

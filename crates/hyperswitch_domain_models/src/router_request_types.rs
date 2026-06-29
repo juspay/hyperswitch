@@ -1172,6 +1172,12 @@ pub struct PaymentsCancelPostCaptureSyncData {
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
+pub struct PaymentsPreAuthorizeCancelData {
+    pub connector_transaction_id: String,
+    pub connector_meta: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct PaymentsExtendAuthorizationData {
     pub minor_amount: MinorUnit,
     pub currency: storage_enums::Currency,
@@ -1357,6 +1363,7 @@ pub struct ExternalSurchargeDetails {
     pub tax_amount: Option<MinorUnit>,
     pub payment_method: common_enums::PaymentMethod,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub external_surcharge_id: String,
 }
 
 impl ExternalSurchargeDetails {
@@ -1919,6 +1926,7 @@ pub struct SetupMandateRequestData {
     pub authentication_data: Option<AuthenticationData>,
     pub connector_intent_metadata: Option<ConnectorMetadata>,
     pub merchant_order_reference_id: Option<String>,
+    pub mit_category: Option<common_enums::MitCategory>,
 }
 
 #[derive(Debug, Clone)]

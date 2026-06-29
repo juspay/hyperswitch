@@ -17,15 +17,17 @@ use hyperswitch_domain_models::{
         dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateSurcharge, CalculateTax, Capture,
             CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
             CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr, GiftCardBalanceCheck,
             IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid,
-            PostCaptureVoidSync, PostProcessing, PostSessionTokens, PreProcessing,
-            PushNotification, Reject, SdkSessionUpdate, Session, SettlementSplitCreate,
-            SetupMandate, UpdateMetadata, Void,
+            PostCaptureVoidSync, PostProcessing, PostSessionTokens, PreAuthorizeVoid,
+            PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
+            SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{
@@ -38,7 +40,9 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication,
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -53,15 +57,18 @@ use hyperswitch_domain_models::{
         PaymentsCompleteRefundSurchrgeData, PaymentsCompleteSurchargeData,
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSurchargeCalculationData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
-        RefundsData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
-        SettlementSplitRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSurchargeCalculationData,
+        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
+        PushNotificationRequestData, RefundsData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
@@ -115,17 +122,15 @@ use hyperswitch_interfaces::{
             SubmitEvidenceV2,
         },
         files_v2::{FileUploadV2, RetrieveFileV2, UploadFileV2},
-        merchant_connector_webhook_management_v2::{
-            ConfigureConnectorWebhookV2, WebhookRegisterV2,
-        },
+        merchant_connector_webhook_management_v2::{WebhookGenerateSecretV2, WebhookRegisterV2},
         payments_v2::{
             CompleteRefundSurchrgeV2, CompleteSurchargeV2, ConnectorCustomerV2,
             ExternalVaultProxyPaymentsCreate, MandateSetupV2, PaymentApproveV2,
             PaymentAuthorizeSessionTokenV2, PaymentAuthorizeV2, PaymentCaptureV2,
             PaymentCreateOrderV2, PaymentExtendAuthorizationV2, PaymentIncrementalAuthorizationV2,
             PaymentPostCaptureVoidSyncV2, PaymentPostCaptureVoidV2, PaymentPostSessionTokensV2,
-            PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2, PaymentSyncV2,
-            PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2,
+            PaymentPreAuthorizeVoidV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
+            PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2,
             PaymentsAuthenticateV2, PaymentsCompleteAuthorizeV2, PaymentsGenerateQrV2,
             PaymentsGiftCardBalanceCheckV2, PaymentsPostAuthenticateV2, PaymentsPostProcessingV2,
             PaymentsPreAuthenticateV2, PaymentsPreProcessingV2, PaymentsPushNotificationV2,
@@ -158,6 +163,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentVoidV2 for $path::$connector{}
             impl PaymentPostCaptureVoidV2 for $path::$connector{}
             impl PaymentPostCaptureVoidSyncV2 for $path::$connector{}
+            impl PaymentPreAuthorizeVoidV2 for $path::$connector{}
             impl PaymentApproveV2 for $path::$connector{}
             impl PaymentRejectV2 for $path::$connector{}
             impl PaymentCaptureV2 for $path::$connector{}
@@ -200,6 +206,8 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             for $path::$connector{}
             impl
             ConnectorIntegrationV2<PostCaptureVoidSync, PaymentFlowData, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>
+            for $path::$connector{}
+            impl ConnectorIntegrationV2<PreAuthorizeVoid, PaymentFlowData, PaymentsPreAuthorizeCancelData, PaymentsResponseData>
             for $path::$connector{}
             impl
             ConnectorIntegrationV2<Approve,PaymentFlowData, PaymentsApproveData, PaymentsResponseData>
@@ -5299,14 +5307,22 @@ default_imp_for_new_connector_integration_external_vault_proxy!(
 macro_rules! default_imp_for_new_connector_integration_webhook_register {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl ConfigureConnectorWebhookV2 for $path::$connector {}
             impl WebhookRegisterV2 for $path::$connector {}
+            impl WebhookGenerateSecretV2 for $path::$connector {}
             impl
                 ConnectorIntegrationV2<
                 ConnectorWebhookRegister,
                 ConnectorWebhookConfigurationFlowData,
                 ConnectorWebhookRegisterRequest,
                 ConnectorWebhookRegisterResponse,
+            > for $path::$connector
+            {}
+            impl
+                ConnectorIntegrationV2<
+                ConnectorWebhookGenerateSecret,
+                ConnectorWebhookConfigurationFlowData,
+                ConnectorWebhookGenerateSecretRequest,
+                ConnectorWebhookGenerateSecretResponse,
             > for $path::$connector
             {}
         )*

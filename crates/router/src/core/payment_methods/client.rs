@@ -4,7 +4,11 @@
 ///   - merchant-enabled payment methods (filtered via Euclid constraint graph + session flow routing)
 ///   - customer saved payment methods (fetched from DB via `CustomerPaymentMethodsFetcher` trait)
 ///
-/// Auth: `SdkAuthorizationAuth` only (Authorization: base64(publishable_key:client_secret))
+/// Auth:
+///   - `SdkAuthorizationAuth` via Authorization header.
+///   - `PublishableKeyAuth` via `api-key: pk_...` and `client_secret` query param.
+///
+/// Merchant secret-key auth is not supported for this client endpoint.
 use api_models::payment_methods::{
     ClientPaymentMethodsListResponse, CustomerPaymentMethod, CustomerPaymentMethodDataForClient,
     CustomerPaymentMethodForClient, PaymentMethodListIntentDataInput,
@@ -199,7 +203,7 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 &merchant_id,
                 true,
-                platform.get_provider().get_key_store(),
+                platform.get_processor().get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -548,10 +552,18 @@ pub async fn list_payment_methods_client(
     state: routes::SessionState,
     platform: domain::Platform,
     payment_id: id_type::PaymentId,
+    client_secret: Option<String>,
 ) -> errors::RouterResponse<ClientPaymentMethodsListResponse> {
     // 1. Load payment intent + related context
     let payment_intent_context =
         load_payment_intent_context(&state, &platform, &payment_id).await?;
+
+    if let Some(client_secret) = client_secret.as_ref() {
+        helpers::authenticate_client_secret(
+            Some(client_secret),
+            &payment_intent_context.payment_intent,
+        )?;
+    }
 
     // 2. Fetch enabled payment methods (Gate 1 + Gate 2 + consolidation)
     let EnabledPmsResult {
