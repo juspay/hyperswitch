@@ -1,11 +1,11 @@
 use std::ops::Deref;
 
-use common_utils::ext_traits::{StringExt, ValueExt};
+use common_utils::ext_traits::ValueExt;
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use router_env::{logger, tracing::Instrument};
 use scheduler::{
-    consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
+    consumer::{self, workflows::ProcessTrackerWorkflow},
     errors as sch_errors, utils as scheduler_utils,
 };
 
@@ -129,6 +129,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
         if response.is_err() {
             retry_sync_task(
                 db,
+                state.superposition_service.as_ref(),
                 tracking_data.connector_name,
                 tracking_data
                     .processor_merchant_id
@@ -159,31 +160,14 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
 
 pub async fn get_sync_process_schedule_time(
     db: &dyn StorageInterface,
-    connector: &str,
-    processor_merchant_id: &common_utils::id_type::MerchantId,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let mapping: common_utils::errors::CustomResult<
-        process_data::ConnectorPTMapping,
-        errors::StorageError,
-    > = db
-        .find_config_by_key(&format!("pt_mapping_{connector}"))
-        .await
-        .map(|value| value.config)
-        .and_then(|config| {
-            config
-                .parse_struct("ConnectorPTMapping")
-                .change_context(errors::StorageError::DeserializationFailed)
-        });
-    let mapping = match mapping {
-        Ok(x) => x,
-        Err(error) => {
-            logger::info!(?error, "Redis Mapping Error");
-            process_data::ConnectorPTMapping::default()
-        }
-    };
-    let time_delta =
-        scheduler_utils::get_schedule_time(mapping, processor_merchant_id, retry_count);
+    let mapping = dimensions
+        .get_pt_mapping_dispute_sync(db, superposition_client, None)
+        .await;
+    let time_delta = scheduler_utils::get_schedule_time(mapping, retry_count);
 
     Ok(scheduler_utils::get_time_from_delta(time_delta))
 }
@@ -193,12 +177,19 @@ pub async fn get_sync_process_schedule_time(
 /// Returns bool which indicates whether this was the last retry or not
 pub async fn retry_sync_task(
     db: &dyn StorageInterface,
+    superposition_client: &external_services::superposition::SuperpositionClient,
     connector: String,
     processor_merchant_id: common_utils::id_type::MerchantId,
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
+    let connector_enum = connector
+        .parse::<common_enums::connector_enums::Connector>()
+        .map_err(|_| sch_errors::ProcessTrackerError::UnexpectedFlow)?;
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor_merchant_id.into())
+        .with_connector(connector_enum);
     let schedule_time: Option<time::PrimitiveDateTime> =
-        get_sync_process_schedule_time(db, &connector, &processor_merchant_id, pt.retry_count + 1)
+        get_sync_process_schedule_time(db, superposition_client, &dimensions, pt.retry_count + 1)
             .await?;
 
     match schedule_time {

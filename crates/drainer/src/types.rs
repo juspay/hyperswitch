@@ -6,15 +6,22 @@ use serde::{de::value::MapDeserializer, Deserialize, Serialize};
 
 use crate::{
     kv,
-    utils::{deserialize_db_op, deserialize_i64},
+    utils::{deserialize_i64, deserialize_query},
 };
 
 #[derive(Deserialize, Serialize)]
 pub struct StreamData {
+    /// Application request ID used for correlation
     pub request_id: String,
+
+    /// Entity ID / Partitioning key
     pub global_id: String,
-    #[serde(deserialize_with = "deserialize_db_op")]
-    pub typed_sql: kv::DBOperation,
+
+    /// Database SQL query
+    #[serde(deserialize_with = "deserialize_query")]
+    pub query: kv::SerializableQuery,
+
+    /// Time at which entry was pushed to stream
     #[serde(deserialize_with = "deserialize_i64")]
     pub pushed_at: i64,
 }

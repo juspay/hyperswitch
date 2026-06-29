@@ -1,3 +1,4 @@
+pub mod absa_sanlam;
 pub mod aci;
 pub mod adyen;
 pub mod adyenplatform;
@@ -87,6 +88,7 @@ pub mod nuvei;
 pub mod opayo;
 pub mod opennode;
 pub mod paybox;
+pub mod payconex;
 pub mod payeezy;
 pub mod payjustnow;
 pub mod payjustnowinstore;
@@ -110,7 +112,6 @@ pub mod recurly;
 pub mod redsys;
 pub mod revolv3;
 pub mod riskified;
-pub mod sanlam;
 pub mod santander;
 pub mod shift4;
 pub mod sift;
@@ -149,10 +150,10 @@ pub mod zsl;
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
-    aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, affirm::Affirm, airwallex::Airwallex,
-    amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay, authorizedotnet::Authorizedotnet,
-    bambora::Bambora, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica,
-    barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
+    absa_sanlam::AbsaSanlam, aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, affirm::Affirm,
+    airwallex::Airwallex, amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay,
+    authorizedotnet::Authorizedotnet, bambora::Bambora, bamboraapac::Bamboraapac,
+    bankofamerica::Bankofamerica, barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
     blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
     breadpay::Breadpay, calida::Calida, cashtocode::Cashtocode, celero::Celero,
     chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase,
@@ -171,17 +172,17 @@ pub use self::{
     mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay,
     netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay,
     noon::Noon, nordea::Nordea, novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode,
-    paybox::Paybox, payeezy::Payeezy, payjustnow::Payjustnow, payjustnowinstore::Payjustnowinstore,
-    payload::Payload, payme::Payme, payone::Payone, paypal::Paypal, paysafe::Paysafe,
-    paystack::Paystack, paytm::Paytm, payu::Payu, peachpayments::Peachpayments, phonepe::Phonepe,
-    placetopay::Placetopay, plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay,
-    rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys, revolv3::Revolv3,
-    riskified::Riskified, sanlam::Sanlam, santander::Santander, shift4::Shift4, sift::Sift,
-    signifyd::Signifyd, silverflow::Silverflow, square::Square, stax::Stax, stripe::Stripe,
-    stripebilling::Stripebilling, taxjar::Taxjar, tesouro::Tesouro, threedsecureio::Threedsecureio,
-    thunes::Thunes, tokenex::Tokenex, tokenio::Tokenio, truelayer::Truelayer, trustly::Trustly,
-    trustpay::Trustpay, trustpayments::Trustpayments, tsys::Tsys,
-    unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
+    paybox::Paybox, payconex::Payconex, payeezy::Payeezy, payjustnow::Payjustnow,
+    payjustnowinstore::Payjustnowinstore, payload::Payload, payme::Payme, payone::Payone,
+    paypal::Paypal, paysafe::Paysafe, paystack::Paystack, paytm::Paytm, payu::Payu,
+    peachpayments::Peachpayments, phonepe::Phonepe, placetopay::Placetopay, plaid::Plaid,
+    powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
+    recurly::Recurly, redsys::Redsys, revolv3::Revolv3, riskified::Riskified, santander::Santander,
+    shift4::Shift4, sift::Sift, signifyd::Signifyd, silverflow::Silverflow, square::Square,
+    stax::Stax, stripe::Stripe, stripebilling::Stripebilling, taxjar::Taxjar, tesouro::Tesouro,
+    threedsecureio::Threedsecureio, thunes::Thunes, tokenex::Tokenex, tokenio::Tokenio,
+    truelayer::Truelayer, trustly::Trustly, trustpay::Trustpay, trustpayments::Trustpayments,
+    tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
     worldpay::Worldpay, worldpaymodular::Worldpaymodular, worldpayvantiv::Worldpayvantiv,
     worldpayxml::Worldpayxml, xendit::Xendit, zen::Zen, zift::Zift, zsl::Zsl,

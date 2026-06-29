@@ -8,9 +8,9 @@ use scheduler::{
 };
 
 #[cfg(feature = "v1")]
-use crate::types::payment_methods as pm_types;
+use crate::types::{domain, payment_methods as pm_types};
 use crate::{
-    core::payment_methods::{cards, vault},
+    core::payment_methods::{cards, utils as payment_method_utils, vault},
     errors,
     logger::{self, error},
     routes::SessionState,
@@ -124,20 +124,25 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                     hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card_detail);
 
                 // Step 5: Upsert the card into generic locker via direct AddVault call.
-                let entity_id = hyperswitch_domain_models::vault::V1VaultEntityId::new(
-                    key_store.merchant_id.clone(),
-                    customer_id.clone(),
-                );
 
-                let payload = pm_types::AddVaultRequest {
-                    entity_id,
-                    vault_id: crate::types::domain::VaultId::generate(card_reference),
-                    data: &pmd,
-                    ttl: state.conf.locker.ttl_for_storage_in_secs,
-                }
-                .encode_to_vec()
-                .change_context(errors::VaultError::RequestEncodingFailed)
-                .attach_printable("Failed to encode AddVaultRequest")
+                let should_trigger_fingerprint_migration =
+                    payment_method_utils::get_should_trigger_fingerprint_migration(
+                        state,
+                        None,
+                        hyperswitch_domain_models::platform::ProviderMerchantId::new(
+                            merchant_id.clone(),
+                        ),
+                    )
+                    .await;
+
+                let payload = cards::encode_add_vault_request(
+                    should_trigger_fingerprint_migration,
+                    merchant_id.clone(),
+                    &customer_id,
+                    pmd,
+                    state.conf.locker.ttl_for_storage_in_secs,
+                    Some(domain::VaultId::generate(card_reference.clone())),
+                )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "Failed to add payment method in generic locker in compatibility PT",
@@ -155,14 +160,13 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                         "Failed to add payment method in generic locker in compatibility PT",
                     )?;
 
-                let _stored_pm_resp: pm_types::InternalAddVaultResponse = resp
-                    .parse_struct("InternalAddVaultResponse")
-                    .change_context(errors::VaultError::ResponseDeserializationFailed)
-                    .attach_printable("Failed to parse data into InternalAddVaultResponse")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to add payment method in generic locker in compatibility PT",
-                    )?;
+                let _stored_pm_resp =
+                    cards::parse_add_vault_response(should_trigger_fingerprint_migration, resp)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to add payment method in generic locker in compatibility PT",
+                        )?;
+
                 logger::info!(
                     process_id=%process.id,
                     payment_method_id=%payment_method.payment_method_id,
@@ -219,9 +223,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
 
                 let network_token_payload = pm_types::AddVaultRequest {
                     entity_id: network_token_entity_id,
-                    vault_id: crate::types::domain::VaultId::generate(
-                        network_token_locker_id.clone(),
-                    ),
+                    vault_id: domain::VaultId::generate(network_token_locker_id.clone()),
                     data: &network_token_pmd,
                     ttl: state.conf.locker.ttl_for_storage_in_secs,
                 }

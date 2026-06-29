@@ -382,7 +382,6 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                     customer_id: Some(customer_id),
                     payment_method_data,
                     billing,
-                    psp_tokenization: None,
                     network_tokenization: None,
                     storage_type: common_enums::StorageType::Persistent, //this field is currently not being used in storing payment methods via external vault
                 };

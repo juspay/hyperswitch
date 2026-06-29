@@ -914,18 +914,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         Some(diesel_models::enums::FutureUsage::OnSession);
                 };
 
-                if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
-                    &self.request,
-                ) {
-                    connector
-                        .connector
-                        .validate_mandate_payment(
-                            self.request.payment_method_type,
-                            self.request.payment_method_data.clone(),
-                        )
-                        .to_payment_failed_response()?;
-                };
-
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::Authorize,
                     types::PaymentsAuthorizeData,
@@ -1602,7 +1590,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
     let connector_auth_metadata =
         unified_connector_service::build_unified_connector_service_auth_metadata(
             merchant_connector_account,
-            processor,
+            processor.get_account().get_id(),
             router_data.connector.clone(),
         )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)

@@ -152,7 +152,8 @@ pub struct ConfigMetadata {
     pub google_pay: Option<Vec<InputData>>,
     pub apple_pay: Option<Vec<InputData>>,
     pub paypal_sdk: Option<Vec<InputData>>,
-    pub pix: Option<Vec<InputData>>,
+    pub pix_emv: Option<Vec<InputData>>,
+    pub pix_qr: Option<Vec<InputData>>,
     pub pix_automatico_push: Option<Vec<InputData>>,
     pub pix_automatico_qr: Option<Vec<InputData>>,
     pub boleto: Option<Vec<InputData>>,
@@ -242,6 +243,7 @@ pub struct ConnectorTomlConfig {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConnectorConfig {
+    pub absa_sanlam: Option<ConnectorTomlConfig>,
     pub authipay: Option<ConnectorTomlConfig>,
     pub juspaythreedsserver: Option<ConnectorTomlConfig>,
     pub katapult: Option<ConnectorTomlConfig>,
@@ -334,6 +336,7 @@ pub struct ConnectorConfig {
     pub multisafepay: Option<ConnectorTomlConfig>,
     pub nexinets: Option<ConnectorTomlConfig>,
     pub nexixpay: Option<ConnectorTomlConfig>,
+    pub payconex: Option<ConnectorTomlConfig>,
     pub nmi: Option<ConnectorTomlConfig>,
     pub nomupay_payout: Option<ConnectorTomlConfig>,
     pub noon: Option<ConnectorTomlConfig>,
@@ -367,7 +370,6 @@ pub struct ConnectorConfig {
     pub rapyd: Option<ConnectorTomlConfig>,
     pub redsys: Option<ConnectorTomlConfig>,
     pub revolv3: Option<ConnectorTomlConfig>,
-    pub sanlam: Option<ConnectorTomlConfig>,
     pub santander: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
     pub sift: Option<ConnectorTomlConfig>,
@@ -527,6 +529,7 @@ impl ConnectorConfig {
     ) -> Result<Option<ConnectorTomlConfig>, String> {
         let connector_data = Self::new()?;
         match connector {
+            Connector::AbsaSanlam => Ok(connector_data.absa_sanlam),
             Connector::Aci => Ok(connector_data.aci),
             Connector::Authipay => Ok(connector_data.authipay),
             Connector::Adyen => Ok(connector_data.adyen),
@@ -640,7 +643,6 @@ impl ConnectorConfig {
             Connector::Tokenex => Ok(connector_data.tokenex),
             Connector::Tokenio => Ok(connector_data.tokenio),
             Connector::Truelayer => Ok(connector_data.truelayer),
-            Connector::Sanlam => Ok(connector_data.sanlam),
             Connector::Trustly => Ok(connector_data.trustly),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Trustpayments => Ok(connector_data.trustpayments),
@@ -677,6 +679,7 @@ impl ConnectorConfig {
             Connector::CtpMastercard => Ok(connector_data.ctp_mastercard),
             Connector::Xendit => Ok(connector_data.xendit),
             Connector::Paytm => Ok(connector_data.paytm),
+            Connector::Payconex => Ok(connector_data.payconex),
             Connector::Zift => Ok(connector_data.zift),
             Connector::Phonepe => Ok(connector_data.phonepe),
             Connector::Payjustnow => Ok(connector_data.payjustnow),

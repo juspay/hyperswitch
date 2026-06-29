@@ -12,7 +12,7 @@ use crate::schema::payment_methods::dsl;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_methods::dsl::{self, id as pm_id};
 use crate::{
-    enums as storage_enums, errors,
+    enums as storage_enums, errors, kv,
     payment_method::{self, PaymentMethod, PaymentMethodNew},
     PgPooledConn, StorageResult,
 };
@@ -20,6 +20,13 @@ use crate::{
 impl PaymentMethodNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentMethod> {
         generics::generic_insert(conn, self).await
+    }
+
+    pub async fn generate_drainer_insert_query(
+        self,
+        conn: &mut PgPooledConn,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_insert_query(conn, self).await
     }
 }
 
@@ -378,6 +385,36 @@ impl PaymentMethod {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::locker_id.eq(locker_id.to_owned()),
+        )
+        .await
+    }
+}
+
+impl payment_method::PaymentMethodUpdateInternal {
+    #[cfg(feature = "v1")]
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        payment_method_id: String,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_with_predicate::<<PaymentMethod as HasTable>::Table, _, _>(
+            conn,
+            dsl::payment_method_id.eq(payment_method_id),
+            self,
+        )
+        .await
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        id: common_utils::id_type::GlobalPaymentMethodId,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_with_predicate::<<PaymentMethod as HasTable>::Table, _, _>(
+            conn,
+            pm_id.eq(id),
+            self,
         )
         .await
     }

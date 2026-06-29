@@ -1,6 +1,5 @@
 use api_models::{
-    payments as payment_types,
-    payments::{ApplePaySessionResponse, SessionToken},
+    payments::{self as payment_types, ApplePaySessionResponse, PaypalCaptureMethod, SessionToken},
     webhooks::IncomingWebhookEvent,
 };
 use common_enums::enums;
@@ -1896,6 +1895,7 @@ impl
                                 delayed_session_token: false,
                                 sdk_next_action: api_models::payments::SdkNextAction {
                                     next_action: api_models::payments::NextActionCall::Confirm,
+                                    should_block_confirm: None,
                                 },
                                 connector_reference_id: None,
                                 connector_sdk_public_key: None,
@@ -1965,6 +1965,7 @@ impl
                                     connector: data.connector.clone(),
                                     sdk_next_action: payment_types::SdkNextAction {
                                         next_action: payment_types::NextActionCall::Confirm,
+                                        should_block_confirm: None,
                                     },
                                 },
                             ),
@@ -1986,6 +1987,7 @@ impl
                                 session_token: paypal_sdk_data.data.client_id,
                                 sdk_next_action: api_models::payments::SdkNextAction {
                                     next_action: api_models::payments::NextActionCall::Confirm,
+                                    should_block_confirm: None,
                                 },
                                 client_token: Some(
                                     res.data.create_client_token.client_token.clone().expose(),
@@ -2005,6 +2007,8 @@ impl
                                             )?,
                                     },
                                 ),
+                                currency: Some(data.request.currency),
+                                intent: data.request.capture_method.map(PaypalCaptureMethod::from),
                             },
                         ))
                     }

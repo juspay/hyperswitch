@@ -1109,9 +1109,11 @@ pub async fn clone_connector(
         state.clone(),
         &req,
         json_payload.into_inner(),
-        |state, _: auth::UserFromToken, req, _| user_core::clone_connector(state, req),
+        |state, user_from_token: auth::UserFromToken, req, _| {
+            user_core::clone_connector(state, user_from_token, req)
+        },
         &auth::JWTAuth {
-            permission: Permission::MerchantInternalConnectorWrite,
+            permission: Permission::MerchantCloneConnectorWrite,
             allow_connected: true,
             allow_platform: true,
         },
@@ -1256,6 +1258,27 @@ pub async fn authorize_token(
         json_payload.into_inner(),
         |state, _: (), payload, _| user_core::authorize_token(state, payload),
         &auth::InternalMerchantIdProfileIdAuth(auth::NoAuth),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Retrieve merchant details for the user (product_type, merchant_account_type).
+pub async fn get_user_merchant_details(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::GetUserMerchantDetails;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| user_core::get_user_merchant_details(state, user),
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

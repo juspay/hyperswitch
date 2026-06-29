@@ -18,14 +18,10 @@ use diesel_models::organization::{self, OrganizationBridge};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount as DomainMerchantConnectorAccount;
-#[cfg(feature = "v1")]
-use hyperswitch_masking::PeekInterface;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
-use router_env::{env, logger};
+use router_env::{env, instrument, logger, tracing};
 
-#[cfg(feature = "v1")]
-use crate::types::AdditionalMerchantData;
 use crate::{
     consts::user::{REDIS_SSO_PREFIX, REDIS_SSO_TTL},
     core::errors::{StorageError, UserErrors, UserResult},
@@ -408,10 +404,15 @@ pub fn get_base_url(state: &SessionState) -> &str {
 }
 
 #[cfg(feature = "v1")]
+#[instrument(skip_all)]
 pub async fn build_cloned_connector_create_request(
     source_mca: DomainMerchantConnectorAccount,
-    destination_profile_id: Option<id_type::ProfileId>,
+    destination_profile_id: id_type::ProfileId,
     destination_connector_label: Option<String>,
+    payment_method_types: &std::collections::HashMap<
+        common_enums::PaymentMethod,
+        std::collections::HashSet<common_enums::PaymentMethodType>,
+    >,
 ) -> UserResult<admin_api::MerchantConnectorCreate> {
     let source_mca_name = source_mca
         .connector_name
@@ -425,29 +426,33 @@ pub async fn build_cloned_connector_create_request(
         .map(|data| {
             let val = data.into_iter().map(|secret| secret.expose()).collect();
             serde_json::Value::Array(val)
-                .parse_value("PaymentMethods")
+                .parse_value::<Vec<admin_api::PaymentMethodsEnabled>>("PaymentMethods")
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Unable to deserialize PaymentMethods")
         })
-        .transpose()?;
-
-    let frm_configs = source_mca
-        .frm_configs
-        .as_ref()
-        .map(|configs_vec| {
-            configs_vec
-                .iter()
-                .map(|config_secret| {
-                    config_secret
-                        .peek()
-                        .clone()
-                        .parse_value("FrmConfigs")
-                        .change_context(UserErrors::InternalServerError)
-                        .attach_printable("Unable to deserialize FrmConfigs")
+        .transpose()?
+        .map(|payment_methods| {
+            payment_methods
+                .into_iter()
+                .filter_map(|mut payment_method| {
+                    let allowed_subtypes =
+                        payment_method_types.get(&payment_method.payment_method)?;
+                    payment_method.payment_method_types =
+                        payment_method.payment_method_types.map(|subtypes| {
+                            subtypes
+                                .into_iter()
+                                .filter(|subtype| {
+                                    allowed_subtypes.contains(&subtype.payment_method_type)
+                                })
+                                .collect::<Vec<_>>()
+                        });
+                    match &payment_method.payment_method_types {
+                        Some(subtypes) if subtypes.is_empty() => None,
+                        _ => Some(payment_method),
+                    }
                 })
-                .collect::<Result<Vec<_>, _>>()
-        })
-        .transpose()?;
+                .collect::<Vec<_>>()
+        });
 
     let connector_webhook_details = source_mca
         .connector_webhook_details
@@ -460,31 +465,6 @@ pub async fn build_cloned_connector_create_request(
             .attach_printable("Unable to deserialize connector_webhook_details")
         })
         .transpose()?;
-
-    let connector_wallets_details = source_mca
-        .connector_wallets_details
-        .map(|secret_value| {
-            secret_value
-                .into_inner()
-                .expose()
-                .parse_value::<admin_api::ConnectorWalletDetails>("ConnectorWalletDetails")
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("Unable to parse ConnectorWalletDetails from Value")
-        })
-        .transpose()?;
-
-    let additional_merchant_data = source_mca
-        .additional_merchant_data
-        .map(|secret_value| {
-            secret_value
-                .into_inner()
-                .expose()
-                .parse_value::<AdditionalMerchantData>("AdditionalMerchantData")
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("Unable to parse AdditionalMerchantData from Value")
-        })
-        .transpose()?
-        .map(admin_api::AdditionalMerchantData::foreign_from);
 
     Ok(admin_api::MerchantConnectorCreate {
         connector_type: source_mca.connector_type,
@@ -499,12 +479,12 @@ pub async fn build_cloned_connector_create_request(
         business_country: source_mca.business_country,
         business_label: source_mca.business_label.clone(),
         business_sub_label: source_mca.business_sub_label.clone(),
-        frm_configs,
+        frm_configs: None,
         connector_webhook_details,
-        profile_id: destination_profile_id,
-        pm_auth_config: source_mca.pm_auth_config.clone(),
-        connector_wallets_details,
+        profile_id: Some(destination_profile_id),
+        pm_auth_config: None,
+        connector_wallets_details: None,
         status: Some(source_mca.status),
-        additional_merchant_data,
+        additional_merchant_data: None,
     })
 }

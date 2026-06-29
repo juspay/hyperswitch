@@ -7,6 +7,8 @@ pub use diesel_models::batch_blocklist_job::{
 pub struct BatchBlocklistTrackingData {
     pub job_id: String,
     pub merchant_id: id_type::MerchantId,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
     pub chunk_total_count: u32,
     pub completed_chunks: Vec<u32>,
+    pub created_by: Option<String>,
 }

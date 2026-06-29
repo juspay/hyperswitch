@@ -846,6 +846,25 @@ pub fn payments_cancel() {}
 )]
 pub fn payments_cancel_post_capture() {}
 
+/// Payments - Cancel Post Capture Retrieve
+///
+/// Retrieves a canceled Payment post capture
+#[utoipa::path(
+    get,
+    path = "/payments/{payment_id}/cancel_post_capture",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    responses(
+        (status = 200, description = "Payment canceled post capture", body = PaymentsResponse),
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+    ),
+    tag = "Payments",
+    operation_id = "Cancel a Payment Post Capture Retrieve",
+    security(("api_key" = []))
+)]
+pub fn payments_cancel_post_capture_retrieve() {}
+
 /// Payments - List
 ///
 /// To list the *payments*
@@ -1032,17 +1051,44 @@ pub fn payments_post_session_tokens() {}
 )]
 pub fn payments_update_metadata() {}
 
+/// Payments - Submit Eligibility Check Data
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/eligibility_check",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    request_body=PaymentsEligibilityCheckRequest,
+    responses(
+        (status = 200, description = "Eligibility Check submit is successful", body = PaymentsEligibilityCheckResponse),
+        (status = 400, description = "Bad Request", body = GenericErrorResponseOpenApi)
+    ),
+    tag = "Payments",
+    operation_id = "Submit Eligibility Check data for a Payment",
+    security(("publishable_key" = []))
+)]
+pub fn payments_submit_eligibility_check() {}
+
 /// Payments - Submit Eligibility Data
+///
+/// Runs eligibility checks (blocklist, card testing guard) and calculates an external surcharge
+/// in a single call. Intended to be called by the SDK before the final confirm step.
+///
+/// - If eligibility is denied the response will contain `sdk_next_action: deny` and no surcharge details.
+/// - If the merchant has no surcharge connector configured, `surcharge_details` will be `null`.
+/// - Surcharge calculation is best-effort: if the external call fails the payment still proceeds
+///   with `surcharge_details: null`.
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/eligibility",
     params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
+        ("payment_id" = String, Path, description = "The identifier for the payment")
     ),
-    request_body=PaymentsEligibilityRequest,
+    request_body = PaymentsEligibilityRequest,
     responses(
-        (status = 200, description = "Eligibility submit is successful", body = PaymentsEligibilityResponse),
-        (status = 400, description = "Bad Request", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Eligibility and surcharge checks successful", body = PaymentsEligibilityResponse),
+        (status = 400, description = "Bad Request", body = GenericErrorResponseOpenApi),
+        (status = 404, description = "Payment not found", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Submit Eligibility data for a Payment",

@@ -1,19 +1,34 @@
+#[cfg(feature = "v2")]
+use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+#[cfg(feature = "v2")]
+use diesel::{NullableExpressionMethods, QueryDsl};
+#[cfg(feature = "v2")]
+use error_stack::{report, ResultExt};
 
 use super::generics;
+#[cfg(feature = "v2")]
+use crate::customers::CustomerGlobalIdMigrationRow;
 #[cfg(feature = "v1")]
 use crate::schema::customers::dsl;
 #[cfg(feature = "v2")]
 use crate::schema_v2::customers::dsl;
 use crate::{
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
-    errors, PgPooledConn, StorageResult,
+    errors, kv, PgPooledConn, StorageResult,
 };
 
 impl CustomerNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Customer> {
         generics::generic_insert(conn, self).await
+    }
+
+    pub async fn generate_drainer_insert_query(
+        self,
+        conn: &mut PgPooledConn,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_insert_query(conn, self).await
     }
 }
 
@@ -25,6 +40,73 @@ pub struct CustomerListConstraints {
 }
 
 impl Customer {
+    #[cfg(feature = "v2")]
+    pub async fn find_by_merchant_id_customer_id_for_global_id_migration(
+        conn: &PgPooledConn,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
+    ) -> StorageResult<CustomerGlobalIdMigrationRow> {
+        let customer_id = Some(customer_id.get_string_repr().to_owned());
+
+        let query = dsl::customers
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(dsl::customer_id.eq(customer_id))
+            .select((
+                dsl::merchant_id,
+                dsl::customer_id,
+                dsl::id.nullable(),
+                dsl::version,
+            ));
+
+        match query
+            .first_async::<CustomerGlobalIdMigrationRow>(conn)
+            .await
+        {
+            Ok(row) => Ok(row),
+            Err(diesel::result::Error::NotFound) => Err(report!(errors::DatabaseError::NotFound))
+                .attach_printable("No customer found for global id migration"),
+            Err(error) => Err(error)
+                .change_context(errors::DatabaseError::Others)
+                .attach_printable("Error while finding customer for global id migration"),
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn update_global_id_for_migration(
+        conn: &PgPooledConn,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
+        new_id: id_type::GlobalCustomerId,
+    ) -> StorageResult<CustomerGlobalIdMigrationRow> {
+        let customer_id = Some(customer_id.get_string_repr().to_owned());
+
+        let query = diesel::update(
+            dsl::customers
+                .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .filter(dsl::customer_id.eq(customer_id))
+                .filter(dsl::version.eq(common_enums::ApiVersion::V1)),
+        )
+        .set(dsl::id.eq(new_id))
+        .returning((
+            dsl::merchant_id,
+            dsl::customer_id,
+            dsl::id.nullable(),
+            dsl::version,
+        ));
+
+        match query
+            .get_result_async::<CustomerGlobalIdMigrationRow>(conn)
+            .await
+        {
+            Ok(row) => Ok(row),
+            Err(diesel::result::Error::NotFound) => Err(report!(errors::DatabaseError::NotFound))
+                .attach_printable("No v1 customer found while updating global id"),
+            Err(error) => Err(error)
+                .change_context(errors::DatabaseError::Others)
+                .attach_printable("Error while updating customer global id"),
+        }
+    }
+
     #[cfg(feature = "v2")]
     pub async fn update_by_id(
         conn: &PgPooledConn,
@@ -324,5 +406,31 @@ impl Customer {
             (customer_id.to_owned(), merchant_id.to_owned()),
         )
         .await
+    }
+}
+
+impl CustomerUpdateInternal {
+    #[cfg(feature = "v1")]
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        customer_id: id_type::CustomerId,
+        merchant_id: id_type::MerchantId,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_by_id::<<Customer as HasTable>::Table, _, _>(
+            conn,
+            (customer_id, merchant_id),
+            self,
+        )
+        .await
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        id: id_type::GlobalCustomerId,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_by_id::<<Customer as HasTable>::Table, _, _>(conn, id, self).await
     }
 }

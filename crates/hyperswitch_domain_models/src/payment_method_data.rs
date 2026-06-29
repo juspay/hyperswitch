@@ -206,6 +206,22 @@ pub enum ApplePayFlow {
 }
 
 impl PaymentMethodData {
+    /// BIN for any card-bearing variant — raw, saved, network-token, or NTID-based MIT.
+    pub fn get_card_iin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_card_isin()),
+            Self::CardWithOptionalCVC(card) => Some(card.card_number.get_card_isin()),
+            Self::CardWithNetworkTokenDetails(card) => {
+                Some(card.card_details.card_number.get_card_isin())
+            }
+            Self::CardDetailsForNetworkTransactionId(card) => {
+                Some(card.card_number.get_card_isin())
+            }
+            Self::CardWithLimitedDetails(card) => Some(card.card_number.get_card_isin()),
+            _ => None,
+        }
+    }
+
     pub fn apply_additional_payment_data(
         &self,
         additional_payment_data: api_models::payments::AdditionalPaymentData,
@@ -361,6 +377,13 @@ impl EligibilityPaymentMethodData {
     pub fn is_eligible_for_profile_config_blocklist(&self) -> bool {
         matches!(self, Self::Card(_))
     }
+
+    pub fn get_card_iin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_card_isin()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -412,6 +435,16 @@ impl Card {
             nick_name: self.nick_name.clone(),
             co_badged_card_data: self.co_badged_card_data.clone(),
         }
+    }
+
+    pub fn is_indian_issued_card(&self) -> bool {
+        self.card_issuing_country
+            .as_ref()
+            .map(|country| {
+                country.to_lowercase() == common_enums::Country::India.to_string().to_lowercase()
+                    || country.to_uppercase() == api_enums::CountryAlpha2::IN.to_string()
+            })
+            .unwrap_or(false)
     }
 }
 
@@ -1402,6 +1435,10 @@ pub struct CardToken {
 
     /// The CVC number for the card
     pub card_cvc: Option<Secret<String>>,
+
+    /// Token referencing a CVC vaulted in the hyperswitch (self-hosted) vault, resolved by the
+    /// server to the raw CVC for the self-hosted default-vault repeat-customer flow.
+    pub card_cvc_token: Option<Secret<String>>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
@@ -1641,6 +1678,11 @@ pub enum WalletDetail {
         expiry_month: Secret<String>,
         expiry_year: Secret<String>,
     },
+    GooglePayDecryptedData {
+        application_primary_account_number: cards::CardNumber,
+        expiry_month: Secret<String>,
+        expiry_year: Secret<String>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -1652,6 +1694,15 @@ impl From<payment_methods::WalletDetail> for WalletDetail {
                 expiry_month,
                 expiry_year,
             } => Self::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            },
+            payment_methods::WalletDetail::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::GooglePayDecryptedData {
                 application_primary_account_number,
                 expiry_month,
                 expiry_year,
@@ -1688,6 +1739,8 @@ pub enum BankTransferData {
         /// The expiration date and time for the Pix QR code
         expiry_date: Option<time::PrimitiveDateTime>,
     },
+    PixEmv {},
+    PixQr {},
     PixAutomaticoPush {
         account_number: Option<Secret<String>>,
         branch_code: Option<Secret<String>>,
@@ -1901,6 +1954,15 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             api_models::payments::PaymentMethodData::NetworkToken(network_token_data) => {
                 Self::NetworkToken(From::from(network_token_data))
             }
+            // ProxyCard / VaultCardTokenData are handled before reaching domain conversion
+            // (routed to external_vault_proxy_for_payments_core). These branches should not be
+            // reached in normal flow, but we handle them gracefully.
+            api_models::payments::PaymentMethodData::ProxyCard(_)
+            | api_models::payments::PaymentMethodData::VaultCardTokenData(_) => {
+                // These variants are intercepted at the routing layer and should not reach here.
+                // Falling back to MandatePayment as a safe no-op sentinel value.
+                Self::MandatePayment
+            }
         }
     }
 }
@@ -1908,7 +1970,7 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
 impl From<api_models::payments::ProxyPaymentMethodData> for ExternalVaultPaymentMethodData {
     fn from(api_model_payment_method_data: api_models::payments::ProxyPaymentMethodData) -> Self {
         match api_model_payment_method_data {
-            api_models::payments::ProxyPaymentMethodData::VaultDataCard(card_data) => {
+            api_models::payments::ProxyPaymentMethodData::ProxyCard(card_data) => {
                 Self::Card(Box::new(ExternalVaultCard::from(*card_data)))
             }
             api_models::payments::ProxyPaymentMethodData::VaultToken(vault_data) => {
@@ -2799,10 +2861,12 @@ impl From<api_models::payments::CardToken> for CardToken {
         let api_models::payments::CardToken {
             card_holder_name,
             card_cvc,
+            card_cvc_token,
         } = value;
         Self {
             card_holder_name,
             card_cvc,
+            card_cvc_token,
         }
     }
 }
@@ -3019,6 +3083,8 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
                 destination_bank_account_id,
                 expiry_date,
             },
+            api_models::payments::BankTransferData::PixEmv {} => Self::PixEmv {},
+            api_models::payments::BankTransferData::PixQr {} => Self::PixQr {},
             api_models::payments::BankTransferData::PixAutomaticoPush {
                 account_number,
                 branch_code,
@@ -3088,6 +3154,8 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                     expiry_date,
                 },
             )),
+            BankTransferData::PixEmv {} => Self::PixEmv {},
+            BankTransferData::PixQr {} => Self::PixQr {},
             BankTransferData::PixAutomaticoPush {
                 account_number,
                 branch_code,
@@ -3420,6 +3488,8 @@ impl GetPaymentMethodType for BankTransferData {
             Self::DanamonVaBankTransfer { .. } => api_enums::PaymentMethodType::DanamonVa,
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
+            Self::PixEmv {} => api_enums::PaymentMethodType::PixEmv,
+            Self::PixQr {} => api_enums::PaymentMethodType::PixQr,
             Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
             Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,

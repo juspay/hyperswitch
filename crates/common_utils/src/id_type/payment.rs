@@ -54,6 +54,15 @@ impl PaymentId {
         format!("external_authentication_{}", self.get_string_repr())
     }
 
+    /// Get the Redis key used to store external surcharge details during eligibility
+    pub fn get_external_surcharge_redis_key(&self, merchant_id: &super::MerchantId) -> String {
+        format!(
+            "{}_{}_external_surcharge_details",
+            merchant_id.get_string_repr(),
+            self.get_string_repr()
+        )
+    }
+
     /// Generate a test payment id with prefix test_
     pub fn generate_test_payment_id_for_sample_data() -> Self {
         let id = generate_id_with_default_len("test");

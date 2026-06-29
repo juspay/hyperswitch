@@ -561,17 +561,18 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                 Some(domain::payment_method_data::PaymentMethodData::CardToken(card_token)),
                 None,
             ) => {
-                let (payment_method, vault_data) =
+                let (payment_method, vault_data) = Box::pin(
                     payment_methods::vault::retrieve_payment_method_from_vault_using_payment_token(
                         state,
                         platform,
                         business_profile,
                         payment_token,
                         &payment_data.payment_attempt.payment_method_type,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to retrieve payment method from vault")?;
+                    ),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to retrieve payment method from vault")?;
 
                 let (card_cvc, card_holder_name) = {
                     (
@@ -641,7 +642,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     customer_id: Some(customer_id),
                     payment_method_data: pm_create_data,
                     billing: None,
-                    psp_tokenization: None,
                     network_tokenization: None,
                     storage_type: common_enums::StorageType::Persistent, //since customer acceptance is present, we always store it persistently
                 };

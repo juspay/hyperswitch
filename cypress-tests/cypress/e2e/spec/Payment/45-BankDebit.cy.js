@@ -32,11 +32,11 @@ describe("Bank Debit tests", () => {
       });
   });
 
-  afterEach("flush global state", () => {
+  after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("SEPA Bank Debit Create and Confirm flow test", () => {
+  context("SEPA Bank Debit - Create and Confirm flow", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm SEPA Bank Debit -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -66,7 +66,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm SEPA Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          cy.task("cli_log", "Skipping step: Confirm SEPA Bank Debit");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -92,14 +92,11 @@ describe("Bank Debit tests", () => {
           "bank_debit_pm"
         ]["Sepa"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
       });
     });
   });
 
-  context("ACH Bank Debit Create and Confirm flow test", () => {
+  context("ACH Bank Debit - Create and Confirm flow", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm ACH Bank Debit -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -129,7 +126,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm ACH Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          cy.task("cli_log", "Skipping step: Confirm ACH Bank Debit");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -155,14 +152,11 @@ describe("Bank Debit tests", () => {
           "bank_debit_pm"
         ]["Ach"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
       });
     });
   });
 
-  context("BECS Bank Debit Create and Confirm flow test", () => {
+  context("BECS Bank Debit - Create and Confirm flow", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm BECS Bank Debit -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -192,7 +186,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm BECS Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          cy.task("cli_log", "Skipping step: Confirm BECS Bank Debit");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -218,14 +212,11 @@ describe("Bank Debit tests", () => {
           "bank_debit_pm"
         ]["Becs"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
       });
     });
   });
 
-  context("BACS Bank Debit Create and Confirm flow test", () => {
+  context("BACS Bank Debit - Create and Confirm flow", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm BACS Bank Debit -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -255,7 +246,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm BACS Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          cy.task("cli_log", "Skipping step: Confirm BACS Bank Debit");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -281,10 +272,106 @@ describe("Bank Debit tests", () => {
           "bank_debit_pm"
         ]["Bacs"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
       });
     });
   });
+
+  context(
+    "SEPA Bank Debit - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test",
+    () => {
+      let shouldContinue = true;
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      it("create-customer-call-test", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
+      it("sepa-bank-debit-mandate-cit-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["SepaMandate"];
+
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          6000,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-mandate-call-test", () => {
+        cy.mandateGETCallTest(globalState);
+      });
+
+      it("sepa-bank-debit-mandate-mit-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["BankdebitMIT"];
+
+        cy.mitForMandatesCallTest(
+          fixtures.mitConfirmBody,
+          data,
+          6000,
+          true,
+          "automatic",
+          globalState
+        );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("list-mandate-call-test", () => {
+        cy.listMandateCallTest(globalState);
+      });
+
+      it("revoke-mandate-call-test", () => {
+        cy.revokeMandateCallTest(globalState);
+      });
+    }
+  );
+
+  context(
+    "BACS Bank Debit - NoThreeDS Create + Confirm Automatic CIT payment flow test",
+    () => {
+      const shouldContinue = true;
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      it("bacs-create-customer-call-test", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
+      it("bacs-bank-debit-mandate-cit-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["Bacs"];
+
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          6000,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+      });
+    }
+  );
 });

@@ -40,8 +40,11 @@ impl ProviderMerchantId {
     pub fn inner(&self) -> &common_utils::id_type::MerchantId {
         &self.0
     }
-}
 
+    pub fn new(id: common_utils::id_type::MerchantId) -> Self {
+        Self(id)
+    }
+}
 /// Processor = The merchant account whose processor credentials are used
 /// to execute the operation.
 #[derive(Clone, Debug)]
@@ -78,6 +81,12 @@ pub struct ProcessorMerchantId(common_utils::id_type::MerchantId);
 impl ProcessorMerchantId {
     pub fn inner(&self) -> &common_utils::id_type::MerchantId {
         &self.0
+    }
+}
+
+impl From<common_utils::id_type::MerchantId> for ProcessorMerchantId {
+    fn from(id: common_utils::id_type::MerchantId) -> Self {
+        Self(id)
     }
 }
 

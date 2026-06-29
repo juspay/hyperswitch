@@ -4,7 +4,11 @@
 ///   - merchant-enabled payment methods (filtered via Euclid constraint graph + session flow routing)
 ///   - customer saved payment methods (fetched from DB via `CustomerPaymentMethodsFetcher` trait)
 ///
-/// Auth: `SdkAuthorizationAuth` only (Authorization: base64(publishable_key:client_secret))
+/// Auth:
+///   - `SdkAuthorizationAuth` via Authorization header.
+///   - `PublishableKeyAuth` via `api-key: pk_...` and `client_secret` query param.
+///
+/// Merchant secret-key auth is not supported for this client endpoint.
 use api_models::payment_methods::{
     ClientPaymentMethodsListResponse, CustomerPaymentMethod, CustomerPaymentMethodDataForClient,
     CustomerPaymentMethodForClient, PaymentMethodListIntentDataInput,
@@ -187,22 +191,60 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
             )
             .await;
 
+        // Fetch all MCAs for the merchant so we can check whether the connector that
+        // issued a mandate token is still active for this profile — mirroring the
+        // `get_mca_status` check performed in the legacy DB flow.
+        let merchant_connector_accounts = state
+            .store
+            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                &merchant_id,
+                true,
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_id.get_string_repr().to_owned(),
+            })?;
+
+        // Pre-compute the set of MCA IDs that are active for this profile
+        let active_mca_ids: std::collections::HashSet<id_type::MerchantConnectorAccountId> =
+            merchant_connector_accounts
+                .iter()
+                .filter(|mca| {
+                    mca.disabled.is_some_and(|disabled| !disabled)
+                        && mca.profile_id == self.profile_id
+                })
+                .map(|mca| mca.get_id())
+                .collect();
+
         let mut customer_payment_methods = Vec::with_capacity(items.len());
 
         for pm in items {
-            // Compute requires_cvv using the same logic as the legacy API
-            // (using psp_tokenization_enabled in place of connector_mandate_details
-            //  and network_tokenization in place of network_transaction_id).
+            // Replicate `get_mca_status` from the legacy DB flow:
+            //   - agnostic MIT: network_transaction_id is present and the feature is enabled
+            //   - mandate match: at least one Active connector token belongs to an active MCA
+            //     for this profile (equivalent to MCA id present in connector_mandate_details)
+            let has_active_connector_token = pm.connector_tokens.as_ref().is_some_and(|tokens| {
+                tokens.iter().any(|t| {
+                    t.status == common_enums::ConnectorTokenStatus::Active
+                        && active_mca_ids.contains(&t.connector_id)
+                })
+            });
+            let agnostic_mit =
+                self.is_connector_agnostic_mit_enabled && pm.network_transaction_id.is_some();
+            let recurring_enabled = agnostic_mit || has_active_connector_token;
+
+            // requires_cvv mirrors the legacy logic (cards.rs list_customer_payment_method):
+            // CVV is skipped when this is an off-session payment and the PM has a usable
+            // mandate or network transaction ID.
             let requires_cvv = if self.is_connector_agnostic_mit_enabled {
                 requires_cvv_base
                     && !(self.off_session_payment_flag
-                        && (pm.psp_tokenization_enabled || pm.network_tokenization.is_some()))
+                        && (pm.connector_tokens.is_some() || pm.network_transaction_id.is_some()))
             } else {
-                requires_cvv_base && !(self.off_session_payment_flag && pm.psp_tokenization_enabled)
+                requires_cvv_base
+                    && !(self.off_session_payment_flag && pm.connector_tokens.is_some())
             };
-
-            // recurring_enabled is inferred from psp_tokenization_enabled.
-            let recurring_enabled = Some(pm.psp_tokenization_enabled);
 
             let payment_token = Self::store_payment_token_in_redis(
                 state,
@@ -215,17 +257,22 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
             // Build the client-facing response item.
             let payment_method_data = pm.payment_method_data.and_then(|d| d.into());
 
-            customer_payment_methods.push(CustomerPaymentMethodForClient {
-                payment_token,
-                payment_method: pm.payment_method_type,
-                payment_method_type: Some(pm.payment_method_subtype),
-                default_payment_method_set: pm.is_default,
-                requires_cvv,
-                recurring_enabled,
-                created: Some(pm.created),
-                last_used_at: Some(pm.last_used_at),
-                payment_method_data,
-            });
+            // Mirror the legacy `list_customer_payment_method` filter: skip PMs where
+            // CVV is not required (off-session + has tokens → CVV skipped) AND no
+            // active mandate exists. Such PMs are unusable and should not be surfaced.
+            if requires_cvv || recurring_enabled {
+                customer_payment_methods.push(CustomerPaymentMethodForClient {
+                    payment_token,
+                    payment_method: pm.payment_method_type,
+                    payment_method_type: Some(pm.payment_method_subtype),
+                    default_payment_method_set: pm.is_default,
+                    requires_cvv,
+                    recurring_enabled: Some(recurring_enabled),
+                    created: Some(pm.created),
+                    last_used_at: Some(pm.last_used_at),
+                    payment_method_data,
+                });
+            }
         }
 
         Ok(customer_payment_methods)
@@ -494,10 +541,18 @@ pub async fn list_payment_methods_client(
     state: routes::SessionState,
     platform: domain::Platform,
     payment_id: id_type::PaymentId,
+    client_secret: Option<String>,
 ) -> errors::RouterResponse<ClientPaymentMethodsListResponse> {
     // 1. Load payment intent + related context
     let payment_intent_context =
         load_payment_intent_context(&state, &platform, &payment_id).await?;
+
+    if let Some(client_secret) = client_secret.as_ref() {
+        helpers::authenticate_client_secret(
+            Some(client_secret),
+            &payment_intent_context.payment_intent,
+        )?;
+    }
 
     // 2. Fetch enabled payment methods (Gate 1 + Gate 2 + consolidation)
     let EnabledPmsResult {

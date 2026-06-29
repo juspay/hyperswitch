@@ -35,7 +35,8 @@ pub struct PaymentMethodResponseItemV1 {
     pub is_default: bool,
     pub billing: Option<api_models::payments::Address>,
     pub network_tokenization: Option<NetworkTokenResponse>,
-    pub psp_tokenization_enabled: bool,
+    pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
+    pub network_transaction_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -117,6 +118,15 @@ pub enum RawPaymentMethodData {
     Card(CardDetail),
     CardWithNT(RawCardWithNTDetails),
     BankDebit(BankDebitDetail),
+    ProxyCard(RawProxyCardDataResponse),
+}
+
+/// Proxy card data returned in retrieve response (vault token reference)
+#[derive(Clone, Debug, Deserialize)]
+pub struct RawProxyCardDataResponse {
+    pub card_number: Secret<String>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_exp_month: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -191,9 +201,22 @@ impl From<PaymentMethodResponseData>
 {
     fn from(payment_method_response_data: PaymentMethodResponseData) -> Self {
         match payment_method_response_data {
-            PaymentMethodResponseData::Card(card_info) => Some(
-                api_models::payment_methods::CustomerPaymentMethodDataForClient::Card(card_info),
-            ),
+            PaymentMethodResponseData::Card(mut card_info) => {
+                // The modular PM service returns `scheme` as null on the card detail even though
+                // `card_network` is populated. Surface the network as the scheme (mirroring
+                // `mk_add_card_response_hs`) so the `/client` response carries it.
+                card_info.scheme = card_info.scheme.or_else(|| {
+                    card_info
+                        .card_network
+                        .as_ref()
+                        .map(|network| network.to_string())
+                });
+                Some(
+                    api_models::payment_methods::CustomerPaymentMethodDataForClient::Card(
+                        card_info,
+                    ),
+                )
+            }
             PaymentMethodResponseData::Wallet(wallet_info) => Some(
                 api_models::payment_methods::CustomerPaymentMethodDataForClient::Wallet(
                     wallet_info.into(),
@@ -206,4 +229,148 @@ impl From<PaymentMethodResponseData>
             ),
         }
     }
+}
+
+// ==================== ALT-ID TYPES (Guest Checkout Tokenization) ====================
+
+/// Card data for Alt-ID request (to be JWE encrypted)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AltIdCardData {
+    pub card_number: cards::CardNumber,
+    pub exp_month: Secret<String>,
+    pub exp_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_security_code: Option<Secret<String>>,
+}
+
+impl
+    From<(
+        &hyperswitch_domain_models::payment_method_data::CardDetail,
+        Option<Secret<String>>,
+    )> for AltIdCardData
+{
+    fn from(
+        (card, optional_cvc): (
+            &hyperswitch_domain_models::payment_method_data::CardDetail,
+            Option<Secret<String>>,
+        ),
+    ) -> Self {
+        Self {
+            card_number: card.card_number.clone(),
+            exp_month: card.card_exp_month.clone(),
+            exp_year: card.card_exp_year.clone(),
+            card_security_code: optional_cvc,
+        }
+    }
+}
+
+/// Order data for Alt-ID request
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AltIdOrderData {
+    pub amount: common_utils::types::FloatMajorUnit,
+    pub currency: common_enums::Currency,
+    /// Required for RuPay cards (post-3DS authentication reference)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_ref_number: Option<String>,
+}
+
+/// Alt-ID API request payload
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FetchAltIdRequest {
+    /// JWE encrypted card data
+    pub card_data: Secret<String>,
+    pub order_data: AltIdOrderData,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key_id: Option<String>,
+}
+
+/// Decrypted Alt-ID details (after JWE decryption of altIdDetails field)
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AltIdDetails {
+    /// The Alt-ID token (network token for this transaction)
+    pub alt_id: cards::NetworkToken,
+    /// Token expiry month (MM format)
+    pub exp_month: Secret<String>,
+    /// Token expiry year (YYYY format)
+    pub exp_year: Secret<String>,
+    /// TAVV (Token Authentication Verification Value) - the cryptogram
+    pub tavv: Secret<String>,
+    /// PAR (Payment Account Reference)
+    pub par: Option<Secret<String>>,
+}
+
+/// Raw Alt-ID response payload from API (before altIdDetails decryption)
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AltIdResponsePayloadRaw {
+    pub card_issuer_country: Option<String>,
+    pub correlation_id: String,
+    pub card_issuer_bank: Option<String>,
+    /// JWE encrypted Alt-ID details - needs decryption
+    pub alt_id_details: Secret<String>,
+    pub card_brand: common_enums::CardNetwork,
+    pub provider: Option<String>,
+    pub provider_category: Option<String>,
+}
+
+/// Full Alt-ID response payload (with decrypted altIdDetails)
+#[derive(Debug, Clone)]
+pub struct AltIdResponsePayload {
+    pub card_issuer_country: Option<String>,
+    pub correlation_id: String,
+    pub card_issuer_bank: Option<String>,
+    /// Decrypted Alt-ID details
+    pub alt_id_details: AltIdDetails,
+    pub card_brand: common_enums::CardNetwork,
+    pub provider: Option<String>,
+    pub provider_category: Option<String>,
+}
+
+impl From<(AltIdResponsePayloadRaw, AltIdDetails)> for AltIdResponsePayload {
+    fn from(
+        (alt_id_raw_response, alt_id_details): (AltIdResponsePayloadRaw, AltIdDetails),
+    ) -> Self {
+        Self {
+            card_issuer_country: alt_id_raw_response.card_issuer_country,
+            correlation_id: alt_id_raw_response.correlation_id,
+            card_issuer_bank: alt_id_raw_response.card_issuer_bank,
+            alt_id_details,
+            card_brand: alt_id_raw_response.card_brand,
+            provider: alt_id_raw_response.provider,
+            provider_category: alt_id_raw_response.provider_category,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<AltIdResponsePayload>
+    for hyperswitch_domain_models::payment_method_data::NetworkTokenData
+{
+    fn from(payload: AltIdResponsePayload) -> Self {
+        Self {
+            token_number: payload.alt_id_details.alt_id,
+            token_exp_month: payload.alt_id_details.exp_month,
+            token_exp_year: payload.alt_id_details.exp_year,
+            token_cryptogram: Some(payload.alt_id_details.tavv),
+            nick_name: None,
+            card_issuer: payload.card_issuer_bank,
+            card_network: Some(payload.card_brand),
+            card_type: None,
+            card_issuing_country: payload.card_issuer_country,
+            bank_code: None,
+            eci: None,
+            par: payload.alt_id_details.par,
+        }
+    }
+}
+
+/// Alt-ID API response wrapper (raw, before decryption)
+#[derive(Debug, Deserialize, Clone)]
+pub struct AltIdResponse {
+    pub status: String,
+    pub payload: AltIdResponsePayloadRaw,
 }
