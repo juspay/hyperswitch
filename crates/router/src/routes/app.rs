@@ -931,7 +931,7 @@ impl Payments {
                         .route(web::get().to(payments::payments_list_for_platform)),
                 )
                 .service(
-                    web::resource("/list-platform/filter")
+                    web::resource("/platform/filter")
                         .route(web::get().to(payments::payments_list_for_platform_filters)),
                 )
                 .service(

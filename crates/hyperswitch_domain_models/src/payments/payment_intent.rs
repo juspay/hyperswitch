@@ -2056,11 +2056,9 @@ impl From<api_models::payments::PlatformPaymentListConstraints> for PaymentInten
             profile_id,
             processor_merchant_id,
             customer_id,
-            customer_email,
             limit,
             offset,
-            start_time,
-            end_time,
+            time_range,
             start_amount,
             end_amount,
             connector,
@@ -2073,16 +2071,15 @@ impl From<api_models::payments::PlatformPaymentListConstraints> for PaymentInten
             card_network,
             card_discovery,
             merchant_order_reference_id,
-            order_on,
-            order_by,
+            order,
         } = value;
         if let Some(payment_intent_id) = payment_id {
             Self::Single { payment_intent_id }
         } else {
             Self::List(Box::new(PaymentIntentListParams {
                 offset: offset.unwrap_or_default(),
-                starting_at: start_time,
-                ending_at: end_time,
+                starting_at: time_range.map(|time_range| time_range.start_time),
+                ending_at: time_range.and_then(|time_range| time_range.end_time),
                 amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some(
                     api_models::payments::AmountFilter {
                         start_amount,
@@ -2101,14 +2098,13 @@ impl From<api_models::payments::PlatformPaymentListConstraints> for PaymentInten
                 starting_after_id: None,
                 ending_before_id: None,
                 limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
-                order: api_models::payments::Order {
-                    on: order_on,
-                    by: order_by,
-                },
+                order,
                 card_network,
                 card_discovery,
                 merchant_order_reference_id,
-                customer_email,
+                // Customer email is PII encrypted per connected merchant; the platform list only
+                // has the platform key store and therefore cannot filter on it.
+                customer_email: None,
                 processor_merchant_id,
             }))
         }

@@ -10164,7 +10164,7 @@ pub async fn get_platform_payment_filters(
     state: SessionState,
     platform: domain::Platform,
     profile_id_list: Option<Vec<id_type::ProfileId>>,
-) -> RouterResponse<api::PaymentListFiltersV2> {
+) -> RouterResponse<api::PlatformPaymentListFilters> {
     // This endpoint is exclusively for platform merchants - not connected, not standard.
     common_utils::fp_utils::when(
         !platform.get_provider().get_account().is_platform_account(),
@@ -10282,7 +10282,7 @@ pub async fn get_platform_payment_filters(
     }
 
     Ok(services::ApplicationResponse::Json(
-        api::PaymentListFiltersV2 {
+        api::PlatformPaymentListFilters {
             connector: connector_map,
             currency: enums::Currency::iter().collect(),
             status: enums::IntentStatus::iter().collect(),

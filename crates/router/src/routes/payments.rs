@@ -2055,18 +2055,11 @@ pub async fn payments_list_for_platform(
         |state, auth: auth::AuthenticationData, req, _| {
             payments::list_payments_for_platform(state, auth.platform, None, req)
         },
-        auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: true,
-            }),
-            &auth::JWTAuth {
-                permission: Permission::MerchantPaymentRead,
-                allow_connected: false,
-                allow_platform: true,
-            },
-            req.headers(),
-        ),
+        &auth::JWTAuth {
+            permission: Permission::MerchantPaymentRead,
+            allow_connected: false,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -2087,18 +2080,11 @@ pub async fn payments_list_for_platform_filters(
         |state, auth: auth::AuthenticationData, _, _| {
             payments::get_platform_payment_filters(state, auth.platform, None)
         },
-        auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: true,
-            }),
-            &auth::JWTAuth {
-                permission: Permission::MerchantPaymentRead,
-                allow_connected: false,
-                allow_platform: true,
-            },
-            req.headers(),
-        ),
+        &auth::JWTAuth {
+            permission: Permission::MerchantPaymentRead,
+            allow_connected: false,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

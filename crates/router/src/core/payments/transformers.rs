@@ -4630,41 +4630,70 @@ pub fn construct_connector_invoke_hidden_frame(
 
 #[cfg(all(feature = "v1", feature = "olap"))]
 impl ForeignFrom<(DieselPaymentIntent, DieselPaymentAttempt)> for api::PlatformPaymentListItem {
-    // Maps raw (undecrypted) diesel rows to the slim platform list item. Only non-encrypted
-    // columns are read, so no merchant key store / decryption is required. Intent fields come
-    // from `pi`, active-attempt fields from `pa`.
+    // Maps raw (undecrypted) diesel rows to the platform list item. Only non-encrypted columns
+    // are read, so no merchant key store / decryption is required. Intent fields come from `pi`,
+    // active-attempt fields from `pa`.
     fn foreign_from((pi, pa): (DieselPaymentIntent, DieselPaymentAttempt)) -> Self {
+        let connector_transaction_id =
+            common_utils::types::ConnectorTransactionIdTrait::get_optional_connector_transaction_id(
+                &pa,
+            )
+            .map(ToString::to_string);
         Self {
             payment_id: pi.payment_id,
             merchant_id: pi.merchant_id,
             processor_merchant_id: pi.processor_merchant_id,
-            profile_id: pi.profile_id,
             status: pi.status,
             amount: pi.amount,
-            amount_captured: pi.amount_captured,
             net_amount: pa.net_amount,
             amount_capturable: pa.amount_capturable,
+            state_metadata: pi.state_metadata,
+            client_secret: pi.client_secret.map(Secret::new),
+            created: Some(pi.created_at),
+            modified_at: Some(pi.modified_at),
             currency: pi.currency,
             customer_id: pi.customer_id,
             description: pi.description,
-            metadata: pi.metadata,
-            created: Some(pi.created_at),
-            modified_at: pi.modified_at,
+            order_details: pi.order_details,
+            connector: pa.connector,
+            payment_method: pa.payment_method,
+            payment_method_type: pa.payment_method_type,
+            business_label: pi.business_label,
+            business_country: pi.business_country,
+            business_sub_label: pa.business_sub_label,
             setup_future_usage: pa.setup_future_usage_applied.or(pi.setup_future_usage),
             capture_method: pa.capture_method,
             authentication_type: pa.authentication_type,
+            connector_transaction_id,
             attempt_count: pi.attempt_count,
-            merchant_order_reference_id: pi.merchant_order_reference_id,
-            return_url: pi.return_url,
-            connector: pa.connector,
+            profile_id: pi.profile_id,
             merchant_connector_id: pa.merchant_connector_id,
-            payment_method: pa.payment_method,
-            payment_method_type: pa.payment_method_type,
-            payment_method_id: pa.payment_method_id,
-            connector_response_reference_id: pa.connector_response_reference_id,
+            merchant_order_reference_id: pi.merchant_order_reference_id,
+            metadata: pi.metadata,
             error_message: pa.error_message,
-            error_code: pa.error_code,
-            cancellation_reason: pa.cancellation_reason,
+            updated: Some(pi.modified_at),
+            extended_authorization_applied: pa.extended_authorization_applied,
+            extended_authorization_last_applied_at: pa.extended_authorization_last_applied_at,
+            capture_before: pa.capture_before,
+            card_discovery: pa.card_discovery,
+            mit_category: pi.mit_category,
+            tokenization: pi.tokenization,
+            force_3ds_challenge: pi.force_3ds_challenge,
+            force_3ds_challenge_trigger: pi.force_3ds_challenge_trigger,
+            issuer_error_code: pa.issuer_error_code,
+            issuer_error_message: pa.issuer_error_message,
+            is_iframe_redirection_enabled: pi.is_iframe_redirection_enabled,
+            payment_channel: pi.payment_channel,
+            enable_partial_authorization: pi.enable_partial_authorization,
+            enable_overcapture: pi.enable_overcapture,
+            is_overcapture_enabled: pa.is_overcapture_enabled,
+            network_details: pa.network_details.map(NetworkDetails::foreign_from),
+            is_stored_credential: pa.is_stored_credential,
+            request_extended_authorization: pa.request_extended_authorization,
+            billing_descriptor: pi.billing_descriptor,
+            partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
+            installment_data: pa.installment_data,
+            sender_payment_instrument_id: pa.sender_payment_instrument_id,
         }
     }
 }
