@@ -1157,9 +1157,8 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
 mod tests {
     use prost::Message;
 
-    use crate::unified_connector_service::payments_grpc;
-
     use super::{UnifiedConnectorServiceError, CONNECTOR_ERROR_RESPONSE_CODE};
+    use crate::unified_connector_service::payments_grpc;
 
     fn make_status_with_connector_error(
         connector_error: payments_grpc::ConnectorError,
