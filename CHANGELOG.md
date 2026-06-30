@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.25.0-hotfix3
+
+### Bug Fixes
+
+- **connector:** [fiuu] fix error propogation in webhook flow ([#13096](https://github.com/juspay/hyperswitch/pull/13096)) ([`560f246`](https://github.com/juspay/hyperswitch/commit/560f246726cf7e8035f53a02a82b3773df6cb832))
+
+**Full Changelog:** [`2026.06.25.0-hotfix2...2026.06.25.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.06.25.0-hotfix2...2026.06.25.0-hotfix3)
+
+- - -
+
 ## 2026.06.25.0-hotfix2
 
 ### Bug Fixes
