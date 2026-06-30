@@ -139,6 +139,7 @@ Never share your secret api keys. Keep them guarded and secure.
         //Routes for customers
         routes::customers::customers_create,
         routes::customers::customers_retrieve,
+        routes::customers::customers_retrieve_by_merchant_reference_id,
         routes::customers::customers_list,
         routes::customers::customers_update,
         routes::customers::customers_delete,
@@ -385,6 +386,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::WalletBlockingConfig,
         api_models::admin::SurchargeConnectorDetails,
         api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        api_models::merchant_connector_webhook_management::WebhookSecretErrorDetails,
         api_models::merchant_connector_webhook_management::RegisterConnectorWebhookResponse,
         api_models::merchant_connector_webhook_management::ConnectorWebhookResponse,
         api_models::merchant_connector_webhook_management::ConnectorWebhookListResponse,
@@ -495,6 +497,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::VaultSdk,
         api_models::enums::VaultTokenType,
         api_models::enums::WebhookRegistrationStatus,
+        api_models::enums::WebhookSecretGenerationStatus,
         api_models::admin::ExternalVaultConnectorDetails,
         api_models::admin::VaultTokenField,
         api_models::admin::MerchantConnectorCreate,

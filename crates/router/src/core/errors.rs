@@ -151,6 +151,8 @@ pub enum WebhooksFlowError {
     CallToMerchantFailed,
     #[error("Webhook not received by merchant")]
     NotReceivedByMerchant,
+    #[error("Webhook not received by recipient")]
+    NotReceivedByRecipient,
     #[error("Dispute webhook status validation failed")]
     DisputeWebhookValidationFailed,
     #[error("Outgoing webhook body encoding failed")]
@@ -163,6 +165,10 @@ pub enum WebhooksFlowError {
     OutgoingWebhookResponseEncodingFailed,
     #[error("ID generation failed")]
     IdGenerationFailed,
+    #[error("Webhook API call failed")]
+    WebhookCallFailed,
+    #[error("Webhook request construction failed")]
+    WebhookRequestConstructionFailed,
 }
 
 impl WebhooksFlowError {
@@ -171,7 +177,8 @@ impl WebhooksFlowError {
             Self::MerchantConfigNotFound
             | Self::MerchantWebhookDetailsNotFound
             | Self::MerchantWebhookUrlNotConfigured
-            | Self::OutgoingWebhookResponseEncodingFailed => false,
+            | Self::OutgoingWebhookResponseEncodingFailed
+            | Self::WebhookRequestConstructionFailed => false,
 
             Self::WebhookEventUpdationFailed
             | Self::OutgoingWebhookSigningFailed
@@ -181,7 +188,9 @@ impl WebhooksFlowError {
             | Self::OutgoingWebhookEncodingFailed
             | Self::OutgoingWebhookProcessTrackerTaskUpdateFailed
             | Self::OutgoingWebhookRetrySchedulingFailed
-            | Self::IdGenerationFailed => true,
+            | Self::IdGenerationFailed
+            | Self::WebhookCallFailed
+            | Self::NotReceivedByRecipient => true,
         }
     }
 }
