@@ -904,6 +904,10 @@ impl webhooks::IncomingWebhook for Fiuu {
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
+        router_env::logger::info!(
+            connector = "fiuu",
+            webhook_content_type = %header,
+        );
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
             parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
