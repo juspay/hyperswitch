@@ -43586,6 +43586,10 @@
         "properties": {
           "secrets": {
             "$ref": "#/components/schemas/SecretInfoToInitiateSdk"
+          },
+          "session_response_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
