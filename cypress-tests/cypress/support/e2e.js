@@ -80,7 +80,6 @@ function normalizeRequestArgs(args) {
   return { url: args[0] };
 }
 
-// Proxy-admin calls are control traffic and must not consume a step slot.
 function isProxyAdminUrl(url) {
   if (!url) return false;
   if (PROXY_ADMIN_URL && url.startsWith(PROXY_ADMIN_URL)) return true;
@@ -120,8 +119,6 @@ function notifyProxyTestEnded() {
 }
 
 if (IS_PROXY_ENABLED) {
-  // Expose step counter utilities so commands.js can reserve the RID for
-  // browser-driven redirect/complete POSTs before the browser navigates.
   Cypress._getStepCounter = () => stepCounter;
   Cypress._buildRequestId = buildRequestId;
 
@@ -140,7 +137,6 @@ if (IS_PROXY_ENABLED) {
       notifyProxyTestStarted(titlePath, spec, connector);
     }
 
-    // Notify redirect proxy so it clears any stale reserved RID for this test.
     if (REDIRECT_PROXY_ADMIN_URL) {
       cy.request({
         method: "POST",
@@ -158,7 +154,6 @@ if (IS_PROXY_ENABLED) {
     }
   });
 
-  // Tag every cy.request with a deterministic X-Request-ID for cassette matching.
   Cypress.Commands.overwrite("request", (originalFn, ...args) => {
     const opts = normalizeRequestArgs(args);
 

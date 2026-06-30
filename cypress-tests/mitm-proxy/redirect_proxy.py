@@ -1,28 +1,11 @@
 """
-Redirect proxy.
+Redirect proxy — sits in front of Hyperswitch on port 9001.
+Injects X-Request-ID on redirect/complete and redirect/response calls so the
+MITM proxy can attribute the outbound connector call to the right cassette.
+Saves the redirect body for replay.
 
-Transparent HTTP reverse proxy that sits in front of Hyperswitch.
-When the ACS (3DS sandbox) POSTs to /payments/.../redirect/complete/...,
-this proxy injects the pre-registered Cypress X-Request-ID so the MITM
-capture proxy can attribute the outbound connector call to the right
-test cassette.
-
-The real response from Hyperswitch (302 with actual status) is passed
-back to the browser unchanged — no synthetic status, no hardcoding.
-
-The captured form body is saved to fixtures/proxy-bodies/{testIdHash}-redirect-body.json
-for use during replay (cy.readFile in commands.js).
-
-Admin (default port 9002):
-  POST /test/start  { testIdHash }          — reset state for a new test
-  POST /reserve     { rid, testIdHash }     — register RID for next redirect/complete
-  GET  /status                              — health check
-
-Proxy (default port 9001) → upstream Hyperswitch (default :8080).
-
-Run:
-  python redirect_proxy.py
-  REDIRECT_PROXY_PORT=9001 REDIRECT_PROXY_UPSTREAM_PORT=8080 python redirect_proxy.py
+Admin (port 9002): POST /test/start, POST /reserve, GET /status
+Run: python redirect_proxy.py
 """
 
 import http.client
@@ -47,15 +30,10 @@ ADMIN_PORT = int(os.environ.get("REDIRECT_PROXY_ADMIN_PORT", "9002"))
 UPSTREAM_HOST = os.environ.get("REDIRECT_PROXY_UPSTREAM_HOST", "localhost")
 UPSTREAM_PORT = int(os.environ.get("REDIRECT_PROXY_UPSTREAM_PORT", "8080"))
 
-# Matches both /redirect/complete/{connector} (ACS form POST / GET, e.g. Redsys, Cybersource)
-# and /redirect/response/{connector} (JS iframe return URL, e.g. Stripe).
-# Anchored at a path segment boundary to avoid polynomial backtracking on adversarial input.
 _REDIRECT_COMPLETE_RE = re.compile(r"/redirect/(?:complete|response)/[^/?]+")
 
 _lock = threading.Lock()
-# testIdHash → rid reserved for the next redirect/complete POST
 _reserved: dict[str, str] = {}
-# testIdHash → number of redirects saved so far (for sequential filename)
 _redirect_count: dict[str, int] = {}
 
 
@@ -67,17 +45,8 @@ def _save_redirect(
     body: bytes,
     content_type: str,
 ) -> None:
-    """Persist the redirect/complete or redirect/response request for replay.
-
-    GET connectors (e.g. Cybersource DDC, Stripe 3DS): saves
-      {"__redirect_method": "GET", "__redirect_segment": "redirect/response/stripe", "__query": {...}}.
-    POST connectors (e.g. Redsys ACS form): saves the decoded form fields directly
-    (no wrapper, for backwards compat with existing cassettes).
-    """
     if method == "GET":
         query_params = dict(urllib.parse.parse_qsl(query_string)) if query_string else {}
-        # Extract the redirect segment (redirect/complete/foo or redirect/response/foo)
-        # from a path like /payments/{payId}/{merchantId}/redirect/response/stripe.
         parts = path_only.split("/")
         try:
             idx = parts.index("redirect")
@@ -110,32 +79,24 @@ def _save_redirect(
         if redirect_segment:
             data["__redirect_segment"] = redirect_segment
 
-    # Sequential counter per test (1st redirect = 001, 2nd = 002, …)
-    # matches the _redirectReadCount counter in commands.js during replay.
     with _lock:
         _redirect_count[test_id_hash] = _redirect_count.get(test_id_hash, 0) + 1
         seq = str(_redirect_count[test_id_hash]).zfill(3)
     filename = f"{test_id_hash}-{seq}-redirect-body.json"
 
-    # Save to fixtures/proxy-bodies/ for local replay
     os.makedirs(FIXTURES_DIR, exist_ok=True)
     path = os.path.join(FIXTURES_DIR, filename)
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
     print(f"[redirect-proxy] body saved → {path}")
 
-    # Also save inside captures/{connector}/Payment/redirect-bodies/ so it gets
-    # packaged with the cassettes tarball and is available in CI.
     redirect_segment = data.get("__redirect_segment")
     if redirect_segment:
         raw_connector = redirect_segment.split("/")[-1]
-        # Sanitize: only allow alphanumeric and hyphens to prevent path traversal.
         connector = re.sub(r"[^a-zA-Z0-9\-]", "", raw_connector)
         if not connector:
             return
         captures_body_dir = os.path.join(CAPTURE_DIR, connector, "Payment", "redirect-bodies")
-        # Resolve the real path and verify it stays inside CAPTURE_DIR to
-        # guard against any remaining traversal sequences.
         real_dir = os.path.realpath(captures_body_dir)
         real_base = os.path.realpath(CAPTURE_DIR)
         if not real_dir.startswith(real_base + os.sep):
@@ -152,19 +113,14 @@ def _save_redirect(
         print(f"[redirect-proxy] body also saved → {captures_path}")
 
 
-# ───── proxy handler ─────
-
 class ProxyHandler(BaseHTTPRequestHandler):
     def _forward(self):
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length) if length else b""
 
-        # Match any method (GET or POST) to redirect/complete.
-        # Redsys ACS POSTs a form; Cybersource DDC does a GET via window.location.href.
         path_only = self.path.split("?", 1)[0]
         is_redirect_complete = bool(_REDIRECT_COMPLETE_RE.search(path_only))
 
-        # Build headers to forward (drop hop-by-hop)
         fwd: dict[str, str] = {}
         for k, v in self.headers.items():
             if k.lower() in ("host", "content-length", "transfer-encoding", "connection"):
@@ -173,7 +129,6 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
         if is_redirect_complete:
             with _lock:
-                # Pop the first reserved RID (one active test at a time)
                 entry = next(iter(_reserved.items()), None)
                 if entry:
                     test_id_hash, rid = entry
@@ -196,7 +151,6 @@ class ProxyHandler(BaseHTTPRequestHandler):
             else:
                 print(f"[redirect-proxy] WARNING: no reserved RID for {self.path}")
 
-        # Forward to Hyperswitch
         try:
             conn = http.client.HTTPConnection(UPSTREAM_HOST, UPSTREAM_PORT, timeout=30)
             conn.request(self.command, self.path, body=body or None, headers=fwd)
@@ -226,8 +180,6 @@ class ProxyHandler(BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
 
-
-# ───── admin handler ─────
 
 class AdminHandler(BaseHTTPRequestHandler):
     def _json(self, code: int, payload: dict) -> None:
@@ -281,8 +233,6 @@ class AdminHandler(BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
 
-
-# ───── boot ─────
 
 def _start_admin() -> None:
     server = HTTPServer(("127.0.0.1", ADMIN_PORT), AdminHandler)
