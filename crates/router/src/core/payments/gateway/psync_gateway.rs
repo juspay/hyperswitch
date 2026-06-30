@@ -62,7 +62,7 @@ where
         router_data: &RouterData<Self, types::PaymentsSyncData, types::PaymentsResponseData>,
         call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<Self, types::PaymentsSyncData, types::PaymentsResponseData>,
@@ -108,10 +108,12 @@ where
                 router_data.amount_captured = payment_get_response.captured_amount;
                 router_data.minor_amount_captured =
                     payment_get_response.captured_amount.map(MinorUnit::new);
-                router_data.raw_connector_response = payment_get_response
-                    .raw_connector_response
-                    .clone()
-                    .map(|raw_connector_response| raw_connector_response.expose().into());
+                if return_raw_connector_response.unwrap_or(false) {
+                    router_data.raw_connector_response = payment_get_response
+                        .raw_connector_response
+                        .clone()
+                        .map(|raw_connector_response| raw_connector_response.expose().into());
+                }
                 router_data.connector_http_status_code = Some(status_code);
                 router_data.sender_payment_instrument_id =
                     payment_get_response.sender_payment_instrument_id.clone();
@@ -277,10 +279,12 @@ where
                         router_data.amount_captured = payment_get_response.captured_amount;
                         router_data.minor_amount_captured =
                             payment_get_response.captured_amount.map(MinorUnit::new);
-                        router_data.raw_connector_response = payment_get_response
-                            .raw_connector_response
-                            .clone()
-                            .map(|raw_connector_response| raw_connector_response.expose().into());
+                        if return_raw_connector_response.unwrap_or(false) {
+                            router_data.raw_connector_response = payment_get_response
+                                .raw_connector_response
+                                .clone()
+                                .map(|raw_connector_response| raw_connector_response.expose().into());
+                        }
                         router_data.connector_http_status_code = Some(status_code);
                         router_data.sender_payment_instrument_id =
                             payment_get_response.sender_payment_instrument_id.clone();
