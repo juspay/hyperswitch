@@ -1265,6 +1265,29 @@ function bankRedirectRedirection(
     return;
   }
 
+  // Stripe wallet redirects (AliPay, AmazonPay, Cashapp, RevolutPay, WeChatPay) point to
+  // external wallet pages that cannot be automated in CI. Skip the redirect visit entirely
+  // and rely on the payment status (requires_customer_action) verified in the retrieve step.
+  if (
+    connectorId === "stripe" &&
+    ["ali_pay", "amazon_pay", "cashapp", "revolut_pay", "we_chat_pay"].includes(
+      paymentMethodType
+    )
+  ) {
+    expect(
+      redirectionUrl,
+      `Stripe ${paymentMethodType} forward flow redirect URL`
+    ).to.not.be.null;
+    expect(
+      redirectionUrl.href,
+      `Stripe ${paymentMethodType} redirect URL href`
+    ).to.be.a("string").and.to.not.be.empty;
+    cy.log(
+      `Verified forward flow for Stripe ${paymentMethodType} — redirect URL present: ${redirectionUrl.href} (external page not automatable)`
+    );
+    return;
+  }
+
   const adyenWalletTypesWithNullRedirect = ["dana", "go_pay", "momo", "vipps"];
 
   if (
