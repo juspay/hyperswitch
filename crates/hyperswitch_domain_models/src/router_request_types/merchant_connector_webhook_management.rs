@@ -8,3 +8,8 @@ pub struct ConnectorWebhookRegisterRequest {
 pub struct ConnectorWebhookData {
     pub event_type: common_enums::ConnectorWebhookEventType,
 }
+
+#[derive(Debug, Clone)]
+pub struct ConnectorWebhookGenerateSecretRequest {
+    pub connector_webhook_id: String,
+}
