@@ -674,6 +674,7 @@ export const CONNECTOR_LISTS = {
     ],
     POLL_CONFIG: ["stripe"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
+    CARD_REDIRECT: ["adyen"],
     // Add more inclusion lists
   },
 };

@@ -1562,6 +1562,139 @@ export const connectorDetails = {
     },
   },
 
+  // Billing data (phone, email, address) in card_redirect_pm are Adyen-simulator-specific
+  // test values. Phone numbers (e.g. "1234567890") are accepted by the Adyen test sandbox
+  // and may fail regional validation in production.
+  card_redirect_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      return {
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Knet: {
+      // TRIGGER_SKIP: Adyen test sandbox does not support knet card redirect.
+      // API testing confirmed: knet is NOT ENABLED on Adyen test merchant.
+      // Remove TRIGGER_SKIP when Adyen sandbox enables this payment method or production credentials are available.
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "knet",
+        payment_method_data: {
+          card_redirect: {
+            knet: {},
+          },
+        },
+        billing: {
+          address: {
+            country: "KW",
+            city: "Kuwait City",
+            line1: "123 Test St",
+            zip: "12345",
+            first_name: "Test",
+            last_name: "User",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "1234567890",
+            country_code: "+965",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Benefit: {
+      // TRIGGER_SKIP: Adyen test sandbox does not support benefit card redirect.
+      // API testing confirmed: Adyen returns HTTP 500 "Invalid type internal error".
+      // Remove TRIGGER_SKIP when Adyen sandbox enables this payment method or production credentials are available.
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "benefit",
+        payment_method_data: {
+          card_redirect: {
+            benefit: {},
+          },
+        },
+        billing: {
+          address: {
+            country: "BH",
+            city: "Manama",
+            line1: "123 Test St",
+            zip: "12345",
+            first_name: "Test",
+            last_name: "User",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "1234567890",
+            country_code: "+973",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    MomoAtm: {
+      // TRIGGER_SKIP: Adyen test sandbox does not support momo_atm card redirect.
+      // API testing confirmed: Adyen returns error with null error_code/message.
+      // Remove TRIGGER_SKIP when Adyen sandbox enables this payment method or production credentials are available.
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "momo_atm",
+        payment_method_data: {
+          card_redirect: {
+            momo_atm: {},
+          },
+        },
+        billing: {
+          address: {
+            country: "VN",
+            city: "Ho Chi Minh City",
+            line1: "123 Test St",
+            zip: "12345",
+            first_name: "Test",
+            last_name: "User",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "1234567890",
+            country_code: "+84",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
+
   upi_pm: {
     PaymentIntent: {
       Request: {
