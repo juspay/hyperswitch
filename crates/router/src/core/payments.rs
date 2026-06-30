@@ -14083,18 +14083,6 @@ pub async fn payments_submit_eligibility(
     ))
 }
 
-impl<F: Clone> PaymentData<F> {
-    /// Set the request_payload field with a serialized JSON value
-    pub fn set_request_payload(&mut self, payload: Option<serde_json::Value>) {
-        self.request_payload = payload;
-    }
-
-    /// Get the request_payload field
-    pub fn get_request_payload(&self) -> Option<&serde_json::Value> {
-        self.request_payload.as_ref()
-    }
-}
-
 pub trait PaymentMethodChecker<F> {
     fn should_update_in_post_update_tracker(&self) -> bool;
     fn should_update_in_update_tracker(&self) -> bool;

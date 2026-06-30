@@ -469,7 +469,7 @@ pub trait ConnectorSpecifications {
     ) -> bool {
         false
     }
-    /// Check if connector should be called for PaymentUpdate post confirm
+    /// Check if connector should be called for UpdatePostConfirm
     fn should_call_connector_for_update_post_confirm(
         &self,
         _payment_method_type: Option<PaymentMethodType>,

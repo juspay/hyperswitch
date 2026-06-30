@@ -116,14 +116,18 @@ impl Feature<api::UpdatePostConfirm, types::PaymentsUpdatePostConfirmData>
         creds_identifier: Option<&str>,
         gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
+        let current_flow = Some(
+            hyperswitch_interfaces::api::CurrentFlowInfo::UpdatePostConfirm {
+                request_data: Box::new(self.request.clone()),
+            },
+        );
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
             gateway_context,
-            // TODO: Pass Flow Context for UpdatePostConfirm Flow once it is added in CurrentFlowInfo enum
-            None,
+            current_flow,
         ))
         .await
     }

@@ -2189,6 +2189,7 @@ impl ConnectorSpecifications for Santander {
             Some(CurrentFlowInfo::CompleteAuthorize { .. })
             | Some(CurrentFlowInfo::Authorize { .. })
             | Some(CurrentFlowInfo::Psync { .. })
+            | Some(CurrentFlowInfo::UpdatePostConfirm { .. })
             | None => false,
         }
     }
@@ -2202,7 +2203,8 @@ impl ConnectorSpecifications for Santander {
             }
             CurrentFlowInfo::Authorize { .. }
             | CurrentFlowInfo::CompleteAuthorize { .. }
-            | CurrentFlowInfo::Psync { .. } => false,
+            | CurrentFlowInfo::Psync { .. }
+            | CurrentFlowInfo::UpdatePostConfirm { .. } => false,
         }
     }
     fn is_generate_qr_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
@@ -2215,7 +2217,8 @@ impl ConnectorSpecifications for Santander {
             }
             CurrentFlowInfo::Authorize { .. }
             | CurrentFlowInfo::CompleteAuthorize { .. }
-            | CurrentFlowInfo::Psync { .. } => false,
+            | CurrentFlowInfo::Psync { .. }
+            | CurrentFlowInfo::UpdatePostConfirm { .. } => false,
         }
     }
 }

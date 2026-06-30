@@ -9554,7 +9554,7 @@ pub struct PaymentsUpdateMetadataRequest {
     #[schema(value_type = Object, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
-    /// Depcreated because feature_metadata update will be done via the /update api from now on
+    /// Deprecated because feature_metadata update will be done via the /update api from now on
     #[schema(value_type = Option<FeatureMetadata>, deprecated)]
     pub feature_metadata: Option<FeatureMetadata>,
 }
@@ -9947,19 +9947,6 @@ impl ConnectorMetadata {
                     } = session_token_data;
                     (certificate, certificate_keys)
                 })
-        })
-    }
-
-    pub fn compare_with_request_payload(
-        &self,
-        request_connector_metadata: Option<&Self>,
-    ) -> Option<Self> {
-        request_connector_metadata.and_then(|req_metadata| {
-            if req_metadata != self {
-                Some(req_metadata.clone())
-            } else {
-                None
-            }
         })
     }
 }
@@ -11693,21 +11680,6 @@ pub struct FeatureMetadata {
 
 #[cfg(feature = "v1")]
 impl FeatureMetadata {
-    /// Compare with request payload feature metadata and return the one from request if different
-    /// Returns None if not present in request payload
-    pub fn compare_with_request_payload(
-        &self,
-        request_feature_metadata: Option<&Self>,
-    ) -> Option<Self> {
-        request_feature_metadata.and_then(|req_metadata| {
-            if req_metadata != self {
-                Some(req_metadata.clone())
-            } else {
-                None
-            }
-        })
-    }
-
     /// Helper to extract the optional covenant_code from boleto details
     pub fn get_optional_boleto_covenant_code(&self) -> Option<Secret<String>> {
         self.boleto_additional_details

@@ -273,23 +273,6 @@ impl FeatureMetadata {
             .map(|recovery_metadata| recovery_metadata.billing_connector_id.clone())
     }
 
-    /// Compare with request payload feature metadata and return the one from request if different
-    /// Returns None if not present in request payload
-    pub fn compare_with_request_payload(
-        &self,
-        request_feature_metadata: Option<&Self>,
-    ) -> Option<Self> {
-        request_feature_metadata.and_then(|req_metadata| {
-            // If they differ, return the request version (indicating updates from original request)
-            // If they match, return None (indicating they're the same)
-            if req_metadata != self {
-                Some(req_metadata.clone())
-            } else {
-                None
-            }
-        })
-    }
-
     // TODO: Check search_tags for relevant payment method type
     // TODO: Check redirect_response metadata if applicable
     // TODO: Check apple_pay_recurring_details metadata if applicable

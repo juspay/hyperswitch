@@ -64,6 +64,11 @@ pub enum CurrentFlowInfo {
         /// The payment setup mandate request data
         request_data: Box<PaymentsSyncData>,
     },
+    /// UpdatePostConfirm flow information
+    UpdatePostConfirm {
+        /// The payment update post confirm request data
+        request_data: Box<PaymentsUpdatePostConfirmData>,
+    },
 }
 
 impl CurrentFlowInfo {
@@ -73,6 +78,7 @@ impl CurrentFlowInfo {
             Self::CompleteAuthorize { .. } => None,
             Self::SetupMandate { .. } => None,
             Self::Psync { request_data } => request_data.feature_metadata.clone(),
+            Self::UpdatePostConfirm { request_data } => request_data.feature_metadata.clone(),
         }
     }
 }

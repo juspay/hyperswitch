@@ -1956,7 +1956,6 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
                 let document_type = match customer_document_details.document_type {
                     common_types::customers::DocumentKind::Cpf => Ok(SantanderDocumentKind::Cpf),
                     common_types::customers::DocumentKind::Cnpj => Ok(SantanderDocumentKind::Cnpj),
-                    // Throw err if anything else
                     common_types::customers::DocumentKind::Psn
                     | common_types::customers::DocumentKind::Other => {
                         Err(errors::ConnectorError::NotSupported {
@@ -2973,6 +2972,23 @@ pub fn decide_access_token_key_suffix(
                     Some(CurrentFlowInfo::SetupMandate { .. }),
                     Some(enums::PaymentMethodType::PixAutomaticoQr),
                 ) => Some(AccessTokenUrlPath::Leg2),
+                // UpdatePostConfirm flow
+                (
+                    Some(CurrentFlowInfo::UpdatePostConfirm { .. }),
+                    Some(enums::PaymentMethodType::Boleto),
+                ) => Some(AccessTokenUrlPath::Boleto),
+                (
+                    Some(CurrentFlowInfo::UpdatePostConfirm { .. }),
+                    Some(enums::PaymentMethodType::PixQr),
+                ) => Some(AccessTokenUrlPath::Leg1),
+                (
+                    Some(CurrentFlowInfo::UpdatePostConfirm { .. }),
+                    Some(enums::PaymentMethodType::PixAutomaticoPush),
+                ) => Some(AccessTokenUrlPath::Leg2),
+                (
+                    Some(CurrentFlowInfo::UpdatePostConfirm { .. }),
+                    Some(enums::PaymentMethodType::PixAutomaticoQr),
+                ) => None,
 
                 (None, Some(enums::PaymentMethodType::Boleto)) => Some(AccessTokenUrlPath::Boleto),
                 (None, Some(enums::PaymentMethodType::PixQr)) => Some(AccessTokenUrlPath::Leg1),
