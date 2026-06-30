@@ -1636,14 +1636,16 @@ mod tests {
         },
     };
     use diesel_models::{
-        business_profile::WebhookDetails,
         enums::{self},
         events::EventMetadata,
     };
     use futures::future::join_all;
     use hyperswitch_domain_models::{
-        master_key::MasterKeyInterface, merchant_account::MerchantAccountSetter,
+        business_profile::{MultipleWebhookDetail, WebhookDetails, WebhookUrls},
+        master_key::MasterKeyInterface,
+        merchant_account::MerchantAccountSetter,
     };
+    use strum::IntoEnumIterator;
     use time::macros::datetime;
     use tokio::time::{timeout, Duration};
 
@@ -1967,7 +1969,14 @@ mod tests {
                 payment_statuses_enabled: None,
                 refund_statuses_enabled: None,
                 payout_statuses_enabled: None,
-                multiple_webhooks_list: None,
+                multiple_webhooks_list: Some(WebhookUrls(vec![MultipleWebhookDetail {
+                    webhook_endpoint_id:
+                        common_utils::generate_webhook_endpoint_id_of_default_length(),
+                    webhook_url: masking::Secret::new("https://example.com/webhooks".to_string()),
+                    events: common_enums::EventType::iter().collect(),
+                    status: common_enums::OutgoingWebhookEndpointStatus::Active,
+                    is_legacy_url: false,
+                }])),
             }),
             sub_merchants_enabled: None,
             parent_merchant_id: None,
@@ -2035,7 +2044,14 @@ mod tests {
                 payment_statuses_enabled: None,
                 refund_statuses_enabled: None,
                 payout_statuses_enabled: None,
-                multiple_webhooks_list: None,
+                multiple_webhooks_list: Some(WebhookUrls(vec![MultipleWebhookDetail {
+                    webhook_endpoint_id:
+                        common_utils::generate_webhook_endpoint_id_of_default_length(),
+                    webhook_url: masking::Secret::new("https://example.com/webhooks".to_string()),
+                    events: common_enums::EventType::iter().collect(),
+                    status: common_enums::OutgoingWebhookEndpointStatus::Active,
+                    is_legacy_url: false,
+                }])),
             }),
             metadata: None,
             routing_algorithm: None,
