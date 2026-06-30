@@ -311,6 +311,31 @@ pub trait PaymentMethodsController {
         &self,
         pm: &payment_methods::PaymentMethod,
     ) -> errors::PmResult<api::CardDetailFromLocker>;
+
+    #[cfg(feature = "v1")]
+    async fn retrieve_payment_method_from_vault(
+        &self,
+        vault_id: &payment_methods::VaultId,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
+        is_v2_pm: bool,
+    ) -> errors::VaultResult<hyperswitch_domain_models::vault::PaymentMethodVaultingData>;
+
+    #[cfg(feature = "v1")]
+    async fn store_payment_method_in_vault(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        vault_id: &payment_methods::VaultId,
+        data: &hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    ) -> errors::VaultResult<()>;
+
+    #[cfg(feature = "v1")]
+    async fn get_fingerprint_id_from_vault(
+        &self,
+        entity_id: &Option<String>,
+        fingerprint_data: &hyperswitch_domain_models::vault::FingerprintData,
+        fingerprint_id: String,
+    ) -> errors::VaultResult<String>;
 }
 
 pub async fn create_encrypted_data<T>(

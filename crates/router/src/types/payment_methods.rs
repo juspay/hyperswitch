@@ -33,6 +33,13 @@ pub struct VaultFingerprintRequest {
     pub key: hyperswitch_domain_models::vault::V1VaultEntityId,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GenericVaultRetrieveRequest {
+    pub entity_id: id_type::CustomerId,
+    pub vault_id: domain::VaultId,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultFingerprintRequestNew {
     pub data: String,
