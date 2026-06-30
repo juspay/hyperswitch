@@ -323,6 +323,21 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
         } else {
             let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
+            let connector_metadata = response.connector_feature_data.as_ref().and_then(|m| {
+                let raw = m.clone().expose();
+                match serde_json::from_str::<serde_json::Value>(&raw) {
+                    Ok(v) => Some(v),
+                    Err(err) => {
+                        router_env::logger::warn!(
+                            error = %err,
+                            "failed to deserialize PSync response.connector_feature_data into \
+                             connector_metadata"
+                        );
+                        None
+                    }
+                }
+            });
+
             Ok((
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
@@ -334,7 +349,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                             .transpose()?,
                     ),
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
-                    connector_metadata: None,
+                    connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
                     connector_response_reference_id: response.merchant_transaction_id,
