@@ -288,6 +288,7 @@ pub struct PaymentsUpdatePostConfirmData {
     pub currency: storage_enums::Currency,
     pub connector_attempt_metadata: Option<serde_json::Value>,
     pub connector_transaction_id: String,
+    pub description: Option<String>,
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
     pub billing_address: Option<AddressDetails>,
     pub metadata: Option<serde_json::Value>,

@@ -8,14 +8,14 @@ use ::payment_methods::client::{
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
 use common_enums::{AuthorizationStatus, ConnectorTokenStatus, TokenizationType};
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use common_utils::ext_traits::ValueExt;
 use common_utils::{
-    ext_traits::{AsyncExt, Encode},
+    ext_traits::{AsyncExt, Encode, ValueExt},
     types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
 };
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
@@ -25,8 +25,9 @@ use hyperswitch_domain_models::{
     mandates::{self, ConnectorMandateReferenceId, MandateReferenceId},
     payments::payment_attempt::PaymentAttempt,
 };
+use hyperswitch_masking::ExposeInterface;
 #[cfg(feature = "v2")]
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::PeekInterface;
 use router_derive;
 use router_env::{instrument, logger, tracing};
 #[cfg(feature = "v1")]
@@ -4321,6 +4322,136 @@ impl<F: Clone + Send + Sync>
                             payment_data.clone(),
                         ))
                         .await?;
+
+                    let key_manager_state: KeyManagerState = db.into();
+                    let intent_update = match intent_update {
+                        storage::PaymentIntentUpdate::Update(mut fields) => {
+                            let types::PaymentsUpdatePostConfirmData {
+                                feature_metadata,
+                                amount,
+                                currency: _,
+                                connector_attempt_metadata: _,
+                                connector_transaction_id: _,
+                                description,
+                                billing_descriptor,
+                                billing_address,
+                                metadata,
+                                merchant_order_reference_id,
+                                customer_document_details,
+                            } = router_data.request;
+
+                            if let Some(amount) = amount {
+                                fields.amount = amount;
+                            }
+
+                            if let Some(metadata) = metadata {
+                                fields.metadata = Some(metadata);
+                            }
+
+                            if let Some(description) = description {
+                                fields.description = Some(description);
+                            }
+
+                            if let Some(billing_descriptor) = billing_descriptor {
+                                fields.billing_descriptor = Some(billing_descriptor);
+                            }
+
+                            if let Some(merchant_order_reference_id) = merchant_order_reference_id {
+                                fields.merchant_order_reference_id =
+                                    Some(merchant_order_reference_id);
+                            }
+
+                            if let Some(billing_address) = billing_address {
+                                let billing_address =
+                                    payments_helpers::create_or_update_address_for_payment_by_request(
+                                        db,
+                                        Some(&api_models::payments::Address {
+                                            address: Some(billing_address),
+                                            phone: None,
+                                            email: None,
+                                        }),
+                                        payment_data.payment_intent.billing_address_id.as_deref(),
+                                        processor.get_account().get_id(),
+                                        payment_data.payment_intent.customer_id.as_ref(),
+                                        processor.get_key_store(),
+                                        &payment_data.payment_intent.payment_id,
+                                        storage_scheme,
+                                    )
+                                    .await?;
+
+                                fields.billing_address_id =
+                                    billing_address.map(|address| address.address_id);
+                            }
+
+                            if let Some(customer_document_details) = customer_document_details {
+                                let mut existing_intent_customer_details = payment_data
+                                    .payment_intent
+                                    .customer_details
+                                    .clone()
+                                    .map(|details| {
+                                        let decrypted_value = details.into_inner().expose();
+
+                                        decrypted_value.parse_value::<CustomerData>("CustomerData")
+                                    })
+                                    .transpose()
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable(
+                                        "Failed to parse customer details from PaymentIntent",
+                                    )?;
+
+                                if let Some(ref mut details) = existing_intent_customer_details {
+                                    details.customer_document_details =
+                                        Some(customer_document_details);
+                                } else {
+                                    existing_intent_customer_details = Some(CustomerData {
+                                        name: None,
+                                        email: None,
+                                        phone: None,
+                                        phone_country_code: None,
+                                        tax_registration_id: None,
+                                        customer_document_details: Some(customer_document_details),
+                                    });
+                                }
+
+                                fields.customer_details = existing_intent_customer_details
+                                    .async_map(|value| {
+                                        core_utils::create_encrypted_data(
+                                            &key_manager_state,
+                                            key_store,
+                                            value,
+                                            common_utils::type_name!(diesel_models::PaymentIntent),
+                                        )
+                                    })
+                                    .await
+                                    .transpose()
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("Failed to encrypt customer details")?;
+                            }
+
+                            if let Some(changed_feature_metadata) = feature_metadata {
+                                let existing_feature_metadata = payment_data
+                                    .payment_intent
+                                    .get_optional_feature_metadata()
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable(
+                                        "Failed to parse existing feature metadata",
+                                    )?;
+
+                                let updated_feature_metadata =
+                                    changed_feature_metadata.merge(existing_feature_metadata);
+
+                                fields.feature_metadata = Some(hyperswitch_masking::Secret::new(
+                                    Encode::encode_to_value(&updated_feature_metadata)
+                                        .change_context(
+                                            errors::ApiErrorResponse::InternalServerError,
+                                        )
+                                        .attach_printable("Failed to serialize feature metadata")?,
+                                ));
+                            }
+                            storage::PaymentIntentUpdate::Update(fields)
+                        }
+                        other => other,
+                    };
 
                     payment_data.payment_attempt = m_db
                         .update_payment_attempt_with_attempt_id(

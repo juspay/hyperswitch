@@ -289,13 +289,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .attach_printable("Error converting connector_metadata to Value")?
             .or(payment_intent.connector_metadata);
 
-        payment_intent.feature_metadata = request
-            .get_feature_metadata_as_value()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error converting feature_metadata to Value")?
-            .map(hyperswitch_masking::Secret::new)
-            .or(payment_intent.feature_metadata);
-        payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
         payment_intent.psd2_sca_exemption_type = request
             .psd2_sca_exemption_type
@@ -416,11 +409,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_intent.request_external_three_ds_authentication = request
             .request_external_three_ds_authentication
             .or(payment_intent.request_external_three_ds_authentication);
-
-        payment_intent.merchant_order_reference_id = request
-            .merchant_order_reference_id
-            .clone()
-            .or(payment_intent.merchant_order_reference_id);
 
         Self::populate_payment_attempt_with_request(&mut payment_attempt, request);
 
@@ -603,51 +591,90 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         _mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<(PaymentUpdateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
-        match provider.get_account().merchant_account_type {
-            common_enums::MerchantAccountType::Standard => {
-                helpers::create_customer_if_not_exist(
-                    state,
-                    Box::new(self),
-                    payment_data,
-                    request,
-                    provider,
-                    initiator,
-                    dimensions,
-                )
-                .await
-            }
-            common_enums::MerchantAccountType::Platform => {
-                let customer = helpers::get_customer_if_exists(
-                    state,
-                    request.as_ref().and_then(|r| r.customer_id.as_ref()),
-                    payment_data.payment_intent.customer_id.as_ref(),
-                    provider,
-                )
-                .await?
-                .map(|cust| {
-                    payment_data
-                        .payment_intent
-                        .customer_id
-                        .as_ref()
-                        .is_some_and(|existing_id| existing_id != &cust.customer_id)
-                        .then_some(errors::StorageError::ValueNotFound(
-                            "Customer id mismatch between payment intent and request".to_string(),
-                        ))
-                        .map_or(Ok(()), Err)?;
-                    Ok(cust)
-                })
-                .transpose()
-                .map_err(|e: errors::StorageError| report!(e))?;
+        let request_has_customer_document_details = request
+            .as_ref()
+            .and_then(|request| request.document_details.as_ref())
+            .is_some();
 
-                Ok((Box::new(self), customer))
-            }
-            common_enums::MerchantAccountType::Connected => {
-                Err(errors::StorageError::ValueNotFound(
-                    "Connected merchant cannot be a provider".to_string(),
-                )
-                .into())
+        let (operation, customer): (PaymentUpdateOperation<'a, F>, Option<domain::Customer>) =
+            match provider.get_account().merchant_account_type {
+                common_enums::MerchantAccountType::Standard => {
+                    helpers::create_customer_if_not_exist(
+                        state,
+                        Box::new(self),
+                        payment_data,
+                        request,
+                        provider,
+                        initiator,
+                        dimensions,
+                    )
+                    .await
+                }
+                common_enums::MerchantAccountType::Platform => {
+                    let customer = helpers::get_customer_if_exists(
+                        state,
+                        request.as_ref().and_then(|r| r.customer_id.as_ref()),
+                        payment_data.payment_intent.customer_id.as_ref(),
+                        provider,
+                    )
+                    .await?
+                    .map(|cust| {
+                        payment_data
+                            .payment_intent
+                            .customer_id
+                            .as_ref()
+                            .is_some_and(|existing_id| existing_id != &cust.customer_id)
+                            .then_some(errors::StorageError::ValueNotFound(
+                                "Customer id mismatch between payment intent and request"
+                                    .to_string(),
+                            ))
+                            .map_or(Ok(()), Err)?;
+                        Ok(cust)
+                    })
+                    .transpose()
+                    .map_err(|e: errors::StorageError| report!(e))?;
+
+                    let operation: PaymentUpdateOperation<'a, F> = Box::new(self);
+                    Ok((operation, customer))
+                }
+                common_enums::MerchantAccountType::Connected => {
+                    Err(errors::StorageError::ValueNotFound(
+                        "Connected merchant cannot be a provider".to_string(),
+                    )
+                    .into())
+                }
+            }?;
+
+        let intent_customer_document_details = payment_data
+            .payment_intent
+            .get_customer_document_details()
+            .change_context(errors::StorageError::DeserializationFailed)
+            .attach_printable("Failed to extract customer document details from payment_intent")?;
+
+        if intent_customer_document_details.is_none() && !request_has_customer_document_details {
+            if let Some(customer_data) = customer
+                .clone()
+                .map(CustomerData::foreign_try_from)
+                .transpose()
+                .map_err(|_| report!(errors::StorageError::DeserializationFailed))?
+                .filter(|customer_data| customer_data.customer_document_details.is_some())
+            {
+                let key_manager_state = state.into();
+                payment_data.payment_intent.customer_details = Some(
+                    core_utils::create_encrypted_data(
+                        &key_manager_state,
+                        provider.get_key_store(),
+                        customer_data,
+                        common_utils::type_name!(diesel_models::PaymentIntent),
+                    )
+                    .await
+                    .change_context(errors::StorageError::EncryptionError)
+                    .attach_printable("Unable to encrypt customer details")?,
+                );
             }
         }
+
+        Ok((operation, customer))
     }
 
     async fn payments_dynamic_tax_calculation<'a>(
@@ -880,8 +907,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             )
             .await;
 
-        // Recreate session only if validation is enabled
-        if session_validation_enabled {
+        // Recreate session only if validation is enabled and connector is not being called
+        // (UpdatePostConfirm flows skip session recreation since the session may have expired)
+        if session_validation_enabled && !will_call_connector {
             let (new_client_session_id, invalidation_report) =
                 ClientSessionManager::recreate_session(
                     state,
@@ -1145,7 +1173,6 @@ impl PaymentUpdate {
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
         let business_label = payment_data.payment_intent.business_label.clone();
         let business_country = payment_data.payment_intent.business_country;
-        let description = payment_data.payment_intent.description.clone();
         let statement_descriptor_name = payment_data
             .payment_intent
             .statement_descriptor_name
@@ -1188,15 +1215,9 @@ impl PaymentUpdate {
             .attach_printable("Unable to encrypt shipping details")?;
 
         let order_details = payment_data.payment_intent.order_details.clone();
-        let metadata = payment_data.payment_intent.metadata.clone();
         let connector_metadata = payment_data.payment_intent.connector_metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
         let session_expiry = payment_data.payment_intent.session_expiry;
-        let merchant_order_reference_id = payment_data
-            .payment_intent
-            .merchant_order_reference_id
-            .clone();
-
         let tax_details = payment_data
             .payment_attempt
             .net_amount
@@ -1227,8 +1248,28 @@ impl PaymentUpdate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse payment intent feature metadata")?;
 
+        let merchant_order_reference_id = request_payments
+            .as_ref()
+            .and_then(|req| req.merchant_order_reference_id.clone())
+            .or(payment_data
+                .payment_intent
+                .merchant_order_reference_id
+                .clone());
+
+        let description = request_payments
+            .as_ref()
+            .and_then(|req| req.description.clone())
+            .or(payment_data.payment_intent.description.clone());
+
+        let metadata = request_payments
+            .as_ref()
+            .and_then(|req| req.metadata.clone())
+            .or(payment_data.payment_intent.metadata.clone());
+
         let feature_metadata = match (
-            request_payments.and_then(|req| req.feature_metadata),
+            request_payments
+                .as_ref()
+                .and_then(|req| req.feature_metadata.clone()),
             payment_intent_feature_metadata,
         ) {
             (Some(request_meta), intent_meta) => Some(request_meta.merge(intent_meta)),
@@ -1257,6 +1298,7 @@ impl PaymentUpdate {
                 description,
                 statement_descriptor_name,
                 statement_descriptor_suffix,
+                billing_descriptor: payment_data.payment_intent.billing_descriptor.clone(),
                 order_details,
                 metadata,
                 connector_metadata,
@@ -1383,11 +1425,6 @@ impl PaymentUpdate {
         payment_intent
             .business_label
             .clone_from(&request.business_label);
-
-        request
-            .description
-            .clone()
-            .map(|i| payment_intent.description.replace(i));
 
         request
             .statement_descriptor_name

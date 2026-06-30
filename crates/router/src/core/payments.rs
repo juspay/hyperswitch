@@ -74,7 +74,6 @@ use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::{AccessToken, FeatureData},
 };
-use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
@@ -1626,7 +1625,7 @@ where
     )?;
 
     common_utils::fp_utils::when(
-        !should_call_connector(&operation, &payment_data, call_connector_action.clone())?,
+        !should_call_connector(&operation, &payment_data, call_connector_action.clone()),
         || {
             Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration).attach_printable(format!(
             "Nti and card details based mit flow is not support for this {operation:?} payment operation"
@@ -2064,6 +2063,7 @@ where
             &platform,
             &profile,
             &header_payload,
+            None,
         )
         .await?;
 
@@ -2149,6 +2149,7 @@ where
             &platform,
             &profile,
             &header_payload,
+            None,
         )
         .await?;
 
@@ -3748,6 +3749,7 @@ pub async fn record_attempt_core(
             &platform,
             &profile,
             &header_payload,
+            None,
         )
         .await?;
     let default_payment_status_data = PaymentStatusData {
@@ -4977,6 +4979,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 &platform,
                 &profile,
                 &HeaderPayload::default(),
+                None,
             )
             .await?;
 
@@ -9931,11 +9934,11 @@ pub fn should_call_connector<Op: Debug, F: Clone, D>(
     operation: &Op,
     payment_data: &D,
     call_connector_action: CallConnectorAction,
-) -> RouterResult<bool>
+) -> bool
 where
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
-    Ok(match format!("{operation:?}").as_str() {
+    match format!("{operation:?}").as_str() {
         "PaymentConfirm" => true,
         "PaymentExternalVaultProxyConfirm" => true,
         "PaymentStart" => {
@@ -10025,28 +10028,11 @@ where
         "PaymentPostSessionTokens" => true,
         "PaymentUpdateMetadata" => true,
         "PaymentUpdate" => {
-            let connector_name = payment_data.get_payment_attempt_connector();
-            let payment_method_type = payment_data.get_payment_attempt().payment_method_type;
-            let intent_status = payment_data.get_payment_intent().status;
-            let should_call = connector_name
-                .map(|name| {
-                    api::connector_mapping::ConnectorData::convert_connector(name)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Invalid connector name stored in payment_attempt")
-                })
-                .transpose()?
-                .map(|connector| {
-                    connector.should_call_connector_for_update_post_confirm(
-                        payment_method_type,
-                        intent_status,
-                    )
-                })
-                .unwrap_or(false);
-            logger::info!(
-                "should_call_connector PaymentUpdate: connector_name={:?}, payment_method_type={:?}, intent_status={:?}, should_call={}",
-                connector_name, payment_method_type, intent_status, should_call
-            );
-            should_call
+            matches!(
+                payment_data.get_payment_intent().status,
+                storage_enums::IntentStatus::RequiresCustomerAction
+                    | storage_enums::IntentStatus::RequiresPaymentMethod
+            )
         }
         "PaymentExtendAuthorization" => matches!(
             payment_data.get_payment_intent().status,
@@ -10062,7 +10048,7 @@ where
             storage_enums::IntentStatus::RequiresCustomerAction
         ),
         _ => false,
-    })
+    }
 }
 
 pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
@@ -10845,7 +10831,7 @@ where
         Ok(backend_input) => {
             let transaction_type = enums::TransactionType::Payment;
 
-            if should_call_connector(operation, payment_data, call_connector_action)? {
+            if should_call_connector(operation, payment_data, call_connector_action) {
                 Some(match connector_choice {
                     api::ConnectorChoice::SessionMultiple(connectors) => {
                         let routing_output = perform_session_token_routing(

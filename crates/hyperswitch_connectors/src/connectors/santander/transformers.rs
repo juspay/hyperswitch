@@ -690,7 +690,7 @@ impl
 
         let payer = Some(Payer {
             name: value.0.router_data.get_billing_full_name()?,
-            document_type,
+            document_type: Some(document_type),
             document_number,
             address: Some(Secret::new(
                 [
@@ -1916,10 +1916,10 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
             .map(|dt| format_as_date_only(Some(dt)))
             .transpose()?;
 
-        let covenant_code = feature_metadata.clone().and_then(|data| {
-            data.get_optional_boleto_covenant_code()
-                .or(Some(boleto_mca_metadata.covenant_code.clone()))
-        });
+        let covenant_code = feature_metadata
+            .clone()
+            .and_then(|data| data.get_optional_boleto_covenant_code())
+            .or(Some(boleto_mca_metadata.covenant_code.clone()));
 
         let (
             (beneficiary, discount, document_kind),
@@ -1947,15 +1947,36 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
         let client_number = value.request.merchant_order_reference_id.clone();
         let participant_code = value.request.merchant_order_reference_id.clone();
 
+        let customer_document = value
+            .request
+            .customer_document_details
+            .as_ref()
+            .or(value.customer_document_details.as_ref())
+            .map(|customer_document_details| {
+                let document_type = match customer_document_details.document_type {
+                    common_types::customers::DocumentKind::Cpf => Ok(SantanderDocumentKind::Cpf),
+                    common_types::customers::DocumentKind::Cnpj => Ok(SantanderDocumentKind::Cnpj),
+                    // Throw err if anything else
+                    common_types::customers::DocumentKind::Psn
+                    | common_types::customers::DocumentKind::Other => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Only CPF and CNPJ documents are supported for Santander"
+                                .to_string(),
+                            connector: "Santander",
+                        })
+                    }
+                }?;
+                Ok::<_, Error>((
+                    Some(document_type),
+                    Some(customer_document_details.document_number.clone()),
+                ))
+            })
+            .transpose()?
+            .unwrap_or((None, None));
+
         let payer = value.request.billing_address.as_ref().and_then(|address| {
             let name = address.get_optional_full_name()?;
-            let customer_document_details = value.request.customer_document_details.as_ref()?;
-            let document_type = match customer_document_details.document_type {
-                common_types::customers::DocumentKind::Cpf => SantanderDocumentKind::Cpf,
-                common_types::customers::DocumentKind::Cnpj => SantanderDocumentKind::Cnpj,
-                common_types::customers::DocumentKind::Psn
-                | common_types::customers::DocumentKind::Other => SantanderDocumentKind::Cpf,
-            };
+            let (document_type, document_number) = customer_document.clone();
             let line1 = address.line1.clone()?;
             let line2 = address
                 .line2
@@ -1967,7 +1988,7 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
             Some(Payer {
                 name,
                 document_type,
-                document_number: Some(customer_document_details.document_number.clone()),
+                document_number,
                 address: Some(Secret::new(format!("{} {}", line1.peek(), line2.peek()))),
                 neighborhood: Some(line1),
                 city: Some(Secret::new(city)),
@@ -2058,19 +2079,148 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderPixQRPaymentRequ
                     }
                 };
 
+                let (cpf, cnpj) = value
+                    .request
+                    .customer_document_details
+                    .as_ref()
+                    .or(value.customer_document_details.as_ref())
+                    .map(|customer_document_details| {
+                        match customer_document_details.document_type {
+                            common_types::customers::DocumentKind::Cpf => (
+                                Some(customer_document_details.document_number.clone()),
+                                None,
+                            ),
+                            common_types::customers::DocumentKind::Cnpj => (
+                                None,
+                                Some(customer_document_details.document_number.clone()),
+                            ),
+                            common_types::customers::DocumentKind::Psn
+                            | common_types::customers::DocumentKind::Other => (
+                                Some(customer_document_details.document_number.clone()),
+                                None,
+                            ),
+                        }
+                    })
+                    .unwrap_or((None, None));
+
+                let debtor_from_address =
+                    value
+                        .request
+                        .billing_address
+                        .as_ref()
+                        .map(|address| SantanderDebtor {
+                            cnpj: cnpj.clone(),
+                            nome: address.get_optional_full_name(),
+                            logradouro: address.line1.clone().map(|line1| {
+                                address.line2.clone().map_or(line1.clone(), |line2| {
+                                    Secret::new(format!("{} {}", line1.peek(), line2.peek()))
+                                })
+                            }),
+                            cidade: address.city.clone().map(Secret::new),
+                            uf: address.state.clone(),
+                            cep: address.zip.clone(),
+                            cpf: cpf.clone(),
+                        });
+
+                let debtor = debtor_from_address.or_else(|| {
+                    (cpf.is_some() || cnpj.is_some()).then_some(SantanderDebtor {
+                        cnpj,
+                        nome: None,
+                        logradouro: None,
+                        cidade: None,
+                        uf: None,
+                        cep: None,
+                        cpf,
+                    })
+                });
+
                 let chave = value
                     .request
                     .feature_metadata
                     .clone()
                     .and_then(|data| data.get_pix_key_and_value().1);
 
+                let info_adicionais = value
+                    .request
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.as_object())
+                    .map(|m| {
+                        m.iter()
+                            .map(|(k, v)| SantanderAdditionalInfo {
+                                nome: k.clone().into(),
+                                valor: v.as_str().unwrap_or_default().to_string(),
+                            })
+                            .collect::<Vec<_>>()
+                    });
+
+                if let Some(ref info_list) = info_adicionais {
+                    for info in info_list {
+                        let nome_str: &str = &info.nome.clone().expose();
+                        let valor_str: &str = &info.valor;
+                        if nome_str.len() > 50 {
+                            return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                                connector: "Santander".to_string(),
+                                field_name: "metadata.key".to_string(),
+                                max_length: 50,
+                                received_length: nome_str.len(),
+                            }
+                            .into());
+                        }
+                        if valor_str.len() > 150 {
+                            return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                                connector: "Santander".to_string(),
+                                field_name: "metadata.value".to_string(),
+                                max_length: 150,
+                                received_length: valor_str.len(),
+                            }
+                            .into());
+                        }
+                    }
+                }
+
+                let (solicitacao_pagador, solicitacao_source) =
+                    if let Some(description) = value.request.description.clone() {
+                        (Some(description), "description")
+                    } else if let Some(statement_descriptor) = value
+                        .request
+                        .billing_descriptor
+                        .as_ref()
+                        .and_then(|descriptor| descriptor.statement_descriptor.clone())
+                    {
+                        (Some(statement_descriptor), "statement_descriptor")
+                    } else {
+                        (None, "")
+                    };
+
+                if let Some(ref solicitacao) = solicitacao_pagador {
+                    if solicitacao.len() > 140 {
+                        return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                            connector: "Santander".to_string(),
+                            field_name: solicitacao_source.to_string(),
+                            max_length: 140,
+                            received_length: solicitacao.len(),
+                        }
+                        .into());
+                    }
+                }
+
                 Ok(Self {
                     calendario: calendar,
-                    devedor: None,
-                    valor: None,
+                    devedor: debtor,
+                    valor: value
+                        .request
+                        .amount
+                        .map(|amount| {
+                            StringMajorUnitForConnector
+                                .convert(amount, value.request.currency)
+                                .change_context(errors::ConnectorError::ParsingFailed)
+                                .map(|original| SantanderValue { original })
+                        })
+                        .transpose()?,
                     chave,
-                    solicitacao_pagador: None,
-                    info_adicionais: None,
+                    solicitacao_pagador,
+                    info_adicionais,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -2101,7 +2251,7 @@ where
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let status = if item.http_code == 200 {
+        let status = if (200..300).contains(&item.http_code) {
             common_enums::PaymentResourceUpdateStatus::Success
         } else {
             common_enums::PaymentResourceUpdateStatus::Failure

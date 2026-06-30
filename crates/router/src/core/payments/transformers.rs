@@ -6114,27 +6114,21 @@ fn changed<T: PartialEq>(stored: &Option<T>, requested: Option<T>) -> Option<T> 
 
 #[cfg(feature = "v1")]
 trait Diff: Sized + PartialEq {
-    fn diff_ref(stored: &Self, requested: Self) -> Self;
+    fn diff_ref(stored: &Self, requested: Self) -> Option<Self>;
 
     fn diff(stored: Option<&Self>, requested: Option<Self>) -> Option<Self> {
         let requested = requested?;
-        let stored = match stored {
-            Some(stored) => stored,
-            None => return Some(requested),
-        };
-        let diffed = Self::diff_ref(stored, requested);
-        if diffed == *stored {
-            None
-        } else {
-            Some(diffed)
+        match stored {
+            Some(stored) => Self::diff_ref(stored, requested),
+            None => Some(requested),
         }
     }
 }
 
 #[cfg(feature = "v1")]
 impl Diff for api_payments::FeatureMetadata {
-    fn diff_ref(stored: &Self, requested: Self) -> Self {
-        api_payments::FeatureMetadata {
+    fn diff_ref(stored: &Self, requested: Self) -> Option<Self> {
+        let diffed = Self {
             redirect_response: changed(&stored.redirect_response, requested.redirect_response),
             search_tags: changed(&stored.search_tags, requested.search_tags),
             apple_pay_recurring_details: changed(
@@ -6157,14 +6151,27 @@ impl Diff for api_payments::FeatureMetadata {
                 &stored.finix_additional_details,
                 requested.finix_additional_details,
             ),
+        };
+
+        if diffed.redirect_response.is_none()
+            && diffed.search_tags.is_none()
+            && diffed.apple_pay_recurring_details.is_none()
+            && diffed.pix_additional_details.is_none()
+            && diffed.boleto_additional_details.is_none()
+            && diffed.pix_automatico_additional_details.is_none()
+            && diffed.finix_additional_details.is_none()
+        {
+            None
+        } else {
+            Some(diffed)
         }
     }
 }
 
 #[cfg(feature = "v1")]
 impl Diff for api_payments::BoletoAdditionalDetails {
-    fn diff_ref(stored: &Self, requested: Self) -> Self {
-        api_payments::BoletoAdditionalDetails {
+    fn diff_ref(stored: &Self, requested: Self) -> Option<Self> {
+        let diffed = Self {
             due_date: changed(&stored.due_date, requested.due_date),
             document_kind: changed(&stored.document_kind, requested.document_kind),
             payment_type: changed(&stored.payment_type, requested.payment_type),
@@ -6190,28 +6197,41 @@ impl Diff for api_payments::BoletoAdditionalDetails {
                 stored.beneficiary.as_ref(),
                 requested.beneficiary,
             ),
+        };
+
+        if diffed == Self::default() {
+            None
+        } else {
+            Some(diffed)
         }
     }
 }
 
 #[cfg(feature = "v1")]
 impl Diff for api_payments::SantanderPaymentDiscountRules {
-    fn diff_ref(stored: &Self, requested: Self) -> Self {
-        api_payments::SantanderPaymentDiscountRules {
-            discount_type: changed(&stored.discount_type, requested.discount_type),
-            tiers: if stored.tiers != requested.tiers {
-                requested.tiers
-            } else {
-                Vec::new()
-            },
+    fn diff_ref(stored: &Self, requested: Self) -> Option<Self> {
+        let discount_type = changed(&stored.discount_type, requested.discount_type);
+        let tiers = if stored.tiers != requested.tiers {
+            requested.tiers
+        } else {
+            Vec::new()
+        };
+
+        if discount_type.is_none() && tiers.is_empty() {
+            None
+        } else {
+            Some(Self {
+                discount_type,
+                tiers,
+            })
         }
     }
 }
 
 #[cfg(feature = "v1")]
 impl Diff for api_payments::PenaltyRules {
-    fn diff_ref(stored: &Self, requested: Self) -> Self {
-        api_payments::PenaltyRules {
+    fn diff_ref(stored: &Self, requested: Self) -> Option<Self> {
+        let diffed = Self {
             fixed_penalty: api_payments::PenaltyDetail::diff(
                 stored.fixed_penalty.as_ref(),
                 requested.fixed_penalty,
@@ -6220,37 +6240,55 @@ impl Diff for api_payments::PenaltyRules {
                 stored.interest.as_ref(),
                 requested.interest,
             ),
+        };
+
+        if diffed.fixed_penalty.is_none() && diffed.interest.is_none() {
+            None
+        } else {
+            Some(diffed)
         }
     }
 }
 
 #[cfg(feature = "v1")]
 impl Diff for api_payments::PenaltyDetail {
-    fn diff_ref(stored: &Self, requested: Self) -> Self {
-        api_payments::PenaltyDetail {
+    fn diff_ref(stored: &Self, requested: Self) -> Option<Self> {
+        let diffed = Self {
             value: changed(&stored.value, requested.value),
             grace_period_days: changed(&stored.grace_period_days, requested.grace_period_days),
+        };
+
+        if diffed.value.is_none() && diffed.grace_period_days.is_none() {
+            None
+        } else {
+            Some(diffed)
         }
     }
 }
 
 #[cfg(feature = "v1")]
 impl Diff for api_payments::InterestDetail {
-    fn diff_ref(stored: &Self, requested: Self) -> Self {
-        api_payments::InterestDetail {
+    fn diff_ref(stored: &Self, requested: Self) -> Option<Self> {
+        let diffed = Self {
             interest_percentage: changed(
                 &stored.interest_percentage,
                 requested.interest_percentage,
             ),
             iof_percentage: changed(&stored.iof_percentage, requested.iof_percentage),
+        };
+
+        if diffed.interest_percentage.is_none() && diffed.iof_percentage.is_none() {
+            None
+        } else {
+            Some(diffed)
         }
     }
 }
 
 #[cfg(feature = "v1")]
 impl Diff for api_payments::CollectionActions {
-    fn diff_ref(stored: &Self, requested: Self) -> Self {
-        api_payments::CollectionActions {
+    fn diff_ref(stored: &Self, requested: Self) -> Option<Self> {
+        let diffed = Self {
             legal_protest: api_payments::ProtestRules::diff(
                 stored.legal_protest.as_ref(),
                 requested.legal_protest,
@@ -6259,104 +6297,145 @@ impl Diff for api_payments::CollectionActions {
                 &stored.auto_write_off_days,
                 requested.auto_write_off_days,
             ),
+        };
+
+        if diffed.legal_protest.is_none() && diffed.auto_write_off_days.is_none() {
+            None
+        } else {
+            Some(diffed)
         }
     }
 }
 
 #[cfg(feature = "v1")]
 impl Diff for api_payments::ProtestRules {
-    fn diff_ref(stored: &Self, requested: Self) -> Self {
-        api_payments::ProtestRules {
+    fn diff_ref(stored: &Self, requested: Self) -> Option<Self> {
+        let diffed = Self {
             protest_type: changed(&stored.protest_type, requested.protest_type),
             days_after_due_date: changed(
                 &stored.days_after_due_date,
                 requested.days_after_due_date,
             ),
+        };
+
+        if diffed.protest_type.is_none() && diffed.days_after_due_date.is_none() {
+            None
+        } else {
+            Some(diffed)
         }
     }
 }
 
 #[cfg(feature = "v1")]
 impl Diff for api_payments::BoletoPaymentTypeConstraints {
-    fn diff_ref(stored: &Self, requested: Self) -> Self {
+    fn diff_ref(stored: &Self, requested: Self) -> Option<Self> {
+        if stored == &requested {
+            return None;
+        }
+
         use api_payments::BoletoPaymentTypeConstraints::*;
         match (stored, requested) {
-            (FlexibleAmount(stored_details), FlexibleAmount(requested_details)) => FlexibleAmount(
+            (FlexibleAmount(stored_details), FlexibleAmount(requested_details)) => {
                 api_payments::FlexibleAmountDetails::diff(
                     Some(stored_details),
-                    Some(requested_details.clone()),
+                    Some(requested_details),
                 )
-                .unwrap_or(requested_details),
-            ),
-            (Installment(stored_details), Installment(requested_details)) => Installment(
+                .map(FlexibleAmount)
+            }
+            (Installment(stored_details), Installment(requested_details)) => {
                 api_payments::InstallmentDetails::diff(
                     Some(stored_details),
-                    Some(requested_details.clone()),
+                    Some(requested_details),
                 )
-                .unwrap_or(requested_details),
-            ),
-            (_, requested) => requested,
+                .map(Installment)
+            }
+            (_, requested) => Some(requested),
         }
     }
 }
 
 #[cfg(feature = "v1")]
 impl Diff for api_payments::FlexibleAmountDetails {
-    fn diff_ref(stored: &Self, requested: Self) -> Self {
-        api_payments::FlexibleAmountDetails {
+    fn diff_ref(stored: &Self, requested: Self) -> Option<Self> {
+        let diffed = Self {
             min_value: changed(&stored.min_value, requested.min_value),
             max_value: changed(&stored.max_value, requested.max_value),
             value_type: changed(&stored.value_type, requested.value_type),
+        };
+
+        if diffed.min_value.is_none() && diffed.max_value.is_none() && diffed.value_type.is_none() {
+            None
+        } else {
+            Some(diffed)
         }
     }
 }
 
 #[cfg(feature = "v1")]
 impl Diff for api_payments::InstallmentDetails {
-    fn diff_ref(stored: &Self, requested: Self) -> Self {
-        api_payments::InstallmentDetails {
+    fn diff_ref(stored: &Self, requested: Self) -> Option<Self> {
+        let diffed = Self {
             max_partial_payments: changed(
                 &stored.max_partial_payments,
                 requested.max_partial_payments,
             ),
             value_type: changed(&stored.value_type, requested.value_type),
+        };
+
+        if diffed.max_partial_payments.is_none() && diffed.value_type.is_none() {
+            None
+        } else {
+            Some(diffed)
         }
     }
 }
 
 #[cfg(feature = "v1")]
 impl Diff for api_payments::BeneficiaryDetails {
-    fn diff_ref(stored: &Self, requested: Self) -> Self {
-        api_payments::BeneficiaryDetails {
+    fn diff_ref(stored: &Self, requested: Self) -> Option<Self> {
+        let diffed = Self {
             name: changed(&stored.name, requested.name),
             document_number: changed(&stored.document_number, requested.document_number),
             document_type: changed(&stored.document_type, requested.document_type),
+        };
+
+        if diffed.name.is_none()
+            && diffed.document_number.is_none()
+            && diffed.document_type.is_none()
+        {
+            None
+        } else {
+            Some(diffed)
         }
     }
 }
 
 #[cfg(feature = "v1")]
 impl Diff for api_payments::PixAdditionalDetails {
-    fn diff_ref(stored: &Self, requested: Self) -> Self {
+    fn diff_ref(stored: &Self, requested: Self) -> Option<Self> {
+        if stored == &requested {
+            return None;
+        }
+
         use api_payments::PixAdditionalDetails::*;
         match (stored, requested) {
             (Immediate(stored_imm), Immediate(requested_imm)) => {
-                Immediate(api_payments::ImmediateExpirationTime {
+                Some(Immediate(api_payments::ImmediateExpirationTime {
                     time: requested_imm.time,
                     pix_key: changed(&stored_imm.pix_key, requested_imm.pix_key),
-                })
+                }))
             }
             (Scheduled(stored_sch), Scheduled(requested_sch)) => {
-                Scheduled(api_payments::ScheduledExpirationTime {
+                Some(Scheduled(api_payments::ScheduledExpirationTime {
                     date: requested_sch.date,
                     validity_after_expiration: changed(
                         &stored_sch.validity_after_expiration,
                         requested_sch.validity_after_expiration,
                     ),
                     pix_key: changed(&stored_sch.pix_key, requested_sch.pix_key),
-                })
+                }))
             }
-            (_, requested) => requested,
+            (_, requested) => Some(requested),
         }
     }
 }
@@ -6399,6 +6478,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
         let feature_metadata = api_payments::FeatureMetadata::diff(
             payment_data_feature_metadata.as_ref(),
             request_feature_metadata,
+        );
+
+        let request_description = request_payments
+            .as_ref()
+            .and_then(|req| req.description.clone());
+        let description = changed(
+            &payment_data.payment_intent.description,
+            request_description,
         );
 
         let billing_descriptor = match (
@@ -6464,7 +6551,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
             .and_then(|req| req.billing.as_ref())
             .and_then(|billing| billing.address.clone());
 
-        let billing_address = changed(&stored_billing_address, request_billing_address);
+        let billing_address = changed(&stored_billing_address, request_billing_address.clone())
+            .or(request_billing_address);
 
         let stored_customer_document_details = payment_data
             .payment_intent
@@ -6479,7 +6567,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
 
         let customer_document_details = changed(
             &stored_customer_document_details,
-            request_customer_document_details,
+            request_customer_document_details.clone(),
         );
 
         Ok(Self {
@@ -6491,6 +6579,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
                 .connector_transaction_id(&payment_data.payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             connector_attempt_metadata: payment_data.payment_attempt.connector_metadata.clone(),
+            description,
             billing_descriptor,
             billing_address,
             metadata,

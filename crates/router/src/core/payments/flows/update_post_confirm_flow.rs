@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 
 use super::ConstructFlowSpecificData;
 use crate::{
@@ -77,6 +78,17 @@ impl Feature<api::UpdatePostConfirm, types::PaymentsUpdatePostConfirmData>
         return_raw_connector_response: Option<bool>,
         _gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
+        let should_call_connector = connector
+            .connector
+            .should_call_connector_for_update_post_confirm(
+                self.payment_method_type,
+                self.status.into(),
+            );
+
+        if !should_call_connector {
+            return Ok(self);
+        }
+
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::UpdatePostConfirm,
             types::PaymentsUpdatePostConfirmData,

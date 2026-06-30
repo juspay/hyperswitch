@@ -2315,11 +2315,23 @@ pub struct CaptureResponse {
     pub reference_id: Option<String>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Debug, serde::Deserialize, Clone, Copy, PartialEq, Eq)]
 pub enum Amount {
     Value(NonZeroI64),
     #[default]
     Zero,
+}
+
+impl Serialize for Amount {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::Value(val) => serializer.serialize_i64(val.get()),
+            Self::Zero => serializer.serialize_i64(0),
+        }
+    }
 }
 
 impl From<Amount> for MinorUnit {
