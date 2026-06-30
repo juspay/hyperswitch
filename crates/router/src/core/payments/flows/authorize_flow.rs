@@ -1392,7 +1392,7 @@ fn transform_redirection_response_for_pre_authenticate_flow(
                     field_name: "reference_id",
                 },
             )?;
-            
+
             match connector {
                 enums::connector_enums::Connector::Barclaycard => {
                     Ok(router_response_types::RedirectForm::BarclaycardAuthSetup {
