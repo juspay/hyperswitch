@@ -653,7 +653,7 @@ impl OpenSearchQueryBuilder {
         let mut amounts = Vec::new();
 
         if amount_parts.len() == 1 {
-            if let Some(raw_amount) = query.parse::<u64>().ok() {
+            if let Ok(raw_amount) = query.parse::<u64>() {
                 amounts.push(Value::from(raw_amount));
             }
         }
@@ -774,11 +774,7 @@ impl OpenSearchQueryBuilder {
         })
     }
 
-    fn make_case_insensitive_multi_field_filter(
-        &self,
-        fields: &[&str],
-        values: &Vec<Value>,
-    ) -> Value {
+    fn make_case_insensitive_multi_field_filter(&self, fields: &[&str], values: &[Value]) -> Value {
         json!({
             "bool": {
                 "should": fields.iter().flat_map(|field| {
@@ -798,49 +794,6 @@ impl OpenSearchQueryBuilder {
         })
     }
 
-    fn make_numeric_comparison_filter(
-        field: &'static str,
-        comparison: OpenSearchComparison,
-        value: i64,
-    ) -> Value {
-        match comparison.range_operator() {
-            Some(operator) => json!({
-                "range": {
-                    (field): {
-                        (operator): value
-                    }
-                }
-            }),
-            None => json!({
-                "term": {
-                    (field): value
-                }
-            }),
-        }
-    }
-
-    fn make_boolean_mapped_filter(
-        values: &Vec<Value>,
-        get_filter: impl Fn(bool) -> Value,
-    ) -> Value {
-        let mut should_clauses = Vec::new();
-
-        if values.iter().any(|value| value.as_bool() == Some(true)) {
-            should_clauses.push(get_filter(true));
-        }
-
-        if values.iter().any(|value| value.as_bool() == Some(false)) {
-            should_clauses.push(get_filter(false));
-        }
-
-        json!({
-            "bool": {
-                "should": should_clauses,
-                "minimum_should_match": 1
-            }
-        })
-    }
-
     pub fn build_filter_array(
         &self,
         case_sensitive_filters: Vec<&(String, Vec<Value>)>,
@@ -855,19 +808,32 @@ impl OpenSearchQueryBuilder {
             .into_iter()
             .map(|(k, v)| {
                 if *k == "first_attempt" {
-                    return Self::make_boolean_mapped_filter(v, |is_first_attempt| {
-                        if is_first_attempt {
-                            Self::make_numeric_comparison_filter(
-                                "attempt_count",
-                                OpenSearchComparison::Equal,
-                                1,
-                            )
-                        } else {
-                            Self::make_numeric_comparison_filter(
-                                "attempt_count",
-                                OpenSearchComparison::GreaterThan,
-                                1,
-                            )
+                    let mut should_clauses = Vec::new();
+
+                    if v.iter().any(|value| value.as_bool() == Some(true)) {
+                        should_clauses.push(json!({
+                            "term": {
+                                "attempt_count": 1
+                            }
+                        }));
+                    }
+
+                    if v.iter().any(|value| value.as_bool() == Some(false)) {
+                        if let Some(operator) = OpenSearchComparison::GreaterThan.range_operator() {
+                            should_clauses.push(json!({
+                                "range": {
+                                    "attempt_count": {
+                                        (operator): 1
+                                    }
+                                }
+                            }));
+                        }
+                    }
+
+                    return json!({
+                        "bool": {
+                            "should": should_clauses,
+                            "minimum_should_match": 1
                         }
                     });
                 }
