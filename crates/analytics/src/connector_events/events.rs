@@ -23,8 +23,8 @@ where
     Window<&'static str>: ToSql<T>,
 {
     let mut query_builder: QueryBuilder<T> = match query_param.payment_id {
-        Some(_) => QueryBuilder::new(AnalyticsCollection::ConnectorEvents),
-        None => QueryBuilder::new(AnalyticsCollection::ConnectorPayoutEvents),
+        Some(_) => QueryBuilder::new(AnalyticsCollection::PrismConnectorEvents),
+        None => QueryBuilder::new(AnalyticsCollection::PrismConnectorPayoutEvents),
     };
     query_builder.add_select_column("*").switch()?;
 
