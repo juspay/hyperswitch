@@ -291,7 +291,7 @@ pub async fn get_profile_superposition_sdk_config(
         serde_json::Value::String(profile_id.to_string()),
     );
     dimension_filter.insert(
-        "merchant_id".to_string(),
+        "processor_merchant_id".to_string(),
         serde_json::Value::String(merchant_account.get_id().get_string_repr().to_string()),
     );
     dimension_filter.insert(
@@ -389,7 +389,7 @@ pub async fn get_superposition_sdk_config(
         serde_json::Value::String(profile_id.get_string_repr().to_string()),
     );
     dimension_filter.insert(
-        "merchant_id".to_string(),
+        "processor_merchant_id".to_string(),
         serde_json::Value::String(merchant_account.get_id().get_string_repr().to_string()),
     );
     dimension_filter.insert(
