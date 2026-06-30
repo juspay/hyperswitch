@@ -1533,12 +1533,10 @@ enabled = false
 hyperswitch_ai_host = "http://0.0.0.0:8000"
 encryption_key = ""
 
-# Federated HyperSage Trace session mint (juspay/hypersage#1040).
-# Off by default. When enabled, sage_base_url + infra_key MUST be set —
-# the boot validator refuses to start an enabled+empty configuration.
 [trace_integration]
 enabled = false
-sage_base_url = "http://localhost:8001"
+base_url = ""
+mint_path = ""
 infra_key = ""
 
 [proxy_status_mapping]

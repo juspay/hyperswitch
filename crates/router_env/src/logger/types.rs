@@ -419,8 +419,7 @@ pub enum Flow {
     GetDataFromHyperswitchAiFlow,
     // List all chat interactions
     ListAllChatInteractions,
-    /// Mint a federated HyperSage Trace session for a CC user
-    /// (juspay/hypersage#1040)
+    /// Mint a federated Trace session for the dashboard user.
     LaunchTrace,
     /// User Sign Up
     UserSignUp,

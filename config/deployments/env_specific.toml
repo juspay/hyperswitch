@@ -450,13 +450,11 @@ enabled = false                                # Enable or disable chat features
 hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
 encryption_key = ""                            # Key to encrypt and decrypt chats
 
-# Federated HyperSage Trace session mint (juspay/hypersage#1040).
-# enabled=true requires sage_base_url + infra_key to be populated;
-# the boot validator refuses to start otherwise.
 [trace_integration]
-enabled = false                                # Master switch for federated Trace sessions
-sage_base_url = ""                             # e.g. "https://sage.<env>.hyperswitch.io"
-infra_key = ""                                 # Shared secret; KMS-decrypted at boot per SecretsHandler
+enabled = false
+base_url = ""
+mint_path = ""
+infra_key = ""
 
 [proxy_status_mapping]
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response

@@ -2838,9 +2838,6 @@ impl User {
         route = route
             .service(web::resource("").route(web::get().to(user::get_active_user_details)))
             .service(web::resource("/signin").route(web::post().to(user::user_signin)))
-            // Federated HyperSage Trace session mint
-            // (juspay/hypersage#1040). The handler returns 404 when
-            // the feature flag is off — no oracle for env state.
             .service(web::resource("/launch_trace").route(web::post().to(user::launch_trace)))
             .service(web::resource("/v2/signin").route(web::post().to(user::user_signin)))
             // signin/signup with sso using openidconnect

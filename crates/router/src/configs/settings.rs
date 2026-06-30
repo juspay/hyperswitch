@@ -244,18 +244,12 @@ pub struct ChatSettings {
     pub encryption_key: Secret<String>,
 }
 
-/// Federated HyperSage Trace session settings (issue
-/// juspay/hypersage#1040). Off by default everywhere. The
-/// `validate()` impl lives in `crates/router/src/configs/validations.rs`
-/// alongside the other config validators; the boot-time chain in
-/// `Settings::validate` calls it to refuse boot when
-/// `enabled=true` with no `sage_base_url` / `infra_key` — fail-closed
-/// for a half-configured rollout.
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct TraceIntegrationSettings {
     pub enabled: bool,
-    pub sage_base_url: String,
+    pub base_url: String,
+    pub mint_path: String,
     pub infra_key: Secret<String>,
 }
 

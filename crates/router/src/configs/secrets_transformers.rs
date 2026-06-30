@@ -316,15 +316,13 @@ impl SecretsHandler for settings::ChatSettings {
 
 #[async_trait::async_trait]
 impl SecretsHandler for settings::TraceIntegrationSettings {
-    /// KMS-decrypt the federated infra key only when the flag is on.
-    /// Matches the `ChatSettings` impl above so a disabled
-    /// integration costs zero secret-fetch calls at boot.
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let trace_settings = value.get_inner();
 
+        // Skip the secret fetch when the integration is off — costs zero.
         let infra_key = if trace_settings.enabled {
             secret_management_client
                 .get_secret(trace_settings.infra_key.clone())
