@@ -73,6 +73,7 @@ pub struct Connectors {
     pub helcim: ConnectorParams,
     pub hipay: ConnectorParamsWithThreeUrls,
     pub hyperpg: ConnectorParams,
+    pub hyperswitch: ConnectorParams,
     pub hyperswitch_vault: ConnectorParams,
     pub hyperwallet: ConnectorParams,
     pub iatapay: ConnectorParams,

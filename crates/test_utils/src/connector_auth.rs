@@ -71,6 +71,7 @@ pub struct ConnectorAuthentication {
     pub helcim: Option<HeaderKey>,
     pub hipay: Option<HeaderKey>,
     pub hyperpg: Option<HeaderKey>,
+    pub hyperswitch: Option<HeaderKey>,
     pub hyperswitch_vault: Option<SignatureKey>,
     pub hyperwallet: Option<BodyKey>,
     pub iatapay: Option<SignatureKey>,
