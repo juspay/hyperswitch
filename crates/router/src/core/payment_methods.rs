@@ -1726,7 +1726,7 @@ impl LockerOperations for GenericLocker {
         )
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-        let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+        let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None, None)
             .await
             .change_context(errors::VaultError::VaultAPIError)
             .attach_printable("Call to vault failed")?;
@@ -1754,7 +1754,7 @@ impl LockerOperations for GenericLocker {
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultDeleteRequest")?;
 
-        let resp = vault::call_to_vault::<pm_types::VaultDelete>(state, payload, None)
+        let resp = vault::call_to_vault::<pm_types::VaultDelete>(state, payload, None, None)
             .await
             .change_context(errors::VaultError::VaultAPIError)
             .attach_printable("Call to vault failed")?;

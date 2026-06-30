@@ -549,6 +549,7 @@ async fn process_webhook_business_logic(
                 connector_name,
                 source_verified,
                 event_type,
+                webhook_resource_data,
             ))
             .await
             .attach_printable("Incoming webhook flow for refunds failed"),
@@ -991,6 +992,8 @@ async fn payments_incoming_webhook_flow(
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
                     webhook_recipient,
+                    Some(WebhookResourceData::Payment { payment_attempt }),
+                    business_profile,
                 ))
                 .await?;
             };
@@ -1307,6 +1310,8 @@ async fn payout_incoming_webhook_update_status(
             api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_create_response)),
             Some(payout_data.payout_attempt.created_at),
             webhook_recipient,
+            None,
+            business_profile,
         ))
         .await?;
     }
@@ -1385,6 +1390,8 @@ async fn payout_incoming_webhook_retrieve_status(
             api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_response)),
             Some(payout_data.payout_attempt.created_at),
             webhook_recipient,
+            None,
+            business_profile,
         ))
         .await?;
     }
@@ -1491,6 +1498,7 @@ async fn refunds_incoming_webhook_flow(
     connector_name: &str,
     source_verified: bool,
     event_type: webhooks::IncomingWebhookEvent,
+    webhook_resource_data: Option<WebhookResourceData>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let db = &*state.store;
     //find refund by connector refund id
@@ -1619,6 +1627,8 @@ async fn refunds_incoming_webhook_flow(
             api::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
             Some(updated_refund.created_at),
             webhook_recipient,
+            webhook_resource_data,
+            business_profile,
         ))
         .await?;
     }
@@ -1770,7 +1780,10 @@ pub async fn get_or_update_dispute_object(
             };
             state
                 .store
-                .insert_dispute(new_dispute.clone())
+                .insert_dispute(
+                    new_dispute.clone(),
+                    platform.get_processor().get_account().storage_scheme,
+                )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
         }
@@ -1794,9 +1807,13 @@ pub async fn get_or_update_dispute_object(
                 challenge_required_by: dispute_details.challenge_required_by,
                 connector_updated_at: dispute_details.updated_at,
             };
-            db.update_dispute(dispute, update_dispute)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+            db.update_dispute(
+                dispute,
+                update_dispute,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
         }
     }
 }
@@ -2023,6 +2040,8 @@ async fn external_authentication_incoming_webhook_flow(
                                 )),
                                 primary_object_created_at,
                                 webhook_recipient,
+                                None,
+                                business_profile,
                             ))
                             .await?;
                         };
@@ -2126,6 +2145,8 @@ async fn mandates_incoming_webhook_flow(
                 api::OutgoingWebhookContent::MandateDetails(mandates_response),
                 Some(updated_mandate.created_at),
                 webhook_recipient,
+                None,
+                business_profile,
             ))
             .await?;
         }
@@ -2244,6 +2265,8 @@ async fn frm_incoming_webhook_flow(
                         api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                         primary_object_created_at,
                         webhook_recipient,
+                        None,
+                        business_profile,
                     ))
                     .await?;
                 };
@@ -2302,6 +2325,7 @@ async fn disputes_incoming_webhook_flow(
                 platform.get_processor().get_account().get_id(),
                 &payment_attempt.payment_id,
                 &dispute_details.connector_dispute_id,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)?;
@@ -2381,6 +2405,8 @@ async fn disputes_incoming_webhook_flow(
             api::OutgoingWebhookContent::DisputeDetails(disputes_response),
             Some(dispute_object.created_at),
             webhook_recipient,
+            None,
+            business_profile,
         ))
         .await?;
         metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(1, &[]);
@@ -2406,20 +2432,20 @@ async fn bank_transfer_webhook_flow(
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-    let (response, created_by) = if source_verified {
+    let (response, created_by, payment_attempt) = if source_verified {
         let payment_attempt = get_payment_attempt_from_object_reference_id(
             &state,
             webhook_details.object_reference_id,
             platform.get_processor(),
         )
         .await?;
-        let payment_id = payment_attempt.payment_id;
+        let payment_id = payment_attempt.payment_id.clone();
         let created_by = payment_attempt.created_by.clone();
         let request = api::PaymentsRequest {
             payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
                 payment_id,
             )),
-            payment_token: payment_attempt.payment_token,
+            payment_token: payment_attempt.payment_token.clone(),
             ..Default::default()
         };
         let response = Box::pin(payments::payments_core::<
@@ -2444,12 +2470,13 @@ async fn bank_transfer_webhook_flow(
             None,
         ))
         .await;
-        (response, created_by)
+        (response, created_by, Some(payment_attempt.clone()))
     } else {
         (
             Err(report!(
                 errors::ApiErrorResponse::WebhookAuthenticationFailed
             )),
+            None,
             None,
         )
     };
@@ -2481,6 +2508,10 @@ async fn bank_transfer_webhook_flow(
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
                     webhook_recipient,
+                    payment_attempt.map(|pa| WebhookResourceData::Payment {
+                        payment_attempt: pa,
+                    }),
+                    business_profile,
                 ))
                 .await?;
             }

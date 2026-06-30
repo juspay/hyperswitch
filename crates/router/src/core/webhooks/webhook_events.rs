@@ -62,6 +62,7 @@ pub async fn list_initial_delivery_attempts(
                     object_id.as_str(),
                     profile_id.clone(),
                     &key_store,
+                    Some(common_enums::EventRecipient::Merchant),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -177,6 +178,7 @@ pub async fn list_initial_delivery_attempts(
                             event_types.clone(),
                             is_delivered,
                             &key_store,
+                            Some(common_enums::EventRecipient::Merchant),
                         )
                         .await
                 }
@@ -191,6 +193,7 @@ pub async fn list_initial_delivery_attempts(
                             event_types.clone(),
                             is_delivered,
                             &key_store,
+                            Some(common_enums::EventRecipient::Merchant),
                         )
                         .await
                 }
@@ -207,6 +210,7 @@ pub async fn list_initial_delivery_attempts(
                             created_before,
                             event_types,
                             is_delivered,
+                            Some(common_enums::EventRecipient::Merchant),
                         )
                         .await
                 }
@@ -219,6 +223,7 @@ pub async fn list_initial_delivery_attempts(
                             created_before,
                             event_types,
                             is_delivered,
+                            Some(common_enums::EventRecipient::Merchant),
                         )
                         .await
                 }
@@ -264,6 +269,7 @@ pub async fn list_delivery_attempts(
             &initial_attempt_id,
             &merchant_id,
             &key_store,
+            Some(common_enums::EventRecipient::Merchant),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -373,6 +379,7 @@ pub async fn retry_delivery_attempt(
         is_overall_delivery_successful: Some(false),
         processor_merchant_id: Some(processor_merchant_id.clone()),
         initiator_merchant_id: Some(merchant_id.clone()),
+        recipient: event_to_retry.recipient,
     };
 
     let event = store
@@ -403,6 +410,7 @@ pub async fn retry_delivery_attempt(
         delivery_attempt,
         None,
         None,
+        super::types::WebhookRecipientData::Merchant { merchant_id },
     ))
     .await;
 

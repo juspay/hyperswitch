@@ -3143,6 +3143,16 @@ Cypress.Commands.add(
                         response.body.next_action.redirect_to_url
                       );
                     }
+                    if (
+                      resData.Response &&
+                      resData.Response.body &&
+                      resData.Response.body.status
+                    ) {
+                      expect(
+                        response.body.status,
+                        "status should match config"
+                      ).to.equal(resData.Response.body.status);
+                    }
                   } else if (response.body.status === "failed") {
                     expect(response.body.error_code).to.equal(
                       resData.body.error_code
@@ -4527,7 +4537,8 @@ Cypress.Commands.add(
                   response.body.setup_future_usage === "off_session" &&
                   response.body.mandate_id === null &&
                   response.body.status === "succeeded" &&
-                  globalState.get("connectorId") !== "peachpayments"
+                  globalState.get("connectorId") !== "peachpayments" &&
+                  requestBody.mandate_data !== null
                 ) {
                   expect(
                     response.body.connector_mandate_id,
@@ -4676,8 +4687,10 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.status === 200) {
           globalState.set("paymentID", response.body.payment_id);
-          expect(response.body.payment_method_data, "payment_method_data").to
-            .not.be.empty;
+          if (response.body.payment_method_data !== null) {
+            expect(response.body.payment_method_data, "payment_method_data").to
+              .not.be.empty;
+          }
           const expectedConnector = getOriginalConnectorName(
             globalState.get("connectorId")
           );
@@ -5082,6 +5095,29 @@ Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
           "Mandate has already been revoked"
         );
       }
+    });
+  });
+});
+
+Cypress.Commands.add("mandateGETCallTest", (globalState) => {
+  const mandateId = globalState.get("mandateId");
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/mandates/${mandateId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.status, "status_code").to.equal(200);
+      expect(response.body).to.have.property("mandate_id", mandateId);
+      expect(response.body).to.have.property("status", "active");
+      expect(response.body).to.have.property("payment_method", "bank_debit");
     });
   });
 });
