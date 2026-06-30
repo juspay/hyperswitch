@@ -515,11 +515,12 @@ impl
                 network_token_data,
                 amount: get_amount_details(item),
                 cof_data: CardOnFileData {
-                    cof_type: match item.router_data.request.mit_category.as_ref() {
-                        Some(MitCategory::Recurring) => CofType::Recurring,
-                        _ => CofType::Adhoc,
+                    cof_type: get_cof_type(item),
+                    source: if item.router_data.request.is_cit_mandate_payment() {
+                        CofSource::Cit
+                    } else {
+                        CofSource::Mit
                     },
-                    source: CofSource::Cit,
                     mode: CofMode::Initial,
                 },
                 rrn: item.router_data.request.rrn.clone(),
@@ -564,11 +565,16 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
 
         let cof_data = if item.router_data.request.is_cit_mandate_payment() {
             Some(CardOnFileData {
-                cof_type: match item.router_data.request.mit_category.as_ref() {
-                    Some(MitCategory::Recurring) => CofType::Recurring,
-                    _ => CofType::Adhoc,
-                },
+                cof_type: get_cof_type(item),
                 source: CofSource::Cit,
+                mode: CofMode::Initial,
+            })
+        } else if item.router_data.request.setup_future_usage
+            == Some(storage_enums::FutureUsage::OffSession)
+        {
+            Some(CardOnFileData {
+                cof_type: get_cof_type(item),
+                source: CofSource::Mit,
                 mode: CofMode::Initial,
             })
         } else {
@@ -631,10 +637,7 @@ impl
 
         let cof_data = if item.router_data.request.is_cit_mandate_payment() {
             Some(CardOnFileData {
-                cof_type: match item.router_data.request.mit_category.as_ref() {
-                    Some(MitCategory::Recurring) => CofType::Recurring,
-                    _ => CofType::Adhoc,
-                },
+                cof_type: get_cof_type(item),
                 source: CofSource::Cit,
                 mode: CofMode::Initial,
             })
@@ -642,19 +645,13 @@ impl
             == Some(storage_enums::FutureUsage::OffSession)
         {
             Some(CardOnFileData {
-                cof_type: match item.router_data.request.mit_category.as_ref() {
-                    Some(MitCategory::Recurring) => CofType::Recurring,
-                    _ => CofType::Adhoc,
-                },
+                cof_type: get_cof_type(item),
                 source: CofSource::Mit,
                 mode: CofMode::Initial,
             })
         } else if item.router_data.payment_method_type.is_some() {
             Some(CardOnFileData {
-                cof_type: match item.router_data.request.mit_category.as_ref() {
-                    Some(MitCategory::Recurring) => CofType::Recurring,
-                    _ => CofType::Adhoc,
-                },
+                cof_type: get_cof_type(item),
                 source: CofSource::Mit,
                 mode: CofMode::Subsequent,
             })
@@ -723,10 +720,7 @@ impl
         };
 
         let cof_data = Some(CardOnFileData {
-            cof_type: match item.router_data.request.mit_category.as_ref() {
-                Some(MitCategory::Recurring) => CofType::Recurring,
-                _ => CofType::Adhoc,
-            },
+            cof_type: get_cof_type(item),
             source: CofSource::Mit,
             mode: CofMode::Subsequent,
         });
@@ -807,10 +801,7 @@ impl
                 network_token_data,
                 amount: get_amount_details(item),
                 cof_data: CardOnFileData {
-                    cof_type: match item.router_data.request.mit_category.as_ref() {
-                        Some(MitCategory::Recurring) => CofType::Recurring,
-                        _ => CofType::Adhoc,
-                    },
+                    cof_type: get_cof_type(item),
                     source: CofSource::Mit,
                     mode: CofMode::Subsequent,
                 },
@@ -858,14 +849,20 @@ fn get_amount_details(
     }
 }
 
+fn get_cof_type(item: &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>) -> CofType {
+    match item.router_data.request.mit_category.as_ref() {
+        Some(MitCategory::Recurring) => CofType::Recurring,
+        _ => CofType::Adhoc,
+    }
+}
+
 fn get_transaction_operations(
     item: &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
 ) -> Option<PreAuthIncExtCaptureFlow> {
     if matches!(
         item.router_data.request.capture_method,
         Some(common_enums::CaptureMethod::Manual)
-    ) || item.amount == MinorUnit::zero()
-    {
+    ) {
         Some(PreAuthIncExtCaptureFlow {
             dcc_mode: DccMode::NoDcc,
             txn_ref_nr: item.router_data.connector_request_reference_id.clone(),

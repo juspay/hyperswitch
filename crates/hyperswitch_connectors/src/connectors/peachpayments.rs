@@ -208,9 +208,12 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 
     fn get_url(
         &self,
-        _req: &SetupMandateRouterData,
+        req: &SetupMandateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method.unwrap_or_default() == CaptureMethod::Automatic {
+            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+        }
         Ok(format!(
             "{}/transactions/authorization",
             self.base_url(connectors)
