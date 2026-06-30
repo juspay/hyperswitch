@@ -186,7 +186,7 @@ export function determineConnectorConfig(config) {
         multipleConnectors?.status === true &&
         multipleConnectors?.count > 1
       ) {
-        return "connector_2";
+        return connectorCredential.value || "connector_2";
       }
       return DEFAULT_CONNECTOR;
     }

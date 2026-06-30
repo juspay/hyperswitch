@@ -35,7 +35,7 @@ import getConnectorDetails, {
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
-import { handleRedirection } from "./redirectionHandler";
+import { handleRedirection, MICRODEPOSIT_CONFIG } from "./redirectionHandler";
 
 // In MITM replay mode (MOCK_SERVER=true) there is no live browser redirection
 // to drive. Cypress.env may return a boolean or a string, hence String().
@@ -4026,10 +4026,8 @@ Cypress.Commands.add(
             expect(response.body.connector, "connector").to.equal(
               expectedConnector
             );
-            if (response.body.payment_method_data) {
-              expect(response.body.payment_method_data, "payment_method_data")
-                .to.not.be.empty;
-            }
+            expect(response.body.payment_method_data, "payment_method_data").to
+              .not.be.empty;
             expect(response.body.payment_method, "payment_method").to.not.be
               .null;
             if (!configs.skipConnectorIdAssertion) {
@@ -4434,10 +4432,8 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.status === 200) {
           globalState.set("paymentID", response.body.payment_id);
-          if (response.body.payment_method_data) {
-            expect(response.body.payment_method_data, "payment_method_data").to
-              .not.be.empty;
-          }
+          expect(response.body.payment_method_data, "payment_method_data").to
+            .not.be.empty;
           const expectedConnector = getOriginalConnectorName(
             globalState.get("connectorId")
           );
@@ -4786,14 +4782,23 @@ Cypress.Commands.add("verifyAchMicrodepositCallTest", (globalState) => {
   // Read auth file to get provider credentials
   cy.readFile(connectorAuthFilePath).then((authContent) => {
     const connectorData = authContent[connectorId];
+    const microdepositConfig = MICRODEPOSIT_CONFIG[connectorId];
     let providerConfig = null;
+
+    if (!microdepositConfig) {
+      cy.task(
+        "cli_log",
+        `No microdeposit config for connector: ${connectorId}, skipping verification`
+      );
+      return;
+    }
 
     // Extract provider config based on connector structure
     if (connectorData?.connector_account_details?.api_key) {
       // Standard single connector
       providerConfig = {
         apiKey: connectorData.connector_account_details.api_key,
-        baseUrl: "api.stripe.com",
+        baseUrl: microdepositConfig.providerBaseUrl,
       };
     } else if (connectorData) {
       // Multiple connectors - get first entry
@@ -4801,7 +4806,7 @@ Cypress.Commands.add("verifyAchMicrodepositCallTest", (globalState) => {
       if (connectorData[firstKey]?.connector_account_details?.api_key) {
         providerConfig = {
           apiKey: connectorData[firstKey].connector_account_details.api_key,
-          baseUrl: "api.stripe.com",
+          baseUrl: microdepositConfig.providerBaseUrl,
         };
       }
     }
@@ -4836,12 +4841,11 @@ Cypress.Commands.add("verifyAchMicrodepositCallTest", (globalState) => {
       }
 
       cy.task("cli_log", `Verifying microdeposit at: ${hostedVerificationUrl}`);
-      // Use generic microdeposit handler with Stripe-specific parameters
       cy.handleMicrodepositVerification({
         hostedUrl: hostedVerificationUrl,
-        origin: "https://payments.stripe.com",
-        inputSelector: "input.p-CodePuncher-controllingInput",
-        verificationCode: "11AA",
+        origin: microdepositConfig.origin,
+        inputSelector: microdepositConfig.inputSelector,
+        verificationCode: microdepositConfig.verificationCode,
       });
     });
   });

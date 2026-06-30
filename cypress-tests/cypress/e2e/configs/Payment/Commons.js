@@ -211,15 +211,10 @@ export const billingRequiredField = {};
 export const sepaBillingAddress = {
   address: {
     ...standardBillingAddress.address,
-    line1: "1467",
-    line2: "Harrison Street",
-    line3: "Harrison Street",
     city: "Amsterdam",
     state: "North Holland",
     zip: "1012",
     country: "NL",
-    first_name: "John",
-    last_name: "Doe",
   },
   email: "test@example.com",
 };
@@ -227,15 +222,8 @@ export const sepaBillingAddress = {
 export const achBillingAddress = {
   address: {
     ...standardBillingAddress.address,
-    line1: "1467",
-    line2: "Harrison Street",
-    line3: "Harrison Street",
     city: "San Francisco",
     state: "California",
-    zip: "94122",
-    country: "US",
-    first_name: "John",
-    last_name: "Doe",
   },
   email: "test@example.com",
 };
@@ -243,15 +231,10 @@ export const achBillingAddress = {
 export const bacsBillingAddress = {
   address: {
     ...standardBillingAddress.address,
-    line1: "1467",
-    line2: "Harrison Street",
-    line3: "Harrison Street",
     city: "London",
     state: "England",
     zip: "SW1A 1AA",
     country: "GB",
-    first_name: "John",
-    last_name: "Doe",
   },
   email: "test@example.com",
 };
@@ -1509,16 +1492,36 @@ export const connectorDetails = {
       },
     }),
     MITAutoCaptureSepa: getCustomExchange({
-      Request: {},
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "EUR",
+      },
     }),
     MITAutoCaptureBecs: getCustomExchange({
-      Request: {},
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "AUD",
+      },
     }),
     MITAutoCaptureAch: getCustomExchange({
-      Request: {},
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "USD",
+      },
     }),
     MITAutoCaptureBacs: getCustomExchange({
-      Request: {},
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "GBP",
+      },
     }),
   },
   wallet_pm: {

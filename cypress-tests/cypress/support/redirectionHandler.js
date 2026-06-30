@@ -3527,3 +3527,12 @@ Cypress.Commands.add("handleMicrodepositVerification", ({
     }
   );
 });
+
+export const MICRODEPOSIT_CONFIG = {
+  stripe: {
+    providerBaseUrl: "api.stripe.com",
+    origin: "https://payments.stripe.com",
+    inputSelector: "input.p-CodePuncher-controllingInput",
+    verificationCode: "11AA",
+  },
+};

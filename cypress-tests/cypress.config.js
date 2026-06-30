@@ -5,6 +5,7 @@ import fs from "fs";
 import http from "http";
 import https from "https";
 import { getTimeoutMultiplier } from "./cypress/utils/RequestBodyUtils.js";
+import { registerFetchPaymentIntentTask } from "./cypress/plugins/fetchPaymentIntent.js";
 
 let globalState;
 
@@ -21,6 +22,7 @@ export default defineConfig({
   e2e: {
     setupNodeEvents(on, config) {
       mochawesome(on);
+      registerFetchPaymentIntentTask(on);
 
       on("task", {
         setGlobalState: (val) => {
@@ -74,39 +76,6 @@ export default defineConfig({
             .update(message)
             .digest("hex");
           return signature;
-        },
-        // Generic payment intent fetcher - not connector-specific
-        fetchPaymentIntent: ({
-          authApiKey,
-          paymentIntentId,
-          providerBaseUrl,
-        }) => {
-          return new Promise((resolve, reject) => {
-            const headers = {
-              Authorization: `Bearer ${authApiKey}`,
-            };
-            const options = {
-              hostname: providerBaseUrl,
-              path: `/v1/payment_intents/${paymentIntentId}`,
-              method: "GET",
-              headers,
-            };
-            const req = https.request(options, (res) => {
-              let data = "";
-              res.on("data", (chunk) => {
-                data += chunk;
-              });
-              res.on("end", () => {
-                try {
-                  resolve({ status: res.statusCode, body: JSON.parse(data) });
-                } catch {
-                  resolve({ status: res.statusCode, body: data });
-                }
-              });
-            });
-            req.on("error", reject);
-            req.end();
-          });
         },
       });
       on("after:spec", (spec, results) => {

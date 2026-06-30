@@ -1,9 +1,6 @@
 import {
   customerAcceptance,
   multiUseMandateData,
-  sepaBillingAddress,
-  achBillingAddress,
-  bacsBillingAddress,
 } from "./Commons";
 import {
   getCurrency,
@@ -2782,7 +2779,20 @@ export const connectorDetails = {
               bank_account_holder_name: "John Doe",
             },
           },
-          billing: sepaBillingAddress,
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Amsterdam",
+            state: "North Holland",
+            zip: "1012",
+            country: "NL",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@example.com",
         },
         customer_acceptance: customerAcceptance,
       },
@@ -2809,7 +2819,20 @@ export const connectorDetails = {
               bank_account_holder_name: "John Doe",
             },
           },
-          billing: achBillingAddress,
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@example.com",
         },
         customer_acceptance: customerAcceptance,
         mandate_data: {
@@ -2842,7 +2865,20 @@ export const connectorDetails = {
               bank_account_holder_name: "David Archer",
             },
           },
-          billing: bacsBillingAddress,
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "London",
+            state: "England",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@example.com",
         },
         customer_acceptance: customerAcceptance,
         mandate_data: {
