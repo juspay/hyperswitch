@@ -3461,6 +3461,47 @@
         ]
       }
     },
+    "/v1/customers/reference/{merchant_reference_id}": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Retrieve using Merchant Reference ID",
+        "description": "Retrieves a customer's details using the merchant supplied reference ID.",
+        "operationId": "Retrieve a Customer using Merchant Reference ID",
+        "parameters": [
+          {
+            "name": "merchant_reference_id",
+            "in": "path",
+            "description": "The merchant supplied reference identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/customers/list": {
       "get": {
         "tags": [

@@ -112,6 +112,8 @@ pub enum Flow {
     CustomersCreate,
     /// Customers retrieve flow.
     CustomersRetrieve,
+    /// Customers retrieve by reference id flow.
+    CustomersRetrieveByReferenceId,
     /// Customers update flow.
     CustomersUpdate,
     /// Customers delete flow.
@@ -134,6 +136,8 @@ pub enum Flow {
     PaymentMethodsCreate,
     /// Payment methods migrate flow.
     PaymentMethodsMigrate,
+    /// Modular Payment methods migrate flow.
+    ModularPaymentMethodsMigrate,
     /// Payment methods batch update flow.
     PaymentMethodsBatchUpdate,
     /// Payment methods batch retrieve flow.
