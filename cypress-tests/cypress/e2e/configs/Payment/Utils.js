@@ -624,7 +624,6 @@ export const CONNECTOR_LISTS = {
       "airwallex",
       "mollie",
       "affirm",
-      "payjustnow",
     ],
     AFFIRM: ["stripe"],
     ATOME: ["adyen"],

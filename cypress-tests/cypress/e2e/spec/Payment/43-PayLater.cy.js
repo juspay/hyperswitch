@@ -20,6 +20,10 @@ describe("PayLater tests", () => {
           shouldIncludeConnector(
             globalState.get("connectorId"),
             CONNECTOR_LISTS.INCLUDE.PAY_LATER
+          ) &&
+          shouldIncludeConnector(
+            globalState.get("connectorId"),
+            CONNECTOR_LISTS.INCLUDE.PAYJUSTNOW
           )
         ) {
           skip = true;
@@ -37,6 +41,17 @@ describe("PayLater tests", () => {
   });
 
   context("Klarna PayLater - Auto Capture flow test", () => {
+    before("skip if connector does not support generic pay_later", function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.PAY_LATER
+        )
+      ) {
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -115,6 +130,17 @@ describe("PayLater tests", () => {
   });
 
   context("Klarna PayLater - Manual Capture flow test", () => {
+    before("skip if connector does not support generic pay_later", function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.PAY_LATER
+        )
+      ) {
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -195,6 +221,17 @@ describe("PayLater tests", () => {
   context(
     "Klarna PayLater - Manual Capture with Capture and Retrieve flow test",
     () => {
+      before("skip if connector does not support generic pay_later", function () {
+        if (
+          shouldIncludeConnector(
+            globalState.get("connectorId"),
+            CONNECTOR_LISTS.INCLUDE.PAY_LATER
+          )
+        ) {
+          this.skip();
+        }
+      });
+
       it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection -> Capture Payment -> Retrieve Payment after Capture", () => {
         let shouldContinue = true;
 
@@ -288,6 +325,17 @@ describe("PayLater tests", () => {
   );
 
   context("Klarna PayLater - Separate Create and Confirm flow test", () => {
+    before("skip if connector does not support generic pay_later", function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.PAY_LATER
+        )
+      ) {
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection", () => {
       let shouldContinue = true;
 
@@ -366,6 +414,17 @@ describe("PayLater tests", () => {
   });
 
   context("Capture on wrong status - Error test", () => {
+    before("skip if connector does not support generic pay_later", function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.PAY_LATER
+        )
+      ) {
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> Confirm Payment -> Attempt Capture on requires_customer_action status", () => {
       let shouldContinue = true;
 
@@ -423,6 +482,17 @@ describe("PayLater tests", () => {
   });
 
   context("Confirm without payment_method_data - Error test", () => {
+    before("skip if connector does not support generic pay_later", function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.PAY_LATER
+        )
+      ) {
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment without payment_method_data", () => {
       let shouldContinue = true;
 
