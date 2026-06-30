@@ -1392,15 +1392,7 @@ fn transform_redirection_response_for_pre_authenticate_flow(
                     field_name: "reference_id",
                 },
             )?;
-            // Cybersource and Barclaycard share the same Cardinal device-data-collection (DDC)
-            // setup. UCS flattens the typed DDC form into a generic `Form` over gRPC, so we
-            // reconstruct the connector-specific typed variant here. This makes HS render the
-            // hidden-iframe DDC form (services/api.rs) instead of a top-level auto-submitting
-            // form, which is required for the `Collect` response to run inside the iframe.
-            //
-            // Each connector is matched explicitly. The catch-all returns the form unchanged so
-            // that any connector added to the outer arm without a typed variant here keeps its
-            // generic `Form` (a safe, visible default) rather than being mis-typed as Cybersource.
+            
             match connector {
                 enums::connector_enums::Connector::Barclaycard => {
                     Ok(router_response_types::RedirectForm::BarclaycardAuthSetup {
