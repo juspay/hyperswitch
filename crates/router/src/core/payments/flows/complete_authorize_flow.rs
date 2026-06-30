@@ -675,13 +675,6 @@ fn transform_redirection_response_for_authenticate_flow(
                 },
             )?;
             let step_up_url = form_fields.get("step_up_url").unwrap_or(endpoint).clone();
-            // Cybersource and Barclaycard share the same Cardinal step-up (consumer auth) form.
-            // Reconstruct the connector-specific typed variant so HS renders the step-up form
-            // correctly instead of leaving it as a generic top-level form.
-            //
-            // Each connector is matched explicitly. The catch-all returns the form unchanged so
-            // that any connector added to the outer arm without a typed variant here keeps its
-            // generic `Form` (a safe, visible default) rather than being mis-typed as Cybersource.
             match connector {
                 connector_enums::Connector::Barclaycard => Ok(
                     router_response_types::RedirectForm::BarclaycardConsumerAuth {
