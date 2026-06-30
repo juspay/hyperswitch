@@ -1001,7 +1001,7 @@ impl UnifiedConnectorServiceError {
                 .as_ref()
                 .and_then(|error_info| error_info.connector_details.as_ref())
                 .and_then(|connector_details| connector_details.code.clone())
-                .unwrap_or_else(|| connector_error.error_code.clone()),
+                .unwrap_or_else(|| crate::consts::NO_ERROR_CODE.to_string()),
             message: connector_error.error_message,
             status_code,
             reason: connector_error
@@ -1149,6 +1149,67 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             | Self::SurchargeCalculateFailure
             | Self::PayoutEnrollDisburseAccountFailure
             | Self::NotifyConnectorFailure => ConnectorError::ResponseHandlingFailed,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use prost::Message;
+
+    use crate::unified_connector_service::payments_grpc;
+
+    use super::{UnifiedConnectorServiceError, CONNECTOR_ERROR_RESPONSE_CODE};
+
+    fn make_status_with_connector_error(
+        connector_error: payments_grpc::ConnectorError,
+    ) -> tonic::Status {
+        let mut buf = Vec::new();
+        connector_error
+            .encode(&mut buf)
+            .expect("prost encode failed");
+        tonic::Status::with_details(tonic::Code::Internal, "connector error", buf.into())
+    }
+
+    #[test]
+    fn decode_prefers_connector_details_code() {
+        let connector_error = payments_grpc::ConnectorError {
+            error_message: "some error".to_string(),
+            error_code: CONNECTOR_ERROR_RESPONSE_CODE.to_string(),
+            http_status_code: Some(400),
+            error_info: Some(payments_grpc::ErrorInfo {
+                connector_details: Some(payments_grpc::ConnectorErrorDetails {
+                    code: Some("INVALID_REQUEST".to_string()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+        };
+        let status = make_status_with_connector_error(connector_error);
+        match UnifiedConnectorServiceError::decode_connector_error_response(&status, "cybersource")
+        {
+            Some(UnifiedConnectorServiceError::ConnectorError(inner)) => {
+                assert_eq!(inner.code, "INVALID_REQUEST");
+            }
+            other => panic!("expected ConnectorError, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn decode_falls_back_to_no_error_code_when_connector_code_absent() {
+        let connector_error = payments_grpc::ConnectorError {
+            error_message: "some error".to_string(),
+            error_code: CONNECTOR_ERROR_RESPONSE_CODE.to_string(),
+            http_status_code: Some(400),
+            error_info: None,
+        };
+        let status = make_status_with_connector_error(connector_error);
+        match UnifiedConnectorServiceError::decode_connector_error_response(&status, "cybersource")
+        {
+            Some(UnifiedConnectorServiceError::ConnectorError(inner)) => {
+                assert_eq!(inner.code, crate::consts::NO_ERROR_CODE);
+            }
+            other => panic!("expected ConnectorError, got {other:?}"),
         }
     }
 }
