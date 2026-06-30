@@ -5304,6 +5304,12 @@ Cypress.Commands.add(
     }
 
     if (isMockServer()) {
+      // In MITM replay mode the ThreeDS browser flow is skipped.  Consume one
+      // cy.request slot so the Cypress step counter stays aligned with how the
+      // cassettes were recorded (threeDsRedirection() always issues one request
+      // before starting browser navigation).  The force_sync Retrieve that
+      // follows will call Stripe PSync, receive "requires_capture" from the
+      // cassette, and HS transitions the payment state automatically.
       if (Cypress.env("PROXY_ADMIN_URL")) {
         cy.request({
           url: nextActionUrl,
@@ -5353,6 +5359,8 @@ Cypress.Commands.add(
       return;
     }
 
+    // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
+    // trying to handle that specific case results in stripe 3ds tests to fail
     if (connectorId === "adyen" && paymentMethodType === "sofort") {
       return;
     }

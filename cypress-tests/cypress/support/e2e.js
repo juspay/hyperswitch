@@ -80,6 +80,7 @@ function normalizeRequestArgs(args) {
   return { url: args[0] };
 }
 
+// Proxy-admin calls are control traffic and must not consume a step slot.
 function isProxyAdminUrl(url) {
   if (!url) return false;
   if (PROXY_ADMIN_URL && url.startsWith(PROXY_ADMIN_URL)) return true;
@@ -154,6 +155,7 @@ if (IS_PROXY_ENABLED) {
     }
   });
 
+  // Tag every cy.request with a deterministic X-Request-ID for cassette matching.
   Cypress.Commands.overwrite("request", (originalFn, ...args) => {
     const opts = normalizeRequestArgs(args);
 
