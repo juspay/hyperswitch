@@ -46,12 +46,9 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
-          },
+          status: "requires_payment_method",
         },
       },
     },
@@ -61,12 +58,11 @@ export const connectorDetails = {
         shipping_cost: 50,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
-          },
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6000,
         },
       },
     },
@@ -81,12 +77,9 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
-          },
+          status: "requires_customer_action",
         },
       },
     },
@@ -101,12 +94,9 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
-          },
+          status: "requires_customer_action",
         },
       },
     },
@@ -121,12 +111,9 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
-          },
+          status: "requires_capture",
         },
       },
     },
@@ -141,12 +128,9 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
-          },
+          status: "succeeded",
         },
       },
     },
@@ -155,12 +139,9 @@ export const connectorDetails = {
         amount_to_capture: 6000,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
-          },
+          status: "succeeded",
         },
       },
     },
@@ -169,12 +150,9 @@ export const connectorDetails = {
         amount_to_capture: 2000,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
-          },
+          status: "partially_captured",
         },
       },
     },

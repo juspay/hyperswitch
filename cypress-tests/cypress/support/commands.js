@@ -960,7 +960,7 @@ Cypress.Commands.add("apiKeyListCall", (globalState) => {
           expect(response.body[key]).to.have.property("key_id").include("snd_")
             .and.not.empty;
         } else if (base_url.includes("localhost")) {
-          expect(response.body[key]).to.have.property("key_id").include("dev_")
+          expect(response.body[key]).to.have.property("key_id").include("snd_")
             .and.not.empty;
         }
         expect(response.body[key].merchant_id).to.equal(merchant_id);

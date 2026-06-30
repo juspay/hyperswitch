@@ -67,6 +67,9 @@ export const connectorDetails = {
       },
     },
     "3DSManualCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -84,6 +87,9 @@ export const connectorDetails = {
       },
     },
     "3DSAutoCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -171,76 +177,66 @@ export const connectorDetails = {
         },
       },
     }),
-    // Rapyd refund limitation: Refunds are not supported or return errors
-    // Tests are skipped using TRIGGER_SKIP to prevent failures
+    // Rapyd refund limitation: Refunds return errors from the connector.
+    // Config expects error response so defaultErrorHandler passes the assertion.
+    // should_continue_further returns false (error in Response.body) to skip
+    // subsequent steps (Sync Refund, List Refunds).
     Refund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "pending",
+          error: {},
         },
       },
     },
     PartialRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 2000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "pending",
+          error: {},
         },
       },
     },
     manualPaymentRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "pending",
+          error: {},
         },
       },
     },
     manualPaymentPartialRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 2000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "pending",
+          error: {},
         },
       },
     },
     SyncRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "pending",
+          error: {},
         },
       },
     },
     MandateSingleUse3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -257,6 +253,9 @@ export const connectorDetails = {
       },
     },
     MandateSingleUse3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
