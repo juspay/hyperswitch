@@ -111,6 +111,49 @@ pub async fn msearch_results(
         );
         append_filter!(query_builder, filters, card_network, "card_network.keyword");
         append_filter!(query_builder, filters, card_last_4, "card_last_4.keyword");
+        append_filter!(
+            query_builder,
+            filters,
+            active_attempt_id,
+            "active_attempt_id.keyword"
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            merchant_connector_id,
+            "merchant_connector_id.keyword"
+        );
+        append_filter!(query_builder, filters, card_issuer, "card_issuer.keyword");
+        append_filter!(
+            query_builder,
+            filters,
+            routing_approach,
+            "routing_approach.keyword"
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            refunds_status,
+            "refunds_status.keyword"
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            dispute_status,
+            "dispute_status.keyword"
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            client_source,
+            "client_source.keyword"
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            client_version,
+            "client_version.keyword"
+        );
         append_filter!(query_builder, filters, payment_id, "payment_id.keyword");
         append_filter!(query_builder, filters, amount, "amount");
         append_filter!(query_builder, filters, customer_id, "customer_id.keyword");
@@ -246,6 +289,49 @@ pub async fn search_results(
         );
         append_filter!(query_builder, filters, card_network, "card_network.keyword");
         append_filter!(query_builder, filters, card_last_4, "card_last_4.keyword");
+        append_filter!(
+            query_builder,
+            filters,
+            active_attempt_id,
+            "active_attempt_id.keyword"
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            merchant_connector_id,
+            "merchant_connector_id.keyword"
+        );
+        append_filter!(query_builder, filters, card_issuer, "card_issuer.keyword");
+        append_filter!(
+            query_builder,
+            filters,
+            routing_approach,
+            "routing_approach.keyword"
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            refunds_status,
+            "refunds_status.keyword"
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            dispute_status,
+            "dispute_status.keyword"
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            client_source,
+            "client_source.keyword"
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            client_version,
+            "client_version.keyword"
+        );
         append_filter!(query_builder, filters, payment_id, "payment_id.keyword");
         append_filter!(query_builder, filters, amount, "amount");
         append_filter!(query_builder, filters, customer_id, "customer_id.keyword");
