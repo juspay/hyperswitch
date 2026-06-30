@@ -11437,6 +11437,27 @@ pub enum WebhookRegistrationStatus {
     Failure,
 }
 
+/// The status of HMAC key generation for a connector webhook
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum WebhookSecretGenerationStatus {
+    /// HMAC key generation is successful
+    Success,
+    /// HMAC key generation has failed
+    Failure,
+}
+
 /// The status of a post-capture void operation
 #[derive(
     Clone,

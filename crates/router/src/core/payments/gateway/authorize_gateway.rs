@@ -64,7 +64,7 @@ where
         router_data: &RouterData<Self, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<Self, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
@@ -180,6 +180,7 @@ where
                                         network_error_message: network_error_message.clone(),
                                         connector_metadata: None,
                                     });
+                                router_data.connector_http_status_code = Some(status_code);
                                 return Ok((
                                     router_data,
                                     (),
@@ -219,10 +220,12 @@ where
                     router_data.minor_amount_captured = recurring_payment_charge_response
                         .captured_amount
                         .map(MinorUnit::new);
-                    router_data.raw_connector_response = recurring_payment_charge_response
-                        .raw_connector_response
-                        .clone()
-                        .map(|raw_connector_response| raw_connector_response.expose().into());
+                    if return_raw_connector_response.unwrap_or(false) {
+                        router_data.raw_connector_response = recurring_payment_charge_response
+                            .raw_connector_response
+                            .clone()
+                            .map(|raw_connector_response| raw_connector_response.expose().into());
+                    }
                     router_data.connector_http_status_code = Some(ucs_data.status_code);
 
                     ucs_data.connector_customer_id.map(|connector_customer_id| {
@@ -316,6 +319,7 @@ where
                                 // Return Ok with router_data containing the error response
                                 // This ensures the connector error flows through the normal
                                 // response handling path (same as direct connector errors)
+                                router_data.connector_http_status_code = Some(status_code);
                                 return Ok((
                                     router_data,
                                     (),
@@ -375,10 +379,12 @@ where
                     router_data.minor_amount_capturable = payment_authorize_response
                         .capturable_amount
                         .map(MinorUnit::new);
-                    router_data.raw_connector_response = payment_authorize_response
-                        .raw_connector_response
-                        .clone()
-                        .map(|raw_connector_response| raw_connector_response.expose().into());
+                    if return_raw_connector_response.unwrap_or(false) {
+                        router_data.raw_connector_response = payment_authorize_response
+                            .raw_connector_response
+                            .clone()
+                            .map(|raw_connector_response| raw_connector_response.expose().into());
+                    }
                     router_data.connector_http_status_code = Some(ucs_data.status_code);
 
                     ucs_data.connector_response.map(|connector_response| {
