@@ -5,7 +5,7 @@ use common_utils::{
     types::keymanager::{KeyManagerState, ToEncryptable},
 };
 use diesel_models::{
-    enums::{EventClass, EventObjectType, EventType, WebhookDeliveryAttempt},
+    enums::{EventClass, EventObjectType, EventRecipient, EventType, WebhookDeliveryAttempt},
     events::{EventMetadata, EventUpdateInternal},
 };
 use error_stack::ResultExt;
@@ -78,6 +78,9 @@ pub struct Event {
     /// The merchant_id of the merchant that initiated the operation for which this event was
     /// generated. This is also the webhook recipient.
     pub initiator_merchant_id: Option<common_utils::id_type::MerchantId>,
+
+    /// The intended recipient of the webhook event.
+    pub recipient: Option<EventRecipient>,
 }
 
 #[derive(Debug)]
@@ -139,6 +142,7 @@ impl super::behaviour::Conversion for Event {
             is_overall_delivery_successful: self.is_overall_delivery_successful,
             processor_merchant_id: self.processor_merchant_id,
             initiator_merchant_id: self.initiator_merchant_id,
+            recipient: self.recipient,
         })
     }
 
@@ -191,6 +195,7 @@ impl super::behaviour::Conversion for Event {
             is_overall_delivery_successful: item.is_overall_delivery_successful,
             processor_merchant_id: item.processor_merchant_id,
             initiator_merchant_id: item.initiator_merchant_id,
+            recipient: item.recipient,
         })
     }
 
@@ -215,6 +220,7 @@ impl super::behaviour::Conversion for Event {
             is_overall_delivery_successful: self.is_overall_delivery_successful,
             processor_merchant_id: self.processor_merchant_id,
             initiator_merchant_id: self.initiator_merchant_id,
+            recipient: self.recipient,
         })
     }
 }

@@ -152,6 +152,15 @@ pub struct SurchargeCalculationResponseData {
     pub error_message: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct NotifyConnectorResponseData {
+    pub status_code: u16,
+    /// Error code if calculation failed or returned 0
+    pub error_code: Option<String>,
+    /// Additional error codes
+    pub error_message: Option<String>,
+}
+
 /// Response data for completing surcharge (sale notification)
 #[derive(Debug, Clone)]
 pub struct CompleteSurchargeResponseData {

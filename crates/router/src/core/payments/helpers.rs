@@ -2143,6 +2143,24 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     }
                 }
                 None => {
+                    let pm_modular_dimensions = dimensions
+                        .without_profile_id()
+                        .with_organization_id(provider.get_account().organization_id.clone())
+                        .without_provider_merchant_id()
+                        .without_processor_merchant_id();
+                    let should_call_pm_modular_service =
+                        payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
+                            state,
+                            &pm_modular_dimensions,
+                        )
+                        .await;
+
+                    if should_call_pm_modular_service {
+                        Err(report!(errors::StorageError::ValueNotFound(
+                            "customer".to_owned()
+                        )))?
+                    }
+
                     // Validate that the customer_id is not in GlobalCustomerId format
                     if customers::is_customer_id_in_global_format(&customer_id) {
                         Err(report!(errors::StorageError::InvalidDataFormat(format!(
@@ -2649,6 +2667,65 @@ pub async fn should_execute_based_on_rollout(
             Ok(RolloutExecutionResult::default())
         }
     }
+}
+
+/// Tries rollout config keys from highest to lowest precedence, returns the result
+/// for the first key found in the config table. Falls back to default if none found.
+///
+/// Key precedence (highest → lowest):
+/// 1. `ucs_rollout_config_<merchant_id>_<connector>_...`          — merchant + connector
+/// 2. `ucs_rollout_config_<org_id>_<merchant_id>_<connector>_...` — org + merchant + connector
+/// 3. `ucs_rollout_config_<org_id>_<merchant_id>`                  — org + merchant
+/// 4. `ucs_rollout_config_<org_id>`                                — org level
+///
+/// Uses `find_config_by_key_unwrap_or` with a sentinel so absent keys are cached after
+/// the first DB miss — subsequent requests hit in-memory cache instead of the DB.
+/// The future is boxed (`Box::pin`) to keep stack frames small under high concurrency.
+pub async fn should_execute_based_on_rollout_with_precedence(
+    state: &SessionState,
+    // Keys in ascending precedence order (lowest first, highest last)
+    keys: &[String],
+) -> RouterResult<RolloutExecutionResult> {
+    // Iterate highest → lowest (reverse of the input order)
+    for key in keys.iter().rev() {
+        // Box the future to avoid large stack frames from nested async in debug builds
+        let result = Box::pin(state.store.find_config_by_key_unwrap_or(
+            key,
+            Some(consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED.to_string()),
+        ))
+        .await
+        .ok();
+
+        match result {
+            Some(config) if config.config == consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED => {
+                // Sentinel — key absent in DB, cached to skip future DB calls
+                logger::debug!(config_key = %key, "Rollout config not set, trying next key");
+                continue;
+            }
+            Some(config) => {
+                logger::info!(config_key = %key, "Rollout config found, using this key");
+                return Ok(serde_json::from_str::<RolloutConfig>(&config.config)
+                    .map(RolloutExecutionResult::from)
+                    .map_err(|err| {
+                        logger::error!(
+                            error = ?err,
+                            config = %config.config,
+                            "Failed to parse rollout config as JSON. Defaulting to not execute."
+                        );
+                        RolloutExecutionResult::default()
+                    })
+                    .unwrap_or_default());
+            }
+            None => {
+                // Unexpected DB error — skip and try next key
+                continue;
+            }
+        }
+    }
+
+    // No key found at any level — caller will apply default execution mode
+    logger::debug!("No rollout config found at any precedence level, using default execution mode");
+    Ok(RolloutExecutionResult::default())
 }
 
 pub fn determine_standard_vault_action(
@@ -8668,6 +8745,10 @@ pub fn get_redis_key_for_extended_card_info(
         merchant_id.get_string_repr(),
         payment_id.get_string_repr()
     )
+}
+
+pub fn get_external_surcharge_redis_key(payment_id: &id_type::PaymentId) -> String {
+    format!("{}_external_surcharge", payment_id.get_string_repr())
 }
 
 pub fn check_integrity_based_on_flow<T, Request>(
