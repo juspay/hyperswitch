@@ -6,12 +6,13 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    api::IncomingWebhookEventMetadata,
+    api::{IncomingWebhookEventMetadata, WebhookResponse},
     payments::{HeaderPayload, PaymentStatusData},
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
+use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
 use super::{types, utils, MERCHANT_ID};
@@ -80,15 +81,20 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
             payment_id: webhooks_response_tracker.get_payment_id(),
             refund_id: webhooks_response_tracker.get_refund_id(),
         },
-        serialized_request: serialized_req,
-        business_response: serde_json::to_value(&webhooks_response_tracker)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not convert webhook effect to string")
+        serialized_request: Secret::new(serialized_req),
+        webhook_tracker_data: serde_json::to_value(&webhooks_response_tracker)
+            .inspect_err(
+                |err| logger::error!(error = ?err, "Could not convert webhook effect to string"),
+            )
             .ok(),
     };
 
+    let webhook_response = WebhookResponse::try_from(application_response)
+        .map_err(|_| errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid response type for incoming webhook")?;
+
     Ok(services::ApplicationResponse::IncomingWebhookEvent {
-        response: Box::new(application_response),
+        response: Box::new(webhook_response),
         metadata,
     })
 }

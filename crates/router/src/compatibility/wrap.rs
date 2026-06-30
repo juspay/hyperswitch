@@ -58,7 +58,7 @@ where
         let response = match response {
             api::ApplicationResponse::IncomingWebhookEvent {
                 response: inner, ..
-            } => *inner,
+            } => api::ApplicationResponse::from(*inner),
             other => other,
         };
         logger::info!(api_response =? response);

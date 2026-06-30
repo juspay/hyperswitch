@@ -15,11 +15,11 @@ use common_utils::{
 };
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
-use hyperswitch_connectors::connectors::unified_authentication_service::transformers::WebhookResponse;
+use hyperswitch_connectors::connectors::unified_authentication_service::transformers::WebhookResponse as UasWebhookResponse;
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::payouts::PayoutsUpdate;
 use hyperswitch_domain_models::{
-    api::IncomingWebhookEventMetadata,
+    api::{IncomingWebhookEventMetadata, WebhookResponse},
     mandates::CommonMandateReference,
     payments::{payment_attempt::PaymentAttempt, HeaderPayload},
     router_request_types::unified_authentication_service::UasAuthenticationResponseData,
@@ -27,7 +27,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::webhooks::{
     IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext, WebhookResourceData,
 };
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::{types, MERCHANT_ID};
@@ -95,15 +95,20 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
             payment_id: webhooks_response_tracker.get_payment_id(),
             refund_id: webhooks_response_tracker.get_refund_id(),
         },
-        serialized_request: serialized_req.peek().clone(),
+        serialized_request: serialized_req,
         webhook_tracker_data: serde_json::to_value(&webhooks_response_tracker)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not convert webhook effect to string")
+            .inspect_err(
+                |err| logger::error!(error = ?err, "Could not convert webhook effect to string"),
+            )
             .ok(),
     };
 
+    let webhook_response = WebhookResponse::try_from(application_response)
+        .map_err(|_| errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid response type for incoming webhook")?;
+
     Ok(services::ApplicationResponse::IncomingWebhookEvent {
-        response: Box::new(application_response),
+        response: Box::new(webhook_response),
         metadata,
     })
 }
@@ -134,15 +139,20 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
         event_type: ApiEventsType::NetworkTokenWebhook {
             payment_method_id: webhooks_response_tracker.get_payment_method_id(),
         },
-        serialized_request: serialized_req,
+        serialized_request: Secret::new(serialized_req),
         webhook_tracker_data: serde_json::to_value(&webhooks_response_tracker)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not convert webhook effect to string")
+            .inspect_err(
+                |err| logger::error!(error = ?err, "Could not convert webhook effect to string"),
+            )
             .ok(),
     };
 
+    let webhook_response = WebhookResponse::try_from(application_response)
+        .map_err(|_| errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid response type for incoming webhook")?;
+
     Ok(services::ApplicationResponse::IncomingWebhookEvent {
-        response: Box::new(application_response),
+        response: Box::new(webhook_response),
         metadata,
     })
 }
@@ -265,7 +275,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         return Ok((
             services::ApplicationResponse::StatusOk,
             WebhookResponseTracker::NoEffect,
-            hyperswitch_masking::Secret::new(serde_json::Value::default()),
+            Secret::new(serde_json::Value::default()),
         ));
     }
 
@@ -286,7 +296,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             (
                 ack_response,
                 WebhookResponseTracker::NoEffect,
-                hyperswitch_masking::Secret::new(serde_json::Value::Null),
+                Secret::new(serde_json::Value::Null),
             )
         }
         Ok(super::gateway::WebhookOutcome::Processed {
@@ -702,7 +712,7 @@ fn handle_incoming_webhook_error(
         Ok((
             response,
             WebhookResponseTracker::NoEffect,
-            hyperswitch_masking::Secret::new(serde_json::Value::Null),
+            Secret::new(serde_json::Value::Null),
         ))
     } else {
         Err(error)
@@ -1730,7 +1740,7 @@ pub async fn get_or_update_dispute_object(
                 connector_created_at: dispute_details.created_at,
                 connector_updated_at: dispute_details.updated_at,
                 profile_id: Some(business_profile.get_id().to_owned()),
-                evidence: hyperswitch_masking::Secret::new(serde_json::json!({})),
+                evidence: Secret::new(serde_json::json!({})),
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 dispute_amount: StringMinorUnitForConnector::convert_back(
                     &StringMinorUnitForConnector,
@@ -2767,7 +2777,7 @@ async fn update_connector_mandate_details(
                 .transpose()?;
 
             let pm_update = diesel_models::PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
-                connector_mandate_details: connector_mandate_details_value.map(hyperswitch_masking::Secret::new),
+                connector_mandate_details: connector_mandate_details_value.map(Secret::new),
                 network_transaction_id: webhook_connector_network_transaction_id
                     .map(|webhook_network_transaction_id| webhook_network_transaction_id.get_id().clone()),
                 last_modified_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()).map(|last_modified_by| last_modified_by.to_string()),
@@ -2879,7 +2889,7 @@ pub async fn process_uas_incoming_webhook<'a>(
                 authentication_id,
                 results_request,
                 results_response,
-            } => Ok(WebhookResponse {
+            } => Ok(UasWebhookResponse {
                 trans_status,
                 authentication_value,
                 eci,
@@ -2971,15 +2981,14 @@ pub async fn process_uas_incoming_webhook<'a>(
         .get_webhook_resource_object(&uas_webhook_request)
         .switch()
         .attach_printable("Failed to extract UAS webhook resource object")?;
-    let masked_log_payload = hyperswitch_masking::Secret::new(
-        resource_object.masked_serialize().unwrap_or_else(|error| {
+    let masked_log_payload =
+        Secret::new(resource_object.masked_serialize().unwrap_or_else(|error| {
             router_env::logger::warn!(
                 ?error,
                 "Failed to mask-serialize UAS webhook resource object for logging"
             );
             serde_json::Value::Null
-        }),
-    );
+        }));
 
     let ack_response = uas_connector
         .get_webhook_api_response(

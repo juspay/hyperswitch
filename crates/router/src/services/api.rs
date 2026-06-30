@@ -28,7 +28,7 @@ use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types
 pub use hyperswitch_domain_models::{
     api::{
         ApplicationResponse, GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData,
-        GenericLinks, PaymentLinkAction, RedirectionFormData,
+        GenericLinks, PaymentLinkAction, RedirectionFormData, WebhookResponse,
     },
     payment_method_data::PaymentMethodData,
     router_response_types::RedirectForm,
@@ -317,13 +317,13 @@ where
                     .proxy_status_mapping
                     .extract_connector_http_status_code(headers);
             } else if let ApplicationResponse::IncomingWebhookEvent { response, metadata } = res {
-                serialized_request = metadata.serialized_request.clone();
+                serialized_request = metadata.serialized_request.peek().clone();
 
                 if let Some(tracker_data) = &metadata.webhook_tracker_data {
                     serialized_response = Some(tracker_data.clone());
                 }
 
-                if let ApplicationResponse::JsonWithHeaders((_, headers)) = response.as_ref() {
+                if let WebhookResponse::JsonWithHeaders((_, headers)) = response.as_ref() {
                     if let Some((_, value)) = headers.iter().find(|(key, _)| key == X_HS_LATENCY) {
                         if let Ok(external_latency) = value.clone().into_inner().parse::<u128>() {
                             overhead_latency.replace(external_latency);
@@ -453,7 +453,7 @@ where
         let response = match response {
             ApplicationResponse::IncomingWebhookEvent {
                 response: inner, ..
-            } => *inner,
+            } => ApplicationResponse::from(*inner),
             other => other,
         };
         logger::info!(api_response =? response);
