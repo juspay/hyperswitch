@@ -1238,7 +1238,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustpayAuthUpdateResponse, T, AccessTo
 #[serde(rename_all = "camelCase")]
 pub struct TrustpayCreateIntentRequest {
     pub amount: StringMajorUnit,
-    pub currency: String,
+    pub currency: enums::Currency,
     // If true, Apple Pay will be initialized
     pub init_apple_pay: Option<bool>,
     // If true, Google pay will be initialized
@@ -1268,7 +1268,7 @@ impl TryFrom<&TrustpayRouterData<&CreateOrderRouterData>> for TrustpayCreateInte
 
         Ok(Self {
             amount,
-            currency: currency.to_string(),
+            currency,
             init_apple_pay: is_apple_pay,
             init_google_pay: is_google_pay,
             reference: item.router_data.connector_request_reference_id.clone(),
@@ -1286,7 +1286,7 @@ impl TryFrom<&TrustpayRouterData<&PaymentsSessionRouterData>> for TrustpayCreate
 
         Ok(Self {
             amount,
-            currency: currency.to_string(),
+            currency,
             init_apple_pay: Some(true),
             init_google_pay: None,
             reference: item.router_data.connector_request_reference_id.clone(),
@@ -1320,7 +1320,7 @@ impl TryFrom<&TrustpayRouterData<&PaymentsPreProcessingRouterData>>
 
         Ok(Self {
             amount,
-            currency: currency.to_string(),
+            currency,
             init_apple_pay: is_apple_pay,
             init_google_pay: is_google_pay,
             reference: item.router_data.connector_request_reference_id.clone(),
@@ -1506,7 +1506,6 @@ impl TryFrom<PaymentsSessionResponseRouterData<TrustpayCreateIntentResponse>>
                     api_models::payments::ApplePaySessionResponse::ThirdPartySdk(
                         api_models::payments::ThirdPartySdkSessionResponse {
                             secrets: secrets.into(),
-                            session_response_id: Some(instance_id),
                         },
                     ),
                 ),
@@ -1529,7 +1528,7 @@ impl TryFrom<PaymentsSessionResponseRouterData<TrustpayCreateIntentResponse>>
                         should_block_confirm: None,
                     }
                 },
-                connector_reference_id: None,
+                connector_reference_id: Some(instance_id),
                 connector_sdk_public_key: None,
                 connector_merchant_id: None,
             },
@@ -1559,7 +1558,6 @@ pub(crate) fn get_apple_pay_session<F, T>(
                         api_models::payments::ApplePaySessionResponse::ThirdPartySdk(
                             api_models::payments::ThirdPartySdkSessionResponse {
                                 secrets: secrets.to_owned().into(),
-                                session_response_id: Some(instance_id.clone()),
                             },
                         ),
                     ),
@@ -1584,7 +1582,7 @@ pub(crate) fn get_apple_pay_session<F, T>(
                             should_block_confirm: None,
                         }
                     },
-                    connector_reference_id: None,
+                    connector_reference_id: Some(instance_id),
                     connector_sdk_public_key: None,
                     connector_merchant_id: None,
                 },

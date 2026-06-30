@@ -1853,7 +1853,6 @@ impl
                                     display: res.data.create_client_token.client_token.clone(),
                                     payment: None,
                                 },
-                                session_response_id: None,
                             },
                         ));
                         SessionToken::ApplePay(Box::new(

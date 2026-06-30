@@ -4578,7 +4578,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 pix_automatico_additional_details: None,
                 finix_additional_details: None,
             }),
-            payment_method_type: req.payment_method_type.clone(),
+            payment_method_type: req.payment_method_type,
             payment_method: req.payment_method.clone(),
             payment_method_data: req.payment_method_data.clone(),
             ..Default::default()
@@ -5175,7 +5175,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 }),
                 payment_method: req.payment_method,
                 payment_method_data: req.payment_method_data.clone(),
-                payment_method_type: req.payment_method_type.clone(),
+                payment_method_type: req.payment_method_type,
                 ..Default::default()
             };
             let is_setup_mandate = payment_intent.is_setup_mandate();
