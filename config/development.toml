@@ -1534,10 +1534,10 @@ hyperswitch_ai_host = "http://0.0.0.0:8000"
 encryption_key = ""
 
 [trace_integration]
-enabled = false
-base_url = ""
-mint_path = ""
-infra_key = ""
+enabled = false           # Master switch for federated Trace sessions
+base_url = ""             # Upstream service base URL
+mint_path = ""            # Path on the upstream that mints a session
+infra_key = ""            # Shared bearer presented to the upstream
 
 [proxy_status_mapping]
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
