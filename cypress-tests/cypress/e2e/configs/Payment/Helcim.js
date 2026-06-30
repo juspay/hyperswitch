@@ -1,5 +1,11 @@
 import { getCustomExchange } from "./Modifiers";
+import { stampPaymentMethodType } from "./Utils";
 
+// Disable Cypress retries for Helcim because the connector enforces strict
+// idempotency rules: it identifies transactions by card number, cardholder
+// name, and amount. A retried test within the 5-minute duplicate-detection
+// window would be flagged as a duplicate and fail, so retries are not
+// meaningful here and would only produce false negatives.
 if (Cypress.env("CONNECTOR") === "helcim") {
   Cypress.config("retries", 0);
 }
@@ -144,58 +150,8 @@ const card_pm = {
   }),
 };
 
-function stampPaymentMethodType(scenarios, paymentMethodType) {
-  const cloned = JSON.parse(JSON.stringify(scenarios));
-  for (const scenario of Object.values(cloned)) {
-    if (scenario.Request && typeof scenario.Request === "object") {
-      scenario.Request.payment_method_type = paymentMethodType;
-    }
-  }
-  return cloned;
-}
-
 export const connectorDetails = {
   card_pm,
   card_credit_pm: stampPaymentMethodType(card_pm, "credit"),
   card_debit_pm: stampPaymentMethodType(card_pm, "debit"),
 };
-
-// Rotate cards to avoid Helcim's duplicate-decline window.
-const helcimTestCards = [
-  "4111111111111111",
-  "4000000000000002",
-  "4242424242424242",
-  "4012888888881881",
-  "4000056655665556",
-  "4532015112830366",
-  "4000000000000127",
-  "4000000000000119",
-  "4111111111111129",
-  "4111111111111137",
-  "4111111111111145",
-  "4111111111111152",
-  "4000000000000259",
-  "4000000000003238",
-  "5555555555554444",
-  "5105105105105100",
-  "5200828282828210",
-  "5100000000000008",
-  "4111111111111160",
-  "4000000000000340",
-];
-
-export function injectHelcimTestCard(body, globalState) {
-  if (globalState.get("connectorId") !== "helcim") return;
-  if (!body.payment_method_data?.card) return;
-
-  const testOffset = globalState.get("helcimCardIndex") ?? 0;
-  const timeOffset = Math.floor(Date.now() / 1000) % helcimTestCards.length;
-  const idx = (timeOffset + testOffset) % helcimTestCards.length;
-  globalState.set("helcimCardIndex", testOffset + 1);
-
-  const ts = Date.now();
-  const rnd = Math.floor(Math.random() * 100000);
-  const uniqueSuffix = `${ts.toString(36)}_${rnd}`;
-  body.payment_method_data.card.card_number = helcimTestCards[idx];
-  body.payment_method_data.card.card_holder_name = `HelcimTest ${uniqueSuffix}`;
-}
