@@ -16,6 +16,10 @@ use error_stack::{report, ResultExt};
 use hyperswitch_masking::ExposeInterface;
 use serde_json::Map;
 use superposition_provider::traits::AllFeatureProvider;
+use superposition_sdk::operation::{
+    list_audit_logs::ListAuditLogsOutput, list_contexts::ListContextsOutput,
+    list_default_configs::ListDefaultConfigsOutput, list_dimensions::ListDimensionsOutput,
+};
 pub use superposition_sdk::{
     operation::{
         create_context::builders::CreateContextInputBuilder,
@@ -26,10 +30,6 @@ pub use superposition_sdk::{
         list_dimensions::builders::ListDimensionsInputBuilder,
     },
     types::{AuditAction, ContextFilterSortOn, DimensionMatchStrategy, SortBy},
-};
-use superposition_sdk::operation::{
-    list_audit_logs::ListAuditLogsOutput, list_contexts::ListContextsOutput,
-    list_default_configs::ListDefaultConfigsOutput, list_dimensions::ListDimensionsOutput,
 };
 pub use superposition_types::api::{
     config::ContextPayload as ResolveConfigBody, context::PutRequest as ContextPutRequest,
@@ -226,7 +226,11 @@ pub fn list_contexts_to_response(
     PaginatedListResponse {
         total_pages: output.total_pages(),
         total_items: output.total_items(),
-        data: output.data().iter().map(context_response_to_struct).collect(),
+        data: output
+            .data()
+            .iter()
+            .map(context_response_to_struct)
+            .collect(),
     }
 }
 

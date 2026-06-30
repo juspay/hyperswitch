@@ -3,6 +3,8 @@ pub use api_models::superposition_proxy::{
     AuditLogResponse, ContextResponse, DefaultConfigResponse, DimensionResponse,
     PaginatedListResponse, ResolveConfigResponse,
 };
+use async_trait::async_trait;
+use common_utils::events::ApiEventMetric;
 use external_services::superposition::{
     context_put_from_request, create_context_output_to_struct, doc_map_to_json, document_to_value,
     list_audit_logs_to_response, list_contexts_to_response, list_default_configs_to_response,
@@ -12,8 +14,6 @@ use external_services::superposition::{
     ListContextsInputBuilder, ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, SortBy,
     SuperpositionError,
 };
-use async_trait::async_trait;
-use common_utils::events::ApiEventMetric;
 
 use crate::{
     consts::user_role::{ROLE_ID_MERCHANT_ADMIN, ROLE_ID_PROFILE_ADMIN},
@@ -597,11 +597,11 @@ impl SuperpositionProxyFlow for ResolveDetailedConfigRequest {
 
         let resolved_entries = serde_json::from_value(document_to_value(output.config().clone()))
             .map_err(|err| {
-                map_superposition_err(
-                    error_stack::report!(SuperpositionError::ClientError(err.to_string())),
-                    "Failed to parse resolved config from Superposition",
-                )
-            })?;
+            map_superposition_err(
+                error_stack::report!(SuperpositionError::ClientError(err.to_string())),
+                "Failed to parse resolved config from Superposition",
+            )
+        })?;
 
         Ok(ResolveConfigResponse(resolved_entries))
     }
