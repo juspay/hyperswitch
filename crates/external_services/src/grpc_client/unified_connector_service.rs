@@ -57,11 +57,11 @@ pub struct UnifiedConnectorServiceClientConfig {
     pub base_url: Url,
 
     /// Contains the connection timeout duration in seconds
-    pub connection_timeout: u64,
+    pub connection_timeout: UcsConnectionTimeoutInSeconds,
 
     /// Per-RPC timeout (seconds) for calls to the unified connector service.
-    #[serde(default = "default_ucs_request_timeout")]
-    pub request_timeout: u64,
+    #[serde(default)]
+    pub request_timeout: UcsRequestTimeoutInSeconds,
 
     /// Set of external services/connectors available for the unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
@@ -72,8 +72,32 @@ pub struct UnifiedConnectorServiceClientConfig {
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
 }
 
-fn default_ucs_request_timeout() -> u64 {
-    consts::DEFAULT_UCS_REQUEST_TIMEOUT_SECS
+/// Connection timeout for the Unified Connector Service in seconds.
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+pub struct UcsConnectionTimeoutInSeconds(u64);
+
+impl UcsConnectionTimeoutInSeconds {
+    /// Return the timeout as a [`Duration`].
+    pub fn as_duration(self) -> Duration {
+        Duration::from_secs(self.0)
+    }
+}
+
+/// Per-RPC request timeout for the Unified Connector Service in seconds.
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+pub struct UcsRequestTimeoutInSeconds(u64);
+
+impl Default for UcsRequestTimeoutInSeconds {
+    fn default() -> Self {
+        Self(consts::DEFAULT_UCS_REQUEST_TIMEOUT_SECS)
+    }
+}
+
+impl UcsRequestTimeoutInSeconds {
+    /// Return the timeout as a [`Duration`].
+    pub fn as_duration(self) -> Duration {
+        Duration::from_secs(self.0)
+    }
 }
 
 /// Contains the Connector Auth Type and related authentication data.
@@ -162,8 +186,8 @@ pub struct HyperswitchVaultMetadata {
 macro_rules! build_grpc_client {
     ($client:ty, $name:expr, $uri:expr, $connection_timeout:expr, $request_timeout:expr) => {{
         let endpoint = tonic::transport::Channel::builder($uri.clone())
-            .timeout(Duration::from_secs($request_timeout));
-        match timeout(Duration::from_secs($connection_timeout), endpoint.connect()).await {
+            .timeout($request_timeout.as_duration());
+        match timeout($connection_timeout.as_duration(), endpoint.connect()).await {
             Ok(Ok(channel)) => <$client>::new(channel),
             Ok(Err(err)) => {
                 router_env::logger::error!(
