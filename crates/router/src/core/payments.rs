@@ -4579,7 +4579,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 finix_additional_details: None,
             }),
             payment_method_type: req.payment_method_type,
-            payment_method: req.payment_method.clone(),
+            payment_method: req.payment_method,
             payment_method_data: req.payment_method_data.clone(),
             ..Default::default()
         };
