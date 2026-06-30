@@ -1989,12 +1989,13 @@ pub async fn sync_refund_with_gateway_workflow(
     })?;
 
     let platform = core_utils::build_platform_from_refund_core(state, &refund_core).await?;
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
     let response = Box::pin(refund_retrieve_core_with_internal_reference_id(
         state.clone(),
         platform,
         None,
-        refund_core.refund_internal_reference_id,
+        refund_core.refund_internal_reference_id.clone(),
         Some(true),
     ))
     .await?;
@@ -2019,15 +2020,55 @@ pub async fn sync_refund_with_gateway_workflow(
                 .processor_merchant_id
                 .clone()
                 .unwrap_or(response.merchant_id);
-            _ = retry_refund_sync_task(
+            let is_last_retry = retry_refund_sync_task(
                 &*state.store,
                 state.superposition_service.as_ref(),
-                response.connector,
-                processor_merchant_id,
+                response.connector.clone(),
+                processor_merchant_id.clone(),
                 Some(refund_core.payment_id.clone()),
                 refund_tracker.to_owned(),
             )
             .await?;
+
+            // If the refund status is still pending and there is no connector_refund_id
+            // then move the refund status to manual review if all retries exceeded
+            if is_last_retry
+                && response.refund_status == enums::RefundStatus::Pending
+                && response.connector_refund_id.is_none()
+            {
+                let processor_merchant_id = refund_core
+                    .processor_merchant_id
+                    .clone()
+                    .unwrap_or_else(|| refund_core.merchant_id.clone());
+
+                let refund = state
+                    .store
+                    .find_refund_by_internal_reference_id_processor_merchant_id(
+                        &refund_core.refund_internal_reference_id,
+                        &processor_merchant_id,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::RefundNotFound)
+                    .attach_printable("Failed to fetch refund for failure update")?;
+
+                let refund_update = diesel_refund::RefundUpdate::StatusUpdate {
+                    connector_refund_id: None,
+                    sent_to_gateway: response.sent_to_gateway,
+                    refund_status: enums::RefundStatus::ManualReview,
+                    updated_by: refund.updated_by.clone(),
+                    processor_refund_data: refund.processor_refund_data.clone(),
+                };
+
+                state
+                    .store
+                    .update_refund(refund, refund_update, storage_scheme)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to update refund status to Failure after retries exhausted",
+                    )?;
+            }
         }
     }
 
