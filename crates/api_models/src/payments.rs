@@ -9051,6 +9051,8 @@ impl PaymentListFilterConstraints {
             && self.active_attempt_id.is_none()
             && self.card_issuer.is_none()
             && self.routing_approach.is_none()
+            && self.refunds_status.is_none()
+            && self.dispute_status.is_none()
             && self.client_source.is_none()
             && self.client_version.is_none()
             && self.first_attempt.is_none()
