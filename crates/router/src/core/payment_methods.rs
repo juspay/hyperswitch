@@ -57,7 +57,7 @@ use hyperswitch_domain_models::behaviour::Conversion;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_methods::PaymentMethodUpdate as DomainPaymentMethodUpdate;
 use hyperswitch_domain_models::{
-    payment_method_data::BankDebitData,
+    payment_method_data::{BankDebitData, BankRedirectData},
     payments::{payment_attempt::PaymentAttempt, PaymentIntent, VaultData},
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_flow_types::ExternalVaultInsertFlow,
@@ -912,6 +912,85 @@ pub async fn retrieve_payment_method_with_token(
                 )),
 
                 payment_method_id: Some(bank_debit.payment_method_id.clone()),
+            }
+        }
+
+        storage::PaymentTokenData::BankRedirect(bank_redirect) => {
+            let customer_id = payment_intent.customer_id.as_ref().ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "customer",
+                },
+            )?;
+
+            let locker_id = bank_redirect.locker_id.as_ref().ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "locker_id",
+                },
+            )?;
+
+            let bank_redirect_detail = cards::get_bank_redirect_from_hs_locker(
+                state,
+                platform.get_provider(),
+                customer_id,
+                locker_id,
+            )
+            .await?;
+
+            let (vault_account_number, vault_iban, vault_sort_code, vault_account_holder_name) =
+                match bank_redirect_detail {
+                    domain::BankRedirectDetail::OpenBanking {
+                        account_number,
+                        iban,
+                        sort_code,
+                        account_holder_name,
+                    } => (account_number, iban, sort_code, account_holder_name),
+                };
+
+            let payment_method = payment_method_info
+                .get_required_value("PaymentMethod")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("PaymentMethod not found")?;
+
+            let db_account_holder_name =
+                if let Some(domain::PaymentMethodsData::BankRedirect(bank_redirect_data)) =
+                    payment_method.get_payment_methods_data()
+                {
+                    match bank_redirect_data {
+                        domain::BankRedirectDetailsPaymentMethod::OpenBanking {
+                            masked_account_number: _,
+                            masked_iban: _,
+                            masked_sort_code: _,
+                            account_holder_name,
+                        } => account_holder_name.clone(),
+                    }
+                } else {
+                    return Err(report!(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Payment method data is not bank redirect"));
+                };
+
+            let connector_payment_method_details = payment_attempt
+                .merchant_connector_id
+                .as_ref()
+                .and_then(|mca_id| {
+                    payment_method
+                        .connector_payment_method_details
+                        .as_ref()
+                        .and_then(|details| details.get(mca_id.get_string_repr()))
+                        .cloned()
+                });
+
+            storage::PaymentMethodDataWithId {
+                payment_method: Some(enums::PaymentMethod::BankRedirect),
+                payment_method_data: Some(domain::PaymentMethodData::BankRedirect(
+                    BankRedirectData::OpenBanking {
+                        account_number: vault_account_number,
+                        iban: vault_iban,
+                        sort_code: vault_sort_code,
+                        account_holder_name: vault_account_holder_name.or(db_account_holder_name),
+                        additional_details: connector_payment_method_details,
+                    },
+                )),
+                payment_method_id: Some(bank_redirect.payment_method_id.clone()),
             }
         }
     };
@@ -4255,7 +4334,8 @@ fn convert_from_saved_payment_method_data(
         domain::payment_method_data::PaymentMethodsData::BankDetails(_)
         | domain::payment_method_data::PaymentMethodsData::BankDebit(_)
         | domain::payment_method_data::PaymentMethodsData::WalletDetails(_)
-        | domain::payment_method_data::PaymentMethodsData::NetworkToken(_) => {
+        | domain::payment_method_data::PaymentMethodsData::NetworkToken(_)
+        | domain::payment_method_data::PaymentMethodsData::BankRedirect(_) => {
             Err(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "External vaulting is not supported for this payment method type"
                     .to_string(),
@@ -4422,7 +4502,8 @@ async fn build_legacy_locker_add_req(
         ),
         domain::PaymentMethodVaultingData::CardNumber(_)
         | domain::PaymentMethodVaultingData::BankDebit(_)
-        | domain::PaymentMethodVaultingData::Wallet(_) => {
+        | domain::PaymentMethodVaultingData::Wallet(_)
+        | domain::PaymentMethodVaultingData::BankRedirect(_) => {
             Err(report!(errors::ApiErrorResponse::NotSupported {
                 message: "Legacy locker only supports Card and NetworkToken".into(),
             }))
@@ -4651,6 +4732,10 @@ pub fn get_payment_method_custom_data(
                     hyperswitch_domain_models::vault::PaymentMethodVaultingData::Wallet(_) => {
                         Err(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Unexpected Behaviour, Wallet variant is not supported for Custom Tokenization")?
+                    }
+                    hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankRedirect(_) => {
+                        Err(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Unexpected Behaviour, Bank Redirect variant is not supported for Custom Tokenization")?
                     }
                 }
             }
@@ -4992,6 +5077,7 @@ fn get_pm_list_context(
                 )),
             ),
         }),
+        Some(domain::payment_method_data::PaymentMethodsData::BankRedirect(bank_redirect)) => None,
     };
 
     Ok(payment_method_retrieval_context)

@@ -827,6 +827,7 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 .map(payments_grpc::PaymentMethodType::foreign_try_from)
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
+            mandate_reference: None,
         })
     }
 }

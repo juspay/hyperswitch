@@ -190,7 +190,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             .change_context(errors::StorageError::KVError)
             .attach_printable("Failed to generate payment method insert query")?;
 
-        self.insert_resource(
+        Box::pin(self.insert_resource(
             key_store,
             storage_scheme,
             payment_method_new.clone().insert(&conn),
@@ -202,7 +202,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
                 identifier,
                 resource_type: "payment_method",
             },
-        )
+        ))
         .await
     }
 

@@ -150,6 +150,7 @@ impl VerifyConnectorData {
             customer_document_details: None,
             feature_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         }
     }
 }

@@ -9451,7 +9451,8 @@ async fn set_payment_method_from_token_for_modular_payment_method_flow<F, D>(
             | storage::PaymentTokenData::PermanentCard(_)
             | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::WalletToken(_)
-            | storage::PaymentTokenData::BankDebit(_),
+            | storage::PaymentTokenData::BankDebit(_)
+            | storage::PaymentTokenData::BankRedirect(_),
         )
         | None => {
             logger::debug!(
@@ -9769,7 +9770,8 @@ impl PaymentEligibilityData {
             | storage::PaymentTokenData::Permanent(_)
             | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::WalletToken(_)
-            | storage::PaymentTokenData::BankDebit(_) => None,
+            | storage::PaymentTokenData::BankDebit(_)
+            | storage::PaymentTokenData::BankRedirect(_) => None,
         };
 
         Ok(payment_method_data)

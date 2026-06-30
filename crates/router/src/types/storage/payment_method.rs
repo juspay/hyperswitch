@@ -30,6 +30,13 @@ pub struct BankDebitTokenData {
     pub locker_id: Option<String>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BankRedirectTokenData {
+    pub payment_method_id: String,
+    pub locker_id: Option<String>,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BankDebitTokenData {
@@ -76,6 +83,7 @@ pub enum PaymentTokenData {
     AuthBankDebit(payment_methods::BankAccountTokenData),
     WalletToken(WalletTokenData),
     BankDebit(BankDebitTokenData),
+    BankRedirect(BankRedirectTokenData),
 }
 
 #[cfg(feature = "v2")]

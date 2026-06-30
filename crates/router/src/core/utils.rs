@@ -332,6 +332,7 @@ pub async fn construct_payout_router_data<'a, F>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -511,6 +512,7 @@ pub async fn construct_refund_router_data<'a, F>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -709,6 +711,7 @@ pub async fn construct_refund_router_data<'a, F>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1227,6 +1230,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -1339,6 +1343,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -1457,6 +1462,7 @@ pub async fn construct_upload_file_router_data<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -1536,6 +1542,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     })
 }
 
@@ -1650,6 +1657,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -1787,6 +1795,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -1902,6 +1911,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -2007,6 +2017,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
