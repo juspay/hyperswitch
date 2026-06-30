@@ -4784,7 +4784,6 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             expand_captures: None,
             all_keys_required: None,
         };
-        println!("paymentredirect sync req: {:?}", payment_sync_req);
         let response = Box::pin(
             payments_core::<api::PSync, api::PaymentsResponse, _, _, _, _>(
                 state.clone(),
