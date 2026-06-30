@@ -1,17 +1,13 @@
-import { getCustomExchange } from "./Modifiers";
+import { getCustomExchange } from "../Payment/Modifiers";
+import {
+  successfulNo3DSCardDetails,
+  standardBillingAddress,
+} from "../Payment/Commons";
 
 // SIGNIFYD SANDBOX LIMITATION:
 // Signifyd sandbox always returns "Accept" decision regardless of test emails.
 // All FRM scenarios (Approve/Decline/Hold) return status "succeeded".
 // To test actual decline/hold behavior, configure Signifyd production credentials.
-
-const successfulNo3DSCardDetails = {
-  card_number: "4111111111111111",
-  card_exp_month: "08",
-  card_exp_year: "30",
-  card_holder_name: "Joseph Doe",
-  card_cvc: "999",
-};
 
 const orderDetails = [
   {
@@ -23,30 +19,6 @@ const orderDetails = [
 
 const frmMetadata = {
   order_channel: "web",
-};
-
-const shippingAddress = {
-  address: {
-    line1: "1467 Harrison St",
-    city: "San Francisco",
-    state: "CA",
-    zip: "94103",
-    country: "US",
-    first_name: "John",
-    last_name: "Doe",
-  },
-};
-
-const billingAddress = {
-  address: {
-    line1: "1467 Harrison St",
-    city: "San Francisco",
-    state: "CA",
-    zip: "94103",
-    country: "US",
-    first_name: "John",
-    last_name: "Doe",
-  },
 };
 
 export const connectorDetails = {
@@ -63,8 +35,8 @@ export const connectorDetails = {
         email: "testapproved@signifyd.com",
         frm_metadata: frmMetadata,
         order_details: orderDetails,
-        shipping: shippingAddress,
-        billing: billingAddress,
+        shipping: standardBillingAddress,
+        billing: standardBillingAddress,
       },
       Response: {
         status: 200,

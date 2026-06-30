@@ -65,7 +65,7 @@ import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js"
 import { connectorDetails as rapydConnectorDetails } from "./Rapyd.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
-import { connectorDetails as signifydConnectorDetails } from "./Signifyd.js";
+import { connectorDetails as signifydConnectorDetails } from "../FRM/Signifyd.js";
 import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js";
 import { connectorDetails as squareConnectorDetails } from "./Square.js";
 import { connectorDetails as staxConnectorDetails } from "./Stax.js";
