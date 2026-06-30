@@ -16590,8 +16590,7 @@
       "CardWithLimitedData": {
         "type": "object",
         "required": [
-          "card_number",
-          "network_transaction_id"
+          "card_number"
         ],
         "properties": {
           "card_number": {
@@ -16624,7 +16623,8 @@
           },
           "network_transaction_id": {
             "type": "string",
-            "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`."
+            "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
           },
           "transaction_link_id": {
             "type": "string",
