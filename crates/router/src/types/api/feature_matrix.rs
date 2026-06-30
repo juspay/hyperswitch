@@ -18,6 +18,9 @@ impl FeatureMatrixConnectorData {
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match enums::Connector::from_str(connector_name) {
             Ok(name) => match name {
+                enums::Connector::AbsaSanlam => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::AbsaSanlam::new())))
+                }
                 enums::Connector::Aci => Ok(ConnectorEnum::Old(Box::new(connector::Aci::new()))),
                 enums::Connector::Adyen => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Adyen::new())))
@@ -278,6 +281,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Paytm => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paytm::new())))
                 }
+                enums::Connector::Payconex => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Payconex::new())))
+                }
                 // "payeezy" => Ok(ConnectorIntegrationEnum::Old(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 // enums::Connector::Payload => {
                 //     Ok(ConnectorEnum::Old(Box::new(connector::Paybload::new())))
@@ -393,9 +399,6 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Truelayer => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Truelayer::new())))
                 }
-                enums::Connector::Sanlam => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Sanlam::new())))
-                }
                 enums::Connector::Trustly => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustly::new())))
                 }
@@ -424,7 +427,7 @@ impl FeatureMatrixConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Plaid::new())))
                 }
                 enums::Connector::Signifyd => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Signifyd)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Signifyd::new())))
                 }
                 enums::Connector::Silverflow => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Silverflow::new())))
@@ -445,6 +448,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Taxjar => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Taxjar::new())))
                 }
+                enums::Connector::Interpayments => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Interpayments::new(),
+                ))),
                 enums::Connector::Cardinal => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))

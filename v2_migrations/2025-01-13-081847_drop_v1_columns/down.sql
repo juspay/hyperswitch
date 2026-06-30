@@ -122,8 +122,6 @@ ALTER TABLE payment_methods
     ADD COLUMN IF NOT EXISTS swift_code VARCHAR(32),
     ADD COLUMN IF NOT EXISTS payment_method_issuer VARCHAR(128),
     ADD COLUMN IF NOT EXISTS metadata JSON,
-    ADD COLUMN IF NOT EXISTS payment_method VARCHAR,
-    ADD COLUMN IF NOT EXISTS payment_method_type VARCHAR(64),
     ADD COLUMN IF NOT EXISTS payment_method_issuer_code "PaymentMethodIssuerCode";
 
 ALTER TABLE refund ADD COLUMN connector_refund_data VARCHAR(512),

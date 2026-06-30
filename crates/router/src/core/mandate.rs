@@ -1,11 +1,11 @@
 pub mod helpers;
 pub mod utils;
-use api_models::payments;
 use common_types::payments as common_payments_types;
 use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use futures::future;
+use hyperswitch_domain_models::mandates::{MandateData, MandateIds};
 use router_env::{instrument, logger, tracing};
 
 use super::payments::helpers as payment_helper;
@@ -343,13 +343,18 @@ where
             let Some(_mandate_details) = resp.request.get_setup_mandate_details() else {
                 return Ok(None);
             };
-            let (mandate_reference, network_txn_id) = match &response {
+            let (mandate_reference, network_txn_id, network_txn_link_id) = match &response {
                 types::PaymentsResponseData::TransactionResponse {
                     mandate_reference,
                     network_txn_id,
+                    network_txn_link_id,
                     ..
-                } => (mandate_reference.clone(), network_txn_id.clone()),
-                _ => (Box::new(None), None),
+                } => (
+                    mandate_reference.clone(),
+                    network_txn_id.clone(),
+                    network_txn_link_id.clone(),
+                ),
+                _ => (Box::new(None), None, None),
             };
 
             let mandate_ids = (*mandate_reference)
@@ -370,6 +375,7 @@ where
                 pm_id.get_required_value("payment_method_id")?,
                 mandate_ids,
                 network_txn_id,
+                network_txn_link_id,
                 get_insensitive_payment_method_data_if_exists(resp),
                 *mandate_reference,
                 merchant_connector_id,
@@ -435,11 +441,9 @@ impl ForeignFrom<Result<types::PaymentsResponseData, types::ErrorResponse>>
 pub trait MandateBehaviour {
     fn get_amount(&self) -> i64;
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage>;
-    fn get_mandate_id(&self) -> Option<&payments::MandateIds>;
-    fn set_mandate_id(&mut self, new_mandate_id: Option<payments::MandateIds>);
+    fn get_mandate_id(&self) -> Option<&MandateIds>;
+    fn set_mandate_id(&mut self, new_mandate_id: Option<MandateIds>);
     fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData;
-    fn get_setup_mandate_details(
-        &self,
-    ) -> Option<&hyperswitch_domain_models::mandates::MandateData>;
+    fn get_setup_mandate_details(&self) -> Option<&MandateData>;
     fn get_customer_acceptance(&self) -> Option<common_payments_types::CustomerAcceptance>;
 }

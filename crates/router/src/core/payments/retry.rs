@@ -3,7 +3,7 @@ use std::vec::IntoIter;
 use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::ext_traits::OptionExt;
+use hyperswitch_domain_models::{ext_traits::OptionExt, mandates};
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -188,7 +188,7 @@ where
                             payment_data,
                             &payment_method_info,
                         )?;
-                        payment_data.set_mandate_id(api_models::payments::MandateIds {
+                        payment_data.set_mandate_id(mandates::MandateIds {
                             mandate_id: None,
                             mandate_reference_id, //mandate_ref_id
                         });
@@ -624,6 +624,10 @@ where
                     .get_payment_attempt()
                     .network_transaction_id
                     .clone(),
+                network_transaction_link_id: payment_data
+                    .get_payment_attempt()
+                    .network_transaction_link_id
+                    .clone(),
                 is_overcapture_enabled: None,
                 authorized_amount: router_data.authorized_amount,
                 tokenization: None,
@@ -634,6 +638,10 @@ where
                 advice_message: None,
                 recommended_action: None,
                 card_network: payment_data.get_payment_attempt().extract_card_network(),
+                sender_payment_instrument_id: payment_data
+                    .get_payment_attempt()
+                    .sender_payment_instrument_id
+                    .clone(),
             };
 
             #[cfg(feature = "v1")]
@@ -832,6 +840,7 @@ pub fn make_new_auto_retry_payment_attempt(
         unified_code: Default::default(),
         unified_message: Default::default(),
         external_three_ds_authentication_attempted: Default::default(),
+        external_threeds_authentication_type: Default::default(),
         authentication_connector: Default::default(),
         authentication_id: Default::default(),
         mandate_data: Default::default(),
@@ -850,6 +859,7 @@ pub fn make_new_auto_retry_payment_attempt(
         routing_approach: old_payment_attempt.routing_approach,
         connector_request_reference_id: Default::default(),
         network_transaction_id: old_payment_attempt.network_transaction_id,
+        network_transaction_link_id: old_payment_attempt.network_transaction_link_id,
         network_details: Default::default(),
         is_stored_credential: old_payment_attempt.is_stored_credential,
         authorized_amount: old_payment_attempt.authorized_amount,
@@ -865,6 +875,8 @@ pub fn make_new_auto_retry_payment_attempt(
         error_details: Default::default(),
         retry_type: Some(storage_enums::RetryType::AutoRetry),
         installment_data: Default::default(),
+        external_surcharge_details: Default::default(),
+        sender_payment_instrument_id: Default::default(),
     }
 }
 
@@ -936,7 +948,8 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::DeviceDataCollectionPending
                 | storage_enums::AttemptStatus::IntegrityFailure
                 | storage_enums::AttemptStatus::Expired
-                | storage_enums::AttemptStatus::PartiallyAuthorized => false,
+                | storage_enums::AttemptStatus::PartiallyAuthorized
+                | storage_enums::AttemptStatus::CaptureReview => false,
 
                 storage_enums::AttemptStatus::AuthenticationFailed
                 | storage_enums::AttemptStatus::AuthorizationFailed

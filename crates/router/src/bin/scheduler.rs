@@ -285,6 +285,9 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::PaymentsSyncWorkflow => {
                     Ok(Box::new(workflows::payment_sync::PaymentsSyncWorkflow))
                 }
+                storage::ProcessTrackerRunner::PaymentsPostCaptureVoidSyncWorkflow => Ok(Box::new(
+                    workflows::post_capture_void_sync::PaymentsPostCaptureVoidSyncWorkflow,
+                )),
                 storage::ProcessTrackerRunner::RefundWorkflowRouter => {
                     Ok(Box::new(workflows::refund_router::RefundWorkflowRouter))
                 }
@@ -339,6 +342,9 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                 )),
                 storage::ProcessTrackerRunner::PaymentMethodModularForwardCompatWorkflow => Ok(Box::new(
                     workflows::payment_method_modular_forward_compat::PaymentMethodModularForwardCompatWorkflow,
+                )),
+                storage::ProcessTrackerRunner::PaymentMethodModularBackwardCompatWorkflow => Ok(Box::new(
+                    workflows::payment_method_modular_backward_compat::PaymentMethodModularBackwardCompatWorkflow,
                 )),
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow => {
                     Ok(Box::new(workflows::revenue_recovery::ExecutePcrWorkflow))

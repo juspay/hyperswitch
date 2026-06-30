@@ -2,7 +2,7 @@ use api_models::{enums::FrmSuggestion, payments::PaymentsConfirmIntentRequest};
 use async_trait::async_trait;
 use common_utils::{ext_traits::Encode, fp_utils::when, id_type, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payments::PaymentConfirmData;
+use hyperswitch_domain_models::{mandates, payments::PaymentConfirmData};
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
@@ -58,7 +58,8 @@ impl ValidateStatusForOperation for PaymentIntentConfirm {
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
-            | common_enums::IntentStatus::Expired => {
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
@@ -560,17 +561,18 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                 Some(domain::payment_method_data::PaymentMethodData::CardToken(card_token)),
                 None,
             ) => {
-                let (payment_method, vault_data) =
+                let (payment_method, vault_data) = Box::pin(
                     payment_methods::vault::retrieve_payment_method_from_vault_using_payment_token(
                         state,
                         platform,
                         business_profile,
                         payment_token,
                         &payment_data.payment_attempt.payment_method_type,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to retrieve payment method from vault")?;
+                    ),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to retrieve payment method from vault")?;
 
                 let (card_cvc, card_holder_name) = {
                     (
@@ -640,7 +642,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     customer_id: Some(customer_id),
                     payment_method_data: pm_create_data,
                     billing: None,
-                    psp_tokenization: None,
                     network_tokenization: None,
                     storage_type: common_enums::StorageType::Persistent, //since customer acceptance is present, we always store it persistently
                 };
@@ -700,10 +701,10 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             .as_ref()
             .and_then(|mandate_details| mandate_details.mandate_reference_id.as_ref())
             .map(|mandate_reference| match mandate_reference {
-                api_models::payments::MandateReferenceId::ConnectorMandateId(_) => true,
-                api_models::payments::MandateReferenceId::NetworkMandateId(_)
-                | api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)
-                | api_models::payments::MandateReferenceId::CardWithLimitedData => false,
+                mandates::MandateReferenceId::ConnectorMandateId(_) => true,
+                mandates::MandateReferenceId::NetworkMandateId(_)
+                | mandates::MandateReferenceId::NetworkTokenWithNTI(_)
+                | mandates::MandateReferenceId::CardWithLimitedData => false,
             })
             .unwrap_or(false);
 

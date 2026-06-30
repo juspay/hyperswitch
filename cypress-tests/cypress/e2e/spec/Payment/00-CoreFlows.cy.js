@@ -1,7 +1,12 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
-import { payment_methods_enabled } from "../../configs/Payment/Commons";
+import {
+  payment_methods_enabled,
+  connectorDetails as paymentCommonDetails,
+} from "../../configs/Payment/Commons";
+
+const pmCollectLinkConnectorDetails = paymentCommonDetails.pm_collect_link;
 
 let globalState;
 
@@ -277,6 +282,102 @@ describe("Core flows", () => {
 
     it("List connector feature matrix call", () => {
       cy.ListConnectorsFeatureMatrixCall(globalState);
+    });
+  });
+
+  context("Payment Method Collect Link core flows", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    it("Payment method collect link create and render", () => {
+      const shouldContinue = true;
+
+      cy.step("Create merchant account", () => {
+        cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
+      });
+
+      cy.step("Create merchant API key", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Create merchant API key");
+          return;
+        }
+        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
+      });
+
+      cy.step("Create customer", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Create customer");
+          return;
+        }
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
+      cy.step("Initiate Payment Method Collect Link", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Initiate Payment Method Collect Link"
+          );
+          return;
+        }
+        cy.paymentMethodCollectLinkCreate(
+          fixtures.pmCollectLinkBody,
+          pmCollectLinkConnectorDetails.pmCollectLinkCreate,
+          globalState
+        );
+      });
+
+      cy.step("Render Payment Method Collect Form", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Render Payment Method Collect Form"
+          );
+          return;
+        }
+        cy.paymentMethodCollectLinkRender(
+          pmCollectLinkConnectorDetails.pmCollectLinkRender,
+          globalState
+        );
+      });
+    });
+
+    it("Payment method collect link render with invalid id", () => {
+      const shouldContinue = true;
+
+      cy.step("Create merchant account", () => {
+        cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
+      });
+
+      cy.step("Create merchant API key", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Create merchant API key");
+          return;
+        }
+        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
+      });
+
+      cy.step("Set invalid collect id and attempt render", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Set invalid collect id and attempt render"
+          );
+          return;
+        }
+        globalState.set("pmCollectId", "invalid_collect_id_12345");
+        cy.paymentMethodCollectLinkRender(
+          pmCollectLinkConnectorDetails.pmCollectLinkRenderNotFound,
+          globalState
+        );
+      });
     });
   });
 });

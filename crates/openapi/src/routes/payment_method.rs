@@ -199,6 +199,29 @@ pub async fn payment_method_delete_api() {}
     operation_id = "Set the Payment Method as Default",
     security(("ephemeral_key" = []))
 )]
+#[cfg(feature = "v1")]
+pub async fn default_payment_method_set_api() {}
+
+/// Payment Method - Set Default Payment Method for Customer
+///
+/// Set the Payment Method as Default for the Customer.
+#[utoipa::path(
+    post,
+    path = "/v1/{customer_id}/payment-methods/{payment_method_id}/default",
+    params (
+        ("customer_id" = String,Path, description ="The unique identifier for the Customer"),
+        ("payment_method_id" = String,Path, description = "The unique identifier for the Payment Method"),
+    ),
+    responses(
+        (status = 200, description = "Payment Method has been set as default", body =CustomerDefaultPaymentMethodResponse ),
+        (status = 400, description = "Payment Method has already been set as default for that customer"),
+        (status = 404, description = "Payment Method not found for the customer")
+    ),
+    tag = "Payment Methods",
+    operation_id = "Set the Payment Method as Default",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
 pub async fn default_payment_method_set_api() {}
 
 /// Payment Method - Create Intent
@@ -602,7 +625,7 @@ pub async fn list_customer_payment_method_api_v1() {}
     content = PaymentMethodSessionRequest,
         examples  (( "Create a payment method session with customer_id" = (
         value =json!( {
-            "customer_id": "12345_cus_abcdefghijklmnopqrstuvwxyz"
+            "customer_id": "0a_cus_abcdefghijklmnopqrstuvwxyz"
         })
         )))
     ),
@@ -636,7 +659,7 @@ pub fn payment_method_session_create() {}
     content = PaymentMethodSessionRequest,
         examples  (( "Create a payment method session with customer_id" = (
         value =json!( {
-            "customer_id": "12345_cus_abcdefghijklmnopqrstuvwxyz"
+            "customer_id": "0a_cus_abcdefghijklmnopqrstuvwxyz"
         })
         )))
     ),

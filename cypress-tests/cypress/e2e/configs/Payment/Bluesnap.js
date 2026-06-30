@@ -1,4 +1,5 @@
 import { customerAcceptance } from "./Commons";
+import { getIframeRedirectionConfig } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -38,10 +39,10 @@ const multiUseMandateData = {
 
 const failedNo3DSCardDetails = {
   card_number: "378282246310005",
-  card_exp_month: "05",
-  card_exp_year: "26",
+  card_exp_month: "01",
+  card_exp_year: "30",
   card_holder_name: "joseph Doe",
-  card_cvc: "1234",
+  card_cvc: "123",
 };
 
 export const connectorDetails = {
@@ -59,6 +60,10 @@ export const connectorDetails = {
         },
       },
     },
+    ...getIframeRedirectionConfig({
+      cardDetails: successfulThreeDSTestCardDetails,
+    }),
+
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",
@@ -134,6 +139,7 @@ export const connectorDetails = {
         },
       },
     },
+
     SaveCardUse3DSAutoCaptureOffSession: {
       Request: {
         payment_method: "card",
@@ -279,9 +285,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: "14002",
+          error_code: "10001",
           error_message:
-            "Transaction failed  because of payment processing failure.: DECLINE - Default BlueSnapTestProcessor [DECLINE] message",
+            "Order creation failure due to problematic input. & There is a mismatch between the Credit Card American Express and Security Code. ",
         },
       },
     },

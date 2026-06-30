@@ -43,6 +43,7 @@ pub mod refunds_v2;
 use std::{fmt::Debug, str::FromStr};
 
 use api_models::routing::{self as api_routing, RoutableConnectorChoice};
+pub use common_utils::id_type::PaymentId;
 use error_stack::ResultExt;
 use euclid::enums::RoutableConnectors;
 pub use hyperswitch_domain_models::router_flow_types::{
@@ -62,7 +63,7 @@ pub use hyperswitch_interfaces::{
             ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
         },
         fraud_check::FraudCheck,
-        merchant_connector_webhook_management::{ConfigureConnectorWebhook, WebhookRegister},
+        merchant_connector_webhook_management::WebhookRegister,
         revenue_recovery::{
             BillingConnectorInvoiceSyncIntegration, BillingConnectorPaymentsSyncIntegration,
             RevenueRecovery, RevenueRecoveryRecordBack,
@@ -308,6 +309,35 @@ impl TaxCalculateConnectorData {
             enums::TaxConnectors::Taxjar => {
                 Ok(ConnectorEnum::Old(Box::new(connector::Taxjar::new())))
             }
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct SurchargeCalculateConnectorData {
+    pub connector: ConnectorEnum,
+    pub connector_name: enums::SurchargeConnectors,
+}
+
+impl SurchargeCalculateConnectorData {
+    pub fn get_connector_by_name(name: &str) -> CustomResult<Self, errors::ApiErrorResponse> {
+        let connector_name = enums::SurchargeConnectors::from_str(name)
+            .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+            .attach_printable_lazy(|| format!("unable to parse connector: {name}"))?;
+        let connector = Self::convert_connector(connector_name)?;
+        Ok(Self {
+            connector,
+            connector_name,
+        })
+    }
+
+    fn convert_connector(
+        connector_name: enums::SurchargeConnectors,
+    ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
+        match connector_name {
+            enums::SurchargeConnectors::Interpayments => Ok(ConnectorEnum::Old(Box::new(
+                connector::Interpayments::new(),
+            ))),
         }
     }
 }

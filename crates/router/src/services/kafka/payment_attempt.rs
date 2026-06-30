@@ -261,6 +261,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             encoded_data,
             merchant_connector_id,
             external_three_ds_authentication_attempted,
+            external_threeds_authentication_type: _,
             authentication_connector,
             authentication_id,
             fingerprint_id,
@@ -285,7 +286,9 @@ impl<'a> KafkaPaymentAttempt<'a> {
             created_by,
             connector_request_reference_id,
             network_transaction_id: _,
+            network_transaction_link_id: _,
             authorized_amount: _,
+            external_surcharge_details: _,
         } = attempt;
 
         let (connector_payment_id, connector_payment_data) = connector_payment_id

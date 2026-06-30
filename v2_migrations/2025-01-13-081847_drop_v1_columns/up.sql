@@ -110,9 +110,7 @@ ALTER TABLE payment_methods
     DROP COLUMN IF EXISTS swift_code,
     DROP COLUMN IF EXISTS payment_method_issuer,
     DROP COLUMN IF EXISTS payment_method_issuer_code,
-    DROP COLUMN IF EXISTS metadata,
-    DROP COLUMN IF EXISTS payment_method,
-    DROP COLUMN IF EXISTS payment_method_type;
+    DROP COLUMN IF EXISTS metadata;
 DROP TYPE IF EXISTS "PaymentMethodIssuerCode";
 
 -- Run below queries only when V1 is deprecated

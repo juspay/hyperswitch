@@ -98,7 +98,7 @@ pub struct UpdatePaymentMethodResponse {
     /// The type of payment method.
     pub payment_method_type: PaymentMethod,
     /// The payment method subtype.
-    pub payment_method_subtype: PaymentMethodType,
+    pub payment_method_subtype: Option<PaymentMethodType>,
     /// Indicates whether recurring is enabled.
     pub recurring_enabled: Option<bool>,
     /// Timestamp for creation time.

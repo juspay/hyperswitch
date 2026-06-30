@@ -1,10 +1,8 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::FrmSuggestion,
-    mandates::RecurringDetails,
-    payment_methods::PaymentMethodsData,
-    payments::{GetAddressFromPaymentMethodData, MandateTransactionType},
+    enums::FrmSuggestion, mandates::RecurringDetails, payment_methods::PaymentMethodsData,
+    payments::GetAddressFromPaymentMethodData,
 };
 use async_trait::async_trait;
 use common_types::payments as common_payments_types;
@@ -19,7 +17,8 @@ use common_utils::{
 use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId;
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
-    mandates::MandateDetails,
+    mandates,
+    mandates::{MandateDetails, MandateTransactionType},
     payment_method_data::RecurringDetails as domain_recurring_details,
     payment_methods::PaymentMethodWithRawData,
     payments::{payment_attempt::PaymentAttempt, FromRequestEncryptablePaymentIntent},
@@ -80,9 +79,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         request: &api::PaymentsRequest,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
+        flow_kind: operations::PaymentFlowKind,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let operations::PaymentMethodFetchData {
@@ -415,16 +416,21 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .mandate_id
             .as_ref()
             .or_else(|| {
-            request.recurring_details
-                .as_ref()
-                .and_then(|recurring_details| match recurring_details {
-                    RecurringDetails::MandateId(id) => Some(id),
-                    _ => None,
-                })
-        })
+                request
+                    .recurring_details
+                    .as_ref()
+                    .and_then(|recurring_details| match recurring_details {
+                        RecurringDetails::MandateId(id) => Some(id),
+                        _ => None,
+                    })
+            })
             .async_and_then(|mandate_id| async {
                 let mandate = db
-                    .find_mandate_by_merchant_id_mandate_id(platform.get_processor().get_account().get_id(), mandate_id, platform.get_processor().get_account().storage_scheme)
+                    .find_mandate_by_merchant_id_mandate_id(
+                        platform.get_processor().get_account().get_id(),
+                        mandate_id,
+                        platform.get_processor().get_account().storage_scheme,
+                    )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::MandateNotFound);
                 Some(mandate.and_then(|mandate_obj| {
@@ -433,32 +439,39 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         mandate_obj.connector_mandate_ids,
                     ) {
                         (_, Some(connector_mandate_id)) => connector_mandate_id
-                        .parse_value("ConnectorMandateId")
-                        .change_context(errors::ApiErrorResponse::MandateNotFound)
-                        .map(|connector_id: api_models::payments::ConnectorMandateReferenceId| {
-                            api_models::payments::MandateIds {
-                                mandate_id: Some(mandate_obj.mandate_id),
-                                mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                api_models::payments::ConnectorMandateReferenceId::new(
-                                    connector_id.get_connector_mandate_id(),
-                                    connector_id.get_payment_method_id(),
-                                    None,
-                                    None,
-                                    connector_id.get_connector_mandate_request_reference_id(),
-                                    None
-                                )
-                                ))
-                            }
-                         }),
-                        (Some(network_tx_id), _) => Ok(api_models::payments::MandateIds {
+                            .parse_value("ConnectorMandateId")
+                            .change_context(errors::ApiErrorResponse::MandateNotFound)
+                            .map(|connector_id: mandates::ConnectorMandateReferenceId| {
+                                mandates::MandateIds {
+                                    mandate_id: Some(mandate_obj.mandate_id),
+                                    mandate_reference_id: Some(
+                                        mandates::MandateReferenceId::ConnectorMandateId(
+                                            mandates::ConnectorMandateReferenceId::new(
+                                                connector_id.get_connector_mandate_id(),
+                                                connector_id.get_payment_method_id(),
+                                                None,
+                                                None,
+                                                connector_id
+                                                    .get_connector_mandate_request_reference_id(),
+                                                None,
+                                            ),
+                                        ),
+                                    ),
+                                }
+                            }),
+                        (Some(network_tx_id), _) => Ok(mandates::MandateIds {
                             mandate_id: Some(mandate_obj.mandate_id),
                             mandate_reference_id: Some(
-                                api_models::payments::MandateReferenceId::NetworkMandateId(
-                                    network_tx_id,
+                                mandates::MandateReferenceId::NetworkMandateId(
+                                    mandates::NetworkMandateIdRef {
+                                        network_transaction_id: network_tx_id,
+                                        transaction_link_id: mandate_obj
+                                            .network_transaction_link_id,
+                                    },
                                 ),
                             ),
                         }),
-                        (_, _) => Ok(api_models::payments::MandateIds {
+                        (_, _) => Ok(mandates::MandateIds {
                             mandate_id: Some(mandate_obj.mandate_id),
                             mandate_reference_id: None,
                         }),
@@ -473,28 +486,26 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .recurring_details
                 .as_ref()
                 .and_then(|recurring_details| match recurring_details {
-                    RecurringDetails::ProcessorPaymentToken(token) => {
-                        Some(api_models::payments::MandateIds {
-                            mandate_id: None,
-                            mandate_reference_id: Some(
-                                api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    api_models::payments::ConnectorMandateReferenceId::new(
-                                        Some(token.processor_payment_token.clone()),
-                                        None,
-                                        None,
-                                        None,
-                                        None,
-                                        None,
-                                    ),
+                    RecurringDetails::ProcessorPaymentToken(token) => Some(mandates::MandateIds {
+                        mandate_id: None,
+                        mandate_reference_id: Some(
+                            mandates::MandateReferenceId::ConnectorMandateId(
+                                mandates::ConnectorMandateReferenceId::new(
+                                    Some(token.processor_payment_token.clone()),
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                    None,
                                 ),
                             ),
-                        })
-                    }
+                        ),
+                    }),
                     RecurringDetails::CardWithLimitedData(_)
                     | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
                     | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
                     | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
-                        Some(api_models::payments::MandateIds {
+                        Some(mandates::MandateIds {
                             mandate_id: None,
                             mandate_reference_id: mandate_reference_id_from_recurring_details,
                         })
@@ -508,6 +519,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let operation = payments::if_not_create_change_operation::<_, F>(
             payment_intent.status,
             request.confirm,
+            flow_kind,
             self,
         );
 
@@ -596,7 +608,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         payment_attempt.connector_mandate_detail =
             Some(DieselConnectorMandateReferenceId::foreign_from(
-                api_models::payments::ConnectorMandateReferenceId::new(
+                mandates::ConnectorMandateReferenceId::new(
                     None,
                     None,
                     None, // update_history
@@ -671,6 +683,22 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             None
         };
 
+        // For a single-call create+confirm routed through the external vault proxy core, the
+        // operation has been swapped to `PaymentExternalVaultProxyConfirm` above. That confirm
+        // op normally builds `external_vault_pmd` in its own `get_trackers`, which is skipped
+        // here — so build it now from the same request + vault tokens, mirroring the two-step
+        // confirm flow. The downstream connector call requires this to be populated.
+        let external_vault_pmd = (flow_kind == operations::PaymentFlowKind::ExternalVaultProxy
+            && request.confirm.unwrap_or(false))
+        .then(|| {
+            super::payment_confirm_external_vault_proxy::build_external_vault_payment_method_data(
+                request,
+                payment_method_with_raw_data.as_ref(),
+            )
+        })
+        .transpose()?
+        .flatten();
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -721,6 +749,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             external_authentication_data: request.three_ds_data.clone(),
             client_session_id,
             vault_session_details: None,
+            external_vault_pmd,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -962,7 +991,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             };
 
             if let Some(payment_method) = payment_method_info {
-                if feature_config.is_modular_with_pm_version(Some(payment_method.version)) {
+                if feature_config.should_use_modular_pm_path(
+                    Some(payment_method.version),
+                    payment_method.compatibility_updated_at,
+                    Some(payment_method.last_modified),
+                ) {
                     logger::debug!(
                         "Payment method version is V2, fetching payment method from PM Modular Service"
                     );
@@ -1334,12 +1367,15 @@ impl PaymentCreate {
             &profile_id,
             payment_method_ref,
             None, // CVC token data is not passed in create api
+            true, // fetch raw card detail from the internal vault
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
 
         utils::when(
-            pm_info.payment_method.customer_id.as_ref() != req.get_customer_id(),
+            req.get_customer_id().is_some_and(|customer_id| {
+                pm_info.payment_method.customer_id.as_ref() != Some(customer_id)
+            }),
             || {
                 logger::info!(
                     "Payment method id does not belong to the customer id provided in the request."
@@ -1635,6 +1671,7 @@ impl PaymentCreate {
                     .as_ref()
                     .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 mandate_data,
                 payment_method_billing_address_id,
                 net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::from_payments_request(
@@ -1688,8 +1725,9 @@ impl PaymentCreate {
                 setup_future_usage_applied: request.setup_future_usage,
                 routing_approach: Some(common_enums::RoutingApproach::default()),
                 connector_request_reference_id: None,
-                network_transaction_id:None,
-                network_details:None,
+                network_transaction_id: None,
+                network_transaction_link_id: None,
+                network_details: None,
                 is_stored_credential,
                 authorized_amount: None,
                 tokenization:request.tokenization,
@@ -1704,6 +1742,8 @@ impl PaymentCreate {
                 error_details: None,
                 retry_type: None,
                 installment_data: None,
+                external_surcharge_details: None,
+                sender_payment_instrument_id: None,
             },
             additional_pm_data,
 
@@ -1899,7 +1939,7 @@ impl PaymentCreate {
             connector_id: None,
             allowed_payment_method_types,
             connector_metadata,
-            feature_metadata,
+            feature_metadata: feature_metadata.map(Secret::new),
             attempt_count: 1,
             profile_id: Some(profile_id),
             merchant_decision: None,
@@ -1961,6 +2001,9 @@ impl PaymentCreate {
                 .clone(),
             state_metadata: None,
             installment_options: request.installment_options.clone(),
+            profile_acquirer_id: request.profile_acquirer_id.clone(),
+            external_surcharge_strategy: request.external_surcharge_strategy,
+            external_surcharge_applicable: None,
         })
     }
 }

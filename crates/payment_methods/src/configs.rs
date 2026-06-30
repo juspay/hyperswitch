@@ -1,6 +1,7 @@
 pub mod payment_connector_required_fields;
 pub mod settings;
 
+use hyperswitch_masking::Secret;
 use serde::Deserialize;
 use url::Url;
 
@@ -12,6 +13,44 @@ pub struct MicroServicesConfig {
     pub payment_methods_base_url: ModularPaymentMethodServiceUrl,
     pub payment_methods_prefix: ModularPaymentMethodServicePrefix,
     pub use_legacy_locker: bool,
+    pub authentication_service: Option<AuthenticationServiceConfig>,
+}
+
+/// Configuration for the authentication microservice.
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct AuthenticationServiceConfig {
+    pub base_url: AuthenticationServiceUrl,
+    pub api_key: Secret<String>,
+}
+
+/// Base URL wrapper for the modular payment methods service.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(transparent)]
+pub struct AuthenticationServiceUrl(pub Url);
+
+impl Default for AuthenticationServiceUrl {
+    fn default() -> Self {
+        Self(
+            #[allow(clippy::expect_used)]
+            Url::parse("http://localhost:8080")
+                .expect("Failed to parse default payment_methods_base_url"),
+        )
+    }
+}
+
+impl std::ops::Deref for AuthenticationServiceUrl {
+    type Target = Url;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl AsRef<Url> for AuthenticationServiceUrl {
+    fn as_ref(&self) -> &Url {
+        &self.0
+    }
 }
 
 /// Prefix wrapper for the modular payment methods service.

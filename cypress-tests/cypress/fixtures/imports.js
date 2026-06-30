@@ -9,7 +9,9 @@ import customerCreateBody from "./create-customer-body.json";
 import citConfirmBody from "./create-mandate-cit.json";
 import mitConfirmBody from "./create-mandate-mit.json";
 import createPaymentBody from "./create-payment-body.json";
+import createPayoutLinkBody from "./create-payout-link-body.json";
 import createPayoutBody from "./create-payout-confirm-body.json";
+import payoutRoutingConfigBody from "./payout-routing-config-body.json";
 import pmIdConfirmBody from "./create-pm-id-mit.json";
 import gsmBody from "./gsm-body.json";
 import listRefundCall from "./list-refund-call-body.json";
@@ -25,10 +27,13 @@ import customerUpdateBody from "./update-customer-body.json";
 import voidBody from "./void-payment-body.json";
 import ntidConfirmBody from "./create-ntid-mit.json";
 import blocklistCreateBody from "./blocklist-create-body.json";
+import pmCollectLinkBody from "./pm-collect-link-body.json";
 import disputeEvidenceBody from "./dispute-evidence-body.json";
 import cardLimitedDataMITBody from "./create-card-limited-data-mit.json";
 import eligibilityCheckBody from "./eligibility-check-body.json";
 import extendAuthBody from "./extend-auth-body.json";
+import relayBody from "./relay-body.json";
+import threeDSAuthenticationBody from "./three-ds-authentication-body.json";
 import * as IncomingWebhookBody from "./webhooks/import";
 import customerCreate from "./modularPmService/modularPmServiceCustomerCreate.json";
 import paymentMethodCreate from "./modularPmService/modular-pm-service-pm-create.json";
@@ -51,19 +56,23 @@ export {
   createConnectorBody,
   createPaymentBody,
   createPayoutBody,
+  createPayoutLinkBody,
   customerCreateBody,
   customerUpdateBody,
   disputeEvidenceBody,
   eligibilityCheckBody,
   extendAuthBody,
+  threeDSAuthenticationBody,
   gsmBody,
   listRefundCall,
   merchantCreateBody,
   merchantUpdateBody,
   mitConfirmBody,
   ntidConfirmBody,
+  payoutRoutingConfigBody,
   pmIdConfirmBody,
   refundBody,
+  relayBody,
   routingConfigBody,
   saveCardConfirmBody,
   sessionTokenBody,
@@ -77,4 +86,5 @@ export {
   paymentMethodSessionUpdate,
   paymentMethodSessionConfirm,
   modularPmServicePaymentsCall,
+  pmCollectLinkBody,
 };

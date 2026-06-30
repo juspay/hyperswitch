@@ -12,26 +12,21 @@ use hyperswitch_interfaces::errors;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{types::ResponseRouterData, utils};
+use crate::types::ResponseRouterData;
 
 #[derive(Default, Debug, Serialize)]
 pub struct HyperswitchVaultCreateRequest {
-    customer_id: String,
+    // Optional so the guest flow (no customer) can send `customer_id: null`.
+    customer_id: Option<String>,
     storage_type: common_enums::StorageType,
 }
 
 impl TryFrom<&VaultRouterData<ExternalVaultCreateFlow>> for HyperswitchVaultCreateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &VaultRouterData<ExternalVaultCreateFlow>) -> Result<Self, Self::Error> {
-        let customer_id = item
-            .request
-            .connector_customer_id
-            .clone()
-            .ok_or_else(utils::missing_field_err("connector_customer"))?;
-
         Ok(Self {
-            customer_id,
-            storage_type: common_enums::StorageType::Persistent,
+            customer_id: item.request.connector_customer_id.clone(),
+            storage_type: item.request.storage_type.unwrap_or_default(),
         })
     }
 }

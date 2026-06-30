@@ -1,3 +1,5 @@
+import { getCustomExchange } from "./Modifiers";
+
 const successfulThreeDSTestCardDetails = {
   card_number: "4000000000001091",
   card_exp_month: "12",
@@ -8,6 +10,14 @@ const successfulThreeDSTestCardDetails = {
 
 const successfulNo3DSCardDetails = {
   card_number: "4200000000000000",
+  card_exp_month: "03",
+  card_exp_year: "30",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
+
+const failedNo3DSCardDetails = {
+  card_number: "4000000000000002",
   card_exp_month: "03",
   card_exp_year: "30",
   card_holder_name: "joseph Doe",
@@ -59,6 +69,15 @@ const billingAddress = {
   phone: {
     number: "9123456789",
     country_code: "+91",
+  },
+};
+
+const paypalMandateCustomerAcceptance = {
+  acceptance_type: "online",
+  accepted_at: "2026-06-29T12:00:00Z",
+  online: {
+    ip_address: "192.168.1.1",
+    user_agent: "Mozilla/5.0",
   },
 };
 
@@ -158,6 +177,22 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
         },
       },
     },
@@ -801,6 +836,49 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  wallet_pm: {
+    PaymentIntent: () =>
+      getCustomExchange({
+        Request: {
+          currency: "EUR",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    PaypalRedirectMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        billing: billingAddress,
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        setup_future_usage: "off_session",
+        mandate_data: {
+          customer_acceptance: paypalMandateCustomerAcceptance,
+          mandate_type: {
+            single_use: {
+              amount: 6000,
+              currency: "EUR",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
   },
   webhook: {
     TransactionIdConfig: {

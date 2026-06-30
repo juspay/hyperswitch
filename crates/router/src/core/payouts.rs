@@ -96,6 +96,7 @@ pub struct PayoutData {
     pub connector_transfer_method_id: Option<String>,
     pub browser_info: Option<domain_models::router_request_types::BrowserInformation>,
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,
+    pub attempts: Option<Vec<storage::PayoutAttempt>>,
 }
 
 // ********************************************** CORE FLOWS **********************************************
@@ -112,6 +113,7 @@ pub fn get_next_connector(
 pub async fn get_connector_choice(
     state: &SessionState,
     processor: &domain::Processor,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     connector: Option<String>,
     routing_algorithm: Option<serde_json::Value>,
     payout_data: &mut PayoutData,
@@ -149,6 +151,7 @@ pub async fn get_connector_choice(
             helpers::decide_payout_connector(
                 state,
                 processor,
+                dimensions,
                 Some(request_straight_through),
                 &mut routing_data,
                 payout_data,
@@ -170,6 +173,7 @@ pub async fn get_connector_choice(
             helpers::decide_payout_connector(
                 state,
                 processor,
+                dimensions,
                 None,
                 &mut routing_data,
                 payout_data,
@@ -310,6 +314,7 @@ pub async fn payouts_core(
     let connector_call_type = get_connector_choice(
         state,
         platform.get_processor(),
+        &dimensions.with_profile_id(payout_data.business_profile.get_id().clone()),
         payout_attempt.connector.clone(),
         routing_algorithm,
         payout_data,
@@ -576,6 +581,10 @@ pub async fn payouts_retrieve_core(
         &state.locale,
     ))
     .await?;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_profile_id(payout_data.business_profile.get_id().clone());
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
 
@@ -584,6 +593,7 @@ pub async fn payouts_retrieve_core(
         let connector_call_type = get_connector_choice(
             &state,
             platform.get_processor(),
+            &dimensions,
             payout_attempt.connector.clone(),
             None,
             &mut payout_data,
@@ -832,14 +842,16 @@ pub async fn payouts_list_core(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
-    let payouts = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, payouts);
+    let payouts =
+        core_utils::filter_objects_based_on_profile_id_list(profile_id_list.clone(), payouts);
 
     let mut pi_pa_tuple_vec = PayoutActionData::new();
 
     for payout in payouts {
         match db
-            .find_payout_attempt_by_merchant_id_payout_attempt_id(
+            .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
                 merchant_id,
+                &payout.payout_id,
                 &utils::get_payout_attempt_id(
                     payout.payout_id.get_string_repr(),
                     payout.attempt_count,
@@ -925,11 +937,32 @@ pub async fn payouts_list_core(
         .map(ForeignFrom::foreign_from)
         .collect();
 
+    let constraints = constraints.into();
+    let active_payout_ids = db
+        .filter_active_payout_ids_by_constraints(merchant_id, &constraints)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to filter active payout ids based on the constraints")?;
+
+    let total_count = db
+        .get_total_count_of_filtered_payouts(
+            merchant_id,
+            &active_payout_ids,
+            profile_id_list,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get total count of filtered payouts")?;
+
     Ok(services::ApplicationResponse::Json(
         api::PayoutListResponse {
             size: data.len(),
             data,
-            total_count: None,
+            total_count: Some(total_count),
         },
     ))
 }
@@ -958,7 +991,7 @@ pub async fn payouts_filtered_list_core(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
-    let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
+    let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list.clone(), list);
     let data: Vec<api::PayoutCreateResponse> =
         join_all(list.into_iter().map(|(p, pa, customer, address)| async {
             let customer: Option<domain::Customer> = customer
@@ -1027,6 +1060,7 @@ pub async fn payouts_filtered_list_core(
         .get_total_count_of_filtered_payouts(
             platform.get_processor().get_account().get_id(),
             &active_payout_ids,
+            profile_id_list,
             filters.connector.clone(),
             filters.currency.clone(),
             filters.status.clone(),
@@ -2411,7 +2445,9 @@ pub async fn create_recipient_disburse_account(
                     let pm_update =
                         diesel_models::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                             #[cfg(feature = "v1")]
-                            connector_mandate_details: Some(connector_mandate_details_value),
+                            connector_mandate_details: Some(Secret::new(
+                                connector_mandate_details_value,
+                            )),
 
                             #[cfg(feature = "v2")]
                             connector_mandate_details: Some(common_connector_mandate),
@@ -2863,7 +2899,13 @@ pub async fn trigger_webhook_and_handle_response(
     payout_data: &PayoutData,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let response = response_handler(state, platform, payout_data).await?;
-    utils::trigger_payouts_webhook(state, platform, &response).await?;
+    utils::trigger_payouts_webhook(
+        state,
+        platform,
+        &response,
+        payout_data.payouts.created_by.as_ref(),
+    )
+    .await?;
     Ok(services::ApplicationResponse::Json(response))
 }
 
@@ -2890,7 +2932,7 @@ pub async fn response_handler(
     let payout_link = payout_data.payout_link.to_owned();
     let billing_address = payout_data.billing_address.to_owned();
     let customer_details = payout_data.customer_details.to_owned();
-    let customer_id = payouts.customer_id;
+    let customer_id = payouts.customer_id.clone();
     let billing = billing_address.map(From::from);
 
     let translated_unified_message = helpers::get_translated_unified_code_and_message(
@@ -2935,7 +2977,7 @@ pub async fn response_handler(
         description: payouts.description.to_owned(),
         entity_type: payouts.entity_type.to_owned(),
         recurring: payouts.recurring,
-        metadata: payouts.metadata,
+        metadata: payouts.metadata.clone(),
         merchant_connector_id: payout_attempt.merchant_connector_id.to_owned(),
         status: payout_attempt.status.to_owned(),
         error_message: payout_attempt.error_message.to_owned(),
@@ -2944,7 +2986,12 @@ pub async fn response_handler(
         created: Some(payouts.created_at),
         connector_transaction_id: payout_attempt.connector_payout_id,
         priority: payouts.priority,
-        attempts: None,
+        attempts: payout_data.attempts.as_ref().map(|attempts| {
+            attempts
+                .iter()
+                .map(|attempt| attempt.to_payout_attempt_response(&payouts))
+                .collect()
+        }),
         unified_code: payout_attempt.unified_code,
         unified_message: translated_unified_message,
         payout_link: payout_link
@@ -3240,6 +3287,7 @@ pub async fn payout_create_db_entries(
         connector_transfer_method_id: None,
         browser_info: req.browser_info.clone().map(Into::into),
         source_bank_data: req.source_bank_data.clone(),
+        attempts: None,
     })
 }
 
@@ -3281,6 +3329,31 @@ pub async fn make_payout_data(
         payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
     };
 
+    let attempts = match req {
+        payouts::PayoutRequest::PayoutActionRequest(_) => None,
+        payouts::PayoutRequest::PayoutCreateRequest(_) => None,
+        payouts::PayoutRequest::PayoutRetrieveRequest(retrieve_request) => {
+            match retrieve_request.expand_attempts {
+                Some(true) => db
+                    .find_payout_attempts_by_merchant_id_payout_id(
+                        merchant_id,
+                        &retrieve_request.payout_id,
+                        platform.get_processor().get_account().storage_scheme,
+                    )
+                    .await
+                    .map_err(|err| {
+                        let err_msg = format!(
+                            "failed to fetch payout_attempts for payout_id: {:?}",
+                            retrieve_request.payout_id
+                        );
+                        logger::error!(?err, err_msg);
+                    })
+                    .ok(),
+                Some(false) | None => None,
+            }
+        }
+    };
+
     let payouts = db
         .find_payout_by_merchant_id_payout_id(
             merchant_id,
@@ -3295,8 +3368,9 @@ pub async fn make_payout_data(
         utils::get_payout_attempt_id(payouts.payout_id.get_string_repr(), payouts.attempt_count);
 
     let mut payout_attempt = db
-        .find_payout_attempt_by_merchant_id_payout_attempt_id(
+        .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
             merchant_id,
+            &payouts.payout_id,
             &payout_attempt_id,
             platform.get_processor().get_account().storage_scheme,
         )
@@ -3524,6 +3598,7 @@ pub async fn make_payout_data(
         connector_transfer_method_id: None,
         browser_info,
         source_bank_data,
+        attempts,
     })
 }
 
@@ -3546,6 +3621,7 @@ pub async fn add_external_account_addition_task(
         payout_id: payout_data.payouts.payout_id.to_owned(),
         force_sync: None,
         merchant_id: Some(payout_data.payouts.merchant_id.to_owned()),
+        expand_attempts: None,
     };
     let process_tracker_entry = storage::ProcessTrackerNew::new(
         process_tracker_id,
@@ -3830,8 +3906,9 @@ pub async fn payouts_manual_update_core(
 
         let payout_attempt = state
             .store
-            .find_payout_attempt_by_merchant_id_payout_attempt_id(
+            .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
                 &merchant_id,
+                &payout_id,
                 &payout_attempt_id,
                 merchant_account.storage_scheme,
             )

@@ -25,6 +25,7 @@ use crate::{
     consts,
     core::{
         configs::dimension_state,
+        customers,
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::{
             cards,
@@ -271,11 +272,11 @@ impl SourceBankDataOperation {
     ) -> RouterResult<Option<String>> {
         match source_bank_data {
             Some(source_bank_data) => {
-                let sourc_bank_data_token = Self::get_source_bank_data_token();
+                let source_bank_data_token = Self::get_source_bank_data_token();
 
                 let lookup_key = vault::Vault::store_payout_method_data_in_locker(
                     state,
-                    Some(sourc_bank_data_token),
+                    Some(source_bank_data_token),
                     &api::PayoutMethodData::BankTransfer(source_bank_data),
                     customer_id,
                     merchant_key_store,
@@ -762,6 +763,7 @@ pub async fn save_payout_data_to_locker(
                 None,
                 None,
                 None,
+                None,
                 Default::default(),
                 None,
                 None,
@@ -989,11 +991,11 @@ pub(super) async fn get_or_create_customer_details(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Unable to encrypt document_details")?;
 
-                let customer = domain::Customer {
-                    customer_id: customer_id.clone(),
-                    merchant_id: merchant_id.to_owned().clone(),
-                    name: encryptable_customer.name,
-                    email: encryptable_customer.email.map(|email| {
+                let customer = domain::Customer::new(
+                    customer_id.clone(),
+                    merchant_id.to_owned().clone(),
+                    encryptable_customer.name,
+                    encryptable_customer.email.map(|email| {
                         let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> =
                             Encryptable::new(
                                 email.clone().into_inner().switch_strategy(),
@@ -1001,26 +1003,22 @@ pub(super) async fn get_or_create_customer_details(
                             );
                         encryptable
                     }),
-                    phone: encryptable_customer.phone,
-                    description: None,
-                    phone_country_code: customer_details.phone_country_code.to_owned(),
-                    metadata: None,
-                    connector_customer: None,
-                    created_at: common_utils::date_time::now(),
-                    modified_at: common_utils::date_time::now(),
-                    address_id: None,
-                    default_payment_method_id: None,
-                    updated_by: None,
-                    version: common_types::consts::API_VERSION,
-                    tax_registration_id: encryptable_customer.tax_registration_id,
+                    encryptable_customer.phone,
+                    customer_details.phone_country_code.to_owned(),
+                    None,
+                    None,
+                    None,
+                    None,
+                    encryptable_customer.tax_registration_id,
                     document_details,
-                    created_by: platform
+                    platform
                         .get_initiator()
                         .and_then(|initiator| initiator.to_created_by()),
-                    last_modified_by: platform
+                    platform
                         .get_initiator()
                         .and_then(|initiator| initiator.to_created_by()), // Same as created_by on creation
-                };
+                    customers::generate_global_customer_id(&state.conf.cell_information.id),
+                );
 
                 Ok(Some(
                     db.insert_customer(
@@ -1049,6 +1047,7 @@ pub(super) async fn get_or_create_customer_details(
 pub async fn decide_payout_connector(
     state: &SessionState,
     processor: &domain::Processor,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
     payout_data: &mut PayoutData,
@@ -1183,6 +1182,7 @@ pub async fn decide_payout_connector(
     route_connector_v1_for_payouts(
         state,
         processor,
+        dimensions,
         &payout_data.business_profile,
         payout_data,
         routing_data,

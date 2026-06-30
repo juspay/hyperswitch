@@ -1,4 +1,5 @@
 import { customerAcceptance } from "./Commons";
+import { getIframeRedirectionConfig } from "./Modifiers";
 
 const successful3DSCardDetails = {
   card_number: "4761739090000088",
@@ -41,6 +42,9 @@ export const connectorDetails = {
         },
       },
     },
+    ...getIframeRedirectionConfig({
+      cardDetails: successful3DSCardDetails,
+    }),
     "3DSManualCapture": {
       Request: {
         payment_method: "card",

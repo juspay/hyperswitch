@@ -46,6 +46,7 @@ pub mod routes {
             ApplicationResponse,
         },
         types::{domain::UserEmail, storage::UserRole},
+        utils::get_payment_response_hash_key,
     };
 
     pub struct Analytics;
@@ -56,16 +57,26 @@ pub mod routes {
             web::scope("/v2/analytics")
                 .app_data(web::Data::new(state))
                 .service(
-                    web::scope("/profile").service(
-                        web::resource("report/payments")
-                            .route(web::post().to(generate_profile_payment_report)),
-                    ),
+                    web::scope("/profile")
+                        .service(
+                            web::resource("report/payments")
+                                .route(web::post().to(generate_profile_payment_report)),
+                        )
+                        .service(
+                            web::resource("payment_intents/aggregate")
+                                .route(web::get().to(get_profile_payment_intent_aggregate)),
+                        ),
                 )
                 .service(
-                    web::scope("/merchant").service(
-                        web::resource("report/payments")
-                            .route(web::post().to(generate_merchant_payment_report)),
-                    ),
+                    web::scope("/merchant")
+                        .service(
+                            web::resource("report/payments")
+                                .route(web::post().to(generate_merchant_payment_report)),
+                        )
+                        .service(
+                            web::resource("payment_intents/aggregate")
+                                .route(web::get().to(get_merchant_payment_intent_aggregate)),
+                        ),
                 )
                 .service(
                     web::scope("/org").service(
@@ -204,6 +215,10 @@ pub mod routes {
                                 .route(web::post().to(get_merchant_sankey)),
                         )
                         .service(
+                            web::resource("payment_intents/aggregate")
+                                .route(web::get().to(get_merchant_payment_intent_aggregate)),
+                        )
+                        .service(
                             web::resource("metrics/auth_events/sankey")
                                 .route(web::post().to(get_merchant_auth_event_sankey)),
                         )
@@ -251,6 +266,10 @@ pub mod routes {
                                 .service(
                                     web::resource("report/refunds")
                                         .route(web::post().to(generate_merchant_refund_report)),
+                                )
+                                .service(
+                                    web::resource("report/relay")
+                                        .route(web::post().to(generate_merchant_relay_report)),
                                 )
                                 .service(
                                     web::resource("report/payments")
@@ -430,6 +449,10 @@ pub mod routes {
                                         .route(web::post().to(generate_profile_refund_report)),
                                 )
                                 .service(
+                                    web::resource("report/relay")
+                                        .route(web::post().to(generate_profile_relay_report)),
+                                )
+                                .service(
                                     web::resource("report/payments")
                                         .route(web::post().to(generate_profile_payment_report)),
                                 )
@@ -453,6 +476,10 @@ pub mod routes {
                                 .service(
                                     web::resource("metrics/sankey")
                                         .route(web::post().to(get_profile_sankey)),
+                                )
+                                .service(
+                                    web::resource("payment_intents/aggregate")
+                                        .route(web::get().to(get_profile_payment_intent_aggregate)),
                                 )
                                 .service(
                                     web::resource("metrics/auth_events/sankey")
@@ -562,7 +589,7 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -615,7 +642,7 @@ pub mod routes {
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),
@@ -718,6 +745,81 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
                 allow_connected: true,
+                allow_platform: true,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_merchant_payment_intent_aggregate(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        query: web::Query<TimeRange>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetPaymentIntentsAggregate;
+        let payload = query.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let status_with_count = state
+                    .pool
+                    .get_intent_status_with_count(&auth_info, &req)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+                Ok(ApplicationResponse::Json(
+                    api_models::payments::PaymentsAggregateResponse { status_with_count },
+                ))
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantPaymentRead,
+                allow_connected: true,
+                allow_platform: true,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_profile_payment_intent_aggregate(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        query: web::Query<TimeRange>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetPaymentIntentsAggregate;
+        let payload = query.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                #[cfg(feature = "v1")]
+                let profile_id = auth
+                    .profile
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::AccessForbiddenError)?
+                    .get_id()
+                    .clone();
+                #[cfg(feature = "v2")]
+                let profile_id = auth.profile.get_id().clone();
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let status_with_count = state
+                    .pool
+                    .get_intent_status_with_count(&auth_info, &req)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+                Ok(ApplicationResponse::Json(
+                    api_models::payments::PaymentsAggregateResponse { status_with_count },
+                ))
+            },
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentRead,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -771,7 +873,7 @@ pub mod routes {
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),
@@ -874,7 +976,7 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -927,7 +1029,7 @@ pub mod routes {
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),
@@ -1145,7 +1247,7 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1232,7 +1334,7 @@ pub mod routes {
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),
@@ -1261,7 +1363,7 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1288,7 +1390,7 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1321,7 +1423,7 @@ pub mod routes {
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),
@@ -1390,7 +1492,7 @@ pub mod routes {
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),
@@ -1488,7 +1590,7 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1521,7 +1623,7 @@ pub mod routes {
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),
@@ -1814,11 +1916,25 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_merchant_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -1834,12 +1950,12 @@ pub mod routes {
             auth::auth_type(
                 &auth::ApiKeyAuth {
                     allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
+                    allow_platform_self_operation: true,
                 },
                 &auth::JWTAuth {
                     permission: Permission::MerchantReportRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),
@@ -1903,11 +2019,14 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_org_level_auth_info();
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth.platform.to_org_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: None,
                 };
 
                 let json_bytes =
@@ -1920,18 +2039,11 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::OrganizationReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
+            &auth::JWTAuth {
+                permission: Permission::OrganizationReportRead,
+                allow_connected: true,
+                allow_platform: true,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -1998,11 +2110,26 @@ pub mod routes {
                     .change_context(AnalyticsError::AccessForbiddenError)?
                     .get_id()
                     .clone();
+
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_profile_level_auth_info(profile_id),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2031,6 +2158,247 @@ pub mod routes {
         ))
         .await
     }
+    #[cfg(feature = "v1")]
+    pub async fn generate_merchant_relay_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateRelayReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_active_user_by_user_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
+
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        validate_report_request(&payload)?;
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
+
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
+                    auth: auth_info,
+                    email: user_email,
+                    payment_response_hash_key: hash_key,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+
+                let lambda_result = invoke_lambda(
+                    &state.conf.report_download_config.relay_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await;
+
+                match &lambda_result {
+                    Ok(_) => logger::info!(
+                        merchant_id = ?lambda_req.merchant_id,
+                        "Successfully invoked relay report lambda function"
+                    ),
+                    Err(error) => logger::error!(
+                        merchant_id = ?lambda_req.merchant_id,
+                        ?error,
+                        "Failed to invoke relay report lambda function"
+                    ),
+                }
+
+                lambda_result.map(ApplicationResponse::Json)
+            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::MerchantReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    pub async fn generate_profile_relay_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateRelayReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_active_user_by_user_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
+
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        validate_report_request(&payload)?;
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
+
+                let profile_id = auth
+                    .profile
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::AccessForbiddenError)?
+                    .get_id()
+                    .clone();
+
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
+                    auth: auth_info,
+                    email: user_email,
+                    payment_response_hash_key: hash_key,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+
+                let lambda_result = invoke_lambda(
+                    &state.conf.report_download_config.relay_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await;
+
+                match &lambda_result {
+                    Ok(_) => logger::info!(
+                        merchant_id = ?lambda_req.merchant_id,
+                        "Successfully invoked relay report lambda function"
+                    ),
+                    Err(error) => logger::error!(
+                        merchant_id = ?lambda_req.merchant_id,
+                        ?error,
+                        "Failed to invoke relay report lambda function"
+                    ),
+                }
+
+                lambda_result.map(ApplicationResponse::Json)
+            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::ProfileReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
     #[cfg(feature = "v1")]
     pub async fn generate_merchant_dispute_report(
         state: web::Data<AppState>,
@@ -2086,11 +2454,25 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_merchant_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2106,12 +2488,12 @@ pub mod routes {
             auth::auth_type(
                 &auth::ApiKeyAuth {
                     allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
+                    allow_platform_self_operation: true,
                 },
                 &auth::JWTAuth {
                     permission: Permission::MerchantReportRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),
@@ -2174,11 +2556,14 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_org_level_auth_info();
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth.platform.to_org_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: None,
                 };
 
                 let json_bytes =
@@ -2191,18 +2576,11 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::OrganizationReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
+            &auth::JWTAuth {
+                permission: Permission::OrganizationReportRead,
+                allow_connected: true,
+                allow_platform: true,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2269,11 +2647,25 @@ pub mod routes {
                     .change_context(AnalyticsError::AccessForbiddenError)?
                     .get_id()
                     .clone();
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_profile_level_auth_info(profile_id),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2358,11 +2750,25 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_merchant_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2378,12 +2784,12 @@ pub mod routes {
             auth::auth_type(
                 &auth::ApiKeyAuth {
                     allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
+                    allow_platform_self_operation: true,
                 },
                 &auth::JWTAuth {
                     permission: Permission::MerchantReportRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),
@@ -2447,11 +2853,14 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_org_level_auth_info();
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth.platform.to_org_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: None,
                 };
 
                 let json_bytes =
@@ -2464,18 +2873,11 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::OrganizationReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
+            &auth::JWTAuth {
+                permission: Permission::OrganizationReportRead,
+                allow_connected: true,
+                allow_platform: true,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2541,11 +2943,25 @@ pub mod routes {
                     .change_context(AnalyticsError::AccessForbiddenError)?
                     .get_id()
                     .clone();
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_profile_level_auth_info(profile_id),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2629,11 +3045,25 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_merchant_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2649,12 +3079,12 @@ pub mod routes {
             auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
                 &auth::ApiKeyAuth {
                     allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
+                    allow_platform_self_operation: true,
                 },
                 &auth::JWTAuth {
                     permission: Permission::MerchantReportRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),
@@ -2717,11 +3147,14 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_org_level_auth_info();
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth.platform.to_org_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: None,
                 };
 
                 let json_bytes =
@@ -2734,18 +3167,11 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::OrganizationReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
+            &auth::JWTAuth {
+                permission: Permission::OrganizationReportRead,
+                allow_connected: true,
+                allow_platform: true,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2818,11 +3244,26 @@ pub mod routes {
                         auth.profile.get_id().clone()
                     }
                 };
+
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_profile_level_auth_info(profile_id),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2907,11 +3348,25 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_merchant_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2927,12 +3382,12 @@ pub mod routes {
             auth::auth_type(
                 &auth::ApiKeyAuth {
                     allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
+                    allow_platform_self_operation: true,
                 },
                 &auth::JWTAuth {
                     permission: Permission::MerchantReportRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),
@@ -2996,11 +3451,14 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_org_level_auth_info();
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth.platform.to_org_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: None,
                 };
 
                 let json_bytes =
@@ -3013,18 +3471,11 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::OrganizationReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
+            &auth::JWTAuth {
+                permission: Permission::OrganizationReportRead,
+                allow_connected: true,
+                allow_platform: true,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -3090,11 +3541,25 @@ pub mod routes {
                     .change_context(AnalyticsError::AccessForbiddenError)?
                     .get_id()
                     .clone();
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_profile_level_auth_info(profile_id),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -3157,7 +3622,7 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -3187,7 +3652,7 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -3345,7 +3810,7 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -3750,7 +4215,7 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -3817,7 +4282,7 @@ pub mod routes {
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),
@@ -3856,7 +4321,7 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -3943,7 +4408,7 @@ pub mod routes {
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),
@@ -3973,7 +4438,7 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -4001,7 +4466,7 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -4035,7 +4500,7 @@ pub mod routes {
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),
@@ -4106,7 +4571,7 @@ pub mod routes {
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
                     allow_connected: true,
-                    allow_platform: false,
+                    allow_platform: true,
                 },
                 req.headers(),
             ),

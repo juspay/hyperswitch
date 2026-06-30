@@ -91,6 +91,8 @@ pub const GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX: &str = "GUEST_USER_CARD_BLO
 
 pub const CUSTOMER_ID_BLOCKING_PREFIX: &str = "CUSTOMER_ID_BLOCKING";
 
+pub const GUEST_IP_BLOCKING_CACHE_KEY_PREFIX: &str = "GUEST_IP_BLOCKING";
+
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
 #[cfg(feature = "olap")]
@@ -126,6 +128,9 @@ pub const POLL_ID_TTL: i64 = 900;
 
 // 15 minutes = 900 seconds
 pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_TTL: i64 = 900;
+
+// TTL for external surcharge details stored in Redis (15 minutes)
+pub const EXTERNAL_SURCHARGE_TTL: i64 = 900;
 
 // Prefix key for storing authentication eligibility check data in redis
 pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY: &str = "AUTH_ELIGIBILITY_CHECK_DATA_";
@@ -176,6 +181,9 @@ pub const DEFAULT_BACKGROUND_COLOR: &str = "#212E46";
 /// Default product Img Link
 pub const DEFAULT_PRODUCT_IMG: &str =
     "https://live.hyperswitch.io/payment-link-assets/cart_placeholder.png";
+
+/// Show merchant name by default for payment links
+pub const DEFAULT_SHOW_MERCHANT_NAME: bool = true;
 
 /// Default SDK Layout
 pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
@@ -330,6 +338,10 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
 // Rollout percentage config prefix
 pub const UCS_ROLLOUT_PERCENT_CONFIG_PREFIX: &str = "ucs_rollout_config";
 
+// Sentinel value cached when a rollout config key is absent, so subsequent lookups
+// skip the DB entirely instead of hitting it on every cache miss.
+pub const UCS_ROLLOUT_CONFIG_NOT_CONFIGURED: &str = "not_configured";
+
 // UCS feature enabled config
 pub const UCS_ENABLED: &str = "ucs_enabled";
 
@@ -359,6 +371,21 @@ pub mod superposition {
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
     /// Fingerprint secret configuration key
     pub const FINGERPRINT_SECRET: &str = "fingerprint_secret";
+    /// Poll config for external 3DS authentication key
+    pub const POLL_CONFIG_EXTERNAL_THREE_DS: &str = "poll_config_external_three_ds";
+    /// Outgoing webhook retry process tracker mapping key
+    pub const PT_MAPPING_OUTGOING_WEBHOOKS: &str = "pt_mapping_outgoing_webhooks";
+    /// Outgoing connector webhook retry process tracker mapping key
+    pub const PT_MAPPING_OUTGOING_CONNECTOR_WEBHOOKS: &str =
+        "pt_mapping_outgoing_connector_webhooks";
+    /// PCR (Revenue Recovery) payments retry process tracker mapping key
+    pub const PT_MAPPING_PCR_RETRIES: &str = "pt_mapping_pcr_retries";
+    /// Payment sync (psync) retry process tracker mapping key
+    pub const PT_MAPPING_PAYMENT_SYNC: &str = "pt_mapping_payment_sync";
+    /// Refund sync retry process tracker mapping key
+    pub const PT_MAPPING_REFUND_SYNC: &str = "pt_mapping_refund_sync";
+    /// Dispute sync retry process tracker mapping key
+    pub const PT_MAPPING_DISPUTE_SYNC: &str = "pt_mapping_dispute_sync";
     /// GSM (Global Status Map) call configuration key
     pub const SHOULD_CALL_GSM: &str = "should_call_gsm";
     /// Eligibility check configuration key
@@ -385,12 +412,28 @@ pub mod superposition {
     /// Schedule PM modular forward compatibility PT configuration key
     pub const SHOULD_SCHEDULE_MODULAR_FORWARD_COMPAT: &str =
         "should_schedule_modular_forward_compat";
+    /// Schedule PM modular backward compatibility PT configuration key
+    pub const SHOULD_SCHEDULE_MODULAR_BACKWARD_COMPAT: &str =
+        "should_schedule_modular_backward_compat";
+    /// Trigger PM modular backward compatibility inline configuration key
+    pub const SHOULD_TRIGGER_BACKWARDS_COMPATIBILITY_INLINE: &str =
+        "should_trigger_backwards_compatibility_inline";
+    /// Trigger fingerprint migration configuration key
+    pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str = "should_trigger_fingerprint_migration";
     /// dynamic fields configuration key for sdk config
     pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
     /// payout sync tracker configuration key
     pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
     /// client session validation enabled configuration key
     pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
+    /// routing result source configuration key (selects between Hyperswitch and Decision Engine)
+    pub const ROUTING_RESULT_SOURCE: &str = "routing_result_source";
+    /// 3DS routing region configuration key for UAS
+    pub const THREEDS_ROUTING_REGION_UAS: &str = "threeds_routing_region_uas";
+    /// disabled webhook events configuration key per merchant and connector
+    pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
+    /// save wallet decrypted data in locker
+    pub const SAVE_WALLET_DECRYPTED_DATA: &str = "save_wallet_decrypted_data";
 }
 
 #[cfg(test)]

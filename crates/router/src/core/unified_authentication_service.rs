@@ -686,6 +686,8 @@ pub async fn create_new_authentication(
         merchant_country_code: None,
         processor_merchant_id: Some(processor.get_account().get_id().clone()),
         created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+        // Seed with the configured scheme; the insert layer overwrites with the decided one.
+        updated_by: Some(processor.get_account().storage_scheme.to_string()),
     };
 
     state
@@ -694,6 +696,7 @@ pub async fn create_new_authentication(
             &key_manager_state,
             processor.get_key_store(),
             new_authentication,
+            processor.get_account().storage_scheme,
         )
         .await
         .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
@@ -741,37 +744,20 @@ pub async fn authentication_create_core(
             .unwrap_or(business_profile.force_3ds_challenge),
     );
 
-    // Priority logic: First check req.acquirer_details, then fallback to profile_acquirer_id lookup
+    // Priority logic: Use acquirer_details from request if explicitly supplied.
+    // If profile_acquirer_id is provided instead, we defer acquirer resolution to
+    // authentication_eligibility_core where the card network becomes available via the card number.
     let (acquirer_bin, acquirer_merchant_id, acquirer_country_code) =
         if let Some(acquirer_details) = &req.acquirer_details {
-            // Priority 1: Use acquirer_details from request if present
             (
                 acquirer_details.acquirer_bin.clone(),
                 acquirer_details.acquirer_merchant_id.clone(),
                 acquirer_details.merchant_country_code.clone(),
             )
         } else {
-            // Priority 2: Fallback to profile_acquirer_id lookup
-            let acquirer_details = req.profile_acquirer_id.clone().and_then(|acquirer_id| {
-                business_profile
-                    .acquirer_config_map
-                    .and_then(|acquirer_config_map| {
-                        acquirer_config_map.0.get(&acquirer_id).cloned()
-                    })
-            });
-
-            acquirer_details
-                .as_ref()
-                .map(|details| {
-                    (
-                        Some(details.acquirer_bin.clone()),
-                        Some(details.acquirer_assigned_merchant_id.clone()),
-                        business_profile
-                            .merchant_country_code
-                            .map(|code| code.get_country_code().to_owned()),
-                    )
-                })
-                .unwrap_or((None, None, None))
+            // profile_acquirer_id path: do NOT resolve here — network is unknown.
+            // The profile_acquirer_id is saved on the Authentication record and resolved later.
+            (None, None, None)
         };
 
     let customer_details = req
@@ -1058,12 +1044,18 @@ pub async fn authentication_eligibility_core(
     let key_manager_state = (&state).into();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(merchant_account.organization_id.clone());
+
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id,
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -1108,25 +1100,21 @@ pub async fn authentication_eligibility_core(
         )
         .await?;
 
-    let notification_url = match authentication_connector {
-        common_enums::AuthenticationConnectors::Juspaythreedsserver => {
-            Some(url::Url::parse(&format!(
-                "{base_url}/authentication/{merchant_id}/{authentication_id}/redirect",
-                base_url = state.base_url,
-                merchant_id = merchant_id.get_string_repr(),
-                authentication_id = authentication_id.get_string_repr()
-            )))
-            .transpose()
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse notification url")?
-        }
-        _ => authentication
-            .return_url
-            .as_ref()
-            .map(|url| url::Url::parse(url))
-            .transpose()
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse return url")?,
+    let notification_url = match authentication.return_url {
+        Some(ref url) => Some(
+            url::Url::parse(url)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse return url")?,
+        ),
+        None => Some(url::Url::parse(&format!(
+            "{base_url}/authentication/{merchant_id}/{authentication_id}/redirect",
+            base_url = state.base_url,
+            merchant_id = merchant_id.get_string_repr(),
+            authentication_id = authentication_id.get_string_repr()
+        )))
+        .transpose()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse notification url")?,
     };
 
     let authentication_connector_name = authentication_connector.to_string();
@@ -1138,39 +1126,149 @@ pub async fn authentication_eligibility_core(
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("no amount found in authentication table")?;
 
-    let acquirer_details = authentication
-        .profile_acquirer_id
-        .clone()
-        .and_then(|acquirer_id| {
-            business_profile
-                .acquirer_config_map
-                .and_then(|acquirer_config_map| acquirer_config_map.0.get(&acquirer_id).cloned())
-        });
+    let (acquirer_bin, acquirer_merchant_id, acquirer_country_code, merchant_name) =
+        if authentication.acquirer_bin.is_none() || authentication.acquirer_merchant_id.is_none() {
+            // Determine the card network for bucket resolution.
+            let mut card_network = match &payment_method_data {
+                domain::PaymentMethodData::Card(card) => card.card_network.clone(),
+                domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_network.clone(),
+                domain::PaymentMethodData::CardWithNetworkTokenDetails(card) => {
+                    card.card_details.card_network.clone()
+                }
+                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card) => {
+                    card.card_network.clone()
+                }
+                _ => None,
+            };
+
+            if card_network.is_none() {
+                let card_isin = match &payment_method_data {
+                    domain::PaymentMethodData::Card(card) => Some(card.card_number.get_card_isin()),
+                    domain::PaymentMethodData::CardWithOptionalCVC(card) => {
+                        Some(card.card_number.get_card_isin())
+                    }
+                    domain::PaymentMethodData::CardWithNetworkTokenDetails(card) => {
+                        Some(card.card_details.card_number.get_card_isin())
+                    }
+                    domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card) => {
+                        Some(card.card_number.get_card_isin())
+                    }
+                    _ => None,
+                };
+
+                if let Some(isin) = card_isin {
+                    if let Ok(Some(card_info)) = db.get_card_info(&isin).await {
+                        card_network = card_info.card_network;
+                    }
+                }
+            }
+
+            let card_network = card_network
+                .get_required_value("card_network")
+                .change_context(ApiErrorResponse::MissingRequiredField {
+                    field_name: "card_network",
+                })
+                .attach_printable("Card network is mandatory for resolving acquirer details")?;
+
+            // Priority for bucket resolution:
+            // 1. profile_acquirer_id from eligibility request.
+            // 2. profile_acquirer_id from authentication record (DB).
+            // 3. Fallback to default bucket ONLY IF neither of the above are provided.
+            let bucket_id = authentication.profile_acquirer_id.as_ref();
+
+            let acquirer_details = match bucket_id {
+                Some(acquirer_id) => Some(business_profile
+                    .get_acquirer_details_for_profile_acquirer(acquirer_id, card_network.clone())
+                    .ok_or_else(|| {
+                        error_stack::report!(ApiErrorResponse::GenericNotFoundError {
+                            message: format!(
+                                "Configuration for network {} not found for bucket {}",
+                                card_network,
+                                acquirer_id.get_string_repr()
+                            ),
+                        })
+                        .attach_printable(
+                            "The requested profile acquirer bucket does not contain the required card network configuration",
+                        )
+                    })?),
+                // Ignoring this error as merchant can also configure acquirer details on authentication connector side as well.
+                None => business_profile
+                    .get_default_acquirer_details_from_network(card_network.clone())
+                    .ok_or_else(|| {
+                        router_env::logger::error!("Default Acquirer configuration not found for network {}", card_network)
+                    }).ok(),
+            };
+
+            // If we resolved acquirer details from a bucket, persist them to the authentication record.
+            let key_manager_state_ref = &key_manager_state;
+            db.update_authentication_by_merchant_id_authentication_id(
+                authentication.clone(),
+                hyperswitch_domain_models::authentication::AuthenticationUpdate::AcquirerDetailsUpdate {
+                    acquirer_bin: acquirer_details.as_ref().and_then(|d| d.acquirer_bin.clone()),
+                    acquirer_merchant_id: acquirer_details.as_ref().and_then(|d| d.acquirer_assigned_merchant_id.clone()),
+                    acquirer_country_code: acquirer_details.as_ref().and_then(|d| d.acquirer_country_code.clone()),
+                    updated_by: merchant_account.storage_scheme.to_string(),
+                },
+                platform.get_processor().get_key_store(),
+                key_manager_state_ref,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to persist resolved acquirer details to authentication record")?;
+
+            (
+                acquirer_details
+                    .as_ref()
+                    .and_then(|d| d.acquirer_bin.clone()),
+                acquirer_details
+                    .as_ref()
+                    .and_then(|d| d.acquirer_assigned_merchant_id.clone()),
+                acquirer_details
+                    .as_ref()
+                    .and_then(|d| d.acquirer_country_code.clone()),
+                acquirer_details
+                    .as_ref()
+                    .and_then(|d| d.merchant_name.clone()),
+            )
+        } else {
+            (
+                authentication.acquirer_bin.clone(),
+                authentication.acquirer_merchant_id.clone(),
+                authentication.acquirer_country_code.clone(),
+                None,
+            )
+        };
 
     let metadata: Option<ThreeDsMetaData> = three_ds_connector_account
         .get_metadata()
         .map(|metadata| {
-            metadata.expose().parse_value("ThreeDsMetaData").inspect_err(|err| {
-            router_env::logger::warn!(parsing_error=?err,"Error while parsing ThreeDsMetaData");
-        })
+            metadata
+                .expose()
+                .parse_value("ThreeDsMetaData")
+                .inspect_err(|err| {
+                    router_env::logger::warn!(parsing_error=?err,"Error while parsing ThreeDsMetaData");
+                })
         })
         .transpose()
         .change_context(ApiErrorResponse::InternalServerError)?;
 
-    let merchant_country_code = authentication.acquirer_country_code.clone();
+    let merchant_country_code = business_profile
+        .merchant_country_code
+        .or(acquirer_country_code.map(common_types::payments::MerchantCountryCode::new));
     let merchant_category_code = business_profile.merchant_category_code.or(metadata
         .clone()
         .and_then(|metadata| metadata.merchant_category_code));
 
     let merchant_details = Some(hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails {
         merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
-        merchant_name: acquirer_details.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
+        merchant_name: merchant_name.or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
         merchant_category_code: merchant_category_code.clone(),
         endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
-        three_ds_requestor_url: business_profile.authentication_connector_details.map(|details| details.three_ds_requestor_url),
+        three_ds_requestor_url: business_profile.authentication_connector_details.as_ref().map(|details| details.three_ds_requestor_url.clone()),
         three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
         three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),
-        merchant_country_code: merchant_country_code.clone().map(common_types::payments::MerchantCountryCode::new),
+        merchant_country_code: merchant_country_code.clone(),
         notification_url,
         webhook_url:None
     });
@@ -1179,15 +1277,7 @@ pub async fn authentication_eligibility_core(
         .billing
         .clone()
         .map(hyperswitch_domain_models::address::Address::from);
-
-    let routing_region = utils::fetch_routing_region_for_uas(
-        &state,
-        merchant_id.clone(),
-        merchant_account.organization_id.clone(),
-    )
-    .await
-    .change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to fetch routing path")?;
+    let routing_region = utils::fetch_routing_region_for_uas(&state, &dimensions).await;
 
     let pre_auth_response =
         <ExternalAuthentication as UnifiedAuthenticationService>::pre_authentication(
@@ -1205,8 +1295,10 @@ pub async fn authentication_eligibility_core(
             None,
             merchant_details.as_ref(),
             domain_address.as_ref(),
-            authentication.acquirer_bin.clone(),
-            authentication.acquirer_merchant_id.clone(),
+            // Prefer the freshly-resolved acquirer_bin; fall back to what was already in DB.
+            acquirer_bin.or_else(|| authentication.acquirer_bin.clone()),
+            // Prefer the freshly-resolved acquirer_merchant_id; fall back to DB value.
+            acquirer_merchant_id.or_else(|| authentication.acquirer_merchant_id.clone()),
             Some(routing_region),
         )
         .await?;
@@ -1231,9 +1323,8 @@ pub async fn authentication_eligibility_core(
         req.browser_information.clone(),
         None,
         merchant_category_code,
-        merchant_country_code
-            .clone()
-            .map(common_types::payments::MerchantCountryCode::new),
+        merchant_country_code.clone(),
+        merchant_account.storage_scheme,
     ))
     .await?;
 
@@ -1275,6 +1366,7 @@ pub async fn authentication_authenticate_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -1289,6 +1381,11 @@ pub async fn authentication_authenticate_core(
             )
         })
         .transpose()?;
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(merchant_account.organization_id.clone());
 
     let profile_id = authentication.profile_id.clone();
 
@@ -1335,14 +1432,7 @@ pub async fn authentication_authenticate_core(
         merchant_connector_account_id_or_connector_name,
     );
 
-    let routing_region = utils::fetch_routing_region_for_uas(
-        &state,
-        merchant_id.clone(),
-        merchant_account.organization_id.clone(),
-    )
-    .await
-    .change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to fetch routing path")?;
+    let routing_region = utils::fetch_routing_region_for_uas(&state, &dimensions).await;
 
     let auth_response = <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
         &state,
@@ -1385,6 +1475,7 @@ pub async fn authentication_authenticate_core(
             .and_then(|sdk_information| sdk_information.device_details),
         None,
         None,
+        merchant_account.storage_scheme,
     ))
     .await?;
 
@@ -1609,6 +1700,7 @@ pub async fn authentication_eligibility_check_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -1792,6 +1884,10 @@ async fn execute_post_authentication_flow(
     Option<api_models::authentication::AuthenticationVaultTokenData>,
     Option<api_models::authentication::AuthenticationDetails>,
 )> {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(merchant_account.organization_id.clone());
     let post_auth_response = if authentication_connector.is_click_to_pay() {
         let response = ClickToPay::post_authentication(
             state,
@@ -1809,14 +1905,7 @@ async fn execute_post_authentication_flow(
         metrics::POST_AUTHENTICATION_CARDS_SUCCESSFULLY_DECRYPTED.add(1, &[]);
         response
     } else {
-        let routing_region = utils::fetch_routing_region_for_uas(
-            state,
-            merchant_id.clone(),
-            merchant_account.organization_id.clone(),
-        )
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch routing path")?;
+        let routing_region = utils::fetch_routing_region_for_uas(state, &dimensions).await;
         ExternalAuthentication::post_authentication(
             state,
             business_profile,
@@ -1896,6 +1985,7 @@ async fn execute_post_authentication_flow(
         None,
         None,
         None,
+        merchant_account.storage_scheme,
     )
     .await?;
 
@@ -1991,6 +2081,7 @@ pub async fn authentication_sync_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -2014,10 +2105,16 @@ pub async fn authentication_sync_core(
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
-
     let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        )
         .with_profile_id(profile_id.clone());
 
     let (authentication_connector, three_ds_connector_account) =
@@ -2060,13 +2157,8 @@ pub async fn authentication_sync_core(
             force_3ds_challenge: authentication.force_3ds_challenge,
             psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
         };
-
-        let routing_region = utils::fetch_routing_region_for_uas(
-            &state,
-            authentication.merchant_id.clone(),
-            authentication.organization_id.clone(),
-        )
-        .await?;
+        let routing_region =
+            utils::fetch_routing_region_for_uas(&state, &dimensions.without_profile_id()).await;
 
         let authentication_info = Some(AuthenticationInfo {
             authentication_type: None,
@@ -2113,7 +2205,9 @@ pub async fn authentication_sync_core(
     }
 
     // Determine whether to tokenise or not
+
     let should_disable_vault_tokenization = dimensions
+        .without_profile_id()
         .get_should_disable_vault_tokenization(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
@@ -2292,12 +2386,17 @@ pub async fn authentication_post_sync_core(
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
     let key_manager_state = (&state).into();
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(merchant_account.organization_id.clone());
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id,
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -2324,14 +2423,7 @@ pub async fn authentication_post_sync_core(
             authentication.authentication_connector.clone(),
         )
         .await?;
-    let routing_region = utils::fetch_routing_region_for_uas(
-        &state,
-        merchant_id.clone(),
-        merchant_account.organization_id.clone(),
-    )
-    .await
-    .change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to fetch routing path")?;
+    let routing_region = utils::fetch_routing_region_for_uas(&state, &dimensions).await;
 
     let post_auth_response =
         <ExternalAuthentication as UnifiedAuthenticationService>::post_authentication(
@@ -2361,6 +2453,7 @@ pub async fn authentication_post_sync_core(
         None,
         None,
         None,
+        merchant_account.storage_scheme,
     )
     .await?;
 
@@ -2429,6 +2522,7 @@ pub async fn authentication_session_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {

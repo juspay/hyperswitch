@@ -1,3 +1,4 @@
+use api_models::payments::AccountType;
 use common_utils::types::{FloatMajorUnit, StringMajorUnit};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -54,10 +55,10 @@ pub enum SantanderDiscountType {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SantanderMetadataObject {
-    pub pix: Option<PixMetadataObject>,
+    pub pix_qr: Option<PixMetadataObject>,
     pub boleto: Option<BoletoMetadataObject>,
-    pub pix_automatico_push: Option<PixAutomaticoMetadataObject>,
-    pub pix_automatico_qr: Option<PixAutomaticoMetadataObject>,
+    pub pix_automatico_push: Option<PixAutomaticoPushMetadataObject>,
+    pub pix_automatico_qr: Option<PixAutomaticoQrMetadataObject>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -81,13 +82,27 @@ pub struct PixMetadataObject {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PixAutomaticoMetadataObject {
+pub struct PixAutomaticoPushMetadataObject {
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
-    // might not be req for J1/J2, cross check
-    pub pix_key_value: Secret<String>,
-    // might not be req for J1/J2, cross check
+    pub account_number: Option<Secret<String>>,
+    pub branch_code: Option<Secret<String>>,
+    pub account_type: Option<AccountType>,
     pub pix_key_type: responses::SantanderPixKeyType,
+    pub pix_key_value: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PixAutomaticoQrMetadataObject {
+    pub client_id: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub pix_key_value: Secret<String>,
+    pub pix_key_type: responses::SantanderPixKeyType,
+    pub merchant_name: Option<String>,
+    pub merchant_city: Option<String>,
+    pub account_number: Option<Secret<String>>,
+    pub branch_code: Option<Secret<String>>,
+    pub account_type: Option<AccountType>,
 }
 
 pub struct SantanderRouterData<T> {
@@ -519,13 +534,12 @@ pub enum RetryPolicy {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticoRecebedor {
     /// Branch code (agencia) of the receiver's account
-    pub agencia: Secret<String>,
+    pub agencia: Option<Secret<String>>,
     /// Account number (conta) of the receiver
     pub conta: Secret<String>,
     /// Account type (tipoConta) - CORRENTE, POUPANCA, or PAGAMENTO
-    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "tipoConta")]
-    pub tipo_conta: Option<SantanderAccountType>,
+    pub tipo_conta: SantanderAccountType,
 }
 
 /// Represents calendar information for recurring charge (cobr endpoint)

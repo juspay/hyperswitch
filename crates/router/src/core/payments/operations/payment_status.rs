@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payments::MandateTransactionType};
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates::{self, MandateTransactionType};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 
@@ -231,9 +232,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
         request: &api::PaymentsRetrieveRequest,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
+        _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
     > {
@@ -396,7 +399,11 @@ async fn get_tracker_for_sync<
         })?;
 
     let disputes = db
-        .find_disputes_by_processor_merchant_id_payment_id(platform.get_processor().get_account().get_id(), &payment_id)
+        .find_disputes_by_processor_merchant_id_payment_id(
+            platform.get_processor().get_account().get_id(),
+            &payment_id,
+            platform.get_processor().get_account().storage_scheme,
+        )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
@@ -482,6 +489,7 @@ async fn get_tracker_for_sync<
                     authentication_id,
                     platform.get_processor().get_key_store(),
                     key_manager_state,
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -517,7 +525,7 @@ async fn get_tracker_for_sync<
         mandate_id: payment_attempt
             .mandate_id
             .clone()
-            .map(|id| api_models::payments::MandateIds {
+            .map(|id| mandates::MandateIds {
                 mandate_id: Some(id),
                 mandate_reference_id: None,
             }),
@@ -574,6 +582,7 @@ async fn get_tracker_for_sync<
         external_authentication_data: None,
         client_session_id: None,
         vault_session_details: None,
+        external_vault_pmd: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

@@ -1,3 +1,4 @@
+use hyperswitch_domain_models::mandates;
 mod transformers;
 pub mod utils;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -111,7 +112,7 @@ pub struct SessionRoutingPmTypeInput<'a> {
     key_store: &'a domain::MerchantKeyStore,
     routing_algorithm: &'a MerchantAccountRoutingAlgorithm,
     backend_input: dsl_inputs::BackendInput,
-    allowed_connectors: FxHashMap<String, api::GetToken>,
+    allowed_connectors: FxHashMap<SessionRoutingConnectorKey, api::GetToken>,
     profile_id: &'a common_utils::id_type::ProfileId,
 }
 
@@ -119,11 +120,13 @@ pub struct SessionRoutingPmTypeInput<'a> {
 pub struct SessionRoutingPmTypeInput<'a> {
     routing_algorithm: &'a MerchantAccountRoutingAlgorithm,
     backend_input: dsl_inputs::BackendInput,
-    allowed_connectors: FxHashMap<String, api::GetToken>,
+    allowed_connectors: FxHashMap<SessionRoutingConnectorKey, api::GetToken>,
     profile_id: &'a common_utils::id_type::ProfileId,
 }
 
 type RoutingResult<O> = oss_errors::CustomResult<O, errors::RoutingError>;
+
+type SessionRoutingConnectorKey = Option<common_utils::id_type::MerchantConnectorAccountId>;
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -248,10 +251,10 @@ pub fn make_dsl_input(
                     .mandate_type
                     .clone()
                     .map(|mandate_type| match mandate_type {
-                        hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
+                        mandates::MandateDataType::SingleUse(_) => {
                             euclid_enums::MandateType::SingleUse
                         }
-                        hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
+                        mandates::MandateDataType::MultiUse(_) => {
                             euclid_enums::MandateType::MultiUse
                         }
                     })
@@ -371,12 +374,8 @@ pub fn make_dsl_input(
             .as_ref()
             .and_then(|mandate_data| {
                 mandate_data.mandate_type.clone().map(|mt| match mt {
-                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
-                        euclid_enums::MandateType::SingleUse
-                    }
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
-                        euclid_enums::MandateType::MultiUse
-                    }
+                    mandates::MandateDataType::SingleUse(_) => euclid_enums::MandateType::SingleUse,
+                    mandates::MandateDataType::MultiUse(_) => euclid_enums::MandateType::MultiUse,
                 })
             }),
         payment_type: Some(
@@ -920,7 +919,7 @@ impl RoutingStage for SessionRoutingStage {
         Box::pin(async move {
             let mut pm_type_map: FxHashMap<
                 api_enums::PaymentMethodType,
-                FxHashMap<String, api::GetToken>,
+                FxHashMap<SessionRoutingConnectorKey, api::GetToken>,
             > = FxHashMap::default();
 
             let profile_id = input.business_profile.get_id();
@@ -930,7 +929,7 @@ impl RoutingStage for SessionRoutingStage {
                     .entry(connector_data.payment_method_sub_type)
                     .or_default()
                     .insert(
-                        connector_data.connector.connector_name.to_string(),
+                        connector_data.connector.merchant_connector_id.clone(),
                         connector_data.connector.get_token.clone(),
                     );
             }
@@ -1050,7 +1049,9 @@ impl RoutingStage for SessionRoutingStage {
 
                     for selection in routable_connector_choice {
                         let connector_name = selection.connector.to_string();
-                        if let Some(get_token) = allowed_connectors.get(&connector_name) {
+                        if let Some(get_token) =
+                            allowed_connectors.get(&selection.merchant_connector_id)
+                        {
                             let connector_data = api::ConnectorData::get_connector_by_name(
                                 &input.state.clone().conf.connectors,
                                 &connector_name,
@@ -1260,6 +1261,11 @@ where
                 .first()
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
 
+            routing_data.routed_through =
+                Some(first_connector.connector_data.connector_name.to_string());
+            routing_data.merchant_connector_id =
+                first_connector.connector_data.merchant_connector_id.clone();
+
             #[cfg(feature = "retry")]
             {
                 let should_do_retry = crate::core::payments::retry::config_should_call_gsm(
@@ -1300,17 +1306,6 @@ where
             }
 
             if connector_call_type.is_none() {
-                routing_data.routed_through = Some(
-                    first_connector
-                        .connector_data
-                        .connector_name
-                        .to_string()
-                        .clone(),
-                );
-
-                routing_data.merchant_connector_id =
-                    first_connector.connector_data.merchant_connector_id.clone();
-
                 crate::core::payments::helpers::override_setup_future_usage_to_on_session(
                     &*state.store,
                     payment_data,
@@ -1555,10 +1550,12 @@ impl RoutingStage for HybridRoutingStage {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
 pub async fn perform_hybrid_routing_if_enabled(
     state: &SessionState,
     business_profile: &domain::Profile,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     payment_dsl_input: &routing::PaymentsDslInput<'_>,
     backend_input: &backend::BackendInput,
     fallback_config: &[routing_types::RoutableConnectorChoice],
@@ -1580,8 +1577,8 @@ pub async fn perform_hybrid_routing_if_enabled(
     };
 
     let is_decision_engine_cutover_enabled = matches!(
-        utils::get_routing_result_source(state, business_profile).await,
-        Some(api_models::routing::RoutingResultSource::DecisionEngine)
+        utils::get_routing_result_source(state, dimensions).await,
+        api_models::routing::RoutingResultSource::DecisionEngine
     );
 
     if is_decision_engine_cutover_enabled {
@@ -1647,6 +1644,7 @@ pub async fn static_routing_v1(
 pub async fn perform_static_routing_v1(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     algorithm_id: Option<&common_utils::id_type::RoutingId>,
     business_profile: &domain::Profile,
     transaction_data: &routing::TransactionData<'_>,
@@ -1772,6 +1770,7 @@ pub async fn perform_static_routing_v1(
     Ok((
         utils::select_routing_result(
             state,
+            dimensions,
             business_profile,
             routable_connectors,
             de_evaluated_connector,
@@ -2458,8 +2457,10 @@ pub async fn perform_session_flow_routing<'a>(
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>>
 {
-    let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
-        FxHashMap::default();
+    let mut pm_type_map: FxHashMap<
+        api_enums::PaymentMethodType,
+        FxHashMap<SessionRoutingConnectorKey, api::GetToken>,
+    > = FxHashMap::default();
 
     let profile_id = business_profile.get_id().clone();
 
@@ -2522,7 +2523,7 @@ pub async fn perform_session_flow_routing<'a>(
             .entry(connector_data.payment_method_sub_type)
             .or_default()
             .insert(
-                connector_data.connector.connector_name.to_string(),
+                connector_data.connector.merchant_connector_id.clone(),
                 connector_data.connector.get_token.clone(),
             );
     }
@@ -2562,7 +2563,10 @@ pub async fn perform_session_flow_routing<'a>(
 
             for selection in routable_connector_choice {
                 let connector_name = selection.connector.to_string();
-                if let Some(get_token) = session_pm_input.allowed_connectors.get(&connector_name) {
+                if let Some(get_token) = session_pm_input
+                    .allowed_connectors
+                    .get(&selection.merchant_connector_id)
+                {
                     let connector_data = api::ConnectorData::get_connector_by_name(
                         &state.clone().conf.connectors,
                         &connector_name,
@@ -2595,8 +2599,10 @@ pub async fn perform_session_flow_routing(
     FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>,
     Option<common_enums::RoutingApproach>,
 )> {
-    let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
-        FxHashMap::default();
+    let mut pm_type_map: FxHashMap<
+        api_enums::PaymentMethodType,
+        FxHashMap<SessionRoutingConnectorKey, api::GetToken>,
+    > = FxHashMap::default();
 
     let profile_id = session_input
         .payment_intent
@@ -2679,7 +2685,7 @@ pub async fn perform_session_flow_routing(
             .entry(connector_data.payment_method_sub_type)
             .or_default()
             .insert(
-                connector_data.connector.connector_name.to_string(),
+                connector_data.connector.merchant_connector_id.clone(),
                 connector_data.connector.get_token.clone(),
             );
     }
@@ -2724,7 +2730,10 @@ pub async fn perform_session_flow_routing(
 
             for selection in routable_connector_choice {
                 let connector_name = selection.connector.to_string();
-                if let Some(get_token) = session_pm_input.allowed_connectors.get(&connector_name) {
+                if let Some(get_token) = session_pm_input
+                    .allowed_connectors
+                    .get(&selection.merchant_connector_id)
+                {
                     let connector_data = api::ConnectorData::get_connector_by_name(
                         &session_pm_input.state.clone().conf.connectors,
                         &connector_name,

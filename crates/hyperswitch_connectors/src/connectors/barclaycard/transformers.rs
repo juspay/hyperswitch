@@ -1244,6 +1244,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardPreProcessingR
                                 "three_ds_data": three_ds_data
                             })),
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
                             authentication_data,
@@ -1368,6 +1369,7 @@ impl TryFrom<PaymentsAuthenticateResponseRouterData<BarclaycardAuthenticationRes
                                 "three_ds_data": three_ds_data
                             })),
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
                             authentication_data,
@@ -1492,6 +1494,7 @@ impl TryFrom<PaymentsPostAuthenticateResponseRouterData<BarclaycardAuthenticatio
                                 "three_ds_data": three_ds_data
                             })),
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
                             authentication_data,
@@ -1616,6 +1619,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<BarclaycardPreProcessingRes
                                 "three_ds_data": three_ds_data
                             })),
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
                             authentication_data,
@@ -2337,6 +2341,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardAuthSetupRespo
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(
                         info_response
                             .client_reference_information
@@ -2421,6 +2426,7 @@ impl TryFrom<PaymentsResponseRouterData<BarclaycardAuthSetupResponse>>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(
                         info_response
                             .client_reference_information
@@ -2832,6 +2838,7 @@ fn get_payment_response(
             mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 info_response
                     .client_reference_information
@@ -3109,6 +3116,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BarclaycardTransactionResponse>>
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: item
                                 .response
                                 .client_reference_information
@@ -3131,6 +3139,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BarclaycardTransactionResponse>>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     authentication_data: None,

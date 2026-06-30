@@ -64,6 +64,14 @@ const billingAddress = {
   },
 };
 
+const billingAddressAT = {
+  ...billingAddress,
+  address: {
+    ...billingAddress.address,
+    country: "AT",
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -715,6 +723,82 @@ export const connectorDetails = {
         },
       },
     },
+    Giropay: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "giropay",
+        payment_method_data: {
+          bank_redirect: {
+            giropay: {
+              bank_name: "",
+              bank_account_bic: "",
+              bank_account_iban: "",
+              preferred_language: "en",
+              country: "DE",
+            },
+          },
+        },
+        billing: billingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "800.900.300",
+          error_message: "invalid authentication information",
+        },
+      },
+    },
+    Eps: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eps",
+        payment_method_data: {
+          bank_redirect: {
+            eps: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddressAT,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "800.900.300",
+          error_message: "invalid authentication information",
+        },
+      },
+    },
+    Sofort: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        payment_method_data: {
+          bank_redirect: {
+            sofort: {
+              country: "DE",
+              preferred_language: "en",
+            },
+          },
+        },
+        billing: billingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "invalid authentication information",
+        },
+      },
+    },
     Przelewy24: {
       Request: {
         payment_method: "bank_redirect",
@@ -737,6 +821,31 @@ export const connectorDetails = {
           error_code: "200.100.103",
           error_message:
             "invalid Request Message. The request contains structural errors",
+        },
+      },
+    },
+    Interac: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "interac",
+        payment_method_data: {
+          bank_redirect: {
+            interac: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          ...billingAddress,
+          email: "guest@juspay.in",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "800.900.300",
+          error_message: "invalid authentication information",
         },
       },
     },

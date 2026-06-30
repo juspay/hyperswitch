@@ -258,6 +258,7 @@ fn get_payments_response(connector_response: TsysResponse) -> PaymentsResponseDa
         mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: Some(connector_response.transaction_id),
         incremental_authorization_allowed: None,
         authentication_data: None,
@@ -279,6 +280,7 @@ fn get_payments_sync_response(
         mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: Some(
             connector_response
                 .transaction_details

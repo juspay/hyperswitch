@@ -361,7 +361,6 @@ pub struct RevenueRecoveryMetadata {
     pub mca_reference: AccountReferenceMap,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct ExternalVaultConnectorMetadata {
     pub proxy_url: common_utils::types::Url,
@@ -498,6 +497,7 @@ pub enum MerchantConnectorAccountUpdate {
     },
     ConnectorWebhookRegisterationUpdate {
         connector_webhook_registration_details: Option<Value>,
+        connector_webhook_details: Option<pii::SecretSerdeValue>,
     },
 }
 
@@ -847,6 +847,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
             },
             MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
                 connector_webhook_registration_details,
+                connector_webhook_details,
             } => Self {
                 connector_type: None,
                 connector_name: None,
@@ -859,7 +860,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 frm_configs: None,
                 metadata: None,
                 modified_at: None,
-                connector_webhook_details: None,
+                connector_webhook_details,
                 frm_config: None,
                 applepay_verified_domains: None,
                 pm_auth_config: None,

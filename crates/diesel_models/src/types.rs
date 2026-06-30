@@ -2,7 +2,11 @@
 use common_enums::enums::PaymentConnectorTransmission;
 #[cfg(feature = "v2")]
 use common_utils::id_type;
-use common_utils::{hashing::HashedString, pii, types::MinorUnit};
+use common_utils::{
+    hashing::HashedString,
+    pii,
+    types::{MinorUnit, StringMajorUnit},
+};
 use diesel::{
     sql_types::{Json, Jsonb},
     AsExpression, FromSqlRow,
@@ -95,6 +99,149 @@ pub struct BoletoAdditionalDetails {
     pub covenant_code: Option<Secret<String>>,
     /// Pix identification details
     pub pix_key: Option<common_enums::enums::PixKey>,
+    /// Rules for applying discounts
+    pub discount_rules: Option<SantanderPaymentDiscountRules>,
+    /// Rules for late payments (Interest and Fines)
+    pub penalties: Option<PenaltyRules>,
+    /// Legal or administrative actions for non-payment (Protest/Write-off)
+    pub collection_actions: Option<CollectionActions>,
+    /// Constraints on how the payment can be made (Partial payments/Limits)
+    pub payment_constraints: Option<BoletoPaymentTypeConstraints>,
+    /// Beneficiary details
+    pub beneficiary: Option<BeneficiaryDetails>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct SantanderPaymentDiscountRules {
+    /// Type of discount applied to the payment.
+    pub discount_type: Option<DiscountType>,
+    /// Discount tiers applicable to the payment.
+    pub tiers: Vec<DiscountTier>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiscountType {
+    /// No discount logic will be applied.
+    #[default]
+    Standard,
+    /// A fixed amount reduction if paid on or before a specific date.
+    FixedDate,
+    /// A sliding discount calculated per calendar day until the due date.
+    DailyCalendar,
+    /// A sliding discount calculated per business day until the due date.
+    DailyBusiness,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct DiscountTier {
+    /// The discount value.
+    pub amount: Option<StringMajorUnit>,
+    /// The ISO-8601 date until which this discount is valid.
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub end_date: Option<time::PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct PenaltyRules {
+    /// Fixed fee applied once after the due date.
+    pub fixed_penalty: Option<PenaltyDetail>,
+    /// Recurring cost applied over time.
+    pub interest: Option<InterestDetail>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct InterestDetail {
+    /// Percentage of Juros (Interest).
+    pub interest_percentage: Option<StringMajorUnit>,
+    /// Percentage of IOF (Financial Operations Tax).
+    pub iof_percentage: Option<StringMajorUnit>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct PenaltyDetail {
+    /// The numeric value as a string to preserve decimal precision.
+    pub value: Option<StringMajorUnit>,
+    /// Days after due date before this applies.
+    pub grace_period_days: Option<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct CollectionActions {
+    /// Logic for legal protest.
+    pub legal_protest: Option<ProtestRules>,
+    /// Days after which the bill is automatically cancelled/written off.
+    pub auto_write_off_days: Option<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct ProtestRules {
+    /// The timing logic for when the protest should occur.
+    pub protest_type: Option<ProtestType>,
+    /// Number of days after the due date to initiate the protest.
+    pub days_after_due_date: Option<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProtestType {
+    /// No legal protest will be initiated.
+    Disabled,
+    /// Count is based on calendar days.
+    CalendarDays,
+    /// Count is based on business days.
+    BusinessDays,
+    /// Protest logic is handled based on the merchant's bank agreement.
+    ContractDefault,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "details")]
+pub enum BoletoPaymentTypeConstraints {
+    /// Only the exact nominal amount can be paid.
+    FixedAmount,
+    /// The payer may pay any amount within an allowed range.
+    FlexibleAmount(FlexibleAmountDetails),
+    /// The payer may make multiple payments, up to a specific limit.
+    Installment(InstallmentDetails),
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct FlexibleAmountDetails {
+    /// Minimum value allowed.
+    pub min_value: Option<StringMajorUnit>,
+    /// Maximum value allowed.
+    pub max_value: Option<StringMajorUnit>,
+    /// Defines if the min/max values are percentages or flat amounts.
+    pub value_type: Option<CalculationType>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct InstallmentDetails {
+    /// Maximum number of partial payments allowed.
+    pub max_partial_payments: Option<u32>,
+    /// Defines if the values are percentages or flat amounts.
+    pub value_type: Option<CalculationType>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CalculationType {
+    /// The value is treated as a percentage.
+    Percentage,
+    /// The value is treated as a fixed monetary amount.
+    FlatAmount,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct BeneficiaryDetails {
+    /// The full legal name of the individual or entity receiving the funds.
+    pub name: Option<String>,
+    /// The customer's unique identification number.
+    pub document_number: Option<String>,
+    /// The category of identification provided.
+    pub document_type: Option<common_types::customers::DocumentKind>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
@@ -185,16 +332,76 @@ pub struct ScheduledExpirationTime {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum PixAutomaticoAdditionalDetails {
-    /// Pix Automatico Push notification flow
-    PixAutomaticoPush(PixAutomaticoPushDetails),
+    PixAutomaticoPush(PixAutomaticoPushData),
+    PixAutomaticoQr(PixAutomaticoQrData),
+    PixAutomaticoMit(PixAutomaticoMitData),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
-pub struct PixAutomaticoPushDetails {
-    /// Time in seconds until which the push notification is valid
+pub struct PixAutomaticoPushData {
     pub time: u32,
+    pub retry_policy: Option<bool>,
+    pub mandate_details: Option<SantanderMandateDetails>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct PixAutomaticoQrData {
+    pub retry_policy: Option<bool>,
+    pub mandate_details: Option<SantanderMandateDetails>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct PixAutomaticoMitData {
+    pub receiver_details: Option<SantanderPixAutomaticoReceiverDetails>,
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub mandate_execution_date: Option<time::PrimitiveDateTime>,
+    pub auto_adjust_date: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct SantanderMandateDetails {
+    pub fixed_recurring_amount: Option<MinorUnit>,
+    pub min_recurring_amount: Option<MinorUnit>,
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub start_date: Option<time::PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub end_date: Option<time::PrimitiveDateTime>,
+    pub periodicity: Option<SantanderMandatePeriodicity>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+#[serde(rename_all = "snake_case")]
+pub enum SantanderMandatePeriodicity {
+    Weekly,
+    #[default]
+    Monthly,
+    Quarterly,
+    Semiannually,
+    Annually,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+#[serde(rename_all = "snake_case")]
+pub enum AccountType {
+    Current,
+    Savings,
+    Payment,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct SantanderPixAutomaticoReceiverDetails {
+    pub branch_code: Option<Secret<String>>,
+    pub account_number: Option<Secret<String>>,
+    pub account_type: Option<AccountType>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]

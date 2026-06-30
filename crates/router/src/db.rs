@@ -55,6 +55,7 @@ use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
 use hyperswitch_domain_models::{
+    authentication::AuthenticationInterface,
     card_issuer::CardIssuersInterface,
     cards_info::CardsInfoInterface,
     master_key::MasterKeyInterface,
@@ -143,7 +144,7 @@ pub trait StorageInterface:
     + health_check::HealthCheckDbInterface
     + user_authentication_method::UserAuthenticationMethodInterface
     + hyperswitch_ai_interaction::HyperswitchAiInteractionInterface
-    + authentication::AuthenticationInterface
+    + AuthenticationInterface<Error = StorageError>
     + generic_link::GenericLinkInterface
     + relay::RelayInterface
     + user::theme::ThemeInterface
@@ -305,7 +306,8 @@ impl RequestIdStore for MockDb {}
 
 impl RequestIdStore for Store {
     fn add_request_id(&mut self, request_id: String) {
-        self.request_id = Some(request_id)
+        self.request_id = Some(request_id.clone());
+        self.update_key_manager_request_id(request_id);
     }
 
     fn get_request_id(&self) -> Option<String> {

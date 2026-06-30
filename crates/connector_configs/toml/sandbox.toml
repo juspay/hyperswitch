@@ -2406,6 +2406,24 @@ payment_method_type = "CartesBancaires"
 payment_method_type = "UnionPay"
 [[dlocal.voucher]]
   payment_method_type = "oxxo"
+[[dlocal.voucher]]
+  payment_method_type = "boleto"
+[[dlocal.voucher]]
+  payment_method_type = "efecty"
+[[dlocal.voucher]]
+  payment_method_type = "pago_efectivo"
+[[dlocal.voucher]]
+  payment_method_type = "red_pagos"
+[[dlocal.voucher]]
+  payment_method_type = "indomaret"
+[[dlocal.wallet]]
+  payment_method_type = "gcash"
+[[dlocal.wallet]]
+  payment_method_type = "dana"
+[[dlocal.bank_transfer]]
+  payment_method_type = "pix"
+[[dlocal.bank_transfer]]
+  payment_method_type = "pse"
 [dlocal.connector_auth.SignatureKey]
 api_key = "X Login"
 key1 = "X Trans Key"
@@ -7184,10 +7202,16 @@ type="Text"
 [worldpayxml_payout]
 [[worldpayxml_payout.wallet]]
   payment_method_type = "apple_pay"
+[[worldpayxml_payout.wallet]]
+  payment_method_type = "google_pay"
 [[worldpayxml_payout.credit]]
   payment_method_type = "Visa"
+[[worldpayxml_payout.credit]]
+  payment_method_type = "Mastercard"
 [[worldpayxml_payout.debit]]
   payment_method_type = "Visa"
+[[worldpayxml_payout.debit]]
+  payment_method_type = "Mastercard"
 [worldpayxml_payout.metadata.purpose_of_payment]
 name="purpose_of_payment"
 label="Purpose of Payment"
@@ -7253,7 +7277,7 @@ options = []
 
 [santander]
 [[santander.bank_transfer]]
-payment_method_type = "pix"
+payment_method_type = "pix_qr"
 [[santander.bank_transfer]]
 payment_method_type = "pix_automatico_push"
 [[santander.bank_transfer]]
@@ -7264,38 +7288,38 @@ payment_method_type = "boleto"
 certificate="Base64 encoded PEM formatted certificate chain"
 private_key="Base64 encoded PEM formatted private key"
   
-[[santander.metadata.pix]]
+[[santander.metadata.pix_qr]]
 name="client_id"
 label="Client ID"
 placeholder="Enter your Client Id"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_qr]]
 name="client_secret"
 label="Client Secret"
 placeholder="Enter your Client Secret"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_qr]]
 name="pix_key_type"
 label="Chave Key Type"
 placeholder="Enter your Chave/Pix Key Type"
 required=true
 type="Select"
 options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
-[[santander.metadata.pix]]
+[[santander.metadata.pix_qr]]
 name="pix_key_value"
 label="Chave Key"
 placeholder="Enter your Chave/Pix Key"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_qr]]
 name="merchant_city"
 label="Merchant City"
 placeholder="Enter the city the merchant is based in"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_qr]]
 name="merchant_name"
 label="Merchant Name"
 placeholder="Enter the merchant name"
@@ -7303,6 +7327,18 @@ required=true
 type="Text"
 
 [[santander.metadata.pix_automatico_push]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_push]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_push]]
 name="pix_key_type"
 label="Chave Key Type"
 placeholder="Enter your Chave/Pix Key Type"
@@ -7316,19 +7352,38 @@ placeholder="Enter your Chave/Pix Key"
 required=true
 type="Text"
 [[santander.metadata.pix_automatico_push]]
-name="client_id"
-label="Client ID"
-placeholder="Enter your Client Id"
-required=true
+name="account_number"
+label="Account Number"
+placeholder="Enter your Account Number"
+required=false
 type="Text"
 [[santander.metadata.pix_automatico_push]]
-name="client_secret"
-label="Client Secret"
-placeholder="Enter your Client Secret"
-required=true
+name="account_type"
+label="Account Type"
+placeholder="Enter your Account Type"
+required=false
+type="Select"
+options=["current", "savings", "payment"]
+[[santander.metadata.pix_automatico_push]]
+name="branch_code"
+label="Branch Code"
+placeholder="Enter your branch code"
+required=false
 type="Text"
 
 [[santander.metadata.pix_automatico_qr]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_qr]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_qr]]
 name="pix_key_type"
 label="Chave Key Type"
 placeholder="Enter your Chave/Pix Key Type"
@@ -7342,16 +7397,23 @@ placeholder="Enter your Chave/Pix Key"
 required=true
 type="Text"
 [[santander.metadata.pix_automatico_qr]]
-name="client_id"
-label="Client ID"
-placeholder="Enter your Client Id"
-required=true
+name="account_number"
+label="Account Number"
+placeholder="Enter your Account Number"
+required=false
 type="Text"
 [[santander.metadata.pix_automatico_qr]]
-name="client_secret"
-label="Client Secret"
-placeholder="Enter your Client Secret"
-required=true
+name="account_type"
+label="Account Type"
+placeholder="Enter your Account Type"
+required=false
+type="Select"
+options=["current", "savings", "payment"]
+[[santander.metadata.pix_automatico_qr]]
+name="branch_code"
+label="Branch Code"
+placeholder="Enter your branch code"
+required=false
 type="Text"
 
 [[santander.metadata.boleto]]
@@ -8214,12 +8276,17 @@ key1 = "Merchant Account Id"
 
 
 [envoy_payout]
-[[envoy_payout.bank_transfer]]
-  payment_method_type = "sepa_bank_transfer"
 [envoy_payout.connector_auth.BodyKey]
 api_key = "Password"
 key1 = "Username"
+[[envoy_payout.bank_transfer]]
+  payment_method_type = "sepa_bank_transfer"
+[[envoy_payout.bank_transfer]]
+  payment_method_type = "bacs"
+[[envoy_payout.bank_transfer]]
+  payment_method_type = "ach"
 
+  
 [vgs]
 [vgs.connector_auth.SignatureKey]
   api_key="Client Id"
@@ -8381,8 +8448,8 @@ options=["Connector"]
 [truelayer_payout.connector_auth.BodyKey]
 api_key = "Client ID"
 key1 = "Client Secret"
-[[truelayer_payout.bank_redirect]]
-payment_method_type = "open_banking_uk"
+[[truelayer_payout.bank_transfer]]
+payment_method_type = "open_banking"
 
 [truelayer_payout.metadata.kid]
 name = "kid"
@@ -8449,7 +8516,7 @@ api_secret = "Private Key(Base64 encoded)"
 [[trustly_payout.bank_transfer]]
 payment_method_type = "trustly"
 [trustly_payout.connector_webhook_details]
-merchant_secret="Trustly's public key"
+merchant_secret="Trustly's public key(Base64 encoded)"
 
 [revolv3]
 [[revolv3.credit]]
@@ -8499,7 +8566,7 @@ api_secret = "Private Key(Base64 encoded)"
 [[trustly.bank_redirect]]
 payment_method_type = "trustly"
 [trustly.connector_webhook_details]
-merchant_secret="Trustly's public key"
+merchant_secret="Trustly's public key(Base64 encoded)"
 
 [imerchantsolutions]
 [imerchantsolutions.connector_auth.HeaderKey]
@@ -8530,12 +8597,40 @@ payment_method_type = "JCB"
 payment_method_type = "Discover"
 [[imerchantsolutions.debit]]
 payment_method_type = "UnionPay"
+[[imerchantsolutions.wallet]]
+payment_method_type = "google_pay"
+[[imerchantsolutions.wallet]]
+payment_method_type = "apple_pay"
 
-[sanlam]
-[sanlam.connector_auth.BodyKey]
+[absa_sanlam]
+[absa_sanlam.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "Merchant Id"
-[[sanlam.bank_debit]]
+[[absa_sanlam.bank_debit]]
 payment_method_type = "eft_debit_order"
-[sanlam.connector_webhook_details]
+[absa_sanlam.connector_webhook_details]
 merchant_secret="Source verification key"
+[interpayments]
+[interpayments.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[payconex]
+[[payconex.credit]]
+  payment_method_type = "Visa"
+[[payconex.credit]]
+  payment_method_type = "Mastercard"
+[[payconex.credit]]
+  payment_method_type = "AmericanExpress"
+[[payconex.credit]]
+  payment_method_type = "Discover"
+[[payconex.debit]]
+  payment_method_type = "Visa"
+[[payconex.debit]]
+  payment_method_type = "Mastercard"
+[[payconex.debit]]
+  payment_method_type = "AmericanExpress"
+[[payconex.debit]]
+  payment_method_type = "Discover"
+[payconex.connector_auth.BodyKey]
+api_key = "API Key"
+key1 = "Account Id"

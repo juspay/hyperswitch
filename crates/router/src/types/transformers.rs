@@ -16,7 +16,7 @@ use common_utils::{
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+use hyperswitch_domain_models::{mandates, payments::payment_intent::CustomerData};
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
@@ -200,7 +200,8 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
             | storage_enums::AttemptStatus::PartiallyAuthorized
-            | storage_enums::AttemptStatus::PartialChargedAndChargeable | storage_enums::AttemptStatus::Expired => {
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable | storage_enums::AttemptStatus::Expired
+            | storage_enums::AttemptStatus::CaptureReview => {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
                 }.into())
@@ -246,36 +247,30 @@ impl ForeignFrom<storage_enums::MandateAmountData> for payments::MandateAmountDa
 }
 
 // TODO: remove foreign from since this conversion won't be needed in the router crate once data models is treated as a single & primary source of truth for structure information
-impl ForeignFrom<payments::MandateData> for hyperswitch_domain_models::mandates::MandateData {
+impl ForeignFrom<payments::MandateData> for mandates::MandateData {
     fn foreign_from(d: payments::MandateData) -> Self {
         Self {
             customer_acceptance: d.customer_acceptance,
             mandate_type: d.mandate_type.map(|d| match d {
                 payments::MandateType::MultiUse(Some(i)) => {
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
-                        hyperswitch_domain_models::mandates::MandateAmountData {
-                            amount: i.amount,
-                            currency: i.currency,
-                            start_date: i.start_date,
-                            end_date: i.end_date,
-                            metadata: i.metadata,
-                        },
-                    ))
+                    mandates::MandateDataType::MultiUse(Some(mandates::MandateAmountData {
+                        amount: i.amount,
+                        currency: i.currency,
+                        start_date: i.start_date,
+                        end_date: i.end_date,
+                        metadata: i.metadata,
+                    }))
                 }
                 payments::MandateType::SingleUse(i) => {
-                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(
-                        hyperswitch_domain_models::mandates::MandateAmountData {
-                            amount: i.amount,
-                            currency: i.currency,
-                            start_date: i.start_date,
-                            end_date: i.end_date,
-                            metadata: i.metadata,
-                        },
-                    )
+                    mandates::MandateDataType::SingleUse(mandates::MandateAmountData {
+                        amount: i.amount,
+                        currency: i.currency,
+                        start_date: i.start_date,
+                        end_date: i.end_date,
+                        metadata: i.metadata,
+                    })
                 }
-                payments::MandateType::MultiUse(None) => {
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)
-                }
+                payments::MandateType::MultiUse(None) => mandates::MandateDataType::MultiUse(None),
             }),
             update_mandate_id: d.update_mandate_id,
         }
@@ -405,6 +400,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PixAutomaticoQr
             | api_enums::PaymentMethodType::PixKey
             | api_enums::PaymentMethodType::PixEmv
+            | api_enums::PaymentMethodType::PixQr
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex
             | api_enums::PaymentMethodType::PaySafeCard
@@ -453,6 +449,8 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
                 })
             }
             payments::PaymentMethodData::NetworkToken(..) => Ok(Self::NetworkToken),
+            payments::PaymentMethodData::ProxyCard(..)
+            | payments::PaymentMethodData::VaultCardTokenData(..) => Ok(Self::Card),
         }
     }
 }
@@ -635,6 +633,12 @@ impl ForeignFrom<domain::Address> for api_types::Address {
             phone: phone_details,
             email: address.email.clone().map(pii::Email::from),
         }
+    }
+}
+
+impl ForeignFrom<hyperswitch_domain_models::address::Address> for payments::Address {
+    fn foreign_from(address: hyperswitch_domain_models::address::Address) -> Self {
+        address.into()
     }
 }
 
@@ -1353,6 +1357,7 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::Sepa(_) => Self::SepaBankTransfer,
             api_models::payouts::Bank::Pix(_) => Self::Pix,
             api_models::payouts::Bank::Trustly(_) => Self::Trustly,
+            api_models::payouts::Bank::OpenBanking(_) => Self::OpenBanking,
         }
     }
 }
@@ -1368,6 +1373,7 @@ impl ForeignFrom<&api_models::payouts::BankTransfer> for api_enums::PaymentMetho
             api_models::payouts::BankTransfer::PixKey(_) => Self::PixKey,
             api_models::payouts::BankTransfer::PixEmv(_) => Self::PixEmv,
             api_models::payouts::BankTransfer::Trustly(_) => Self::Trustly,
+            api_models::payouts::BankTransfer::OpenBanking(_) => Self::OpenBanking,
         }
     }
 }
@@ -1379,6 +1385,7 @@ impl ForeignFrom<&api_models::payouts::Wallet> for api_enums::PaymentMethodType 
             api_models::payouts::Wallet::Paypal(_) => Self::Paypal,
             api_models::payouts::Wallet::Venmo(_) => Self::Venmo,
             api_models::payouts::Wallet::ApplePayDecrypt(_) => Self::ApplePay,
+            api_models::payouts::Wallet::GooglePayDecrypt(_) => Self::GooglePay,
         }
     }
 }
@@ -2079,6 +2086,7 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
             event_class: item.event_class,
             is_delivery_successful: item.is_overall_delivery_successful,
             initial_attempt_id,
+            processor_merchant_id: item.processor_merchant_id,
             created: item.created_at,
         })
     }
@@ -2201,6 +2209,26 @@ impl ForeignFrom<diesel_models::business_profile::VaultTokenField>
     }
 }
 
+impl ForeignFrom<api_models::admin::SurchargeConnectorDetails>
+    for diesel_models::business_profile::SurchargeConnectorDetails
+{
+    fn foreign_from(item: api_models::admin::SurchargeConnectorDetails) -> Self {
+        Self {
+            surcharge_connector_id: item.surcharge_connector_id,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::SurchargeConnectorDetails>
+    for api_models::admin::SurchargeConnectorDetails
+{
+    fn foreign_from(item: diesel_models::business_profile::SurchargeConnectorDetails) -> Self {
+        Self {
+            surcharge_connector_id: item.surcharge_connector_id,
+        }
+    }
+}
+
 impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
     for diesel_models::business_profile::CardTestingGuardConfig
 {
@@ -2222,6 +2250,14 @@ impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
             },
             customer_id_blocking_threshold: item.customer_id_blocking_threshold,
             card_testing_guard_expiry: item.card_testing_guard_expiry,
+            is_guest_ip_blocking_enabled: match item.guest_ip_blocking_status {
+                Some(api_models::admin::CardTestingGuardStatus::Enabled) => true,
+                Some(api_models::admin::CardTestingGuardStatus::Disabled) => false,
+                None => common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_STATUS,
+            },
+            guest_ip_blocking_threshold: item
+                .guest_ip_blocking_threshold
+                .unwrap_or(common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_THRESHOLD),
         }
     }
 }
@@ -2247,6 +2283,11 @@ impl ForeignFrom<diesel_models::business_profile::CardTestingGuardConfig>
             },
             customer_id_blocking_threshold: item.customer_id_blocking_threshold,
             card_testing_guard_expiry: item.card_testing_guard_expiry,
+            guest_ip_blocking_status: Some(match item.is_guest_ip_blocking_enabled {
+                true => api_models::admin::CardTestingGuardStatus::Enabled,
+                false => api_models::admin::CardTestingGuardStatus::Disabled,
+            }),
+            guest_ip_blocking_threshold: Some(item.guest_ip_blocking_threshold),
         }
     }
 }
@@ -2428,6 +2469,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             show_card_terms: item.show_card_terms,
             is_setup_mandate_flow: item.is_setup_mandate_flow,
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
+            show_merchant_name: item.show_merchant_name,
         }
     }
 }
@@ -2465,6 +2507,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             show_card_terms: item.show_card_terms,
             is_setup_mandate_flow: item.is_setup_mandate_flow,
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
+            show_merchant_name: item.show_merchant_name,
         }
     }
 }
