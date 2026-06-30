@@ -72,8 +72,8 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
             channel,
             RedisValue::try_from(key).change_context(redis_errors::RedisError::PublishError)?,
         )
-            .await
-            .change_context(redis_errors::RedisError::SubscribeError)
+        .await
+        .change_context(redis_errors::RedisError::SubscribeError)
     }
 
     #[inline]
