@@ -117,6 +117,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::customers::customers_create,
         routes::customers::customers_create_v1,
         routes::customers::customers_retrieve,
+        routes::customers::customers_retrieve_by_merchant_reference_id,
         routes::customers::customers_retrieve_v1,
         routes::customers::customers_update,
         routes::customers::customers_update_v1,
