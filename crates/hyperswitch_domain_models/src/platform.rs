@@ -40,8 +40,11 @@ impl ProviderMerchantId {
     pub fn inner(&self) -> &common_utils::id_type::MerchantId {
         &self.0
     }
-}
 
+    pub fn new(id: common_utils::id_type::MerchantId) -> Self {
+        Self(id)
+    }
+}
 /// Processor = The merchant account whose processor credentials are used
 /// to execute the operation.
 #[derive(Clone, Debug)]

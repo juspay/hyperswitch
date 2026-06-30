@@ -1,7 +1,7 @@
 use api_models::payments::{
-    AccountType, BeneficiaryDetails, BoletoPaymentTypeConstraints, CalculationType,
-    ConnectorMetadata, DiscountTier, DiscountType, PollConfig, ProtestType, QrCodeInformation,
-    SantanderData, SantanderMandatePeriodicity, SantanderPaymentDiscountRules, VoucherNextStepData,
+    AccountType, BeneficiaryDetails, BoletoPaymentTypeConstraints, CalculationType, DiscountTier,
+    DiscountType, FeatureMetadata, PollConfig, ProtestType, QrCodeInformation, SantanderData,
+    SantanderMandatePeriodicity, SantanderPaymentDiscountRules, VoucherNextStepData,
 };
 use common_enums::{enums, AttemptStatus, BoletoDocumentKind, ExpiryType, PixKey};
 use common_utils::{
@@ -720,12 +720,7 @@ impl
                 max_value_or_percentage,
             ),
         ) = get_boleto_additional_fields_from_connector_metadata(
-            value
-                .0
-                .router_data
-                .request
-                .connector_intent_metadata
-                .clone(),
+            value.0.router_data.request.feature_metadata.clone(),
         );
 
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
@@ -1838,7 +1833,7 @@ fn convert_pix_data_to_value(
 
     let qr_code_info = QrCodeInformation::QrCodeUrl {
         image_data_url: image_data_url.clone(),
-        qr_code_url: None,
+        qr_code_url: Some(image_data_url),
         display_to_timestamp: None,
         expiry_type: variant,
         raw_qr_data: Some(data),
@@ -2198,11 +2193,10 @@ impl From<BoletoPaymentTypeConstraints> for SantanderBoletoPaymentType {
 }
 
 fn get_boleto_additional_fields_from_connector_metadata(
-    metadata: Option<ConnectorMetadata>,
+    metadata: Option<FeatureMetadata>,
 ) -> BoletoAdditionalFields {
     metadata
-        .and_then(|m| m.santander)
-        .and_then(|s| s.boleto)
+        .and_then(|m| m.boleto_additional_details)
         .map(|b| {
             let fine = b.penalties.as_ref().and_then(|p| p.fixed_penalty.as_ref());
             let fine_quantity_days = fine.and_then(|f| f.grace_period_days.map(|d| d.to_string()));

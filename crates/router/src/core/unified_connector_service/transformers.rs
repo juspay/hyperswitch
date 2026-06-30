@@ -1,10 +1,11 @@
 use std::{collections::HashMap, str::FromStr};
 
 use api_models::payments::{
-    AmountInfo, ApplePayAddressParameters, ApplePayPaymentRequest, ApplePaySessionResponse,
-    ApplepaySessionTokenResponse, GooglePaySessionResponse, GpayAllowedMethodsParameters,
-    GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayBillingAddressParameters,
-    GpayMerchantInfo, GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
+    AdditionalCardInfo, AdditionalPaymentData, AmountInfo, ApplePayAddressParameters,
+    ApplePayPaymentRequest, ApplePaySessionResponse, ApplepaySessionTokenResponse,
+    GooglePaySessionResponse, GpayAllowedMethodsParameters, GpayAllowedPaymentMethods,
+    GpayBillingAddressFormat, GpayBillingAddressParameters, GpayMerchantInfo,
+    GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
     GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall, PaypalFlow,
     PaypalSessionTokenResponse, PaypalTransactionInfo, SdkNextAction, SecretInfoToInitiateSdk,
     SessionToken, ThirdPartySdkSessionResponse,
@@ -826,6 +827,7 @@ impl
                 field_name: "amount"
             }
         ))?;
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         let payment_session_context = payments_grpc::PaymentSessionContext {
             amount: Some(payments_grpc::Money {
@@ -834,6 +836,19 @@ impl
             }),
             metadata: None,
             browser_info: None,
+            customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
+                name: None,
+                email: None,
+                id: None,
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+                phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
+            }),
+            address: Some(address),
         };
 
         Ok(Self {
@@ -1201,6 +1216,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
+            order_tax_amount: None,
         })
     }
 }
@@ -1967,6 +1983,13 @@ impl
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
 
+        let additional_payment_data = router_data
+            .request
+            .additional_payment_method_data
+            .clone()
+            .map(|additional_payment_data| {
+                payments_grpc::AdditionalPaymentData::foreign_from(additional_payment_data)
+            });
         Ok(Self {
             merchant_charge_id: Some(router_data.connector_request_reference_id.clone()),
             payment_method,
@@ -2063,6 +2086,7 @@ impl
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
             }),
+            additional_payment_data,
         })
     }
 }
@@ -5927,6 +5951,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .map(|id| id.get_string_repr().to_string()),
             merchant_request_id: None,
             connector_order_id: None,
+            payment_method: None,
         })
     }
 }
@@ -6324,6 +6349,7 @@ impl
             metadata: None,
             connector_feature_data: None,
             test_mode: router_data.test_mode,
+            merchant_request_id: None,
         })
     }
 }
@@ -7069,6 +7095,12 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         payments_grpc::ApplePayDecrypt::foreign_try_from(apple_pay)?,
                     )
                 }
+                 api_models::payouts::Wallet::GooglePayDecrypt(_google_pay) => Err(error_stack::Report::new(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Googlepay wallet not supported for Unified Connector Service"
+                            .to_string(),
+                    ),
+                ))?,
                 api_models::payouts::Wallet::Paypal(paypal) => {
                     payments_grpc::payout_method::PayoutMethodData::Paypal(
                         payments_grpc::Paypal::foreign_try_from(paypal)?,
@@ -7079,6 +7111,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         payments_grpc::Venmo::foreign_try_from(venmo)?,
                     )
                 }
+
             },
             api_models::payouts::PayoutMethodData::BankRedirect(bank_redirect) => {
                 match bank_redirect {
@@ -7508,5 +7541,38 @@ impl transformers::ForeignTryFrom<payments_grpc::SurchargeServiceCalculateRespon
                     .and_then(|cd| cd.message.clone())
             }),
         })
+    }
+}
+
+impl ForeignFrom<AdditionalCardInfo> for payments_grpc::AdditionalCardInfo {
+    fn foreign_from(value: AdditionalCardInfo) -> Self {
+        Self {
+            card_issuer: value.card_issuer,
+            last4: value.last4,
+            card_isin: value.card_isin,
+            card_extended_bin: value.card_extended_bin,
+            card_exp_month: value.card_exp_month,
+            card_exp_year: value.card_exp_year,
+            card_holder_name: value.card_holder_name,
+        }
+    }
+}
+
+impl ForeignFrom<AdditionalPaymentData> for payments_grpc::AdditionalPaymentData {
+    fn foreign_from(value: AdditionalPaymentData) -> Self {
+        match value {
+            AdditionalPaymentData::Card(card_info) => {
+                Self {
+                    payment_method_data: Some(
+                        payments_grpc::additional_payment_data::PaymentMethodData::Card(
+                            ForeignFrom::<AdditionalCardInfo>::foreign_from(*card_info),
+                        ),
+                    ),
+                }
+            }
+            _ => Self {
+                payment_method_data: None,
+            },
+        }
     }
 }

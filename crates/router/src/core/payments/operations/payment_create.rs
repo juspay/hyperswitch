@@ -1653,6 +1653,7 @@ impl PaymentCreate {
                     .as_ref()
                     .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 mandate_data,
                 payment_method_billing_address_id,
                 net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::from_payments_request(
