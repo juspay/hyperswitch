@@ -1634,7 +1634,6 @@ pub async fn payments_complete_authorize(
     path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl Responder {
     let flow = Flow::PaymentsCompleteAuthorize;
-
     let mut payload = json_payload.into_inner();
 
     let payment_id = path.into_inner();
@@ -2985,7 +2984,6 @@ pub async fn post_3ds_payments_authorize(
     let (payment_id, merchant_id, connector) = path.into_inner();
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
     let param_string = req.query_string();
-
     let payload = payments::PaymentsRedirectResponseData {
         resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
         merchant_id: Some(merchant_id.clone()),
