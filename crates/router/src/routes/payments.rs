@@ -1522,15 +1522,20 @@ pub async fn payments_complete_authorize_redirect(
 
     let (payment_method, payment_method_data, payment_method_type) = json_payload
         .as_ref()
-        .map(|v| {
-            (
-                v.get("payment_method")
-                    .and_then(|value| serde_json::from_value(value.clone()).ok()),
-                v.get("payment_method_data")
-                    .and_then(|value| serde_json::from_value(value.clone()).ok()),
-                v.get("payment_method_type")
-                    .and_then(|value| serde_json::from_value(value.clone()).ok()),
+        .and_then(|payload| {
+            serde_json::from_value::<payment_types::PaymentsCompleteAuthorizeRedirectRequest>(
+                payload.clone(),
             )
+            .ok()
+        })
+        .map(|payload| {
+            let payment_types::PaymentsCompleteAuthorizeRedirectRequest {
+                payment_method,
+                payment_method_data,
+                payment_method_type,
+            } = payload;
+
+            (payment_method, payment_method_data, payment_method_type)
         })
         .unwrap_or((None, None, None));
 
