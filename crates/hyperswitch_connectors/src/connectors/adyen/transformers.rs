@@ -1388,7 +1388,42 @@ impl TryFrom<&common_enums::BankNames> for OpenBankingUKIssuer {
             | common_enums::BankNames::N26
             | common_enums::BankNames::Absa
             | common_enums::BankNames::NationaleNederlanden
-            | common_enums::BankNames::KasikornBank => {
+            | common_enums::BankNames::KasikornBank
+            | common_enums::BankNames::AccessBank
+            | common_enums::BankNames::Albaraka
+            | common_enums::BankNames::ChinaConstructionBank
+            | common_enums::BankNames::Discovery
+            | common_enums::BankNames::EnlBank
+            | common_enums::BankNames::FirstNationalBank
+            | common_enums::BankNames::GotymeBank
+            | common_enums::BankNames::HabibOverseas
+            | common_enums::BankNames::HbzBank
+            | common_enums::BankNames::Investec
+            | common_enums::BankNames::JpMorganChase
+            | common_enums::BankNames::MtnBanking
+            | common_enums::BankNames::Olympus
+            | common_enums::BankNames::OldMutual
+            | common_enums::BankNames::PermanentBank
+            | common_enums::BankNames::SocieteGenerale
+            | common_enums::BankNames::StandardBank
+            | common_enums::BankNames::StateBankOfIndia
+            | common_enums::BankNames::Ubank
+            | common_enums::BankNames::VbsMutualBank
+            | common_enums::BankNames::BankZero
+            | common_enums::BankNames::BidvestBank
+            | common_enums::BankNames::BidvestBankAlliances
+            | common_enums::BankNames::FbcFidelityBank
+            | common_enums::BankNames::FinbondEpe
+            | common_enums::BankNames::FinbondMutualBank
+            | common_enums::BankNames::Ithala
+            | common_enums::BankNames::PeoplesBankPepBank
+            | common_enums::BankNames::PeoplesBank
+            | common_enums::BankNames::PostBank
+            | common_enums::BankNames::Nedbank
+            | common_enums::BankNames::Capitec
+            | common_enums::BankNames::CapitecBusiness
+            | common_enums::BankNames::AfricanBank
+            | common_enums::BankNames::AfricanBankBusiness => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyen"),
                 ))?

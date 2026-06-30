@@ -128,12 +128,21 @@ fn build_payload_payment_request_data(
                 enums::BankHolderType::Personal => requests::PayloadAccClass::Personal,
             });
             let account_type = bank_type
-                .map(|b_type| match b_type {
-                    enums::BankType::Checking => requests::PayloadAccAccountType::Checking,
-                    enums::BankType::Savings => requests::PayloadAccAccountType::Savings,
-                })
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
                     field_name: "bank_type",
+                })
+                .and_then(|b_type| match b_type {
+                    enums::BankType::Checking => Ok(requests::PayloadAccAccountType::Checking),
+                    enums::BankType::Savings => Ok(requests::PayloadAccAccountType::Savings),
+                    enums::BankType::Transmission
+                    | enums::BankType::Current
+                    | enums::BankType::Bond
+                    | enums::BankType::SubscriptionShare => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "bank_type".to_string(),
+                            connector: "Payload",
+                        })
+                    }
                 })?;
             let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
@@ -360,12 +369,21 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentMethodRequest 
                 ..
             }) => {
                 let account_type = bank_type
-                    .map(|b_type| match b_type {
-                        enums::BankType::Checking => requests::PayloadAccAccountType::Checking,
-                        enums::BankType::Savings => requests::PayloadAccAccountType::Savings,
-                    })
                     .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
                         field_name: "bank_type",
+                    })
+                    .and_then(|b_type| match b_type {
+                        enums::BankType::Checking => Ok(requests::PayloadAccAccountType::Checking),
+                        enums::BankType::Savings => Ok(requests::PayloadAccAccountType::Savings),
+                        enums::BankType::Transmission
+                        | enums::BankType::Current
+                        | enums::BankType::Bond
+                        | enums::BankType::SubscriptionShare => {
+                            Err(errors::ConnectorError::NotSupported {
+                                message: "bank_type".to_string(),
+                                connector: "Payload",
+                            })
+                        }
                     })?;
 
                 let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
