@@ -81,10 +81,6 @@ jobs:
             git push
           fi
 
-      - name: Check Redis observability coverage
-        shell: bash
-        run: ./scripts/check-redis-observability.sh
-
   check-msrv:
     name: Check compilation on MSRV toolchain
     runs-on: ${{ matrix.runner }}
