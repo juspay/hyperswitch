@@ -271,4 +271,3 @@ creds.json
 # Nix services data
 /data
 .pre-commit-config.yaml
-cypress-tests/cypress/fixtures/proxy-bodies/
