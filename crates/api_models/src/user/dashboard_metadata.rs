@@ -241,6 +241,7 @@ pub struct PaymentListFilterConstraintsV1 {
     pub dispute_status: Option<Vec<String>>,
     pub client_source: Option<Vec<String>>,
     pub client_version: Option<Vec<String>>,
+    pub first_attempt: Option<Vec<bool>>,
     pub merchant_order_reference_id: Option<String>,
     pub card_discovery: Option<Vec<enums::CardDiscovery>>,
     pub customer_email: Option<pii::Email>,

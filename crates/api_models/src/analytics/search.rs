@@ -29,6 +29,7 @@ pub struct SearchFilters {
     pub dispute_status: Option<Vec<String>>,
     pub client_source: Option<Vec<String>>,
     pub client_version: Option<Vec<String>>,
+    pub first_attempt: Option<Vec<bool>>,
     pub payment_id: Option<Vec<String>>,
     pub amount: Option<Vec<u64>>,
     pub amount_filter: Option<OpensearchRange>,
@@ -84,6 +85,7 @@ impl From<&crate::payments::PaymentListFilterConstraints> for SearchFilters {
             dispute_status: constraints.dispute_status.clone(),
             client_source: constraints.client_source.clone(),
             client_version: constraints.client_version.clone(),
+            first_attempt: constraints.first_attempt.clone(),
             card_discovery: constraints
                 .card_discovery
                 .as_deref()
@@ -139,6 +141,7 @@ impl SearchFilters {
                 dispute_status: None,
                 client_source: None,
                 client_version: None,
+                first_attempt: None,
                 payment_id: None,
                 amount: None,
                 amount_filter: None,

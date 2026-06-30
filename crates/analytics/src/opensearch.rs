@@ -494,6 +494,26 @@ pub struct OpenSearchQueryBuilder {
     pub order: Option<Order>,
 }
 
+pub enum OpenSearchComparison {
+    Equal,
+    GreaterThan,
+    GreaterThanOrEqual,
+    LessThan,
+    LessThanOrEqual,
+}
+
+impl OpenSearchComparison {
+    fn range_operator(&self) -> Option<&'static str> {
+        match self {
+            Self::Equal => None,
+            Self::GreaterThan => Some("gt"),
+            Self::GreaterThanOrEqual => Some("gte"),
+            Self::LessThan => Some("lt"),
+            Self::LessThanOrEqual => Some("lte"),
+        }
+    }
+}
+
 const ACTIVE_ATTEMPT_FILTER_SCRIPT: &str = r#"
     if (!params.containsKey('_source')) return false;
 
@@ -548,6 +568,7 @@ impl OpenSearchQueryBuilder {
                 "active_attempt_id.keyword",
                 "merchant_connector_id.keyword",
                 "amount",
+                "first_attempt",
                 "customer_id.keyword",
                 "merchant_order_reference_id.keyword",
             ]),
@@ -777,6 +798,49 @@ impl OpenSearchQueryBuilder {
         })
     }
 
+    fn make_numeric_comparison_filter(
+        field: &'static str,
+        comparison: OpenSearchComparison,
+        value: i64,
+    ) -> Value {
+        match comparison.range_operator() {
+            Some(operator) => json!({
+                "range": {
+                    (field): {
+                        (operator): value
+                    }
+                }
+            }),
+            None => json!({
+                "term": {
+                    (field): value
+                }
+            }),
+        }
+    }
+
+    fn make_boolean_mapped_filter(
+        values: &Vec<Value>,
+        get_filter: impl Fn(bool) -> Value,
+    ) -> Value {
+        let mut should_clauses = Vec::new();
+
+        if values.iter().any(|value| value.as_bool() == Some(true)) {
+            should_clauses.push(get_filter(true));
+        }
+
+        if values.iter().any(|value| value.as_bool() == Some(false)) {
+            should_clauses.push(get_filter(false));
+        }
+
+        json!({
+            "bool": {
+                "should": should_clauses,
+                "minimum_should_match": 1
+            }
+        })
+    }
+
     pub fn build_filter_array(
         &self,
         case_sensitive_filters: Vec<&(String, Vec<Value>)>,
@@ -790,6 +854,24 @@ impl OpenSearchQueryBuilder {
         let case_sensitive_json_filters = case_sensitive_filters
             .into_iter()
             .map(|(k, v)| {
+                if *k == "first_attempt" {
+                    return Self::make_boolean_mapped_filter(v, |is_first_attempt| {
+                        if is_first_attempt {
+                            Self::make_numeric_comparison_filter(
+                                "attempt_count",
+                                OpenSearchComparison::Equal,
+                                1,
+                            )
+                        } else {
+                            Self::make_numeric_comparison_filter(
+                                "attempt_count",
+                                OpenSearchComparison::GreaterThan,
+                                1,
+                            )
+                        }
+                    });
+                }
+
                 let key = if *k == "amount" {
                     self.get_amount_field(index).to_string()
                 } else {

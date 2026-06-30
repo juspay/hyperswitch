@@ -1985,6 +1985,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             dispute_status: _dispute_status,
             client_source: _client_source,
             client_version: _client_version,
+            first_attempt: _first_attempt,
             card_discovery,
             merchant_order_reference_id,
             customer_email,

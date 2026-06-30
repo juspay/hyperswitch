@@ -8986,6 +8986,8 @@ pub struct PaymentListFilterConstraints {
     pub client_source: Option<Vec<String>>,
     /// The client versions to filter payments list
     pub client_version: Option<Vec<String>>,
+    /// Whether the payment succeeded on the first attempt. `true` maps to attempt_count = 1, `false` maps to attempt_count > 1.
+    pub first_attempt: Option<Vec<bool>>,
     /// The identifier for merchant order reference id
     pub merchant_order_reference_id: Option<String>,
     /// Indicates the method by which a card is discovered during a payment
@@ -9009,6 +9011,7 @@ impl PaymentListFilterConstraints {
             && self.routing_approach.is_none()
             && self.client_source.is_none()
             && self.client_version.is_none()
+            && self.first_attempt.is_none()
             && self.card_discovery.is_none()
     }
 }

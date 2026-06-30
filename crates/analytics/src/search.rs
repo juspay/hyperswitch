@@ -154,6 +154,7 @@ pub async fn msearch_results(
             client_version,
             "client_version.keyword"
         );
+        append_filter!(query_builder, filters, first_attempt, "first_attempt");
         append_filter!(query_builder, filters, payment_id, "payment_id.keyword");
         append_filter!(query_builder, filters, amount, "amount");
         append_filter!(query_builder, filters, customer_id, "customer_id.keyword");
@@ -332,6 +333,7 @@ pub async fn search_results(
             client_version,
             "client_version.keyword"
         );
+        append_filter!(query_builder, filters, first_attempt, "first_attempt");
         append_filter!(query_builder, filters, payment_id, "payment_id.keyword");
         append_filter!(query_builder, filters, amount, "amount");
         append_filter!(query_builder, filters, customer_id, "customer_id.keyword");
