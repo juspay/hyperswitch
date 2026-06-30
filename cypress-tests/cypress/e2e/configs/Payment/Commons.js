@@ -93,7 +93,7 @@ export const cardCreditEnabled = [
   },
 ];
 
-const successfulNo3DSCardDetails = {
+export const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
   card_exp_year: "30",
