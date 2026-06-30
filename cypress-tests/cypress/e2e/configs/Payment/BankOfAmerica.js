@@ -851,6 +851,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
+        billing: billing_with_newline,
         customer_acceptance: customerAcceptance,
         setup_future_usage: "on_session",
       },
@@ -860,11 +861,11 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
+      Configs: {
+        skipBillingAssertion: true,
+      },
     },
     RequiresCVVOffSessionMandate: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -893,9 +894,6 @@ export const connectorDetails = {
       },
     },
     RequiresCVVSavedCardWithoutCVV: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         setup_future_usage: "off_session",
       },
@@ -1008,14 +1006,9 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            code: "IR_39",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-          },
+          status: "succeeded",
         },
       },
     },
