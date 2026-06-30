@@ -1977,7 +1977,7 @@ impl PushNotificationRequestData {
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None => None,
             })
     }
@@ -2005,7 +2005,7 @@ impl GenerateQrRequestData {
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None => None,
             })
     }

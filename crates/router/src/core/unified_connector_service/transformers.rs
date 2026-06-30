@@ -827,6 +827,56 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 .map(payments_grpc::PaymentMethodType::foreign_try_from)
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
+            mandate_reference: Option::<payments_grpc::ConnectorMandateReferenceId>::foreign_from(
+                router_data,
+            ),
+        })
+    }
+}
+
+impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
+    for payments_grpc::ConnectorMandateReferenceId
+{
+    fn foreign_from(value: &mandates::ConnectorMandateReferenceId) -> Self {
+        Self {
+            connector_mandate_id: value.get_connector_mandate_id(),
+            payment_method_id: value.get_payment_method_id(),
+            connector_mandate_request_reference_id: value
+                .get_connector_mandate_request_reference_id(),
+        }
+    }
+}
+
+impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
+    for Option<payments_grpc::ConnectorMandateReferenceId>
+{
+    fn foreign_from(
+        router_data: &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+    ) -> Self {
+        let structured = router_data.request.mandate_id.as_ref().and_then(|m| {
+            match m.mandate_reference_id.as_ref()? {
+                mandates::MandateReferenceId::ConnectorMandateId(r) => Some(r),
+                _ => None,
+            }
+        });
+
+        let connector_mandate_id = structured
+            .and_then(|r| r.get_connector_mandate_id())
+            .or_else(|| router_data.connector_mandate_request_reference_id.clone());
+        let payment_method_id = structured.and_then(|r| r.get_payment_method_id());
+        let connector_mandate_request_reference_id =
+            structured.and_then(|r| r.get_connector_mandate_request_reference_id());
+
+        if connector_mandate_id.is_none()
+            && payment_method_id.is_none()
+            && connector_mandate_request_reference_id.is_none()
+        {
+            return None;
+        }
+        Some(payments_grpc::ConnectorMandateReferenceId {
+            connector_mandate_id,
+            payment_method_id,
+            connector_mandate_request_reference_id,
         })
     }
 }

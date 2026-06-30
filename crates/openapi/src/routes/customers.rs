@@ -207,7 +207,7 @@ pub async fn customers_retrieve() {}
 /// Retrieves a customer's details using the merchant supplied reference ID.
 #[utoipa::path(
     get,
-    path = "/v1/customers/reference/{merchant_reference_id}",
+    path = "/v2/customers/reference/{merchant_reference_id}",
     params (
         (
             "merchant_reference_id" = String,
@@ -229,6 +229,30 @@ pub async fn customers_retrieve() {}
     security(("api_key" = []))
 )]
 #[cfg(feature = "v2")]
+pub async fn customers_retrieve_by_merchant_reference_id() {}
+
+/// Customers - Retrieve using Merchant Reference ID
+///
+/// Retrieves a customer's details using the merchant supplied reference ID.
+#[utoipa::path(
+    get,
+    path = "/v1/customers/reference/{merchant_reference_id}",
+    params (
+        (
+            "merchant_reference_id" = String,
+            Path,
+            description = "The merchant supplied reference identifier for the Customer"
+        )
+    ),
+    responses(
+        (status = 200, description = "Customer Retrieved", body = CustomerResponse),
+        (status = 404, description = "Customer was not found")
+    ),
+    tag = "Customers",
+    operation_id = "Retrieve a Customer using Merchant Reference ID",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v1")]
 pub async fn customers_retrieve_by_merchant_reference_id() {}
 
 /// Customers - Retrieve
