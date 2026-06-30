@@ -733,19 +733,6 @@ where
         &payment_data.get_payment_intent().clone(),
     )?;
 
-    operation
-        .to_domain()?
-        .create_payment_method(
-            state,
-            &req,
-            platform,
-            &mut payment_data,
-            None,
-            &business_profile,
-            &feature_config,
-        )
-        .await?;
-
     let (operation, customer) = operation
         .to_domain()?
         // get_customer_details
@@ -761,6 +748,19 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
+
+    operation
+        .to_domain()?
+        .create_payment_method(
+            state,
+            &req,
+            platform,
+            &mut payment_data,
+            customer.as_ref(),
+            &business_profile,
+            &feature_config,
+        )
+        .await?;
 
     let connector_customer_map = customer
         .as_ref()
