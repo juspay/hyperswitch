@@ -5875,6 +5875,14 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                         payments_grpc::MandateAmountData {
                             amount: amount_data.amount.get_amount_as_i64(),
                             amount_type: None,
+                            amount_money: Some(payments_grpc::Money {
+                                minor_amount: amount_data.amount.get_amount_as_i64(),
+                                currency: payments_grpc::Currency::foreign_try_from(
+                                    amount_data.currency,
+                                )
+                                .unwrap_or(payments_grpc::Currency::Unspecified)
+                                .into(),
+                            }),
                             frequency: None,
                             currency: payments_grpc::Currency::foreign_try_from(
                                 amount_data.currency,
@@ -5897,6 +5905,14 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                             payments_grpc::MandateAmountData {
                                 amount: amount_data.amount.get_amount_as_i64(),
                                 amount_type: None,
+                                amount_money: Some(payments_grpc::Money {
+                                    minor_amount: amount_data.amount.get_amount_as_i64(),
+                                    currency: payments_grpc::Currency::foreign_try_from(
+                                        amount_data.currency,
+                                    )
+                                    .unwrap_or(payments_grpc::Currency::Unspecified)
+                                    .into(),
+                                }),
                                 frequency: None,
                                 currency: payments_grpc::Currency::foreign_try_from(
                                     amount_data.currency,
