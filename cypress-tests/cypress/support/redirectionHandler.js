@@ -1274,8 +1274,16 @@ function bankRedirectRedirection(
       paymentMethodType
     )
   ) {
+    expect(
+      redirectionUrl,
+      `Stripe ${paymentMethodType} forward flow redirect URL`
+    ).to.not.be.null;
+    expect(
+      redirectionUrl.href,
+      `Stripe ${paymentMethodType} redirect URL href`
+    ).to.be.a("string").and.to.not.be.empty;
     cy.log(
-      `Skipping external redirect for Stripe ${paymentMethodType} wallet — not automatable`
+      `Verified forward flow for Stripe ${paymentMethodType} — redirect URL present: ${redirectionUrl.href} (external page not automatable)`
     );
     return;
   }

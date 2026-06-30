@@ -1665,7 +1665,6 @@ export const connectorDetails = {
       },
       Configs: {
         skipBillingAssertion: true,
-        TRIGGER_SKIP: true,
       },
     },
     RevolutPayMandate: {
@@ -1702,7 +1701,6 @@ export const connectorDetails = {
       },
       Configs: {
         skipBillingAssertion: true,
-        TRIGGER_SKIP: true,
       },
     },
     WeChatPay: {
