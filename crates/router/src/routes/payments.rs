@@ -1652,9 +1652,6 @@ pub async fn payments_complete_authorize(
             .clone()
             .map(|client_secret| client_secret.peek().clone()),
         threeds_method_comp_ind: payload.threeds_method_comp_ind.clone(),
-        payment_method: payload.payment_method,
-        payment_method_type: payload.payment_method_type,
-        payment_method_data: payload.payment_method_data.clone(),
         ..Default::default()
     };
 
