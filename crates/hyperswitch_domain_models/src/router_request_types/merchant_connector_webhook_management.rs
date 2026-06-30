@@ -7,3 +7,8 @@ pub struct ConnectorWebhookRegisterRequest {
     /// The entire URL of the connector
     pub base_url: String,
 }
+
+#[derive(Debug, Clone)]
+pub struct ConnectorWebhookGenerateSecretRequest {
+    pub connector_webhook_id: String,
+}

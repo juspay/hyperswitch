@@ -31,7 +31,9 @@ use hyperswitch_domain_models::{
         dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
         payments::{
             Approve, AuthorizeSessionToken, CalculateSurcharge, CalculateTax, CompleteAuthorize,
             CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer, CreateOrder,
@@ -52,7 +54,9 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication,
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
@@ -80,7 +84,9 @@ use hyperswitch_domain_models::{
         UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
@@ -142,7 +148,9 @@ use hyperswitch_interfaces::{
             AcceptDispute, DefendDispute, Dispute, DisputeSync, FetchDisputes, SubmitEvidence,
         },
         files::{FileUpload, RetrieveFile, UploadFile},
-        merchant_connector_webhook_management::WebhookRegister,
+        merchant_connector_webhook_management::{
+            GenerateConnectorWebhookSecret, WebhookGenerateSecret, WebhookRegister,
+        },
         payments::{
             ConnectorCustomer, ExternalVaultProxyPaymentsCreateV1, PaymentApprove,
             PaymentAuthorizeSessionToken, PaymentExtendAuthorization,
@@ -10555,11 +10563,20 @@ macro_rules! default_imp_for_connector_webhook_register {
     ($($path:ident::$connector:ident),*) => {
         $(
             impl WebhookRegister for $path::$connector {}
+            impl WebhookGenerateSecret for $path::$connector {}
+            impl GenerateConnectorWebhookSecret for $path::$connector {}
             impl
             ConnectorIntegration<
             ConnectorWebhookRegister,
             ConnectorWebhookRegisterRequest,
             ConnectorWebhookRegisterResponse,
+        > for $path::$connector
+        {}
+            impl
+            ConnectorIntegration<
+            ConnectorWebhookGenerateSecret,
+            ConnectorWebhookGenerateSecretRequest,
+            ConnectorWebhookGenerateSecretResponse,
         > for $path::$connector
         {}
     )*
@@ -11281,11 +11298,24 @@ impl<const T: u8>
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> WebhookRegister for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
+impl<const T: u8> WebhookGenerateSecret for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> GenerateConnectorWebhookSecret for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     ConnectorIntegration<
         ConnectorWebhookRegister,
         ConnectorWebhookRegisterRequest,
         ConnectorWebhookRegisterResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        ConnectorWebhookGenerateSecret,
+        ConnectorWebhookGenerateSecretRequest,
+        ConnectorWebhookGenerateSecretResponse,
     > for connectors::DummyConnector<T>
 {
 }

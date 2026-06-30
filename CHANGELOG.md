@@ -4,6 +4,36 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.29.0
+
+### Features
+
+- **core:**
+  - [Webhooks] add support for HMAC generation ([#12869](https://github.com/juspay/hyperswitch/pull/12869)) ([`8249d9d`](https://github.com/juspay/hyperswitch/commit/8249d9de166e6e72bb23b5fc66e095b17495e2a3))
+  - Add superposition config to enable saving data in apple pay decryption flow ([#12612](https://github.com/juspay/hyperswitch/pull/12612)) ([`a556c02`](https://github.com/juspay/hyperswitch/commit/a556c020b797c38452f7d13603fb8f7bed570b58))
+- **dispute:** Add KV (Redis) storage support for disputes ([#12703](https://github.com/juspay/hyperswitch/pull/12703)) ([`a6a02e6`](https://github.com/juspay/hyperswitch/commit/a6a02e63595e1bffbc88c71265a0c9cbaa9bd32b))
+- Add support to notify connectors ([#12502](https://github.com/juspay/hyperswitch/pull/12502)) ([`96a4e85`](https://github.com/juspay/hyperswitch/commit/96a4e857e25976aee1cae61eed27cb783da52c48))
+
+**Full Changelog:** [`2026.06.26.0...2026.06.29.0`](https://github.com/juspay/hyperswitch/compare/2026.06.26.0...2026.06.29.0)
+
+- - -
+
+## 2026.06.26.0
+
+### Features
+
+- **payment_link:** Added security for payment link sql injection ([#12951](https://github.com/juspay/hyperswitch/pull/12951)) ([`678c52a`](https://github.com/juspay/hyperswitch/commit/678c52a9c024efe211167b13738365cdd2710937))
+- **sdk:** Added sdk authorisation auth changes to sdk config api ([#12845](https://github.com/juspay/hyperswitch/pull/12845)) ([`51e91f2`](https://github.com/juspay/hyperswitch/commit/51e91f26867c37e8edbfc3c172ac2969316ef5e9))
+- **sdk_config:** Added bank redirect for empty payment experience in sdk config api ([#12992](https://github.com/juspay/hyperswitch/pull/12992)) ([`40808d7`](https://github.com/juspay/hyperswitch/commit/40808d7c9644afa11affea1d1c377e9547b3fe77))
+
+### Bug Fixes
+
+- **core:** Propagate mit_category in Setup Mandate flows ([#12989](https://github.com/juspay/hyperswitch/pull/12989)) ([`eae9650`](https://github.com/juspay/hyperswitch/commit/eae96505cb3e9368194a38014fc6dfbfb4b07744))
+
+**Full Changelog:** [`2026.06.25.0...2026.06.26.0`](https://github.com/juspay/hyperswitch/compare/2026.06.25.0...2026.06.26.0)
+
+- - -
+
 ## 2026.06.25.0
 
 ### Features

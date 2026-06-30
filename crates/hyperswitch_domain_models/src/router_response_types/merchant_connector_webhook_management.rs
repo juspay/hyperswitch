@@ -11,3 +11,11 @@ pub struct ConnectorWebhookRegisterResponse {
     /// Error message, if the registration failed.
     pub error_message: Option<String>,
 }
+
+#[derive(Debug, Clone)]
+pub struct ConnectorWebhookGenerateSecretResponse {
+    pub secret: Option<hyperswitch_masking::Secret<String>>,
+    pub status: common_enums::WebhookSecretGenerationStatus,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+}

@@ -61,13 +61,17 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::{
         mandate_revoke::MandateRevoke,
-        merchant_connector_webhook_management::ConnectorWebhookRegister, AccessTokenAuth,
-        AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, PostAuthenticate,
-        PreAuthenticate, ProcessIncomingWebhook, VerifyWebhookSource,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
+        AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
+        PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook, VerifyWebhookSource,
     },
     router_request_types::{
         self,
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -77,7 +81,10 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        self, merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        self,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
         VerifyWebhookSourceResponseData,
     },
@@ -94,8 +101,7 @@ pub use self::payouts::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts_v2::*;
 pub use self::{
-    merchant_connector_webhook_management::*, merchant_connector_webhook_management_v2::*,
-    payments::*, refunds::*, vault::*, vault_v2::*,
+    merchant_connector_webhook_management::*, payments::*, refunds::*, vault::*, vault_v2::*,
 };
 use crate::{
     api::subscriptions::Subscriptions, connector_integration_v2::ConnectorIntegrationV2, consts,
@@ -125,6 +131,7 @@ pub trait Connector:
     + ExternalVault
     + Subscriptions
     + WebhookRegister
+    + WebhookGenerateSecret
 {
 }
 
@@ -135,6 +142,7 @@ impl<
             + Send
             + webhooks::IncomingWebhook
             + WebhookRegister
+            + WebhookGenerateSecret
             + ConnectorAccessToken
             + ConnectorAuthenticationToken
             + disputes::Dispute
@@ -836,6 +844,17 @@ pub trait WebhookRegisterV2:
     ConnectorWebhookConfigurationFlowData,
     ConnectorWebhookRegisterRequest,
     ConnectorWebhookRegisterResponse,
+>
+{
+}
+
+/// trait WebhookGenerateSecretV2
+pub trait WebhookGenerateSecretV2:
+    ConnectorIntegrationV2<
+    ConnectorWebhookGenerateSecret,
+    ConnectorWebhookConfigurationFlowData,
+    ConnectorWebhookGenerateSecretRequest,
+    ConnectorWebhookGenerateSecretResponse,
 >
 {
 }

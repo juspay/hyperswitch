@@ -17,7 +17,9 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
         payments::{
             Authorize, Capture, GenerateQr, PSync, PaymentMethodToken, PreAuthorizeVoid,
             PushNotification, Session, SetupMandate, Void,
@@ -26,7 +28,9 @@ use hyperswitch_domain_models::{
         AuthorizeSessionToken, UpdateMetadata,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         AccessTokenRequestData, AuthorizeSessionTokenData, GenerateQrRequestData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCaptureData, PaymentsPreAuthorizeCancelData, PaymentsSessionData, PaymentsSyncData,
@@ -34,9 +38,11 @@ use hyperswitch_domain_models::{
         SetupMandateRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse, ConnectorInfo,
-        PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
-        SupportedPaymentMethodsExt,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData,
@@ -50,7 +56,8 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation, CurrentFlowInfo, WebhookRegister,
+        ConnectorValidation, CurrentFlowInfo, GenerateConnectorWebhookSecret,
+        WebhookGenerateSecret, WebhookRegister,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -123,6 +130,16 @@ impl api::PaymentsPushNotification for Santander {}
 impl api::PaymentsGenerateQr for Santander {}
 impl api::PaymentPreAuthorizeVoid for Santander {}
 impl WebhookRegister for Santander {}
+impl WebhookGenerateSecret for Santander {}
+impl GenerateConnectorWebhookSecret for Santander {}
+impl
+    ConnectorIntegration<
+        ConnectorWebhookGenerateSecret,
+        ConnectorWebhookGenerateSecretRequest,
+        ConnectorWebhookGenerateSecretResponse,
+    > for Santander
+{
+}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Santander

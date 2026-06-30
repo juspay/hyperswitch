@@ -14240,7 +14240,9 @@
           "payout_cancelled",
           "payout_expired",
           "payout_reversed",
-          "invoice_paid"
+          "invoice_paid",
+          "surcharge_payment_succeeded",
+          "surcharge_refund_succeeded"
         ]
       },
       "ExemptionIndicator": {

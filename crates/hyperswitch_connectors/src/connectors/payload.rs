@@ -23,7 +23,9 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
         payments::{
             Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken,
             PostCaptureVoid, Session, SetupMandate, Void,
@@ -31,16 +33,20 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
         SetupMandateRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse, ConnectorInfo,
-        PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
-        SupportedPaymentMethodsExt,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         ConnectorCustomerRouterData, ConnectorWebhookRegisterRouterData,
@@ -52,7 +58,8 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorCustomerAction, ConnectorIntegration,
-        ConnectorSpecifications, ConnectorValidation, WebhookRegister,
+        ConnectorSpecifications, ConnectorValidation, GenerateConnectorWebhookSecret,
+        WebhookGenerateSecret, WebhookRegister,
     },
     configs::Connectors,
     disputes::DisputePayload,
@@ -101,6 +108,16 @@ impl api::RefundSync for Payload {}
 impl api::PaymentToken for Payload {}
 impl api::ConnectorCustomer for Payload {}
 impl WebhookRegister for Payload {}
+impl WebhookGenerateSecret for Payload {}
+impl GenerateConnectorWebhookSecret for Payload {}
+impl
+    ConnectorIntegration<
+        ConnectorWebhookGenerateSecret,
+        ConnectorWebhookGenerateSecretRequest,
+        ConnectorWebhookGenerateSecretResponse,
+    > for Payload
+{
+}
 
 impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
     for Payload
