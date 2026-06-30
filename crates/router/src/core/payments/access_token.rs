@@ -372,7 +372,7 @@ async fn fetch_access_token_from_ucs(
     let connector_auth_metadata =
         unified_connector_service::build_unified_connector_service_auth_metadata(
             mca_type,
-            processor,
+            processor.get_account().get_id(),
             connector_name.to_string(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)

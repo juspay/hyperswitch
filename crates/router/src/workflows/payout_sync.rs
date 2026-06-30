@@ -291,6 +291,8 @@ impl PayoutSyncWorkFlow {
                 api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_response)),
                 Some(payout_data.payout_attempt.created_at),
                 webhook_recipient,
+                None,
+                business_profile,
             ))
             .await?;
         }
