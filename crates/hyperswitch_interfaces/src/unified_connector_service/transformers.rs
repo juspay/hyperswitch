@@ -242,6 +242,9 @@ pub struct ConnectorErrorInner {
     pub reason: Option<String>,
     /// Name of the connector that returned the error
     pub connector: String,
+    /// Connector's unique transaction identifier (e.g. Adyen `pspReference`), when the
+    /// connector returns one alongside the error response
+    pub connector_transaction_id: Option<String>,
     /// Network decline code from card scheme (e.g. Visa/Mastercard decline code)
     pub network_decline_code: Option<String>,
     /// Network advice code for retry logic
@@ -1010,6 +1013,11 @@ impl UnifiedConnectorServiceError {
                 .and_then(|ei| ei.connector_details.as_ref())
                 .and_then(|cd| cd.reason.clone()),
             connector: connector_name.to_string(),
+            connector_transaction_id: connector_error
+                .error_info
+                .as_ref()
+                .and_then(|ei| ei.connector_details.as_ref())
+                .and_then(|cd| cd.connector_transaction_id.clone()),
             network_decline_code: connector_error
                 .error_info
                 .as_ref()
