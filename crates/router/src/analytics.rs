@@ -268,6 +268,10 @@ pub mod routes {
                                         .route(web::post().to(generate_merchant_refund_report)),
                                 )
                                 .service(
+                                    web::resource("report/relay")
+                                        .route(web::post().to(generate_merchant_relay_report)),
+                                )
+                                .service(
                                     web::resource("report/payments")
                                         .route(web::post().to(generate_merchant_payment_report)),
                                 )
@@ -443,6 +447,10 @@ pub mod routes {
                                 .service(
                                     web::resource("report/refunds")
                                         .route(web::post().to(generate_profile_refund_report)),
+                                )
+                                .service(
+                                    web::resource("report/relay")
+                                        .route(web::post().to(generate_profile_relay_report)),
                                 )
                                 .service(
                                     web::resource("report/payments")
@@ -2150,6 +2158,247 @@ pub mod routes {
         ))
         .await
     }
+    #[cfg(feature = "v1")]
+    pub async fn generate_merchant_relay_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateRelayReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_active_user_by_user_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
+
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        validate_report_request(&payload)?;
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
+
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
+                    auth: auth_info,
+                    email: user_email,
+                    payment_response_hash_key: hash_key,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+
+                let lambda_result = invoke_lambda(
+                    &state.conf.report_download_config.relay_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await;
+
+                match &lambda_result {
+                    Ok(_) => logger::info!(
+                        merchant_id = ?lambda_req.merchant_id,
+                        "Successfully invoked relay report lambda function"
+                    ),
+                    Err(error) => logger::error!(
+                        merchant_id = ?lambda_req.merchant_id,
+                        ?error,
+                        "Failed to invoke relay report lambda function"
+                    ),
+                }
+
+                lambda_result.map(ApplicationResponse::Json)
+            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::MerchantReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    pub async fn generate_profile_relay_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateRelayReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_active_user_by_user_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
+
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        validate_report_request(&payload)?;
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
+
+                let profile_id = auth
+                    .profile
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::AccessForbiddenError)?
+                    .get_id()
+                    .clone();
+
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
+                    auth: auth_info,
+                    email: user_email,
+                    payment_response_hash_key: hash_key,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+
+                let lambda_result = invoke_lambda(
+                    &state.conf.report_download_config.relay_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await;
+
+                match &lambda_result {
+                    Ok(_) => logger::info!(
+                        merchant_id = ?lambda_req.merchant_id,
+                        "Successfully invoked relay report lambda function"
+                    ),
+                    Err(error) => logger::error!(
+                        merchant_id = ?lambda_req.merchant_id,
+                        ?error,
+                        "Failed to invoke relay report lambda function"
+                    ),
+                }
+
+                lambda_result.map(ApplicationResponse::Json)
+            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::ProfileReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
     #[cfg(feature = "v1")]
     pub async fn generate_merchant_dispute_report(
         state: web::Data<AppState>,

@@ -35,6 +35,7 @@ use crate::core::payment_methods::{
 use crate::{
     consts,
     core::{
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate,
         payment_methods::{self, cards::PmCards, network_tokenization},
@@ -98,13 +99,16 @@ async fn save_in_locker(
     domain::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
-    match &business_profile.external_vault_details {
+    let external_vault_profile =
+        helpers::resolve_provider_profile(state, platform, business_profile).await?;
+
+    match &external_vault_profile.external_vault_details {
         domain::ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) => {
             logger::info!("External vault is enabled, using vault_payment_method_external_v1");
 
             Box::pin(save_in_locker_external(
                 state,
-                platform.get_processor(),
+                platform.get_provider(),
                 payment_method_request,
                 card_detail,
                 external_vault_details,
@@ -169,6 +173,7 @@ pub async fn save_payment_method<FData>(
     payment_method_info: Option<domain::PaymentMethod>,
     payment_method_token: Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
     customer_details: Option<api_models::customers::CustomerDocumentDetails>,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -433,7 +438,7 @@ where
                     .async_map(|customer_details| {
                         create_encrypted_data(
                             &key_manager_state,
-                            platform.get_processor().get_key_store(),
+                            platform.get_provider().get_key_store(),
                             customer_details,
                             common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                         )
@@ -445,7 +450,9 @@ where
 
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
-                let (external_vault_details, vault_type) = match &business_profile.external_vault_details{
+                let external_vault_profile =
+                    helpers::resolve_provider_profile(state, platform, business_profile).await?;
+                let (external_vault_details, vault_type) = match &external_vault_profile.external_vault_details{
                     hyperswitch_domain_models::business_profile::ExternalVaultDetails::ExternalVaultEnabled(external_vault_connector_details) => {
                         (Some(external_vault_connector_details), Some(common_enums::VaultType::External))
                     },
@@ -858,9 +865,17 @@ where
                         }
                     },
                     None => {
-                        let wallet_decrypt_preference = WalletDecryptedToken::foreign_from(
+                        let should_save_walled_decrypted_token = dimensions
+                            .get_save_wallet_decrypted_data(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                Some(&customer_id),
+                            )
+                            .await;
+                        let wallet_decrypt_preference = WalletDecryptedToken::foreign_from((
                             save_payment_method_data.payment_method_token.as_ref(),
-                        );
+                            should_save_walled_decrypted_token,
+                        ));
 
                         let check_for_customer_pm = payment_method_type
                             .map(|payment_method_type_value| {
@@ -1358,7 +1373,7 @@ pub async fn save_in_locker_internal(
 #[cfg(feature = "v1")]
 pub async fn save_in_locker_external(
     state: &SessionState,
-    processor: &domain::Processor,
+    provider: &domain::Provider,
     payment_method_request: api::PaymentMethodCreate,
     card_detail: Option<api::CardDetail>,
     external_vault_connector_details: &ExternalVaultConnectorDetails,
@@ -1384,9 +1399,9 @@ pub async fn save_in_locker_external(
         let merchant_connector_account_details = state
             .store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                processor.get_account().get_id(),
+                provider.get_account().get_id(),
                 &external_vault_mca_id,
-                processor.get_key_store(),
+                provider.get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -1397,7 +1412,7 @@ pub async fn save_in_locker_external(
         let vault_response = Box::pin(vault_payment_method_external_v1(
             state,
             &payment_method_custom_vaulting_data,
-            processor.get_account(),
+            provider.get_account(),
             merchant_connector_account_details,
             None,
         ))
@@ -1407,7 +1422,7 @@ pub async fn save_in_locker_external(
         let card_detail = CardDetailFromLocker::from(card);
 
         let pm_resp = domain::PaymentMethodResponse {
-            merchant_id: processor.get_account().get_id().to_owned(),
+            merchant_id: provider.get_account().get_id().to_owned(),
             customer_id: Some(customer_id),
             payment_method_id,
             payment_method: payment_method_request.payment_method,
@@ -1430,7 +1445,7 @@ pub async fn save_in_locker_external(
         //Similar implementation is done for save in locker internal
         let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
         let payment_method_response = domain::PaymentMethodResponse {
-            merchant_id: processor.get_account().get_id().to_owned(),
+            merchant_id: provider.get_account().get_id().to_owned(),
             customer_id: Some(customer_id),
             payment_method_id: pm_id,
             payment_method: payment_method_request.payment_method,

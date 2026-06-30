@@ -141,6 +141,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                     &customer_id,
                     pmd,
                     state.conf.locker.ttl_for_storage_in_secs,
+                    Some(domain::VaultId::generate(card_reference.clone())),
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
@@ -150,14 +151,15 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                 let query_params =
                     Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Upsert));
 
-                let resp = vault::call_to_vault::<pm_types::AddVault>(state, payload, query_params)
-                    .await
-                    .change_context(errors::VaultError::VaultAPIError)
-                    .attach_printable("Call to vault failed")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to add payment method in generic locker in compatibility PT",
-                    )?;
+                let resp =
+                    vault::call_to_vault::<pm_types::AddVault>(state, payload, query_params, None)
+                        .await
+                        .change_context(errors::VaultError::VaultAPIError)
+                        .attach_printable("Call to vault failed")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to add payment method in generic locker in compatibility PT",
+                        )?;
 
                 let _stored_pm_resp =
                     cards::parse_add_vault_response(should_trigger_fingerprint_migration, resp)
@@ -241,6 +243,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                     state,
                     network_token_payload,
                     network_token_query_params,
+                    None,
                 )
                 .await
                 .change_context(errors::VaultError::VaultAPIError)
