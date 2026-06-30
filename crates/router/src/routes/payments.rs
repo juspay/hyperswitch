@@ -1413,22 +1413,6 @@ pub async fn payments_redirect_response(
     let param_string = req.query_string();
 
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
-    let (payment_method, payment_method_data, payment_method_type) = json_payload
-        .as_ref()
-        .map(|form| {
-            (
-                form.0
-                    .get("payment_method")
-                    .and_then(|value| serde_json::from_value(value.clone()).ok()),
-                form.0
-                    .get("payment_method_data")
-                    .and_then(|value| serde_json::from_value(value.clone()).ok()),
-                form.0
-                    .get("payment_method_type")
-                    .and_then(|value| serde_json::from_value(value.clone()).ok()),
-            )
-        })
-        .unwrap_or((None, None, None));
     let payload = payments::PaymentsRedirectResponseData {
         resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
         merchant_id: Some(merchant_id.clone()),
@@ -1437,9 +1421,9 @@ pub async fn payments_redirect_response(
         param: Some(param_string.to_string()),
         connector: Some(connector),
         creds_identifier: None,
-        payment_method,
-        payment_method_data,
-        payment_method_type,
+        payment_method: None,
+        payment_method_data: None,
+        payment_method_type: None,
     };
 
     let locking_action = payload.get_locking_input(flow.clone());
@@ -1603,23 +1587,6 @@ pub async fn payments_complete_authorize_redirect_with_creds_identifier(
 
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
 
-    let (payment_method, payment_method_data, payment_method_type) = json_payload
-        .as_ref()
-        .map(|form| {
-            (
-                form.0
-                    .get("payment_method")
-                    .and_then(|value| serde_json::from_value(value.clone()).ok()),
-                form.0
-                    .get("payment_method_data")
-                    .and_then(|value| serde_json::from_value(value.clone()).ok()),
-                form.0
-                    .get("payment_method_type")
-                    .and_then(|value| serde_json::from_value(value.clone()).ok()),
-            )
-        })
-        .unwrap_or((None, None, None));
-
     let payload = payments::PaymentsRedirectResponseData {
         resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
         merchant_id: Some(merchant_id.clone()),
@@ -1628,9 +1595,9 @@ pub async fn payments_complete_authorize_redirect_with_creds_identifier(
         force_sync: false,
         connector: Some(connector),
         creds_identifier: Some(creds_identifier),
-        payment_method,
-        payment_method_data,
-        payment_method_type,
+        payment_method: None,
+        payment_method_data: None,
+        payment_method_type: None,
     };
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(api::server_wrap(
@@ -3016,22 +2983,7 @@ pub async fn post_3ds_payments_authorize(
     let (payment_id, merchant_id, connector) = path.into_inner();
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
     let param_string = req.query_string();
-    let (payment_method, payment_method_data, payment_method_type) = json_payload
-        .as_ref()
-        .map(|form| {
-            (
-                form.0
-                    .get("payment_method")
-                    .and_then(|value| serde_json::from_value(value.clone()).ok()),
-                form.0
-                    .get("payment_method_data")
-                    .and_then(|value| serde_json::from_value(value.clone()).ok()),
-                form.0
-                    .get("payment_method_type")
-                    .and_then(|value| serde_json::from_value(value.clone()).ok()),
-            )
-        })
-        .unwrap_or((None, None, None));
+
     let payload = payments::PaymentsRedirectResponseData {
         resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
         merchant_id: Some(merchant_id.clone()),
@@ -3040,9 +2992,9 @@ pub async fn post_3ds_payments_authorize(
         param: Some(param_string.to_string()),
         connector: Some(connector),
         creds_identifier: None,
-        payment_method,
-        payment_method_data,
-        payment_method_type,
+        payment_method: None,
+        payment_method_data: None,
+        payment_method_type: None,
     };
 
     let locking_action = payload.get_locking_input(flow.clone());
