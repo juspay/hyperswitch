@@ -1346,6 +1346,41 @@ impl UnifiedConnectorServiceClient {
                 )
             })
     }
+
+    /// Performs notify connector via the Event Service
+    pub async fn notify_connector(
+        &self,
+        notify_connector_request: payments_grpc::NotifyConnectorRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+        event_type: payments_grpc::NotifyEventType,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::NotifyConnectorResponse>>
+    {
+        let mut request = tonic::Request::new(notify_connector_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata = build_unified_connector_service_grpc_headers_for_notify_connector(
+            connector_auth_metadata,
+            grpc_headers,
+            event_type,
+        )?;
+
+        *request.metadata_mut() = metadata;
+
+        self.event_service_client
+            .clone()
+            .notify_connector(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::NotifyConnectorFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="notify_connector",
+                    connector_name=?connector_name,
+                    "UCS notify_connector gRPC call failed"
+                )
+            })
+    }
 }
 
 /// Build the gRPC Headers for Unified Connector Service Request
@@ -1554,6 +1589,52 @@ pub fn build_unified_connector_service_grpc_headers_for_surcharge(
         consts::UCS_HEADER_SURCHARGE_CONNECTOR,
         surcharge_connector_value,
     );
+
+    Ok(metadata)
+}
+
+/// Build gRPC headers for UCS notify requests.
+/// Build gRPC headers for UCS notify requests.
+/// Same as [`build_unified_connector_service_grpc_headers`] but uses
+/// `x-surcharge-connector` for surcharge events and `x-connector` for other events.
+pub fn build_unified_connector_service_grpc_headers_for_notify_connector(
+    meta: ConnectorAuthMetadata,
+    grpc_headers: GrpcHeadersUcs,
+    event_type: payments_grpc::NotifyEventType,
+) -> Result<MetadataMap, UnifiedConnectorServiceError> {
+    let mut metadata = build_unified_connector_service_grpc_headers(meta.clone(), grpc_headers)?;
+
+    // Remove the default connector header
+    metadata.remove(consts::UCS_HEADER_CONNECTOR);
+
+    // Choose header based on event type
+    let is_surcharge_event = matches!(
+        event_type,
+        payments_grpc::NotifyEventType::SurchargePaymentSucceeded
+            | payments_grpc::NotifyEventType::SurchargeRefundSucceeded
+    );
+
+    let connector_name = meta.connector_name.clone();
+    let connector_value = connector_name
+        .parse::<MetadataValue<_>>()
+        .map_err(|error| {
+            logger::error!(?error);
+            if is_surcharge_event {
+                UnifiedConnectorServiceError::HeaderInjectionFailed(
+                    consts::UCS_HEADER_SURCHARGE_CONNECTOR.to_string(),
+                )
+            } else {
+                UnifiedConnectorServiceError::HeaderInjectionFailed(
+                    consts::UCS_HEADER_CONNECTOR.to_string(),
+                )
+            }
+        })?;
+
+    if is_surcharge_event {
+        metadata.append(consts::UCS_HEADER_SURCHARGE_CONNECTOR, connector_value);
+    } else {
+        metadata.append(consts::UCS_HEADER_CONNECTOR, connector_value);
+    }
 
     Ok(metadata)
 }

@@ -5,7 +5,9 @@ use crate::{
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
         mandate_revoke::MandateRevoke,
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
         revenue_recovery::InvoiceRecordBack,
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
@@ -22,7 +24,9 @@ use crate::{
         SettlementSplitCreate, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -53,7 +57,9 @@ use crate::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
@@ -266,4 +272,10 @@ pub type ConnectorWebhookRegisterRouterData = RouterData<
     ConnectorWebhookRegister,
     ConnectorWebhookRegisterRequest,
     ConnectorWebhookRegisterResponse,
+>;
+
+pub type ConnectorWebhookGenerateSecretRouterData = RouterData<
+    ConnectorWebhookGenerateSecret,
+    ConnectorWebhookGenerateSecretRequest,
+    ConnectorWebhookGenerateSecretResponse,
 >;

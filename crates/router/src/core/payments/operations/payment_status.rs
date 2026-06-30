@@ -399,7 +399,11 @@ async fn get_tracker_for_sync<
         })?;
 
     let disputes = db
-        .find_disputes_by_processor_merchant_id_payment_id(platform.get_processor().get_account().get_id(), &payment_id)
+        .find_disputes_by_processor_merchant_id_payment_id(
+            platform.get_processor().get_account().get_id(),
+            &payment_id,
+            platform.get_processor().get_account().storage_scheme,
+        )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
