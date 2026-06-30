@@ -109,7 +109,6 @@ max_feed_count = 200
 [key_manager]
 url = "http://localhost:5000"
 use_legacy_key_store_decryption = false
-enabled = true
 
 [cors]
 max_age = 30
@@ -1179,7 +1178,7 @@ revenue_recovery_topic = "hyperswitch-revenue-recovery-events"
 external_service_call_topic = "hyperswitch-external-service-call-events"
 
 [analytics]
-source = "clickhouse"
+source = "sqlx"
 forex_enabled = false # Enable or disable forex conversion for analytics
 
 [analytics.clickhouse]
@@ -1212,8 +1211,8 @@ partner_id = ""
 enabled = true
 
 [events]
-source = "kafka"
-emit_external_service_call_events = true
+source = "logs"
+emit_external_service_call_events = false
 
 [file_storage]
 file_storage_backend = "file_system"
@@ -1444,7 +1443,3 @@ backup_file_path = "./config/superposition_seed.toml" # Path to a local file for
 "28" = { description = "Retry after 6 days", recommended_action = "retry_after_6_days" }
 "29" = { description = "Retry after 8 days", recommended_action = "retry_after_8_days" }
 "30" = { description = "Retry after 10 days", recommended_action = "retry_after_10_days" }
-
-[micro_services.authentication_service]
-base_url = "http://localhost:8080"
-api_key = "api-key"
