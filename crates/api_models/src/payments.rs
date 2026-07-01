@@ -2348,6 +2348,20 @@ pub struct PaymentsRedirectRequest {
     pub param: String,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsCompleteAuthorizeRedirectRequest {
+    /// The payment method to be used for the payment
+    #[schema(value_type = Option<PaymentMethod>, example = "card")]
+    pub payment_method: Option<api_enums::PaymentMethod>,
+    /// The payment method data to be used for the payment
+    #[serde(with = "payment_method_data_serde", default)]
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
+    /// The payment method type to be used for the payment
+    #[schema(value_type = Option<PaymentMethodType>)]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+}
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct VerifyRequest {

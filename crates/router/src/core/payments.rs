@@ -4384,6 +4384,9 @@ pub struct PaymentsRedirectResponseData {
     pub resource_id: api::PaymentIdType,
     pub force_sync: bool,
     pub creds_identifier: Option<String>,
+    pub payment_method: Option<enums::PaymentMethod>,
+    pub payment_method_data: Option<payments_api::PaymentMethodDataRequest>,
+    pub payment_method_type: Option<enums::PaymentMethodType>,
 }
 
 #[cfg(feature = "v2")]
@@ -4575,8 +4578,12 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 pix_automatico_additional_details: None,
                 finix_additional_details: None,
             }),
+            payment_method_type: req.payment_method_type,
+            payment_method: req.payment_method,
+            payment_method_data: req.payment_method_data.clone(),
             ..Default::default()
         };
+
         let response = Box::pin(payments_core::<
             api::CompleteAuthorize,
             api::PaymentsResponse,
@@ -5165,6 +5172,9 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     pix_automatico_additional_details: None,
                     finix_additional_details: None,
                 }),
+                payment_method: req.payment_method,
+                payment_method_data: req.payment_method_data.clone(),
+                payment_method_type: req.payment_method_type,
                 ..Default::default()
             };
             let is_setup_mandate = payment_intent.is_setup_mandate();

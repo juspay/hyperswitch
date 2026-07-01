@@ -21,20 +21,22 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        CreateOrder, PreProcessing,
+        CompleteAuthorize, CreateOrder, PreProcessing,
     },
     router_request_types::{
-        AccessTokenRequestData, CreateOrderRequestData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, CompleteAuthorizeData, CreateOrderRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        CreateOrderRouterData, PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
+        CreateOrderRouterData, PaymentsAuthorizeRouterData, PaymentsCompleteAuthorizeRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSessionRouterData, PaymentsSyncRouterData,
+        RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -48,12 +50,13 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        CreateOrderType, PaymentsAuthorizeType, PaymentsPreProcessingType, PaymentsSyncType,
-        RefreshTokenType, RefundExecuteType, RefundSyncType, Response,
+        CreateOrderType, PaymentsAuthorizeType, PaymentsCompleteAuthorizeType,
+        PaymentsPreProcessingType, PaymentsSessionType, PaymentsSyncType, RefreshTokenType,
+        RefundExecuteType, RefundSyncType, Response,
     },
     webhooks,
 };
-use hyperswitch_masking::{Mask, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface};
 use transformers as trustpay;
 
 use crate::{
@@ -502,6 +505,100 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
     }
 }
 
+impl api::PaymentsCompleteAuthorize for Trustpay {}
+impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
+    for Trustpay
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let instance_id = match &req.request.payment_method_data {
+            Some(payment_method_data::PaymentMethodData::Wallet(
+                payment_method_data::WalletData::ApplePayThirdPartySdk(ref data),
+            )) => data
+                .token
+                .clone()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "token",
+                })
+                .attach_printable("Missing instance id for applepay , Trustpay")?,
+            _ => Err(errors::ConnectorError::MismatchedPaymentData).attach_printable(
+                "Complete Authorize is supported only supported for Applepay for trustpay",
+            )?,
+        };
+
+        Ok(format!(
+            "{}{}/{}",
+            self.base_url(connectors),
+            "api/v1/instance",
+            instance_id.expose()
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&PaymentsCompleteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(PaymentsCompleteAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCompleteAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
+        let response: trustpay::TrustpayPaymentsResponse = res
+            .response
+            .parse_struct("trustpay PaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 impl api::PaymentCapture for Trustpay {}
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Trustpay {}
 
@@ -704,7 +801,101 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
 impl api::PaymentSession for Trustpay {}
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Trustpay {}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Trustpay {
+    fn get_headers(
+        &self,
+        req: &PaymentsSessionRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            PaymentsSessionType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsSessionRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}{}", self.base_url(connectors), "api/v1/intent"))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsSessionRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let req_currency = req.request.currency;
+        let req_amount = req.request.minor_amount;
+
+        let amount = utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
+
+        let connector_router_data = trustpay::TrustpayRouterData::try_from((amount, req))?;
+        let connector_req =
+            trustpay::TrustpayCreateIntentRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsSessionRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let req = Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .attach_default_headers()
+                .headers(PaymentsSessionType::get_headers(self, req, connectors)?)
+                .url(&PaymentsSessionType::get_url(self, req, connectors)?)
+                .set_body(PaymentsSessionType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        );
+        Ok(req)
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsSessionRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsSessionRouterData, errors::ConnectorError> {
+        let response: trustpay::TrustpayCreateIntentResponse = res
+            .response
+            .parse_struct("TrustpayCreateIntentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl api::PaymentAuthorize for Trustpay {}
 
@@ -1499,6 +1690,15 @@ impl ConnectorSpecifications for Trustpay {
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&TRUSTPAY_CONNECTOR_INFO)
+    }
+    fn is_sdk_client_token_generation_enabled(&self) -> bool {
+        true
+    }
+
+    fn supported_payment_method_types_for_sdk_client_token_generation(
+        &self,
+    ) -> Vec<enums::PaymentMethodType> {
+        vec![enums::PaymentMethodType::ApplePay]
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {

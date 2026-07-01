@@ -1780,7 +1780,6 @@ default_imp_for_complete_authorize!(
     connectors::Tokenio,
     connectors::Truelayer,
     connectors::Trustly,
-    connectors::Trustpay,
     connectors::Trustpayments,
     connectors::Tsys,
     connectors::UnifiedAuthenticationService,
