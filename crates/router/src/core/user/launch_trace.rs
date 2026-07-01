@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use api_models::launch_trace as launch_trace_api;
 use common_enums::EntityType;
@@ -120,12 +120,10 @@ pub async fn launch_trace(
     Ok(ApplicationResponse::Json(parsed))
 }
 
-/// Enumerate the caller's active user_roles in the JWT's org, transform each
-/// row per its `entity_type`, and collapse duplicates so each merchant
-/// appears at most once in the returned Vec. Merchant-level rows produce a
-/// wildcard entry (all profiles); Profile-level rows collapse per-merchant
-/// into a concrete profile list. Tenant / Organization rows expand to a
-/// wildcard entry for every merchant in the org.
+/// Enumerate the caller's active user_roles in the JWT's org and emit one
+/// generic `ScopeEntry` per row. Wildcards are implicit at each level — a
+/// merchant-level entry covers all profiles under that merchant without any
+/// explicit wildcard field.
 async fn build_user_scope(
     state: &SessionState,
     user_from_token: &auth::UserFromToken,
@@ -152,73 +150,60 @@ async fn build_user_scope(
         .change_context(LaunchTraceErrors::InternalServerError)
         .attach_printable("Failed to list user roles for scope enumeration")?;
 
-    // Wildcard-merchant set shadows any per-profile lists for the same
-    // merchant (a merchant-level grant subsumes any profile-level grant).
-    let mut wildcard_merchants: HashSet<String> = HashSet::new();
-    let mut profile_lists: HashMap<String, Vec<String>> = HashMap::new();
-    let mut expand_org_to_all_merchants = false;
+    let mut scope: Vec<launch_trace_api::ScopeEntry> = Vec::with_capacity(user_roles.len());
 
-    for user_role in user_roles {
+    for user_role in &user_roles {
         let Some((entity_id, entity_type)) = user_role.get_entity_id_and_type() else {
             continue;
         };
-
-        match entity_type {
-            EntityType::Tenant | EntityType::Organization => {
-                expand_org_to_all_merchants = true;
-            }
-            EntityType::Merchant => {
-                wildcard_merchants.insert(entity_id);
-            }
-            EntityType::Profile => {
-                if let Some(merchant_id) = user_role.merchant_id.as_ref() {
-                    profile_lists
-                        .entry(merchant_id.get_string_repr().to_owned())
-                        .or_default()
-                        .push(entity_id);
-                }
-            }
-        }
+        scope.push(user_role_to_scope_entry(user_role, entity_id, entity_type));
     }
 
-    // Any Tenant / Organization role reachable from the org grants wildcard
-    // access to every merchant under it.
-    if expand_org_to_all_merchants {
-        let merchants = state
-            .store
-            .list_merchant_accounts_by_organization_id(&user_from_token.org_id)
-            .await
-            .change_context(LaunchTraceErrors::InternalServerError)
-            .attach_printable("Failed to list merchant accounts for org-level scope expansion")?;
-        for merchant in merchants {
-            wildcard_merchants.insert(merchant.get_id().get_string_repr().to_owned());
-        }
-    }
-
-    let mut scope: Vec<launch_trace_api::ScopeEntry> =
-        Vec::with_capacity(wildcard_merchants.len() + profile_lists.len());
-
-    for merchant_id in &wildcard_merchants {
-        scope.push(launch_trace_api::ScopeEntry {
-            merchant_id: merchant_id.clone(),
-            profile_ids: launch_trace_api::ScopeProfiles::All,
-        });
-    }
-    for (merchant_id, mut profiles) in profile_lists {
-        if wildcard_merchants.contains(&merchant_id) {
-            continue;
-        }
-        profiles.sort();
-        profiles.dedup();
-        scope.push(launch_trace_api::ScopeEntry {
-            merchant_id,
-            profile_ids: launch_trace_api::ScopeProfiles::Some(profiles),
-        });
-    }
-    // Deterministic ordering so the wire body diffs cleanly across calls.
-    scope.sort_by(|a, b| a.merchant_id.cmp(&b.merchant_id));
+    // Deterministic ordering for clean wire diffs across identical calls.
+    scope.sort_by(|a, b| {
+        a.entity_type
+            .cmp(&b.entity_type)
+            .then_with(|| a.entity_id.cmp(&b.entity_id))
+    });
 
     Ok(scope)
+}
+
+fn user_role_to_scope_entry(
+    user_role: &diesel_models::user_role::UserRole,
+    entity_id: String,
+    entity_type: EntityType,
+) -> launch_trace_api::ScopeEntry {
+    let mut path: HashMap<String, String> = HashMap::new();
+    path.insert(
+        "tenant_id".to_owned(),
+        user_role.tenant_id.get_string_repr().to_owned(),
+    );
+    let (type_name, include_org, include_merchant) = match entity_type {
+        EntityType::Tenant => ("tenant", false, false),
+        EntityType::Organization => ("organization", false, false),
+        EntityType::Merchant => ("merchant", true, false),
+        EntityType::Profile => ("profile", true, true),
+    };
+    if include_org {
+        if let Some(org_id) = user_role.org_id.as_ref() {
+            path.insert("org_id".to_owned(), org_id.get_string_repr().to_owned());
+        }
+    }
+    if include_merchant {
+        if let Some(merchant_id) = user_role.merchant_id.as_ref() {
+            path.insert(
+                "merchant_id".to_owned(),
+                merchant_id.get_string_repr().to_owned(),
+            );
+        }
+    }
+    launch_trace_api::ScopeEntry {
+        entity_type: type_name.to_owned(),
+        entity_id,
+        path,
+        constraints: HashMap::new(),
+    }
 }
 
 fn map_entity_type_to_role(entity: EntityType) -> &'static str {

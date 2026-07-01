@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LaunchTraceResponse {
@@ -15,28 +18,31 @@ impl ApiEventMetric for LaunchTraceResponse {
     }
 }
 
-/// Per-merchant profile authorisation. Wildcard represents a merchant-level
-/// grant (all profiles under the merchant); an explicit list represents
-/// profile-level grants.
-#[derive(Debug, Clone)]
-pub enum ScopeProfiles {
-    All,
-    Some(Vec<String>),
-}
-
-impl Serialize for ScopeProfiles {
-    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        match self {
-            Self::All => s.serialize_str("*"),
-            Self::Some(list) => list.serialize(s),
-        }
-    }
-}
-
+/// A single authorisation grant. One `ScopeEntry` per `user_roles` row.
+///
+/// The shape is deliberately generic so new authorisation dimensions can be
+/// added without a schema change:
+/// - `entity_type` is a string, not an enum — new levels (e.g. `"connector"`,
+///   `"region"`) are additive.
+/// - `path` is an open map of ancestor ids — new hierarchy levels just add
+///   new keys.
+/// - `constraints` is an open JSON bag for attribute-level restrictions
+///   (e.g. `{"currency": ["INR"]}`, `{"valid_until": "2026-12-31"}`).
+///
+/// Consumers deny by default when they encounter an unknown `entity_type` or
+/// an unrecognised constraint — old readers stay safe under new shapes.
+///
+/// Wildcards are implicit at each level: a `merchant`-level grant covers all
+/// profiles under that merchant. Only restricted access needs lower-level
+/// entries.
 #[derive(Debug, Clone, Serialize)]
 pub struct ScopeEntry {
-    pub merchant_id: String,
-    pub profile_ids: ScopeProfiles,
+    pub entity_type: String,
+    pub entity_id: String,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub path: HashMap<String, String>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub constraints: HashMap<String, Value>,
 }
 
 /// Outbound Sage mint-request body. Not part of the public API surface —
