@@ -2915,9 +2915,16 @@ impl behaviour::Conversion for PaymentAttempt {
             .payment_method_data
             .as_ref()
             .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
+            .and_then(|obj| {
+                obj.get("card")
+                    .and_then(|card| card.as_object())
+                    .and_then(|card_data| card_data.get("card_network"))
+                    .or_else(|| {
+                        obj.get("network_token")
+                            .and_then(|network_token| network_token.as_object())
+                            .and_then(|network_token_data| network_token_data.get("card_network"))
+                    })
+            })
             .and_then(|network| network.as_str())
             .map(|network| network.to_string());
         let (connector_transaction_id, processor_transaction_data) = self
@@ -3171,9 +3178,16 @@ impl behaviour::Conversion for PaymentAttempt {
             .payment_method_data
             .as_ref()
             .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
+            .and_then(|obj| {
+                obj.get("card")
+                    .and_then(|card| card.as_object())
+                    .and_then(|card_data| card_data.get("card_network"))
+                    .or_else(|| {
+                        obj.get("network_token")
+                            .and_then(|network_token| network_token.as_object())
+                            .and_then(|network_token_data| network_token_data.get("card_network"))
+                    })
+            })
             .and_then(|network| network.as_str())
             .map(|network| network.to_string());
         Ok(DieselPaymentAttemptNew {
