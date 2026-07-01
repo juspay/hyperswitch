@@ -63,11 +63,11 @@ describe("Subscription Management tests", () => {
       };
       cy.UpdateBusinessProfileTest(
         bpBody,
-        true,
-        false,
-        false,
-        false,
-        false,
+        true,  // is_connector_agnostic_mit_enabled
+        false, // collect_billing_details_from_wallet_connector
+        false, // collect_shipping_details_from_wallet_connector
+        false, // always_collect_billing_details_from_wallet_connector
+        false, // always_collect_shipping_details_from_wallet_connector
         globalState
       );
     });
