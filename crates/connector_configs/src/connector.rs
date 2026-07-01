@@ -151,6 +151,7 @@ pub struct ConfigMetadata {
     pub terminal_id: Option<InputData>,
     pub google_pay: Option<Vec<InputData>>,
     pub apple_pay: Option<Vec<InputData>>,
+    pub apple_pay_combined: Option<Vec<InputData>>,
     pub paypal_sdk: Option<Vec<InputData>>,
     pub pix_emv: Option<Vec<InputData>>,
     pub pix_qr: Option<Vec<InputData>>,
@@ -494,6 +495,7 @@ impl ConnectorConfig {
             }
             AuthenticationConnectors::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
             AuthenticationConnectors::Cardinal => Ok(connector_data.cardinal),
+            AuthenticationConnectors::Aci => Ok(connector_data.aci),
         }
     }
 

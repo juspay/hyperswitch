@@ -9840,6 +9840,8 @@ pub struct SamsungPaySessionTokenData {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SamsungPayMerchantCredentials {
     pub service_id: String,
+    #[serde(default)]
+    pub merchant_id: Option<String>,
     pub merchant_display_name: String,
     pub merchant_business_country: api_enums::CountryAlpha2,
     pub allowed_brands: Vec<String>,
@@ -10451,6 +10453,7 @@ pub struct SamsungPaySessionTokenResponse {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum SamsungPayProtocolType {
+    #[serde(rename = "PROTOCOL_3DS")]
     Protocol3ds,
 }
 
@@ -10460,6 +10463,9 @@ pub enum SamsungPayProtocolType {
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SamsungPayMerchantPaymentInformation {
+    /// Merchant ID assigned by Samsung Pay
+    #[smithy(value_type = "Option<String>")]
+    pub id: Option<String>,
     /// Merchant name, this will be displayed on the Samsung Pay screen
     #[smithy(value_type = "String")]
     pub name: String,

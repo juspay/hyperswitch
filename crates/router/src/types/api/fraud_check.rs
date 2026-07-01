@@ -68,6 +68,7 @@ impl FraudCheckConnectorData {
             enums::FrmConnectors::Cybersourcedecisionmanager => Ok(ConnectorEnum::Old(Box::new(
                 connector::Cybersourcedecisionmanager::new(),
             ))),
+            enums::FrmConnectors::Aci => Ok(ConnectorEnum::Old(Box::new(connector::Aci::new()))),
         }
     }
 }

@@ -113,6 +113,9 @@ impl AuthenticationConnectorData {
             enums::AuthenticationConnectors::Cardinal => Ok(ConnectorEnum::Old(Box::new(
                 connector::UnifiedAuthenticationService::new(),
             ))),
+            enums::AuthenticationConnectors::Aci => {
+                Ok(ConnectorEnum::Old(Box::new(connector::Aci::new())))
+            }
         }
     }
 }
