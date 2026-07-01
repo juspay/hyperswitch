@@ -307,7 +307,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaymentsResponse, T, PaymentsResponseDa
             .and_then(|redirection_data| redirection_data.get_url())
             .map(|redirection_url| RedirectForm::from((redirection_url, Method::Get)));
         Ok(Self {
-            status: AttemptStatus::from(item.response.status),
+            status: AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(redirection_data),
