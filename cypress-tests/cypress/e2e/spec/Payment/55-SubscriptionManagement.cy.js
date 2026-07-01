@@ -74,10 +74,15 @@ describe("Subscription Management tests", () => {
   });
 
   context("Create Subscription", () => {
-    it("create-subscription-happy-path-test", () => {
+    it("create-subscription-happy-path-test", function () {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "subscription_pm"
       ]["Create"];
+
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+        this.skip();
+      }
 
       cy.createSubscriptionTest(
         fixtures.createSubscriptionBody,

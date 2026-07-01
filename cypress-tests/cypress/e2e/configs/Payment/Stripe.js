@@ -1490,7 +1490,7 @@ export const connectorDetails = {
         item_price_id: "price_12345",
         payment_details: {
           return_url: "https://example.com/subscription/return",
-          payment_method_id: "",
+          payment_method_id: "", // Populated from globalState.get("paymentMethodId") in createSubscriptionTest
         },
       },
       Response: {
