@@ -6447,6 +6447,11 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsDetails::foreign_from),
         })
     }
 }
@@ -6490,6 +6495,7 @@ impl
             metadata: None,
             state,
             test_mode: router_data.test_mode,
+            split_payments: None,
         })
     }
 }
