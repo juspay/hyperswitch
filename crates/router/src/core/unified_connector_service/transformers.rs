@@ -1885,6 +1885,13 @@ impl
             .as_ref()
             .map(ConnectorState::foreign_from);
 
+        let authentication_data = router_data
+            .request
+            .authentication_data
+            .clone()
+            .map(payments_grpc::AuthenticationData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             mit_category: None,
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
@@ -1920,7 +1927,7 @@ impl
             address: Some(address),
             auth_type: auth_type.into(),
             enrolled_for_3ds: false,
-            authentication_data: None,
+            authentication_data,
             metadata: router_data
                 .request
                 .metadata
