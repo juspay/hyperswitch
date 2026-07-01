@@ -862,6 +862,7 @@ export const connectorDetails = {
         },
       },
       Configs: {
+        // BofA sandbox returns billing=null in retrieve response for on-session flows — skip billing assertion
         skipBillingAssertion: true,
       },
     },
