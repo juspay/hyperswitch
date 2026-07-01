@@ -178,12 +178,12 @@ pub struct AdyenTransferResponse {
     status: AdyenTransferStatus,
     #[serde(rename = "type")]
     transaction_type: AdyenTransactionType,
-    reason: String,
+    reason: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AdyenPlatformAccountHolder {
-    description: String,
+    description: Option<String>,
     id: String,
 }
 
@@ -196,7 +196,7 @@ pub struct AdyenCategoryData {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AdyenBalanceAccount {
-    description: String,
+    description: Option<String>,
     id: String,
 }
 
@@ -213,6 +213,11 @@ pub enum AdyenTransferStatus {
     Authorised,
     Refused,
     Error,
+    Pending,
+    Booked,
+    Received,
+    Returned,
+    Failed,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -638,11 +643,10 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, AdyenTransferResponse>> for Payouts
             return Ok(Self {
                 response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: response.status.to_string(),
-                    message: if !response.reason.is_empty() {
-                        response.reason
-                    } else {
-                        response.status.to_string()
-                    },
+                    message: response
+                        .reason
+                        .filter(|r| !r.is_empty())
+                        .unwrap_or_else(|| response.status.to_string()),
                     reason: None,
                     status_code: item.http_code,
                     attempt_status: None,
@@ -675,8 +679,12 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, AdyenTransferResponse>> for Payouts
 impl From<AdyenTransferStatus> for enums::PayoutStatus {
     fn from(adyen_status: AdyenTransferStatus) -> Self {
         match adyen_status {
-            AdyenTransferStatus::Authorised => Self::Initiated,
-            AdyenTransferStatus::Error | AdyenTransferStatus::Refused => Self::Failed,
+            AdyenTransferStatus::Authorised | AdyenTransferStatus::Booked => Self::Initiated,
+            AdyenTransferStatus::Pending | AdyenTransferStatus::Received => Self::Pending,
+            AdyenTransferStatus::Returned => Self::Reversed,
+            AdyenTransferStatus::Error
+            | AdyenTransferStatus::Refused
+            | AdyenTransferStatus::Failed => Self::Failed,
         }
     }
 }

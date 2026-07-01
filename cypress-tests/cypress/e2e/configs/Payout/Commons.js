@@ -153,54 +153,6 @@ export const connectorDetails = {
         payout_type: "card",
       },
     }),
-    EntityTypeCompany: getCustomExchange({
-      Request: {
-        entity_type: "Company",
-      },
-    }),
-    EntityTypeDefault: getCustomExchange({
-      Request: {},
-    }),
-    EntityTypeIndividual: getCustomExchange({
-      Request: {
-        entity_type: "Individual",
-      },
-    }),
-    EntityTypeInvalid: getCustomExchange({
-      Request: {
-        entity_type: "InvalidType",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Json deserialize error: unknown variant `InvalidType`",
-            code: "IR_06",
-          },
-        },
-      },
-    }),
-    EntityTypeNaturalPerson: getCustomExchange({
-      Request: {
-        entity_type: "NaturalPerson",
-      },
-    }),
-    EntityTypeNonProfit: getCustomExchange({
-      Request: {
-        entity_type: "NonProfit",
-      },
-    }),
-    EntityTypePersonal: getCustomExchange({
-      Request: {
-        entity_type: "Personal",
-      },
-    }),
-    EntityTypePublicSector: getCustomExchange({
-      Request: {
-        entity_type: "PublicSector",
-      },
-    }),
   },
   payout_link_pm: {
     PayoutLinkBase: getCustomExchange({

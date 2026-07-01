@@ -90,7 +90,7 @@ export function getValueByKey(jsonObject, key) {
 
 export const CONNECTOR_LISTS = {
   INCLUDE: {
-    ENTITY_TYPE: ["wise"],
+    ENTITY_TYPE: ["adyenplatform", "wise"],
     PAYOUT_LINK: ["wise"],
   },
 };

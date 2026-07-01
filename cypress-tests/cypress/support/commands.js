@@ -6099,8 +6099,9 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
+Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
   const payout_id = globalState.get("payoutID");
+  const resBody = data?.Response?.body || {};
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/payouts/${payout_id}`,
@@ -6116,6 +6117,9 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
       expect(response.headers["content-type"]).to.include("application/json");
       expect(response.body.payout_id).to.equal(payout_id);
       expect(response.body.amount).to.equal(globalState.get("payoutAmount"));
+      for (const key in resBody) {
+        expect(response.body[key]).to.deep.equal(resBody[key]);
+      }
     });
   });
 });
