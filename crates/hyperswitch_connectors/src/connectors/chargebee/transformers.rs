@@ -496,8 +496,72 @@ pub struct ChargebeePaymentMethodDetails {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeCardDetails {
     funding_type: ChargebeeFundingType,
-    brand: common_enums::CardNetwork,
+    brand: ChargebeeCardBrand,
     iin: String,
+}
+
+// Chargebee sends card brand values in lowercase snake_case (e.g. `visa`, `mastercard`,
+// `american_express`), which don't match `common_enums::CardNetwork`'s serde representation.
+// We deserialize into this connector-local enum so parsing never fails, then map the brands that
+// have a `CardNetwork` equivalent. Brands with no equivalent (regional networks, `other`, and any
+// future value caught by `#[serde(other)]`) map to `None`.
+// Reference: https://apidocs.chargebee.com/docs/api/transactions (payment_method_details -> card -> brand)
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeCardBrand {
+    Visa,
+    Mastercard,
+    AmericanExpress,
+    Discover,
+    Jcb,
+    DinersClub,
+    Bancontact,
+    CmrFalabella,
+    TarjetaNaranja,
+    Nativa,
+    Cencosud,
+    Cabal,
+    Argencard,
+    Elo,
+    Hipercard,
+    Carnet,
+    #[serde(rename = "rupay")]
+    RuPay,
+    Maestro,
+    Dankort,
+    CartesBancaires,
+    Mada,
+    #[serde(other)]
+    Other,
+}
+
+impl ChargebeeCardBrand {
+    fn to_card_network(&self) -> Option<common_enums::CardNetwork> {
+        match self {
+            Self::Visa => Some(common_enums::CardNetwork::Visa),
+            Self::Mastercard => Some(common_enums::CardNetwork::Mastercard),
+            Self::AmericanExpress => Some(common_enums::CardNetwork::AmericanExpress),
+            Self::Discover => Some(common_enums::CardNetwork::Discover),
+            Self::Jcb => Some(common_enums::CardNetwork::JCB),
+            Self::DinersClub => Some(common_enums::CardNetwork::DinersClub),
+            Self::RuPay => Some(common_enums::CardNetwork::RuPay),
+            Self::Maestro => Some(common_enums::CardNetwork::Maestro),
+            Self::CartesBancaires => Some(common_enums::CardNetwork::CartesBancaires),
+            Self::Bancontact
+            | Self::CmrFalabella
+            | Self::TarjetaNaranja
+            | Self::Nativa
+            | Self::Cencosud
+            | Self::Cabal
+            | Self::Argencard
+            | Self::Elo
+            | Self::Hipercard
+            | Self::Carnet
+            | Self::Dankort
+            | Self::Mada
+            | Self::Other => None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -570,6 +634,7 @@ impl ChargebeeInvoiceBody {
         let webhook_body = body
             .parse_struct::<Self>("ChargebeeInvoiceBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        println!("Webhook Body: {:?}", webhook_body);
         Ok(webhook_body)
     }
 }
@@ -707,7 +772,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             charge_id: None,
             // Need to populate these card info field
             card_info: api_models::payments::AdditionalCardInfo {
-                card_network: Some(payment_method_details.card.brand),
+                card_network: payment_method_details.card.brand.to_card_network(),
                 card_isin: Some(payment_method_details.card.iin),
                 card_issuer: None,
                 card_type: None,
