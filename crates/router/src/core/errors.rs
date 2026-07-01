@@ -2,7 +2,7 @@ pub mod chat;
 pub mod customers_error_response;
 pub mod error_handlers;
 #[cfg(feature = "olap")]
-pub mod launch_trace;
+pub mod launch_sage;
 #[cfg(feature = "olap")]
 pub mod oidc;
 pub mod transformers;

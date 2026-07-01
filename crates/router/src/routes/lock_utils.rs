@@ -334,7 +334,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetUserDetailsInternal
             | Flow::ListUsersInternal
             | Flow::ListMembersForEntity
-            | Flow::LaunchTrace => Self::User,
+            | Flow::LaunchSage => Self::User,
 
             Flow::GetDataFromHyperswitchAiFlow | Flow::ListAllChatInteractions => Self::AiWorkflow,
 

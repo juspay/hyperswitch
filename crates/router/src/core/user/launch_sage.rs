@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::launch_trace as launch_trace_api;
+use api_models::launch_sage as launch_sage_api;
 use common_enums::EntityType;
 use common_utils::{
     consts::REQUEST_TIME_OUT_FOR_AI_SERVICE,
@@ -14,7 +14,7 @@ use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, logger, tracing};
 
 use crate::{
-    core::errors::launch_trace::LaunchTraceErrors,
+    core::errors::launch_sage::LaunchSageErrors,
     db::user_role::ListUserRolesByUserIdPayload,
     routes::SessionState,
     services::{authentication as auth, authorization::roles, ApplicationResponse},
@@ -26,14 +26,14 @@ const REQUEST_TIMEOUT_SECS: u64 = REQUEST_TIME_OUT_FOR_AI_SERVICE;
 const SAGE_SOURCE: &str = "hyperswitch-cc";
 
 #[instrument(skip_all, fields(user_id, merchant_id))]
-pub async fn launch_trace(
+pub async fn launch_sage(
     state: SessionState,
     user_from_token: auth::UserFromToken,
-) -> CustomResult<ApplicationResponse<launch_trace_api::LaunchTraceResponse>, LaunchTraceErrors> {
+) -> CustomResult<ApplicationResponse<launch_sage_api::LaunchSageResponse>, LaunchSageErrors> {
     let conf = state.conf.sage.get_inner();
 
     if !conf.enabled {
-        return Err(error_stack::Report::new(LaunchTraceErrors::SageDisabled))
+        return Err(error_stack::Report::new(LaunchSageErrors::SageDisabled))
             .attach_printable("sage flag is off in this env");
     }
 
@@ -47,11 +47,11 @@ pub async fn launch_trace(
             .unwrap_or(&state.tenant.tenant_id),
     )
     .await
-    .change_context(LaunchTraceErrors::InternalServerError)
+    .change_context(LaunchSageErrors::InternalServerError)
     .attach_printable("Failed to retrieve role information")?;
 
     if role_info.is_internal() {
-        return Err(error_stack::Report::new(LaunchTraceErrors::Forbidden))
+        return Err(error_stack::Report::new(LaunchSageErrors::Forbidden))
             .attach_printable("Internal roles are not eligible for sage");
     }
 
@@ -64,7 +64,7 @@ pub async fn launch_trace(
 
     // Every id MUST come from the verified AuthToken — the route handler
     // takes an empty body by design.
-    let request_body = launch_trace_api::SageSessionRequest {
+    let request_body = launch_sage_api::SageSessionRequest {
         user_id: user_from_token.user_id.clone(),
         launch_merchant_id: user_from_token.merchant_id.get_string_repr().to_owned(),
         launch_profile_id: user_from_token.profile_id.get_string_repr().to_owned(),
@@ -91,7 +91,7 @@ pub async fn launch_trace(
     let response =
         http_client::send_request(&state.conf.proxy, request, Some(REQUEST_TIMEOUT_SECS))
             .await
-            .change_context(LaunchTraceErrors::SageError)
+            .change_context(LaunchSageErrors::SageError)
             .attach_printable("Error calling sage")?;
 
     let status = response.status();
@@ -101,14 +101,14 @@ pub async fn launch_trace(
         if status.as_u16() == 401 {
             logger::error!("sage: upstream 401 — likely infra key drift");
         }
-        return Err(error_stack::Report::new(LaunchTraceErrors::SageError))
+        return Err(error_stack::Report::new(LaunchSageErrors::SageError))
             .attach_printable(format!("sage returned status {status}"));
     }
 
     let parsed = response
-        .json::<launch_trace_api::LaunchTraceResponse>()
+        .json::<launch_sage_api::LaunchSageResponse>()
         .await
-        .change_context(LaunchTraceErrors::SageError)
+        .change_context(LaunchSageErrors::SageError)
         .attach_printable("Failed to deserialize sage handoff response")?;
 
     // Strip the `?t=…` bearer before logging — it's a single-use credential
@@ -127,7 +127,7 @@ pub async fn launch_trace(
 async fn build_user_scope(
     state: &SessionState,
     user_from_token: &auth::UserFromToken,
-) -> CustomResult<Vec<launch_trace_api::ScopeEntry>, LaunchTraceErrors> {
+) -> CustomResult<Vec<launch_sage_api::ScopeEntry>, LaunchSageErrors> {
     let tenant_id = user_from_token
         .tenant_id
         .as_ref()
@@ -147,10 +147,10 @@ async fn build_user_scope(
             limit: None,
         })
         .await
-        .change_context(LaunchTraceErrors::InternalServerError)
+        .change_context(LaunchSageErrors::InternalServerError)
         .attach_printable("Failed to list user roles for scope enumeration")?;
 
-    let mut scope: Vec<launch_trace_api::ScopeEntry> = Vec::with_capacity(user_roles.len());
+    let mut scope: Vec<launch_sage_api::ScopeEntry> = Vec::with_capacity(user_roles.len());
 
     for user_role in &user_roles {
         let Some((entity_id, entity_type)) = user_role.get_entity_id_and_type() else {
@@ -173,7 +173,7 @@ fn user_role_to_scope_entry(
     user_role: &diesel_models::user_role::UserRole,
     entity_id: String,
     entity_type: EntityType,
-) -> launch_trace_api::ScopeEntry {
+) -> launch_sage_api::ScopeEntry {
     let mut path: HashMap<String, String> = HashMap::new();
     path.insert(
         "tenant_id".to_owned(),
@@ -198,7 +198,7 @@ fn user_role_to_scope_entry(
             );
         }
     }
-    launch_trace_api::ScopeEntry {
+    launch_sage_api::ScopeEntry {
         entity_type: type_name.to_owned(),
         entity_id,
         path,

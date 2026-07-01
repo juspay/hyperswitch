@@ -24,7 +24,7 @@ pub mod feature_matrix;
 pub mod files;
 pub mod gsm;
 pub mod health_check;
-pub mod launch_trace;
+pub mod launch_sage;
 pub mod mandates;
 pub mod merchant_connector_webhook_management;
 pub mod oidc;

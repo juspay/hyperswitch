@@ -39,19 +39,18 @@ pub async fn get_active_user_details(state: web::Data<AppState>, req: HttpReques
     .await
 }
 
-/// `POST /user/launch_trace` — mint a federated Trace session for the
-/// Control Center user. Body is empty by design; identity is read from
-/// the verified `AuthToken`. The upstream service performs the
-/// authoritative merchant-access gate.
+/// `POST /user/launch_sage` — mint a sage session for the Control Center
+/// user. Body is empty by design; identity is read from the verified
+/// `AuthToken`. Sage performs the authoritative merchant-access gate.
 #[cfg(feature = "olap")]
-pub async fn launch_trace(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
-    let flow = Flow::LaunchTrace;
+pub async fn launch_sage(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
+    let flow = Flow::LaunchSage;
     Box::pin(api::server_wrap(
         flow,
         state,
         &http_req,
         (),
-        |state, user: auth::UserFromToken, _, _| user_core::launch_trace::launch_trace(state, user),
+        |state, user: auth::UserFromToken, _, _| user_core::launch_sage::launch_sage(state, user),
         &auth::DashboardNoPermissionAuth {
             allow_connected: true,
             allow_platform: true,

@@ -1,5 +1,5 @@
 #[derive(Debug, thiserror::Error)]
-pub enum LaunchTraceErrors {
+pub enum LaunchSageErrors {
     #[error("Sage is not enabled in this environment")]
     SageDisabled,
 
@@ -14,7 +14,7 @@ pub enum LaunchTraceErrors {
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse>
-    for LaunchTraceErrors
+    for LaunchSageErrors
 {
     fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
         use api_models::errors::types::{ApiError, ApiErrorResponse as AER};
@@ -33,7 +33,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
     }
 }
 
-impl LaunchTraceErrors {
+impl LaunchSageErrors {
     pub fn get_error_message(&self) -> String {
         match self {
             Self::SageDisabled => "Not found".to_string(),

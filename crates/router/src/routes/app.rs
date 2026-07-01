@@ -2838,7 +2838,7 @@ impl User {
         route = route
             .service(web::resource("").route(web::get().to(user::get_active_user_details)))
             .service(web::resource("/signin").route(web::post().to(user::user_signin)))
-            .service(web::resource("/launch_trace").route(web::post().to(user::launch_trace)))
+            .service(web::resource("/launch_sage").route(web::post().to(user::launch_sage)))
             .service(web::resource("/v2/signin").route(web::post().to(user::user_signin)))
             // signin/signup with sso using openidconnect
             .service(web::resource("/oidc").route(web::post().to(user::sso_sign)))

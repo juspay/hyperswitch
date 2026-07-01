@@ -5,14 +5,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LaunchTraceResponse {
+pub struct LaunchSageResponse {
     pub handoff_url: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<String>,
 }
 
-impl ApiEventMetric for LaunchTraceResponse {
+impl ApiEventMetric for LaunchSageResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Miscellaneous)
     }
