@@ -32,6 +32,8 @@ import getConnectorDetails, {
   getValueByKey,
   setNormalizedValue,
 } from "../e2e/configs/Payment/Utils";
+import * as payoutUtils from "../e2e/configs/Payout/Utils";
+import * as fixtures from "../fixtures/imports";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
@@ -6116,7 +6118,15 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
 
 Cypress.Commands.add(
   "verifyRecurringPayoutResponse",
-  (response, expectedRecurring, expectedMethodId) => {
+  (response, expectedRecurring, expectedMethodId, expectedPayoutStatus) => {
+    cy.wrap(response).should("have.property", "status", 200);
+    if (expectedPayoutStatus !== undefined && expectedPayoutStatus !== null) {
+      cy.wrap(response.body).should(
+        "have.property",
+        "status",
+        expectedPayoutStatus
+      );
+    }
     cy.wrap(response.body).should(
       "have.property",
       "recurring",
@@ -6131,6 +6141,15 @@ Cypress.Commands.add(
     }
   }
 );
+
+Cypress.Commands.add("getPayoutRecurringData", (globalState, configKey) => {
+  const payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+  const data = payoutUtils.getConnectorDetails(globalState.get("connectorId"))[
+    "bank_transfer_pm"
+  ]["sepa_bank_transfer"][configKey];
+  const shouldContinue = payoutUtils.should_continue_further(data);
+  return cy.wrap({ payoutBody, data, shouldContinue });
+});
 
 Cypress.Commands.add("verifyPayoutMethodId", (globalState) => {
   cy.wrap(globalState.get("payoutMethodId")).should("exist");

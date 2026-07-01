@@ -1,4 +1,3 @@
-import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import * as utils from "../../configs/Payout/Utils";
 
@@ -45,80 +44,88 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-recurring-true", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+      cy.getPayoutRecurringData(globalState, "RecurringTrue").then(
+        ({ payoutBody: pb, data, shouldContinue: shouldProceed }) => {
+          payoutBody = pb;
+          if (!shouldProceed) {
+            shouldContinue = false;
+            return;
+          }
 
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["RecurringTrue"];
+          cy.createConfirmPayoutTest(
+            payoutBody,
+            data,
+            true, // confirm=true — immediately confirm the payout
+            false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
+            globalState
+          ).then((response) => {
+            // recurring=true because we explicitly set recurring:true in the request to mark this as a recurring payout.
+            // The API saves the payout method after success and echoes recurring:true.
+            // (payout_method_id not asserted here because Wise does not return it in the create response — see RecurringUseMethod TRIGGER_SKIP.)
+            cy.verifyRecurringPayoutResponse(
+              response,
+              true,
+              undefined,
+              "requires_fulfillment"
+            );
+          });
 
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-        return;
-      }
-
-      cy.createConfirmPayoutTest(
-        payoutBody,
-        data,
-        true, // confirm=true — immediately confirm the payout
-        false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
-        globalState
-      ).then((response) => {
-        // recurring=true because we explicitly set recurring:true in the request to mark this as a recurring payout.
-        // The API saves the payout method after success and echoes recurring:true.
-        // (payout_method_id not asserted here because Wise does not return it in the create response — see RecurringUseMethod TRIGGER_SKIP.)
-        cy.verifyRecurringPayoutResponse(response, true);
-      });
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        }
+      );
     });
 
     it("fulfill-recurring-payout-test", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["RecurringTrueFulfill"];
+      cy.getPayoutRecurringData(globalState, "RecurringTrueFulfill").then(
+        ({ payoutBody: pb, data, shouldContinue: shouldProceed }) => {
+          payoutBody = pb;
+          if (!shouldProceed) {
+            shouldContinue = false;
+            return;
+          }
 
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-        return;
-      }
+          cy.fulfillPayoutCallTest({}, data, globalState);
 
-      cy.fulfillPayoutCallTest({}, data, globalState);
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        }
+      );
     });
 
     it("create-recurring-payout-using-saved-method", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+      cy.getPayoutRecurringData(globalState, "RecurringUseMethod").then(
+        ({ payoutBody: pb, data, shouldContinue: shouldProceed }) => {
+          payoutBody = pb;
+          if (!shouldProceed) {
+            shouldContinue = false;
+            return;
+          }
 
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["RecurringUseMethod"];
+          // Use the payout_method_id saved from the create-payout-with-recurring-true test
+          cy.injectPayoutMethodId(data, globalState);
 
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-        return;
-      }
+          cy.createConfirmPayoutTest(
+            payoutBody,
+            data,
+            true, // confirm=true — immediately confirm the payout
+            false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
+            globalState
+          ).then((response) => {
+            // recurring=true and payout_method_id matches the saved method from the RecurringTrue test
+            // — this verifies the saved payout method can be reused for subsequent recurring payouts.
+            cy.verifyRecurringPayoutResponse(
+              response,
+              true,
+              globalState.get("payoutMethodId"),
+              "requires_fulfillment"
+            );
+          });
 
-      // Use the payout_method_id saved from the create-payout-with-recurring-true test
-      cy.injectPayoutMethodId(data, globalState);
-
-      cy.createConfirmPayoutTest(
-        payoutBody,
-        data,
-        true, // confirm=true — immediately confirm the payout
-        false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
-        globalState
-      ).then((response) => {
-        // recurring=true and payout_method_id matches the saved method from the RecurringTrue test
-        // — this verifies the saved payout method can be reused for subsequent recurring payouts.
-        cy.verifyRecurringPayoutResponse(
-          response,
-          true,
-          globalState.get("payoutMethodId")
-        );
-      });
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        }
+      );
     });
 
     it("retrieve-payout-call-test", () => {
@@ -136,30 +143,35 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-recurring-false", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+      cy.getPayoutRecurringData(globalState, "RecurringFalse").then(
+        ({ payoutBody: pb, data, shouldContinue: shouldProceed }) => {
+          payoutBody = pb;
+          if (!shouldProceed) {
+            shouldContinue = false;
+            return;
+          }
 
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["RecurringFalse"];
+          cy.createConfirmPayoutTest(
+            payoutBody,
+            data,
+            true, // confirm=true — immediately confirm the payout
+            false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
+            globalState
+          ).then((response) => {
+            // recurring=false because we explicitly set recurring:false in the request — this is a one-time payout.
+            // No payout method is saved for future reuse. The API echoes recurring:false.
+            cy.verifyRecurringPayoutResponse(
+              response,
+              false,
+              undefined,
+              "requires_fulfillment"
+            );
+          });
 
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-        return;
-      }
-
-      cy.createConfirmPayoutTest(
-        payoutBody,
-        data,
-        true, // confirm=true — immediately confirm the payout
-        false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
-        globalState
-      ).then((response) => {
-        // recurring=false because we explicitly set recurring:false in the request — this is a one-time payout.
-        // No payout method is saved for future reuse. The API echoes recurring:false.
-        cy.verifyRecurringPayoutResponse(response, false);
-      });
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        }
+      );
     });
 
     it("retrieve-payout-call-test", () => {
@@ -177,30 +189,35 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-recurring-omitted", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+      cy.getPayoutRecurringData(globalState, "RecurringDefault").then(
+        ({ payoutBody: pb, data, shouldContinue: shouldProceed }) => {
+          payoutBody = pb;
+          if (!shouldProceed) {
+            shouldContinue = false;
+            return;
+          }
 
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["RecurringDefault"];
+          cy.createConfirmPayoutTest(
+            payoutBody,
+            data,
+            true, // confirm=true — immediately confirm the payout (POST /payouts/create with confirm:true in body)
+            false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
+            globalState
+          ).then((response) => {
+            // recurring defaults to false when the field is omitted (see crates/router/src/core/payouts.rs:3142: recurring: req.recurring.unwrap_or(false)).
+            // The API echoes recurring:false, confirming the default.
+            cy.verifyRecurringPayoutResponse(
+              response,
+              false,
+              undefined,
+              "requires_fulfillment"
+            );
+          });
 
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-        return;
-      }
-
-      cy.createConfirmPayoutTest(
-        payoutBody,
-        data,
-        true, // confirm=true — immediately confirm the payout (POST /payouts/create with confirm:true in body)
-        false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
-        globalState
-      ).then((response) => {
-        // recurring defaults to false when the field is omitted (see crates/router/src/core/payouts.rs:3142: recurring: req.recurring.unwrap_or(false)).
-        // The API echoes recurring:false, confirming the default.
-        cy.verifyRecurringPayoutResponse(response, false);
-      });
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        }
+      );
     });
 
     it("retrieve-payout-call-test", () => {
@@ -218,28 +235,35 @@ describe("[Payout] Recurring", () => {
     });
 
     it("attempt-payout-without-confirm-should-fail", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+      cy.getPayoutRecurringData(globalState, "RecurringInvalidConfirm").then(
+        ({ payoutBody: pb, data, shouldContinue: shouldProceed }) => {
+          payoutBody = pb;
+          if (!shouldProceed) {
+            shouldContinue = false;
+            return;
+          }
 
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["RecurringInvalidConfirm"];
+          // Inject real payout_method_id from RecurringTrue to pass deserialization
+          // so the confirm=false validation runs and returns the expected error
+          cy.injectPayoutMethodId(data, globalState);
 
-      if (!utils.should_continue_further(data)) {
-        return;
-      }
+          // This test validates that using payout_method_id with confirm=false returns error
+          // Error assertion (IR_06: Confirm must be true for recurring payouts) is handled by
+          // createConfirmPayoutTest -> defaultErrorHandler using RecurringInvalidConfirm.Response.body.error config.
+          cy.createConfirmPayoutTest(
+            payoutBody,
+            data,
+            false,
+            false,
+            globalState
+          );
 
-      // Inject real payout_method_id from RecurringTrue to pass deserialization
-      // so the confirm=false validation runs and returns the expected error
-      cy.injectPayoutMethodId(data, globalState);
-
-      // This test validates that using payout_method_id with confirm=false returns error
-      // Error assertion (IR_06: Confirm must be true for recurring payouts) is handled by
-      // createConfirmPayoutTest -> defaultErrorHandler using RecurringInvalidConfirm.Response.body.error config.
-      cy.createConfirmPayoutTest(payoutBody, data, false, false, globalState);
-
-      // For error responses, we expect should_continue_further to return false
-      // but the test itself should pass (asserting the error)
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+          // For error responses, we expect should_continue_further to return false
+          // but the test itself should pass (asserting the error)
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        }
+      );
     });
   });
 
@@ -254,20 +278,26 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-entity-type-company", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+      cy.getPayoutRecurringData(globalState, "EntityTypeCompany").then(
+        ({ payoutBody: pb, data, shouldContinue: shouldProceed }) => {
+          payoutBody = pb;
+          if (!shouldProceed) {
+            shouldContinue = false;
+            return;
+          }
 
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["EntityTypeCompany"];
+          cy.createConfirmPayoutTest(
+            payoutBody,
+            data,
+            true,
+            false,
+            globalState
+          );
 
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-        return;
-      }
-
-      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        }
+      );
     });
 
     it("retrieve-payout-call-test", () => {
@@ -285,20 +315,26 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-entity-type-individual", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+      cy.getPayoutRecurringData(globalState, "EntityTypeIndividual").then(
+        ({ payoutBody: pb, data, shouldContinue: shouldProceed }) => {
+          payoutBody = pb;
+          if (!shouldProceed) {
+            shouldContinue = false;
+            return;
+          }
 
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["EntityTypeIndividual"];
+          cy.createConfirmPayoutTest(
+            payoutBody,
+            data,
+            true,
+            false,
+            globalState
+          );
 
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-        return;
-      }
-
-      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        }
+      );
     });
 
     it("retrieve-payout-call-test", () => {
@@ -316,20 +352,26 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-entity-type-natural-person", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+      cy.getPayoutRecurringData(globalState, "EntityTypeNaturalPerson").then(
+        ({ payoutBody: pb, data, shouldContinue: shouldProceed }) => {
+          payoutBody = pb;
+          if (!shouldProceed) {
+            shouldContinue = false;
+            return;
+          }
 
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["EntityTypeNaturalPerson"];
+          cy.createConfirmPayoutTest(
+            payoutBody,
+            data,
+            true,
+            false,
+            globalState
+          );
 
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-        return;
-      }
-
-      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        }
+      );
     });
 
     it("retrieve-payout-call-test", () => {
@@ -347,20 +389,26 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-entity-type-non-profit", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+      cy.getPayoutRecurringData(globalState, "EntityTypeNonProfit").then(
+        ({ payoutBody: pb, data, shouldContinue: shouldProceed }) => {
+          payoutBody = pb;
+          if (!shouldProceed) {
+            shouldContinue = false;
+            return;
+          }
 
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["EntityTypeNonProfit"];
+          cy.createConfirmPayoutTest(
+            payoutBody,
+            data,
+            true,
+            false,
+            globalState
+          );
 
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-        return;
-      }
-
-      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        }
+      );
     });
 
     it("retrieve-payout-call-test", () => {
@@ -378,20 +426,26 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-entity-type-personal", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+      cy.getPayoutRecurringData(globalState, "EntityTypePersonal").then(
+        ({ payoutBody: pb, data, shouldContinue: shouldProceed }) => {
+          payoutBody = pb;
+          if (!shouldProceed) {
+            shouldContinue = false;
+            return;
+          }
 
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["EntityTypePersonal"];
+          cy.createConfirmPayoutTest(
+            payoutBody,
+            data,
+            true,
+            false,
+            globalState
+          );
 
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-        return;
-      }
-
-      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        }
+      );
     });
 
     it("retrieve-payout-call-test", () => {
@@ -409,20 +463,26 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-entity-type-public-sector", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+      cy.getPayoutRecurringData(globalState, "EntityTypePublicSector").then(
+        ({ payoutBody: pb, data, shouldContinue: shouldProceed }) => {
+          payoutBody = pb;
+          if (!shouldProceed) {
+            shouldContinue = false;
+            return;
+          }
 
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["EntityTypePublicSector"];
+          cy.createConfirmPayoutTest(
+            payoutBody,
+            data,
+            true,
+            false,
+            globalState
+          );
 
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-        return;
-      }
-
-      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        }
+      );
     });
 
     it("retrieve-payout-call-test", () => {
@@ -442,21 +502,26 @@ describe("[Payout] Recurring", () => {
       });
 
       it("create-payout-with-entity-type-default", () => {
-        payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+        cy.getPayoutRecurringData(globalState, "EntityTypeDefault").then(
+          ({ payoutBody: pb, data, shouldContinue: shouldProceed }) => {
+            payoutBody = pb;
+            if (!shouldProceed) {
+              shouldContinue = false;
+              return;
+            }
 
-        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-          "bank_transfer_pm"
-        ]["sepa_bank_transfer"]["EntityTypeDefault"];
+            cy.createConfirmPayoutTest(
+              payoutBody,
+              data,
+              true,
+              false,
+              globalState
+            );
 
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-          return;
-        }
-
-        cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
+            if (shouldContinue)
+              shouldContinue = utils.should_continue_further(data);
+          }
+        );
       });
 
       it("retrieve-payout-call-test", () => {
@@ -475,22 +540,29 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-invalid-entity-type-should-fail", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+      cy.getPayoutRecurringData(globalState, "EntityTypeInvalid").then(
+        ({ payoutBody: pb, data, shouldContinue: shouldProceed }) => {
+          payoutBody = pb;
+          if (!shouldProceed) {
+            shouldContinue = false;
+            return;
+          }
 
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["EntityTypeInvalid"];
+          // This test validates that invalid entity_type returns 400 error
+          // confirm=false — intentionally do NOT confirm; the invalid entity_type triggers a 400 before confirmation
+          cy.createConfirmPayoutTest(
+            payoutBody,
+            data,
+            false,
+            false,
+            globalState
+          );
 
-      if (!utils.should_continue_further(data)) {
-        return;
-      }
-
-      // This test validates that invalid entity_type returns 400 error
-      // confirm=false — intentionally do NOT confirm; the invalid entity_type triggers a 400 before confirmation
-      cy.createConfirmPayoutTest(payoutBody, data, false, false, globalState);
-
-      // For error responses, we expect should_continue_further to return false
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+          // For error responses, we expect should_continue_further to return false
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        }
+      );
     });
   });
 });
