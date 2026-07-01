@@ -132,7 +132,7 @@ where
                 let (router_data_response, status_code) =
                     unified_connector_service::handle_unified_connector_service_response_for_payment_cancel(
                         payment_void_response.clone(),
-                        router_data.status,
+                        router_data.status.to_storage().unwrap_or_default(),
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 

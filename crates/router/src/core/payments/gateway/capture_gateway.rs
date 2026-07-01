@@ -170,7 +170,7 @@ where
                 let ucs_data =
                     unified_connector_service::handle_unified_connector_service_response_for_payment_capture(
                         payment_capture_response.clone(),
-                        router_data.status,
+                        router_data.status.to_storage().unwrap_or_default(),
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 

@@ -2306,7 +2306,7 @@ pub trait FrmTransactionRouterDataRequest {
 #[cfg(feature = "frm")]
 impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
     fn is_payment_successful(&self) -> Option<bool> {
-        match self.status {
+        match self.status.to_storage().unwrap_or_default() {
             storage_enums::AttemptStatus::AuthenticationFailed
             | storage_enums::AttemptStatus::RouterDeclined
             | storage_enums::AttemptStatus::AuthorizationFailed

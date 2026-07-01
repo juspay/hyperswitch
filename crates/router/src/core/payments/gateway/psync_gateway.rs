@@ -85,7 +85,7 @@ where
                 let (router_data_response, status_code) =
                     handle_unified_connector_service_response_for_payment_get(
                         payment_get_response.clone(),
-                        router_data.status,
+                        router_data.status.to_storage().unwrap_or_default(),
                     )
                     .change_context(ConnectorError::ResponseHandlingFailed)
                     .attach_printable("Failed to deserialize UCS response")?;
@@ -248,7 +248,7 @@ where
                         let (router_data_response, status_code) =
                             handle_unified_connector_service_response_for_payment_get(
                                 payment_get_response.clone(),
-                                router_data.status,
+                                router_data.status.to_storage().unwrap_or_default(),
                             )
                             .attach_printable("Failed to deserialize UCS response")?;
 
