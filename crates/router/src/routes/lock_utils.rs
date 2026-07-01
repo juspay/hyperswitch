@@ -333,7 +333,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetEmbeddedToken
             | Flow::GetUserDetailsInternal
             | Flow::ListUsersInternal
-            | Flow::ListMembersForEntity => Self::User,
+            | Flow::ListMembersForEntity
+            | Flow::LaunchSage => Self::User,
 
             Flow::GetDataFromHyperswitchAiFlow | Flow::ListAllChatInteractions => Self::AiWorkflow,
 
