@@ -500,12 +500,6 @@ pub struct ChargebeeCardDetails {
     iin: String,
 }
 
-// Chargebee sends card brand values in lowercase snake_case (e.g. `visa`, `mastercard`,
-// `american_express`), which don't match `common_enums::CardNetwork`'s serde representation.
-// We deserialize into this connector-local enum so parsing never fails, then map the brands that
-// have a `CardNetwork` equivalent. Brands with no equivalent (regional networks, `other`, and any
-// future value caught by `#[serde(other)]`) map to `None`.
-// Reference: https://apidocs.chargebee.com/docs/api/transactions (payment_method_details -> card -> brand)
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum ChargebeeCardBrand {
