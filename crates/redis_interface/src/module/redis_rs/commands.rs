@@ -628,8 +628,15 @@ impl super::RedisConnectionPool {
 
             // Only set expiry if the field was actually set
             if matches!(result, HsetnxReply::KeySet) {
-                self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl).into())
-                    .await?;
+                track_redis_call(
+                    RedisOperation::SetExpiry,
+                    conn.expire::<_, ()>(
+                        key.tenant_aware_key(self),
+                        ttl.unwrap_or(self.config.default_hash_ttl).into(),
+                    ),
+                )
+                .await
+                .change_context(errors::RedisError::SetExpiryFailed)?;
             }
 
             Ok(result)
