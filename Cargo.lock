@@ -6836,7 +6836,7 @@ dependencies = [
  "regex-cache",
  "serde",
  "serde_derive",
- "strum 0.25.0",
+ "strum 0.26.3",
  "thiserror 1.0.69",
 ]
 
@@ -9588,9 +9588,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "superposition_core"
-version = "0.113.0"
+version = "0.114.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13903fdef6c27a862efe4a1f6867d2962847bcb19996e1a7da31b500dcdf9d6c"
+checksum = "6b97214039991ceebacd02afa5fde5fa7de3c421145d3aad60c4000ab58c904e"
 dependencies = [
  "bigdecimal 0.3.1",
  "blake3",
@@ -9609,9 +9609,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_derives"
-version = "0.113.0"
+version = "0.114.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bce101077584b211911eb4f1e2664a2779ee31219c2d42d441412fadbe5ff97f"
+checksum = "94ce01eca383050e056a97cb540bc866c17a4caa5e1690dacd39b2099f83294d"
 dependencies = [
  "proc-macro-crate 3.2.0",
  "quote",
@@ -9620,9 +9620,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_provider"
-version = "0.113.0"
+version = "0.114.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e05a793e895603c1ee8ae9d95b12b58826901875bfac60c6abec54c60e2985b"
+checksum = "aac9de6c9317dd04c25c6cdd3985d8cec7de60cf146ca478089a190803d82d46"
 dependencies = [
  "async-trait",
  "aws-smithy-types",
@@ -9645,9 +9645,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_sdk"
-version = "0.113.0"
+version = "0.114.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d49bffbfad3c661d582db82c669dc004bc7531500bcfbbaa35af99d1cb001be3"
+checksum = "dff0c2b933ada9b3fb9e70b796de73d5374d13faa7e606aa10e5730c0fcbf3d0"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-http 0.62.1",
@@ -9663,9 +9663,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_types"
-version = "0.113.0"
+version = "0.114.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "941c6ac97fdf31ba43653e25f56c6918a8031d7d23b51e0dbfb90644eb5e69b3"
+checksum = "4e91fcc93ef75fee0a68c709b13219f9b90d7a4efa432f2e680969208a4b9fa0"
 dependencies = [
  "bigdecimal 0.3.1",
  "chrono",
