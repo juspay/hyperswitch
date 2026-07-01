@@ -178,13 +178,11 @@ pub struct AdyenTransferResponse {
     status: AdyenTransferStatus,
     #[serde(rename = "type")]
     transaction_type: AdyenTransactionType,
-    #[serde(default)]
     reason: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AdyenPlatformAccountHolder {
-    #[serde(default)]
     description: Option<String>,
     id: String,
 }
@@ -198,7 +196,6 @@ pub struct AdyenCategoryData {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AdyenBalanceAccount {
-    #[serde(default)]
     description: Option<String>,
     id: String,
 }
