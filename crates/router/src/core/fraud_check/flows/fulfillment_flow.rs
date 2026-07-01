@@ -73,7 +73,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         connector,
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
-        status: payment_attempt.status,
+        status: payment_attempt.status.into(),
         payment_method,
         payment_method_type: payment_attempt.payment_method_type,
         connector_auth_type: auth_type,

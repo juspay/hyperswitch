@@ -100,7 +100,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
             .unwrap_or_default(),
         tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
-        status: common_enums::AttemptStatus::default(),
+        status: common_enums::AttemptStatus::default().into(),
         payment_method,
         payment_method_type: None,
         connector_auth_type: auth_type,
@@ -653,7 +653,7 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
             .map(|payment_id| payment_id.get_string_repr().to_owned())
             .unwrap_or_default(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
-        status: common_enums::AttemptStatus::default(),
+        status: common_enums::AttemptStatus::default().into(),
         payment_method: PaymentMethod::default(),
         connector_auth_type: ConnectorAuthType::NoKey,
         description: None,

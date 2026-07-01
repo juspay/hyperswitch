@@ -86,7 +86,7 @@ pub async fn construct_webhook_router_data(
             .get_string_repr()
             .to_owned(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
-        status: diesel_models::enums::AttemptStatus::default(),
+        status: diesel_models::enums::AttemptStatus::default().into(),
         payment_method: diesel_models::enums::PaymentMethod::default(),
         payment_method_type: None,
         connector_auth_type: auth_type,

@@ -592,7 +592,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                     .attach_printable("Failed to deserialize UCS response")?;
 
                 let router_data_response = ucs_data.router_data_response.map(|(response, status)| {
-                    router_data.status = status;
+                    router_data.status = status.into();
                     response
                 });
                 router_data.response = router_data_response;

@@ -98,7 +98,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             connector: connector_id.to_string(),
             payment_id: self.payment_intent.payment_id.get_string_repr().to_owned(),
             attempt_id: self.payment_attempt.attempt_id.clone(),
-            status,
+            status.into(),
             payment_method: self
                 .payment_attempt
                 .payment_method

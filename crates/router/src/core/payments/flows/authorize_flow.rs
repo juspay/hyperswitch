@@ -1359,7 +1359,7 @@ async fn process_capture_flow(
     // Process capture response
     let (updated_status, updated_response) =
         super::handle_post_capture_response(authorize_response, post_capture_router_data)?;
-    router_data.status = updated_status;
+    router_data.status = updated_status.into();
     router_data.response = Ok(updated_response);
     Ok(router_data)
 }
@@ -1640,7 +1640,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
                 .attach_printable("Failed to deserialize UCS response")?;
 
             let router_data_response = router_data_response.map(|(response, status)| {
-                router_data.status = status;
+                router_data.status = status.into();
                 response
             });
             let router_data_response = match router_data_response {

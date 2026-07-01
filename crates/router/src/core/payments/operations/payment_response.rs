@@ -2516,7 +2516,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
                             // incase of success, update error code and error message
                             let error_status =
-                                if router_data.status == enums::AttemptStatus::Charged {
+                                if router_data.status == enums::AttemptStatus::Charged.into() {
                                     Some(None)
                                 } else {
                                     None

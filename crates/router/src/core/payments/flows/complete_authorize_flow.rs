@@ -428,7 +428,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     ..
                 }) if redirection_data.is_none()
             ) && complete_authorize_router_data.status
-                != common_enums::AttemptStatus::AuthenticationFailed);
+                != common_enums::AttemptStatus::AuthenticationFailed.into());
             Ok((complete_authorize_router_data, should_continue))
         } else {
             Ok((self, true))
@@ -826,7 +826,7 @@ pub async fn call_unified_connector_service_authenticate(
                 .attach_printable("Failed to deserialize UCS response")?;
 
             let router_data_response = router_data_response.map(|(response, status)| {
-                router_data.status = status;
+                router_data.status = status.into();
                 response
             });
             let router_data_response = match router_data_response {
@@ -939,7 +939,7 @@ pub async fn call_unified_connector_service_post_authenticate(
                 .attach_printable("Failed to deserialize UCS response")?;
 
             let router_data_response = router_data_response.map(|(response, status)| {
-                router_data.status = status;
+                router_data.status = status.into();
                 response
             });
             router_data.response = router_data_response;
@@ -1044,7 +1044,7 @@ async fn process_capture_flow(
     let (updated_status, updated_response) =
         super::handle_post_capture_response(complete_authorize_response, post_capture_router_data)?;
 
-    router_data.status = updated_status;
+    router_data.status = updated_status.into();
     router_data.response = Ok(updated_response);
     Ok(router_data)
 }

@@ -168,7 +168,7 @@ where
             .to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: payment_data.payment_attempt.get_id().to_owned(),
-        status: payment_data.payment_attempt.status,
+        status: payment_data.payment_attempt.status.into(),
         payment_method: diesel_models::enums::PaymentMethod::default(),
         payment_method_type: payment_data.payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
@@ -930,7 +930,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
             .get_string_repr()
             .to_owned(),
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
-        status: payment_data.payment_attempt.status,
+        status: payment_data.payment_attempt.status.into(),
         payment_method: payment_data
             .payment_attempt
             .payment_method
@@ -2178,7 +2178,7 @@ where
             .get_string_repr()
             .to_owned(),
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
-        status: payment_data.payment_attempt.status,
+        status: payment_data.payment_attempt.status.into(),
         payment_method,
         payment_method_type,
         connector_auth_type: auth_type,
@@ -2406,7 +2406,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
             .get_string_repr()
             .to_owned(),
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
-        status: payment_data.payment_attempt.status,
+        status: payment_data.payment_attempt.status.into(),
         payment_method,
         payment_method_type: payment_data.payment_attempt.payment_method_type,
         connector_auth_type: auth_type,

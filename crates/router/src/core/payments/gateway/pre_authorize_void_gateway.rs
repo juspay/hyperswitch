@@ -138,13 +138,13 @@ where
 
                 let router_data_response = match router_data_response {
                     Ok((response, status)) => {
-                        router_data.status = status;
+                        router_data.status = status.into();
                         Ok(response)
                     }
                     Err(err) => {
                         logger::debug!("Error in UCS router data response");
                         if let Some(attempt_status) = err.attempt_status {
-                            router_data.status = attempt_status;
+                            router_data.status = attempt_status.into();
                         }
                         Err(err)
                     }
