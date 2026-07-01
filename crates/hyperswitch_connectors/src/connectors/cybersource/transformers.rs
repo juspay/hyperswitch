@@ -1149,7 +1149,7 @@ impl
                         }),
                     )
                 }
-                Some(mandates::MandateReferenceId::CardWithLimitedData) | None => {
+                Some(mandates::MandateReferenceId::CardWithLimitedData(_)) | None => {
                     (None, None, None)
                 }
             }

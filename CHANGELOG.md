@@ -4,6 +4,34 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.01.0
+
+### Features
+
+- **Connector/Core:** [Peachpayments] Add Setup Mandate, CIT and MIT Flows ([#12968](https://github.com/juspay/hyperswitch/pull/12968)) ([`b1fdac0`](https://github.com/juspay/hyperswitch/commit/b1fdac0ad71cf77a012e41358ea97bbd74863657))
+- **sdk_config:** Add merchant level vaulting_action override ([#13078](https://github.com/juspay/hyperswitch/pull/13078)) ([`213f87d`](https://github.com/juspay/hyperswitch/commit/213f87db7f49b3961b2298e90e63e5c71751951d))
+
+### Bug Fixes
+
+- **api-reference:** Customer retrieve using merchant reference ID ([#13083](https://github.com/juspay/hyperswitch/pull/13083)) ([`c48effd`](https://github.com/juspay/hyperswitch/commit/c48effd630051202f4435c60981741240ea3185c))
+- **connector:** [fiuu] fix error propogation in webhook flow ([#13086](https://github.com/juspay/hyperswitch/pull/13086)) ([`6afa56c`](https://github.com/juspay/hyperswitch/commit/6afa56cba8f4fb16b6b0123f7a864051de63ba05))
+- **ucs:**
+  - Nexixpay PSync router-data parity (resource_id, connector_metadata, mandate_reference) ([#13065](https://github.com/juspay/hyperswitch/pull/13065)) ([`e60b4f6`](https://github.com/juspay/hyperswitch/commit/e60b4f6ba950b4ac9b13c928f9e0f1423b47aee7))
+  - Propagate connector_transaction_id on UCS authorize connector-error path ([#17181](https://github.com/juspay/hyperswitch/pull/17181)) ([#13042](https://github.com/juspay/hyperswitch/pull/13042)) ([`dbc723c`](https://github.com/juspay/hyperswitch/commit/dbc723cad176309584d7c694a8bd6fa807a861cb))
+  - Thread connector_transaction_id into refund error responses ([#17369](https://github.com/juspay/hyperswitch/pull/17369)) ([#13052](https://github.com/juspay/hyperswitch/pull/13052)) ([`9ae7da4`](https://github.com/juspay/hyperswitch/commit/9ae7da47e25d1f844ba895651af31018ad144bfd))
+
+### Refactors
+
+- **sdk_config:** Changed merchant_id filter to processor_merchant_id in dimension filter superposition ([#13088](https://github.com/juspay/hyperswitch/pull/13088)) ([`c8921df`](https://github.com/juspay/hyperswitch/commit/c8921df582b244b90d20627b3527b69bdeac8d45))
+
+### Testing
+
+- **cypress:** Add delayed session response coverage for trustpay ([#12519](https://github.com/juspay/hyperswitch/pull/12519)) ([`9bdbb3d`](https://github.com/juspay/hyperswitch/commit/9bdbb3d91eef663f16cf913ffb1241d48fa90a77))
+
+**Full Changelog:** [`2026.06.30.0...2026.07.01.0`](https://github.com/juspay/hyperswitch/compare/2026.06.30.0...2026.07.01.0)
+
+- - -
+
 ## 2026.06.30.0
 
 ### Features
