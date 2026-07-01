@@ -7726,6 +7726,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
             .partner_merchant_identifier_details
             .clone(),
         rrn: None,
+        card_on_file_transaction_type: None,
         feature_metadata: None,
         installment_details: None,
         connector_intent_metadata: None,

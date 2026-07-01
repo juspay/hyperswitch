@@ -151,6 +151,8 @@ pub struct PaymentsAuthorizeData {
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub rrn: Option<String>,
+    pub card_on_file_transaction_type:
+        Option<api_models::payments::PeachpaymentsCardOnFileTransactionType>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub installment_details: Option<common_types::payments::InstallmentData>,
     // Contains the connector specific metadata coming from payments request
