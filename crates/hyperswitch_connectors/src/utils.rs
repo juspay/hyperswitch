@@ -7844,7 +7844,7 @@ pub trait FrmTransactionRouterDataRequest {
 #[cfg(feature = "frm")]
 impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
     fn is_payment_successful(&self) -> Option<bool> {
-        match self.status {
+        match self.status.to_storage().unwrap_or_default() {
             AttemptStatus::AuthenticationFailed
             | AttemptStatus::RouterDeclined
             | AttemptStatus::AuthorizationFailed

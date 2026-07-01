@@ -653,7 +653,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<KlarnaCaptureResponse>>
         let status = if item.http_code == 201 {
             enums::AttemptStatus::Charged
         } else {
-            item.data.status
+            item.data.status.to_storage().unwrap_or_default()
         };
         let resource_id = item.data.request.connector_transaction_id.clone();
 

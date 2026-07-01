@@ -1967,7 +1967,7 @@ impl<F> TryFrom<ResponseRouterData<F, TesouroSyncResponse, PaymentsSyncData, Pay
                 let status = get_payment_attempt_status(
                     response.data.payment_transaction.typename,
                     item.data.request.is_auto_capture()?,
-                    item.data.status,
+                    item.data.status.to_storage().unwrap_or_default(),
                 )?;
                 if connector_utils::is_payment_failure(status) {
                     let error_code = response

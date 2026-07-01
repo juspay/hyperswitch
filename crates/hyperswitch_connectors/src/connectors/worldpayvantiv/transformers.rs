@@ -2572,10 +2572,10 @@ fn determine_attempt_status<F>(
             },
             PaymentStatus::PaymentStatusNotFound
             | PaymentStatus::NotYetProcessed
-            | PaymentStatus::StatusUnavailable => Ok(item.data.status),
+            | PaymentStatus::StatusUnavailable => Ok(item.data.status.to_storage().unwrap_or_default()),
         }
     } else {
-        Ok(item.data.status)
+        Ok(item.data.status.to_storage().unwrap_or_default())
     }
 }
 

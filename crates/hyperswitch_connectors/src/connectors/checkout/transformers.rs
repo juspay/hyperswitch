@@ -1675,7 +1675,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentVoidResponse>> for Payments
                 authentication_data: None,
                 charges: None,
             }),
-            status: response.into(),
+            status: common_enums::AttemptStatus::from(response).into(),
             ..item.data
         })
     }

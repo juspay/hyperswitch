@@ -376,7 +376,7 @@ impl
                         status: if is_response_success(&processed.rc) {
                             match item.data.request.is_auto_capture()? {
                                 true => common_enums::AttemptStatus::Charged.into(),
-                                false => common_enums::AttemptStatus::Authorized,
+                                false => common_enums::AttemptStatus::Authorized.into(),
                             }
                         } else {
                             common_enums::AttemptStatus::AuthenticationFailed.into()
@@ -653,7 +653,7 @@ impl
             Ok(Self {
                 status: match item.data.request.is_auto_capture()? {
                     true => common_enums::AttemptStatus::Charged.into(),
-                    false => common_enums::AttemptStatus::Authorized,
+                    false => common_enums::AttemptStatus::Authorized.into(),
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
@@ -905,7 +905,7 @@ impl
             Ok(Self {
                 status: match item.data.request.is_auto_capture()? {
                     true => common_enums::AttemptStatus::Charged.into(),
-                    false => common_enums::AttemptStatus::Authorized,
+                    false => common_enums::AttemptStatus::Authorized.into(),
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),

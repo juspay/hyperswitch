@@ -327,7 +327,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpaySyncResponse, T, PaymentsRespon
                 let razorpay_status = last_item.status;
                 get_psync_razorpay_payment_status(razorpay_status)
             }
-            None => item.data.status,
+            None => item.data.status.to_storage().unwrap_or_default(),
         };
         Ok(Self {
             status,

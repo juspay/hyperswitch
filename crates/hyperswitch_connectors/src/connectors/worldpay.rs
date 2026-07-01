@@ -548,7 +548,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         });
         let attempt_status = data.status;
         let worldpay_status = response.last_event;
-        let status = match (attempt_status, worldpay_status.clone()) {
+        let status = match (attempt_status.to_storage().unwrap_or_default(), worldpay_status.clone()) {
             (
                 enums::AttemptStatus::Authorizing
                 | enums::AttemptStatus::Authorized
@@ -848,7 +848,7 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             .connector_transaction_id
             .clone()
             .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
-        let stage = match req.status {
+        let stage = match req.status.to_storage().unwrap_or_default() {
             enums::AttemptStatus::DeviceDataCollectionPending => "3dsDeviceData".to_string(),
             enums::AttemptStatus::AuthenticationPending => "3dsChallenges".to_string(),
             _ => {

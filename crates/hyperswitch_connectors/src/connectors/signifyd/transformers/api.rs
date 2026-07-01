@@ -576,7 +576,7 @@ impl TryFrom<&FrmTransactionRouterData> for SignifydPaymentsTransactionRequest {
         let transactions = Transactions {
             amount: item.request.amount,
             transaction_id: item.clone().payment_id,
-            gateway_status_code: GatewayStatusCode::from(item.status).to_string(),
+            gateway_status_code: GatewayStatusCode::from(item.status.to_storage().unwrap_or_default()).to_string(),
             payment_method: item.payment_method,
             currency,
             gateway: item.request.connector.clone(),

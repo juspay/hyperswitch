@@ -1709,10 +1709,11 @@ impl<F>
                     validate_order_status(&order_status)?;
 
                     if let Some(payment_data) = order_status.payment {
+                        let prev_attempt_status = item.data.status.to_storage().unwrap_or_default();
                         let status = get_attempt_status(
                             is_auto_capture,
                             payment_data.last_event,
-                            Some(&item.data.status),
+                            Some(&prev_attempt_status),
                         )?;
                         let response = process_payment_response(
                             status,
@@ -1778,10 +1779,11 @@ impl<F>
             WorldpayxmlSyncResponse::Webhook(data) => {
                 let is_auto_capture = item.data.request.is_auto_capture()?;
 
+                let prev_attempt_status = item.data.status.to_storage().unwrap_or_default();
                 let status = get_attempt_status(
                     is_auto_capture,
                     data.payment_status,
-                    Some(&item.data.status),
+                    Some(&prev_attempt_status),
                 )?;
 
                 Ok(Self {
@@ -2037,6 +2039,7 @@ impl<F>
             validate_order_status(&order_status)?;
 
             if let Some(payment_data) = order_status.payment {
+                let prev_attempt_status = item.data.status.to_storage().unwrap_or_default();
                 let status = get_attempt_status(is_auto_capture, payment_data.last_event, None)?;
 
                 let response = process_payment_response(
@@ -2483,6 +2486,7 @@ impl<F>
             validate_order_status(&order_status)?;
 
             if let Some(payment_data) = order_status.payment {
+                let prev_attempt_status = item.data.status.to_storage().unwrap_or_default();
                 let status = get_attempt_status(is_auto_capture, payment_data.last_event, None)?;
 
                 let response = process_payment_response(

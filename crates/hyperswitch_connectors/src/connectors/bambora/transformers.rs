@@ -466,12 +466,12 @@ impl<F> TryFrom<ResponseRouterData<F, BamboraResponse, PaymentsAuthorizeData, Pa
                 status: if pg_response.approved.as_str() == "1" {
                     match item.data.request.is_auto_capture()? {
                         true => enums::AttemptStatus::Charged.into(),
-                        false => enums::AttemptStatus::Authorized,
+                        false => enums::AttemptStatus::Authorized.into(),
                     }
                 } else {
                     match item.data.request.is_auto_capture()? {
                         true => enums::AttemptStatus::Failure.into(),
-                        false => enums::AttemptStatus::AuthorizationFailed,
+                        false => enums::AttemptStatus::AuthorizationFailed.into(),
                     }
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -540,12 +540,12 @@ impl<F>
             status: if item.response.approved.as_str() == "1" {
                 match item.data.request.is_auto_capture()? {
                     true => enums::AttemptStatus::Charged.into(),
-                    false => enums::AttemptStatus::Authorized,
+                    false => enums::AttemptStatus::Authorized.into(),
                 }
             } else {
                 match item.data.request.is_auto_capture()? {
                     true => enums::AttemptStatus::Failure.into(),
-                    false => enums::AttemptStatus::AuthorizationFailed,
+                    false => enums::AttemptStatus::AuthorizationFailed.into(),
                 }
             },
             response: Ok(PaymentsResponseData::TransactionResponse {

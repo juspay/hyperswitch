@@ -711,7 +711,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                             item.data.request.is_cit_mandate_payment(),
                         ) {
                             (_, true) | (false, false) => enums::AttemptStatus::Authorized.into(),
-                            (true, false) => enums::AttemptStatus::Charged,
+                            (true, false) => enums::AttemptStatus::Charged.into(),
                         },
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
@@ -1003,7 +1003,7 @@ impl<F>
                     item.data.request.is_cit_mandate_payment(),
                 ) {
                     (_, true) | (false, false) => enums::AttemptStatus::Authorized.into(),
-                    (true, false) => enums::AttemptStatus::Charged,
+                    (true, false) => enums::AttemptStatus::Charged.into(),
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(response.paybox_order_id),

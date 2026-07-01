@@ -456,7 +456,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<ElavonSyncResponse>> for PaymentsSyn
         item: PaymentsSyncResponseRouterData<ElavonSyncResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: get_sync_status(item.data.status, &item.response).into(),
+            status: get_sync_status(item.data.status.to_storage().unwrap_or_default(), &item.response).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.ssl_txn_id),
                 redirection_data: Box::new(None),

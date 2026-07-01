@@ -2071,7 +2071,7 @@ fn construct_sync_request(
 }
 
 pub fn build_payment_sync_request(item: &PaymentsSyncRouterData) -> Result<Vec<u8>, Error> {
-    let transaction_type = get_transaction_type(item.status, item.request.capture_method)?;
+    let transaction_type = get_transaction_type(item.status.to_storage().unwrap_or_default(), item.request.capture_method)?;
     let auth = RedsysAuthType::try_from(&item.connector_auth_type)?;
     let connector_transaction_id = item
         .request
@@ -2263,7 +2263,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                                 _ => common_enums::AttemptStatus::Pending,
                             }
                         }
-                        _ => item.data.status, // Fallback to existing status if Ds_State is unknown/missing
+                        _ => item.data.status.to_storage().unwrap_or_default(), // Fallback to existing status if Ds_State is unknown/missing
                     };
 
                     let payment_response = Ok(PaymentsResponseData::TransactionResponse {

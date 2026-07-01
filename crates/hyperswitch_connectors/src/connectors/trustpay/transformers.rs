@@ -847,7 +847,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustpayPaymentsResponse, T, PaymentsRe
         item: ResponseRouterData<F, TrustpayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let (status, error, payment_response_data, connector_response) =
-            get_trustpay_response(item.response, item.http_code, item.data.status)?;
+            get_trustpay_response(item.response, item.http_code, item.data.status.to_storage().unwrap_or_default())?;
         Ok(Self {
             status: status.into(),
             response: match error {
