@@ -354,6 +354,7 @@ pub enum PaymentIntentUpdate {
     ManualUpdate {
         status: Option<common_enums::IntentStatus>,
         updated_by: String,
+        amount_captured: Option<MinorUnit>,
     },
     SessionResponseUpdate {
         tax_details: diesel_models::TaxDetails,
@@ -1258,10 +1259,15 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_address_id,
                 ..Default::default()
             },
-            PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::ManualUpdate {
+                status,
+                updated_by,
+                amount_captured,
+            } => Self {
                 status,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
+                amount_captured,
                 ..Default::default()
             },
             PaymentIntentUpdate::SessionResponseUpdate {
@@ -1603,9 +1609,15 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             } => Self::CompleteAuthorizeUpdate {
                 shipping_address_id,
             },
-            PaymentIntentUpdate::ManualUpdate { status, updated_by } => {
-                Self::ManualUpdate { status, updated_by }
-            }
+            PaymentIntentUpdate::ManualUpdate {
+                status,
+                updated_by,
+                amount_captured,
+            } => Self::ManualUpdate {
+                status,
+                updated_by,
+                amount_captured,
+            },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
                 shipping_address_id,
