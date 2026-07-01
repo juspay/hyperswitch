@@ -93,38 +93,24 @@ pub async fn launch_trace(
     let response =
         http_client::send_request(&state.conf.proxy, request, Some(REQUEST_TIMEOUT_SECS))
             .await
-            .change_context(LaunchTraceErrors::UpstreamUnavailable)
+            .change_context(LaunchTraceErrors::UpstreamError)
             .attach_printable("Error calling trace integration upstream")?;
 
     let status = response.status();
     if !status.is_success() {
-        // 401 maps to 502-shaped error — the dashboard JWT was valid;
-        // the failure is an infra-key drift on our side. Refusing to
-        // bubble 401 prevents an upstream misconfig from logging the
-        // CC user out.
+        // 401 is a specific SRE-actionable signal (shared infra key drift).
+        // Surface it loudly in logs; the caller still sees a generic 5xx.
         if status.as_u16() == 401 {
-            logger::error!("trace integration: upstream returned 401 — infra key drift");
-            return Err(error_stack::Report::new(
-                LaunchTraceErrors::UpstreamCredentialsRejected,
-            ));
+            logger::error!("trace integration: upstream 401 — likely infra key drift");
         }
-        // 404 stays 404 with the same opaque message as flag-off, so
-        // the caller cannot distinguish "feature off" from "user/merchant
-        // not authorised upstream".
-        if status.as_u16() == 404 {
-            return Err(error_stack::Report::new(LaunchTraceErrors::FeatureDisabled))
-                .attach_printable("Upstream returned 404 (user/merchant unauthorized)");
-        }
-        return Err(error_stack::Report::new(
-            LaunchTraceErrors::UpstreamUnavailable,
-        ))
-        .attach_printable(format!("Upstream returned status {status}"));
+        return Err(error_stack::Report::new(LaunchTraceErrors::UpstreamError))
+            .attach_printable(format!("Upstream returned status {status}"));
     }
 
     let parsed = response
         .json::<launch_trace_api::LaunchTraceResponse>()
         .await
-        .change_context(LaunchTraceErrors::InternalServerError)
+        .change_context(LaunchTraceErrors::UpstreamError)
         .attach_printable("Failed to deserialize handoff response")?;
 
     // Strip the `?t=…` bearer before logging — it's a single-use credential
