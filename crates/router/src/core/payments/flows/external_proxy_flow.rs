@@ -586,7 +586,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                 let ucs_data =
                     unified_connector_service::handle_unified_connector_service_response_for_payment_authorize(
                         payment_authorize_response.clone(),
-                        router_data.status,
+                        router_data.status.to_storage().unwrap_or_default(),
                     )
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;

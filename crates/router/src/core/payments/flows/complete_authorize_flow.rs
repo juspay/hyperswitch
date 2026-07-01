@@ -145,7 +145,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     self.request.customer_acceptance,
                     self.request.capture_method,
                     self.request.setup_future_usage,
-                    complete_authorize_router_data.status,
+                    complete_authorize_router_data.status.to_storage().unwrap_or_default(),
                 ) {
                     complete_authorize_router_data = Box::pin(process_capture_flow(
                         complete_authorize_router_data,
@@ -516,7 +516,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     ..
                 }) if redirection_data.is_none()
             ) && !matches!(
-                complete_authorize_router_data.status,
+                complete_authorize_router_data.status.to_storage().unwrap_or_default(),
                 common_enums::AttemptStatus::AuthenticationFailed
                     | common_enums::AttemptStatus::Failure
             );
@@ -821,7 +821,7 @@ pub async fn call_unified_connector_service_authenticate(
             let (router_data_response, status_code) =
                 ucs_core::handle_unified_connector_service_response_for_payment_authenticate(
                     payment_authenticate_response.clone(),
-                    router_data.status,
+                    router_data.status.to_storage().unwrap_or_default(),
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 
@@ -934,7 +934,7 @@ pub async fn call_unified_connector_service_post_authenticate(
             let (router_data_response, status_code) =
                 ucs_core::handle_unified_connector_service_response_for_payment_post_authenticate(
                     payment_post_authenticate_response.clone(),
-                    router_data.status,
+                    router_data.status.to_storage().unwrap_or_default(),
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 

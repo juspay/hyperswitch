@@ -256,7 +256,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         self.request.customer_acceptance,
                         self.request.capture_method,
                         self.request.setup_future_usage,
-                        auth_router_data.status,
+                        auth_router_data.status.to_storage().unwrap_or_default(),
                     ) {
                         auth_router_data = Box::pin(process_capture_flow(
                             auth_router_data,
@@ -695,7 +695,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                             }).is_some();
 
                         let payment_status = !matches!(
-                            authorize_router_data.status,
+                            authorize_router_data.status.to_storage().unwrap_or_default(),
                             common_enums::AttemptStatus::AuthenticationFailed
                                 | common_enums::AttemptStatus::Failure
                                 | common_enums::AttemptStatus::Charged
@@ -1635,7 +1635,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
             let (router_data_response, status_code) =
                 unified_connector_service::handle_unified_connector_service_response_for_payment_pre_authenticate(
                     payment_pre_authenticate_response.clone(),
-                    router_data.status,
+                    router_data.status.to_storage().unwrap_or_default(),
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 

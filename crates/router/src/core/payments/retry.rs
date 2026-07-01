@@ -577,7 +577,7 @@ where
                 .attach_printable("Could not parse the connector response")?;
 
             let payment_attempt_update = storage::PaymentAttemptUpdate::ResponseUpdate {
-                status: router_data.status,
+                status: router_data.status.to_storage().unwrap_or_default(),
                 connector: None,
                 connector_transaction_id: match resource_id {
                     types::ResponseId::NoResponseId => None,
@@ -928,7 +928,7 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
         if self.response.is_err() {
             true
         } else {
-            match self.status {
+            match self.status.to_storage().unwrap_or_default() {
                 storage_enums::AttemptStatus::Started
                 | storage_enums::AttemptStatus::AuthenticationPending
                 | storage_enums::AttemptStatus::AuthenticationSuccessful

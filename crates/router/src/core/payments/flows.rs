@@ -439,7 +439,7 @@ fn handle_post_capture_response(
         Ok(post_capture_router_data) => {
             match (
                 &post_capture_router_data.response,
-                post_capture_router_data.status,
+                post_capture_router_data.status.to_storage().unwrap_or_default(),
             ) {
                 (Ok(post_capture_resp), common_enums::AttemptStatus::Charged) => Ok((
                     common_enums::AttemptStatus::Charged,

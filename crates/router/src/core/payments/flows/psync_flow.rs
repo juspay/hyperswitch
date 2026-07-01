@@ -198,7 +198,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     .validate_psync_reference_id(
                         &self.request,
                         self.is_three_ds(),
-                        self.status,
+                        self.status.to_storage().unwrap_or_default(),
                         self.connector_meta_data.clone(),
                     )
                     .is_err()
