@@ -1905,7 +1905,8 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AuthorizedotnetRefundResponse>>
                 reason: Some(error.error_text.clone()),
                 status_code: item.http_code,
                 attempt_status: None,
-                connector_transaction_id: Some(transaction_response.transaction_id.clone()),
+                connector_transaction_id: (transaction_response.transaction_id != "0")
+                    .then(|| transaction_response.transaction_id.clone()),
                 connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
