@@ -3,3 +3,11 @@ rustflags = [
     "--cfg", "getrandom_backend=\"wasm_js\"",
     "--cfg", "getrandom_backend=\"js\""
 ]
+
+# Set a large thread stack before any workers spawn.
+# Debug builds produce large async poll frames; the retry path nests deeply enough
+# to overflow the default 8 MB stack. 128 MB covers the worst case.
+# This is set via the runner so it is in effect before actix worker threads are
+# spawned (which read RUST_MIN_STACK since no explicit stack_size is given).
+[target.aarch64-apple-darwin]
+runner = ["env", "RUST_MIN_STACK=134217728"]
