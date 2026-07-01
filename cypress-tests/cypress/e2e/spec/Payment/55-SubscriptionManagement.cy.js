@@ -63,7 +63,7 @@ describe("Subscription Management tests", () => {
       };
       cy.UpdateBusinessProfileTest(
         bpBody,
-        true,  // is_connector_agnostic_mit_enabled
+        true, // is_connector_agnostic_mit_enabled
         false, // collect_billing_details_from_wallet_connector
         false, // collect_shipping_details_from_wallet_connector
         false, // always_collect_billing_details_from_wallet_connector
