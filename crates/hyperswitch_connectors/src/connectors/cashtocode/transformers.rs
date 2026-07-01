@@ -280,7 +280,7 @@ impl TryFrom<PaymentsResponseRouterData<CashtocodePaymentsResponse>>
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -295,7 +295,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CashtocodePaymentsSyncResponse, T, Paym
         item: ResponseRouterData<F, CashtocodePaymentsSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::Charged, // Charged status is hardcoded because cashtocode do not support Psync, and we only receive webhooks when payment is succeeded, this tryFrom is used for CallConnectorAction.
+            status: enums::AttemptStatus::Charged.into(), // Charged status is hardcoded because cashtocode do not support Psync, and we only receive webhooks when payment is succeeded, this tryFrom is used for CallConnectorAction.
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.data.attempt_id.clone(), //in response they only send PayUrl, so we use attempt_id as connector_transaction_id

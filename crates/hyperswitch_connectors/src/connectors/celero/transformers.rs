@@ -534,7 +534,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                             );
 
                             Ok(Self {
-                                status: common_enums::AttemptStatus::Failure,
+                                status: common_enums::AttemptStatus::Failure.into(),
                                 response: Err(
                                     hyperswitch_domain_models::router_data::ErrorResponse {
                                         code: error_details
@@ -563,7 +563,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                                 .map(ConnectorResponseData::with_additional_payment_method_data);
                             let final_status: enums::AttemptStatus = response.status.into();
                             Ok(Self {
-                                status: final_status,
+                                status: final_status.into(),
                                 response: Ok(PaymentsResponseData::TransactionResponse {
                                     resource_id: ResponseId::ConnectorTransactionId(
                                         data.id.clone(),
@@ -587,7 +587,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                     // No transaction data in successful response
                     // We don't have a transaction ID in this case
                     Ok(Self {
-                        status: common_enums::AttemptStatus::Failure,
+                        status: common_enums::AttemptStatus::Failure.into(),
                         response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                             code: "MISSING_DATA".to_string(),
                             message: "No transaction data in response".to_string(),
@@ -615,7 +615,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                     item.response.data.as_ref().map(|data| data.id.clone());
 
                 Ok(Self {
-                    status: common_enums::AttemptStatus::Failure,
+                    status: common_enums::AttemptStatus::Failure.into(),
                     response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                         code: error_details
                             .error_code
@@ -686,7 +686,7 @@ impl
     ) -> Result<Self, Self::Error> {
         match item.response.status {
             CeleroResponseStatus::Success => Ok(Self {
-                status: common_enums::AttemptStatus::Charged,
+                status: common_enums::AttemptStatus::Charged.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         item.data.request.connector_transaction_id.clone(),
@@ -704,7 +704,7 @@ impl
                 ..item.data
             }),
             CeleroResponseStatus::Error => Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: "CAPTURE_FAILED".to_string(),
                     message: item
@@ -764,7 +764,7 @@ impl
     ) -> Result<Self, Self::Error> {
         match item.response.status {
             CeleroResponseStatus::Success => Ok(Self {
-                status: common_enums::AttemptStatus::Voided,
+                status: common_enums::AttemptStatus::Voided.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         item.data.request.connector_transaction_id.clone(),
@@ -782,7 +782,7 @@ impl
                 ..item.data
             }),
             CeleroResponseStatus::Error => Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: "VOID_FAILED".to_string(),
                     message: item.response.msg.clone(),

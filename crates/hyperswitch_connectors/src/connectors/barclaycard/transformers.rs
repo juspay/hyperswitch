@@ -1197,7 +1197,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardPreProcessingR
                     ));
 
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response,
                         ..item.data
                     })
@@ -1235,7 +1235,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardPreProcessingR
                             .ok()
                             .map(Box::new);
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::NoResponseId,
                             redirection_data: Box::new(redirection_data),
@@ -1292,7 +1292,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardPreProcessingR
                 });
                 Ok(Self {
                     response,
-                    status: enums::AttemptStatus::AuthenticationFailed,
+                    status: enums::AttemptStatus::AuthenticationFailed.into(),
                     ..item.data
                 })
             }
@@ -1322,7 +1322,7 @@ impl TryFrom<PaymentsAuthenticateResponseRouterData<BarclaycardAuthenticationRes
                     ));
 
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response,
                         ..item.data
                     })
@@ -1360,7 +1360,7 @@ impl TryFrom<PaymentsAuthenticateResponseRouterData<BarclaycardAuthenticationRes
                             .ok()
                             .map(Box::new);
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::NoResponseId,
                             redirection_data: Box::new(redirection_data),
@@ -1417,7 +1417,7 @@ impl TryFrom<PaymentsAuthenticateResponseRouterData<BarclaycardAuthenticationRes
                 });
                 Ok(Self {
                     response,
-                    status: enums::AttemptStatus::AuthenticationFailed,
+                    status: enums::AttemptStatus::AuthenticationFailed.into(),
                     ..item.data
                 })
             }
@@ -1447,7 +1447,7 @@ impl TryFrom<PaymentsPostAuthenticateResponseRouterData<BarclaycardAuthenticatio
                     ));
 
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response,
                         ..item.data
                     })
@@ -1485,7 +1485,7 @@ impl TryFrom<PaymentsPostAuthenticateResponseRouterData<BarclaycardAuthenticatio
                             .ok()
                             .map(Box::new);
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::NoResponseId,
                             redirection_data: Box::new(redirection_data),
@@ -1542,7 +1542,7 @@ impl TryFrom<PaymentsPostAuthenticateResponseRouterData<BarclaycardAuthenticatio
                 });
                 Ok(Self {
                     response,
-                    status: enums::AttemptStatus::AuthenticationFailed,
+                    status: enums::AttemptStatus::AuthenticationFailed.into(),
                     ..item.data
                 })
             }
@@ -1572,7 +1572,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<BarclaycardPreProcessingRes
                     ));
 
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response,
                         ..item.data
                     })
@@ -1610,7 +1610,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<BarclaycardPreProcessingRes
                             .ok()
                             .map(Box::new);
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::NoResponseId,
                             redirection_data: Box::new(redirection_data),
@@ -1667,7 +1667,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<BarclaycardPreProcessingRes
                 });
                 Ok(Self {
                     response,
-                    status: enums::AttemptStatus::AuthenticationFailed,
+                    status: enums::AttemptStatus::AuthenticationFailed.into(),
                     ..item.data
                 })
             }
@@ -2324,7 +2324,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardAuthSetupRespo
     ) -> Result<Self, Self::Error> {
         match item.response {
             BarclaycardAuthSetupResponse::ClientAuthSetupInfo(info_response) => Ok(Self {
-                status: enums::AttemptStatus::AuthenticationPending,
+                status: enums::AttemptStatus::AuthenticationPending.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(Some(RedirectForm::BarclaycardAuthSetup {
@@ -2392,7 +2392,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardAuthSetupRespo
                         network_error_message: None,
                         connector_metadata: None,
                     }),
-                    status: enums::AttemptStatus::AuthenticationFailed,
+                    status: enums::AttemptStatus::AuthenticationFailed.into(),
                     ..item.data
                 })
             }
@@ -2409,7 +2409,7 @@ impl TryFrom<PaymentsResponseRouterData<BarclaycardAuthSetupResponse>>
     ) -> Result<Self, Self::Error> {
         match item.response {
             BarclaycardAuthSetupResponse::ClientAuthSetupInfo(info_response) => Ok(Self {
-                status: enums::AttemptStatus::AuthenticationPending,
+                status: enums::AttemptStatus::AuthenticationPending.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(Some(RedirectForm::BarclaycardAuthSetup {
@@ -2477,7 +2477,7 @@ impl TryFrom<PaymentsResponseRouterData<BarclaycardAuthSetupResponse>>
                         network_error_message: None,
                         connector_metadata: None,
                     }),
-                    status: enums::AttemptStatus::AuthenticationFailed,
+                    status: enums::AttemptStatus::AuthenticationFailed.into(),
                     ..item.data
                 })
             }
@@ -2791,7 +2791,7 @@ fn map_error_response<F, T>(
     match transaction_status {
         Some(status) => RouterData {
             response,
-            status,
+            status: status.into(),
             ..item.data
         },
         None => RouterData {
@@ -2905,7 +2905,7 @@ impl TryFrom<PaymentsResponseRouterData<BarclaycardPaymentsResponse>>
                 };
 
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     connector_response,
                     ..item.data
@@ -2970,7 +2970,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BarclaycardPaymentsResponse>>
                 let response = get_payment_response((&info_response, status, item.http_code))
                     .map_err(|err| *err);
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -3001,7 +3001,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<BarclaycardPaymentsResponse>>
                 let response = get_payment_response((&info_response, status, item.http_code))
                     .map_err(|err| *err);
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -3101,13 +3101,13 @@ impl TryFrom<PaymentsSyncResponseRouterData<BarclaycardTransactionResponse>>
                             item.http_code,
                             item.response.id.clone(),
                         )),
-                        status: enums::AttemptStatus::Failure,
+                        status: enums::AttemptStatus::Failure.into(),
                         connector_response,
                         ..item.data
                     })
                 } else {
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
                                 item.response.id.clone(),
@@ -3188,7 +3188,7 @@ impl<F>
                     .map(ConnectorResponseData::with_additional_payment_method_data);
 
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     connector_response,
                     ..item.data

@@ -305,7 +305,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FortePaymentsResponse, T, PaymentsRespo
         let action = item.response.action;
         let transaction_id = &item.response.transaction_id;
         Ok(Self {
-            status: get_status(response_code, action),
+            status: get_status(response_code, action).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
                 redirection_data: Box::new(None),
@@ -364,7 +364,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FortePaymentsSyncResponse, T, PaymentsR
     ) -> Result<Self, Self::Error> {
         let transaction_id = &item.response.transaction_id;
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
                 redirection_data: Box::new(None),
@@ -435,7 +435,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
     ) -> Result<Self, Self::Error> {
         let transaction_id = &item.response.transaction_id;
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.response.response_code),
+            status: enums::AttemptStatus::from(item.response.response.response_code).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
                 redirection_data: Box::new(None),
@@ -505,7 +505,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ForteCancelResponse, T, PaymentsRespons
     ) -> Result<Self, Self::Error> {
         let transaction_id = &item.response.transaction_id;
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.response.response_code),
+            status: enums::AttemptStatus::from(item.response.response.response_code).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
                 redirection_data: Box::new(None),

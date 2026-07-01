@@ -185,7 +185,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoinbasePaymentsResponse, T, PaymentsRe
             }),
         };
         Ok(Self {
-            status: enums::AttemptStatus::from(attempt_status),
+            status: enums::AttemptStatus::from(attempt_status).into(),
             response: response_data,
             ..item.data
         })

@@ -308,7 +308,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MonerisPaymentsResponse, T, PaymentsRes
         item: ResponseRouterData<F, MonerisPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.payment_status),
+            status: common_enums::AttemptStatus::from(item.response.payment_status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payment_id.clone()),
                 redirection_data: Box::new(None),

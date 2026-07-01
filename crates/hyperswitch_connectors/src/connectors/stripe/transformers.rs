@@ -1,7 +1,9 @@
 use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
 use api_models::{self, enums as api_enums, payments};
-use common_enums::{enums, AttemptStatus, PaymentChargeType, StripeChargeType};
+use common_enums::{
+    enums, AttemptStatus, AttemptStatusDomain, PaymentChargeType, StripeChargeType,
+};
 use common_types::{
     payments::{AcceptanceType, SplitPaymentsRequest},
     primitive_wrappers,
@@ -2757,24 +2759,41 @@ pub enum StripePaymentStatus {
     Chargeable,
     Consumed,
     Pending,
+    /// Catch-all for unknown Stripe statuses to prevent deserialization failures
+    #[serde(other)]
+    Unknown,
 }
 
+impl From<StripePaymentStatus> for AttemptStatusDomain {
+    fn from(item: StripePaymentStatus) -> Self {
+        use common_enums::AttemptStatusDomain;
+        match item {
+            StripePaymentStatus::Succeeded => AttemptStatusDomain::Charged,
+            StripePaymentStatus::Failed => AttemptStatusDomain::Failure,
+            StripePaymentStatus::Processing => AttemptStatusDomain::Authorizing,
+            StripePaymentStatus::RequiresCustomerAction => {
+                AttemptStatusDomain::AuthenticationPending
+            }
+            StripePaymentStatus::RequiresPaymentMethod => AttemptStatusDomain::Failure,
+            StripePaymentStatus::RequiresConfirmation => AttemptStatusDomain::ConfirmationAwaited,
+            StripePaymentStatus::Canceled => AttemptStatusDomain::Voided,
+            StripePaymentStatus::RequiresCapture => AttemptStatusDomain::Authorized,
+            StripePaymentStatus::Chargeable => AttemptStatusDomain::Authorizing,
+            StripePaymentStatus::Consumed => AttemptStatusDomain::Authorizing,
+            StripePaymentStatus::Pending => AttemptStatusDomain::Pending,
+            StripePaymentStatus::Unknown => AttemptStatusDomain::Unknown,
+        }
+    }
+}
+
+// Keep backward compatibility: convert to AttemptStatus via domain
 impl From<StripePaymentStatus> for AttemptStatus {
     fn from(item: StripePaymentStatus) -> Self {
-        match item {
-            StripePaymentStatus::Succeeded => Self::Charged,
-            StripePaymentStatus::Failed => Self::Failure,
-            StripePaymentStatus::Processing => Self::Authorizing,
-            StripePaymentStatus::RequiresCustomerAction => Self::AuthenticationPending,
-            // Make the payment attempt status as failed
-            StripePaymentStatus::RequiresPaymentMethod => Self::Failure,
-            StripePaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
-            StripePaymentStatus::Canceled => Self::Voided,
-            StripePaymentStatus::RequiresCapture => Self::Authorized,
-            StripePaymentStatus::Chargeable => Self::Authorizing,
-            StripePaymentStatus::Consumed => Self::Authorizing,
-            StripePaymentStatus::Pending => Self::Pending,
-        }
+        // For backward compatibility, use Pending as fallback for Unknown
+        // Production code should prefer AttemptStatusDomain and use resolve_or_keep
+        AttemptStatusDomain::from(item)
+            .to_storage()
+            .unwrap_or(AttemptStatus::Pending)
     }
 }
 
@@ -3309,7 +3328,8 @@ where
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
 
-        let status = AttemptStatus::from(item.response.status);
+        let domain_status = common_enums::AttemptStatusDomain::from(item.response.status);
+        let status = domain_status.to_storage().unwrap_or_default();
 
         let response = if is_payment_failure(status) {
             *get_stripe_payments_response_data(
@@ -3363,7 +3383,7 @@ where
             .and_then(StripeChargeEnum::get_maximum_capturable_amount);
 
         Ok(Self {
-            status,
+            status: domain_status,
             /* Commented out fields:
             client_secret: Some(item.response.client_secret.clone().as_str()),
             description: item.response.description.map(|x| x.as_str()),
@@ -3392,7 +3412,9 @@ impl From<StripePaymentStatus> for common_enums::AuthorizationStatus {
             | StripePaymentStatus::RequiresCustomerAction
             | StripePaymentStatus::RequiresConfirmation
             | StripePaymentStatus::Consumed => Self::Success,
-            StripePaymentStatus::Processing | StripePaymentStatus::Pending => Self::Processing,
+            StripePaymentStatus::Processing
+            | StripePaymentStatus::Pending
+            | StripePaymentStatus::Unknown => Self::Processing,
             StripePaymentStatus::Failed
             | StripePaymentStatus::Canceled
             | StripePaymentStatus::RequiresPaymentMethod => Self::Failure,
@@ -3619,7 +3641,9 @@ where
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
 
-        let status = AttemptStatus::from(item.response.status.to_owned());
+        let domain_status =
+            common_enums::AttemptStatusDomain::from(item.response.status.to_owned());
+        let status = domain_status.to_storage().unwrap_or_default();
 
         let connector_response_data =
             item.response
@@ -3675,7 +3699,7 @@ where
         };
 
         Ok(Self {
-            status: AttemptStatus::from(item.response.status.to_owned()),
+            status: domain_status,
             response,
             amount_captured: item
                 .response
@@ -3729,7 +3753,8 @@ where
                 connector_mandate_request_reference_id: None,
             }
         });
-        let status = AttemptStatus::from(item.response.status);
+        let domain_status = common_enums::AttemptStatusDomain::from(item.response.status);
+        let status = domain_status.to_storage().unwrap_or_default();
         let connector_response_data = item
             .response
             .latest_attempt
@@ -3770,7 +3795,7 @@ where
         };
 
         Ok(Self {
-            status,
+            status: domain_status,
             response,
             connector_response: connector_response_data,
             ..item.data
@@ -4394,7 +4419,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, StripeSourceResponse, T, PaymentsRespon
                 session_token: None,
                 connector_response_reference_id: None,
             }),
-            status,
+            status: status.into(),
             ..item.data
         })
     }
@@ -4435,7 +4460,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
             .source
             .encode_to_value()
             .change_context(ConnectorError::ResponseHandlingFailed)?;
-        let status = AttemptStatus::from(item.response.status);
+        let domain_status = common_enums::AttemptStatusDomain::from(item.response.status);
+        let status = domain_status.to_storage().unwrap_or_default();
         let response = if is_payment_failure(status) {
             Err(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: item
@@ -4473,7 +4499,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
         };
 
         Ok(Self {
-            status,
+            status: domain_status,
             response,
             ..item.data
         })

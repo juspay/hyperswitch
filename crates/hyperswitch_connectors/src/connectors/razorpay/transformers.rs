@@ -243,7 +243,7 @@ impl TryFrom<PaymentsResponseRouterData<RazorpayPaymentsResponse>>
         let connector_metadata = get_wait_screen_metadata()?;
         let order_id = item.data.request.get_order_id()?;
         Ok(Self {
-            status: enums::AttemptStatus::AuthenticationPending,
+            status: enums::AttemptStatus::AuthenticationPending.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.razorpay_payment_id.clone(),
@@ -327,10 +327,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpaySyncResponse, T, PaymentsRespon
                 let razorpay_status = last_item.status;
                 get_psync_razorpay_payment_status(razorpay_status)
             }
-            None => item.data.status,
+            None => item.data.status.to_storage().unwrap_or_default(),
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(None),

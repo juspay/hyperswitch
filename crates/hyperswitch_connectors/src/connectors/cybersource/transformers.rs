@@ -3415,7 +3415,7 @@ impl
             .map(ConnectorResponseData::with_additional_payment_method_data);
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             connector_response,
             ..item.data
@@ -3432,7 +3432,7 @@ impl TryFrom<PaymentsResponseRouterData<CybersourceAuthSetupResponse>>
     ) -> Result<Self, Self::Error> {
         match item.response {
             CybersourceAuthSetupResponse::ClientAuthSetupInfo(info_response) => Ok(Self {
-                status: enums::AttemptStatus::AuthenticationPending,
+                status: enums::AttemptStatus::AuthenticationPending.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(Some(RedirectForm::CybersourceAuthSetup {
@@ -3500,7 +3500,7 @@ impl TryFrom<PaymentsResponseRouterData<CybersourceAuthSetupResponse>>
                         network_error_message: None,
                         connector_metadata: None,
                     }),
-                    status: enums::AttemptStatus::AuthenticationFailed,
+                    status: enums::AttemptStatus::AuthenticationFailed.into(),
                     ..item.data
                 })
             }
@@ -4089,7 +4089,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingRes
                     ));
 
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response,
                         ..item.data
                     })
@@ -4127,7 +4127,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingRes
                             .ok()
                             .map(Box::new);
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::NoResponseId,
                             redirection_data: Box::new(redirection_data),
@@ -4184,7 +4184,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingRes
                 });
                 Ok(Self {
                     response,
-                    status: enums::AttemptStatus::AuthenticationFailed,
+                    status: enums::AttemptStatus::AuthenticationFailed.into(),
                     ..item.data
                 })
             }
@@ -4228,7 +4228,7 @@ impl<F>
             .map(ConnectorResponseData::with_additional_payment_method_data);
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             connector_response,
             ..item.data
@@ -4269,7 +4269,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CybersourcePaymentsResponse>>
         let response =
             get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -4293,7 +4293,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<CybersourcePaymentsResponse>>
         let response =
             get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -4354,7 +4354,7 @@ impl
             .map(ConnectorResponseData::with_additional_payment_method_data);
 
         Ok(Self {
-            status: mandate_status,
+            status: mandate_status.into(),
             response: match error_response {
                 Some(error) => Err(error),
                 None => Ok(PaymentsResponseData::TransactionResponse {
@@ -4465,7 +4465,7 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response {
             CybersourceAuthSetupResponse::ClientAuthSetupInfo(info_response) => Ok(Self {
-                status: enums::AttemptStatus::AuthenticationPending,
+                status: enums::AttemptStatus::AuthenticationPending.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(Some(RedirectForm::CybersourceAuthSetup {
@@ -4533,7 +4533,7 @@ impl<F>
                         network_error_message: None,
                         connector_metadata: None,
                     }),
-                    status: enums::AttemptStatus::AuthenticationFailed,
+                    status: enums::AttemptStatus::AuthenticationFailed.into(),
                     ..item.data
                 })
             }
@@ -4575,7 +4575,7 @@ impl<F>
                     ));
 
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response,
                         ..item.data
                     })
@@ -4613,7 +4613,7 @@ impl<F>
                             .ok()
                             .map(Box::new);
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::NoResponseId,
                             redirection_data: Box::new(redirection_data),
@@ -4670,7 +4670,7 @@ impl<F>
                 });
                 Ok(Self {
                     response,
-                    status: enums::AttemptStatus::AuthenticationFailed,
+                    status: enums::AttemptStatus::AuthenticationFailed.into(),
                     ..item.data
                 })
             }
@@ -4712,7 +4712,7 @@ impl<F>
                     ));
 
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response,
                         ..item.data
                     })
@@ -4750,7 +4750,7 @@ impl<F>
                             .ok()
                             .map(Box::new);
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::NoResponseId,
                             redirection_data: Box::new(redirection_data),
@@ -4807,7 +4807,7 @@ impl<F>
                 });
                 Ok(Self {
                     response,
-                    status: enums::AttemptStatus::AuthenticationFailed,
+                    status: enums::AttemptStatus::AuthenticationFailed.into(),
                     ..item.data
                 })
             }
@@ -4839,12 +4839,12 @@ impl TryFrom<PaymentsSyncResponseRouterData<CybersourceTransactionResponse>>
                             item.http_code,
                             item.response.id.clone(),
                         )),
-                        status: enums::AttemptStatus::Failure,
+                        status: enums::AttemptStatus::Failure.into(),
                         ..item.data
                     })
                 } else {
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
                                 item.response.id.clone(),

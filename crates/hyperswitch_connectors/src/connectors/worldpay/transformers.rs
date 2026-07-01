@@ -967,7 +967,7 @@ impl<F, T>
             }),
         };
         Ok(Self {
-            status,
+            status: status.into(),
             description,
             response,
             ..router_data.data
@@ -1047,7 +1047,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for WorldpayCompleteAu
         let parsed_request = serde_urlencoded::from_str::<Self>(params.peek())
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        match item.status {
+        match item.status.to_storage().unwrap_or_default() {
             enums::AttemptStatus::DeviceDataCollectionPending => Ok(parsed_request),
             enums::AttemptStatus::AuthenticationPending => {
                 if parsed_request.collection_reference.is_some() {

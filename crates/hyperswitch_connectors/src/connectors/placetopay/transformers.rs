@@ -270,7 +270,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlacetopayPaymentsResponse, T, Payments
         item: ResponseRouterData<F, PlacetopayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status.status),
+            status: enums::AttemptStatus::from(item.response.status.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.internal_reference.to_string(),

@@ -773,7 +773,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                     });
 
                 Ok(Self {
-                    status: common_enums::AttemptStatus::from(transaction_status),
+                    status: common_enums::AttemptStatus::from(transaction_status).into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: transaction_id
                             .clone()
@@ -1213,7 +1213,7 @@ impl<F>
                 );
 
                 Ok(Self {
-                    status: common_enums::AttemptStatus::from(transaction_status),
+                    status: common_enums::AttemptStatus::from(transaction_status).into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: transaction_id
                             .clone()
@@ -1313,7 +1313,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<NovalnetCaptureResponse>>
                 Ok(Self {
                     status: transaction_status
                         .map(common_enums::AttemptStatus::from)
-                        .unwrap_or(common_enums::AttemptStatus::Pending),
+                        .unwrap_or(common_enums::AttemptStatus::Pending)
+                        .into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: transaction_id
                             .clone()
@@ -1481,9 +1482,9 @@ impl TryFrom<PaymentsCancelResponseRouterData<NovalnetCancelResponse>>
                     .unwrap_or(NovalnetTransactionStatus::Pending);
                 Ok(Self {
                     status: if transaction_status == NovalnetTransactionStatus::Deactivated {
-                        enums::AttemptStatus::Voided
+                        enums::AttemptStatus::Voided.into()
                     } else {
-                        enums::AttemptStatus::VoidFailed
+                        enums::AttemptStatus::VoidFailed.into()
                     },
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: transaction_id

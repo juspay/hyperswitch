@@ -3454,7 +3454,7 @@ where
             };
 
             if should_continue {
-                router_data.status = payment_data.get_payment_attempt().status;
+                router_data.status = payment_data.get_payment_attempt().status.into();
                 router_data
                     .decide_flows(
                         &updated_state,
@@ -5793,7 +5793,7 @@ where
         // This is added because few connector integrations do not update the status,
         // and rely on previous status set in router_data
         let mut router_data = router_data;
-        router_data.status = payment_data.get_payment_attempt().status;
+        router_data.status = payment_data.get_payment_attempt().status.into();
         router_data
             .decide_flows(
                 state,
@@ -7096,7 +7096,7 @@ where
         // update this in router_data.
         // This is added because few connector integrations do not update the status,
         // and rely on previous status set in router_data
-        router_data.status = payment_data.get_payment_attempt().status;
+        router_data.status = payment_data.get_payment_attempt().status.into();
         router_data
             .decide_flows(
                 &updated_state,

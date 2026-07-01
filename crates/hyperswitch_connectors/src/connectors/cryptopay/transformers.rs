@@ -213,7 +213,7 @@ impl<F, T>
             (Some(minor_amount), enums::AttemptStatus::Charged) => {
                 let amount_captured = Some(minor_amount.get_amount_as_i64());
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     amount_captured,
                     minor_amount_captured: amount_captured_in_minor_units,
@@ -221,7 +221,7 @@ impl<F, T>
                 })
             }
             _ => Ok(Self {
-                status,
+                status: status.into(),
                 response,
                 ..item.data
             }),

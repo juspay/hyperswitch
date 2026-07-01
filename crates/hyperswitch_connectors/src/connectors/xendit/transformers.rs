@@ -523,7 +523,7 @@ impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuth
             })
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -590,7 +590,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<XenditCaptureResponse>>
             })
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -801,7 +801,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<XenditResponse>> for PaymentsSyncRou
                     })
                 };
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -820,7 +820,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<XenditResponse>> for PaymentsSyncRou
                     XenditWebhookEvent::QrEvent(_) => enums::AttemptStatus::Charged,
                 };
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     ..item.data
                 })
             }

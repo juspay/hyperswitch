@@ -1337,7 +1337,7 @@ impl<F, T>
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1391,7 +1391,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsCaptureResponse, T, Paymen
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })

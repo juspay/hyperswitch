@@ -153,7 +153,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, InespayPaymentsResponse, T, PaymentsRes
             ),
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -231,7 +231,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, InespayPSyncResponse, T, PaymentsRespon
                 let redirection_data = RedirectForm::from((redirection_url, Method::Get));
 
                 Ok(Self {
-                    status: common_enums::AttemptStatus::from(data.cod_status),
+                    status: common_enums::AttemptStatus::from(data.cod_status).into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(
                             data.single_payin_id.clone(),
@@ -252,7 +252,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, InespayPSyncResponse, T, PaymentsRespon
             InespayPSyncResponse::InespayPSyncWebhook(data) => {
                 let status = enums::AttemptStatus::from(data.cod_status);
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(
                             data.single_payin_id.clone(),

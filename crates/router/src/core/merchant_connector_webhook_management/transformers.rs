@@ -64,7 +64,7 @@ pub async fn construct_webhook_register_router_data<'a>(
         payment_id: consts::IRRELEVANT_PAYMENT_INTENT_ID.to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: consts::IRRELEVANT_PAYMENT_ATTEMPT_ID.to_owned(),
-        status: common_enums::AttemptStatus::default(),
+        status: common_enums::AttemptStatus::default().into(),
         payment_method: common_enums::PaymentMethod::default(),
         payment_method_type: None,
         connector_auth_type: auth_type,

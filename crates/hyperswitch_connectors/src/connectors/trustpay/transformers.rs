@@ -846,10 +846,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustpayPaymentsResponse, T, PaymentsRe
     fn try_from(
         item: ResponseRouterData<F, TrustpayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let (status, error, payment_response_data, connector_response) =
-            get_trustpay_response(item.response, item.http_code, item.data.status)?;
+        let (status, error, payment_response_data, connector_response) = get_trustpay_response(
+            item.response,
+            item.http_code,
+            item.data.status.to_storage().unwrap_or_default(),
+        )?;
         Ok(Self {
-            status,
+            status: status.into(),
             response: match error {
                 Some(err) => Err(err),
                 None => Ok(payment_response_data),
@@ -1515,7 +1518,7 @@ pub(crate) fn get_apple_pay_session<F, T>(
             connector_response_reference_id: None,
         }),
         // We don't get status from TrustPay but status should be AuthenticationPending by default for session response
-        status: enums::AttemptStatus::AuthenticationPending,
+        status: enums::AttemptStatus::AuthenticationPending.into(),
         ..item.data
     })
 }
@@ -1561,7 +1564,7 @@ pub(crate) fn get_google_pay_session<F, T>(
             connector_response_reference_id: None,
         }),
         // We don't get status from TrustPay but status should be AuthenticationPending by default for session response
-        status: enums::AttemptStatus::AuthenticationPending,
+        status: enums::AttemptStatus::AuthenticationPending.into(),
         ..item.data
     })
 }

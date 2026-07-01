@@ -436,7 +436,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, IatapayPaymentsResponse, T, PaymentsRes
         let (status, error, payment_response_data) =
             get_iatpay_response(item.response, item.http_code)?;
         Ok(Self {
-            status,
+            status: status.into(),
             response: match error {
                 Some(err) => Err(err),
                 None => Ok(payment_response_data),

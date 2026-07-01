@@ -491,7 +491,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TokenioPaymentsResponse, T, PaymentsRes
             }),
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })

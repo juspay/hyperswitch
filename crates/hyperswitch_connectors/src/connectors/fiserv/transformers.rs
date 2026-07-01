@@ -1012,7 +1012,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservPaymentsResponse, T, PaymentsResp
         }));
 
         Ok(Self {
-            status: enums::AttemptStatus::from(gateway_resp.transaction_state),
+            status: enums::AttemptStatus::from(gateway_resp.transaction_state).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     gateway_resp.transaction_processing_details.transaction_id,
@@ -1074,7 +1074,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservSyncResponse, T, PaymentsResponse
         };
 
         Ok(Self {
-            status: enums::AttemptStatus::from(transaction_state.clone()),
+            status: enums::AttemptStatus::from(transaction_state.clone()).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
                 redirection_data: Box::new(None),

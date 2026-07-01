@@ -390,7 +390,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, StaxPaymentsResponse, T, PaymentsRespon
         }
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(None),

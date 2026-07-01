@@ -46,7 +46,7 @@ fn get_default_router_data<F, Req, Resp>(
             .get_string_repr()
             .to_owned(),
         attempt_id: get_irrelevant_id_string("attempt_id", flow_name),
-        status: common_enums::AttemptStatus::default(),
+        status: common_enums::AttemptStatusDomain::default(),
         payment_method: common_enums::PaymentMethod::default(),
         connector_auth_type: router_data::ConnectorAuthType::default(),
         description: None,

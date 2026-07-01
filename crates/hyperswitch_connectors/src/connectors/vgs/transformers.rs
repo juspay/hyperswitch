@@ -282,7 +282,7 @@ impl
                 };
 
                 Ok(Self {
-                    status: common_enums::AttemptStatus::Started,
+                    status: common_enums::AttemptStatus::Started.into(),
                     response: Ok(VaultResponseData::ExternalVaultInsertResponse {
                         connector_vault_id: VaultIdType::MultiVauldIds(multi_tokens),
                         fingerprint_id: network_token_data
@@ -321,7 +321,7 @@ impl
                     };
 
                     Ok(Self {
-                        status: common_enums::AttemptStatus::Started,
+                        status: common_enums::AttemptStatus::Started.into(),
                         response: Ok(VaultResponseData::ExternalVaultInsertResponse {
                             connector_vault_id: VaultIdType::MultiVauldIds(multi_tokens),
                             fingerprint_id: card_data
@@ -344,7 +344,7 @@ impl
                         .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
                     Ok(Self {
-                        status: common_enums::AttemptStatus::Started,
+                        status: common_enums::AttemptStatus::Started.into(),
                         response: Ok(VaultResponseData::ExternalVaultInsertResponse {
                             connector_vault_id: VaultIdType::SingleVaultId(vgs_alias.alias.clone()),
                             fingerprint_id: vgs_alias.alias.clone(),
@@ -362,7 +362,7 @@ impl
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
                 Ok(Self {
-                    status: common_enums::AttemptStatus::Started,
+                    status: common_enums::AttemptStatus::Started.into(),
                     response: Ok(VaultResponseData::ExternalVaultInsertResponse {
                         connector_vault_id: VaultIdType::SingleVaultId(vgs_alias.alias.clone()),
                         fingerprint_id: vgs_alias.alias.clone(),
@@ -407,7 +407,7 @@ impl
             .change_context(errors::ConnectorError::ParsingFailed)?;
 
         Ok(Self {
-            status: common_enums::AttemptStatus::Started,
+            status: common_enums::AttemptStatus::Started.into(),
             response: Ok(VaultResponseData::ExternalVaultRetrieveResponse {
                 vault_data: PaymentMethodVaultingData::Card(card_detail),
             }),

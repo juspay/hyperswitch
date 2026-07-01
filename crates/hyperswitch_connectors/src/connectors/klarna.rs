@@ -1251,7 +1251,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Kl
             enums::AttemptStatus::VoidFailed
         };
         Ok(PaymentsCancelRouterData {
-            status,
+            status: status.into(),
             ..data.clone()
         })
     }

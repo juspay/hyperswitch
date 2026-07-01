@@ -171,7 +171,7 @@ impl
         });
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data: Box::new(None),
@@ -238,7 +238,7 @@ impl
             ResponseId::ConnectorTransactionId(item.data.connector_request_reference_id.clone());
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data: Box::new(None),
@@ -1406,7 +1406,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                         };
 
                         Ok(Self {
-                            status: AttemptStatus::from(pix_data.status),
+                            status: AttemptStatus::from(pix_data.status).into(),
                             response,
                             ..item.data
                         })
@@ -1418,7 +1418,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                 let status = AttemptStatus::from(res.status);
                 // TODO : Make a write on connector_metadata to modify the ExpiryType as it may chance after approval of Recurrence
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response: item.data.response,
                     ..item.data
                 })
@@ -1430,7 +1430,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                     },
                 )?;
                 Ok(Self {
-                    status: AttemptStatus::from(status),
+                    status: AttemptStatus::from(status).into(),
                     response: item.data.response,
                     ..item.data
                 })
@@ -1451,7 +1451,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                     })
                     .transpose()?;
                 Ok(Self {
-                    status: attempt_status,
+                    status: attempt_status.into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(cobr_data.txid.clone()),
                         redirection_data: Box::new(None),
@@ -1546,7 +1546,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                             None
                         };
                         Ok(Self {
-                            status: AttemptStatus::from(pix_data.status.clone()),
+                            status: AttemptStatus::from(pix_data.status.clone()).into(),
                             response: Ok(PaymentsResponseData::TransactionResponse {
                                 resource_id: ResponseId::ConnectorTransactionId(
                                     pix_data.txid.clone(),
@@ -1597,7 +1597,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
                 Ok(Self {
-                    status: AttemptStatus::AuthenticationPending,
+                    status: AttemptStatus::AuthenticationPending.into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(
                             boleto_data.bank_number.clone(),
@@ -1619,7 +1619,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                 // passing is_mit as true since this struct comes only when MITs are triggered
                 let attempt_status = cobr_status_to_attempt_status(cobr_data.status.clone(), true);
                 Ok(Self {
-                    status: attempt_status,
+                    status: attempt_status.into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(cobr_data.txid.clone()),
                         redirection_data: Box::new(None),
@@ -1654,7 +1654,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderVoidResponse, T, PaymentsRespo
     ) -> Result<Self, Self::Error> {
         match item.response.clone() {
             SantanderVoidResponse::Pix(res) => Ok(Self {
-                status: AttemptStatus::from(res.status),
+                status: AttemptStatus::from(res.status).into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(res.txid.clone()),
                     redirection_data: Box::new(None),
@@ -1670,7 +1670,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderVoidResponse, T, PaymentsRespo
                 ..item.data
             }),
             SantanderVoidResponse::Boleto(_) => Ok(Self {
-                status: AttemptStatus::Voided,
+                status: AttemptStatus::Voided.into(),
                 response: item.data.response,
                 ..item.data
             }),
@@ -2531,7 +2531,7 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: AttemptStatus::from(item.response.status.clone()),
+            status: AttemptStatus::from(item.response.status.clone()).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.data.connector_request_reference_id.clone(),

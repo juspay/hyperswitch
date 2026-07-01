@@ -1495,7 +1495,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         };
 
         Ok(PaymentsPreProcessingRouterData {
-            status,
+            status: status.into(),
             response,
             ..data.clone()
         })
@@ -1583,7 +1583,7 @@ impl ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, Paymen
         };
 
         Ok(PaymentsPostAuthenticateRouterData {
-            status,
+            status: status.into(),
             response,
             ..data.clone()
         })

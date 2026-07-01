@@ -882,7 +882,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
     ) -> Result<Self, Self::Error> {
         match item.response {
             FiuuPaymentsResponse::QRPaymentResponse(ref response) => Ok(Self {
-                status: enums::AttemptStatus::AuthenticationPending,
+                status: enums::AttemptStatus::AuthenticationPending.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(response.txn_id.clone()),
                     redirection_data: Box::new(None),
@@ -925,7 +925,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                         form_fields: redirection_data.unwrap_or_default(),
                     });
                     Ok(Self {
-                        status: enums::AttemptStatus::AuthenticationPending,
+                        status: enums::AttemptStatus::AuthenticationPending.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(data.txn_id),
                             redirection_data: Box::new(redirection_data),
@@ -1003,7 +1003,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                         })
                     };
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response,
                         ..item.data
                     })
@@ -1056,7 +1056,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             })
                         };
                         Self {
-                            status,
+                            status: status.into(),
                             response,
                             ..item.data
                         }
@@ -1434,7 +1434,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     charges: None,
                 };
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response: match error_response {
                         Some(err) => Err(err),
                         None => Ok(payments_response_data),
@@ -1505,7 +1505,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     charges: None,
                 };
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response: match error_response {
                         Some(err) => Err(err),
                         None => Ok(payments_response_data),
@@ -1684,7 +1684,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
             charges: None,
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response: match error_response {
                 Some(err) => Err(err),
                 None => Ok(payments_response_data),
@@ -1806,7 +1806,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
             charges: None,
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response: match error_response {
                 Some(err) => Err(err),
                 None => Ok(payments_response_data),

@@ -465,13 +465,13 @@ impl<F> TryFrom<ResponseRouterData<F, BamboraResponse, PaymentsAuthorizeData, Pa
             BamboraResponse::NormalTransaction(pg_response) => Ok(Self {
                 status: if pg_response.approved.as_str() == "1" {
                     match item.data.request.is_auto_capture()? {
-                        true => enums::AttemptStatus::Charged,
-                        false => enums::AttemptStatus::Authorized,
+                        true => enums::AttemptStatus::Charged.into(),
+                        false => enums::AttemptStatus::Authorized.into(),
                     }
                 } else {
                     match item.data.request.is_auto_capture()? {
-                        true => enums::AttemptStatus::Failure,
-                        false => enums::AttemptStatus::AuthorizationFailed,
+                        true => enums::AttemptStatus::Failure.into(),
+                        false => enums::AttemptStatus::AuthorizationFailed.into(),
                     }
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -495,7 +495,7 @@ impl<F> TryFrom<ResponseRouterData<F, BamboraResponse, PaymentsAuthorizeData, Pa
                     .collect();
                 let redirection_data = Some(RedirectForm::Html { html_data: value });
                 Ok(Self {
-                    status: enums::AttemptStatus::AuthenticationPending,
+                    status: enums::AttemptStatus::AuthenticationPending.into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::NoResponseId,
                         redirection_data: Box::new(redirection_data),
@@ -539,13 +539,13 @@ impl<F>
         Ok(Self {
             status: if item.response.approved.as_str() == "1" {
                 match item.data.request.is_auto_capture()? {
-                    true => enums::AttemptStatus::Charged,
-                    false => enums::AttemptStatus::Authorized,
+                    true => enums::AttemptStatus::Charged.into(),
+                    false => enums::AttemptStatus::Authorized.into(),
                 }
             } else {
                 match item.data.request.is_auto_capture()? {
-                    true => enums::AttemptStatus::Failure,
-                    false => enums::AttemptStatus::AuthorizationFailed,
+                    true => enums::AttemptStatus::Failure.into(),
+                    false => enums::AttemptStatus::AuthorizationFailed.into(),
                 }
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -576,16 +576,16 @@ impl TryFrom<PaymentsSyncResponseRouterData<BamboraPaymentsResponse>>
             status: match item.data.request.is_auto_capture()? {
                 true => {
                     if item.response.approved.as_str() == "1" {
-                        enums::AttemptStatus::Charged
+                        enums::AttemptStatus::Charged.into()
                     } else {
-                        enums::AttemptStatus::Failure
+                        enums::AttemptStatus::Failure.into()
                     }
                 }
                 false => {
                     if item.response.approved.as_str() == "1" {
-                        enums::AttemptStatus::Authorized
+                        enums::AttemptStatus::Authorized.into()
                     } else {
-                        enums::AttemptStatus::AuthorizationFailed
+                        enums::AttemptStatus::AuthorizationFailed.into()
                     }
                 }
             },
@@ -615,9 +615,9 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BamboraPaymentsResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: if item.response.approved.as_str() == "1" {
-                enums::AttemptStatus::Charged
+                enums::AttemptStatus::Charged.into()
             } else {
-                enums::AttemptStatus::Failure
+                enums::AttemptStatus::Failure.into()
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.to_string()),
@@ -645,9 +645,9 @@ impl TryFrom<PaymentsCancelResponseRouterData<BamboraPaymentsResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: if item.response.approved.as_str() == "1" {
-                enums::AttemptStatus::Voided
+                enums::AttemptStatus::Voided.into()
             } else {
-                enums::AttemptStatus::VoidFailed
+                enums::AttemptStatus::VoidFailed.into()
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.to_string()),

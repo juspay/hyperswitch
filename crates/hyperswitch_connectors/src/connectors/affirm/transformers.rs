@@ -321,7 +321,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AffirmResponseWrapper, T, PaymentsRespo
                     .map(|url| RedirectForm::from((url, Method::Get)));
 
                 Ok(Self {
-                    status: enums::AttemptStatus::AuthenticationPending,
+                    status: enums::AttemptStatus::AuthenticationPending.into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(resp.checkout_id.clone()),
                         redirection_data: Box::new(redirection_data),
@@ -340,7 +340,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AffirmResponseWrapper, T, PaymentsRespo
             AffirmResponseWrapper::Psync(resp) => {
                 let status = enums::AttemptStatus::from(resp.status);
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(resp.id.clone()),
                         redirection_data: Box::new(None),
@@ -368,7 +368,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AffirmCompleteAuthorizeResponse, T, Pay
         item: ResponseRouterData<F, AffirmCompleteAuthorizeResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: common_enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(None),
@@ -492,7 +492,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<AffirmCaptureResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount_captured: Some(item.response.amount.get_amount_as_i64()),
-            status: enums::AttemptStatus::Charged,
+            status: enums::AttemptStatus::Charged.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(None),
@@ -525,7 +525,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<AffirmCancelResponse>> for Payment
         item: PaymentsCancelResponseRouterData<AffirmCancelResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::Voided,
+            status: enums::AttemptStatus::Voided.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(None),

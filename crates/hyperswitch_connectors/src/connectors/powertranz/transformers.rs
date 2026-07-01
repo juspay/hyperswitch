@@ -371,7 +371,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PowertranzBaseResponse, T, PaymentsResp
                 item.response.transaction_type,
                 item.response.approved,
                 is_3ds_payment(item.response.iso_response_code),
-            )),
+            ))
+            .into(),
             response,
             ..item.data
         })

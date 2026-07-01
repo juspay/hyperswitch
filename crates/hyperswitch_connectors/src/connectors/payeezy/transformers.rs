@@ -441,7 +441,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayeezyPaymentsResponse, T, PaymentsRes
         );
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.clone(),

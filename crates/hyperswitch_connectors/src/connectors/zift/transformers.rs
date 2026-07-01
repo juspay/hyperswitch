@@ -427,7 +427,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ZiftCaptureResponse>> for Payment
 
         match capture_response.response_code.is_approved() {
             true => Ok(Self {
-                status: common_enums::AttemptStatus::Charged,
+                status: common_enums::AttemptStatus::Charged.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(None),
@@ -444,7 +444,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ZiftCaptureResponse>> for Payment
             }),
 
             false => Ok(Self {
-                status: common_enums::AttemptStatus::CaptureFailed,
+                status: common_enums::AttemptStatus::CaptureFailed.into(),
                 response: Err(ErrorResponse {
                     code: capture_response.response_code.clone(),
                     message: capture_response.response_message.clone(),
@@ -514,7 +514,7 @@ impl<F>
             })?;
 
             Ok(Self {
-                status,
+                status: status.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
                     redirection_data: Box::new(None),
@@ -531,7 +531,7 @@ impl<F>
             })
         } else {
             Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: item.response.response_code.clone(),
                     message: item.response.response_message.clone(),
@@ -768,7 +768,7 @@ impl TryFrom<ResponseRouterData<PSync, ZiftSyncResponse, PaymentsSyncData, Payme
         };
 
         Ok(Self {
-            status: attempt_status,
+            status: attempt_status.into(),
             response,
             ..item.data
         })
@@ -875,9 +875,9 @@ impl TryFrom<PaymentsCancelResponseRouterData<ZiftVoidResponse>> for PaymentsCan
 
         Ok(Self {
             status: if void_response.response_code.is_approved() {
-                common_enums::AttemptStatus::Voided
+                common_enums::AttemptStatus::Voided.into()
             } else {
-                common_enums::AttemptStatus::Failure
+                common_enums::AttemptStatus::Failure.into()
             },
             response,
             ..item.data
@@ -994,7 +994,7 @@ impl<F>
             })?;
 
             Ok(Self {
-                status,
+                status: status.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
                     redirection_data: Box::new(None),
@@ -1018,7 +1018,7 @@ impl<F>
             })
         } else {
             Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: item.response.response_code.clone(),
                     message: item.response.response_message.clone(),

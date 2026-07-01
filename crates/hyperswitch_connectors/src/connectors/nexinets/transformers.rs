@@ -379,7 +379,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPreAuthOrDebitResponse, T, Paym
                 connector_mandate_request_reference_id: None,
             });
         Ok(Self {
-            status: get_status(transaction.status.clone(), item.response.transaction_type),
+            status: get_status(transaction.status.clone(), item.response.transaction_type).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data: Box::new(redirection_data),
@@ -461,7 +461,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPaymentResponse, T, PaymentsRes
             _ => ResponseId::NoResponseId,
         };
         Ok(Self {
-            status: get_status(item.response.status, item.response.transaction_type),
+            status: get_status(item.response.status, item.response.transaction_type).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data: Box::new(None),

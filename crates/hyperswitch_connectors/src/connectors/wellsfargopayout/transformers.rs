@@ -128,7 +128,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, WellsfargopayoutPaymentsResponse, T, Pa
         item: ResponseRouterData<F, WellsfargopayoutPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: AttemptStatus::from(item.response.status),
+            status: AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(None),

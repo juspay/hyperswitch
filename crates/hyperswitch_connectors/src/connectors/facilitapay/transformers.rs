@@ -445,7 +445,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: if is_payment_failure(status) {
                 Err(ErrorResponse {
                     code: item.response.data.status.clone().to_string(),
@@ -554,7 +554,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FacilitapayVoidResponse>>
         let status = common_enums::AttemptStatus::from(item.response.data.status.clone());
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: if is_payment_failure(status) {
                 Err(ErrorResponse {
                     code: item.response.data.status.clone().to_string(),

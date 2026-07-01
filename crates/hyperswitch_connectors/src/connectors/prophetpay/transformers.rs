@@ -195,7 +195,7 @@ impl TryFrom<PaymentsResponseRouterData<ProphetpayTokenResponse>>
         .ok();
 
         Ok(Self {
-            status: enums::AttemptStatus::AuthenticationPending,
+            status: enums::AttemptStatus::AuthenticationPending.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(redirection_data),
@@ -395,7 +395,7 @@ impl<F>
             };
             let connector_metadata = serde_json::to_value(card_token_data).ok();
             Ok(Self {
-                status: enums::AttemptStatus::Charged,
+                status: enums::AttemptStatus::Charged.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(item.response.transaction_id),
                     redirection_data: Box::new(None),
@@ -412,7 +412,7 @@ impl<F>
             })
         } else {
             Ok(Self {
-                status: enums::AttemptStatus::Failure,
+                status: enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: item.response.response_code,
                     message: item.response.response_text.clone(),
@@ -450,7 +450,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ProphetpaySyncResponse, T, PaymentsResp
     ) -> Result<Self, Self::Error> {
         if item.response.success {
             Ok(Self {
-                status: enums::AttemptStatus::Charged,
+                status: enums::AttemptStatus::Charged.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(item.response.transaction_id),
                     redirection_data: Box::new(None),
@@ -467,7 +467,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ProphetpaySyncResponse, T, PaymentsResp
             })
         } else {
             Ok(Self {
-                status: enums::AttemptStatus::Failure,
+                status: enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
@@ -505,7 +505,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ProphetpayVoidResponse, T, PaymentsResp
     ) -> Result<Self, Self::Error> {
         if item.response.success {
             Ok(Self {
-                status: enums::AttemptStatus::Voided,
+                status: enums::AttemptStatus::Voided.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(item.response.transaction_id),
                     redirection_data: Box::new(None),
@@ -522,7 +522,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ProphetpayVoidResponse, T, PaymentsResp
             })
         } else {
             Ok(Self {
-                status: enums::AttemptStatus::VoidFailed,
+                status: enums::AttemptStatus::VoidFailed.into(),
                 response: Err(ErrorResponse {
                     code: NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
@@ -635,7 +635,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, ProphetpayRefundResponse>>
             })
         } else {
             Ok(Self {
-                status: enums::AttemptStatus::Failure,
+                status: enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
@@ -680,7 +680,7 @@ impl<T> TryFrom<RefundsResponseRouterData<T, ProphetpayRefundSyncResponse>>
             })
         } else {
             Ok(Self {
-                status: enums::AttemptStatus::Failure,
+                status: enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),

@@ -357,7 +357,7 @@ impl RelayInterface for RelayCapture {
         .to_payment_failed_response()?;
 
         let relay_update = relay::RelayUpdate::try_from_capture_response((
-            router_data_res.status,
+            router_data_res.status.to_storage().unwrap_or_default(),
             relay_record.connector_resource_id.to_owned(),
             router_data_res.response,
         ))?;
@@ -629,7 +629,7 @@ impl RelayInterface for RelayVoid {
         .to_payment_failed_response()?;
 
         let relay_update = relay::RelayUpdate::try_from_void_response((
-            router_data_res.status,
+            router_data_res.status.to_storage().unwrap_or_default(),
             router_data_res.response,
         ))?;
 
@@ -1287,7 +1287,7 @@ pub async fn sync_relay_capture_with_gateway(
         .validate_psync_reference_id(
             &router_data.request,
             router_data.is_three_ds(),
-            router_data.status,
+            router_data.status.to_storage().unwrap_or_default(),
             router_data.connector_meta_data.clone(),
         )
         .is_err()
@@ -1311,7 +1311,7 @@ pub async fn sync_relay_capture_with_gateway(
     };
 
     let relay_response = relay::RelayUpdate::try_from_capture_response((
-        router_data_res.status,
+        router_data_res.status.to_storage().unwrap_or_default(),
         relay_record.connector_resource_id.to_owned(),
         router_data_res.response,
     ))?;

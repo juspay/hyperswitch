@@ -297,7 +297,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlaidPaymentsResponse, T, PaymentsRespo
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status.clone());
         Ok(Self {
-            status,
+            status: status.into(),
             response: if is_payment_failure(status) {
                 Err(ErrorResponse {
                     // populating status everywhere as plaid only sends back a status
@@ -351,7 +351,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlaidLinkTokenResponse, T, PaymentsResp
         });
 
         Ok(Self {
-            status: AttemptStatus::AuthenticationPending,
+            status: AttemptStatus::AuthenticationPending.into(),
             response: Ok(PaymentsResponseData::PostProcessingResponse { session_token }),
             ..item.data
         })
@@ -389,7 +389,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlaidSyncResponse, T, PaymentsResponseD
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status.clone());
         Ok(Self {
-            status,
+            status: status.into(),
             response: if is_payment_failure(status) {
                 Err(ErrorResponse {
                     // populating status everywhere as plaid only sends back a status

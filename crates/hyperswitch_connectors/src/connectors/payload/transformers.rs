@@ -576,7 +576,7 @@ where
                     })
                 };
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response: response_result,
                     connector_response,
                     ..item.data
@@ -610,7 +610,7 @@ impl<F, T>
         });
 
         Ok(Self {
-            status: enums::AttemptStatus::Charged, // SetupMandate succeeded
+            status: enums::AttemptStatus::Charged.into(), // SetupMandate succeeded
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(response.id),
                 redirection_data: Box::new(None),

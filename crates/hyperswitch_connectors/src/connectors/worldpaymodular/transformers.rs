@@ -255,7 +255,7 @@ pub fn get_worldpay_combined_psync_response(
         }
     };
     Ok(PaymentsSyncRouterData {
-        status: attempt_status,
+        status: attempt_status.into(),
         response: Ok(PaymentsResponseData::TransactionResponse {
             resource_id: data.request.connector_transaction_id.clone(),
             redirection_data: Box::new(None),
@@ -278,7 +278,7 @@ pub fn get_worldpay_combined_capture_response(
 ) -> CustomResult<PaymentsCaptureRouterData, ConnectorError> {
     let mandate = response.links.get_mandate_id();
     Ok(PaymentsCaptureRouterData {
-        status: enums::AttemptStatus::Charged,
+        status: enums::AttemptStatus::Charged.into(),
         response: Ok(PaymentsResponseData::TransactionResponse {
             resource_id: response.links.get_resource_id()?,
             redirection_data: Box::new(None),
@@ -299,7 +299,7 @@ pub fn get_worldpay_void_response(
     data: &PaymentsCancelRouterData,
 ) -> CustomResult<PaymentsCancelRouterData, ConnectorError> {
     Ok(PaymentsCancelRouterData {
-        status: enums::AttemptStatus::Voided,
+        status: enums::AttemptStatus::Voided.into(),
         response: Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::NoResponseId,
             redirection_data: Box::new(None),
@@ -376,7 +376,7 @@ impl TryFrom<PaymentsResponseRouterData<WorldpaymodularPaymentsResponse>>
         let status = enums::AttemptStatus::from(item.response.outcome);
 
         Ok(Self {
-            status,
+            status: status.into(),
             description: item.response.description,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: item.response.links.get_resource_id()?,

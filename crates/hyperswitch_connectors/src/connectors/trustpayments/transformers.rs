@@ -589,7 +589,7 @@ impl
         if !response_data.errorcode.is_success() {
             let _error_response = TrustpaymentsErrorResponse::from(response_data.clone());
             return Ok(Self {
-                status,
+                status: status.into(),
                 response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: response_data.errorcode.to_string(),
                     message: response_data.errormessage.clone(),
@@ -608,7 +608,7 @@ impl
         }
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
                 redirection_data: Box::new(None),
@@ -665,7 +665,7 @@ impl
 
         if !response_data.errorcode.is_success() {
             return Ok(Self {
-                status,
+                status: status.into(),
                 response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: response_data.errorcode.to_string(),
                     message: response_data.errormessage.clone(),
@@ -684,7 +684,7 @@ impl
         }
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
                 redirection_data: Box::new(None),
@@ -741,7 +741,7 @@ impl
 
         if !response_data.errorcode.is_success() {
             return Ok(Self {
-                status,
+                status: status.into(),
                 response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: response_data.errorcode.to_string(),
                     message: response_data.errormessage.clone(),
@@ -760,7 +760,7 @@ impl
         }
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
                 redirection_data: Box::new(None),
@@ -817,7 +817,7 @@ impl
 
         if !response_data.errorcode.is_success() {
             return Ok(Self {
-                status,
+                status: status.into(),
                 response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                     code: response_data.errorcode.to_string(),
                     message: response_data.errormessage.clone(),
@@ -836,7 +836,7 @@ impl
         }
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
                 redirection_data: Box::new(None),
@@ -1231,7 +1231,7 @@ impl
             .unwrap_or_else(|| "unknown".to_string());
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TokenizationResponse { token }),
             ..item.data
         })

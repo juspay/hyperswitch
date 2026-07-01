@@ -39,7 +39,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub payment_id: String,
     pub attempt_id: String,
     pub tenant_id: id_type::TenantId,
-    pub status: common_enums::enums::AttemptStatus,
+    pub status: common_enums::enums::AttemptStatusDomain,
     pub payment_method: common_enums::enums::PaymentMethod,
     pub payment_method_type: Option<common_enums::enums::PaymentMethodType>,
     pub connector_auth_type: ConnectorAuthType,

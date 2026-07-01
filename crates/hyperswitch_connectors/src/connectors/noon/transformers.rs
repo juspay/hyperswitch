@@ -622,7 +622,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsRespon
         item: ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let order = item.response.result.order;
-        let status = get_payment_status((order.status, item.data.status));
+        let status = get_payment_status((
+            order.status,
+            item.data.status.to_storage().unwrap_or_default(),
+        ));
         let redirection_data =
             item.response
                 .result
@@ -643,7 +646,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsRespon
                     connector_mandate_request_reference_id: None,
                 });
         Ok(Self {
-            status,
+            status: status.into(),
             response: match order.error_message {
                 Some(error_message) => Err(ErrorResponse {
                     code: order.error_code.to_string(),

@@ -531,7 +531,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, RapydPaymentsResponse, T, PaymentsRespo
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })

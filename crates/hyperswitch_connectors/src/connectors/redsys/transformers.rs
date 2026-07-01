@@ -742,7 +742,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<RedsysResponse>>
             handle_redsys_response(&item.response, item.http_code, &webhook_url)?;
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -762,7 +762,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<RedsysResponse>>
             handle_redsys_response(&item.response, item.http_code, &webhook_url)?;
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1317,7 +1317,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsAuthorizeData, Pay
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1371,7 +1371,7 @@ impl<F>
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1564,7 +1564,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, CompleteAuthorizeData, Pay
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1685,7 +1685,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<RedsysResponse>> for PaymentsCapt
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1794,7 +1794,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<RedsysResponse>> for PaymentsCance
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -2071,7 +2071,10 @@ fn construct_sync_request(
 }
 
 pub fn build_payment_sync_request(item: &PaymentsSyncRouterData) -> Result<Vec<u8>, Error> {
-    let transaction_type = get_transaction_type(item.status, item.request.capture_method)?;
+    let transaction_type = get_transaction_type(
+        item.status.to_storage().unwrap_or_default(),
+        item.request.capture_method,
+    )?;
     let auth = RedsysAuthType::try_from(&item.connector_auth_type)?;
     let connector_transaction_id = item
         .request
@@ -2263,7 +2266,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                                 _ => common_enums::AttemptStatus::Pending,
                             }
                         }
-                        _ => item.data.status, // Fallback to existing status if Ds_State is unknown/missing
+                        _ => item.data.status.to_storage().unwrap_or_default(), // Fallback to existing status if Ds_State is unknown/missing
                     };
 
                     let payment_response = Ok(PaymentsResponseData::TransactionResponse {
@@ -2297,7 +2300,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                     network_error_message: None,
                     connector_metadata: None,
                 });
-                (item.data.status, response)
+                (item.data.status.to_storage().unwrap_or_default(), response)
             }
             (Some(_), Some(_)) | (None, None) => {
                 Err(errors::ConnectorError::ResponseHandlingFailed)?
@@ -2305,7 +2308,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })

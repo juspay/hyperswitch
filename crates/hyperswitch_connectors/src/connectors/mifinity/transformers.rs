@@ -269,7 +269,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MifinityPaymentsResponse, T, PaymentsRe
                 let trace_id = payload.trace_id.clone();
                 let initialization_token = payload.initialization_token.clone();
                 Ok(Self {
-                    status: enums::AttemptStatus::AuthenticationPending,
+                    status: enums::AttemptStatus::AuthenticationPending.into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(trace_id.clone()),
                         redirection_data: Box::new(Some(RedirectForm::Mifinity {
@@ -288,7 +288,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MifinityPaymentsResponse, T, PaymentsRe
                 })
             }
             None => Ok(Self {
-                status: enums::AttemptStatus::AuthenticationPending,
+                status: enums::AttemptStatus::AuthenticationPending.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(None),
@@ -356,7 +356,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MifinityPsyncResponse, T, PaymentsRespo
                     Some(payment_response) => {
                         let transaction_reference = payment_response.transaction_reference.clone();
                         Ok(Self {
-                            status: enums::AttemptStatus::from(status),
+                            status: enums::AttemptStatus::from(status).into(),
                             response: Ok(PaymentsResponseData::TransactionResponse {
                                 resource_id: ResponseId::ConnectorTransactionId(
                                     transaction_reference,
@@ -375,7 +375,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MifinityPsyncResponse, T, PaymentsRespo
                         })
                     }
                     None => Ok(Self {
-                        status: enums::AttemptStatus::from(status),
+                        status: enums::AttemptStatus::from(status).into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::NoResponseId,
                             redirection_data: Box::new(None),

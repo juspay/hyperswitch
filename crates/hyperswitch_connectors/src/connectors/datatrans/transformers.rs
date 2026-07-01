@@ -618,7 +618,7 @@ impl<F>
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -696,7 +696,7 @@ impl<F>
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -861,7 +861,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                     })
                 };
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -912,7 +912,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<DataTransCaptureResponse>>
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             ..item.data
         })
     }
@@ -945,7 +945,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<DataTransCancelResponse>>
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             ..item.data
         })
     }

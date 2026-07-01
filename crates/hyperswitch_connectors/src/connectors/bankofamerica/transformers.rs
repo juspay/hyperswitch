@@ -423,7 +423,7 @@ impl<F, T>
                 };
 
                 Ok(Self {
-                    status: mandate_status,
+                    status: mandate_status.into(),
                     response: match error_response {
                         Some(error) => Err(error),
                         None => Ok(PaymentsResponseData::TransactionResponse {
@@ -458,7 +458,7 @@ impl<F, T>
                 ));
                 Ok(Self {
                     response,
-                    status: enums::AttemptStatus::Failure,
+                    status: enums::AttemptStatus::Failure.into(),
                     ..item.data
                 })
             }
@@ -1597,7 +1597,7 @@ fn map_error_response<F, T>(
     match transaction_status {
         Some(status) => RouterData {
             response,
-            status,
+            status: status.into(),
             ..item.data
         },
         None => RouterData {
@@ -1723,7 +1723,7 @@ impl TryFrom<PaymentsResponseRouterData<BankOfAmericaPaymentsResponse>>
                 };
 
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     connector_response,
                     ..item.data
@@ -1782,7 +1782,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BankOfAmericaPaymentsResponse>>
                 let response = get_payment_response((&info_response, status, item.http_code))
                     .map_err(|err| *err);
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -1807,7 +1807,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<BankOfAmericaPaymentsResponse>>
                 let response = get_payment_response((&info_response, status, item.http_code))
                     .map_err(|err| *err);
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -1906,13 +1906,13 @@ impl TryFrom<PaymentsSyncResponseRouterData<BankOfAmericaTransactionResponse>>
                             item.http_code,
                             item.response.id.clone(),
                         )),
-                        status: enums::AttemptStatus::Failure,
+                        status: enums::AttemptStatus::Failure.into(),
                         connector_response,
                         ..item.data
                     })
                 } else {
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
                                 item.response.id.clone(),

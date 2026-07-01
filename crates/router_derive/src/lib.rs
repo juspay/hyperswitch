@@ -863,3 +863,40 @@ pub fn validate_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
         .unwrap_or_else(|error| error.into_compile_error())
         .into()
 }
+
+/// Derives a *domain status* enum that mirrors this storage status enum and adds
+/// an internal-only `#[serde(other)] Unknown` catch-all, for connector-response
+/// deserialization resilience.
+///
+/// Apply it to the existing storage status enum — the variants are read directly
+/// from that definition (single source of truth; nothing to re-list). The
+/// storage enum is left untouched; the derive emits a sibling `<Name>Domain`
+/// type with the same variants plus `Unknown`.
+///
+/// For storage enum `S`, it generates `SDomain` with:
+/// - the same variants, mirrored serde container attrs, and `#[serde(other)] Unknown`;
+/// - `From<S> for SDomain` (infallible — every storage state is known);
+/// - `TryFrom<SDomain> for S` returning [`common_enums::domain_status::UnknownStatusError`]
+///   on `Unknown` (so a missing previous-state resolution surfaces loudly);
+/// - `resolve_or_keep(previous)`, `is_unknown`, and `to_storage` helpers.
+///
+/// # Example
+///
+/// ```rust, ignore
+/// #[derive(router_derive::DomainStatus)]
+/// #[serde(rename_all = "snake_case")]
+/// pub enum AttemptStatus {
+///     Charged,
+///     Pending,
+///     Failure,
+/// }
+/// // generates `AttemptStatusDomain { Charged, Pending, Failure, Unknown }`
+/// ```
+#[proc_macro_derive(DomainStatus)]
+pub fn domain_status_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let ast = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    macros::domain_status::domain_status_derive_inner(&ast)
+        .unwrap_or_else(|error| error.to_compile_error())
+        .into()
+}

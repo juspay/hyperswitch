@@ -122,7 +122,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AbsaSanlamWebhookEvent, T, PaymentsResp
                 };
 
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })

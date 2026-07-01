@@ -178,7 +178,7 @@ where
             error_code,
             error_message,
         } => {
-            router_data.status = status;
+            router_data.status = status.into();
             let error_response = if error_code.is_some() | error_message.is_some() {
                 Some(ErrorResponse {
                     code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
@@ -408,7 +408,7 @@ where
                                                     Some(&mut connector_event),
                                                 )?;
                                             if let Some(status) = error_res.attempt_status {
-                                                router_data.status = status;
+                                                router_data.status = status.into();
                                             };
                                             state
                                                 .event_handler()

@@ -159,12 +159,20 @@ where
     where
         F: Clone,
     {
-        match self.status {
+        let status = self
+            .status
+            .resolve_or_keep(payment_data.payment_attempt.status)
+            .to_storage()
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "connector returned an unknown status that could not be resolved to a storage status",
+            )?;
+        match status {
             enums::AttemptStatus::Voided => {
                 if payment_data.payment_intent.amount_captured > Some(MinorUnit::new(0)) {
                     Ok(enums::AttemptStatus::PartialCharged)
                 } else {
-                    Ok(self.status)
+                    Ok(status)
                 }
             }
             enums::AttemptStatus::Charged => {
@@ -186,7 +194,7 @@ where
                 }) {
                     Ok(enums::AttemptStatus::PartialCharged)
                 } else {
-                    Ok(self.status)
+                    Ok(status)
                 }
             }
             enums::AttemptStatus::Authorized => {
@@ -247,7 +255,7 @@ where
                             .clone(),
                     })?
                 } else {
-                    Ok(self.status)
+                    Ok(status)
                 }
             }
             enums::AttemptStatus::CaptureFailed => {
@@ -255,10 +263,10 @@ where
                 if payment_data.payment_intent.status == enums::IntentStatus::Succeeded {
                     Ok(enums::AttemptStatus::CaptureReview)
                 } else {
-                    Ok(self.status)
+                    Ok(status)
                 }
             }
-            _ => Ok(self.status),
+            _ => Ok(status),
         }
     }
 }
@@ -2300,7 +2308,7 @@ pub trait FrmTransactionRouterDataRequest {
 #[cfg(feature = "frm")]
 impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
     fn is_payment_successful(&self) -> Option<bool> {
-        match self.status {
+        match self.status.to_storage().unwrap_or_default() {
             storage_enums::AttemptStatus::AuthenticationFailed
             | storage_enums::AttemptStatus::RouterDeclined
             | storage_enums::AttemptStatus::AuthorizationFailed

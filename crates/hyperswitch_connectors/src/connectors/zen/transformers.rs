@@ -998,7 +998,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ApiResponse, T, PaymentsResponseData>>
             get_zen_response(value.response.clone(), value.http_code)?;
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: match error {
                 Some(err) => Err(err),
                 None => Ok(payment_response_data),
@@ -1020,7 +1020,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CheckoutResponse, T, PaymentsResponseDa
             Method::Get,
         )));
         Ok(Self {
-            status: enums::AttemptStatus::AuthenticationPending,
+            status: enums::AttemptStatus::AuthenticationPending.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(redirection_data),

@@ -297,7 +297,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<NmiVaultResponse>>
         )?;
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -321,7 +321,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NmiVaultResponse>>
         )?;
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -483,7 +483,7 @@ impl
             ),
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1185,7 +1185,7 @@ impl
             ),
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1302,7 +1302,7 @@ impl<T> TryFrom<ResponseRouterData<SetupMandate, StandardResponse, T, PaymentsRe
             ),
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1374,7 +1374,7 @@ impl TryFrom<PaymentsResponseRouterData<StandardResponse>>
             ),
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1412,7 +1412,7 @@ impl<T> TryFrom<ResponseRouterData<Void, StandardResponse, T, PaymentsResponseDa
             ),
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1441,7 +1441,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SyncResponse, T, PaymentsResponseData>>
     ) -> Result<Self, Self::Error> {
         match item.response.transaction {
             Some(trn) => Ok(Self {
-                status: AttemptStatus::from(NmiStatus::from(trn.condition)),
+                status: AttemptStatus::from(NmiStatus::from(trn.condition)).into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(trn.transaction_id),
                     redirection_data: Box::new(None),

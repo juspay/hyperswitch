@@ -318,7 +318,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BokuResponse, T, PaymentsResponseData>>
         }?;
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id),
                 redirection_data: Box::new(redirection_data),

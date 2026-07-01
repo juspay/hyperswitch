@@ -156,7 +156,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaystackPaymentsResponse, T, PaymentsRe
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -221,7 +221,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaystackPSyncResponse, T, PaymentsRespo
     ) -> Result<Self, Self::Error> {
         match item.response {
             PaystackPSyncResponse::PaystackPSyncData(resp) => Ok(Self {
-                status: common_enums::AttemptStatus::from(resp.data.status),
+                status: common_enums::AttemptStatus::from(resp.data.status).into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(resp.data.reference.clone()),
                     redirection_data: Box::new(None),
@@ -237,7 +237,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaystackPSyncResponse, T, PaymentsRespo
                 ..item.data
             }),
             PaystackPSyncResponse::PaystackPSyncWebhook(resp) => Ok(Self {
-                status: common_enums::AttemptStatus::from(resp.status),
+                status: common_enums::AttemptStatus::from(resp.status).into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(resp.reference.clone()),
                     redirection_data: Box::new(None),

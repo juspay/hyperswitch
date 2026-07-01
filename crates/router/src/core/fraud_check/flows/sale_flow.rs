@@ -121,7 +121,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             payment_id: self.payment_intent.payment_id.get_string_repr().to_owned(),
             attempt_id: self.payment_attempt.attempt_id.clone(),
             tenant_id: state.tenant.tenant_id.clone(),
-            status,
+            status: status.into(),
             payment_method: self
                 .payment_attempt
                 .payment_method

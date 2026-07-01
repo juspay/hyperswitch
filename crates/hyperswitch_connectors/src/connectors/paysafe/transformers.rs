@@ -921,7 +921,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<PaysafePaymentHandleRespons
         item: PaymentsPreprocessingResponseRouterData<PaysafePaymentHandleResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::try_from(item.response.status)?,
+            status: enums::AttemptStatus::try_from(item.response.status)?.into(),
             preprocessing_id: Some(
                 item.response
                     .payment_handle_token
@@ -969,7 +969,7 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::try_from(item.response.status)?,
+            status: enums::AttemptStatus::try_from(item.response.status)?.into(),
             response: Ok(PaymentsResponseData::TokenizationResponse {
                 token: item.response.payment_handle_token.peek().to_string(),
             }),
@@ -1003,7 +1003,8 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentsResponse>> for PaymentsAu
             status: get_paysafe_payment_status(
                 item.response.status,
                 item.data.request.capture_method,
-            ),
+            )
+            .into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(None),
@@ -1042,7 +1043,7 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentHandleResponse>>
             payment_handle_token: item.response.payment_handle_token.clone(),
         });
         Ok(Self {
-            status: common_enums::AttemptStatus::try_from(item.response.status)?,
+            status: common_enums::AttemptStatus::try_from(item.response.status)?.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(redirection_data),
@@ -1735,7 +1736,8 @@ impl<F>
             status: get_paysafe_payment_status(
                 item.response.status,
                 item.data.request.capture_method,
-            ),
+            )
+            .into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(None),
@@ -1987,7 +1989,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -2048,7 +2050,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaysafeSettlementResponse, T, PaymentsR
         item: ResponseRouterData<F, PaysafeSettlementResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: common_enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(None),
@@ -2118,7 +2120,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoidResponse, T, PaymentsResponseData>>
         item: ResponseRouterData<F, VoidResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: common_enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(None),

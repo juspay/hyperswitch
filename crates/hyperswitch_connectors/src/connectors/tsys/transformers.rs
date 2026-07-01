@@ -343,7 +343,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TsysPaymentsResponse, T, PaymentsRespon
             },
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -410,7 +410,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TsysSyncResponse, T, PaymentsResponseDa
         let (response, status) = match tsys_search_response {
             SearchResponseTypes::SuccessResponse(search_response) => (
                 Ok(get_payments_sync_response(&search_response)),
-                enums::AttemptStatus::from(search_response.transaction_details),
+                enums::AttemptStatus::from(search_response.transaction_details).into(),
             ),
             SearchResponseTypes::ErrorResponse(connector_response) => (
                 Err(get_error_response(connector_response, item.http_code)),

@@ -103,7 +103,11 @@ where
 
         match (is_volatile, payment_method_id) {
             (Some(false), Some(pm_id)) => {
-                let should_update = resp.status.should_update_payment_method();
+                let should_update = resp
+                    .status
+                    .to_storage()
+                    .unwrap_or_default()
+                    .should_update_payment_method();
 
                 let payment_method_type = payment_data
                     .payment_attempt
@@ -1073,7 +1077,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             state,
             platform.get_provider().get_key_store(),
             payment_data,
-            resp.status,
+            resp.status.to_storage().unwrap_or_default(),
             resp.response.clone(),
             platform.get_provider().get_account().storage_scheme,
             platform.get_initiator(),
@@ -2055,7 +2059,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             state,
             platform.get_provider().get_key_store(),
             payment_data,
-            resp.status,
+            resp.status.to_storage().unwrap_or_default(),
             resp.response.clone(),
             platform.get_provider().get_account().storage_scheme,
             platform.get_initiator(),
@@ -2298,17 +2302,17 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 match err.status_code {
                                     // marking failure for 2xx because this is genuine payment failure
                                     200..=299 => enums::AttemptStatus::Failure,
-                                    _ => router_data.status,
+                                    _ => router_data.status.to_storage().unwrap_or_default(),
                                 }
                             } else if sub_flow == "Capture" {
                                 match err.status_code {
                                     500..=511 => enums::AttemptStatus::Pending,
                                     // don't update the status for 429 error status
-                                    429 => router_data.status,
+                                    429 => router_data.status.to_storage().unwrap_or_default(),
                                     _ => enums::AttemptStatus::Failure,
                                 }
                             } else if sub_flow == "CancelPostCapture" {
-                                router_data.status
+                                router_data.status.to_storage().unwrap_or_default()
                             } else {
                                 match err.status_code {
                                     500..=511 => enums::AttemptStatus::Pending,
@@ -2411,7 +2415,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 }
                 Ok(()) => {
                     let attempt_status = payment_data.payment_attempt.status.to_owned();
-                    let connector_status = router_data.status.to_owned();
+                    let connector_status = router_data.status.to_storage().unwrap_or_default();
                     let updated_attempt_status = match (
                         connector_status,
                         attempt_status,
@@ -2531,14 +2535,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
                             // incase of success, update error code and error message
                             let error_status =
-                                if router_data.status == enums::AttemptStatus::Charged {
+                                if router_data.status == enums::AttemptStatus::Charged.into() {
                                     Some(None)
                                 } else {
                                     None
                                 };
                             // update connector_mandate_details in case of Authorized/Charged Payment Status
                             if matches!(
-                                router_data.status,
+                                router_data.status.to_storage().unwrap_or_default(),
                                 enums::AttemptStatus::Charged
                                     | enums::AttemptStatus::Authorized
                                     | enums::AttemptStatus::PartiallyAuthorized
@@ -2563,7 +2567,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 });
 
                             utils::add_apple_pay_payment_status_metrics(
-                                router_data.status,
+                                router_data.status.to_storage().unwrap_or_default(),
                                 router_data.apple_pay_flow.clone(),
                                 payment_data.payment_attempt.connector.clone(),
                                 payment_data.payment_attempt.merchant_id.clone(),
@@ -2614,7 +2618,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         };
                                     let capture_update = storage::CaptureUpdate::ResponseUpdate {
                                         status: enums::CaptureStatus::foreign_try_from(
-                                            router_data.status,
+                                            router_data.status.to_storage().unwrap_or_default(),
                                         )?,
                                         connector_capture_id: connector_capture_id.clone(),
                                         connector_response_reference_id,
@@ -2915,7 +2919,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let amount_captured = get_total_amount_captured(
         &router_data.request,
         router_data.amount_captured.map(MinorUnit::new),
-        router_data.status,
+        router_data.status.to_storage().unwrap_or_default(),
         &payment_data,
     );
 

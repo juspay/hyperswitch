@@ -347,7 +347,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsResponse, T, PaymentsResp
         let status =
             map_dlocal_status_to_attempt_status(item.response.status, redirection_data.is_some());
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(response),
             ..item.data
         })
@@ -369,7 +369,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsSyncResponse, T, Payments
         item: ResponseRouterData<F, DlocalPaymentsSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(None),
@@ -402,7 +402,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCaptureResponse, T, Payme
         item: ResponseRouterData<F, DlocalPaymentsCaptureResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(None),
@@ -433,7 +433,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCancelResponse, T, Paymen
         item: ResponseRouterData<F, DlocalPaymentsCancelResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
                 redirection_data: Box::new(None),

@@ -130,19 +130,19 @@ where
                 let (router_data_response, status_code) =
                     handle_unified_connector_service_response_for_payment_create_order(
                         create_order_response.clone(),
-                        router_data.status,
+                        router_data.status.to_storage().unwrap_or_default(),
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
                 let router_data_response = match router_data_response {
                     Ok((response, status)) => {
-                        router_data.status = status;
+                        router_data.status = status.into();
                         Ok(response)
                     }
                     Err(err) => {
                         logger::debug!("Error in UCS router data response");
                         if let Some(attempt_status) = err.attempt_status {
-                            router_data.status = attempt_status;
+                            router_data.status = attempt_status.into();
                         }
                         Err(err)
                     }

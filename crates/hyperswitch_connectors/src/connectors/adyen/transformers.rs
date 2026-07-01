@@ -4407,7 +4407,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<AdyenCancelResponse>> for Payments
         item: PaymentsCancelResponseRouterData<AdyenCancelResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: storage_enums::AttemptStatus::Pending,
+            status: storage_enums::AttemptStatus::Pending.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.payment_psp_reference,
@@ -5407,7 +5407,7 @@ impl<F, Req>
         };
 
         Ok(Self {
-            status: adyen_payments_response_data.status,
+            status: adyen_payments_response_data.status.into(),
             amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
             response: match adyen_payments_response_data.error {
                 Some(err) => Err(err),
@@ -5472,7 +5472,7 @@ impl TryFrom<PaymentsExtendAuthorizationResponseRouterData<AdyenExtendAuthorizat
     ) -> Result<Self, Self::Error> {
         // Asynchronous authorization adjustment
         Ok(Self {
-            status: storage_enums::AttemptStatus::Pending,
+            status: storage_enums::AttemptStatus::Pending.into(),
             ..item.data
         })
     }
@@ -5534,7 +5534,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
             // From the docs, the only value returned is "received", outcome of refund is available
             // through refund notification webhook
             // For more info: https://docs.adyen.com/online-payments/capture
-            status: storage_enums::AttemptStatus::Pending,
+            status: storage_enums::AttemptStatus::Pending.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data: Box::new(None),

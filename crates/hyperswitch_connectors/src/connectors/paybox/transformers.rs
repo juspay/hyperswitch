@@ -656,7 +656,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsRespo
         let status = get_status_of_request(response.response_code.clone());
         match status {
             true => Ok(Self {
-                status: enums::AttemptStatus::Charged,
+                status: enums::AttemptStatus::Charged.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(response.paybox_order_id),
                     redirection_data: Box::new(None),
@@ -710,8 +710,8 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                             item.data.request.is_auto_capture()?,
                             item.data.request.is_cit_mandate_payment(),
                         ) {
-                            (_, true) | (false, false) => enums::AttemptStatus::Authorized,
-                            (true, false) => enums::AttemptStatus::Charged,
+                            (_, true) | (false, false) => enums::AttemptStatus::Authorized.into(),
+                            (true, false) => enums::AttemptStatus::Charged.into(),
                         },
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
@@ -758,7 +758,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                 }
             }
             PayboxResponse::ThreeDs(data) => Ok(Self {
-                status: enums::AttemptStatus::AuthenticationPending,
+                status: enums::AttemptStatus::AuthenticationPending.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(Some(RedirectForm::Html {
@@ -807,7 +807,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxSyncResponse, T, PaymentsResponse
         let connector_payment_status = item.response.status;
         match status {
             true => Ok(Self {
-                status: enums::AttemptStatus::from(connector_payment_status),
+                status: enums::AttemptStatus::from(connector_payment_status).into(),
 
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(response.paybox_order_id),
@@ -1002,8 +1002,8 @@ impl<F>
                     item.data.request.is_auto_capture()?,
                     item.data.request.is_cit_mandate_payment(),
                 ) {
-                    (_, true) | (false, false) => enums::AttemptStatus::Authorized,
-                    (true, false) => enums::AttemptStatus::Charged,
+                    (_, true) | (false, false) => enums::AttemptStatus::Authorized.into(),
+                    (true, false) => enums::AttemptStatus::Charged.into(),
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(response.paybox_order_id),

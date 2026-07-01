@@ -400,7 +400,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
                         .map(|id| id.to_string())
                 });
                 Ok(PaymentsCancelRouterData {
-                    status: enums::AttemptStatus::from(response.outcome.clone()),
+                    status: enums::AttemptStatus::from(response.outcome.clone()).into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::foreign_try_from((
                             response,
@@ -548,7 +548,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         });
         let attempt_status = data.status;
         let worldpay_status = response.last_event;
-        let status = match (attempt_status, worldpay_status.clone()) {
+        let status = match (
+            attempt_status.to_storage().unwrap_or_default(),
+            worldpay_status.clone(),
+        ) {
             (
                 enums::AttemptStatus::Authorizing
                 | enums::AttemptStatus::Authorized
@@ -558,7 +561,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
                 | enums::AttemptStatus::VoidInitiated,
                 EventType::Authorized,
             ) => attempt_status,
-            _ => enums::AttemptStatus::from(&worldpay_status),
+            _ => enums::AttemptStatus::from(&worldpay_status).into(),
         };
 
         Ok(PaymentsSyncRouterData {
@@ -663,7 +666,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                         .map(|id| id.to_string())
                 });
                 Ok(PaymentsCaptureRouterData {
-                    status: enums::AttemptStatus::from(response.outcome.clone()),
+                    status: enums::AttemptStatus::from(response.outcome.clone()).into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::foreign_try_from((
                             response,
@@ -848,7 +851,7 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             .connector_transaction_id
             .clone()
             .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
-        let stage = match req.status {
+        let stage = match req.status.to_storage().unwrap_or_default() {
             enums::AttemptStatus::DeviceDataCollectionPending => "3dsDeviceData".to_string(),
             enums::AttemptStatus::AuthenticationPending => "3dsChallenges".to_string(),
             _ => {

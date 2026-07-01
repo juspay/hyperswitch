@@ -91,7 +91,7 @@ impl VerifyConnectorData {
             common_utils::generate_id_with_default_len(consts::VERIFY_CONNECTOR_ID_PREFIX);
         types::RouterData {
             flow: std::marker::PhantomData,
-            status: storage_enums::AttemptStatus::Started,
+            status: storage_enums::AttemptStatus::Started.into(),
             request: request_data,
             response: Err(errors::ApiErrorResponse::InternalServerError.into()),
             connector: self.connector.id().to_string(),

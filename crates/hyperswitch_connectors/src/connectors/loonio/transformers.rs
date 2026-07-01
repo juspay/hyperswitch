@@ -152,7 +152,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentsResponse, T, PaymentsResp
         item: ResponseRouterData<F, LoonioPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::AuthenticationPending,
+            status: enums::AttemptStatus::AuthenticationPending.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.data.connector_request_reference_id.clone(),
@@ -257,7 +257,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                         )
                         });
                 Ok(Self {
-                    status: enums::AttemptStatus::from(sync_response.state),
+                    status: enums::AttemptStatus::from(sync_response.state).into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(
                             sync_response.transaction_id,
@@ -292,7 +292,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                     )
                 });
                 Ok(Self {
-                    status: payment_status,
+                    status: payment_status.into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(
                             webhook_body.api_transaction_id,

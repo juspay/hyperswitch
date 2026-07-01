@@ -118,7 +118,7 @@ where
         )
         .await?;
 
-    router_data.status = payment_data.get_payment_attempt().status;
+    router_data.status = payment_data.get_payment_attempt().status.into();
     if matches!(
         frm_data.fraud_check.frm_transaction_type,
         FraudCheckType::PreFrm

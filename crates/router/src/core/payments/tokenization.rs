@@ -145,7 +145,7 @@ impl<F, Req: Clone> From<&types::RouterData<F, Req, types::PaymentsResponseData>
             response: router_data.response.clone(),
             payment_method_token: router_data.payment_method_token.clone(),
             payment_method: router_data.payment_method,
-            attempt_status: router_data.status,
+            attempt_status: router_data.status.to_storage().unwrap_or_default(),
         }
     }
 }

@@ -73,7 +73,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             connector: connector_id.to_string(),
             payment_id: self.payment_intent.payment_id.get_string_repr().to_owned(),
             attempt_id: self.payment_attempt.attempt_id.clone(),
-            status,
+            status: status.into(),
             payment_method: utils::OptionExt::get_required_value(
                 self.payment_attempt.payment_method,
                 "payment_method",

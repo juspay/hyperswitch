@@ -279,7 +279,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayFinalizeResponse, T, PaymentsR
         match item.response.status_details.state {
             FinalizeState::Canceled => {
                 Ok(Self {
-                    status: common_enums::AttemptStatus::Failure,
+                    status: common_enums::AttemptStatus::Failure.into(),
                     response: Err(ErrorResponse {
                         code: consts::NO_ERROR_CODE.to_owned(),
                         message: "Checkout was not successfully completed".to_owned(),
@@ -299,7 +299,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayFinalizeResponse, T, PaymentsR
             FinalizeState::Open
             | FinalizeState::Completed => {
                 Ok(Self {
-                    status: common_enums::AttemptStatus::from(item.response.status_details.state),
+                    status: common_enums::AttemptStatus::from(item.response.status_details.state).into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(item.response.charge_id),
                         redirection_data: Box::new(None),
@@ -426,7 +426,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayPaymentsResponse, T, PaymentsR
         match item.response.status_details.state {
             AmazonpayPaymentStatus::Canceled => {
                 Ok(Self {
-                    status: common_enums::AttemptStatus::Failure,
+                    status: common_enums::AttemptStatus::Failure.into(),
                     response: Err(ErrorResponse {
                         code: consts::NO_ERROR_CODE.to_owned(),
                         message: "Charge was canceled by Amazon or by the merchant".to_owned(),
@@ -445,7 +445,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayPaymentsResponse, T, PaymentsR
             }
             AmazonpayPaymentStatus::Declined => {
                 Ok(Self {
-                    status: common_enums::AttemptStatus::Failure,
+                    status: common_enums::AttemptStatus::Failure.into(),
                     response: Err(ErrorResponse {
                         code: consts::NO_ERROR_CODE.to_owned(),
                         message: "The authorization or capture was declined".to_owned(),
@@ -464,7 +464,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AmazonpayPaymentsResponse, T, PaymentsR
             }
             _ => {
                 Ok(Self {
-                    status: common_enums::AttemptStatus::from(item.response.status_details.state),
+                    status: common_enums::AttemptStatus::from(item.response.status_details.state).into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(item.response.charge_id),
                         redirection_data: Box::new(None),
@@ -553,7 +553,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
         match item.response.status_details.state {
             RefundStatus::Declined => {
                 Ok(Self {
-                    status: common_enums::AttemptStatus::Failure,
+                    status: common_enums::AttemptStatus::Failure.into(),
                     response: Err(ErrorResponse {
                         code: consts::NO_ERROR_CODE.to_owned(),
                         message: "Amazon has declined the refund.".to_owned(),

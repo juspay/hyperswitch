@@ -241,7 +241,7 @@ impl<F, T>
             .ok()
             .map(|url| RedirectForm::from((url, Method::Get)));
         Ok(Self {
-            status: enums::AttemptStatus::AuthenticationPending,
+            status: enums::AttemptStatus::AuthenticationPending.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.checkout_token),
                 redirection_data: Box::new(redirection_data),
@@ -349,7 +349,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayjustnowSyncResponse, T, Payme
         });
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.checkout_token),
                 redirection_data: Box::new(redirection_data),

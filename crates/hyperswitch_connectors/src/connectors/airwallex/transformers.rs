@@ -1342,7 +1342,7 @@ where
                 if matches!(
                     (
                         response_url_data.stage.clone(),
-                        item.data.status,
+                        item.data.status.to_storage().unwrap_or_default(),
                         item.response.status.clone(),
                     ),
                     // If the connector sends waiting for DDC and our status is already DDC Pending
@@ -1408,7 +1408,7 @@ where
             });
 
         Ok(Self {
-            status,
+            status: status.into(),
             reference_id: Some(item.response.id.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -1466,7 +1466,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexRedirectResponse, T, PaymentsR
         );
 
         Ok(Self {
-            status,
+            status: status.into(),
             reference_id: Some(item.response.id.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -1519,7 +1519,7 @@ impl
             None
         };
         Ok(Self {
-            status,
+            status: status.into(),
             reference_id: Some(item.response.id.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),

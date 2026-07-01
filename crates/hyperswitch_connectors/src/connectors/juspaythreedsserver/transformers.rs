@@ -129,7 +129,7 @@ impl<F, T>
         item: ResponseRouterData<F, JuspaythreedsserverPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: common_enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(None),

@@ -556,7 +556,7 @@ impl<F>
                 authentication_data: None,
                 charges: None,
             }),
-            status: enums::AttemptStatus::Charged,
+            status: enums::AttemptStatus::Charged.into(),
             ..item.data
         })
     }
@@ -688,7 +688,7 @@ impl TryFrom<PaymentsResponseRouterData<GocardlessPaymentsResponse>>
             connector_mandate_request_reference_id: None,
         };
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.payments.status),
+            status: enums::AttemptStatus::from(item.response.payments.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payments.id),
                 redirection_data: Box::new(None),
@@ -714,7 +714,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<GocardlessPaymentsResponse>>
         item: PaymentsSyncResponseRouterData<GocardlessPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.payments.status),
+            status: enums::AttemptStatus::from(item.response.payments.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payments.id),
                 redirection_data: Box::new(None),
