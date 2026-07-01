@@ -635,28 +635,36 @@ impl
             eci: card_with_limited_details.eci.clone(),
         };
 
-        let cof_data = if item.router_data.request.is_cit_mandate_payment() {
-            Some(CardOnFileData {
-                cof_type: get_cof_type(item),
-                source: CofSource::Cit,
-                mode: CofMode::Initial,
-            })
-        } else if item.router_data.request.setup_future_usage
-            == Some(storage_enums::FutureUsage::OffSession)
-        {
-            Some(CardOnFileData {
-                cof_type: get_cof_type(item),
-                source: CofSource::Mit,
-                mode: CofMode::Initial,
-            })
-        } else if item.router_data.payment_method_type.is_some() {
-            Some(CardOnFileData {
-                cof_type: get_cof_type(item),
-                source: CofSource::Mit,
-                mode: CofMode::Subsequent,
-            })
-        } else {
-            None
+        let card_on_file_transaction_type = item
+            .router_data
+            .request
+            .card_on_file_transaction_type
+            .clone();
+
+        let cof_data = match card_on_file_transaction_type {
+            Some(api_models::payments::PeachpaymentsCardOnFileTransactionType::OneOff)
+            | None => None,
+            Some(api_models::payments::PeachpaymentsCardOnFileTransactionType::CustomerInitiatedTransaction) => {
+                Some(CardOnFileData {
+                    cof_type: get_cof_type(item),
+                    source: CofSource::Cit,
+                    mode: CofMode::Initial,
+                })
+            },
+            Some(api_models::payments::PeachpaymentsCardOnFileTransactionType::MerchantInitiatedMandate) => {
+                Some(CardOnFileData {
+                    cof_type: get_cof_type(item),
+                    source: CofSource::Mit,
+                    mode: CofMode::Initial,
+                })
+            },
+            Some(api_models::payments::PeachpaymentsCardOnFileTransactionType::MerchantInitiatedTransaction) => {
+                Some(CardOnFileData {
+                    cof_type: get_cof_type(item),
+                    source: CofSource::Mit,
+                    mode: CofMode::Subsequent,
+                })
+            },
         };
 
         let trace_id = item
