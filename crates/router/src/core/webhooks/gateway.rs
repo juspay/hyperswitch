@@ -115,6 +115,8 @@ pub struct WebhookGatewayContext {
     pub merchant_connector_account: Option<domain::MerchantConnectorAccount>,
     pub execution_path: ExecutionPath,
     pub execution_mode: ExecutionMode,
+    pub ucs_reference: Option<payments_grpc::EventReference>,
+    pub ucs_event_type: Option<IncomingWebhookEvent>,
 }
 
 #[async_trait]
@@ -165,6 +167,83 @@ impl FilterDecision {
             Self::Skip
         }
     }
+}
+
+// Classifies the webhook via UCS `ParseEvent` before UCS/Direct routing.
+// Returns `None` on any UCS error which causes downstream routing to use the Hyperswitch (Direct) gateway.
+pub async fn get_webhook_event_details_from_ucs(
+    state: &SessionState,
+    platform: &domain::Platform,
+    connector: ConnectorEnum,
+    connector_name: &str,
+    merchant_connector_account: Option<&domain::MerchantConnectorAccount>,
+    request: &IncomingWebhookRequestDetails<'_>,
+) -> (
+    Option<payments_grpc::EventReference>,
+    Option<IncomingWebhookEvent>,
+) {
+    let client = match state.grpc_client.unified_connector_service_client.as_ref() {
+        Some(client) => client.clone(),
+        None => return (None, None),
+    };
+
+    let ctx = WebhookGatewayContext {
+        state: state.clone(),
+        platform: platform.clone(),
+        connector,
+        connector_name: connector_name.to_string(),
+        merchant_connector_account: merchant_connector_account.cloned(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode: ExecutionMode::NotApplicable,
+        ucs_reference: None,
+        ucs_event_type: None,
+    };
+
+    let parse_request = match payments_grpc::EventServiceParseRequest::foreign_try_from(request)
+        .inspect_err(|error| {
+            logger::debug!(?error, "Failed to build UCS ParseEvent request");
+        }) {
+        Ok(parse_request) => parse_request,
+        Err(_) => return (None, None),
+    };
+
+    let parse_auth = match build_ucs_auth_metadata(&ctx, None).inspect_err(|error| {
+        logger::debug!(?error, "Failed to build UCS auth metadata");
+    }) {
+        Ok(parse_auth) => parse_auth,
+        Err(_) => return (None, None),
+    };
+
+    let parse_headers = build_ucs_headers_builder(&ctx, None, ExecutionMode::NotApplicable);
+
+    let parse_response = match unified_connector_service::ucs_webhook_logging_wrapper(
+        state,
+        connector_name.to_string(),
+        "EventServiceParseEvent",
+        parse_request,
+        parse_headers,
+        |request, headers| async move {
+            client
+                .incoming_webhook_parse_event(request, parse_auth, headers)
+                .await
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("UCS ParseEvent call failed during webhook probe")
+                .map(|response| response.into_inner())
+        },
+    )
+    .await
+    .inspect_err(|error| {
+        logger::debug!(?error, "UCS ParseEvent failed");
+    }) {
+        Ok(parse_response) => parse_response,
+        Err(_) => return (None, None),
+    };
+
+    let event_type = parse_response
+        .event_type
+        .map(IncomingWebhookEvent::from_ucs_event_type);
+
+    (parse_response.reference, event_type)
 }
 
 pub struct DirectIncomingWebhookGateway;
@@ -243,11 +322,18 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                 .attach_printable("Failed to identify event type in incoming webhook body"));
             }
         };
+        let mut mca = None;
+        let ack_creds = match reference {
+            Some(ref reference) => {
+                mca = resolve_mca(ctx, reference).await.ok();
+                mca.clone().map(|mca| mca.connector_account_details.clone())
+            }
+            None => ctx
+                .merchant_connector_account
+                .as_ref()
+                .map(|m| m.connector_account_details.clone()),
+        };
 
-        let ack_creds = ctx
-            .merchant_connector_account
-            .as_ref()
-            .map(|m| m.connector_account_details.clone());
         let ack_response = ctx
             .connector
             .get_webhook_api_response(&decoded_request, None, ack_creds)
@@ -267,7 +353,12 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                             "Could not find object reference id in incoming webhook body",
                         )
                 })?;
-                let mca = resolve_mca(ctx, &reference).await?;
+
+                let mca = mca.ok_or_else(|| {
+                    error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to resolve merchant connector account details")
+                })?;
+
                 let source_verified =
                     verify_webhook_source_via_connector(ctx, &decoded_request, &mca).await?;
                 let resource_object = ctx
@@ -329,36 +420,12 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
         let connector_name = ctx.connector_name.clone();
         let merchant_event_id = build_merchant_event_id(ctx);
 
-        let parse_request = payments_grpc::EventServiceParseRequest::foreign_try_from(request)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to build UCS EventServiceParseRequest")?;
-        let parse_auth = build_ucs_auth_metadata(ctx, None)?;
-        let parse_headers = build_ucs_headers_builder(ctx, None, ctx.execution_mode);
-        let parse_client = client.clone();
-        let parse_response = unified_connector_service::ucs_webhook_logging_wrapper(
-            &ctx.state,
-            connector_name.clone(),
-            "EventServiceParseEvent",
-            parse_request,
-            parse_headers,
-            |request, headers| async move {
-                parse_client
-                    .incoming_webhook_parse_event(request, parse_auth, headers)
-                    .await
-                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                    .attach_printable("UCS ParseEvent call failed")
-                    .map(|response| response.into_inner())
-            },
-        )
-        .await?;
-
-        let reference = match parse_response.reference.as_ref() {
+        let reference = match ctx.ucs_reference.as_ref() {
             Some(r) => event_reference_to_object_ref(r)?,
             None => None,
         };
-        let event_type = parse_response
-            .event_type
-            .map(IncomingWebhookEvent::from_ucs_event_type)
+        let event_type = ctx
+            .ucs_event_type
             .unwrap_or(IncomingWebhookEvent::EventNotSupported);
 
         let outcome = match FilterDecision::evaluate(event_type, ctx).await {
