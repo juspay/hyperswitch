@@ -420,6 +420,10 @@ pub mod superposition {
         "should_trigger_backwards_compatibility_inline";
     /// Trigger fingerprint migration configuration key
     pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str = "should_trigger_fingerprint_migration";
+    /// Perform SDK vaulting action configuration key. Acts as a merchant level override on top of
+    /// `should_call_pm_modular_service`: defaults to `true` for all merchants and can be set to
+    /// `false` for specific merchants to force the SDK to skip tokenization.
+    pub const SHOULD_PERFORM_SDK_VAULTING: &str = "should_perform_sdk_vaulting";
     /// dynamic fields configuration key for sdk config
     pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
     /// payout sync tracker configuration key
@@ -432,6 +436,8 @@ pub mod superposition {
     pub const THREEDS_ROUTING_REGION_UAS: &str = "threeds_routing_region_uas";
     /// disabled webhook events configuration key per merchant and connector
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
+    /// save wallet decrypted data in locker
+    pub const SAVE_WALLET_DECRYPTED_DATA: &str = "save_wallet_decrypted_data";
 }
 
 #[cfg(test)]

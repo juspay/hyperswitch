@@ -61,6 +61,7 @@ pub async fn retrieve_dispute(
         .find_dispute_by_processor_merchant_id_dispute_id(
             platform.get_processor().get_account().get_id(),
             &req.dispute_id,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
@@ -191,7 +192,11 @@ pub async fn retrieve_disputes_list(
     let dispute_list_constraints = &(constraints.clone(), profile_id_list.clone()).try_into()?;
     let disputes = state
         .store
-        .find_disputes_by_constraints(processor.get_account().get_id(), dispute_list_constraints)
+        .find_disputes_by_constraints(
+            processor.get_account().get_id(),
+            dispute_list_constraints,
+            processor.get_account().storage_scheme,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve disputes")?;
@@ -298,6 +303,7 @@ pub async fn accept_dispute(
         .find_dispute_by_processor_merchant_id_dispute_id(
             processor.get_account().get_id(),
             &req.dispute_id,
+            processor.get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
@@ -386,7 +392,11 @@ pub async fn accept_dispute(
         connector_status: accept_dispute_response.connector_status.clone(),
     };
     let updated_dispute = db
-        .update_dispute(dispute.clone(), update_dispute)
+        .update_dispute(
+            dispute.clone(),
+            update_dispute,
+            processor.get_account().storage_scheme,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
@@ -421,6 +431,7 @@ pub async fn submit_evidence(
         .find_dispute_by_processor_merchant_id_dispute_id(
             processor.get_account().get_id(),
             &req.dispute_id,
+            processor.get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
@@ -561,7 +572,11 @@ pub async fn submit_evidence(
         connector_status,
     };
     let updated_dispute = db
-        .update_dispute(dispute.clone(), update_dispute)
+        .update_dispute(
+            dispute.clone(),
+            update_dispute,
+            processor.get_account().storage_scheme,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: dispute_id.to_owned(),
@@ -589,6 +604,7 @@ pub async fn attach_evidence(
         .find_dispute_by_processor_merchant_id_dispute_id(
             platform.get_processor().get_account().get_id(),
             &dispute_id,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
@@ -608,6 +624,7 @@ pub async fn attach_evidence(
             })
         },
     )?;
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
     let create_file_response = Box::pin(files::files_create_core(
         state.clone(),
         platform,
@@ -637,7 +654,7 @@ pub async fn attach_evidence(
             .attach_printable("Error while encoding dispute evidence")?
             .into(),
     };
-    db.update_dispute(dispute, update_dispute)
+    db.update_dispute(dispute, update_dispute, storage_scheme)
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: dispute_id.to_owned(),
@@ -660,6 +677,7 @@ pub async fn retrieve_dispute_evidence(
         .find_dispute_by_processor_merchant_id_dispute_id(
             processor.get_account().get_id(),
             &req.dispute_id,
+            processor.get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
@@ -688,6 +706,7 @@ pub async fn delete_evidence(
         .find_dispute_by_processor_merchant_id_dispute_id(
             processor.get_account().get_id(),
             &dispute_id,
+            processor.get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
@@ -710,7 +729,11 @@ pub async fn delete_evidence(
     };
     state
         .store
-        .update_dispute(dispute, update_dispute)
+        .update_dispute(
+            dispute,
+            update_dispute,
+            processor.get_account().storage_scheme,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: dispute_id.to_owned(),
@@ -734,6 +757,7 @@ pub async fn get_aggregates_for_disputes(
             processor.get_account().get_id(),
             profile_id_list,
             &time_range,
+            processor.get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

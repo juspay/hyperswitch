@@ -242,6 +242,9 @@ pub struct ConnectorErrorInner {
     pub reason: Option<String>,
     /// Name of the connector that returned the error
     pub connector: String,
+    /// Connector's unique transaction identifier (e.g. Adyen `pspReference`), when the
+    /// connector returns one alongside the error response
+    pub connector_transaction_id: Option<String>,
     /// Network decline code from card scheme (e.g. Visa/Mastercard decline code)
     pub network_decline_code: Option<String>,
     /// Network advice code for retry logic
@@ -323,6 +326,21 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
         } else {
             let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
+            let connector_metadata = response.connector_feature_data.as_ref().and_then(|m| {
+                let raw = m.clone().expose();
+                match serde_json::from_str::<serde_json::Value>(&raw) {
+                    Ok(v) => Some(v),
+                    Err(err) => {
+                        router_env::logger::warn!(
+                            error = %err,
+                            "failed to deserialize PSync response.connector_feature_data into \
+                             connector_metadata"
+                        );
+                        None
+                    }
+                }
+            });
+
             Ok((
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
@@ -334,7 +352,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                             .transpose()?,
                     ),
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
-                    connector_metadata: None,
+                    connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
                     connector_response_reference_id: response.merchant_transaction_id,
@@ -981,7 +999,12 @@ impl UnifiedConnectorServiceError {
         let status_code = u16::try_from(connector_error.http_status_code?).ok()?;
 
         Some(Self::ConnectorError(Box::new(ConnectorErrorInner {
-            code: connector_error.error_code,
+            code: connector_error
+                .error_info
+                .as_ref()
+                .and_then(|error_info| error_info.connector_details.as_ref())
+                .and_then(|connector_details| connector_details.code.clone())
+                .unwrap_or_else(|| connector_error.error_code.clone()),
             message: connector_error.error_message,
             status_code,
             reason: connector_error
@@ -990,6 +1013,11 @@ impl UnifiedConnectorServiceError {
                 .and_then(|ei| ei.connector_details.as_ref())
                 .and_then(|cd| cd.reason.clone()),
             connector: connector_name.to_string(),
+            connector_transaction_id: connector_error
+                .error_info
+                .as_ref()
+                .and_then(|ei| ei.connector_details.as_ref())
+                .and_then(|cd| cd.connector_transaction_id.clone()),
             network_decline_code: connector_error
                 .error_info
                 .as_ref()

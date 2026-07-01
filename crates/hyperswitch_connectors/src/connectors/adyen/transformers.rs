@@ -30,22 +30,30 @@ use hyperswitch_domain_models::{
         PaymentMethodBalance, PaymentMethodToken, RouterData,
     },
     router_flow_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegister, GiftCardBalanceCheck,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
+        GiftCardBalanceCheck,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         AcceptDisputeResponse, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
         SubmitEvidenceResponse,
     },
     types::{
-        ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsExtendAuthorizationRouterData,
-        PaymentsGiftCardBalanceCheckRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
+        ConnectorWebhookGenerateSecretRouterData, ConnectorWebhookRegisterRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
+        PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -2207,7 +2215,7 @@ fn get_additional_data(
                     ref_data.transaction_link_id.clone()
                 }
                 mandates::MandateReferenceId::ConnectorMandateId(_)
-                | mandates::MandateReferenceId::CardWithLimitedData => None,
+                | mandates::MandateReferenceId::CardWithLimitedData(_) => None,
             })
     });
 
@@ -3319,7 +3327,7 @@ impl
                     }
                 }
             }
-            mandates::MandateReferenceId::CardWithLimitedData => {
+            mandates::MandateReferenceId::CardWithLimitedData(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Card Only MIT for payment method".to_string(),
                     connector: "Adyen",
@@ -5634,7 +5642,8 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AdyenRefundResponse>> for RefundsRo
 pub struct AdyenErrorResponse {
     pub status: i32,
     pub error_code: String,
-    pub message: String,
+    pub message: Option<String>,
+    pub title: Option<String>,
     pub psp_reference: Option<String>,
 }
 
@@ -7388,6 +7397,48 @@ impl
             response: Ok(ConnectorWebhookRegisterResponse {
                 connector_webhook_id: Some(item.response.id.clone()),
                 status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenGenerateHmacResponse {
+    hmac_key: Secret<String>,
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookGenerateSecret,
+            AdyenGenerateHmacResponse,
+            ConnectorWebhookGenerateSecretRequest,
+            ConnectorWebhookGenerateSecretResponse,
+        >,
+    >
+    for RouterData<
+        ConnectorWebhookGenerateSecret,
+        ConnectorWebhookGenerateSecretRequest,
+        ConnectorWebhookGenerateSecretResponse,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookGenerateSecret,
+            AdyenGenerateHmacResponse,
+            ConnectorWebhookGenerateSecretRequest,
+            ConnectorWebhookGenerateSecretResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(ConnectorWebhookGenerateSecretRouterData {
+            response: Ok(ConnectorWebhookGenerateSecretResponse {
+                secret: Some(item.response.hmac_key),
+                status: common_enums::WebhookSecretGenerationStatus::Success,
                 error_code: None,
                 error_message: None,
             }),
