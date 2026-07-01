@@ -3909,10 +3909,14 @@ Cypress.Commands.add(
 );
 
 export const MICRODEPOSIT_CONFIG = {
-  stripe: {
-    providerBaseUrl: "api.stripe.com",
-    origin: "https://payments.stripe.com",
-    inputSelector: "input.p-CodePuncher-controllingInput",
-    verificationCode: "11AA",
+  get stripe() {
+    return {
+      providerBaseUrl:
+        Cypress.env("STRIPE_PROVIDER_BASE_URL") || "api.stripe.com",
+      origin:
+        Cypress.env("STRIPE_PAYMENTS_ORIGIN") || "https://payments.stripe.com",
+      inputSelector: "input.p-CodePuncher-controllingInput",
+      verificationCode: "11AA",
+    };
   },
 };

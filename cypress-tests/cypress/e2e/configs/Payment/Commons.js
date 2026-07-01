@@ -1408,89 +1408,18 @@ export const connectorDetails = {
         },
       },
     }),
-    MandateSingleUseSepa: getCustomExchange({
-      Request: {
-        payment_method: "bank_debit",
-        payment_method_type: "sepa",
-        payment_method_data: {
-          bank_debit: {
-            sepa_bank_debit: {
-              iban: "DE89370400440532013000",
-              bank_account_holder_name: "Test Account",
-            },
-          },
-        },
-        billing: {
-          address: {
-            country: "DE",
-          },
-          email: "test@example.com",
-        },
-      },
-    }),
-    MandateSingleUseBecs: getCustomExchange({
-      Request: {
-        payment_method: "bank_debit",
-        payment_method_type: "becs",
-        payment_method_data: {
-          bank_debit: {
-            becs_bank_debit: {
-              account_number: "000123456",
-              bsb_number: "000000",
-              bank_account_holder_name: "Test Account",
-            },
-          },
-        },
-        billing: {
-          address: {
-            country: "AU",
-          },
-          email: "test@example.com",
-        },
-      },
-    }),
-    MandateSingleUseAch: getCustomExchange({
-      Request: {
-        payment_method: "bank_debit",
-        payment_method_type: "ach",
-        payment_method_data: {
-          bank_debit: {
-            ach_bank_debit: {
-              account_number: "000123456789",
-              routing_number: "110000000",
-              bank_account_holder_name: "Test Account",
-            },
-          },
-        },
-        billing: {
-          address: {
-            country: "US",
-          },
-          email: "test@example.com",
-        },
-      },
-    }),
-    MandateSingleUseBacs: getCustomExchange({
-      Request: {
-        payment_method: "bank_debit",
-        payment_method_type: "bacs",
-        payment_method_data: {
-          bank_debit: {
-            bacs_bank_debit: {
-              account_number: "00012345",
-              sort_code: "108800",
-              bank_account_holder_name: "Test Account",
-            },
-          },
-        },
-        billing: {
-          address: {
-            country: "GB",
-          },
-          email: "test@example.com",
-        },
-      },
-    }),
+    get MandateSingleUseSepa() {
+      return this.Sepa;
+    },
+    get MandateSingleUseBecs() {
+      return this.Becs;
+    },
+    get MandateSingleUseAch() {
+      return this.Ach;
+    },
+    get MandateSingleUseBacs() {
+      return this.Bacs;
+    },
     MITAutoCaptureSepa: getCustomExchange({
       Request: {
         amount: 6540,

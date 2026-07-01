@@ -49,75 +49,37 @@ describe("Connector Account Create flow test", () => {
     }
   );
 
-  // Create connector_3, connector_4, connector_5 using the same Utils pattern
-  // The shouldProceedWithOperation check in Utils handles skipping for
-  // connectors that don't have MULTIPLE_CONNECTORS enabled (non-Stripe)
-  context(
-    "Create business profile and merchant connector account for connector_3",
-    () => {
-      it("Create business profile for connector_3", () => {
-        utils.createBusinessProfile(
-          fixtures.businessProfile.bpCreate,
-          globalState,
-          { nextConnector: true, value: "connector_3" }
-        );
-      });
+  // connector_3/4/5 are only needed for Stripe bank debit multi-credential setup
+  // (SEPA=connector_5, BACS=connector_3, BECS=connector_4)
+  ["connector_3", "connector_4", "connector_5"].forEach((connectorValue) => {
+    context(
+      `Create business profile and merchant connector account for ${connectorValue}`,
+      () => {
+        before(function () {
+          const connectorId = globalState.get("connectorId");
+          if (!["stripe", "stripeconnect"].includes(connectorId)) {
+            this.skip();
+          }
+        });
 
-      it("Create merchant connector account for connector_3", () => {
-        utils.createMerchantConnectorAccount(
-          "payment_processor",
-          fixtures.createConnectorBody,
-          globalState,
-          payment_methods_enabled,
-          { nextConnector: true, value: "connector_3" }
-        );
-      });
-    }
-  );
+        it(`Create business profile for ${connectorValue}`, () => {
+          utils.createBusinessProfile(
+            fixtures.businessProfile.bpCreate,
+            globalState,
+            { nextConnector: true, value: connectorValue }
+          );
+        });
 
-  context(
-    "Create business profile and merchant connector account for connector_4",
-    () => {
-      it("Create business profile for connector_4", () => {
-        utils.createBusinessProfile(
-          fixtures.businessProfile.bpCreate,
-          globalState,
-          { nextConnector: true, value: "connector_4" }
-        );
-      });
-
-      it("Create merchant connector account for connector_4", () => {
-        utils.createMerchantConnectorAccount(
-          "payment_processor",
-          fixtures.createConnectorBody,
-          globalState,
-          payment_methods_enabled,
-          { nextConnector: true, value: "connector_4" }
-        );
-      });
-    }
-  );
-
-  context(
-    "Create business profile and merchant connector account for connector_5",
-    () => {
-      it("Create business profile for connector_5", () => {
-        utils.createBusinessProfile(
-          fixtures.businessProfile.bpCreate,
-          globalState,
-          { nextConnector: true, value: "connector_5" }
-        );
-      });
-
-      it("Create merchant connector account for connector_5", () => {
-        utils.createMerchantConnectorAccount(
-          "payment_processor",
-          fixtures.createConnectorBody,
-          globalState,
-          payment_methods_enabled,
-          { nextConnector: true, value: "connector_5" }
-        );
-      });
-    }
-  );
+        it(`Create merchant connector account for ${connectorValue}`, () => {
+          utils.createMerchantConnectorAccount(
+            "payment_processor",
+            fixtures.createConnectorBody,
+            globalState,
+            payment_methods_enabled,
+            { nextConnector: true, value: connectorValue }
+          );
+        });
+      }
+    );
+  });
 });
