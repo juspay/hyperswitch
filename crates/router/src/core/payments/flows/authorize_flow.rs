@@ -1470,7 +1470,7 @@ fn transform_response_for_pre_authenticate_flow(
                 resource_id,
                 redirection_data,
                 mandate_reference,
-                connector_metadata: _,
+                connector_metadata: ucs_connector_metadata,
                 network_txn_id,
                 network_txn_link_id,
                 connector_response_reference_id,
@@ -1513,19 +1513,30 @@ fn transform_response_for_pre_authenticate_flow(
                                         .map(|v| v == "true")
                                         .unwrap_or(true),
                                 };
-                            // Set connector_metadata with invoke data, clear redirection_data
-                            (serde_json::to_value(&invoke_data).ok(), Box::new(None))
+                            // Prefer the connector_metadata UCS already mapped from
+                            // connector_feature_data (it mirrors hyperswitch's native
+                            // `RedsysThreeDsInvokeData`); fall back to deriving it from the
+                            // 3DS-method form_fields for older UCS builds. Clear redirection_data
+                            // so the `invoke_hidden_iframe` next_action is generated.
+                            (
+                                ucs_connector_metadata
+                                    .clone()
+                                    .or_else(|| serde_json::to_value(&invoke_data).ok()),
+                                Box::new(None),
+                            )
                         } else {
-                            // 3DS exempt or challenge - keep redirection_data, no special connector_metadata
-                            (None, redirection_data)
+                            // 3DS exempt or challenge - keep redirection_data and the
+                            // connector_metadata UCS mapped from connector_feature_data.
+                            (ucs_connector_metadata.clone(), redirection_data)
                         }
                     } else {
                         // Not a Form type redirect
-                        (None, redirection_data)
+                        (ucs_connector_metadata.clone(), redirection_data)
                     }
                 } else {
-                    // No redirection data
-                    (None, redirection_data)
+                    // No redirection data (3DS exempt): keep the connector_metadata UCS mapped
+                    // from connector_feature_data so it matches hyperswitch's native response.
+                    (ucs_connector_metadata.clone(), redirection_data)
                 };
 
             Ok(
