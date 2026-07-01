@@ -313,7 +313,7 @@ pub fn create_merchant_account_request_for_org(
         metadata: None,
         locker_id: None,
         return_url: None,
-        merchant_name: Some(Secret::new(company_name.get_secret())),
+        merchant_name: Secret::new(company_name.get_secret()),
         webhook_details: None,
         publishable_key: None,
         organization_id: Some(org.get_organization_id()),
