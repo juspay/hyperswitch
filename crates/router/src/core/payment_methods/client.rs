@@ -471,75 +471,73 @@ async fn fetch_customer_payment_methods(
     platform: &domain::Platform,
     payment_intent_context: &PaymentIntentContext,
 ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
-    if payment_intent_context.payment_intent.customer_id.is_none() {
-        return Ok(vec![]);
-    }
+    match (
+        payment_intent_context.payment_intent.customer_id.as_ref(),
+        payment_intent_context.customer.as_ref(),
+    ) {
+        (None, _) => Ok(vec![]),
+        (Some(_), None) => Err(errors::ApiErrorResponse::CustomerNotFound.into()),
+        (Some(_), Some(customer)) => {
+            let dimensions = dimension_state::Dimensions::new()
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+            let feature_config =
+                crate::core::utils::get_feature_config(state, platform, &dimensions).await;
 
-    let feature_config = crate::core::utils::get_feature_config(state, platform, &dimensions).await;
+            if feature_config.is_payment_method_modular_allowed {
+                logger::info!("Fetching customer payment methods from modular service");
 
-    if feature_config.is_payment_method_modular_allowed {
-        logger::info!("Fetching customer payment methods from modular service");
-        let customer = payment_intent_context
-            .customer
-            .as_ref()
-            .ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
+                let profile_id = payment_intent_context
+                    .payment_intent
+                    .profile_id
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("'profile_id' not set in payment intent")?;
 
-        let profile_id = payment_intent_context
-            .payment_intent
-            .profile_id
-            .clone()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("'profile_id' not set in payment intent")?;
+                let intent_fulfillment_time = payment_intent_context
+                    .business_profile
+                    .get_order_fulfillment_time()
+                    .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
-        let intent_fulfillment_time = payment_intent_context
-            .business_profile
-            .get_order_fulfillment_time()
-            .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
+                let off_session_payment_flag = payment_intent_context
+                    .payment_intent
+                    .setup_future_usage
+                    .map(|future_usage| future_usage == common_enums::FutureUsage::OffSession)
+                    .unwrap_or(false);
 
-        let off_session_payment_flag = payment_intent_context
-            .payment_intent
-            .setup_future_usage
-            .map(|future_usage| future_usage == common_enums::FutureUsage::OffSession)
-            .unwrap_or(false);
+                let is_connector_agnostic_mit_enabled = payment_intent_context
+                    .business_profile
+                    .is_connector_agnostic_mit_enabled
+                    .unwrap_or(false);
 
-        let is_connector_agnostic_mit_enabled = payment_intent_context
-            .business_profile
-            .is_connector_agnostic_mit_enabled
-            .unwrap_or(false);
-
-        ModularCustomerPaymentMethodsFetcher {
-            profile_id,
-            intent_fulfillment_time,
-            off_session_payment_flag,
-            is_connector_agnostic_mit_enabled,
+                ModularCustomerPaymentMethodsFetcher {
+                    profile_id,
+                    intent_fulfillment_time,
+                    off_session_payment_flag,
+                    is_connector_agnostic_mit_enabled,
+                }
+                .fetch(
+                    state,
+                    platform,
+                    Some(&payment_intent_context.payment_intent),
+                    customer,
+                    &dimensions,
+                )
+                .await
+            } else {
+                logger::info!("Fetching customer payment methods from DB");
+                DbCustomerPaymentMethodsFetcher
+                    .fetch(
+                        state,
+                        platform,
+                        Some(&payment_intent_context.payment_intent),
+                        customer,
+                        &dimensions,
+                    )
+                    .await
+            }
         }
-        .fetch(
-            state,
-            platform,
-            Some(&payment_intent_context.payment_intent),
-            customer,
-            &dimensions,
-        )
-        .await
-    } else {
-        logger::info!("Fetching customer payment methods from DB");
-        let customer = payment_intent_context
-            .customer
-            .as_ref()
-            .ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
-        DbCustomerPaymentMethodsFetcher
-            .fetch(
-                state,
-                platform,
-                Some(&payment_intent_context.payment_intent),
-                customer,
-                &dimensions,
-            )
-            .await
     }
 }
 
