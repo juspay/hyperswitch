@@ -59,7 +59,7 @@ describe("[Payout] Recurring", () => {
       cy.createConfirmPayoutTest(
         payoutBody,
         data,
-        true,  // confirm=true — immediately confirm the payout
+        true, // confirm=true — immediately confirm the payout
         false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
         globalState
       ).then((response) => {
@@ -105,7 +105,7 @@ describe("[Payout] Recurring", () => {
       cy.createConfirmPayoutTest(
         payoutBody,
         data,
-        true,  // confirm=true — immediately confirm the payout
+        true, // confirm=true — immediately confirm the payout
         false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
         globalState
       ).then((response) => {
@@ -150,7 +150,7 @@ describe("[Payout] Recurring", () => {
       cy.createConfirmPayoutTest(
         payoutBody,
         data,
-        true,  // confirm=true — immediately confirm the payout
+        true, // confirm=true — immediately confirm the payout
         false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
         globalState
       ).then((response) => {
@@ -191,7 +191,7 @@ describe("[Payout] Recurring", () => {
       cy.createConfirmPayoutTest(
         payoutBody,
         data,
-        true,  // confirm=true — immediately confirm the payout (POST /payouts/create with confirm:true in body)
+        true, // confirm=true — immediately confirm the payout (POST /payouts/create with confirm:true in body)
         false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
         globalState
       ).then((response) => {
