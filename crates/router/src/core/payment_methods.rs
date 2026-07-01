@@ -1726,7 +1726,7 @@ impl LockerOperations for GenericLocker {
         )
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-        let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+        let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None, None)
             .await
             .change_context(errors::VaultError::VaultAPIError)
             .attach_printable("Call to vault failed")?;
@@ -1754,7 +1754,7 @@ impl LockerOperations for GenericLocker {
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultDeleteRequest")?;
 
-        let resp = vault::call_to_vault::<pm_types::VaultDelete>(state, payload, None)
+        let resp = vault::call_to_vault::<pm_types::VaultDelete>(state, payload, None, None)
             .await
             .change_context(errors::VaultError::VaultAPIError)
             .attach_printable("Call to vault failed")?;
@@ -2406,7 +2406,7 @@ impl PaymentMethodResolver {
                     Some(
                         vault::insert_cvc_using_payment_token(
                             state,
-                            &existing_pm.id,
+                            existing_pm.id.get_string_repr(),
                             cvc,
                             intent_fulfillment_time,
                             platform.get_provider().get_key_store(),
@@ -2658,7 +2658,7 @@ async fn execute_payment_method_create(
                 .async_map(|cvc| {
                     vault::insert_cvc_using_payment_token(
                         state,
-                        &payment_method.id,
+                        payment_method.id.get_string_repr(),
                         cvc,
                         intent_fulfillment_time,
                         platform.get_provider().get_key_store(),
@@ -2829,7 +2829,7 @@ pub async fn create_generic_volatile_payment_method(
                 .async_map(|cvc| {
                     vault::insert_cvc_using_payment_token(
                         state,
-                        &domain_payment_method.id,
+                        domain_payment_method.id.get_string_repr(),
                         cvc,
                         intent_fulfillment_time,
                         platform.get_provider().get_key_store(),
@@ -6357,20 +6357,28 @@ pub async fn payment_methods_session_retrieve(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-/// Stores `card_cvc` and `card_holder_name` as a `TemporaryCardToken` in Redis under `token`.
+/// Stores `card_cvc` as an encrypted CVC under `pm_token_{token}_hyperswitch_cvc` — the same
+/// `_hyperswitch_cvc` mechanism used by the first-time flow — so CVC retrieval (router-side
+/// `retrieve_and_delete_cvc_from_payment_token`) resolves it consistently. The card holder name is
+/// not vaulted with the CVC token; it is carried by the saved payment method itself.
 #[cfg(feature = "v2")]
 async fn store_cvc_and_card_holder_name_as_payment_token_in_redis(
     state: &SessionState,
     token: &str,
     card_cvc: Option<Secret<String>>,
-    card_holder_name: Option<Secret<String>>,
+    _card_holder_name: Option<Secret<String>>,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
-    let redis_token_data =
-        storage::PaymentTokenData::temporary_card_token(card_cvc, card_holder_name);
-    let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
-    pm_routes::ParentPaymentMethodToken::create_key_for_token(&token.to_string())
-        .insert(intent_fulfillment_time, redis_token_data, state)
+    if let Some(card_cvc) = card_cvc {
+        vault::insert_cvc_using_payment_token(
+            state,
+            token,
+            card_cvc,
+            common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
+            key_store,
+        )
         .await?;
+    }
     Ok(())
 }
 
@@ -6480,6 +6488,7 @@ pub async fn payment_methods_session_update_payment_method(
                 &parent_payment_method_token,
                 card_cvc,
                 card_holder_name,
+                platform.get_provider().get_key_store(),
             )
             .await?;
 
@@ -6541,6 +6550,7 @@ pub async fn payment_methods_session_update_payment_method(
                     &pm_token,
                     card_cvc,
                     card_holder_name,
+                    platform.get_provider().get_key_store(),
                 )
                 .await?;
             }
@@ -7174,7 +7184,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             .async_map(|cvc| {
                 vault::insert_cvc_using_payment_token(
                     self.state,
-                    self.payment_method.get_id(),
+                    self.payment_method.get_id().get_string_repr(),
                     cvc,
                     common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
                     self.platform.get_provider().get_key_store(),

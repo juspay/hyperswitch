@@ -32,6 +32,7 @@ use common_enums::{
         UsStatesAbbreviation,
     },
 };
+use common_types::primitive_wrappers;
 use common_utils::{
     consts::{
         BASE64_ENGINE, BASE64_ENGINE_STD_NO_PAD, BASE64_ENGINE_URL_SAFE,
@@ -6844,6 +6845,7 @@ pub enum PaymentMethodDataType {
     Pix,
     PixKey,
     PixEmv,
+    PixQr,
     PixAutomaticoPush,
     PixAutomaticoQr,
     Pse,
@@ -7051,6 +7053,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::BankTransferData::Pix { .. } => Self::Pix,
                 payment_method_data::BankTransferData::PixEmv { .. } => Self::PixEmv,
+                payment_method_data::BankTransferData::PixQr { .. } => Self::PixQr,
                 payment_method_data::BankTransferData::PixAutomaticoPush { .. } => {
                     Self::PixAutomaticoPush
                 }
@@ -7695,7 +7698,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         enable_partial_authorization: data.request.enable_partial_authorization,
         enable_overcapture: None,
         is_stored_credential: data.request.is_stored_credential,
-        mit_category: None,
+        mit_category: data.request.mit_category,
         billing_descriptor: data.request.billing_descriptor.clone(),
         tokenization: None,
         partner_merchant_identifier_details: data
@@ -8214,4 +8217,50 @@ macro_rules! convert_connector_response_to_domain_response {
             }
         }
     };
+}
+
+pub trait ExtendedAuthorizationData {
+    fn extended_authorization_requested(
+        &self,
+    ) -> Option<primitive_wrappers::RequestExtendedAuthorizationBool>;
+}
+
+impl ExtendedAuthorizationData for PaymentsAuthorizeData {
+    fn extended_authorization_requested(
+        &self,
+    ) -> Option<primitive_wrappers::RequestExtendedAuthorizationBool> {
+        self.request_extended_authorization
+    }
+}
+
+impl ExtendedAuthorizationData for PaymentsSyncData {
+    fn extended_authorization_requested(
+        &self,
+    ) -> Option<primitive_wrappers::RequestExtendedAuthorizationBool> {
+        None
+    }
+}
+
+impl ExtendedAuthorizationData for PaymentsCaptureData {
+    fn extended_authorization_requested(
+        &self,
+    ) -> Option<primitive_wrappers::RequestExtendedAuthorizationBool> {
+        None
+    }
+}
+
+impl ExtendedAuthorizationData for CompleteAuthorizeData {
+    fn extended_authorization_requested(
+        &self,
+    ) -> Option<primitive_wrappers::RequestExtendedAuthorizationBool> {
+        None
+    }
+}
+
+impl ExtendedAuthorizationData for PaymentsCancelData {
+    fn extended_authorization_requested(
+        &self,
+    ) -> Option<primitive_wrappers::RequestExtendedAuthorizationBool> {
+        None
+    }
 }

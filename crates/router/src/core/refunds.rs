@@ -483,15 +483,10 @@ pub async fn trigger_refund_to_gateway(
                 refund.refund_id
             )
         })?;
-    utils::trigger_refund_outgoing_webhook(
-        state,
-        platform,
-        &response,
-        payment_attempt.profile_id.clone(),
-    )
-    .await
-    .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
-    .ok();
+    utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
+        .await
+        .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
+        .ok();
     Ok((response, router_data_res.raw_connector_response))
 }
 
@@ -1116,15 +1111,10 @@ pub async fn sync_refund_with_gateway(
                 refund.refund_id
             )
         })?;
-    utils::trigger_refund_outgoing_webhook(
-        state,
-        platform,
-        &response,
-        payment_attempt.profile_id.clone(),
-    )
-    .await
-    .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
-    .ok();
+    utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
+        .await
+        .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
+        .ok();
     Ok((response, router_data_res.raw_connector_response))
 }
 
