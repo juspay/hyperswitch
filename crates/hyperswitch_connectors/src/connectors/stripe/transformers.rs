@@ -3326,7 +3326,8 @@ where
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
 
-        let status = AttemptStatus::from(item.response.status);
+        let domain_status = common_enums::AttemptStatusDomain::from(item.response.status);
+        let status = domain_status.to_storage().unwrap_or_default();
 
         let response = if is_payment_failure(status) {
             *get_stripe_payments_response_data(
@@ -3380,7 +3381,7 @@ where
             .and_then(StripeChargeEnum::get_maximum_capturable_amount);
 
         Ok(Self {
-            status: status.into(),
+            status: domain_status,
             /* Commented out fields:
             client_secret: Some(item.response.client_secret.clone().as_str()),
             description: item.response.description.map(|x| x.as_str()),
@@ -3638,7 +3639,8 @@ where
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
 
-        let status = AttemptStatus::from(item.response.status.to_owned());
+        let domain_status = common_enums::AttemptStatusDomain::from(item.response.status.to_owned());
+        let status = domain_status.to_storage().unwrap_or_default();
 
         let connector_response_data =
             item.response
@@ -3694,7 +3696,7 @@ where
         };
 
         Ok(Self {
-            status: AttemptStatus::from(item.response.status.to_owned()).into(),
+            status: domain_status,
             response,
             amount_captured: item
                 .response
@@ -3748,7 +3750,8 @@ where
                 connector_mandate_request_reference_id: None,
             }
         });
-        let status = AttemptStatus::from(item.response.status);
+        let domain_status = common_enums::AttemptStatusDomain::from(item.response.status);
+        let status = domain_status.to_storage().unwrap_or_default();
         let connector_response_data = item
             .response
             .latest_attempt
@@ -3789,7 +3792,7 @@ where
         };
 
         Ok(Self {
-            status: status.into(),
+            status: domain_status,
             response,
             connector_response: connector_response_data,
             ..item.data
@@ -4454,7 +4457,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
             .source
             .encode_to_value()
             .change_context(ConnectorError::ResponseHandlingFailed)?;
-        let status = AttemptStatus::from(item.response.status);
+        let domain_status = common_enums::AttemptStatusDomain::from(item.response.status);
+        let status = domain_status.to_storage().unwrap_or_default();
         let response = if is_payment_failure(status) {
             Err(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: item
@@ -4492,7 +4496,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
         };
 
         Ok(Self {
-            status: status.into(),
+            status: domain_status,
             response,
             ..item.data
         })
