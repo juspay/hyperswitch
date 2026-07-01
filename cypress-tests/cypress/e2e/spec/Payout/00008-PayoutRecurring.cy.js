@@ -59,8 +59,8 @@ describe("[Payout] Recurring", () => {
       cy.createConfirmPayoutTest(
         payoutBody,
         data,
-        true,
-        false,
+        true,  // confirm=true — immediately confirm the payout
+        false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
         globalState
       ).then((response) => {
         // recurring=true because we explicitly set recurring:true in the request to mark this as a recurring payout.
@@ -105,8 +105,8 @@ describe("[Payout] Recurring", () => {
       cy.createConfirmPayoutTest(
         payoutBody,
         data,
-        true,
-        false,
+        true,  // confirm=true — immediately confirm the payout
+        false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
         globalState
       ).then((response) => {
         // recurring=true and payout_method_id matches the saved method from the RecurringTrue test
@@ -150,8 +150,8 @@ describe("[Payout] Recurring", () => {
       cy.createConfirmPayoutTest(
         payoutBody,
         data,
-        true,
-        false,
+        true,  // confirm=true — immediately confirm the payout
+        false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
         globalState
       ).then((response) => {
         // recurring=false because we explicitly set recurring:false in the request — this is a one-time payout.
@@ -191,8 +191,8 @@ describe("[Payout] Recurring", () => {
       cy.createConfirmPayoutTest(
         payoutBody,
         data,
-        true,
-        false,
+        true,  // confirm=true — immediately confirm the payout (POST /payouts/create with confirm:true in body)
+        false, // auto_fulfill=false — do not auto-fulfill; payout stays in requires_fulfillment state
         globalState
       ).then((response) => {
         // recurring defaults to false when the field is omitted (see crates/router/src/core/payouts.rs:3142: recurring: req.recurring.unwrap_or(false)).
@@ -486,6 +486,7 @@ describe("[Payout] Recurring", () => {
       }
 
       // This test validates that invalid entity_type returns 400 error
+      // confirm=false — intentionally do NOT confirm; the invalid entity_type triggers a 400 before confirmation
       cy.createConfirmPayoutTest(payoutBody, data, false, false, globalState);
 
       // For error responses, we expect should_continue_further to return false
