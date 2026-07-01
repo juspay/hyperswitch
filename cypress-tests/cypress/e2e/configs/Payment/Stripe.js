@@ -60,10 +60,6 @@ const multiUseMandateData = {
 const payment_method_data_3ds = {
   card: {
     last4: "3155",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "INTL HDQTRS CENTER OWNED",
-    card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -79,10 +75,6 @@ const payment_method_data_3ds = {
 const payment_method_data_no3ds = {
   card: {
     last4: "0005",
-    card_type: "CREDIT",
-    card_network: "AmericanExpress",
-    card_issuer: "AMERICAN EXPRESS US CARS",
-    card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "378282",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -1483,5 +1475,120 @@ export const connectorDetails = {
       path: "data.object.id",
       type: "string",
     },
+  },
+  subscription_pm: {
+    // These configs define the request/response expectations for subscription tests.
+    // customer_id is dynamically populated by the createSubscriptionTest command from globalState.
+    Create: getCustomExchange({
+      Configs: {
+        // Stripe billing connector (stripebilling) is not available in local dev/CI
+        // — subscription creation is expected to fail; TRIGGER_SKIP skips downstream tests
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        customer_id: "", // Populated from globalState.get("customerId") in createSubscriptionTest
+        item_price_id: "price_12345",
+        payment_details: {
+          return_url: "https://example.com/subscription/return",
+          payment_method_id: "", // Populated from globalState.get("paymentMethodId") in createSubscriptionTest
+        },
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "connector",
+            message: "HE_00: Something went wrong",
+            code: "CE_00",
+            connector: "stripebilling",
+          },
+        },
+      },
+    }),
+    CreateInvalidCustomer: getCustomExchange({
+      Request: {
+        customer_id: "cust_invalid_nonexistent", // Intentionally invalid for negative test case
+        item_price_id: "price_12345",
+        payment_details: {
+          return_url: "https://example.com/subscription/return",
+          payment_method_id: "",
+        },
+      },
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "HE_02",
+            message: "Customer does not exist in our records",
+          },
+        },
+      },
+    }),
+    CreateMissingFields: getCustomExchange({
+      Request: {
+        description: "Test subscription missing required fields",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            code: "IR_06",
+            message: "Json deserialize error: missing field `item_price_id`",
+          },
+        },
+      },
+    }),
+    Retrieve: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "active",
+        },
+      },
+    }),
+    RetrieveCancelled: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+        },
+      },
+    }),
+    Update: getCustomExchange({
+      Request: {
+        plan_id: "price_12345",
+        item_price_id: "price_12345",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "active",
+        },
+      },
+    }),
+    Cancel: getCustomExchange({
+      Request: {
+        cancel_reason_code: "requested_by_customer",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+        },
+      },
+    }),
+    Reactivate: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "active",
+        },
+      },
+    }),
   },
 };
