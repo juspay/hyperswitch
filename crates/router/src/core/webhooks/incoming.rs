@@ -1899,7 +1899,7 @@ async fn external_authentication_incoming_webhook_flow(
                 match authentication_id_type {
                     webhooks::AuthenticationIdType::AuthenticationId(authentication_id) => state
                         .store
-                        .find_authentication_by_merchant_id_authentication_id(
+                        .find_authentication_by_processor_merchant_id_authentication_id(
                             platform.get_processor().get_account().get_id(),
                             &authentication_id,
                             platform.get_processor().get_key_store(),
@@ -1915,7 +1915,7 @@ async fn external_authentication_incoming_webhook_flow(
                         connector_authentication_id,
                     ) => state
                         .store
-                        .find_authentication_by_merchant_id_connector_authentication_id(
+                        .find_authentication_by_processor_merchant_id_connector_authentication_id(
                             platform.get_processor().get_account().get_id().clone(),
                             connector_authentication_id.clone(),
                             platform.get_processor().get_key_store(),
@@ -1935,7 +1935,7 @@ async fn external_authentication_incoming_webhook_flow(
             }?;
         let updated_authentication = state
             .store
-            .update_authentication_by_merchant_id_authentication_id(
+            .update_authentication_by_processor_merchant_id_authentication_id(
                 authentication,
                 authentication_update,
                 platform.get_processor().get_key_store(),
