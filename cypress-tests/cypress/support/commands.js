@@ -4796,7 +4796,10 @@ Cypress.Commands.add("verifyAchMicrodepositCallTest", (globalState) => {
 
   // Read auth file to get provider credentials using the shared getValueByKey helper
   cy.readFile(connectorAuthFilePath).then((jsonContent) => {
-    const { authDetails } = getValueByKey(JSON.stringify(jsonContent), connectorId);
+    const { authDetails } = getValueByKey(
+      JSON.stringify(jsonContent),
+      connectorId
+    );
     const microdepositConfig = MICRODEPOSIT_CONFIG[connectorId];
 
     if (!microdepositConfig) {

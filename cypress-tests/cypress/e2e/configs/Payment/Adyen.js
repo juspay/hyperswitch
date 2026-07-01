@@ -3204,7 +3204,9 @@ export const connectorDetails = {
     PaymentIntent: (paymentMethodType) => {
       const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
       return {
-        ...(paymentMethodType === "Ach" ? { Configs: { TRIGGER_SKIP: true } } : {}),
+        ...(paymentMethodType === "Ach"
+          ? { Configs: { TRIGGER_SKIP: true } }
+          : {}),
         Request: {
           currency: currencyMap[paymentMethodType] || "USD",
           ...(paymentMethodType !== "Sepa"
