@@ -1832,6 +1832,24 @@ export const connectorDetails = {
         off_session: true,
         confirm: true,
         currency: "EUR",
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "Account",
+            country: "FR",
+          },
+          email: "test@example.com",
+        },
       },
       Response: {
         status: 200,
@@ -1851,6 +1869,27 @@ export const connectorDetails = {
         off_session: true,
         confirm: true,
         currency: "AUD",
+        payment_method: "bank_debit",
+        payment_method_type: "becs",
+        payment_method_data: {
+          bank_debit: {
+            becs_bank_debit: {
+              bsb_number: "000000",
+              account_number: "000123456",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "Account",
+            country: "AU",
+            line1: "123 Test St",
+            zip: "2000",
+          },
+          email: "test@example.com",
+        },
       },
       Response: {
         status: 200,
