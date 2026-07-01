@@ -121,7 +121,7 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::ReconStatus(req) => Ok(types::MetaData::ReconStatus(req)),
         #[cfg(feature = "v1")]
         api::SetMetaDataRequest::PaymentViews(operation) => {
-            Ok(types::MetaData::PaymentViews(operation))
+            Ok(types::MetaData::PaymentViews(*operation))
         }
     }
 }

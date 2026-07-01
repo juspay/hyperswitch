@@ -33,7 +33,7 @@ pub enum SetMetaDataRequest {
     OnboardingSurvey(OnboardingSurvey),
     ReconStatus(ReconStatus),
     #[cfg(feature = "v1")]
-    PaymentViews(SavedViewOperation),
+    PaymentViews(Box<SavedViewOperation>),
 }
 
 #[cfg(feature = "v1")]
