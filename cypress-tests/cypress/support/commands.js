@@ -5823,7 +5823,7 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
   });
 });
 
-Cypress.Commands.add("listCustomerPMByClientSecret", (globalState) => {
+Cypress.Commands.add("listCustomerPMByClientSecret", (globalState, data) => {
   const clientSecret = globalState.get("clientSecret");
   const setupFutureUsage = globalState.get("setupFutureUsage");
 
@@ -5851,7 +5851,13 @@ Cypress.Commands.add("listCustomerPMByClientSecret", (globalState) => {
           "payment_method_id"
         ).to.not.be.null;
 
-        if (setupFutureUsage === "off_session") {
+        // Use config data if provided, otherwise fall back to setupFutureUsage logic
+        if (data?.Response?.body?.requires_cvv !== undefined) {
+          expect(
+            response.body.customer_payment_methods[0].requires_cvv,
+            "requires_cvv"
+          ).to.equal(data.Response.body.requires_cvv);
+        } else if (setupFutureUsage === "off_session") {
           expect(
             response.body.customer_payment_methods[0].requires_cvv,
             "requires_cvv"

@@ -675,6 +675,7 @@ export const CONNECTOR_LISTS = {
     POLL_CONFIG: ["stripe"],
     DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
+    REQUIRES_CVV: ["bankofamerica"],
     // Add more inclusion lists
   },
 };
