@@ -1,7 +1,4 @@
-import {
-  customerAcceptance,
-  multiUseMandateData,
-} from "./Commons";
+import { customerAcceptance, multiUseMandateData } from "./Commons";
 import {
   getCurrency,
   getCustomExchange,
