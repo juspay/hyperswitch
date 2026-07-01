@@ -9190,7 +9190,7 @@ where
         .map(|mandate_reference| match mandate_reference {
             mandates::MandateReferenceId::ConnectorMandateId(_) => true,
             mandates::MandateReferenceId::NetworkMandateId(_)
-            | mandates::MandateReferenceId::CardWithLimitedData
+            | mandates::MandateReferenceId::CardWithLimitedData(_)
             | mandates::MandateReferenceId::NetworkTokenWithNTI(_) => false,
         })
         .unwrap_or(false);

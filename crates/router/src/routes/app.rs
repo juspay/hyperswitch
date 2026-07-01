@@ -192,13 +192,23 @@ impl SessionState {
             ExecutionMode::Shadow => Some("shadow"),
             ExecutionMode::NotApplicable => None,
         };
+        let config_override = match unified_connector_service_execution_mode {
+            ExecutionMode::Shadow => Some(
+                serde_json::json!({
+                    "events": {
+                        "enabled": false
+                    }
+                })
+                .to_string(),
+            ),
+            _ => None,
+        };
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
             .shadow_mode(shadow_mode)
             .proxy_name(proxy_name)
-            // no override: UCS emits in all modes, distinguished downstream by `execution_mode`
-            .config_override(None)
+            .config_override(config_override)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -1727,6 +1737,10 @@ impl PaymentMethods {
                 .service(
                     web::resource("/batch")
                         .route(web::get().to(payment_methods::payment_methods_batch_retrieve_api)),
+                )
+                .service(
+                    web::resource("/fingerprint/migrate-batch")
+                        .route(web::post().to(payment_methods::modular_migrate_payment_methods)),
                 )
                 .service(
                     web::resource("/tokenize-card")
