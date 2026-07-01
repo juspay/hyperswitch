@@ -7578,6 +7578,7 @@ pub struct JwsBody {
 
 pub fn get_key_params_for_surcharge_details(
     payment_method_data: &domain::PaymentMethodData,
+    payment_method_type_option: Option<common_enums::PaymentMethodType>,
 ) -> Option<(
     common_enums::PaymentMethod,
     common_enums::PaymentMethodType,
@@ -7644,7 +7645,15 @@ pub fn get_key_params_for_surcharge_details(
             None,
         )),
         domain::PaymentMethodData::MandatePayment => None,
-        domain::PaymentMethodData::Reward => None,
+        domain::PaymentMethodData::Reward => {
+            payment_method_type_option.map(|payment_method_type| {
+                (
+                    common_enums::PaymentMethod::Reward,
+                    payment_method_type,
+                    None,
+                )
+            })
+        }
         domain::PaymentMethodData::RealTimePayment(real_time_payment) => Some((
             common_enums::PaymentMethod::RealTimePayment,
             real_time_payment.get_payment_method_type(),
