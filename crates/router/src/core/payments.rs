@@ -6334,23 +6334,54 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing authentication_id in payment_attempt")?;
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
-
-        let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
-            state,
-            platform.get_processor(),
-            None,
-            &payment_intent
-                .profile_id
-                .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing profile_id in payment_intent")?,
-            &payment_attempt
-                .authentication_connector
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing authentication connector in payment_intent")?,
-            None,
-        )
-        .await?;
+        let profile_id = payment_intent
+            .profile_id
+            .clone()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("missing profile_id in payment_intent")?;
+        // External-3DS over VGS external vault records the placeholder `unified_authentication_service`
+        // as the attempt's `authentication_connector` (it has no MCA), so resolve the real auth
+        // connector (e.g. netcetera) MCA here — mirroring the `/3ds/authentication` prologue.
+        // Otherwise this pull-mechanism lookup fails HE_02 before the pull=false + Challenge branch
+        // (a status-only PSync, matching normal payments) can run, and the SDK's post-challenge
+        // `three_ds_authorize_url` call errors instead of no-op'ing while the webhook completes.
+        let business_profile = state
+            .store
+            .find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                &profile_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            })?;
+        let is_external_vault_payment = business_profile
+            .external_vault_details
+            .is_external_vault_enabled()
+            && payment_attempt.payment_token.is_some();
+        let authentication_merchant_connector_account = if is_external_vault_payment {
+            resolve_external_vault_authentication_connector(
+                state,
+                platform.get_processor(),
+                &business_profile,
+            )
+            .await?
+            .1
+        } else {
+            helpers::get_merchant_connector_account(
+                state,
+                platform.get_processor(),
+                None,
+                &profile_id,
+                &payment_attempt
+                    .authentication_connector
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing authentication connector in payment_intent")?,
+                None,
+            )
+            .await?
+        };
         let is_pull_mechanism_enabled =
             utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
                 authentication_merchant_connector_account
@@ -6380,10 +6411,17 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     })?;
                 authentication.authentication_type
             };
-        let response = if is_pull_mechanism_enabled
-            || payment_external_authentication_type
-                != Some(common_enums::DecoupledAuthenticationType::Challenge)
-        {
+        // External-3DS over VGS external vault never authorizes through this redirect flow: the
+        // standard `PaymentConfirm` below has no VGS proxy (it would error IR_04 "Missing required
+        // param: payment_method"). The authorize is owned by the RRes webhook (pull=false) or the
+        // confirm/resume (frictionless), so the SDK's post-challenge `three_ds_authorize_url` call
+        // only reports status here — a plain PSync — matching normal-payments pull=false+Challenge
+        // behaviour (pending before the webhook lands, succeeded after) instead of erroring.
+        let should_authorize_via_redirect = !is_external_vault_payment
+            && (is_pull_mechanism_enabled
+                || payment_external_authentication_type
+                    != Some(common_enums::DecoupledAuthenticationType::Challenge));
+        let response = if should_authorize_via_redirect {
             let payment_confirm_req = api::PaymentsRequest {
                 payment_id: Some(req.resource_id.clone()),
                 merchant_id: req.merchant_id.clone(),

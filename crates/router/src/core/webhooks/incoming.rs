@@ -1949,26 +1949,8 @@ async fn external_authentication_incoming_webhook_flow(
         // Check if it's a payment authentication flow, payment_id would be there only for payment authentication flows
         if let Some(payment_id) = updated_authentication.payment_id {
             let is_pull_mechanism_enabled = helper_utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(merchant_connector_account.metadata.map(|metadata| metadata.expose()));
-            // External-3DS over VGS external vault: the auth record was just updated
-            // (trans_status/status) and the CAVV vaulted above. Unlike native external-3DS we
-            // cannot authorize from here — the standard `payments::PaymentConfirm` needs the
-            // card/payment_method, but for external vault the PAN lives behind a VGS alias that is
-            // only re-fetched inside the external-vault-proxy confirm operation (a minimal
-            // PaymentConfirm errors IR_04 "Missing required param: payment_method"). Completion
-            // happens when the SDK re-confirms after the challenge: the external-vault-proxy resume
-            // sees authentication_status == Success and authorizes with the (now vaulted) CAVV.
-            if business_profile
-                .external_vault_details
-                .is_external_vault_enabled()
-            {
-                logger::info!(
-                    payment_id = payment_id.get_string_repr(),
-                    "external-vault external-3DS: auth record + CAVV updated via results webhook; awaiting SDK re-confirm to authorize"
-                );
-                Ok(WebhookResponseTracker::NoEffect)
-            }
             // Merchant doesn't have pull mechanism enabled and if it's challenge flow, we have to authorize whenever we receive a ARes webhook
-            else if !is_pull_mechanism_enabled
+            if !is_pull_mechanism_enabled
                 && updated_authentication.authentication_type
                     == Some(common_enums::DecoupledAuthenticationType::Challenge)
                 && event_type == webhooks::IncomingWebhookEvent::ExternalAuthenticationARes
@@ -1983,15 +1965,88 @@ async fn external_authentication_incoming_webhook_flow(
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                let merchant_id = platform.get_processor().get_account().get_id().clone();
                 let payment_confirm_req = api::PaymentsRequest {
                     payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
                         payment_intent.payment_id.clone(),
                     )),
-                    merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+                    merchant_id: Some(merchant_id.clone()),
                     ..Default::default()
                 };
                 let is_setup_mandate = payment_intent.is_setup_mandate();
-                let payments_response = if is_setup_mandate {
+                // External-3DS over VGS external vault (real pull=false): the card is a VGS alias
+                // behind the stored `payment_token`, so drive the external-vault-proxy confirm
+                // operation — it re-fetches the alias from the token (via the saved-card
+                // `VaultCardTokenData` path) and authorizes with the now-vaulted CAVV. The standard
+                // `PaymentConfirm` used below needs a raw card and would error IR_04 for external
+                // vault. CVC is empty (unused for the proxied 3DS-authenticated authorize, matching
+                // the post-authenticate resume path).
+                let payments_response = if business_profile
+                    .external_vault_details
+                    .is_external_vault_enabled()
+                {
+                    let attempt_id = payment_intent.active_attempt.get_id().clone();
+                    let payment_attempt = state
+                        .store
+                        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                            &payment_intent.payment_id,
+                            &merchant_id,
+                            &attempt_id,
+                            platform.get_processor().get_account().storage_scheme,
+                            platform.get_processor().get_key_store(),
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                    let payment_token = payment_attempt
+                        .payment_token
+                        .clone()
+                        .get_required_value("payment_token")
+                        .attach_printable(
+                            "payment_token missing on attempt for external vault 3DS webhook authorize",
+                        )?;
+                    let external_vault_req = api::PaymentsRequest {
+                        payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
+                            payment_intent.payment_id.clone(),
+                        )),
+                        merchant_id: Some(merchant_id.clone()),
+                        payment_token: Some(payment_token),
+                        payment_method: Some(common_enums::PaymentMethod::Card),
+                        payment_method_data: Some(api_models::payments::PaymentMethodDataRequest {
+                            payment_method_data: Some(
+                                api_models::payments::PaymentMethodData::VaultCardTokenData(
+                                    api_models::payments::VaultCardToken {
+                                        card_holder_name: None,
+                                        card_cvc: Some(hyperswitch_masking::Secret::new(
+                                            String::new(),
+                                        )),
+                                    },
+                                ),
+                            ),
+                            billing: None,
+                        }),
+                        ..Default::default()
+                    };
+                    Box::pin(payments::external_vault_proxy_for_payments_core::<
+                        api::ExternalVaultProxy,
+                        api::PaymentsResponse,
+                        _,
+                        _,
+                        _,
+                        payments::PaymentData<api::ExternalVaultProxy>,
+                    >(
+                        state.clone(),
+                        req_state,
+                        platform.clone(),
+                        payment_intent.profile_id.clone(),
+                        payments::PaymentExternalVaultProxyConfirm,
+                        external_vault_req,
+                        services::api::AuthFlow::Merchant,
+                        payments::CallConnectorAction::Trigger,
+                        HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                        None,
+                    ))
+                    .await?
+                } else if is_setup_mandate {
                     Box::pin(payments::payments_core::<
                         api::SetupMandate,
                         api::PaymentsResponse,
