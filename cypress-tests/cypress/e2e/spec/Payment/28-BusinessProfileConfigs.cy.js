@@ -439,4 +439,143 @@ describe("Config Tests", () => {
       );
     });
   });
+
+  context("Webhook Config Disabled Events — Create and Update", () => {
+    it("Create Business Profile with webhook disabled events", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["WebhookConfig"]["Create"];
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        webhook_details: data.Request.webhook_details,
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookConfigProfile"
+      );
+    });
+
+    it("Update Business Profile webhook disabled events", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["WebhookConfig"]["Update"];
+      const updateBody = {
+        webhook_details: data.Request.webhook_details,
+      };
+      cy.updateBusinessProfileWebhookConfigTest(
+        updateBody,
+        globalState,
+        "webhookConfigProfile"
+      );
+    });
+
+    it("Delete Business Profile", () => {
+      cy.deleteBusinessProfileTest(globalState, "webhookConfigProfile");
+    });
+  });
+
+  context("Connector Webhook Registration and Retrieval", () => {
+    it("Create Business Profile", () => {
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState,
+        "webhookConnProfile"
+      );
+    });
+
+    it("connector-create-call-test", () => {
+      cy.createConnectorCallTest(
+        "payment_processor",
+        fixtures.createConnectorBody,
+        payment_methods_enabled,
+        globalState,
+        "webhookConnProfile"
+      );
+    });
+
+    it("Register connector webhook with all_events — expect 400 IR_20", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["WebhookConfig"]["RegisterWebhookAllEvents"];
+      cy.registerConnectorWebhookTest(data, globalState);
+    });
+
+    it("Register connector webhook with specific_event — expect 400 IR_20", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["WebhookConfig"]["RegisterWebhookSpecificEvent"];
+      cy.registerConnectorWebhookTest(data, globalState);
+    });
+
+    it("Retrieve connector webhooks — expect 200 with empty list", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["WebhookConfig"]["RetrieveWebhook"];
+      cy.retrieveConnectorWebhooksTest(data, globalState);
+    });
+
+    it("Delete Business Profile", () => {
+      cy.deleteBusinessProfileTest(globalState, "webhookConnProfile");
+    });
+  });
+
+  context("Webhook Config Disabled Events — Negative Cases", () => {
+    it("Create Business Profile with invalid refund_statuses_enabled — expect error", () => {
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        profile_name: "negative_webhook_test",
+        webhook_details: {
+          webhook_version: "1.0.2",
+          payment_statuses_enabled: ["succeeded"],
+          refund_statuses_enabled: ["succeeded"],
+          payout_statuses_enabled: ["success"],
+        },
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookNegativeProfile",
+        400
+      );
+    });
+
+    it("Create Business Profile with invalid payment_statuses_enabled — expect error", () => {
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        profile_name: "neg_payment_status_test",
+        webhook_details: {
+          webhook_version: "1.0.2",
+          payment_statuses_enabled: ["invalid_status"],
+          refund_statuses_enabled: ["success", "failure"],
+          payout_statuses_enabled: ["success", "failed"],
+        },
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookNegPaymentProfile",
+        400
+      );
+    });
+
+    it("Create Business Profile with invalid payout_statuses_enabled — expect error", () => {
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        profile_name: "neg_payout_status_test",
+        webhook_details: {
+          webhook_version: "1.0.2",
+          payment_statuses_enabled: ["succeeded"],
+          refund_statuses_enabled: ["success", "failure"],
+          payout_statuses_enabled: ["invalid_payout"],
+        },
+      };
+      cy.createBusinessProfileTest(
+        createBody,
+        globalState,
+        "webhookNegPayoutProfile",
+        400
+      );
+    });
+  });
 });

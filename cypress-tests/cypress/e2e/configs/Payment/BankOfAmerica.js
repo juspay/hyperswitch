@@ -921,6 +921,119 @@ export const connectorDetails = {
         },
       },
     },
+    // WebhookConfig: webhook_username and webhook_password are test-only
+    // fixture values — not real credentials. They are safe to use in any
+    // connector config as placeholder webhook auth data.
+    WebhookConfig: {
+      Create: getCustomExchange({
+        Request: {
+          webhook_details: {
+            webhook_version: "1.0.2",
+            webhook_username: "whuser",
+            webhook_password: "whpass123",
+            webhook_url: "https://example.com/webhook",
+            payment_created_enabled: true,
+            payment_succeeded_enabled: true,
+            payment_failed_enabled: false,
+            payment_statuses_enabled: ["succeeded", "failed"],
+            refund_statuses_enabled: ["success", "failure"],
+            payout_statuses_enabled: ["success", "failed"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {
+            webhook_details: {
+              payment_failed_enabled: false,
+              payment_statuses_enabled: ["succeeded", "failed"],
+              refund_statuses_enabled: ["success", "failure"],
+              payout_statuses_enabled: ["success", "failed"],
+            },
+          },
+        },
+      }),
+      Update: getCustomExchange({
+        Request: {
+          webhook_details: {
+            webhook_version: "1.0.2",
+            webhook_username: "whuser_updated",
+            webhook_password: "whpass456",
+            webhook_url: "https://example.com/webhook_updated",
+            payment_created_enabled: true,
+            payment_succeeded_enabled: true,
+            payment_failed_enabled: true,
+            payment_statuses_enabled: [
+              "succeeded",
+              "failed",
+              "cancelled",
+              "processing",
+            ],
+            refund_statuses_enabled: ["success", "failure"],
+            payout_statuses_enabled: ["success", "failed", "initiated"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {
+            webhook_details: {
+              payment_failed_enabled: true,
+              payment_statuses_enabled: [
+                "succeeded",
+                "failed",
+                "cancelled",
+                "processing",
+              ],
+              refund_statuses_enabled: ["success", "failure"],
+              payout_statuses_enabled: ["success", "failed", "initiated"],
+            },
+          },
+        },
+      }),
+      RegisterWebhookAllEvents: getCustomExchange({
+        Request: {
+          event_type: "all_events",
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              code: "IR_20",
+              message: "Webhook Registration flow not supported",
+              connector: "bankofamerica",
+            },
+          },
+        },
+      }),
+      RegisterWebhookSpecificEvent: getCustomExchange({
+        Request: {
+          event_type: {
+            specific_event: "payment_succeeded",
+          },
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              code: "IR_20",
+              message: "Webhook Registration flow not supported",
+              connector: "bankofamerica",
+            },
+          },
+        },
+      }),
+      RetrieveWebhook: getCustomExchange({
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            connector: "bankofamerica",
+            webhooks: [],
+          },
+        },
+      }),
+    },
   },
   pm_list: {
     PmListResponse: {
