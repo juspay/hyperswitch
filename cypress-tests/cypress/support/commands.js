@@ -537,7 +537,8 @@ function reserveRedirectRid(adminUrl, testIdHash, paymentId, stepOffset) {
 }
 
 function replayRedirectBody(saved, paymentId, merchantId, notificationUrl) {
-  const hyperswitchUrl = Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
+  const hyperswitchUrl =
+    Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
   if (saved && saved.__redirect_method === "GET") {
     const qs = new URLSearchParams(saved.__query || {}).toString();
     const base = saved.__redirect_segment
@@ -550,7 +551,8 @@ function replayRedirectBody(saved, paymentId, merchantId, notificationUrl) {
       followRedirect: false,
     });
   } else if (saved) {
-    const postBody = saved.__redirect_method === "POST" && saved.__body ? saved.__body : saved;
+    const postBody =
+      saved.__redirect_method === "POST" && saved.__body ? saved.__body : saved;
     const postUrl = saved.__redirect_segment
       ? `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`
       : notificationUrl;
@@ -5244,28 +5246,55 @@ Cypress.Commands.add(
       const baseUrl = globalState.get("baseUrl");
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
       const seq = nextRedirectSeq(testIdHash);
-      const redirectBodyFile = getRedirectBodyFile(connectorId, testIdHash, seq);
+      const redirectBodyFile = getRedirectBodyFile(
+        connectorId,
+        testIdHash,
+        seq
+      );
       const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
       const jsConnector = JS_IFRAME_CONNECTORS[connectorId];
 
-      cy.request({ url: nextActionUrl, failOnStatusCode: false, followRedirect: false });
+      cy.request({
+        url: nextActionUrl,
+        failOnStatusCode: false,
+        followRedirect: false,
+      });
 
       if (jsConnector) {
-        const hyperswitchUrl = Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
+        const hyperswitchUrl =
+          Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
         cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
-          if (saved && saved.__redirect_method === "GET" && saved.__redirect_segment) {
+          if (
+            saved &&
+            saved.__redirect_method === "GET" &&
+            saved.__redirect_segment
+          ) {
             const url = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`;
             const qs = new URLSearchParams(saved.__query || {}).toString();
-            cy.request({ method: "GET", url: qs ? `${url}?${qs}` : url, failOnStatusCode: false, followRedirect: false });
+            cy.request({
+              method: "GET",
+              url: qs ? `${url}?${qs}` : url,
+              failOnStatusCode: false,
+              followRedirect: false,
+            });
           } else {
             const returnUrl = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${jsConnector.path}/${connectorId}`;
             const params = jsConnector.params(globalState);
-            const hasValues = Object.values(params).every((v) => v !== undefined && v !== null);
+            const hasValues = Object.values(params).every(
+              (v) => v !== undefined && v !== null
+            );
             if (hasValues) {
               const qs = new URLSearchParams(params).toString();
-              cy.request({ method: "GET", url: `${returnUrl}?${qs}`, failOnStatusCode: false, followRedirect: false });
+              cy.request({
+                method: "GET",
+                url: `${returnUrl}?${qs}`,
+                failOnStatusCode: false,
+                followRedirect: false,
+              });
             } else {
-              cy.then(() => { if (Cypress._buildRequestId) Cypress._buildRequestId(); });
+              cy.then(() => {
+                if (Cypress._buildRequestId) Cypress._buildRequestId();
+              });
             }
           }
         });
@@ -5286,7 +5315,11 @@ Cypress.Commands.add(
       // follows will call Stripe PSync, receive "requires_capture" from the
       // cassette, and HS transitions the payment state automatically.
       if (Cypress.env("PROXY_ADMIN_URL")) {
-        cy.request({ url: nextActionUrl, failOnStatusCode: false, followRedirect: false });
+        cy.request({
+          url: nextActionUrl,
+          failOnStatusCode: false,
+          followRedirect: false,
+        });
       }
       return;
     }
@@ -5326,8 +5359,15 @@ Cypress.Commands.add(
 
       const expectedUrl = new URL(expectedRedirection);
       const redirectionUrl = new URL(nextActionUrl);
-      handleRedirection("bank_redirect", { redirectionUrl, expectedUrl }, connectorId, paymentMethodType);
-      cy.then(() => { if (Cypress._buildRequestId) Cypress._buildRequestId(); });
+      handleRedirection(
+        "bank_redirect",
+        { redirectionUrl, expectedUrl },
+        connectorId,
+        paymentMethodType
+      );
+      cy.then(() => {
+        if (Cypress._buildRequestId) Cypress._buildRequestId();
+      });
       return;
     }
 
@@ -5337,26 +5377,49 @@ Cypress.Commands.add(
       const baseUrl = globalState.get("baseUrl");
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
       const seq = nextRedirectSeq(testIdHash);
-      const redirectBodyFile = getRedirectBodyFile(connectorId, testIdHash, seq);
+      const redirectBodyFile = getRedirectBodyFile(
+        connectorId,
+        testIdHash,
+        seq
+      );
       const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
       const jsConnector = JS_IFRAME_CONNECTORS[connectorId];
 
       if (jsConnector) {
-        const hyperswitchUrl = Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
+        const hyperswitchUrl =
+          Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
         cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
-          if (saved && saved.__redirect_method === "GET" && saved.__redirect_segment) {
+          if (
+            saved &&
+            saved.__redirect_method === "GET" &&
+            saved.__redirect_segment
+          ) {
             const url = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`;
             const qs = new URLSearchParams(saved.__query || {}).toString();
-            cy.request({ method: "GET", url: qs ? `${url}?${qs}` : url, failOnStatusCode: false, followRedirect: false });
+            cy.request({
+              method: "GET",
+              url: qs ? `${url}?${qs}` : url,
+              failOnStatusCode: false,
+              followRedirect: false,
+            });
           } else {
             const returnUrl = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${jsConnector.path}/${connectorId}`;
             const params = jsConnector.params(globalState);
-            const hasValues = Object.values(params).every((v) => v !== undefined && v !== null);
+            const hasValues = Object.values(params).every(
+              (v) => v !== undefined && v !== null
+            );
             if (hasValues) {
               const qs = new URLSearchParams(params).toString();
-              cy.request({ method: "GET", url: `${returnUrl}?${qs}`, failOnStatusCode: false, followRedirect: false });
+              cy.request({
+                method: "GET",
+                url: `${returnUrl}?${qs}`,
+                failOnStatusCode: false,
+                followRedirect: false,
+              });
             } else {
-              cy.then(() => { if (Cypress._buildRequestId) Cypress._buildRequestId(); });
+              cy.then(() => {
+                if (Cypress._buildRequestId) Cypress._buildRequestId();
+              });
             }
           }
         });
@@ -5375,7 +5438,12 @@ Cypress.Commands.add(
 
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
-    handleRedirection("bank_redirect", { redirectionUrl, expectedUrl }, connectorId, paymentMethodType);
+    handleRedirection(
+      "bank_redirect",
+      { redirectionUrl, expectedUrl },
+      connectorId,
+      paymentMethodType
+    );
   }
 );
 
