@@ -203,6 +203,9 @@ const CURRENCY_MAP = {
   Paypal: "EUR",
   MbWay: "EUR",
   Mifinity: "EUR", // Mifinity wallet payment method
+  Alma: "EUR", // French pay_later
+  Atome: "SGD", // Singapore pay_later
+  Walley: "SEK", // Swedish pay_later
 
   // Voucher payment methods
   Boleto: "BRL",
@@ -217,7 +220,18 @@ const CURRENCY_MAP = {
   PayEasy: "JPY",
   Skrill: "USD", // Skrill wallet payment method
   PaySafeCard: "USD", // PaySafeCard gift card payment method
+
+  // Wallet redirect and mandate payment methods
   PaypalRedirect: "USD",
+
+  // Wallet mandate payment methods
+  KakaoPay: "KRW",
+  Gcash: "PHP",
+  Momo: "VND",
+  Twint: "CHF",
+  Vipps: "NOK",
+  Dana: "IDR",
+  GoPay: "IDR",
 };
 
 export const getCurrency = (paymentMethodType) => {

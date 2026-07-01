@@ -849,8 +849,9 @@ pub async fn payouts_list_core(
 
     for payout in payouts {
         match db
-            .find_payout_attempt_by_merchant_id_payout_attempt_id(
+            .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
                 merchant_id,
+                &payout.payout_id,
                 &utils::get_payout_attempt_id(
                     payout.payout_id.get_string_repr(),
                     payout.attempt_count,
@@ -2444,7 +2445,9 @@ pub async fn create_recipient_disburse_account(
                     let pm_update =
                         diesel_models::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                             #[cfg(feature = "v1")]
-                            connector_mandate_details: Some(connector_mandate_details_value),
+                            connector_mandate_details: Some(Secret::new(
+                                connector_mandate_details_value,
+                            )),
 
                             #[cfg(feature = "v2")]
                             connector_mandate_details: Some(common_connector_mandate),
@@ -3366,8 +3369,9 @@ pub async fn make_payout_data(
         utils::get_payout_attempt_id(payouts.payout_id.get_string_repr(), payouts.attempt_count);
 
     let mut payout_attempt = db
-        .find_payout_attempt_by_merchant_id_payout_attempt_id(
+        .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
             merchant_id,
+            &payouts.payout_id,
             &payout_attempt_id,
             platform.get_processor().get_account().storage_scheme,
         )
@@ -3903,8 +3907,9 @@ pub async fn payouts_manual_update_core(
 
         let payout_attempt = state
             .store
-            .find_payout_attempt_by_merchant_id_payout_attempt_id(
+            .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
                 &merchant_id,
+                &payout_id,
                 &payout_attempt_id,
                 merchant_account.storage_scheme,
             )

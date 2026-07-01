@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 #[cfg(feature = "v1")]
 use api_models::payment_methods::Card;
 use common_utils::{
-    ext_traits::{Encode, OptionExt, StringExt, ValueExt},
+    ext_traits::{OptionExt, StringExt, ValueExt},
     id_type,
 };
 use error_stack::ResultExt;
@@ -19,7 +19,7 @@ use crate::core::payment_methods::{
     add_payment_method_to_legacy_locker, update_metadata_changed_payment_method_in_legacy_locker,
 };
 use crate::{
-    core::payment_methods::{cards, vault},
+    core::payment_methods::{cards, utils as payment_method_utils, vault},
     errors,
     logger::{self, error},
     routes::{app::StorageInterface, SessionState},
@@ -390,18 +390,27 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
             };
 
             if !legacy_card_exists {
-                let vault_request = pm_types::GenericVaultRetrieveRequest {
-                    entity_id: customer_id.clone(),
-                    vault_id: domain::VaultId::generate(card_reference.clone()),
-                };
-                let payload = vault_request
-                .encode_to_vec()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
+                let should_trigger_fingerprint_migration =
+                    payment_method_utils::get_should_trigger_fingerprint_migration(
+                        state,
+                        Some(&customer_id),
+                        hyperswitch_domain_models::platform::ProviderMerchantId::from_merchant_id(
+                            merchant_id.clone(),
+                        ),
+                    )
+                    .await;
+
+                let payload = cards::encode_vault_retrieve_request(
+                    should_trigger_fingerprint_migration,
+                    merchant_id.clone(),
+                    &customer_id,
+                    &card_reference,
+                )
                 .attach_printable(
                     "Failed to encode generic locker retrieve request in backward compatibility PT",
                 )?;
                 let vault_response = vault::call_to_vault::<pm_types::VaultRetrieve>(
-                    state, payload, None,
+                    state, payload, None, None,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -574,21 +583,20 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
                 "Skipping legacy locker card backfill in modular backward compatibility inline flow"
             );
         } else {
-            let customer_id = payment_method
-            .customer_id
-            .clone()
-            .get_required_value("customer_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "customer_id not found for card payment method in backward compatibility inline flow",
-            )
-            .and_then(|customer_id| {
-                id_type::CustomerId::try_from(customer_id)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to convert global customer id for backward compatibility inline flow",
-                    )
-            })?;
+            let pm_customer_id = payment_method
+                .customer_id
+                .clone()
+                .get_required_value("customer_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "customer_id not found for card payment method in backward compatibility inline flow",
+                )?;
+
+            let customer_id = id_type::CustomerId::try_from(pm_customer_id.clone())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to convert global customer id for backward compatibility inline flow",
+                )?;
 
             let card_reference = payment_method
                 .locker_id
@@ -627,19 +635,25 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
             };
 
             if !legacy_card_exists {
-                let vault_request = pm_types::GenericVaultRetrieveRequest {
-                    entity_id: customer_id.clone(),
-                    vault_id: domain::VaultId::generate(card_reference.clone()),
-                };
-                let payload = vault_request
-                .encode_to_vec()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
+                let should_trigger_fingerprint_migration =
+                    payment_method_utils::get_should_trigger_fingerprint_migration(
+                        state,
+                        None,
+                        platform.get_provider().get_provider_merchant_id(),
+                    )
+                    .await;
+
+                let payload = cards::encode_vault_retrieve_request(
+                    should_trigger_fingerprint_migration,
+                    platform.get_provider().get_account().get_id().clone(),
+                    &pm_customer_id,
+                    &card_reference,
+                )
                 .attach_printable(
                     "Failed to encode generic locker retrieve request in backward compatibility inline flow",
                 )?;
-                let vault_response = vault::call_to_vault::<pm_types::VaultRetrieve>(
-                state, payload, None,
-            )
+                let vault_response =
+                    vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None, None)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
@@ -668,10 +682,7 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
                     platform,
                     &stored_pm_resp.data,
                     Some(domain::VaultId::generate(card_reference.clone())),
-                    payment_method
-                        .customer_id
-                        .as_ref()
-                        .get_required_value("customer_id")?,
+                    &pm_customer_id,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -702,10 +713,7 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
                     platform,
                     &stored_pm_resp.data,
                     Some(domain::VaultId::generate(card_reference.clone())),
-                    payment_method
-                        .customer_id
-                        .as_ref()
-                        .get_required_value("customer_id")?,
+                    &pm_customer_id,
                     old_card_reference.clone(),
                 )
                 .await

@@ -1,5 +1,9 @@
-import { cardRequiredField, customerAcceptance } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
+import {
+  cardRequiredField,
+  customerAcceptance,
+  standardBillingAddress,
+} from "./Commons";
+import { getCustomExchange, getCurrency } from "./Modifiers";
 
 // Test card details for successful non-3DS transactions
 // Based on Global Payments test cards
@@ -1035,6 +1039,72 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    PaypalRedirect: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        billing: standardBillingAddress,
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method_type: "paypal",
+          connector: "globalpay",
+        },
+      },
+    }),
+    PaypalRedirectMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        billing: standardBillingAddress,
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        setup_future_usage: "off_session",
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            single_use: {
+              amount: 8000,
+              currency: "EUR",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method_type: "paypal",
+          connector: "globalpay",
+        },
+      },
+    }),
   },
   pm_list: {
     PmListResponse: {

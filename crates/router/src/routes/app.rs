@@ -186,7 +186,12 @@ impl SessionState {
             ExecutionMode::Shadow => Some(true),
             ExecutionMode::NotApplicable => None,
         };
-        // For shadow mode, disable event publishing in UCS
+        // UCS selects the proxy to route through based on this header
+        let proxy_name = match unified_connector_service_execution_mode {
+            ExecutionMode::Primary => Some("primary"),
+            ExecutionMode::Shadow => Some("shadow"),
+            ExecutionMode::NotApplicable => None,
+        };
         let config_override = match unified_connector_service_execution_mode {
             ExecutionMode::Shadow => Some(
                 serde_json::json!({
@@ -202,6 +207,7 @@ impl SessionState {
             .tenant_id(tenant_id)
             .request_id(request_id)
             .shadow_mode(shadow_mode)
+            .proxy_name(proxy_name)
             .config_override(config_override)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -990,7 +996,9 @@ impl Payments {
                     web::resource("/{payment_id}/cancel").route(web::post().to(payments::payments_cancel)),
                 )
                 .service(
-                    web::resource("/{payment_id}/cancel_post_capture").route(web::post().to(payments::payments_cancel_post_capture)),
+                    web::resource("/{payment_id}/cancel_post_capture")
+                    .route(web::post().to(payments::payments_cancel_post_capture))
+                    .route(web::get().to(payments::payments_cancel_post_capture_retrieve))
                 )
                 .service(
                     web::resource("/{payment_id}/capture").route(web::post().to(payments::payments_capture)),
@@ -1004,12 +1012,16 @@ impl Payments {
                         .route(web::post().to(payments::payments_reject)),
                 )
                 .service(
-                    web::resource("/{payment_id}/eligibility")
-                        .route(web::post().to(payments::payments_submit_eligibility)),
+                    web::resource("/{payment_id}/eligibility_check")
+                        .route(web::post().to(payments::payments_submit_eligibility_check)),
                 )
                 .service(
                     web::resource("/{payment_id}/client")
                         .route(web::get().to(payment_methods::list_payment_methods_for_payments_client)),
+                )
+                .service(
+                    web::resource("/{payment_id}/eligibility")
+                        .route(web::post().to(payments::payments_submit_eligibility)),
                 )
                 .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
@@ -1411,18 +1423,26 @@ impl Customers {
         }
         #[cfg(all(feature = "oltp", feature = "v2"))]
         {
-            route = route
-                .service(web::resource("").route(web::post().to(customers::customers_create)))
-                .service(
-                    web::resource("/{id}")
-                        .route(web::put().to(customers::customers_update))
-                        .route(web::get().to(customers::customers_retrieve))
-                        .route(web::delete().to(customers::customers_delete)),
-                )
-                .service(
-                    web::resource("/{customer_id}/payment-methods/{payment_method_id}/default")
-                        .route(web::post().to(payment_methods::default_payment_method_set_api)),
-                )
+            route =
+                route
+                    .service(web::resource("").route(web::post().to(customers::customers_create)))
+                    .service(
+                        web::resource("/migrate/global-id")
+                            .route(web::post().to(customers::migrate::migrate_global_id)),
+                    )
+                    .service(web::resource("/reference/{merchant_reference_id}").route(
+                        web::get().to(customers::customers_retrieve_by_merchant_reference_id),
+                    ))
+                    .service(
+                        web::resource("/{id}")
+                            .route(web::put().to(customers::customers_update))
+                            .route(web::get().to(customers::customers_retrieve))
+                            .route(web::delete().to(customers::customers_delete)),
+                    )
+                    .service(
+                        web::resource("/{customer_id}/payment-methods/{payment_method_id}/default")
+                            .route(web::post().to(payment_methods::default_payment_method_set_api)),
+                    )
         }
         route
     }
@@ -1717,6 +1737,10 @@ impl PaymentMethods {
                 .service(
                     web::resource("/batch")
                         .route(web::get().to(payment_methods::payment_methods_batch_retrieve_api)),
+                )
+                .service(
+                    web::resource("/fingerprint/migrate-batch")
+                        .route(web::post().to(payment_methods::modular_migrate_payment_methods)),
                 )
                 .service(
                     web::resource("/tokenize-card")
@@ -3386,8 +3410,12 @@ impl SdkConfig {
         web::scope("/v1/sdk/configs")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("{profile_id}/{platform}/{sdk_config.json}")
+                web::resource("{platform}/sdk_config.json")
                     .route(web::get().to(super::superposition_sdk_config::get_sdk_config)),
+            )
+            .service(
+                web::resource("{platform}/{profile_id}/sdk_config.json")
+                    .route(web::get().to(super::superposition_sdk_config::get_profile_sdk_config)),
             )
     }
 }

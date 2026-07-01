@@ -10,7 +10,7 @@ use scheduler::{
 #[cfg(feature = "v1")]
 use crate::types::payment_methods as pm_types;
 use crate::{
-    core::payment_methods::{cards, vault},
+    core::payment_methods::{cards, utils as payment_method_utils, vault},
     errors,
     logger::{self, error},
     routes::{app::StorageInterface, SessionState},
@@ -274,6 +274,7 @@ impl ForwardCompatWorkflowBuilder<ForwardDbCompatPrepared> {
 
             Self::upsert_payment_method_to_generic_vault(
                 state,
+                &merchant_id,
                 &customer_id,
                 domain::VaultId::generate(card_reference),
                 &pmd,
@@ -328,6 +329,7 @@ impl ForwardCompatWorkflowBuilder<ForwardDbCompatPrepared> {
 
             Self::upsert_payment_method_to_generic_vault(
                 state,
+                &merchant_id,
                 &customer_id,
                 domain::VaultId::generate(network_token_locker_id),
                 &network_token_pmd,
@@ -365,11 +367,12 @@ impl ForwardCompatWorkflowBuilder<ForwardDbCompatPrepared> {
             .attach_printable("Failed to encode VaultFingerprintRequest")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None)
-            .await
-            .change_context(errors::VaultError::VaultAPIError)
-            .attach_printable("Call to vault failed")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let resp =
+            vault::call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None, None)
+                .await
+                .change_context(errors::VaultError::VaultAPIError)
+                .attach_printable("Call to vault failed")
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
             .parse_struct("VaultFingerprintResponse")
@@ -382,25 +385,35 @@ impl ForwardCompatWorkflowBuilder<ForwardDbCompatPrepared> {
 
     async fn upsert_payment_method_to_generic_vault(
         state: &SessionState,
+        merchant_id: &common_utils::id_type::MerchantId,
         customer_id: &common_utils::id_type::CustomerId,
         vault_id: domain::VaultId,
         data: &hyperswitch_domain_models::vault::PaymentMethodVaultingData,
     ) -> Result<(), errors::ProcessTrackerError> {
-        let payload = pm_types::AddCompatVaultRequest {
-            entity_id: customer_id.clone(),
-            vault_id,
-            data,
-            ttl: state.conf.locker.ttl_for_storage_in_secs,
-        }
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode AddVaultRequest")
+        let should_trigger_fingerprint_migration =
+            payment_method_utils::get_should_trigger_fingerprint_migration(
+                state,
+                Some(customer_id),
+                hyperswitch_domain_models::platform::ProviderMerchantId::from_merchant_id(
+                    merchant_id.clone(),
+                ),
+            )
+            .await;
+
+        let payload = cards::encode_add_vault_request(
+            should_trigger_fingerprint_migration,
+            merchant_id.clone(),
+            customer_id,
+            data.clone(),
+            state.conf.locker.ttl_for_storage_in_secs,
+            Some(vault_id),
+        )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to add payment method in generic locker in compatibility PT")?;
 
         let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Upsert));
 
-        let resp = vault::call_to_vault::<pm_types::AddVault>(state, payload, query_params)
+        let resp = vault::call_to_vault::<pm_types::AddVault>(state, payload, query_params, None)
             .await
             .change_context(errors::VaultError::VaultAPIError)
             .attach_printable("Call to vault failed")
@@ -409,10 +422,7 @@ impl ForwardCompatWorkflowBuilder<ForwardDbCompatPrepared> {
                 "Failed to add payment method in generic locker in compatibility PT",
             )?;
 
-        let _stored_pm_resp: serde_json::Value = resp
-            .parse_struct("ForwardCompatAddVaultResponse")
-            .change_context(errors::VaultError::ResponseDeserializationFailed)
-            .attach_printable("Failed to parse data into ForwardCompatAddVaultResponse")
+        let _vault_id = cards::parse_add_vault_response(should_trigger_fingerprint_migration, resp)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
                 "Failed to add payment method in generic locker in compatibility PT",

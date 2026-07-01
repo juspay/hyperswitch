@@ -39,6 +39,7 @@ pub use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
+use hyperswitch_interfaces::webhooks::WebhookResourceData;
 use hyperswitch_masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
 use serde::de::DeserializeOwned;
@@ -257,9 +258,10 @@ pub async fn find_payment_intent_from_refund_id_type(
             .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?,
     };
     let attempt = db
-        .find_payment_attempt_by_attempt_id_processor_merchant_id(
-            &refund.attempt_id,
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            &refund.payment_id,
             platform.get_processor().get_account().get_id(),
+            &refund.attempt_id,
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store(),
         )
@@ -327,6 +329,7 @@ pub async fn find_mca_from_authentication_id_type(
                 &authentication_id,
                 platform.get_processor().get_key_store(),
                 &state.into(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?,
@@ -336,6 +339,7 @@ pub async fn find_mca_from_authentication_id_type(
                 connector_authentication_id,
                 platform.get_processor().get_key_store(),
                 &state.into(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
@@ -380,9 +384,10 @@ pub async fn get_mca_from_payment_intent(
 
     #[cfg(feature = "v1")]
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_processor_merchant_id(
-            &payment_intent.active_attempt.get_id(),
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            &payment_intent.payment_id,
             platform.get_processor().get_account().get_id(),
+            &payment_intent.active_attempt.get_id(),
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store(),
         )
@@ -1198,7 +1203,8 @@ where
                     .collect()
             });
         let payment_id = payment_data.get_payment_intent().get_id().to_owned();
-        let created_by = payment_data.get_payment_attempt().created_by.clone();
+        let payment_attempt = payment_data.get_payment_attempt().clone();
+        let created_by = payment_attempt.created_by.clone();
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
             payment_data,
             captures,
@@ -1236,6 +1242,9 @@ where
                 tokio::spawn(
                     async move {
                         let primary_object_created_at = payments_response_json.created;
+                        let webhook_resource_data =
+                            WebhookResourceData::Payment { payment_attempt };
+
                         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                             cloned_state,
                             cloned_platform,
@@ -1248,6 +1257,8 @@ where
                             )),
                             primary_object_created_at,
                             webhook_recipient,
+                            Some(webhook_resource_data),
+                            business_profile,
                         ))
                         .await
                     }
@@ -1281,8 +1292,9 @@ pub async fn trigger_refund_outgoing_webhook(
     state: &SessionState,
     platform: &domain::Platform,
     refund: &diesel_models::Refund,
-    profile_id: id_type::ProfileId,
+    payment_attempt: &domain::PaymentAttempt,
 ) -> RouterResult<()> {
+    let profile_id = payment_attempt.profile_id.clone();
     let refund_status = refund.refund_status;
 
     let business_profile = state
@@ -1304,6 +1316,7 @@ pub async fn trigger_refund_outgoing_webhook(
         let refund_response: api_models::refunds::RefundResponse = refund.clone().foreign_into();
         let refund_id = refund_response.refund_id.clone();
         let cloned_state = state.clone();
+        let cloned_payment_attempt = payment_attempt.clone();
         let primary_object_created_at = refund_response.created_at;
         if let Some(outgoing_event_type) = event_type {
             let created_by = refund
@@ -1321,6 +1334,9 @@ pub async fn trigger_refund_outgoing_webhook(
             let cloned_platform = platform.clone();
             tokio::spawn(
                 async move {
+                    let webhook_resource_data = WebhookResourceData::Refund {
+                        payment_attempt: cloned_payment_attempt,
+                    };
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                         cloned_state,
                         cloned_platform,
@@ -1331,6 +1347,8 @@ pub async fn trigger_refund_outgoing_webhook(
                         webhooks::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
                         primary_object_created_at,
                         webhook_recipient,
+                        Some(webhook_resource_data),
+                        business_profile,
                     ))
                     .await
                 }
@@ -1417,6 +1435,8 @@ pub async fn trigger_payouts_webhook(
                         webhooks::OutgoingWebhookContent::PayoutDetails(Box::new(cloned_response)),
                         primary_object_created_at,
                         webhook_recipient,
+                        None,
+                        business_profile,
                     ))
                     .await
                 }
@@ -1472,6 +1492,7 @@ pub async fn trigger_subscriptions_outgoing_webhook(
     let cloned_state = state.clone();
     let invoice_id = invoice.id.get_string_repr().to_owned();
     let created_at = subscription.created_at;
+    let business_profile = profile.clone();
 
     tokio::spawn(async move {
         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
@@ -1484,6 +1505,8 @@ pub async fn trigger_subscriptions_outgoing_webhook(
             webhooks::OutgoingWebhookContent::SubscriptionDetails(Box::new(response)),
             Some(created_at),
             webhook_recipient,
+            None,
+            business_profile,
         ))
         .await
     });

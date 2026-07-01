@@ -1291,6 +1291,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Pix
                     | enums::PaymentMethodType::PixKey
                     | enums::PaymentMethodType::PixEmv
+                    | enums::PaymentMethodType::PixQr
                     | enums::PaymentMethodType::PixAutomaticoPush
                     | enums::PaymentMethodType::PixAutomaticoQr
                     | enums::PaymentMethodType::PaySafeCard
@@ -1444,6 +1445,7 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::MandiriVaBankTransfer { .. }
             | BankTransferData::Pix { .. }
             | BankTransferData::PixEmv {}
+            | BankTransferData::PixQr {}
             | BankTransferData::PixAutomaticoPush { .. }
             | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {}
@@ -1564,6 +1566,7 @@ impl
             session_token: credentials.get_client_id().clone().expose(),
             sdk_next_action: SdkNextAction {
                 next_action: NextActionCall::PostSessionTokens,
+                should_block_confirm: None,
             },
             client_token: None,
             data_user_id_token: response.id_token.clone().map(|id| id.expose()),
@@ -2225,7 +2228,12 @@ pub enum AuthenticationStatus {
 pub struct PaypalOrdersResponse {
     id: String,
     intent: PaypalPaymentIntent,
-    status: PaypalOrderStatus,
+    // PayPal can omit the top-level order `status` in some Orders v2 responses (observed in PSync
+    // for an order whose only capture was `DECLINED`). This field is kept optional so the response
+    // still deserializes when it is absent. The attempt status is not derived from this field
+    // anyway: for orders it is taken from the capture/authorization status inside `purchase_units`
+    // (see `TryFrom<ResponseRouterData<F, PaypalOrdersResponse, ..>>`).
+    status: Option<PaypalOrderStatus>,
     purchase_units: Vec<PurchaseUnitItem>,
     payment_source: Option<PaymentSourceItemResponse>,
     payer: Option<Payer>,
@@ -2416,6 +2424,9 @@ where
             _ => None,
         }
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        // Derive the attempt status from the capture/authorization status rather than the
+        // top-level order `status`, which PayPal may omit (e.g. a declined capture). For example a
+        // `DECLINED` capture maps to `AttemptStatus::Failure` and is handled by the branch below.
         let status = payment_collection_item.status.clone();
         let status = storage_enums::AttemptStatus::from(status);
 
@@ -3007,6 +3018,10 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalPayoutI
                 }
                 WalletPayout::ApplePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
                     message: "ApplePayDecrypt PayoutMethodType is not supported".to_string(),
+                    connector: "Paypal",
+                })?,
+                WalletPayout::GooglePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
+                    message: "GooglePayDecrypt PayoutMethodType is not supported".to_string(),
                     connector: "Paypal",
                 })?,
             },
@@ -3829,7 +3844,7 @@ impl TryFrom<(PaypalRedirectsWebhooks, PaypalWebhookEventType)> for PaypalOrders
         Ok(Self {
             id: webhook_body.id,
             intent: webhook_body.intent,
-            status: PaypalOrderStatus::try_from(webhook_event)?,
+            status: Some(PaypalOrderStatus::try_from(webhook_event)?),
             purchase_units: webhook_body.purchase_units,
             payment_source: None,
             payer: webhook_body.payer,

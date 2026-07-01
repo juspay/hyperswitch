@@ -88,6 +88,9 @@ const requiredFields = {
 export const connectorDetails = {
   real_time_payment_pm: {
     DuitNow: {
+      Configs: {
+        TRIGGER_SKIP: true, //Since fiuu follows a qr flow we are skipping the qr handling
+      },
       Request: {
         payment_method: "real_time_payment",
         payment_method_type: "duit_now",
@@ -439,10 +442,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -465,10 +466,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -607,10 +606,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -623,10 +620,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -739,10 +734,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
