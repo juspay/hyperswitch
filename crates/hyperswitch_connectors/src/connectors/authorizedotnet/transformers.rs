@@ -847,7 +847,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
                 TransactionRequest::try_from((item, connector_mandate_id))?
             }
             Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-            | Some(mandates::MandateReferenceId::CardWithLimitedData) => {
+            | Some(mandates::MandateReferenceId::CardWithLimitedData(_)) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                 ))?
