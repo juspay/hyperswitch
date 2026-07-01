@@ -695,7 +695,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                             }).is_some();
 
                         let payment_status = !matches!(
-                            authorize_router_data.status.to_storage().unwrap_or_default(),
+                            authorize_router_data
+                                .status
+                                .to_storage()
+                                .unwrap_or_default(),
                             common_enums::AttemptStatus::AuthenticationFailed
                                 | common_enums::AttemptStatus::Failure
                                 | common_enums::AttemptStatus::Charged

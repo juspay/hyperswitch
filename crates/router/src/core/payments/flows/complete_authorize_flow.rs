@@ -145,7 +145,10 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     self.request.customer_acceptance,
                     self.request.capture_method,
                     self.request.setup_future_usage,
-                    complete_authorize_router_data.status.to_storage().unwrap_or_default(),
+                    complete_authorize_router_data
+                        .status
+                        .to_storage()
+                        .unwrap_or_default(),
                 ) {
                     complete_authorize_router_data = Box::pin(process_capture_flow(
                         complete_authorize_router_data,
@@ -516,7 +519,10 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     ..
                 }) if redirection_data.is_none()
             ) && !matches!(
-                complete_authorize_router_data.status.to_storage().unwrap_or_default(),
+                complete_authorize_router_data
+                    .status
+                    .to_storage()
+                    .unwrap_or_default(),
                 common_enums::AttemptStatus::AuthenticationFailed
                     | common_enums::AttemptStatus::Failure
             );
