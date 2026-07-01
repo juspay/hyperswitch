@@ -1509,7 +1509,6 @@ trait OutgoingWebhookResponseHandlerV1 {
     >;
 }
 
-
 impl OutgoingWebhookResponseHandlerV1 for enums::WebhookDeliveryAttempt {
     async fn handle_success_response<R: WebhookDeliveryResponse>(
         &self,
@@ -1664,7 +1663,6 @@ impl WebhookNotificationHandlerV1 for types::InitialAttempt {
         .map(|error| report!(error))
     }
 }
-
 
 #[async_trait::async_trait]
 impl WebhookNotificationHandlerV1 for types::AutomaticRetry {
