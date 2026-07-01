@@ -1051,6 +1051,7 @@ jobs:
           ROUTER__TRACE_HEADER__ID_REUSE_STRATEGY: "use_incoming"
           ROUTER__SERVER__WORKERS: 4
           SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
+          RUST_MIN_STACK: 134217728
         shell: bash
         run: |
           MITM_CERT=$(sed 's/$/\\r\\n/' "$HOME/.mitmproxy/mitmproxy-ca-cert.pem" | tr -d '\n')
