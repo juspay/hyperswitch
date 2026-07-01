@@ -3419,3 +3419,33 @@ impl SdkConfig {
             )
     }
 }
+
+pub struct SuperpositionProxy;
+#[cfg(feature = "v1")]
+impl SuperpositionProxy {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v1/superposition")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/context")
+                    .route(web::get().to(super::superposition_proxy::list_contexts))
+                    .route(web::put().to(super::superposition_proxy::create_context)),
+            )
+            .service(
+                web::resource("/default-config")
+                    .route(web::get().to(super::superposition_proxy::list_default_configs)),
+            )
+            .service(
+                web::resource("/dimension")
+                    .route(web::get().to(super::superposition_proxy::list_dimensions)),
+            )
+            .service(
+                web::resource("/config/resolve/detailed")
+                    .route(web::post().to(super::superposition_proxy::resolve_detailed_config)),
+            )
+            .service(
+                web::resource("/audit")
+                    .route(web::get().to(super::superposition_proxy::list_audit_logs)),
+            )
+    }
+}
