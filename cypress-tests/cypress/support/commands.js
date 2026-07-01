@@ -5164,6 +5164,7 @@ Cypress.Commands.add(
     if (redirectProxyActive && !isMockServer()) {
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
       const redirectProxyAdminUrl = Cypress.env("REDIRECT_PROXY_ADMIN_URL");
+      const paymentId = globalState.get("paymentID");
 
       if (redirectProxyAdminUrl) {
         const currentStep = Cypress._getStepCounter
@@ -5175,7 +5176,7 @@ Cypress.Commands.add(
         cy.request({
           method: "POST",
           url: `${redirectProxyAdminUrl}/reserve`,
-          body: { rid: redirectRid, testIdHash },
+          body: { rid: redirectRid, testIdHash, paymentId },
           failOnStatusCode: false,
           timeout: 2000,
         });
@@ -5408,7 +5409,7 @@ Cypress.Commands.add(
           cy.request({
             method: "POST",
             url: `${redirectProxyAdminUrl}/reserve`,
-            body: { rid: redirectRid, testIdHash },
+            body: { rid: redirectRid, testIdHash, paymentId },
             failOnStatusCode: false,
             timeout: 2000,
           });

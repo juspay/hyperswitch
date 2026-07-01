@@ -33,7 +33,7 @@ UPSTREAM_PORT = int(os.environ.get("REDIRECT_PROXY_UPSTREAM_PORT", "8080"))
 _REDIRECT_COMPLETE_RE = re.compile(r"/redirect/(?:complete|response)/[^/?]+")
 
 _lock = threading.Lock()
-_reserved: dict[str, str] = {}
+_reserved: dict[str, dict] = {}
 _redirect_count: dict[str, int] = {}
 
 
@@ -128,17 +128,18 @@ class ProxyHandler(BaseHTTPRequestHandler):
             fwd[k] = v
 
         if is_redirect_complete:
-            with _lock:
-                entry = next(iter(_reserved.items()), None)
-                if entry:
-                    test_id_hash, rid = entry
-                    del _reserved[test_id_hash]
-                else:
-                    test_id_hash, rid = "", ""
+            # Extract payment_id from path: /payments/{payment_id}/{merchant_id}/redirect/...
+            parts = path_only.split("/")
+            payment_id = parts[2] if len(parts) > 2 else ""
 
-            if rid:
+            with _lock:
+                entry = _reserved.pop(payment_id, None)
+
+            if entry:
+                rid = entry["rid"]
+                test_id_hash = entry["testIdHash"]
                 fwd["X-Request-ID"] = rid
-                print(f"[redirect-proxy] injected RID {rid} for {self.command} {self.path}")
+                print(f"[redirect-proxy] injected RID {rid} for paymentId={payment_id}")
                 query_string = self.path.split("?", 1)[1] if "?" in self.path else ""
                 _save_redirect(
                     test_id_hash,
@@ -149,7 +150,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     self.headers.get("Content-Type", ""),
                 )
             else:
-                print(f"[redirect-proxy] WARNING: no reserved RID for {self.path}")
+                print(f"[redirect-proxy] WARNING: no reserved RID for paymentId={payment_id} path={self.path}")
 
         try:
             conn = http.client.HTTPConnection(UPSTREAM_HOST, UPSTREAM_PORT, timeout=30)
@@ -200,7 +201,6 @@ class AdminHandler(BaseHTTPRequestHandler):
         if self.path == "/test/start":
             test_id_hash = (data.get("testIdHash") or "").strip()
             with _lock:
-                _reserved.pop(test_id_hash, None)
                 _redirect_count.pop(test_id_hash, None)
             print(f"[redirect-proxy] test/start hash={test_id_hash or '(none)'}")
             self._json(200, {"ok": True})
@@ -208,13 +208,14 @@ class AdminHandler(BaseHTTPRequestHandler):
         elif self.path == "/reserve":
             rid = (data.get("rid") or "").strip()
             test_id_hash = (data.get("testIdHash") or "").strip()
-            if rid and test_id_hash:
+            payment_id = (data.get("paymentId") or "").strip()
+            if rid and test_id_hash and payment_id:
                 with _lock:
-                    _reserved[test_id_hash] = rid
-                print(f"[redirect-proxy] reserved {rid} for hash={test_id_hash}")
+                    _reserved[payment_id] = {"rid": rid, "testIdHash": test_id_hash}
+                print(f"[redirect-proxy] reserved {rid} for paymentId={payment_id} hash={test_id_hash}")
                 self._json(200, {"ok": True})
             else:
-                self._json(400, {"ok": False, "reason": "missing rid or testIdHash"})
+                self._json(400, {"ok": False, "reason": "missing rid, testIdHash, or paymentId"})
 
         else:
             self._json(404, {"error": "unknown path"})
