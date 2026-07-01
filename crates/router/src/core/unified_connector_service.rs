@@ -21,7 +21,6 @@ use external_services::grpc_client::{
     unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
     LineageIds,
 };
-use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails;
 use hyperswitch_domain_models::{
@@ -780,14 +779,12 @@ pub fn build_unified_connector_service_payment_method(
                     })
                 }
                 _ => {
-                    let card_exp_month = card
-                        .get_card_expiry_month_2_digit()
-                        .attach_printable("Failed to extract 2-digit expiry month from card")
-                        .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
-                            field_name: "card_exp_month",
-                        })?
-                        .peek()
-                        .to_string();
+                    // Forward the expiry month exactly as the cardholder provided it, mirroring
+                    // the Direct gateway (which uses the raw value) and the card expiry year sent
+                    // raw below. Pre-padding to two digits here diverged the UCS request from
+                    // Direct for connectors that format the expiry from the raw month
+                    // (e.g. authorizedotnet sent "2030-03" via UCS vs "2030-3" via Direct).
+                    let card_exp_month = card.card_exp_month.peek().to_string();
 
                     let card_network = card
                         .card_network
