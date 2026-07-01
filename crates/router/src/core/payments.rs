@@ -2418,9 +2418,15 @@ where
     D: OperationSessionGetters<F>,
 {
     logger::debug!("payment_intent.surcharge_applicable = true");
+    let payment_method_type_option = payment_data.get_payment_attempt().payment_method_type;
     let raw_card_key = payment_data
         .get_payment_method_data()
-        .and_then(helpers::get_key_params_for_surcharge_details)
+        .and_then(|payment_method_data| {
+            helpers::get_key_params_for_surcharge_details(
+                payment_method_data,
+                payment_method_type_option,
+            )
+        })
         .map(|(payment_method, payment_method_type, card_network)| {
             types::SurchargeKey::PaymentMethodData(
                 payment_method,
