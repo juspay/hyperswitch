@@ -2183,6 +2183,14 @@ pub async fn get_permanent_pm_id_from_temporary_token(
                 headers::X_PROFILE_ID.to_string(),
                 vault_profile_id.expose().into_masked(),
             ),
+            // The hyperswitch vault is the multi-tenant hyperswitch service itself; when called
+            // in-cluster (bypassing the ingress that would otherwise inject the tenant) the tenant
+            // must be forwarded explicitly, else the vault rejects the call with HE_05
+            // ("Missing Tenant ID in the request").
+            (
+                headers::X_TENANT_ID.to_string(),
+                state.tenant.tenant_id.get_string_repr().to_string().into(),
+            ),
         ])
         .build();
 
