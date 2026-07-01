@@ -1276,7 +1276,7 @@ impl Conversion for domain::Profile {
         ))?;
 
         // Construct the domain type
-        Ok(domain::ProfileSetter {
+        Ok(domain::ProfileDbBuilder {
             profile_id: item.profile_id,
             merchant_id: item.merchant_id,
             profile_name: item.profile_name,
@@ -2157,7 +2157,7 @@ impl Conversion for domain::Profile {
     {
         async {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(
-                domain::ProfileSetter {
+                domain::ProfileDbBuilder {
                     id: item.id,
                     merchant_id: item.merchant_id,
                     profile_name: item.profile_name,
