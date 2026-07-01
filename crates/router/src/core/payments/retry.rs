@@ -598,7 +598,12 @@ where
                 error_code: None,
                 error_message: None,
                 error_reason: None,
-                amount_capturable: if router_data.status.to_storage().unwrap_or_default().is_terminal_status() {
+                amount_capturable: if router_data
+                    .status
+                    .to_storage()
+                    .unwrap_or_default()
+                    .is_terminal_status()
+                {
                     Some(MinorUnit::new(0))
                 } else {
                     None
