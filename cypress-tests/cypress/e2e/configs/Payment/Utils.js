@@ -268,6 +268,9 @@ export function getValueByKey(jsonObject, key, keyNumber = 0) {
 }
 
 export const should_continue_further = (data) => {
+  if (!data) {
+    return false;
+  }
   const resData = data.Response || {};
   const configData = validateConfig(data.Configs) || {};
 
@@ -561,7 +564,7 @@ export const CONNECTOR_LISTS = {
     MBWAY_WALLET: ["multisafepay"],
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
-    PAYPAL_MANDATE: ["globalpay", "paypal"],
+    PAYPAL_MANDATE: ["globalpay", "novalnet", "paypal"],
     PAYPAL_WALLET_MANDATE: ["adyen"],
     KAKAO_PAY_WALLET_MANDATE: ["adyen"],
     GCASH_WALLET_MANDATE: ["adyen"],
@@ -604,6 +607,9 @@ export const CONNECTOR_LISTS = {
     EXTERNAL_THREE_DS: ["stripe", "finix"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     AFFIRM_PAY_LATER: ["affirm"],
+    AFTERPAY_CLEARPAY: ["adyen"],
+    ALMA: ["adyen"],
+    WALLEY: ["adyen"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
     VOUCHER: ["adyen", "dlocal"],
@@ -618,6 +624,7 @@ export const CONNECTOR_LISTS = {
       "affirm",
     ],
     AFFIRM: ["stripe"],
+    ATOME: ["adyen"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
@@ -666,6 +673,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
+    DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
     // Add more inclusion lists
   },
