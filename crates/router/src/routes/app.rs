@@ -469,9 +469,23 @@ impl AppState {
                 .map(Arc::new);
 
             #[allow(clippy::expect_used)]
-            let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
-                .await
-                .expect("Failed to create store");
+            let redis_event_emitter: Arc<
+                dyn common_utils::external_service::ExternalServiceEventEmitter,
+            > = if conf.events.emit_external_service_call_events {
+                Arc::new(event_handler.clone())
+            } else {
+                Arc::new(common_utils::external_service::NoOpEventEmitter)
+            };
+
+            #[allow(clippy::expect_used)]
+            let cache_store = get_cache_store(
+                &conf.clone(),
+                shut_down_signal,
+                testable,
+                redis_event_emitter,
+            )
+            .await
+            .expect("Failed to create store");
             let global_store: Box<dyn GlobalStorageInterface> =
                 Box::pin(Self::get_store_interface(
                     &storage_impl,

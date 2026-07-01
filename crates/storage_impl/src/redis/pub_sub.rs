@@ -28,7 +28,7 @@ pub trait PubSubInterface {
 impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
     #[inline]
     async fn subscribe(&self, channel: &str) -> error_stack::Result<(), redis_errors::RedisError> {
-        self.subscriber.subscribe(channel).await?;
+        redis_interface::RedisConnectionPool::subscribe(self.as_ref(), channel).await?;
 
         // Spawn only one thread handling all the published messages to different channels
         if self
@@ -67,13 +67,13 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
             tenant: self.key_prefix.clone(),
         };
 
-        self.publisher
-            .publish(
-                channel,
-                RedisValue::try_from(key).change_context(redis_errors::RedisError::PublishError)?,
-            )
-            .await
-            .change_context(redis_errors::RedisError::SubscribeError)
+        redis_interface::RedisConnectionPool::publish(
+            self.as_ref(),
+            channel,
+            RedisValue::try_from(key).change_context(redis_errors::RedisError::PublishError)?,
+        )
+        .await
+        .change_context(redis_errors::RedisError::SubscribeError)
     }
 
     #[inline]

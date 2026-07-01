@@ -95,9 +95,12 @@ impl MockDb {
             refunds: Default::default(),
             processes: Default::default(),
             redis: Arc::new(
-                RedisStore::new(redis)
-                    .await
-                    .change_context(StorageError::InitializationError)?,
+                RedisStore::new(
+                    redis,
+                    Arc::new(common_utils::external_service::NoOpEventEmitter),
+                )
+                .await
+                .change_context(StorageError::InitializationError)?,
             ),
             api_keys: Default::default(),
             ephemeral_keys: Default::default(),

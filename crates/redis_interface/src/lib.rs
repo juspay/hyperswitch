@@ -3,12 +3,15 @@
 //! By default the `redis-rs` crate is used. Enable the `fred` feature to switch.
 //!
 //! # Examples
-//! ```
+//! ```ignore
+//! use std::sync::Arc;
+//! use common_utils::external_service::NoOpEventEmitter;
 //! use redis_interface::{types::RedisSettings, RedisConnectionPool};
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let redis_conn = RedisConnectionPool::new(&RedisSettings::default()).await;
+//!     let emitter = Arc::new(NoOpEventEmitter);
+//!     let redis_conn = RedisConnectionPool::new(&RedisSettings::default(), emitter).await;
 //! }
 //! ```
 
@@ -22,6 +25,8 @@ compile_error!("Features \"fred\" and \"redis-rs\" are mutually exclusive — en
 pub mod constant;
 pub mod errors;
 pub(crate) mod metrics;
+#[cfg(any(feature = "fred", feature = "redis-rs"))]
+pub mod observability;
 pub mod types;
 
 #[cfg(feature = "fred")]
@@ -51,6 +56,17 @@ pub use module::redis_rs::{
 };
 
 pub use self::types::*;
+
+/// Wrap a Redis command body so it emits an `ExternalServiceCall` event on
+/// completion. Expands to `observability::observe($self, $cmd, async move
+/// $body).await`. Used in `module/redis_rs/commands.rs` on every public async
+/// command method.
+#[macro_export]
+macro_rules! observed {
+    ($self:expr, $cmd:expr, $body:block) => {
+        $crate::observability::observe($self, $cmd, async move $body).await
+    };
+}
 
 #[cfg(test)]
 mod test;

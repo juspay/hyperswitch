@@ -172,12 +172,18 @@ pub struct RedisConnectionPool {
     pub subscriber: Arc<SubscriberClient>,
     pub publisher: Arc<RedisClient>,
     pub is_redis_available: Arc<atomic::AtomicBool>,
+    pub(crate) event_emitter: Arc<dyn common_utils::external_service::ExternalServiceEventEmitter>,
 }
 
 impl RedisConnectionPool {
-    /// Create a new Redis connection
+    /// Create a new Redis connection.
+    ///
+    /// `event_emitter` is invoked for every Redis call this pool makes. Pass
+    /// `Arc::new(common_utils::external_service::NoOpEventEmitter)` to disable
+    /// emission (drainer, tests, or when the events flag is off).
     pub async fn new(
         conf: &crate::types::RedisSettings,
+        event_emitter: Arc<dyn common_utils::external_service::ExternalServiceEventEmitter>,
     ) -> CustomResult<Self, crate::errors::RedisError> {
         let redis_connection_url = match conf.cluster_enabled {
             true => format!(
@@ -260,6 +266,7 @@ impl RedisConnectionPool {
             subscriber: Arc::new(subscriber),
             publisher: Arc::new(publisher),
             key_prefix: String::default(),
+            event_emitter,
         })
     }
 
@@ -271,7 +278,32 @@ impl RedisConnectionPool {
             subscriber: Arc::clone(&self.subscriber),
             publisher: Arc::clone(&self.publisher),
             is_redis_available: Arc::clone(&self.is_redis_available),
+            event_emitter: Arc::clone(&self.event_emitter),
         }
+    }
+
+    pub async fn publish(
+        &self,
+        channel: &str,
+        message: RedisValue,
+    ) -> CustomResult<usize, crate::errors::RedisError> {
+        crate::observed!(self, "PUBLISH", {
+            self.publisher.publish(channel, message).await
+        })
+    }
+
+    pub async fn subscribe(&self, channel: &str) -> CustomResult<(), crate::errors::RedisError> {
+        // Emit only for the subscribe round trip. Delivered pub/sub messages
+        // are intentionally not emitted as Redis calls.
+        crate::observed!(self, "SUBSCRIBE", {
+            self.subscriber.subscribe(channel).await
+        })
+    }
+
+    pub async fn unsubscribe(&self, channel: &str) -> CustomResult<(), crate::errors::RedisError> {
+        crate::observed!(self, "UNSUBSCRIBE", {
+            self.subscriber.unsubscribe(channel).await
+        })
     }
 
     pub async fn on_error(&self, tx: tokio::sync::oneshot::Sender<()>) {

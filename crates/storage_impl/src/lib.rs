@@ -117,7 +117,16 @@ where
                 db_conf,
                 tenant_config,
                 encryption_key,
-                Self::cache_store(&cache_conf, cache_error_signal).await?,
+                // This DatabaseStore::new path doesn't have access to a real
+                // event emitter (the production path is `services::get_store`
+                // → `from_config` with an emitter chosen at app startup). No-op
+                // here keeps the trait surface stable.
+                Self::cache_store(
+                    &cache_conf,
+                    cache_error_signal,
+                    Arc::new(common_utils::external_service::NoOpEventEmitter),
+                )
+                .await?,
                 inmemory_cache_stream,
                 key_manager_state,
             )
@@ -183,8 +192,9 @@ impl<T: DatabaseStore> RouterStore<T> {
     pub async fn cache_store(
         cache_conf: &redis_interface::RedisSettings,
         cache_error_signal: tokio::sync::oneshot::Sender<()>,
+        event_emitter: Arc<dyn common_utils::external_service::ExternalServiceEventEmitter>,
     ) -> error_stack::Result<Arc<RedisStore>, StorageError> {
-        let cache_store = RedisStore::new(cache_conf)
+        let cache_store = RedisStore::new(cache_conf, event_emitter)
             .await
             .change_context(StorageError::InitializationError)
             .attach_printable("Failed to create cache store")?;
@@ -303,10 +313,13 @@ impl<T: DatabaseStore> RouterStore<T> {
     ) -> error_stack::Result<Self, StorageError> {
         // TODO: create an error enum and return proper error here
         let db_store = T::new(db_conf, tenant_config, true, key_manager_state.clone()).await?;
-        let cache_store = RedisStore::new(cache_conf)
-            .await
-            .change_context(StorageError::InitializationError)
-            .attach_printable("failed to create redis cache")?;
+        let cache_store = RedisStore::new(
+            cache_conf,
+            Arc::new(common_utils::external_service::NoOpEventEmitter),
+        )
+        .await
+        .change_context(StorageError::InitializationError)
+        .attach_printable("failed to create redis cache")?;
         Ok(Self {
             db_store,
             cache_store: Arc::new(cache_store),
