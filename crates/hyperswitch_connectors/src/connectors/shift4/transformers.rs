@@ -1099,7 +1099,8 @@ impl<T, F> TryFrom<ResponseRouterData<F, Shift4NonThreeDsResponse, T, PaymentsRe
                     .as_ref()
                     .and_then(|flow| flow.next_action.as_ref()),
                 item.response.status,
-            ).into(),
+            )
+            .into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id,
                 redirection_data: Box::new(

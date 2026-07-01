@@ -400,7 +400,8 @@ impl TryFrom<PaymentsResponseRouterData<KlarnaAuthResponse>>
                     status: get_fraud_status(
                         response.fraud_status.clone(),
                         item.data.request.is_auto_capture()?,
-                    ).into(),
+                    )
+                    .into(),
                     connector_response,
                     ..item.data
                 })
@@ -423,7 +424,8 @@ impl TryFrom<PaymentsResponseRouterData<KlarnaAuthResponse>>
                 status: get_checkout_status(
                     response.status.clone(),
                     item.data.request.is_auto_capture()?,
-                ).into(),
+                )
+                .into(),
                 connector_response: None,
                 ..item.data
             }),
@@ -587,7 +589,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, KlarnaPsyncResponse, T, PaymentsRespons
                 ..item.data
             }),
             KlarnaPsyncResponse::KlarnaCheckoutPSyncResponse(response) => Ok(Self {
-                status: get_checkout_status(response.status.clone(), response.options.auto_capture).into(),
+                status: get_checkout_status(response.status.clone(), response.options.auto_capture)
+                    .into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(response.order_id.clone()),
                     redirection_data: Box::new(None),

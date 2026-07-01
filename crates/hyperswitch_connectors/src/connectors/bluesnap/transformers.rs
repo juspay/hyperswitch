@@ -892,7 +892,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, BluesnapPaymentsResponse, T, PaymentsRe
             status: enums::AttemptStatus::foreign_try_from((
                 item.response.card_transaction_type,
                 item.response.processing_info.processing_status,
-            ))?.into(),
+            ))?
+            .into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.clone(),

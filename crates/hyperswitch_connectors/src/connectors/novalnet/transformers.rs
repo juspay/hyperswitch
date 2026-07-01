@@ -1313,7 +1313,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<NovalnetCaptureResponse>>
                 Ok(Self {
                     status: transaction_status
                         .map(common_enums::AttemptStatus::from)
-                        .unwrap_or(common_enums::AttemptStatus::Pending).into(),
+                        .unwrap_or(common_enums::AttemptStatus::Pending)
+                        .into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: transaction_id
                             .clone()

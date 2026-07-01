@@ -2756,7 +2756,8 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NuveiPaymentsResponse>>
                 response.transaction_type,
                 response.transaction_status,
                 response.status,
-            ).into(),
+            )
+            .into(),
             response: Ok(PaymentsResponseData::ThreeDSEnrollmentResponse {
                 enrolled_v2: is_enrolled_for_3ds,
                 related_transaction_id: response.transaction_id,
@@ -2788,7 +2789,8 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<NuveiPaymentsResponse>>
                 response.transaction_type,
                 response.transaction_status,
                 response.status,
-            ).into(),
+            )
+            .into(),
             response: Ok(PaymentsResponseData::ThreeDSEnrollmentResponse {
                 enrolled_v2: is_enrolled_for_3ds,
                 related_transaction_id: response.transaction_id,

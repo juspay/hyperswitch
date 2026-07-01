@@ -412,7 +412,8 @@ impl TryFrom<PaymentsResponseRouterData<GetnetPaymentsResponse>> for PaymentsAut
                 status: authorization_attempt_status_from_transaction_state(
                     payment_response.payment.transaction_state.clone(),
                     item.data.request.is_auto_capture()?,
-                ).into(),
+                )
+                .into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         payment_response.payment.transaction_id.clone(),
@@ -465,7 +466,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<GetnetPaymentsResponse>> for Payment
                 status: authorization_attempt_status_from_transaction_state(
                     payment_response.payment.transaction_state.clone(),
                     item.data.request.is_auto_capture()?,
-                ).into(),
+                )
+                .into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         payment_response.payment.transaction_id.clone(),
@@ -489,7 +491,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<GetnetPaymentsResponse>> for Payment
                         webhook_response.payment.transaction_state.clone(),
                         item.data.request.is_auto_capture()?,
                         webhook_response.payment.transaction_type.clone(),
-                    ).into(),
+                    )
+                    .into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(
                             webhook_response.payment.transaction_id.clone(),
@@ -639,7 +642,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<GetnetCaptureResponse>>
         item: PaymentsCaptureResponseRouterData<GetnetCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: capture_status_from_transaction_state(item.response.payment.transaction_state).into(),
+            status: capture_status_from_transaction_state(item.response.payment.transaction_state)
+                .into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.payment.transaction_id,
@@ -971,7 +975,8 @@ impl TryFrom<PaymentsCancelResponseRouterData<GetnetCancelResponse>> for Payment
         item: PaymentsCancelResponseRouterData<GetnetCancelResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: cancel_status_from_transaction_state(item.response.payment.transaction_state).into(),
+            status: cancel_status_from_transaction_state(item.response.payment.transaction_state)
+                .into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.payment.transaction_id,

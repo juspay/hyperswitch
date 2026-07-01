@@ -1003,7 +1003,8 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentsResponse>> for PaymentsAu
             status: get_paysafe_payment_status(
                 item.response.status,
                 item.data.request.capture_method,
-            ).into(),
+            )
+            .into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(None),
@@ -1735,7 +1736,8 @@ impl<F>
             status: get_paysafe_payment_status(
                 item.response.status,
                 item.data.request.capture_method,
-            ).into(),
+            )
+            .into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(None),

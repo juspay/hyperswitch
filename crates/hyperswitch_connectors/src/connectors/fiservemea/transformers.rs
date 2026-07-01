@@ -368,7 +368,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservemeaPaymentsResponse, T, Payments
                 item.response.transaction_status,
                 item.response.transaction_result,
                 item.response.transaction_type,
-            ).into(),
+            )
+            .into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.ipg_transaction_id),
                 redirection_data: Box::new(None),
