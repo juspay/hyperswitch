@@ -9,7 +9,7 @@ pub mod routes {
     use actix_web::{web, Responder, Scope};
     use analytics::{
         api_event::api_events_core,
-        connector_events::{connector_events_core, prism_connector_events_core},
+        connector_events::{connector_events_core, ConnectorEventSource},
         enums::AuthInfo,
         errors::AnalyticsError,
         lambda_utils::invoke_lambda,
@@ -3424,18 +3424,19 @@ pub mod routes {
         .await
     }
 
-    pub async fn get_profile_connector_events(
+    async fn connector_event_logs(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Query<api_models::analytics::connector_events::ConnectorEventsRequest>,
+        flow: AnalyticsFlow,
+        source: ConnectorEventSource,
     ) -> impl Responder {
-        let flow = AnalyticsFlow::GetConnectorEvents;
         Box::pin(api::server_wrap(
             flow,
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req, _| async move {
+            move |state, auth: AuthenticationData, req, _| async move {
                 #[cfg(feature = "v1")]
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 #[cfg(feature = "v2")]
@@ -3453,6 +3454,7 @@ pub mod routes {
                     &state.pool,
                     req,
                     auth.platform.get_processor().get_account().get_id(),
+                    source,
                 )
                 .await
                 .map(ApplicationResponse::Json)
@@ -3467,46 +3469,33 @@ pub mod routes {
         .await
     }
 
+    pub async fn get_profile_connector_events(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Query<api_models::analytics::connector_events::ConnectorEventsRequest>,
+    ) -> impl Responder {
+        connector_event_logs(
+            state,
+            req,
+            json_payload,
+            AnalyticsFlow::GetConnectorEvents,
+            ConnectorEventSource::Hyperswitch,
+        )
+        .await
+    }
+
     pub async fn get_profile_prism_connector_events(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Query<api_models::analytics::connector_events::ConnectorEventsRequest>,
     ) -> impl Responder {
-        let flow = AnalyticsFlow::GetPrismConnectorEvents;
-        Box::pin(api::server_wrap(
-            flow,
+        connector_event_logs(
             state,
-            &req,
-            json_payload.into_inner(),
-            |state, auth: AuthenticationData, req, _| async move {
-                #[cfg(feature = "v1")]
-                let profile_id = auth.profile.map(|profile| profile.get_id().clone());
-                #[cfg(feature = "v2")]
-                let profile_id = Some(auth.profile.get_id().clone());
-                utils::check_if_profile_id_is_present_in_intent_table(
-                    req.payment_id.clone(),
-                    req.payout_id.clone(),
-                    &state,
-                    auth.platform.get_processor(),
-                    profile_id,
-                )
-                .await
-                .change_context(AnalyticsError::AccessForbiddenError)?;
-                prism_connector_events_core(
-                    &state.pool,
-                    req,
-                    auth.platform.get_processor().get_account().get_id(),
-                )
-                .await
-                .map(ApplicationResponse::Json)
-            },
-            &auth::JWTAuth {
-                permission: Permission::ProfileAnalyticsRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
-            api_locking::LockAction::NotApplicable,
-        ))
+            req,
+            json_payload,
+            AnalyticsFlow::GetPrismConnectorEvents,
+            ConnectorEventSource::Prism,
+        )
         .await
     }
 

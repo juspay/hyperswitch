@@ -2,30 +2,17 @@ use api_models::analytics::connector_events::ConnectorEventsRequest;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 
-use super::events::{get_connector_events, ConnectorEventsResult};
+use super::{
+    events::{get_connector_events, ConnectorEventsResult},
+    ConnectorEventSource,
+};
 use crate::{errors::AnalyticsResult, types::FiltersError, AnalyticsProvider};
 
 pub async fn connector_events_core(
     pool: &AnalyticsProvider,
     req: ConnectorEventsRequest,
     merchant_id: &common_utils::id_type::MerchantId,
-) -> AnalyticsResult<Vec<ConnectorEventsResult>> {
-    connector_events_core_inner(pool, req, merchant_id, false).await
-}
-
-pub async fn prism_connector_events_core(
-    pool: &AnalyticsProvider,
-    req: ConnectorEventsRequest,
-    merchant_id: &common_utils::id_type::MerchantId,
-) -> AnalyticsResult<Vec<ConnectorEventsResult>> {
-    connector_events_core_inner(pool, req, merchant_id, true).await
-}
-
-async fn connector_events_core_inner(
-    pool: &AnalyticsProvider,
-    req: ConnectorEventsRequest,
-    merchant_id: &common_utils::id_type::MerchantId,
-    use_prism_tables: bool,
+    source: ConnectorEventSource,
 ) -> AnalyticsResult<Vec<ConnectorEventsResult>> {
     let data = match pool {
         AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented(
@@ -35,7 +22,7 @@ async fn connector_events_core_inner(
         AnalyticsProvider::Clickhouse(ckh_pool)
         | AnalyticsProvider::CombinedSqlx(_, ckh_pool)
         | AnalyticsProvider::CombinedCkh(_, ckh_pool) => {
-            get_connector_events(merchant_id, req, ckh_pool, use_prism_tables).await
+            get_connector_events(merchant_id, req, ckh_pool, source).await
         }
     }
     .switch()?;

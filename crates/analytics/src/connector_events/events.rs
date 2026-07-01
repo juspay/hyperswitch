@@ -3,6 +3,7 @@ use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
+use super::ConnectorEventSource;
 use crate::{
     query::{Aggregate, GroupByClause, QueryBuilder, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, FiltersError, FiltersResult, LoadRow},
@@ -13,7 +14,7 @@ pub async fn get_connector_events<T>(
     merchant_id: &common_utils::id_type::MerchantId,
     query_param: ConnectorEventsRequest,
     pool: &T,
-    use_prism_tables: bool,
+    source: ConnectorEventSource,
 ) -> FiltersResult<Vec<ConnectorEventsResult>>
 where
     T: AnalyticsDataSource + ConnectorEventLogAnalytics,
@@ -23,13 +24,20 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
-    let mut query_builder: QueryBuilder<T> =
-        match (use_prism_tables, query_param.payment_id.as_ref()) {
-            (true, Some(_)) => QueryBuilder::new(AnalyticsCollection::PrismConnectorEvents),
-            (true, None) => QueryBuilder::new(AnalyticsCollection::PrismConnectorPayoutEvents),
-            (false, Some(_)) => QueryBuilder::new(AnalyticsCollection::ConnectorEvents),
-            (false, None) => QueryBuilder::new(AnalyticsCollection::ConnectorPayoutEvents),
-        };
+    let mut query_builder: QueryBuilder<T> = match (source, query_param.payment_id.as_ref()) {
+        (ConnectorEventSource::Prism, Some(_)) => {
+            QueryBuilder::new(AnalyticsCollection::PrismConnectorEvents)
+        }
+        (ConnectorEventSource::Prism, None) => {
+            QueryBuilder::new(AnalyticsCollection::PrismConnectorPayoutEvents)
+        }
+        (ConnectorEventSource::Hyperswitch, Some(_)) => {
+            QueryBuilder::new(AnalyticsCollection::ConnectorEvents)
+        }
+        (ConnectorEventSource::Hyperswitch, None) => {
+            QueryBuilder::new(AnalyticsCollection::ConnectorPayoutEvents)
+        }
+    };
     query_builder.add_select_column("*").switch()?;
 
     query_builder
