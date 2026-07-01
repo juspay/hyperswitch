@@ -2386,10 +2386,7 @@ where
     D: OperationSessionGetters<F>,
 {
     logger::debug!("payment_intent.surcharge_applicable = true");
-    let payment_method_type_option = payment_data
-        .get_payment_attempt()
-        .payment_method_type
-        .clone();
+    let payment_method_type_option = payment_data.get_payment_attempt().payment_method_type;
     let raw_card_key = payment_data
         .get_payment_method_data()
         .and_then(|payment_method_data| {
