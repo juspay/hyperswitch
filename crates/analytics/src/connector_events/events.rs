@@ -83,7 +83,6 @@ pub struct ConnectorEventsResult {
     pub payout_id: Option<String>,
     pub connector_name: Option<String>,
     pub request_id: Option<String>,
-    pub url: Option<String>,
     pub flow: String,
     pub request: String,
     #[serde(rename = "masked_response")]
@@ -91,9 +90,6 @@ pub struct ConnectorEventsResult {
     pub error: Option<String>,
     pub status_code: u16,
     pub latency: Option<u128>,
-    pub tenant_id: Option<String>,
-    pub service_name: Option<String>,
-    pub execution_mode: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     pub method: Option<String>,
