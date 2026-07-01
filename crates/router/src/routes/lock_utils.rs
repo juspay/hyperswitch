@@ -132,6 +132,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
             Flow::PaymentMethodsCreate
             | Flow::PaymentMethodsMigrate
+            | Flow::ModularPaymentMethodsMigrate
             | Flow::PaymentMethodsBatchUpdate
             | Flow::PaymentMethodsBatchRetrieve
             | Flow::PaymentMethodsList
