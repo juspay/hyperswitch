@@ -335,7 +335,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
                 Ok(Self {
-                    status: enums::AttemptStatus::AuthenticationPending, // Redirect is always expected after success response
+                    status: enums::AttemptStatus::AuthenticationPending.into(), // Redirect is always expected after success response
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::NoResponseId,
                         redirection_data: Box::new(Some(RedirectForm::Form {
@@ -357,7 +357,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
             } else {
                 // When the signature check fails
                 Ok(Self {
-                    status: enums::AttemptStatus::Failure,
+                    status: enums::AttemptStatus::Failure.into(),
                     response: Err(ErrorResponse {
                         code: NO_ERROR_CODE.to_string(),
                         message: auth_error::INVALID_SIGNATURE.to_string(),
@@ -378,7 +378,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
             let error_reason =
                 ZslResponseStatus::try_from(item.response.status.clone())?.to_string();
             Ok(Self {
-                status: enums::AttemptStatus::Failure,
+                status: enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: item.response.status.clone(),
                     message: error_reason.clone(),
@@ -443,7 +443,7 @@ impl<F> TryFrom<ResponseRouterData<F, ZslWebhookResponse, PaymentsSyncData, Paym
 
         if item.response.status == "0" {
             Ok(Self {
-                status: enums::AttemptStatus::Charged,
+                status: enums::AttemptStatus::Charged.into(),
                 amount_captured: Some(paid_amount),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(item.response.txn_id.clone()),
@@ -463,7 +463,7 @@ impl<F> TryFrom<ResponseRouterData<F, ZslWebhookResponse, PaymentsSyncData, Paym
             let error_reason =
                 ZslResponseStatus::try_from(item.response.status.clone())?.to_string();
             Ok(Self {
-                status: enums::AttemptStatus::Failure,
+                status: enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: item.response.status.clone(),
                     message: error_reason.clone(),

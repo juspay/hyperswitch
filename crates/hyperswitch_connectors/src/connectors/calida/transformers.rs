@@ -266,7 +266,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CalidaPaymentsResponse, T, PaymentsResp
         let url = item.response.payment_link.clone();
         let redirection_data = Some(RedirectForm::from((url, Method::Get)));
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: common_enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order_id),
                 redirection_data: Box::new(redirection_data),
@@ -292,7 +292,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CalidaSyncResponse, T, PaymentsResponse
         item: ResponseRouterData<F, CalidaSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: common_enums::AttemptStatus::from(item.response.status).into(),
             response: item.data.response,
             ..item.data
         })

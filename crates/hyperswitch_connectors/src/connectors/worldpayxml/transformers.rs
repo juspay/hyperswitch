@@ -885,7 +885,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
             charges: None,
         });
         Ok(Self {
-            status: common_enums::AttemptStatus::DeviceDataCollectionPending,
+            status: common_enums::AttemptStatus::DeviceDataCollectionPending.into(),
             response,
             ..item.data
         })
@@ -1724,7 +1724,7 @@ impl<F>
                         .map_err(|err| *err);
 
                         Ok(Self {
-                            status,
+                            status: status.into(),
                             response,
                             ..item.data
                         })
@@ -1785,7 +1785,7 @@ impl<F>
                 )?;
 
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(data.order_code.clone()),
                         redirection_data: Box::new(None),
@@ -2048,7 +2048,7 @@ impl<F>
                 )
                 .map_err(|err| *err);
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -2124,7 +2124,7 @@ impl<F>
                 });
 
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -2136,7 +2136,7 @@ impl<F>
                         ))?;
 
                 Ok(Self {
-                    status: common_enums::AttemptStatus::Failure,
+                    status: common_enums::AttemptStatus::Failure.into(),
                     response: Err(ErrorResponse {
                         code: error.code,
                         message: error.message.clone(),
@@ -2160,7 +2160,7 @@ impl<F>
                     bytes::Bytes::from("Missing  reply.error".to_string()),
                 ))?;
             Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: error.code,
                     message: error.message.clone(),
@@ -2400,7 +2400,7 @@ impl<F>
                 )
                 .map_err(|err| *err);
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -2412,7 +2412,7 @@ impl<F>
                         ))?;
 
                 Ok(Self {
-                    status: common_enums::AttemptStatus::Failure,
+                    status: common_enums::AttemptStatus::Failure.into(),
                     response: Err(ErrorResponse {
                         code: error.code,
                         message: error.message.clone(),
@@ -2436,7 +2436,7 @@ impl<F>
                     bytes::Bytes::from("Missing  reply.error".to_string()),
                 ))?;
             Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: error.code,
                     message: error.message.clone(),
@@ -2494,7 +2494,7 @@ impl<F>
                 )
                 .map_err(|err| *err);
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -2570,7 +2570,7 @@ impl<F>
                 });
 
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -2582,7 +2582,7 @@ impl<F>
                         ))?;
 
                 Ok(Self {
-                    status: common_enums::AttemptStatus::Failure,
+                    status: common_enums::AttemptStatus::Failure.into(),
                     response: Err(ErrorResponse {
                         code: error.code,
                         message: error.message.clone(),
@@ -2606,7 +2606,7 @@ impl<F>
                     bytes::Bytes::from("Missing  reply.error".to_string()),
                 ))?;
             Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: error.code,
                     message: error.message.clone(),
@@ -2641,7 +2641,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentService>> for PaymentsCapt
         if let Some(capture_received) = reply.ok.and_then(|ok| ok.capture_received) {
             Ok(Self {
                 // Capture status will be updated via Psync
-                status: common_enums::AttemptStatus::CaptureInitiated,
+                status: common_enums::AttemptStatus::CaptureInitiated.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         capture_received.order_code.clone(),
@@ -2669,7 +2669,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentService>> for PaymentsCapt
                 ))?;
 
             Ok(Self {
-                status: common_enums::AttemptStatus::CaptureFailed,
+                status: common_enums::AttemptStatus::CaptureFailed.into(),
                 response: Err(ErrorResponse {
                     code: error.code,
                     message: error.message.clone(),
@@ -2704,7 +2704,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentService>> for PaymentsCance
         if let Some(cancel_received) = reply.ok.and_then(|ok| ok.cancel_received) {
             Ok(Self {
                 // Cancel status will be updated via Psync
-                status: common_enums::AttemptStatus::VoidInitiated,
+                status: common_enums::AttemptStatus::VoidInitiated.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         cancel_received.order_code.clone(),
@@ -2732,7 +2732,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentService>> for PaymentsCance
                 ))?;
 
             Ok(Self {
-                status: common_enums::AttemptStatus::VoidFailed,
+                status: common_enums::AttemptStatus::VoidFailed.into(),
                 response: Err(ErrorResponse {
                     code: error.code,
                     message: error.message.clone(),
@@ -3127,7 +3127,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, PayoutResponse>>
 
         match (reply.error, reply.order_status) {
             (Some(error), None) => Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: error.code,
                     message: error.message.clone(),
@@ -3158,7 +3158,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, PayoutResponse>>
                         ..item.data
                     }),
                     (None, Some(error)) => Ok(Self {
-                        status: common_enums::AttemptStatus::Failure,
+                        status: common_enums::AttemptStatus::Failure.into(),
                         response: Ok(PayoutsResponseData {
                             status: Some(enums::PayoutStatus::try_from(LastEvent::Error)?),
                             connector_payout_id: Some(order_status.order_code),
@@ -3231,7 +3231,7 @@ impl TryFrom<PayoutsResponseRouterData<PoSync, PaymentService>> for PayoutsRoute
 
         match (reply.error, reply.order_status) {
             (Some(error), None) => Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: error.code,
                     message: error.message.clone(),
@@ -3334,7 +3334,7 @@ impl TryFrom<PayoutsResponseRouterData<PoCancel, PayoutResponse>> for PayoutsRou
 
         match (reply.error, reply.ok) {
             (Some(error), None) => Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Ok(PayoutsResponseData {
                     status: Some(enums::PayoutStatus::try_from(LastEvent::Error)?),
                     connector_payout_id: None,

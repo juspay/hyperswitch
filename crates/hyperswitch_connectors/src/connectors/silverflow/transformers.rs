@@ -302,7 +302,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowPaymentsResponse, T, Payments
         item: ResponseRouterData<F, SilverflowPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(&item.response.status),
+            status: common_enums::AttemptStatus::from(&item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.key.clone()),
                 redirection_data: Box::new(None),
@@ -401,7 +401,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowCaptureResponse, T, PaymentsR
         item: ResponseRouterData<F, SilverflowCaptureResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(&item.response),
+            status: common_enums::AttemptStatus::from(&item.response).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.charge_key.clone()),
                 redirection_data: Box::new(None),
@@ -498,7 +498,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowVoidResponse, T, PaymentsResp
         item: ResponseRouterData<F, SilverflowVoidResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(&item.response),
+            status: common_enums::AttemptStatus::from(&item.response).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.charge_key.clone()),
                 redirection_data: Box::new(None),

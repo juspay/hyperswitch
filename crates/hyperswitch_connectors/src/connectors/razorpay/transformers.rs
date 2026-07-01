@@ -243,7 +243,7 @@ impl TryFrom<PaymentsResponseRouterData<RazorpayPaymentsResponse>>
         let connector_metadata = get_wait_screen_metadata()?;
         let order_id = item.data.request.get_order_id()?;
         Ok(Self {
-            status: enums::AttemptStatus::AuthenticationPending,
+            status: enums::AttemptStatus::AuthenticationPending.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.razorpay_payment_id.clone(),

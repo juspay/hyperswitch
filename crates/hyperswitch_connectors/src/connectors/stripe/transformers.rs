@@ -3380,7 +3380,7 @@ where
             .and_then(StripeChargeEnum::get_maximum_capturable_amount);
 
         Ok(Self {
-            status,
+            status: status.into(),
             /* Commented out fields:
             client_secret: Some(item.response.client_secret.clone().as_str()),
             description: item.response.description.map(|x| x.as_str()),
@@ -3692,7 +3692,7 @@ where
         };
 
         Ok(Self {
-            status: AttemptStatus::from(item.response.status.to_owned()),
+            status: AttemptStatus::from(item.response.status.to_owned()).into(),
             response,
             amount_captured: item
                 .response
@@ -3787,7 +3787,7 @@ where
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             connector_response: connector_response_data,
             ..item.data
@@ -4411,7 +4411,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, StripeSourceResponse, T, PaymentsRespon
                 session_token: None,
                 connector_response_reference_id: None,
             }),
-            status,
+            status: status.into(),
             ..item.data
         })
     }
@@ -4490,7 +4490,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })

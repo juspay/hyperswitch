@@ -246,7 +246,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FlexitiSyncResponse, T, PaymentsRespons
         item: ResponseRouterData<F, FlexitiSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.purchase.status),
+            status: common_enums::AttemptStatus::from(item.response.purchase.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.to_owned(),
@@ -274,7 +274,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FlexitiPaymentsResponse, T, PaymentsRes
         item: ResponseRouterData<F, FlexitiPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::AuthenticationPending,
+            status: common_enums::AttemptStatus::AuthenticationPending.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.online_order_id.to_owned(),

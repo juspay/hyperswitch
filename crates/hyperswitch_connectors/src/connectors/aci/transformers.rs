@@ -1473,7 +1473,7 @@ where
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1611,7 +1611,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponse
             })
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             reference_id: Some(item.response.referenced_id),
             ..item.data
@@ -1676,7 +1676,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciVoidResponse, T, PaymentsResponseDat
             })
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             reference_id: Some(item.response.referenced_id),
             ..item.data
@@ -1855,7 +1855,7 @@ impl
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })

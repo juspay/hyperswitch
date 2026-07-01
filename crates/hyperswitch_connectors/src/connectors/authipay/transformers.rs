@@ -409,7 +409,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsRe
         )));
 
         Ok(Self {
-            status: enums::AttemptStatus::from(gateway_resp.transaction_state.clone()),
+            status: enums::AttemptStatus::from(gateway_resp.transaction_state.clone()).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     gateway_resp

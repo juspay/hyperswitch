@@ -1862,7 +1862,7 @@ impl
             .map(ConnectorResponseData::with_additional_payment_method_data);
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             connector_response,
             ..item.data
@@ -1903,7 +1903,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<WellsfargoPaymentsResponse>>
         let response =
             get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1927,7 +1927,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<WellsfargoPaymentsResponse>>
         let response =
             get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1988,7 +1988,7 @@ impl
             .map(ConnectorResponseData::with_additional_payment_method_data);
 
         Ok(Self {
-            status: mandate_status,
+            status: mandate_status.into(),
             response: match error_response {
                 Some(error) => Err(error),
                 None => Ok(PaymentsResponseData::TransactionResponse {
@@ -2099,12 +2099,12 @@ impl TryFrom<PaymentsSyncResponseRouterData<WellsfargoTransactionResponse>>
                             item.http_code,
                             item.response.id.clone(),
                         )),
-                        status: enums::AttemptStatus::Failure,
+                        status: enums::AttemptStatus::Failure.into(),
                         ..item.data
                     })
                 } else {
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
                                 item.response.id.clone(),

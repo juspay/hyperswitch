@@ -343,7 +343,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TsysPaymentsResponse, T, PaymentsRespon
             },
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })

@@ -797,13 +797,13 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                     })
                 };
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
             }
             BraintreeAuthResponse::ClientTokenResponse(client_token_data) => Ok(Self {
-                status: enums::AttemptStatus::AuthenticationPending,
+                status: enums::AttemptStatus::AuthenticationPending.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(Some(get_braintree_redirect_form(
@@ -857,7 +857,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                 };
 
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -1018,13 +1018,13 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                     })
                 };
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
             }
             BraintreePaymentsResponse::ClientTokenResponse(client_token_data) => Ok(Self {
-                status: enums::AttemptStatus::AuthenticationPending,
+                status: enums::AttemptStatus::AuthenticationPending.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(Some(get_braintree_redirect_form(
@@ -1088,7 +1088,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                 };
 
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -1161,7 +1161,7 @@ impl<F>
                     })
                 };
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -1234,7 +1234,7 @@ impl<F>
                     })
                 };
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -2132,7 +2132,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                     })
                 };
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -2339,7 +2339,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsRes
                     })
                 };
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })
@@ -2469,7 +2469,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResp
                     })
                 };
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })

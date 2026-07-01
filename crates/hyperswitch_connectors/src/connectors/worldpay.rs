@@ -400,7 +400,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
                         .map(|id| id.to_string())
                 });
                 Ok(PaymentsCancelRouterData {
-                    status: enums::AttemptStatus::from(response.outcome.clone()),
+                    status: enums::AttemptStatus::from(response.outcome.clone()).into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::foreign_try_from((
                             response,
@@ -558,7 +558,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
                 | enums::AttemptStatus::VoidInitiated,
                 EventType::Authorized,
             ) => attempt_status,
-            _ => enums::AttemptStatus::from(&worldpay_status),
+            _ => enums::AttemptStatus::from(&worldpay_status).into(),
         };
 
         Ok(PaymentsSyncRouterData {
@@ -663,7 +663,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                         .map(|id| id.to_string())
                 });
                 Ok(PaymentsCaptureRouterData {
-                    status: enums::AttemptStatus::from(response.outcome.clone()),
+                    status: enums::AttemptStatus::from(response.outcome.clone()).into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::foreign_try_from((
                             response,

@@ -636,7 +636,7 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                 .and_then(|detail| detail.payment_id.map(|id| id.to_string()));
 
             Ok(Self {
-                status,
+                status: status.into(),
                 response: Err(ErrorResponse {
                     code: error_code.clone(),
                     message: error_message.clone(),
@@ -674,7 +674,7 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                 };
 
             Ok(Self {
-                status,
+                status: status.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         item.response.payment_id.to_string(),
@@ -1600,7 +1600,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
                         .as_ref()
                         .map(|_| capture_response.message.clone());
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Err(ErrorResponse {
                             code: capture_response.response.to_string(),
                             message: capture_response.message.clone(),
@@ -1618,7 +1618,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
                     })
                 } else {
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
                                 capture_response.cnp_txn_id,
@@ -1655,7 +1655,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
                     .as_ref()
                     .map(|_| item.response.message.clone());
                 Ok(Self {
-                    status: common_enums::AttemptStatus::CaptureFailed,
+                    status: common_enums::AttemptStatus::CaptureFailed.into(),
                     response: Err(ErrorResponse {
                         code: item.response.response_code,
                         message: item.response.message.clone(),
@@ -1717,7 +1717,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCa
                         .as_ref()
                         .map(|_| auth_reversal_response.message.clone());
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Err(ErrorResponse {
                             code: auth_reversal_response.response.to_string(),
                             message: auth_reversal_response.message.clone(),
@@ -1735,7 +1735,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCa
                     })
                 } else {
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
                                 auth_reversal_response.cnp_txn_id,
@@ -1773,7 +1773,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCa
                     .map(|_| item.response.message.clone());
                 Ok(Self {
                     // Incase of API failure
-                    status: common_enums::AttemptStatus::VoidFailed,
+                    status: common_enums::AttemptStatus::VoidFailed.into(),
                     response: Err(ErrorResponse {
                         code: item.response.response_code,
                         message: item.response.message.clone(),
@@ -2082,7 +2082,7 @@ impl<F>
 
                     Ok(Self {
                         connector_response: Some(ConnectorResponseData::new(None, None,None, mandate_reference_data.clone())),
-                        status,
+                        status: status.into(),
                         response: Err(ErrorResponse {
                             code: sale_response.response.to_string(),
                             message: sale_response.message.clone(),
@@ -2125,7 +2125,7 @@ impl<F>
                     ));
 
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(sale_response.cnp_txn_id.clone()),
                             redirection_data: Box::new(None),
@@ -2175,7 +2175,7 @@ impl<F>
                     .as_ref()
                     .map(|_| auth_response.message.clone());
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Err(ErrorResponse {
                             code: auth_response.response.to_string(),
                             message: auth_response.message.clone(),
@@ -2221,7 +2221,7 @@ impl<F>
                     let connector_response = auth_response.fraud_result.as_ref().map(get_connector_response);
 
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(auth_response.cnp_txn_id.clone()),
                             redirection_data: Box::new(None),
@@ -2252,7 +2252,7 @@ impl<F>
             },
             (None, None) => {
                 Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: item.response.response_code.clone(),
                     message: item.response.message.clone(),
@@ -2313,7 +2313,7 @@ impl<F>
                         .as_ref()
                         .map(|_| auth_response.message.clone());
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Err(ErrorResponse {
                             code: auth_response.response.to_string(),
                             message: auth_response.message.clone(),
@@ -2368,7 +2368,7 @@ impl<F>
                         .map(get_connector_response);
 
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
                                 auth_response.cnp_txn_id.clone(),
@@ -2392,7 +2392,7 @@ impl<F>
                 }
             }
             None => Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: item.response.response_code.clone(),
                     message: item.response.message.clone(),

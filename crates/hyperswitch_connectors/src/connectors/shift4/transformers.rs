@@ -1010,9 +1010,9 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<Shift4ThreeDsResponse>>
             .map(|url| RedirectForm::from((url, Method::Get)));
         Ok(Self {
             status: if redirection_data.is_some() {
-                enums::AttemptStatus::AuthenticationPending
+                enums::AttemptStatus::AuthenticationPending.into()
             } else {
-                enums::AttemptStatus::Pending
+                enums::AttemptStatus::Pending.into()
             },
             request: PaymentsPreAuthenticateData {
                 enrolled_for_3ds: item.response.enrolled,
@@ -1053,9 +1053,9 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<Shift4ThreeDsResponse>>
             .map(|url| RedirectForm::from((url, Method::Get)));
         Ok(Self {
             status: if redirection_data.is_some() {
-                enums::AttemptStatus::AuthenticationPending
+                enums::AttemptStatus::AuthenticationPending.into()
             } else {
-                enums::AttemptStatus::Pending
+                enums::AttemptStatus::Pending.into()
             },
             request: PaymentsPreProcessingData {
                 enrolled_for_3ds: item.response.enrolled,
@@ -1099,7 +1099,7 @@ impl<T, F> TryFrom<ResponseRouterData<F, Shift4NonThreeDsResponse, T, PaymentsRe
                     .as_ref()
                     .and_then(|flow| flow.next_action.as_ref()),
                 item.response.status,
-            ),
+            ).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id,
                 redirection_data: Box::new(

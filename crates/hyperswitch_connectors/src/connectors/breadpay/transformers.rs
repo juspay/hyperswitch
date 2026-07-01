@@ -195,7 +195,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BreadpayTransactionResponse, T, Payment
         item: ResponseRouterData<F, BreadpayTransactionResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status.clone()),
+            status: enums::AttemptStatus::from(item.response.status.clone()).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.bread_transactin_id),
                 redirection_data: Box::new(None),
@@ -240,7 +240,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BreadpayPaymentsResponse, T, PaymentsRe
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             // As per documentation, the first call is cart creation where we don't get any status only get the customer redirection url.
-            status: common_enums::AttemptStatus::AuthenticationPending,
+            status: common_enums::AttemptStatus::AuthenticationPending.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(Some(RedirectForm::from((

@@ -378,7 +378,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
         let status = attempt_status_from_transaction_state(transaction_state);
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.clone(),
@@ -467,7 +467,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganCaptureResponse, T, PaymentsRes
     ) -> Result<Self, Self::Error> {
         let status = attempt_status_from_transaction_state(item.response.transaction_state);
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.clone(),
@@ -512,7 +512,7 @@ impl<F, PaymentsSyncData>
     ) -> Result<Self, Self::Error> {
         let status = attempt_status_from_transaction_state(item.response.transaction_state);
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.clone(),
@@ -746,7 +746,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<JpmorganCancelResponse>>
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.clone(),

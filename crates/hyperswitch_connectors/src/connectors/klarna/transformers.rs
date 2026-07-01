@@ -400,7 +400,7 @@ impl TryFrom<PaymentsResponseRouterData<KlarnaAuthResponse>>
                     status: get_fraud_status(
                         response.fraud_status.clone(),
                         item.data.request.is_auto_capture()?,
-                    ),
+                    ).into(),
                     connector_response,
                     ..item.data
                 })
@@ -423,7 +423,7 @@ impl TryFrom<PaymentsResponseRouterData<KlarnaAuthResponse>>
                 status: get_checkout_status(
                     response.status.clone(),
                     item.data.request.is_auto_capture()?,
-                ),
+                ).into(),
                 connector_response: None,
                 ..item.data
             }),
@@ -569,7 +569,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, KlarnaPsyncResponse, T, PaymentsRespons
     ) -> Result<Self, Self::Error> {
         match item.response {
             KlarnaPsyncResponse::KlarnaSDKPsyncResponse(response) => Ok(Self {
-                status: enums::AttemptStatus::from(response.status),
+                status: enums::AttemptStatus::from(response.status).into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(response.order_id.clone()),
                     redirection_data: Box::new(None),
@@ -587,7 +587,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, KlarnaPsyncResponse, T, PaymentsRespons
                 ..item.data
             }),
             KlarnaPsyncResponse::KlarnaCheckoutPSyncResponse(response) => Ok(Self {
-                status: get_checkout_status(response.status.clone(), response.options.auto_capture),
+                status: get_checkout_status(response.status.clone(), response.options.auto_capture).into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(response.order_id.clone()),
                     redirection_data: Box::new(None),

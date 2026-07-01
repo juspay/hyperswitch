@@ -809,7 +809,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<NexixpayRedirectionResponse
         )?;
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -833,7 +833,7 @@ impl TryFrom<PaymentsPostAuthenticateResponseRouterData<NexixpayRedirectionRespo
         )?;
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1348,7 +1348,7 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                         })
                     }
                     _ => Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
                                 response_body.operation.order_id.clone(),
@@ -1400,7 +1400,7 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                         })
                     }
                     _ => Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
                                 mandate_response.operation.order_id.clone(),
@@ -1474,7 +1474,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
                         })
                     }
                     _ => Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
                                 response_body.operation.order_id.clone(),
@@ -1519,7 +1519,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
                         })
                     }
                     _ => Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
                                 mandate_response.operation.order_id.clone(),
@@ -1671,7 +1671,7 @@ impl<F>
                 })
             }
             _ => Ok(Self {
-                status,
+                status: status.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         item.response.operation.order_id.clone(),
@@ -1865,7 +1865,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<NexixpayTransactionResponse>>
                 })
             }
             _ => Ok(Self {
-                status,
+                status: status.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
                     redirection_data: Box::new(None),
@@ -1915,7 +1915,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<NexixpayOperationResponse>>
             is_auto_capture: false,
         })?);
         Ok(Self {
-            status: AttemptStatus::Pending, // Capture call do not return status in their response.
+            status: AttemptStatus::Pending.into(), // Capture call do not return status in their response.
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.data.request.connector_transaction_id.clone(),
@@ -1973,7 +1973,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<NexixpayOperationResponse>>
             is_auto_capture: false,
         })?);
         Ok(Self {
-            status: AttemptStatus::Pending, // Cancel call do not return status in their response.
+            status: AttemptStatus::Pending.into(), // Cancel call do not return status in their response.
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.data.request.connector_transaction_id.clone(),
@@ -2056,7 +2056,7 @@ impl
                 })
             }
             _ => Ok(Self {
-                status,
+                status: status.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         item.response.operation.order_id.clone(),

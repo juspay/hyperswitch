@@ -861,7 +861,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MollieCardTokenResponse, T, PaymentsRes
         item: ResponseRouterData<F, MollieCardTokenResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::Pending,
+            status: enums::AttemptStatus::Pending.into(),
             payment_method_token: Some(PaymentMethodToken::Token(item.response.card_token.clone())),
             response: Ok(PaymentsResponseData::TokenizationResponse {
                 token: item.response.card_token.expose(),
@@ -903,7 +903,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
 
             return Ok(Self {
-                status,
+                status: status.into(),
                 response: Err(ErrorResponse {
                     status_code: item.http_code,
                     code: error_code,
@@ -938,7 +938,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
                 connector_mandate_request_reference_id: None,
             });
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response

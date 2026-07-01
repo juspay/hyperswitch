@@ -673,7 +673,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
                     });
                     Ok(Self {
                         response,
-                        status: enums::AttemptStatus::Failure,
+                        status: enums::AttemptStatus::Failure.into(),
                         ..item.data
                     })
                 }
@@ -694,7 +694,7 @@ impl<F, T>
         let connector_customer_id = item.data.get_connector_customer_id()?;
         if item.response.customer_profile_id.is_some() {
             Ok(Self {
-                status: enums::AttemptStatus::Charged,
+                status: enums::AttemptStatus::Charged.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(None),
@@ -749,7 +749,7 @@ impl<F, T>
             });
             Ok(Self {
                 response,
-                status: enums::AttemptStatus::Failure,
+                status: enums::AttemptStatus::Failure.into(),
                 ..item.data
             })
         }
@@ -1613,7 +1613,7 @@ impl<F, T>
                 });
 
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response: match error {
                         Some(err) => Err(err),
                         None => Ok(PaymentsResponseData::TransactionResponse {
@@ -1642,7 +1642,7 @@ impl<F, T>
             }
             Some(TransactionResponse::AuthorizedotnetTransactionResponseError(_)) | None => {
                 Ok(Self {
-                    status: enums::AttemptStatus::Failure,
+                    status: enums::AttemptStatus::Failure.into(),
                     response: Err(get_err_response(item.http_code, item.response.messages)?),
                     ..item.data
                 })
@@ -1690,7 +1690,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                         field_name: "connector_metadata",
                     })?;
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response: match error {
                         Some(err) => Err(err),
                         None => Ok(PaymentsResponseData::TransactionResponse {
@@ -1717,7 +1717,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                 })
             }
             None => Ok(Self {
-                status: enums::AttemptStatus::Failure,
+                status: enums::AttemptStatus::Failure.into(),
                 response: Err(get_err_response(item.http_code, item.response.messages)?),
                 ..item.data
             }),
@@ -2071,7 +2071,7 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
                         authentication_data: None,
                         charges: None,
                     }),
-                    status: payment_status,
+                    status: payment_status.into(),
                     ..item.data
                 })
             }

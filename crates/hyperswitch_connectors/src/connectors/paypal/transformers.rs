@@ -674,7 +674,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalSetupMandatesResponse, T, Payment
             enums::AttemptStatus::Failure
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(info_response.id.clone()),
                 redirection_data: Box::new(None),
@@ -1846,7 +1846,7 @@ impl TryFrom<PaymentsExtendAuthorizationResponseRouterData<PaypalExtendedAuthRes
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             connector_response,
             ..item.data
@@ -2440,7 +2440,7 @@ where
                 .map(|message| message.to_string());
 
             return Ok(Self {
-                status,
+                status: status.into(),
                 response: Err(ErrorResponse {
                     code: error_code.unwrap_or(NO_ERROR_CODE.to_string()),
                     message: error_message
@@ -2462,7 +2462,7 @@ where
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: order_id,
                 redirection_data: Box::new(None),
@@ -2613,7 +2613,7 @@ impl<F, T>
         });
         let purchase_units = item.response.purchase_units.first();
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(Some(RedirectForm::from((
@@ -2672,7 +2672,7 @@ impl
         });
         let purchase_units = item.response.purchase_units.first();
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(Some(RedirectForm::from((
@@ -2730,7 +2730,7 @@ impl
         });
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(None),
@@ -2756,7 +2756,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaypalThreeDsSyncResponse>> for Paym
         Ok(Self {
             // status is hardcoded because this try_from will only be reached in card 3ds before the completion of complete authorize flow.
             // also force sync won't be hit in terminal status thus leaving us with only one status to get here.
-            status: storage_enums::AttemptStatus::AuthenticationPending,
+            status: storage_enums::AttemptStatus::AuthenticationPending.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(None),
@@ -2795,7 +2795,7 @@ impl TryFrom<PaymentsResponseRouterData<PaypalThreeDsResponse>> for PaymentsAuth
         let link = get_redirect_url(item.response.links.clone())?;
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(Some(paypal_threeds_link((
@@ -2852,7 +2852,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsSyncResponse, T, Payments
         item: ResponseRouterData<F, PaypalPaymentsSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: storage_enums::AttemptStatus::from(item.response.status),
+            status: storage_enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response
@@ -3280,7 +3280,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
         let connector_payment_id: PaypalMeta =
             to_connector_meta(item.data.request.connector_meta.clone())?;
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.data.request.connector_transaction_id.clone(),
@@ -3336,7 +3336,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsCancelResponse, T, Paymen
             PaypalCancelStatus::Voided => storage_enums::AttemptStatus::Voided,
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(None),

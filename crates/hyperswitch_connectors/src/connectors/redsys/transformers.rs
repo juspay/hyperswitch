@@ -742,7 +742,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<RedsysResponse>>
             handle_redsys_response(&item.response, item.http_code, &webhook_url)?;
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -762,7 +762,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<RedsysResponse>>
             handle_redsys_response(&item.response, item.http_code, &webhook_url)?;
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1317,7 +1317,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, PaymentsAuthorizeData, Pay
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1371,7 +1371,7 @@ impl<F>
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1564,7 +1564,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysResponse, CompleteAuthorizeData, Pay
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1685,7 +1685,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<RedsysResponse>> for PaymentsCapt
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -1794,7 +1794,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<RedsysResponse>> for PaymentsCance
             }
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })

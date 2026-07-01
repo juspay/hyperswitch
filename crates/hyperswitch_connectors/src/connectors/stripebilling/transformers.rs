@@ -148,7 +148,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, StripebillingPaymentsResponse, T, Payme
         item: ResponseRouterData<F, StripebillingPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: common_enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(None),

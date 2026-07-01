@@ -156,7 +156,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, OpennodePaymentsResponse, T, PaymentsRe
             })
         };
         Ok(Self {
-            status: AttemptStatus::from(attempt_status),
+            status: AttemptStatus::from(attempt_status).into(),
             response: response_data,
             ..item.data
         })

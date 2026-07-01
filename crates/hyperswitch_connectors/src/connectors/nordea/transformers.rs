@@ -169,7 +169,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NordeaOAuthExchangeResponse, T, AccessT
         let expires_in = item.response.expires_in.unwrap_or(3600); // Default to 1 hour if not provided
 
         Ok(Self {
-            status: common_enums::AttemptStatus::AuthenticationSuccessful,
+            status: common_enums::AttemptStatus::AuthenticationSuccessful.into(),
             response: Ok(AccessToken {
                 token: access_token.clone(),
                 expires: expires_in,
@@ -546,7 +546,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<NordeaPaymentsInitiateRespo
     ) -> Result<Self, Self::Error> {
         let (response, status) = convert_nordea_payment_response(&item.response)?;
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(response),
             ..item.data
         })
@@ -562,7 +562,7 @@ impl TryFrom<CreateOrderResponseRouterData<NordeaPaymentsInitiateResponse>>
     ) -> Result<Self, Self::Error> {
         let (response, status) = convert_nordea_payment_response(&item.response)?;
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(response),
             ..item.data
         })
@@ -597,7 +597,7 @@ impl
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
                 return Ok(Self {
-                    status: common_enums::AttemptStatus::Failure,
+                    status: common_enums::AttemptStatus::Failure.into(),
                     response: Err(ErrorResponse {
                         code: first_error
                             .error
@@ -693,7 +693,7 @@ impl
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -709,7 +709,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<NordeaPaymentsInitiateResponse>>
     ) -> Result<Self, Self::Error> {
         let (response, status) = convert_nordea_payment_response(&item.response)?;
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(response),
             ..item.data
         })

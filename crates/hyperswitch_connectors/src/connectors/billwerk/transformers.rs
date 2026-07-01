@@ -306,7 +306,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsRe
             charges: None,
         };
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.state),
+            status: enums::AttemptStatus::from(item.response.state).into(),
             response: match error_response {
                 Some(err) => Err(err),
                 None => Ok(payments_response),

@@ -451,7 +451,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsR
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: response.map_err(|err| *err),
             ..item.data
         })

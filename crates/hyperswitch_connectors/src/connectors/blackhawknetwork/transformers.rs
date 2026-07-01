@@ -315,7 +315,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BlackhawknetworkRedeemResponse, T, Paym
         match item.response {
             BlackhawknetworkRedeemResponse::Success(response) => Ok(Self {
                 status: match response.status {
-                    BlackhawknetworkAttemptStatus::Approved => enums::AttemptStatus::Charged,
+                    BlackhawknetworkAttemptStatus::Approved => enums::AttemptStatus::Charged.into(),
                     BlackhawknetworkAttemptStatus::Declined => enums::AttemptStatus::Failure,
                     BlackhawknetworkAttemptStatus::Pending => enums::AttemptStatus::Pending,
                 },

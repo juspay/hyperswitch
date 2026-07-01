@@ -1340,7 +1340,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             };
 
             return Ok(Self {
-                status,
+                status: status.into(),
                 response: Err(error_response),
                 ..item.data
             });
@@ -1407,7 +1407,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             .and(item.response.amount);
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(payments_response_data),
             connector_response: additional_information,
             authorized_amount,
@@ -1512,7 +1512,7 @@ impl
             charges: None,
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response: match error_response {
                 Some(err) => Err(err),
                 None => Ok(payments_response_data),
@@ -1597,7 +1597,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             charges: None,
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response: match error_response {
                 Some(err) => Err(err),
                 None => Ok(payments_response_data),
@@ -1779,7 +1779,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 authentication_data: None,
                 charges: None,
             }),
-            status,
+            status: status.into(),
             amount_captured,
             ..item.data
         })

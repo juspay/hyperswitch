@@ -98,7 +98,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<CoingateSyncResponse>> for PaymentsS
         item: PaymentsSyncResponseRouterData<CoingateSyncResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status.clone()),
+            status: enums::AttemptStatus::from(item.response.status.clone()).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.to_string()),
                 redirection_data: Box::new(None),
@@ -176,7 +176,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsRe
         item: ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status.clone()),
+            status: enums::AttemptStatus::from(item.response.status.clone()).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.to_string()),
                 redirection_data: Box::new(Some(RedirectForm::Form {

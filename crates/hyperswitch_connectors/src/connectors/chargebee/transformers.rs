@@ -305,7 +305,7 @@ convert_connector_response_to_domain_response!(
     PaymentsResponseData,
     |item: ResponseRouterData<_, ChargebeePaymentsResponse, _, _>| {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: common_enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(None),

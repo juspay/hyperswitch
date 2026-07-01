@@ -406,7 +406,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsRespon
             form_fields: Default::default(),
         });
         Ok(Self {
-            status: enums::AttemptStatus::AuthenticationPending,
+            status: enums::AttemptStatus::AuthenticationPending.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
@@ -478,7 +478,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                 let status =
                     get_attempt_status((payment_response.status.clone(), item.data.status));
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response: if is_payment_failure(status) {
                         Err(ErrorResponse {
                             code: payment_response.status.clone().to_string(),
@@ -518,7 +518,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                 let detailed_status = webhook_response.detailed_status.clone();
                 let status = enums::AttemptStatus::from(webhook_response.status);
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response: if is_payment_failure(status) {
                         Err(ErrorResponse {
                             code: detailed_status
@@ -582,7 +582,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<VoltCancelResponse>>
     ) -> Result<Self, Self::Error> {
         let status = get_attempt_status((item.response.status.clone(), item.data.status));
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payment_id.clone()),
                 redirection_data: Box::new(None),

@@ -218,7 +218,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobepayPaymentsResponse, T, PaymentsRe
                 .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
             Ok(Self {
-                status: enums::AttemptStatus::from(globepay_status),
+                status: enums::AttemptStatus::from(globepay_status).into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         item.response
@@ -239,7 +239,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobepayPaymentsResponse, T, PaymentsRe
             })
         } else {
             Ok(Self {
-                status: enums::AttemptStatus::Failure, //As this connector gives 200 in failed scenarios . if return_code is not success status is mapped to failure. ref = "https://pay.globepay.co/docs/en/#api-QRCode-NewQRCode"
+                status: enums::AttemptStatus::Failure.into(), //As this connector gives 200 in failed scenarios . if return_code is not success status is mapped to failure. ref = "https://pay.globepay.co/docs/en/#api-QRCode-NewQRCode"
                 response: Err(get_error_response(
                     item.response.return_code,
                     item.response.return_msg,
@@ -298,7 +298,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobepaySyncResponse, T, PaymentsRespon
                 .order_id
                 .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
             Ok(Self {
-                status: enums::AttemptStatus::from(globepay_status),
+                status: enums::AttemptStatus::from(globepay_status).into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(globepay_id),
                     redirection_data: Box::new(None),
@@ -315,7 +315,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobepaySyncResponse, T, PaymentsRespon
             })
         } else {
             Ok(Self {
-                status: enums::AttemptStatus::Failure, //As this connector gives 200 in failed scenarios . if return_code is not success status is mapped to failure. ref = "https://pay.globepay.co/docs/en/#api-QRCode-NewQRCode"
+                status: enums::AttemptStatus::Failure.into(), //As this connector gives 200 in failed scenarios . if return_code is not success status is mapped to failure. ref = "https://pay.globepay.co/docs/en/#api-QRCode-NewQRCode"
                 response: Err(get_error_response(
                     item.response.return_code,
                     item.response.return_msg,

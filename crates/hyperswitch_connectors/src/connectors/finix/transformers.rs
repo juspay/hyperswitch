@@ -455,7 +455,7 @@ pub(crate) fn get_setup_mandate_router_data<Request>(
     error_stack::Report<ConnectorError>,
 > {
     Ok(RouterData {
-        status: AttemptStatus::Charged,
+        status: AttemptStatus::Charged.into(),
         response: Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data: Box::new(None),
@@ -600,7 +600,7 @@ pub(crate) fn get_finix_response<F, T>(
             .map(ConnectorResponseData::with_additional_payment_method_data);
 
     Ok(RouterData {
-        status,
+        status: status.into(),
         response: if router_data.response.state.is_failure() {
             Err(ErrorResponse {
                 code: router_data

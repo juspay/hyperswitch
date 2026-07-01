@@ -395,7 +395,7 @@ impl TryFrom<PaymentsResponseRouterData<HipayPaymentsResponse>> for PaymentsAuth
             })
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -614,7 +614,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<HipayMaintenanceResponse<HipayPay
         item: PaymentsCaptureResponseRouterData<HipayMaintenanceResponse<HipayPaymentStatus>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: common_enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_reference.clone().to_string(),
@@ -641,7 +641,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<HipayMaintenanceResponse<HipayPaym
         item: PaymentsCancelResponseRouterData<HipayMaintenanceResponse<HipayPaymentStatus>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: common_enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_reference.clone().to_string(),
@@ -732,7 +732,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<HipaySyncResponse>> for PaymentsSync
                     connector_metadata: None,
                 });
                 Ok(Self {
-                    status: enums::AttemptStatus::Failure,
+                    status: enums::AttemptStatus::Failure.into(),
                     response,
                     ..item.data
                 })
@@ -775,7 +775,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<HipaySyncResponse>> for PaymentsSync
                     })
                 };
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response,
                     ..item.data
                 })

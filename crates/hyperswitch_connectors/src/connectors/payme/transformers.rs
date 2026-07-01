@@ -212,7 +212,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaymePaySaleResponse, T, PaymentsRespon
             Ok(PaymentsResponseData::try_from(&item.response)?)
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -302,7 +302,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SaleQueryResponse, T, PaymentsResponseD
             Ok(PaymentsResponseData::from(&transaction_response))
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })
@@ -607,7 +607,7 @@ impl<F>
                         Ok(Self {
                             // We don't get any status from payme, so defaulting it to pending
                             // then move to authorize flow
-                            status: enums::AttemptStatus::Pending,
+                            status: enums::AttemptStatus::Pending.into(),
                             preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
                             response: Ok(PaymentsResponseData::PreProcessingResponse {
                                 pre_processing_id: PreprocessingResponseId::ConnectorTransactionId(
@@ -625,7 +625,7 @@ impl<F>
                         // Response is send directly after preprocessing flow
                         // redirection data is send to run script along
                         // status is made authentication_pending to show redirection
-                        status: enums::AttemptStatus::AuthenticationPending,
+                        status: enums::AttemptStatus::AuthenticationPending.into(),
                         preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
@@ -694,7 +694,7 @@ impl<F>
                 };
                 Ok(Self {
                     // We don't get any status from payme, so defaulting it to pending
-                    status: enums::AttemptStatus::Pending,
+                    status: enums::AttemptStatus::Pending.into(),
                     preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
                     response: Ok(PaymentsResponseData::PreProcessingResponse {
                         pre_processing_id: PreprocessingResponseId::ConnectorTransactionId(
@@ -736,7 +736,7 @@ impl<F>
                         Ok(Self {
                             // We don't get any status from payme, so defaulting it to pending
                             // then move to authorize flow
-                            status: enums::AttemptStatus::Pending,
+                            status: enums::AttemptStatus::Pending.into(),
                             preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
                             response: Ok(PaymentsResponseData::PreProcessingResponse {
                                 pre_processing_id: PreprocessingResponseId::ConnectorTransactionId(
@@ -754,7 +754,7 @@ impl<F>
                         // Response is send directly after preprocessing flow
                         // redirection data is send to run script along
                         // status is made authentication_pending to show redirection
-                        status: enums::AttemptStatus::AuthenticationPending,
+                        status: enums::AttemptStatus::AuthenticationPending.into(),
                         preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
@@ -823,7 +823,7 @@ impl<F>
                 };
                 Ok(Self {
                     // We don't get any status from payme, so defaulting it to pending
-                    status: enums::AttemptStatus::Pending,
+                    status: enums::AttemptStatus::Pending.into(),
                     preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
                     response: Ok(PaymentsResponseData::PreProcessingResponse {
                         pre_processing_id: PreprocessingResponseId::ConnectorTransactionId(
@@ -1386,7 +1386,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymeVoidResponse>> for PaymentsCa
             })
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })

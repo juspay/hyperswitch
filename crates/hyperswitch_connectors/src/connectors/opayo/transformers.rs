@@ -154,7 +154,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, OpayoPaymentsResponse, T, PaymentsRespo
         item: ResponseRouterData<F, OpayoPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.clone(),

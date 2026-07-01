@@ -581,7 +581,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, Payment, T, PaymentsResponseData>>
         item: ResponseRouterData<F, Payment, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: get_status((item.response.status, item.response.capture_method)),
+            status: get_status((item.response.status, item.response.capture_method)).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(None),
@@ -634,7 +634,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaymentResponse, T, PaymentsResponseDat
             status: get_status((
                 item.response.payment.status,
                 item.response.payment.capture_method,
-            )),
+            )).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payment.id.clone()),
                 redirection_data: Box::new(redirection_data),

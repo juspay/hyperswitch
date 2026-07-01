@@ -1371,7 +1371,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsR
         }));
 
         Ok(Self {
-            status,
+            status: status.into(),
             reference_id: Some(item.response.id.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -1428,7 +1428,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexRedirectResponse, T, PaymentsR
         );
 
         Ok(Self {
-            status,
+            status: status.into(),
             reference_id: Some(item.response.id.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -1481,7 +1481,7 @@ impl
             None
         };
         Ok(Self {
-            status,
+            status: status.into(),
             reference_id: Some(item.response.id.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),

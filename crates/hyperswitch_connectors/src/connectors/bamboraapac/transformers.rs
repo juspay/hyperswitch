@@ -295,7 +295,7 @@ impl TryFrom<PaymentsResponseRouterData<BamboraapacPaymentsResponse>>
         // transaction approved
         if response_code == 0 {
             Ok(Self {
-                status: get_attempt_status(response_code, item.data.request.capture_method),
+                status: get_attempt_status(response_code, item.data.request.capture_method).into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         connector_transaction_id.to_owned(),
@@ -333,7 +333,7 @@ impl TryFrom<PaymentsResponseRouterData<BamboraapacPaymentsResponse>>
                 .declined_message
                 .unwrap_or(NO_ERROR_MESSAGE.to_string());
             Ok(Self {
-                status: get_attempt_status(response_code, item.data.request.capture_method),
+                status: get_attempt_status(response_code, item.data.request.capture_method).into(),
                 response: Err(ErrorResponse {
                     status_code: item.http_code,
                     code,
@@ -471,7 +471,7 @@ impl<F>
         // transaction approved
         if response_code == 0 {
             Ok(Self {
-                status: enums::AttemptStatus::Charged,
+                status: enums::AttemptStatus::Charged.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(None),
@@ -495,7 +495,7 @@ impl<F>
         // transaction failed
         else {
             Ok(Self {
-                status: enums::AttemptStatus::Failure,
+                status: enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     status_code: item.http_code,
                     code: NO_ERROR_CODE.to_string(),
@@ -615,7 +615,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BamboraapacCaptureResponse>>
         // transaction approved
         if response_code == 0 {
             Ok(Self {
-                status: enums::AttemptStatus::Charged,
+                status: enums::AttemptStatus::Charged.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         connector_transaction_id.to_owned(),
@@ -652,7 +652,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BamboraapacCaptureResponse>>
                 .declined_message
                 .unwrap_or(NO_ERROR_MESSAGE.to_string());
             Ok(Self {
-                status: enums::AttemptStatus::Failure,
+                status: enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     status_code: item.http_code,
                     code,
@@ -895,7 +895,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BamboraapacSyncResponse>>
         // transaction approved
         if response_code == 0 {
             Ok(Self {
-                status: get_attempt_status(response_code, item.data.request.capture_method),
+                status: get_attempt_status(response_code, item.data.request.capture_method).into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         connector_transaction_id.to_owned(),
@@ -934,7 +934,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BamboraapacSyncResponse>>
                 .declined_message
                 .unwrap_or(NO_ERROR_MESSAGE.to_string());
             Ok(Self {
-                status: get_attempt_status(response_code, item.data.request.capture_method),
+                status: get_attempt_status(response_code, item.data.request.capture_method).into(),
                 response: Err(ErrorResponse {
                     status_code: item.http_code,
                     code,

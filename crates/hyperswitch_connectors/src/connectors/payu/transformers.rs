@@ -246,7 +246,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsResponse, T, PaymentsRespon
         item: ResponseRouterData<F, PayuPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status.status_code),
+            status: enums::AttemptStatus::from(item.response.status.status_code).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
                 redirection_data: Box::new(None),
@@ -298,7 +298,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsCaptureResponse, T, Payment
         item: ResponseRouterData<F, PayuPaymentsCaptureResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status.status_code.clone()),
+            status: enums::AttemptStatus::from(item.response.status.status_code.clone()).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(None),
@@ -375,7 +375,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsCancelResponse, T, Payments
         item: ResponseRouterData<F, PayuPaymentsCancelResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status.status_code.clone()),
+            status: enums::AttemptStatus::from(item.response.status.status_code.clone()).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
                 redirection_data: Box::new(None),
@@ -506,7 +506,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsSyncResponse, T, PaymentsRe
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
         Ok(Self {
-            status: enums::AttemptStatus::from(order.status.clone()),
+            status: enums::AttemptStatus::from(order.status.clone()).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(order.order_id.clone()),
                 redirection_data: Box::new(None),

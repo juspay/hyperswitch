@@ -927,7 +927,7 @@ impl TryFrom<PaymentsResponseRouterData<ArchipelPaymentsResponse>> for PaymentsA
             ArchipelFlowStatus::new(item.response.transaction_result, archipel_flow).into();
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
                 authentication_data: None,
@@ -980,7 +980,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<ArchipelPaymentsResponse>> for Payme
             ArchipelFlowStatus::new(item.response.transaction_result, archipel_flow).into();
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
                 authentication_data: None,
@@ -1046,7 +1046,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ArchipelPaymentsResponse>>
         .into();
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
                 authentication_data: None,
@@ -1170,7 +1170,7 @@ impl<F>
         .into();
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
                 authentication_data: None,
@@ -1229,7 +1229,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<ArchipelPaymentsResponse>>
         .into();
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
                 authentication_data: None,

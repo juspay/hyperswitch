@@ -405,7 +405,7 @@ impl<F>
                 authentication_data: None,
                 charges: None,
             }),
-            status: enums::AttemptStatus::from(item.response),
+            status: enums::AttemptStatus::from(item.response).into(),
             ..item.data
         })
     }
@@ -449,7 +449,7 @@ impl TryFrom<PaymentsResponseRouterData<HelcimPaymentsResponse>> for PaymentsAut
                 authentication_data: None,
                 charges: None,
             }),
-            status: enums::AttemptStatus::from(item.response),
+            status: enums::AttemptStatus::from(item.response).into(),
             ..item.data
         })
     }
@@ -497,7 +497,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<HelcimPaymentsResponse>> for Payment
                     authentication_data: None,
                     charges: None,
                 }),
-                status: enums::AttemptStatus::from(item.response),
+                status: enums::AttemptStatus::from(item.response).into(),
                 ..item.data
             }),
             hyperswitch_domain_models::router_request_types::SyncRequestType::MultipleCaptureSync(_) => {
@@ -572,7 +572,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<HelcimPaymentsResponse>>
                 authentication_data: None,
                 charges: None,
             }),
-            status: enums::AttemptStatus::from(item.response),
+            status: enums::AttemptStatus::from(item.response).into(),
             ..item.data
         })
     }
@@ -625,7 +625,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<HelcimPaymentsResponse>>
                 authentication_data: None,
                 charges: None,
             }),
-            status: enums::AttemptStatus::from(item.response),
+            status: enums::AttemptStatus::from(item.response).into(),
             ..item.data
         })
     }

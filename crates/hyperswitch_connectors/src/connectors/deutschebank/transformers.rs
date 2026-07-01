@@ -375,11 +375,11 @@ impl
                     Some(processed) => Ok(Self {
                         status: if is_response_success(&processed.rc) {
                             match item.data.request.is_auto_capture()? {
-                                true => common_enums::AttemptStatus::Charged,
+                                true => common_enums::AttemptStatus::Charged.into(),
                                 false => common_enums::AttemptStatus::Authorized,
                             }
                         } else {
-                            common_enums::AttemptStatus::AuthenticationFailed
+                            common_enums::AttemptStatus::AuthenticationFailed.into()
                         },
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
@@ -411,7 +411,7 @@ impl
             DeutschebankThreeDSInitializeResponseOutcome::ChallengeRequired => {
                 match item.response.challenge_required {
                     Some(challenge) => Ok(Self {
-                        status: common_enums::AttemptStatus::AuthenticationPending,
+                        status: common_enums::AttemptStatus::AuthenticationPending.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::NoResponseId,
                             redirection_data: Box::new(Some(
@@ -443,7 +443,7 @@ impl
                 }
             }
             DeutschebankThreeDSInitializeResponseOutcome::MethodRequired => Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(ErrorResponse {
                     code: consts::NO_ERROR_CODE.to_owned(),
                     message: "METHOD_REQUIRED Flow not supported for deutschebank 3ds payments".to_owned(),
@@ -569,7 +569,7 @@ impl
             is_response_success,
         ) {
             (Some(reference), Some(state), true) => Ok(Self {
-                status: common_enums::AttemptStatus::from(state),
+                status: common_enums::AttemptStatus::from(state).into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(Some(RedirectForm::Form {
@@ -617,7 +617,7 @@ impl
                 ..item.data
             }),
             _ => Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(get_error_response(
                     response_code.clone(),
                     item.response.message.clone(),
@@ -652,7 +652,7 @@ impl
         if is_response_success(&response_code) {
             Ok(Self {
                 status: match item.data.request.is_auto_capture()? {
-                    true => common_enums::AttemptStatus::Charged,
+                    true => common_enums::AttemptStatus::Charged.into(),
                     false => common_enums::AttemptStatus::Authorized,
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -671,7 +671,7 @@ impl
             })
         } else {
             Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(get_error_response(
                     response_code.clone(),
                     item.response.message.clone(),
@@ -904,7 +904,7 @@ impl
         if is_response_success(&response_code) {
             Ok(Self {
                 status: match item.data.request.is_auto_capture()? {
-                    true => common_enums::AttemptStatus::Charged,
+                    true => common_enums::AttemptStatus::Charged.into(),
                     false => common_enums::AttemptStatus::Authorized,
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -923,7 +923,7 @@ impl
             })
         } else {
             Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(get_error_response(
                     response_code.clone(),
                     item.response.message.clone(),
@@ -997,7 +997,7 @@ impl
         let response_code = item.response.rc.clone();
         if is_response_success(&response_code) {
             Ok(Self {
-                status: common_enums::AttemptStatus::Charged,
+                status: common_enums::AttemptStatus::Charged.into(),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
                     redirection_data: Box::new(None),
@@ -1014,7 +1014,7 @@ impl
             })
         } else {
             Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(get_error_response(
                     response_code.clone(),
                     item.response.message.clone(),
@@ -1069,7 +1069,7 @@ impl
         };
         match status {
             Some(common_enums::AttemptStatus::Failure) => Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(get_error_response(
                     response_code.clone(),
                     item.response.message.clone(),
@@ -1078,7 +1078,7 @@ impl
                 ..item.data
             }),
             Some(status) => Ok(Self {
-                status,
+                status: status.into(),
                 ..item.data
             }),
             None => Ok(Self { ..item.data }),
@@ -1121,12 +1121,12 @@ impl TryFrom<PaymentsCancelResponseRouterData<DeutschebankPaymentsResponse>>
         let response_code = item.response.rc.clone();
         if is_response_success(&response_code) {
             Ok(Self {
-                status: common_enums::AttemptStatus::Voided,
+                status: common_enums::AttemptStatus::Voided.into(),
                 ..item.data
             })
         } else {
             Ok(Self {
-                status: common_enums::AttemptStatus::VoidFailed,
+                status: common_enums::AttemptStatus::VoidFailed.into(),
                 response: Err(get_error_response(
                     response_code.clone(),
                     item.response.message.clone(),
@@ -1186,7 +1186,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, DeutschebankPaymentsResponse>>
             })
         } else {
             Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(get_error_response(
                     response_code.clone(),
                     item.response.message.clone(),
@@ -1228,7 +1228,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, DeutschebankPaymentsResponse>>
 
         match status {
             Some(enums::RefundStatus::Failure) => Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+                status: common_enums::AttemptStatus::Failure.into(),
                 response: Err(get_error_response(
                     response_code.clone(),
                     item.response.message.clone(),

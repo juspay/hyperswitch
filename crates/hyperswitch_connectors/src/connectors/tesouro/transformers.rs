@@ -1088,9 +1088,9 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                     match authorization_response.type_name {
                         Some(AuthorizeTransactionResponseType::AuthorizationApproval) => Ok(Self {
                             status: if item.data.request.is_auto_capture()? {
-                                enums::AttemptStatus::Charged
+                                enums::AttemptStatus::Charged.into()
                             } else {
-                                enums::AttemptStatus::Authorized
+                                enums::AttemptStatus::Authorized.into()
                             },
                             response: Ok(PaymentsResponseData::TransactionResponse {
                                 resource_id: ResponseId::ConnectorTransactionId(
@@ -1114,9 +1114,9 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                         }),
                         Some(AuthorizeTransactionResponseType::AuthorizationDecline) => Ok(Self {
                             status: if item.data.request.is_auto_capture()? {
-                                enums::AttemptStatus::Failure
+                                enums::AttemptStatus::Failure.into()
                             } else {
-                                enums::AttemptStatus::AuthorizationFailed
+                                enums::AttemptStatus::AuthorizationFailed.into()
                             },
                             response: Err(ErrorResponse {
                                 code: authorization_response
@@ -1140,7 +1140,7 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                             ..item.data
                         }),
                         None => Ok(Self {
-                            status: enums::AttemptStatus::Pending,
+                            status: enums::AttemptStatus::Pending.into(),
                             response: Ok(PaymentsResponseData::TransactionResponse {
                                 resource_id: ResponseId::ConnectorTransactionId(
                                     transaction_id.clone(),
@@ -1177,9 +1177,9 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
 
                     Ok(Self {
                         status: if item.data.request.is_auto_capture()? {
-                            enums::AttemptStatus::Failure
+                            enums::AttemptStatus::Failure.into()
                         } else {
-                            enums::AttemptStatus::AuthorizationFailed
+                            enums::AttemptStatus::AuthorizationFailed.into()
                         },
                         response: Err(ErrorResponse {
                             code: error_code.clone(),
@@ -1219,9 +1219,9 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                 };
                 Ok(Self {
                     status: if item.data.request.is_auto_capture()? {
-                        enums::AttemptStatus::Failure
+                        enums::AttemptStatus::Failure.into()
                     } else {
-                        enums::AttemptStatus::AuthorizationFailed
+                        enums::AttemptStatus::AuthorizationFailed.into()
                     },
                     response: Err(ErrorResponse {
                         code: NO_ERROR_CODE.to_string(),
@@ -1273,7 +1273,7 @@ impl<F>
                         payment_id: account_setup_response.payment_id.clone()
                     });
                     Ok(Self {
-                        status: enums::AttemptStatus::Charged,
+                        status: enums::AttemptStatus::Charged.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
                                 account_setup_response.transaction_id.clone(),
@@ -1308,7 +1308,7 @@ impl<F>
                         .and_then(|error_data| error_data.transaction_id.clone());
 
                     Ok(Self {
-                        status: enums::AttemptStatus::Failure,
+                        status: enums::AttemptStatus::Failure.into(),
                         response: Err(ErrorResponse {
                             code: error_code.clone(),
                             message: error_message
@@ -1346,7 +1346,7 @@ impl<F>
                     false => None,
                 };
                 Ok(Self {
-                    status: enums::AttemptStatus::Failure,
+                    status: enums::AttemptStatus::Failure.into(),
                     response: Err(ErrorResponse {
                         code: NO_ERROR_CODE.to_string(),
                         message: error_message
@@ -1410,7 +1410,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                     match capture_authorization_response.type_name {
                         Some(CaptureTransactionResponseType::CaptureAuthorizationApproval) => {
                             Ok(Self {
-                                status: enums::AttemptStatus::Charged,
+                                status: enums::AttemptStatus::Charged.into(),
                                 response: Ok(PaymentsResponseData::TransactionResponse {
                                     resource_id: ResponseId::ConnectorTransactionId(transaction_id),
                                     redirection_data: Box::new(None),
@@ -1432,7 +1432,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                         }
                         Some(CaptureTransactionResponseType::CaptureAuthorizationDecline) => {
                             Ok(Self {
-                                status: enums::AttemptStatus::CaptureFailed,
+                                status: enums::AttemptStatus::CaptureFailed.into(),
                                 response: Err(ErrorResponse {
                                     code: capture_authorization_response
                                         .decline_type
@@ -1456,7 +1456,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                             })
                         }
                         None => Ok(Self {
-                            status: enums::AttemptStatus::CaptureInitiated,
+                            status: enums::AttemptStatus::CaptureInitiated.into(),
                             response: Ok(PaymentsResponseData::TransactionResponse {
                                 resource_id: ResponseId::ConnectorTransactionId(transaction_id),
                                 redirection_data: Box::new(None),
@@ -1483,7 +1483,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                         .map(|error_data| error_data.message.clone());
 
                     Ok(Self {
-                        status: enums::AttemptStatus::CaptureFailed,
+                        status: enums::AttemptStatus::CaptureFailed.into(),
                         response: Err(ErrorResponse {
                             code: error_code.clone(),
                             message: error_message
@@ -1521,7 +1521,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                     false => None,
                 };
                 Ok(Self {
-                    status: enums::AttemptStatus::CaptureFailed,
+                    status: enums::AttemptStatus::CaptureFailed.into(),
                     response: Err(ErrorResponse {
                         code: NO_ERROR_CODE.to_string(),
                         message: error_message
@@ -1560,7 +1560,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                     match reverse_transaction.type_name {
                         Some(ReverseTransactionResponseType::ReverseTransactionApproval) => {
                             Ok(Self {
-                                status: enums::AttemptStatus::Voided,
+                                status: enums::AttemptStatus::Voided.into(),
                                 response: Ok(PaymentsResponseData::TransactionResponse {
                                     resource_id: ResponseId::ConnectorTransactionId(transaction_id),
                                     redirection_data: Box::new(None),
@@ -1578,7 +1578,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                         }
                         Some(ReverseTransactionResponseType::ReverseTransactionDecline) => {
                             Ok(Self {
-                                status: enums::AttemptStatus::VoidFailed,
+                                status: enums::AttemptStatus::VoidFailed.into(),
                                 response: Err(ErrorResponse {
                                     code: reverse_transaction
                                         .decline_type
@@ -1602,7 +1602,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                             })
                         }
                         None => Ok(Self {
-                            status: enums::AttemptStatus::VoidInitiated,
+                            status: enums::AttemptStatus::VoidInitiated.into(),
                             response: Ok(PaymentsResponseData::TransactionResponse {
                                 resource_id: ResponseId::ConnectorTransactionId(transaction_id),
                                 redirection_data: Box::new(None),
@@ -1629,7 +1629,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                         .map(|error_data| error_data.message.clone());
 
                     Ok(Self {
-                        status: enums::AttemptStatus::VoidFailed,
+                        status: enums::AttemptStatus::VoidFailed.into(),
                         response: Err(ErrorResponse {
                             code: error_code.clone(),
                             message: error_message
@@ -1667,7 +1667,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                     false => None,
                 };
                 Ok(Self {
-                    status: enums::AttemptStatus::VoidFailed,
+                    status: enums::AttemptStatus::VoidFailed.into(),
                     response: Err(ErrorResponse {
                         code: NO_ERROR_CODE.to_string(),
                         message: error_message
@@ -1985,7 +1985,7 @@ impl<F> TryFrom<ResponseRouterData<F, TesouroSyncResponse, PaymentsSyncData, Pay
                     let connector_transaction_id = response.data.payment_transaction.id.clone();
 
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Err(ErrorResponse {
                             code: error_code.clone(),
                             message: error_message.clone(),
@@ -2003,7 +2003,7 @@ impl<F> TryFrom<ResponseRouterData<F, TesouroSyncResponse, PaymentsSyncData, Pay
                     })
                 } else {
                     Ok(Self {
-                        status,
+                        status: status.into(),
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
                                 response.data.payment_transaction.id.to_string(),

@@ -1056,7 +1056,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MultisafepayAuthResponse, T, PaymentsRe
                     AttemptStatus::from(payment_response.data.status.unwrap_or(default_status));
 
                 Ok(Self {
-                    status,
+                    status: status.into(),
                     response: if utils::is_payment_failure(status) {
                         Err(populate_error_reason(
                             payment_response.data.reason_code,

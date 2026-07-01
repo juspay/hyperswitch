@@ -784,7 +784,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 router_env::logger::info!(connector_response=?response);
 
                 Ok(RouterData {
-                    status: enums::AttemptStatus::AuthenticationPending,
+                    status: enums::AttemptStatus::AuthenticationPending.into(),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::NoResponseId,
                         redirection_data: Box::new(Some(RedirectForm::BlueSnap {

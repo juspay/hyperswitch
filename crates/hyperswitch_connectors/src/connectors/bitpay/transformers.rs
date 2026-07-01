@@ -156,7 +156,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BitpayPaymentsResponse, T, PaymentsResp
         let connector_id = ResponseId::ConnectorTransactionId(item.response.data.id.clone());
         let attempt_status = item.response.data.status;
         Ok(Self {
-            status: enums::AttemptStatus::from(attempt_status),
+            status: enums::AttemptStatus::from(attempt_status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id,
                 redirection_data: Box::new(redirection_data),

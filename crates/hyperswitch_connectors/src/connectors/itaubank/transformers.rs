@@ -292,7 +292,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ItaubankPaymentsResponse, T, PaymentsRe
     ) -> Result<Self, Self::Error> {
         let connector_metadata = get_qr_code_data(&item.response)?;
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.txid.to_owned()),
                 redirection_data: Box::new(None),
@@ -373,7 +373,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ItaubankPaymentsSyncResponse, T, Paymen
         }));
 
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.txid.to_owned()),
                 redirection_data: Box::new(None),

@@ -158,7 +158,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DigitalvirgoPaymentsResponse, T, Paymen
                 "consent_data_required": "consent_not_required",
             })));
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.state),
+            status: common_enums::AttemptStatus::from(item.response.state).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.transaction_id),
                 redirection_data: Box::new(None),
@@ -216,7 +216,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DigitalvirgoPaymentSyncResponse, T, Pay
         item: ResponseRouterData<F, DigitalvirgoPaymentSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.payment_status),
+            status: common_enums::AttemptStatus::from(item.response.payment_status).into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.transaction_id),
                 redirection_data: Box::new(None),

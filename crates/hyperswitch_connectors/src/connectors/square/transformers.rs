@@ -222,7 +222,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SquareSessionResponse, T, PaymentsRespo
         item: ResponseRouterData<F, SquareSessionResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::Pending,
+            status: enums::AttemptStatus::Pending.into(),
             session_token: Some(item.response.session_id.clone().expose()),
             response: Ok(PaymentsResponseData::SessionTokenResponse {
                 session_token: item.response.session_id.expose(),
@@ -412,7 +412,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SquarePaymentsResponse, T, PaymentsResp
             amount_captured = Some(item.response.payment.amount_money.amount)
         };
         Ok(Self {
-            status,
+            status: status.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payment.id),
                 redirection_data: Box::new(None),

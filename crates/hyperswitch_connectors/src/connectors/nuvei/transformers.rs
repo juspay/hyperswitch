@@ -291,7 +291,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NuveiSessionResponse, T, PaymentsRespon
         item: ResponseRouterData<F, NuveiSessionResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::Pending,
+            status: enums::AttemptStatus::Pending.into(),
             session_token: Some(item.response.session_token.clone().expose()),
             response: Ok(PaymentsResponseData::SessionTokenResponse {
                 session_token: item.response.session_token.expose(),
@@ -2215,7 +2215,7 @@ impl
         let response = &item.response;
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: if let Some(err) = build_error_response(ErrorResponseParams {
                 http_code: item.http_code,
                 status: response.status.clone(),
@@ -2434,7 +2434,7 @@ impl
             .and_then(|browser_info| browser_info.ip_address.map(|ip| ip.to_string()));
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: if let Some(err) = build_error_response(ErrorResponseParams {
                 http_code: item.http_code,
                 status: response.status.clone(),
@@ -2494,7 +2494,7 @@ where
         )?;
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: if let Some(err) = build_error_response(ErrorResponseParams {
                 http_code: item.http_code,
                 status: response.status.clone(),
@@ -2623,7 +2623,7 @@ where
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response: if let Some(err) = build_error_response(ErrorResponseParams {
                 http_code: item.http_code,
                 status: response.status.clone(),
@@ -2756,7 +2756,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NuveiPaymentsResponse>>
                 response.transaction_type,
                 response.transaction_status,
                 response.status,
-            ),
+            ).into(),
             response: Ok(PaymentsResponseData::ThreeDSEnrollmentResponse {
                 enrolled_v2: is_enrolled_for_3ds,
                 related_transaction_id: response.transaction_id,
@@ -2788,7 +2788,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<NuveiPaymentsResponse>>
                 response.transaction_type,
                 response.transaction_status,
                 response.status,
-            ),
+            ).into(),
             response: Ok(PaymentsResponseData::ThreeDSEnrollmentResponse {
                 enrolled_v2: is_enrolled_for_3ds,
                 related_transaction_id: response.transaction_id,

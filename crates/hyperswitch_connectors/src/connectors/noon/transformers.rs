@@ -643,7 +643,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsRespon
                     connector_mandate_request_reference_id: None,
                 });
         Ok(Self {
-            status,
+            status: status.into(),
             response: match order.error_message {
                 Some(error_message) => Err(ErrorResponse {
                     code: order.error_code.to_string(),

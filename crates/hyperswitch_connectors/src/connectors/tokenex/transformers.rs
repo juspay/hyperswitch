@@ -107,7 +107,7 @@ impl
                     .ok_or(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("Token is missing in tokenex response")?;
                 Ok(Self {
-                    status: common_enums::AttemptStatus::Started,
+                    status: common_enums::AttemptStatus::Started.into(),
                     response: Ok(VaultResponseData::ExternalVaultInsertResponse {
                         connector_vault_id: VaultIdType::SingleVaultId(token.clone()),
                         //fingerprint is not provided by tokenex, using token as fingerprint
@@ -200,7 +200,7 @@ impl
                     .ok_or(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("Card number is missing in tokenex response")?;
                 Ok(Self {
-                    status: common_enums::AttemptStatus::Started,
+                    status: common_enums::AttemptStatus::Started.into(),
                     response: Ok(VaultResponseData::ExternalVaultRetrieveResponse {
                         vault_data: PaymentMethodVaultingData::CardNumber(data),
                     }),

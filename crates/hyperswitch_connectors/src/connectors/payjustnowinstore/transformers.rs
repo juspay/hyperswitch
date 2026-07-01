@@ -149,7 +149,7 @@ impl<F, T>
         let redirection_data = Some(RedirectForm::from((item.response.scan_url, Method::Get)));
 
         Ok(Self {
-            status: common_enums::AttemptStatus::AuthenticationPending,
+            status: common_enums::AttemptStatus::AuthenticationPending.into(),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.token),
                 redirection_data: Box::new(redirection_data),
@@ -259,7 +259,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayjustnowinstoreSyncResponse, T, Payme
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })

@@ -833,7 +833,7 @@ impl<F, T>
             }),
         };
         Ok(Self {
-            status,
+            status: status.into(),
             description,
             response,
             ..router_data.data
