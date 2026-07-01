@@ -196,6 +196,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        // NOTE: `RequiresCustomerAction` is intentionally NOT in the not-allowed list. After the
+        // external 3DS pre-auth emits a `ThreeDsInvoke`, the intent sits in `RequiresCustomerAction`;
+        // the SDK completes the challenge and RE-CONFIRMS to resume (Phase 4b-2b: post-authenticate
+        // -> authorize). That resume is the only way this operation sees `RequiresCustomerAction`.
         helpers::validate_payment_status_against_not_allowed_statuses(
             payment_intent.status,
             &[
@@ -204,7 +208,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
                 storage_enums::IntentStatus::Processing,
                 storage_enums::IntentStatus::RequiresCapture,
                 storage_enums::IntentStatus::RequiresMerchantAction,
-                storage_enums::IntentStatus::RequiresCustomerAction,
             ],
             "external_vault_proxy_confirm",
         )?;
@@ -308,6 +311,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
         payment_attempt.payment_method = Some(payment_method);
         payment_attempt.payment_method_type = Some(payment_method_subtype);
 
+        // Persist the confirm request's browser_info onto the attempt so the external 3DS AReq
+        // leg (`/3ds/authentication`) can forward `browserInformation` to the authentication
+        // connector. A browser-channel AReq without it is rejected (e.g. Netcetera:
+        // "browserInformation: data element is required but does not exist").
+        if payment_attempt.browser_info.is_none() {
+            payment_attempt.browser_info = request.browser_info.clone();
+        }
+
         let payment_method_info = payment_method_wrapper.map(|w| w.payment_method);
 
         let payment_data = PaymentData {
@@ -362,7 +373,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             whole_connector_response: None,
             is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
-            external_authentication_data: None,
+            // Pass-through external 3DS: carry merchant-supplied CAVV/ECI (three_ds_data)
+            // so it reaches the PSP authorize through the external-vault proxy.
+            external_authentication_data: request.three_ds_data.clone(),
             vault_session_details: None,
             external_vault_pmd,
             client_session_id: None,

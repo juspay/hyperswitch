@@ -1755,6 +1755,31 @@ fn get_ucs_client(
         })
 }
 
+/// Serialize an authentication connector MCA's `metadata` JSON into the gRPC
+/// `connector_feature_data` field shape (a JSON string wrapped in `Secret`).
+///
+/// The auth-connector (e.g. `netcetera`) MCA metadata carries per-merchant, NON-auth config —
+/// the Netcetera `endpoint_prefix` (used to substitute `{{merchant_endpoint_prefix}}` in the 3DS
+/// Server host on the UCS side) plus the AReq merchant fields (`mcc`, `merchant_country_code`,
+/// `three_ds_requestor_id`, ...). It rides `connector_feature_data` on the pre/authenticate/
+/// post-authenticate gRPC requests (NOT `connector_auth_metadata`, which carries credentials).
+#[cfg(feature = "v1")]
+pub fn build_connector_feature_data_from_auth_mca(
+    merchant_connector_account: &MerchantConnectorAccountType,
+) -> CustomResult<Option<Secret<String>>, UnifiedConnectorServiceError> {
+    merchant_connector_account
+        .get_metadata()
+        .map(|metadata| {
+            serde_json::to_string(&metadata.expose())
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
+                .attach_printable(
+                    "Failed to serialize authentication connector MCA metadata for connector_feature_data",
+                )
+                .map(Secret::new)
+        })
+        .transpose()
+}
+
 pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
@@ -1855,6 +1880,23 @@ pub fn build_unified_connector_service_auth_metadata(
             auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
             connector_config,
+        }),
+        // Netcetera (external-3DS over VGS) auth is effectively no-auth in the UCS
+        // path: the mTLS client cert is handled on the VGS outbound route, not here,
+        // and merchant fields ride `connector_feature_data`. Do NOT forward the
+        // certificate / private key. Emit a minimal no-key auth metadata (no
+        // credentials, no connector_config) so UCS routes via the `x-connector`
+        // header and its Netcetera connector's empty `get_auth_header`.
+        ConnectorAuthType::CertificateAuth { .. } => Ok(ConnectorAuthMetadata {
+            connector_name,
+            auth_type: consts::UCS_AUTH_NO_KEY.to_string(),
+            api_key: None,
+            key1: None,
+            key2: None,
+            api_secret: None,
+            auth_key_map: None,
+            merchant_id: Secret::new(merchant_id.to_string()),
+            connector_config: None,
         }),
         _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
             .attach_printable("Unsupported ConnectorAuthType for header injection"),
@@ -3369,4 +3411,60 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to parse UCS surcharge calculate response")
+}
+
+#[cfg(test)]
+mod external_vault_card_proxy_tests {
+    use hyperswitch_domain_models::payment_method_data::{
+        ExternalVaultCard, ExternalVaultPaymentMethodData,
+    };
+    use hyperswitch_masking::{PeekInterface, Secret};
+    use unified_connector_service_client::payments::payment_method::PaymentMethod;
+
+    use super::build_unified_connector_service_payment_method_for_external_proxy;
+
+    /// Core invariant of external-3DS-over-VGS: a VGS alias (which is NOT a
+    /// Luhn-valid PAN) must be carried in the gRPC `card_proxy` field, never the
+    /// Luhn-validated card field. If this regresses, the alias would fail to
+    /// construct a `CardNumber` and the whole external-vault 3DS feature breaks.
+    #[test]
+    fn alias_is_carried_in_card_proxy_not_luhn_field() {
+        let alias = "tok_sandbox_NOT_A_LUHN_PAN_4242";
+        let pmd = ExternalVaultPaymentMethodData::Card(Box::new(ExternalVaultCard {
+            card_number: Secret::new(alias.to_string()),
+            card_exp_month: Secret::new("04".to_string()),
+            card_exp_year: Secret::new("28".to_string()),
+            card_cvc: Secret::new("tok_cvc_alias".to_string()),
+            bin_number: None,
+            last_four: None,
+            card_issuer: None,
+            card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            nick_name: None,
+            card_holder_name: None,
+            co_badged_card_data: None,
+        }));
+
+        let pm = build_unified_connector_service_payment_method_for_external_proxy(pmd, None)
+            .expect("external-vault card should build a payment method");
+
+        match pm.payment_method {
+            // CardProxy (not Card) proves the alias took the proxy path, bypassing
+            // Luhn validation entirely.
+            Some(PaymentMethod::CardProxy(details)) => {
+                assert_eq!(
+                    details.card_number.as_ref().map(|n| n.peek().to_owned()),
+                    Some(alias.to_string()),
+                    "alias must be carried verbatim in card_proxy.card_number"
+                );
+                assert_eq!(
+                    details.card_cvc.as_ref().map(|c| c.peek().to_owned()),
+                    Some("tok_cvc_alias".to_string()),
+                );
+            }
+            other => panic!("expected CardProxy carrying the alias, got {other:?}"),
+        }
+    }
 }

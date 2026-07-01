@@ -1504,6 +1504,14 @@ pub fn build_connector_config_header(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| format!("Invalid connector name: {}", connector_name))?;
 
+    // Netcetera (external-3DS over VGS) needs no credential config in the UCS path:
+    // its mTLS client cert is handled on the VGS outbound route, and merchant fields
+    // ride `connector_feature_data`. Omit the `x-connector-config` header so UCS falls
+    // back to the legacy `x-connector` + `x-auth: no-key` routing.
+    if matches!(connector, Connector::Netcetera) {
+        return Ok(None);
+    }
+
     let config = ConnectorSpecificConfig::foreign_try_from((
         connector,
         auth_type,
