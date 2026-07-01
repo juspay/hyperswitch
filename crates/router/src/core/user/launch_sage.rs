@@ -69,7 +69,7 @@ pub async fn launch_sage(
         launch_merchant_id: user_from_token.merchant_id.get_string_repr().to_owned(),
         launch_profile_id: user_from_token.profile_id.get_string_repr().to_owned(),
         org_id: user_from_token.org_id.get_string_repr().to_owned(),
-        role: capped_role.to_owned(),
+        role: capped_role.to_string(),
         source: SAGE_SOURCE.to_owned(),
         subject_jti: None,
         scope,
@@ -179,11 +179,10 @@ fn user_role_to_scope_entry(
         "tenant_id".to_owned(),
         user_role.tenant_id.get_string_repr().to_owned(),
     );
-    let (type_name, include_org, include_merchant) = match entity_type {
-        EntityType::Tenant => ("tenant", false, false),
-        EntityType::Organization => ("organization", false, false),
-        EntityType::Merchant => ("merchant", true, false),
-        EntityType::Profile => ("profile", true, true),
+    let (include_org, include_merchant) = match entity_type {
+        EntityType::Tenant | EntityType::Organization => (false, false),
+        EntityType::Merchant => (true, false),
+        EntityType::Profile => (true, true),
     };
     if include_org {
         if let Some(org_id) = user_role.org_id.as_ref() {
@@ -199,16 +198,28 @@ fn user_role_to_scope_entry(
         }
     }
     launch_sage_api::ScopeEntry {
-        entity_type: type_name.to_owned(),
+        entity_type: entity_type.to_string(),
         entity_id,
         path,
         constraints: HashMap::new(),
     }
 }
 
-fn map_entity_type_to_role(entity: EntityType) -> &'static str {
+/// Wire-contract vocabulary for the `role` field on `SageSessionRequest` —
+/// mirrors hypersage's `src/web/auth.py:Role` enum. Kept private to this
+/// module so the shared API-models crate stays free of sage-side vocabulary
+/// coupling; the string leaves this file via `.to_string()` at the mint
+/// call site.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, strum::Display)]
+#[strum(serialize_all = "snake_case")]
+enum SageRole {
+    Operator,
+    Viewer,
+}
+
+fn map_entity_type_to_role(entity: EntityType) -> SageRole {
     match entity {
-        EntityType::Tenant | EntityType::Organization => "operator",
-        EntityType::Merchant | EntityType::Profile => "viewer",
+        EntityType::Tenant | EntityType::Organization => SageRole::Operator,
+        EntityType::Merchant | EntityType::Profile => SageRole::Viewer,
     }
 }
