@@ -5183,12 +5183,17 @@ Cypress.Commands.add(
     // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
     // trying to handle that specific case results in stripe 3ds tests to fail
     if (!(connectorId == "adyen" && paymentMethodType == "sofort")) {
-      handleRedirection(
-        "bank_redirect",
-        { redirectionUrl, expectedUrl },
-        connectorId,
-        paymentMethodType
-      );
+      // Wrap in cy.then() so that commands enqueued by handleRedirection
+      // (especially cy.origin() calls for PayJustNow) are chained inline
+      // and complete before subsequent test steps (Retrieve Payment, Refund).
+      cy.then(() => {
+        handleRedirection(
+          "bank_redirect",
+          { redirectionUrl, expectedUrl },
+          connectorId,
+          paymentMethodType
+        );
+      });
     }
   }
 );
