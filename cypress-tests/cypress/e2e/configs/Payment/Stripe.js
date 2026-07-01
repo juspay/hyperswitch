@@ -57,6 +57,16 @@ const multiUseMandateData = {
   },
 };
 
+const onlineCustomerAcceptance = {
+  acceptance_type: "online",
+  accepted_at: "2025-05-07T09:30:52.779Z",
+  online: {
+    ip_address: "103.23.45.1",
+    user_agent:
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:138.0) Gecko/20100101 Firefox/138.0",
+  },
+};
+
 const payment_method_data_3ds = {
   card: {
     last4: "3155",
@@ -1421,6 +1431,528 @@ export const connectorDetails = {
         },
       },
     }),
+  },
+  bank_debit_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
+      const credentialMap = {
+        Sepa: { value: "connector_5" },
+        Ach: { value: "connector_1" },
+        Becs: { value: "connector_4" },
+        Bacs: { value: "connector_3" },
+      };
+      return {
+        Configs: {
+          CONNECTOR_CREDENTIAL: credentialMap[paymentMethodType] || {
+            value: "connector_5",
+          },
+          ...(paymentMethodType === "Bacs" ? { TRIGGER_SKIP: true } : {}),
+        },
+        Request: {
+          currency: currencyMap[paymentMethodType] || "USD",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Sepa: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_5",
+        },
+      },
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "Account",
+            country: "FR",
+          },
+          email: "test@example.com",
+        },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 1000,
+              currency: "EUR",
+              start_date: "2025-04-21T00:00:00Z",
+              end_date: "2028-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    Becs: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_4",
+        },
+      },
+      Request: {
+        currency: "AUD",
+        payment_method: "bank_debit",
+        payment_method_type: "becs",
+        payment_method_data: {
+          bank_debit: {
+            becs_bank_debit: {
+              bsb_number: "000000",
+              account_number: "000123456",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "Account",
+            country: "AU",
+            line1: "123 Test St",
+            zip: "2000",
+          },
+          email: "test@example.com",
+        },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 1000,
+              currency: "AUD",
+              start_date: "2025-04-21T00:00:00Z",
+              end_date: "2028-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    Ach: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "110000000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "US",
+            first_name: "Test",
+            last_name: "Account",
+          },
+          email: "test@example.com",
+        },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 6000,
+              currency: "USD",
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Bacs: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_3",
+        },
+      },
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "bacs",
+        payment_method_data: {
+          bank_debit: {
+            bacs_bank_debit: {
+              account_number: "00012345",
+              sort_code: "108800",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1 Oxford Street",
+            city: "London",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "Test",
+            last_name: "Account",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateSingleUseAch: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
+      Request: {
+        amount: 6540,
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        currency: "USD",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "110000000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "USD",
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            country: "US",
+            first_name: "Test",
+            last_name: "Account",
+          },
+          email: "test@example.com",
+        },
+        payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    MandateSingleUseBacs: {
+      Configs: {
+        TRIGGER_SKIP: true,
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_3",
+        },
+      },
+      Request: {
+        amount: 6540,
+        payment_method: "bank_debit",
+        payment_method_type: "bacs",
+        currency: "GBP",
+        payment_method_data: {
+          bank_debit: {
+            bacs_bank_debit: {
+              account_number: "00012345",
+              sort_code: "108800",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 1000,
+              currency: "GBP",
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            line1: "1 Oxford Street",
+            city: "London",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "Test",
+            last_name: "Account",
+          },
+          email: "test@example.com",
+        },
+        payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateSingleUseSepa: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_5",
+        },
+      },
+      Request: {
+        amount: 6540,
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        currency: "EUR",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "EUR",
+              start_date: "2025-04-21T00:00:00Z",
+              end_date: "2028-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "Account",
+            country: "FR",
+          },
+          email: "test@example.com",
+        },
+        payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateSingleUseBecs: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_4",
+        },
+      },
+      Request: {
+        amount: 6540,
+        payment_method: "bank_debit",
+        payment_method_type: "becs",
+        currency: "AUD",
+        payment_method_data: {
+          bank_debit: {
+            becs_bank_debit: {
+              bsb_number: "000000",
+              account_number: "000123456",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "AUD",
+              start_date: "2025-04-21T00:00:00Z",
+              end_date: "2028-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "Account",
+            country: "AU",
+            line1: "123 Test St",
+            zip: "2000",
+          },
+          email: "test@example.com",
+        },
+        payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCaptureSepa: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_5",
+        },
+      },
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "EUR",
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "Account",
+            country: "FR",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCaptureBecs: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_4",
+        },
+      },
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "AUD",
+        payment_method: "bank_debit",
+        payment_method_type: "becs",
+        payment_method_data: {
+          bank_debit: {
+            becs_bank_debit: {
+              bsb_number: "000000",
+              account_number: "000123456",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "Account",
+            country: "AU",
+            line1: "123 Test St",
+            zip: "2000",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCaptureAch: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCaptureBacs: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_3",
+        },
+      },
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "GBP",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
   },
   auth_service_eligibility: {
     // Storage flag does not affect authentication outcome — both enabled and

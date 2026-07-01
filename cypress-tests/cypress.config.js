@@ -3,6 +3,8 @@ import mochawesome from "cypress-mochawesome-reporter/plugin.js";
 import crypto from "crypto";
 import fs from "fs";
 import { getTimeoutMultiplier } from "./cypress/utils/RequestBodyUtils.js";
+import { registerFetchPaymentIntentTask } from "./cypress/plugins/fetchPaymentIntent.js";
+import { registerVaultHealthTask } from "./cypress/plugins/vaultHealth.js";
 
 let globalState;
 
@@ -19,6 +21,8 @@ export default defineConfig({
   e2e: {
     setupNodeEvents(on, config) {
       mochawesome(on);
+      registerFetchPaymentIntentTask(on);
+      registerVaultHealthTask(on);
 
       on("task", {
         setGlobalState: (val) => {
