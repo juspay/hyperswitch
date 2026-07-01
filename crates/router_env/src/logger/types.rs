@@ -136,6 +136,8 @@ pub enum Flow {
     PaymentMethodsCreate,
     /// Payment methods migrate flow.
     PaymentMethodsMigrate,
+    /// Modular Payment methods migrate flow.
+    ModularPaymentMethodsMigrate,
     /// Payment methods batch update flow.
     PaymentMethodsBatchUpdate,
     /// Payment methods batch retrieve flow.
@@ -417,6 +419,8 @@ pub enum Flow {
     GetDataFromHyperswitchAiFlow,
     // List all chat interactions
     ListAllChatInteractions,
+    /// Mint a sage session for the dashboard user.
+    LaunchSage,
     /// User Sign Up
     UserSignUp,
     /// User Sign Up

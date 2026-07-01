@@ -17,6 +17,7 @@ function normalize(input) {
     cybersource: "Cybersource",
     datatrans: "Datatrans",
     facilitapay: "Facilitapay",
+    helcim: "Helcim",
     noon: "Noon",
     paybox: "Paybox",
     paypal: "Paypal",
@@ -203,6 +204,9 @@ const CURRENCY_MAP = {
   Paypal: "EUR",
   MbWay: "EUR",
   Mifinity: "EUR", // Mifinity wallet payment method
+  Alma: "EUR", // French pay_later
+  Atome: "SGD", // Singapore pay_later
+  Walley: "SEK", // Swedish pay_later
 
   // Voucher payment methods
   Boleto: "BRL",
