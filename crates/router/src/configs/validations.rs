@@ -360,31 +360,25 @@ impl super::settings::ChatSettings {
     }
 }
 
-impl super::settings::TraceIntegrationSettings {
+impl super::settings::SageSettings {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
         when(self.enabled && self.base_url.trim().is_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
-                "trace_integration.base_url must be set if \
-                 trace_integration.enabled is true"
-                    .into(),
+                "sage.base_url must be set if sage.enabled is true".into(),
             ))
         })?;
         when(self.enabled && self.mint_path.trim().is_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
-                "trace_integration.mint_path must be set if \
-                 trace_integration.enabled is true"
-                    .into(),
+                "sage.mint_path must be set if sage.enabled is true".into(),
             ))
         })?;
         when(
             self.enabled && self.infra_key.peek().trim().is_empty(),
             || {
                 Err(ApplicationError::InvalidConfigurationValueError(
-                    "trace_integration.infra_key must be set if \
-                     trace_integration.enabled is true"
-                        .into(),
+                    "sage.infra_key must be set if sage.enabled is true".into(),
                 ))
             },
         )

@@ -1535,11 +1535,11 @@ enabled = false
 hyperswitch_ai_host = "http://0.0.0.0:8000"
 encryption_key = ""
 
-[trace_integration]
-enabled = false           # Master switch for federated Trace sessions
-base_url = ""             # Upstream service base URL
-mint_path = ""            # Path on the upstream that mints a session
-infra_key = ""            # Shared bearer presented to the upstream
+[sage]
+enabled = false           # Master switch for sage sessions
+base_url = ""             # Sage base URL
+mint_path = ""            # Path on sage that mints a session
+infra_key = ""            # Shared bearer presented to sage
 
 [proxy_status_mapping]
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response

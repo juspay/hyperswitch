@@ -23,18 +23,18 @@ use crate::{
 // Reusing the AI-service timeout until a dedicated constant is added.
 const REQUEST_TIMEOUT_SECS: u64 = REQUEST_TIME_OUT_FOR_AI_SERVICE;
 
-const INTEGRATION_SOURCE: &str = "hyperswitch-cc";
+const SAGE_SOURCE: &str = "hyperswitch-cc";
 
 #[instrument(skip_all, fields(user_id, merchant_id))]
 pub async fn launch_trace(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> CustomResult<ApplicationResponse<launch_trace_api::LaunchTraceResponse>, LaunchTraceErrors> {
-    let conf = state.conf.trace_integration.get_inner();
+    let conf = state.conf.sage.get_inner();
 
     if !conf.enabled {
-        return Err(error_stack::Report::new(LaunchTraceErrors::FeatureDisabled))
-            .attach_printable("Federated Trace flag is off in this env");
+        return Err(error_stack::Report::new(LaunchTraceErrors::SageDisabled))
+            .attach_printable("sage flag is off in this env");
     }
 
     let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
@@ -52,27 +52,25 @@ pub async fn launch_trace(
 
     if role_info.is_internal() {
         return Err(error_stack::Report::new(LaunchTraceErrors::Forbidden))
-            .attach_printable("Internal roles are not eligible for federated Trace");
+            .attach_printable("Internal roles are not eligible for sage");
     }
 
     let capped_role = map_entity_type_to_role(role_info.get_entity_type());
 
-    // Enumerate every active role the user holds in the JWT's org so the
-    // mint request carries the full authorised scope, not just the current
-    // view. Upstream intersects this with its own allowlist as defence in
-    // depth (identical shape to analytics::get_global_search_results at
-    // crates/router/src/analytics.rs:3982).
+    // Send the full authorised scope on the mint request so sage can support
+    // multi-merchant / multi-profile sessions. Shape mirrors
+    // analytics::get_global_search_results (analytics.rs:3982).
     let scope = build_user_scope(&state, &user_from_token).await?;
 
     // Every id MUST come from the verified AuthToken — the route handler
     // takes an empty body by design.
-    let request_body = launch_trace_api::MintSessionRequest {
+    let request_body = launch_trace_api::SageSessionRequest {
         user_id: user_from_token.user_id.clone(),
         launch_merchant_id: user_from_token.merchant_id.get_string_repr().to_owned(),
         launch_profile_id: user_from_token.profile_id.get_string_repr().to_owned(),
         org_id: user_from_token.org_id.get_string_repr().to_owned(),
         role: capped_role.to_owned(),
-        source: INTEGRATION_SOURCE.to_owned(),
+        source: SAGE_SOURCE.to_owned(),
         subject_jti: None,
         scope,
     };
@@ -93,30 +91,30 @@ pub async fn launch_trace(
     let response =
         http_client::send_request(&state.conf.proxy, request, Some(REQUEST_TIMEOUT_SECS))
             .await
-            .change_context(LaunchTraceErrors::UpstreamError)
-            .attach_printable("Error calling trace integration upstream")?;
+            .change_context(LaunchTraceErrors::SageError)
+            .attach_printable("Error calling sage")?;
 
     let status = response.status();
     if !status.is_success() {
         // 401 is a specific SRE-actionable signal (shared infra key drift).
         // Surface it loudly in logs; the caller still sees a generic 5xx.
         if status.as_u16() == 401 {
-            logger::error!("trace integration: upstream 401 — likely infra key drift");
+            logger::error!("sage: upstream 401 — likely infra key drift");
         }
-        return Err(error_stack::Report::new(LaunchTraceErrors::UpstreamError))
-            .attach_printable(format!("Upstream returned status {status}"));
+        return Err(error_stack::Report::new(LaunchTraceErrors::SageError))
+            .attach_printable(format!("sage returned status {status}"));
     }
 
     let parsed = response
         .json::<launch_trace_api::LaunchTraceResponse>()
         .await
-        .change_context(LaunchTraceErrors::UpstreamError)
-        .attach_printable("Failed to deserialize handoff response")?;
+        .change_context(LaunchTraceErrors::SageError)
+        .attach_printable("Failed to deserialize sage handoff response")?;
 
     // Strip the `?t=…` bearer before logging — it's a single-use credential
     // that must not survive log aggregation.
     if let Some(url_only) = parsed.handoff_url.split('?').next() {
-        logger::info!(handoff_url_path = %url_only, "launch_trace: minted federated session");
+        logger::info!(handoff_url_path = %url_only, "sage: minted federated session");
     }
 
     Ok(ApplicationResponse::Json(parsed))

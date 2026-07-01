@@ -39,12 +39,12 @@ pub struct ScopeEntry {
     pub profile_ids: ScopeProfiles,
 }
 
-/// Outbound mint-request body. Not part of the public API surface —
+/// Outbound Sage mint-request body. Not part of the public API surface —
 /// co-located with the response shape so reviewers see the full contract
 /// in one place. Identity fields are read from the verified AuthToken
 /// inside the handler, never from inbound input.
 #[derive(Debug, Clone, Serialize)]
-pub struct MintSessionRequest {
+pub struct SageSessionRequest {
     pub user_id: String,
     pub launch_merchant_id: String,
     pub launch_profile_id: String,

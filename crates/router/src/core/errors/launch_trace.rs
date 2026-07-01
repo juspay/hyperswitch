@@ -1,13 +1,13 @@
 #[derive(Debug, thiserror::Error)]
 pub enum LaunchTraceErrors {
-    #[error("Federated Trace sessions are not enabled in this environment")]
-    FeatureDisabled,
+    #[error("Sage is not enabled in this environment")]
+    SageDisabled,
 
-    #[error("Federated Trace is not available for this role")]
+    #[error("Sage is not available for this role")]
     Forbidden,
 
-    #[error("Trace federation upstream call failed")]
-    UpstreamError,
+    #[error("Sage call failed")]
+    SageError,
 
     #[error("Internal server error")]
     InternalServerError,
@@ -18,15 +18,15 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
 {
     fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
         use api_models::errors::types::{ApiError, ApiErrorResponse as AER};
-        let sub_code = "FT";
+        let sub_code = "SG";
         match self {
-            Self::FeatureDisabled => {
+            Self::SageDisabled => {
                 AER::NotFound(ApiError::new(sub_code, 1, self.get_error_message(), None))
             }
             Self::Forbidden => {
                 AER::Unauthorized(ApiError::new(sub_code, 2, self.get_error_message(), None))
             }
-            Self::UpstreamError | Self::InternalServerError => {
+            Self::SageError | Self::InternalServerError => {
                 AER::InternalServerError(ApiError::new("HE", 0, self.get_error_message(), None))
             }
         }
@@ -36,11 +36,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
 impl LaunchTraceErrors {
     pub fn get_error_message(&self) -> String {
         match self {
-            Self::FeatureDisabled => "Not found".to_string(),
+            Self::SageDisabled => "Not found".to_string(),
             Self::Forbidden => "Not allowed".to_string(),
-            Self::UpstreamError => {
-                "Trace federation temporarily unavailable, please retry".to_string()
-            }
+            Self::SageError => "Sage temporarily unavailable, please retry".to_string(),
             Self::InternalServerError => "Something went wrong".to_string(),
         }
     }

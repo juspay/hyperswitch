@@ -315,25 +315,25 @@ impl SecretsHandler for settings::ChatSettings {
 }
 
 #[async_trait::async_trait]
-impl SecretsHandler for settings::TraceIntegrationSettings {
+impl SecretsHandler for settings::SageSettings {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let trace_settings = value.get_inner();
+        let sage_settings = value.get_inner();
 
-        // Skip the secret fetch when the integration is off — costs zero.
-        let infra_key = if trace_settings.enabled {
+        // Skip the secret fetch when disabled — costs zero.
+        let infra_key = if sage_settings.enabled {
             secret_management_client
-                .get_secret(trace_settings.infra_key.clone())
+                .get_secret(sage_settings.infra_key.clone())
                 .await?
         } else {
-            trace_settings.infra_key.clone()
+            sage_settings.infra_key.clone()
         };
 
-        Ok(value.transition_state(|trace_settings| Self {
+        Ok(value.transition_state(|sage_settings| Self {
             infra_key,
-            ..trace_settings
+            ..sage_settings
         }))
     }
 }
@@ -540,12 +540,9 @@ pub(crate) async fn fetch_raw_secrets(
         .expect("Failed to decrypt chat configs");
 
     #[allow(clippy::expect_used)]
-    let trace_integration = settings::TraceIntegrationSettings::convert_to_raw_secret(
-        conf.trace_integration,
-        secret_management_client,
-    )
-    .await
-    .expect("Failed to decrypt trace_integration configs");
+    let sage = settings::SageSettings::convert_to_raw_secret(conf.sage, secret_management_client)
+        .await
+        .expect("Failed to decrypt sage configs");
 
     #[allow(clippy::expect_used)]
     let superposition =
@@ -565,7 +562,7 @@ pub(crate) async fn fetch_raw_secrets(
         server: conf.server,
         application_source: conf.application_source,
         chat,
-        trace_integration,
+        sage,
         master_database,
         redis: conf.redis,
         log: conf.log,

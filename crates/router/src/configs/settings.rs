@@ -83,7 +83,7 @@ pub struct Settings<S: SecretState> {
     pub proxy: Proxy,
     pub env: Env,
     pub chat: SecretStateContainer<ChatSettings, S>,
-    pub trace_integration: SecretStateContainer<TraceIntegrationSettings, S>,
+    pub sage: SecretStateContainer<SageSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
@@ -246,7 +246,7 @@ pub struct ChatSettings {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct TraceIntegrationSettings {
+pub struct SageSettings {
     pub enabled: bool,
     pub base_url: String,
     pub mint_path: String,
@@ -1224,7 +1224,7 @@ impl Settings<SecuredSecret> {
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
         self.chat.get_inner().validate()?;
-        self.trace_integration.get_inner().validate()?;
+        self.sage.get_inner().validate()?;
         self.cors.validate()?;
 
         self.scheduler
