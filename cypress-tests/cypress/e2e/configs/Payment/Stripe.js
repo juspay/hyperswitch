@@ -1503,6 +1503,14 @@ export const connectorDetails = {
       },
       Response: {
         status: 500,
+        body: {
+          error: {
+            type: "connector",
+            message: "HE_00: Something went wrong",
+            code: "CE_00",
+            connector: "stripebilling",
+          },
+        },
       },
     }),
     CreateInvalidCustomer: getCustomExchange({
