@@ -2000,8 +2000,26 @@ async fn external_authentication_incoming_webhook_flow(
         // Check if it's a payment authentication flow, payment_id would be there only for payment authentication flows
         if let Some(payment_id) = updated_authentication.payment_id {
             let is_pull_mechanism_enabled = helper_utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(merchant_connector_account.metadata.map(|metadata| metadata.expose()));
+            // External-3DS over VGS external vault: the auth record was just updated
+            // (trans_status/status) and the CAVV vaulted above. Unlike native external-3DS we
+            // cannot authorize from here — the standard `payments::PaymentConfirm` needs the
+            // card/payment_method, but for external vault the PAN lives behind a VGS alias that is
+            // only re-fetched inside the external-vault-proxy confirm operation (a minimal
+            // PaymentConfirm errors IR_04 "Missing required param: payment_method"). Completion
+            // happens when the SDK re-confirms after the challenge: the external-vault-proxy resume
+            // sees authentication_status == Success and authorizes with the (now vaulted) CAVV.
+            if business_profile
+                .external_vault_details
+                .is_external_vault_enabled()
+            {
+                logger::info!(
+                    payment_id = payment_id.get_string_repr(),
+                    "external-vault external-3DS: auth record + CAVV updated via results webhook; awaiting SDK re-confirm to authorize"
+                );
+                Ok(WebhookResponseTracker::NoEffect)
+            }
             // Merchant doesn't have pull mechanism enabled and if it's challenge flow, we have to authorize whenever we receive a ARes webhook
-            if !is_pull_mechanism_enabled
+            else if !is_pull_mechanism_enabled
                 && updated_authentication.authentication_type
                     == Some(common_enums::DecoupledAuthenticationType::Challenge)
                 && event_type == webhooks::IncomingWebhookEvent::ExternalAuthenticationARes

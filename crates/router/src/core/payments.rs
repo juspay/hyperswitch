@@ -4122,10 +4122,17 @@ where
         .as_ref()
         .and_then(|data| data.threeds_server_transaction_id.clone())
         .unwrap_or_default();
+    // For netcetera the connector's transaction id IS the threeDSServerTransID, which arrives on
+    // the versioning (PReq) response as `threeds_server_transaction_id` (not `transaction_id`).
+    // The incoming results (RRes) webhook is keyed by `connector_authentication_id`
+    // (netcetera::get_webhook_object_reference_id -> ConnectorAuthenticationId(threeDSServerTransID)),
+    // so fall back to the threeDSServerTransID when the connector omits a distinct transaction id;
+    // otherwise the webhook lookup (find_authentication_by...connector_authentication_id) misses.
     let connector_authentication_id = ucs_authentication_data
         .as_ref()
         .and_then(|data| data.transaction_id.clone())
-        .unwrap_or_default();
+        .filter(|txn_id| !txn_id.is_empty())
+        .unwrap_or_else(|| threeds_server_transaction_id.clone());
     let directory_server_id = ucs_authentication_data
         .as_ref()
         .and_then(|data| data.ds_trans_id.clone());
@@ -4383,13 +4390,30 @@ where
     // there is NO 3DS results (RReq) step — Netcetera rejects a results call for a non-challenge
     // transaction. Authorize directly with the persisted cavv instead of calling post-authenticate.
     if authentication.authentication_status == common_enums::AuthenticationStatus::Success {
-        let frictionless_cavv = authentication
+        // Resolve the cavv from (in order): the frictionless ARes stash in `connector_metadata`,
+        // the `cavv` column, then the temp-locker vault. A completed CHALLENGE delivers the cavv
+        // via the results (RRes) webhook, which vaults it keyed by the authentication_id
+        // (`payment_methods::vault::create_tokenize` in the external-authentication webhook flow)
+        // rather than writing `connector_metadata`; the vault fallback lets that path resolve too.
+        let mut frictionless_cavv = authentication
             .connector_metadata
             .as_ref()
             .and_then(|metadata| metadata.get("external_vault_frictionless_cavv"))
             .and_then(|value| value.as_str())
             .map(String::from)
             .or_else(|| authentication.cavv.clone());
+        if frictionless_cavv.is_none() {
+            frictionless_cavv = crate::core::payment_methods::vault::get_tokenized_data(
+                state,
+                authentication_id.get_string_repr(),
+                false,
+                key_store.key.get_inner(),
+            )
+            .await
+            .inspect_err(|err| logger::error!(external_vault_cavv_vault_lookup_error=?err))
+            .ok()
+            .map(|data| data.value1);
+        }
         if let Some(cavv) = frictionless_cavv {
             let mut authentication = authentication;
             authentication.cavv = Some(cavv.clone());
