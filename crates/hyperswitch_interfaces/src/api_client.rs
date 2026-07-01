@@ -305,6 +305,9 @@ where
                         req.dispute_id.clone(),
                         req.payout_id.clone(),
                         status_code,
+                        common_enums::EventDestination::Connector,
+                        // Direct connector call: a live call, never a shadow mirror.
+                        common_enums::EventExecutionMode::Primary,
                     );
 
                     match response {

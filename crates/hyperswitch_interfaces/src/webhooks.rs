@@ -56,6 +56,11 @@ pub enum WebhookResourceData {
         /// The previous payment attempt details before processing this webhook
         payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     },
+    /// Context for Refund-related webhooks
+    Refund {
+        /// The payment attempt details attached with the refund
+        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    },
 }
 
 impl WebhookResourceData {
@@ -65,6 +70,7 @@ impl WebhookResourceData {
     ) -> &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt {
         match self {
             Self::Payment { payment_attempt } => payment_attempt,
+            Self::Refund { payment_attempt } => payment_attempt,
         }
     }
 }
@@ -107,7 +113,8 @@ impl WebhookContext {
 impl From<&WebhookResourceData> for WebhookContext {
     fn from(data: &WebhookResourceData) -> Self {
         match data {
-            WebhookResourceData::Payment { payment_attempt } => {
+            WebhookResourceData::Payment { payment_attempt }
+            | WebhookResourceData::Refund { payment_attempt } => {
                 Self::Payment(PaymentWebhookContext {
                     previous_status: payment_attempt.status,
                     payment_method: payment_attempt.payment_method,
@@ -124,7 +131,8 @@ impl From<&WebhookResourceData> for WebhookContext {
 impl From<&WebhookResourceData> for WebhookContext {
     fn from(data: &WebhookResourceData) -> Self {
         match data {
-            WebhookResourceData::Payment { payment_attempt } => {
+            WebhookResourceData::Payment { payment_attempt }
+            | WebhookResourceData::Refund { payment_attempt } => {
                 Self::Payment(PaymentWebhookContext {
                     previous_status: payment_attempt.status,
                     payment_method: payment_attempt.get_payment_method(),

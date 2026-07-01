@@ -2143,6 +2143,24 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     }
                 }
                 None => {
+                    let pm_modular_dimensions = dimensions
+                        .without_profile_id()
+                        .with_organization_id(provider.get_account().organization_id.clone())
+                        .without_provider_merchant_id()
+                        .without_processor_merchant_id();
+                    let should_call_pm_modular_service =
+                        payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
+                            state,
+                            &pm_modular_dimensions,
+                        )
+                        .await;
+
+                    if should_call_pm_modular_service {
+                        Err(report!(errors::StorageError::ValueNotFound(
+                            "customer".to_owned()
+                        )))?
+                    }
+
                     // Validate that the customer_id is not in GlobalCustomerId format
                     if customers::is_customer_id_in_global_format(&customer_id) {
                         Err(report!(errors::StorageError::InvalidDataFormat(format!(
@@ -2740,7 +2758,7 @@ pub fn determine_standard_vault_action(
                 Some(mandates::MandateReferenceId::ConnectorMandateId(_)) | None => {
                     VaultFetchAction::NoFetchAction
                 }
-                Some(mandates::MandateReferenceId::CardWithLimitedData) => {
+                Some(mandates::MandateReferenceId::CardWithLimitedData(_)) => {
                     VaultFetchAction::NoFetchAction
                 }
             },
@@ -8727,6 +8745,10 @@ pub fn get_redis_key_for_extended_card_info(
         merchant_id.get_string_repr(),
         payment_id.get_string_repr()
     )
+}
+
+pub fn get_external_surcharge_redis_key(payment_id: &id_type::PaymentId) -> String {
+    format!("{}_external_surcharge", payment_id.get_string_repr())
 }
 
 pub fn check_integrity_based_on_flow<T, Request>(
