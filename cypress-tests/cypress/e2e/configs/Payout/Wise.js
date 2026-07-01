@@ -227,6 +227,148 @@ export const connectorDetails = {
           },
         },
       },
+      // RecurringTrue/False/Default test the recurring flag field behaviour.
+      // recurring:bool is already present in PayoutCreateResponse — no backend
+      // changes needed. confirm:true + auto_fulfill:false yields
+      // status:"requires_fulfillment" on all environments.
+      RecurringTrue: {
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
+          recurring: true,
+          confirm: true,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_fulfillment",
+            payout_type: "bank",
+            recurring: true,
+          },
+        },
+      },
+      RecurringTrueFulfill: {
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          recurring: true,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "initiated",
+            payout_type: "bank",
+            recurring: true,
+          },
+        },
+      },
+      RecurringFalse: {
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
+          recurring: false,
+          confirm: true,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_fulfillment",
+            payout_type: "bank",
+            recurring: false,
+          },
+        },
+      },
+      RecurringDefault: {
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
+          confirm: true,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_fulfillment",
+            payout_type: "bank",
+            recurring: false,
+          },
+        },
+      },
+      // RecurringInvalidConfirm and RecurringUseMethod are TRIGGER_SKIP because
+      // they depend on payout_method_id being returned by the connector (saved
+      // from RecurringTrue). Wise does not return payout_method_id in its
+      // payout response — this requires Rust changes to propagate the recurring
+      // flag through PayoutsData and implement it in the Wise transformer.
+      RecurringInvalidConfirm: {
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          confirm: false,
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              message: "Confirm must be true for recurring payouts",
+              code: "IR_06",
+            },
+          },
+        },
+      },
+      // TRIGGER_SKIP because Wise does not return payout_method_id — this
+      // requires Rust changes in crates/router/src/core/payouts.rs and the
+      // Wise transformer. This test will be enabled once the backend
+      // propagates payout_method_id for recurring payouts.
+      RecurringUseMethod: {
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          // payout_method_id is injected from globalState at test runtime
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_fulfillment",
+            payout_type: "bank",
+          },
+        },
+      },
       EntityTypeCompany: {
         Request: {
           currency: "EUR",

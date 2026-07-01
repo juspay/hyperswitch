@@ -33,6 +33,8 @@ import getConnectorDetails, {
   injectHelcimTestCard,
   setNormalizedValue,
 } from "../e2e/configs/Payment/Utils";
+import * as payoutUtils from "../e2e/configs/Payout/Utils";
+import * as fixtures from "../fixtures/imports";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
@@ -5934,6 +5936,9 @@ Cypress.Commands.add(
         if (response.status === 200) {
           globalState.set("payoutAmount", createConfirmPayoutBody.amount);
           globalState.set("payoutID", response.body.payout_id);
+          if (response.body.payout_method_id) {
+            globalState.set("payoutMethodId", response.body.payout_method_id);
+          }
           for (const key in resData.body) {
             expect(resData.body[key]).to.deep.equal(response.body[key]);
           }
@@ -6118,6 +6123,80 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
       expect(response.body.amount).to.equal(globalState.get("payoutAmount"));
     });
   });
+});
+
+Cypress.Commands.add(
+  "verifyRecurringPayoutResponse",
+  (response, expectedRecurring, expectedMethodId, expectedPayoutStatus) => {
+    cy.wrap(response).should("have.property", "status", 200);
+    if (expectedPayoutStatus !== undefined && expectedPayoutStatus !== null) {
+      cy.wrap(response.body).should(
+        "have.property",
+        "status",
+        expectedPayoutStatus
+      );
+    }
+    cy.wrap(response.body).should(
+      "have.property",
+      "recurring",
+      expectedRecurring
+    );
+    if (expectedMethodId !== undefined && expectedMethodId !== null) {
+      cy.wrap(response.body).should(
+        "have.property",
+        "payout_method_id",
+        expectedMethodId
+      );
+    }
+  }
+);
+
+Cypress.Commands.add("getPayoutRecurringData", (globalState, configKey) => {
+  const payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+  const data = payoutUtils.getConnectorDetails(globalState.get("connectorId"))[
+    "bank_transfer_pm"
+  ]["sepa_bank_transfer"][configKey];
+  const shouldContinue = payoutUtils.should_continue_further(data);
+  return cy.wrap({ payoutBody, data, shouldContinue });
+});
+
+Cypress.Commands.add(
+  "createConfirmRecurringPayout",
+  (globalState, configKey, confirm, autoFulfill) => {
+    const payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+    const data = payoutUtils.getConnectorDetails(
+      globalState.get("connectorId")
+    )["bank_transfer_pm"]["sepa_bank_transfer"][configKey];
+    const shouldContinue = payoutUtils.should_continue_further(data);
+    if (!shouldContinue) {
+      return cy.wrap(false);
+    }
+    if (
+      configKey === "RecurringUseMethod" ||
+      configKey === "RecurringInvalidConfirm"
+    ) {
+      data.Request.payout_method_id = globalState.get("payoutMethodId");
+    }
+    cy.createConfirmPayoutTest(
+      payoutBody,
+      data,
+      confirm,
+      autoFulfill,
+      globalState
+    );
+    return cy.wrap(payoutUtils.should_continue_further(data));
+  }
+);
+
+Cypress.Commands.add("verifyPayoutMethodId", (globalState) => {
+  cy.wrap(globalState.get("payoutMethodId")).should("exist");
+  cy.wrap(globalState.get("payoutMethodId")).should("not.be.null");
+  cy.wrap(globalState.get("payoutMethodId")).should("not.eq", "");
+});
+
+Cypress.Commands.add("injectPayoutMethodId", (data, globalState) => {
+  data.Request.payout_method_id = globalState.get("payoutMethodId");
+  return data;
 });
 
 // User API calls
