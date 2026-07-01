@@ -304,6 +304,22 @@ impl SuperpositionClient {
             })
     }
 
+    /// Return the dimension keys declared by the cached (or fallback)
+    /// Superposition config.
+    ///
+    /// Callers can pass the result to
+    /// [`ConfigContext::filter_to_dimensions`](super::types::ConfigContext::filter_to_dimensions)
+    /// so that only dimensions the imported config actually evaluates are
+    /// sent in the evaluation context — extra keys such as `amount` or
+    /// `payment_method_type` that the SuperTOML does not reference are
+    /// dropped automatically.
+    pub async fn get_dimension_keys(
+        &self,
+    ) -> CustomResult<std::collections::HashSet<String>, SuperpositionError> {
+        let config = self.get_cached_config(None, None).await?;
+        Ok(config.dimensions.keys().cloned().collect())
+    }
+
     /// Get cached configuration from Superposition
     ///
     /// # Arguments

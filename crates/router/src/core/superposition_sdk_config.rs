@@ -5,6 +5,7 @@ use api_models::{
         SdkPaymentMethod, SdkPaymentMethodType, SuperPositionConfigResponse, VaultingAction,
     },
 };
+use common_enums::ConnectorType;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use serde_json::Map;
@@ -32,13 +33,97 @@ pub struct SdkPaymentContext {
     pub is_cit_transaction: bool,
 }
 
+#[derive(Debug)]
 struct PaymentContextSuperposition {
-    pub currency: Option<String>,
-    pub amount: Option<i64>,
-    pub payment_method: Option<api_enums::PaymentMethod>,
-    pub payment_method_type: Option<api_enums::PaymentMethodType>,
-    pub country: Option<common_enums::CountryAlpha2>,
-    pub connector: Option<String>,
+    pub currency: String,
+    pub payment_method: String,
+    pub country: String,
+    pub capture_method: String,
+    pub connector: String,
+}
+
+const UNSPECIFIED_CONTEXT_VALUE: &str = "__unspecified__";
+const PAYMENT_ACTION_CONFIG_KEY: &str = "payment_action";
+const PAYMENTS_ENABLED_CONFIG_KEY: &str = "payments_enabled";
+const IS_PROCESSING_CONFIG_KEY: &str = "is_processing";
+const PAYMENT_ACTION_ALLOW: &str = "allow";
+
+fn resolve_payment_action(resolved_config: &Map<String, serde_json::Value>) -> bool {
+    resolved_config
+        .get(PAYMENT_ACTION_CONFIG_KEY)
+        .and_then(serde_json::Value::as_str)
+        .map(|payment_action| payment_action == PAYMENT_ACTION_ALLOW)
+        .or_else(|| {
+            resolved_config
+                .get(PAYMENTS_ENABLED_CONFIG_KEY)
+                .and_then(serde_json::Value::as_bool)
+        })
+        .or_else(|| {
+            resolved_config
+                .get(IS_PROCESSING_CONFIG_KEY)
+                .and_then(serde_json::Value::as_bool)
+        })
+        .unwrap_or(false)
+}
+
+fn get_eligible_connectors_for_payment_context(
+    merchant_enabled_context: &MerchantEnabledPmsContext,
+    payment_method: api_enums::PaymentMethod,
+    payment_method_type: api_enums::PaymentMethodType,
+) -> Vec<String> {
+    let mut connectors = std::collections::HashSet::new();
+
+    if let Some(payment_method_type_hm) = merchant_enabled_context
+        .payment_experiences_consolidated_hm
+        .get(&payment_method)
+    {
+        if let Some(criteria_hm) = payment_method_type_hm.get(&payment_method_type) {
+            for connector_list in criteria_hm.values() {
+                connectors.extend(connector_list.iter().cloned());
+            }
+        }
+    }
+
+    if let Some(payment_method_type_hm) = merchant_enabled_context
+        .card_networks_consolidated_hm
+        .get(&payment_method)
+    {
+        if let Some(criteria_hm) = payment_method_type_hm.get(&payment_method_type) {
+            for connector_list in criteria_hm.values() {
+                connectors.extend(connector_list.iter().cloned());
+            }
+        }
+    }
+
+    match payment_method {
+        api_enums::PaymentMethod::BankRedirect => {
+            if let Some(connector_list) = merchant_enabled_context
+                .banks_consolidated_hm
+                .get(&payment_method_type)
+            {
+                connectors.extend(connector_list.iter().cloned());
+            }
+        }
+        api_enums::PaymentMethod::BankDebit => {
+            if let Some(connector_list) = merchant_enabled_context
+                .bank_debits_consolidated_hm
+                .get(&payment_method_type)
+            {
+                connectors.extend(connector_list.iter().cloned());
+            }
+        }
+        api_enums::PaymentMethod::BankTransfer => {
+            if let Some(connector_list) = merchant_enabled_context
+                .bank_transfer_consolidated_hm
+                .get(&payment_method_type)
+            {
+                connectors.extend(connector_list.iter().cloned());
+            }
+        }
+        _ => {}
+    }
+
+    connectors.into_iter().collect()
 }
 
 /// Build a random `PaymentsRequest` from the `[pm_filters.worldpayxml]` country/currency lists.
@@ -94,7 +179,7 @@ pub fn build_random_payment_create_request(
         .copied()
         .filter(|code| code.parse::<common_enums::CountryAlpha2>().is_ok())
         .unwrap_or("US");
-    let payment_method = PAYMENT_METHODS.choose(&mut rng).copied().unwrap_or("card");
+    let _payment_method = PAYMENT_METHODS.choose(&mut rng).copied().unwrap_or("card");
 
     let request_json = serde_json::json!({
         "amount": amount,
@@ -448,10 +533,36 @@ pub async fn get_superposition_sdk_config(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let all_active_connectors = merchant_connector_accounts
-        .into_iter()
-        .filter(|mca| mca.profile_id == profile_id)
-        .map(|mca| mca.connector_name)
+        .iter()
+        .filter(|mca| {
+            mca.profile_id == profile_id && mca.connector_type == ConnectorType::PaymentProcessor
+        })
+        .map(|mca| mca.connector_name.clone())
         .collect::<Vec<String>>();
+
+    let mut active_payment_methods = Vec::new();
+    for mca in &merchant_connector_accounts {
+        if mca.profile_id == profile_id {
+            if let Some(payment_methods_enabled_list) = &mca.payment_methods_enabled {
+                for pm_value in payment_methods_enabled_list {
+                    if let Ok(pm_enabled) = serde_json::from_value::<
+                        api_models::admin::PaymentMethodsEnabled,
+                    >(pm_value.clone().expose())
+                    {
+                        let payment_method = pm_enabled.payment_method;
+                        for pmt_info in pm_enabled.payment_method_types.unwrap_or_default() {
+                            let payment_method_type = pmt_info.payment_method_type;
+                            if !active_payment_methods
+                                .contains(&(payment_method, payment_method_type))
+                            {
+                                active_payment_methods.push((payment_method, payment_method_type));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     let business_profile = db
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
@@ -472,6 +583,11 @@ pub async fn get_superposition_sdk_config(
         payment_context.is_cit_transaction,
     ))
     .await?;
+
+    println!(
+        "merchant_enabled_context owqnd {:?}",
+        merchant_enabled_context
+    );
 
     // Build dimension filter for superposition context
     let mut dimension_filter = Map::new();
@@ -498,105 +614,129 @@ pub async fn get_superposition_sdk_config(
         ),
     );
 
-    // Resolve a superposition config per active connector, evaluating each connector against
-    // its own payment context. Connectors that superposition marks with `is_processing: true`
-    // are collected into the evaluated-connector list.
-    let mut superposition_evaluated_connectors: Vec<String> = Vec::new();
+    // Fetch the dimension keys declared by the imported config so that the
+    // evaluation context only carries fields the SuperTOML actually consults.
+    // If the fetch fails we fall back to the current behaviour (pass
+    // everything) — `filter_to_dimensions` is a no-op on an empty set.
+    let dimension_keys = state
+        .superposition_service
+        .get_dimension_keys()
+        .await
+        .unwrap_or_default();
 
-    for connector in &all_active_connectors {
-        let payment_context_for_superposition = PaymentContextSuperposition {
-            currency: payment_intent.currency.map(|c| c.to_string()),
-            amount: Some(payment_intent.amount.get_amount_as_i64()),
-            payment_method: payment_context
-                .payment_attempt
-                .as_ref()
-                .and_then(|pa| pa.payment_method),
-            payment_method_type: payment_context
-                .payment_attempt
-                .as_ref()
-                .and_then(|pa| pa.payment_method_type),
-            country: payment_context
-                .billing_address
-                .as_ref()
-                .and_then(|c| c.country),
-            connector: Some(connector.clone()),
-        };
-
-        // Build the evaluation context for this connector from the shared dimensions plus the
-        // per-payment context fields.
-        let mut config_context = external_services::superposition::ConfigContext::new()
-            .with("profile_id", profile_id.get_string_repr())
-            .with("merchant_id", merchant_account.get_id().get_string_repr())
-            .with(
-                "organization_id",
-                merchant_account.get_org_id().get_string_repr(),
-            );
-
-        if let Some(connector_name) = payment_context_for_superposition.connector.as_ref() {
-            config_context = config_context.with("connector", connector_name);
-        }
-        if let Some(currency) = payment_context_for_superposition.currency.as_ref() {
-            config_context = config_context.with("currency", currency);
-        }
-        if let Some(amount) = payment_context_for_superposition.amount {
-            config_context = config_context.with("amount", &amount.to_string());
-        }
-        if let Some(payment_method) = payment_context_for_superposition.payment_method {
-            config_context = config_context.with("payment_method", &payment_method.to_string());
-        }
-        if let Some(payment_method_type) = payment_context_for_superposition.payment_method_type {
-            config_context =
-                config_context.with("payment_method_type", &payment_method_type.to_string());
-        }
-        if let Some(country) = payment_context_for_superposition.country.as_ref() {
-            config_context = config_context.with("country", &country.to_string());
-        }
-
-        let resolved_config = state
-            .superposition_service
-            .resolve_full_config(Some(&config_context), None)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable_lazy(|| {
-                format!("Failed to resolve superposition config for connector: {connector}")
-            })?;
-
-        // If superposition resolved this connector as currently processing, record it.
-        let is_processing = resolved_config
-            .get("is_processing")
-            .and_then(serde_json::Value::as_bool)
-            .unwrap_or(false);
-
-        if is_processing {
-            superposition_evaluated_connectors.push(connector.clone());
-        }
-    }
-
-    let eligible_connectors: Vec<String> = merchant_enabled_context
+    let eligible_connector_set: std::collections::HashSet<String> = merchant_enabled_context
         .get_eligible_connectors()
         .into_iter()
         .collect();
 
-    // Compare the eligible connectors against the connectors that superposition evaluated as
-    // processing. If the two sets differ, surface the mismatching connector names as an error.
-    let eligible_connector_set: std::collections::HashSet<&String> =
-        eligible_connectors.iter().collect();
-    let evaluated_connector_set: std::collections::HashSet<&String> =
-        superposition_evaluated_connectors.iter().collect();
+    let mut superposition_evaluated_connectors: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
 
-    let mut mismatched_connectors: Vec<String> = eligible_connector_set
-        .symmetric_difference(&evaluated_connector_set)
-        .map(|connector| connector.to_string())
-        .collect();
-    mismatched_connectors.sort();
+    for (payment_method, payment_method_type) in active_payment_methods {
+        for connector in &all_active_connectors {
+            let capture_method = payment_context
+                .payment_attempt
+                .as_ref()
+                .and_then(|pa| pa.capture_method)
+                .map(|capture_method| capture_method.to_string())
+                .unwrap_or_else(|| UNSPECIFIED_CONTEXT_VALUE.to_string());
 
-    if !mismatched_connectors.is_empty() {
+            let payment_context_for_superposition = PaymentContextSuperposition {
+                currency: payment_intent
+                    .currency
+                    .map(|currency| currency.to_string())
+                    .unwrap_or_else(|| UNSPECIFIED_CONTEXT_VALUE.to_string()),
+                // The generated payment-filter SuperTOML uses the pm_filters leaf key
+                // (`credit`, `debit`, `sepa`, etc.) as the `payment_method` dimension.
+                // That is Hyperswitch's payment_method_type at runtime.
+                payment_method: payment_method_type.to_string(),
+                country: payment_context
+                    .billing_address
+                    .as_ref()
+                    .and_then(|c| c.country)
+                    .map(|country| country.to_string())
+                    .unwrap_or_else(|| UNSPECIFIED_CONTEXT_VALUE.to_string()),
+                capture_method,
+                connector: connector.clone(),
+            };
+
+            println!(
+                "payment_context_for_superposition {:?}",
+                payment_context_for_superposition
+            );
+
+            // Build the evaluation context for this connector from the shared dimensions plus the
+            // per-payment context fields.
+            let mut config_context = external_services::superposition::ConfigContext::new()
+                .with("connector", &payment_context_for_superposition.connector);
+            config_context =
+                config_context.with("currency", &payment_context_for_superposition.currency);
+            config_context = config_context.with(
+                "payment_method",
+                &payment_context_for_superposition.payment_method,
+            );
+            config_context =
+                config_context.with("country", &payment_context_for_superposition.country);
+            config_context = config_context.with(
+                "capture_method",
+                &payment_context_for_superposition.capture_method,
+            );
+
+            // Drop context keys that the imported config does not declare as
+            // dimensions (e.g. `amount`, `payment_method_type` if absent).
+            // `filter_to_dimensions` is a no-op when `dimension_keys` is empty,
+            // so a failed dimension fetch preserves the previous pass-all behaviour.
+            config_context = config_context.filter_to_dimensions(&dimension_keys);
+
+            let resolved_config = state
+                .superposition_service
+                .resolve_full_config(Some(&config_context), None)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!("Failed to resolve superposition config for connector: {connector}")
+                })?;
+
+            // If Superposition resolved this connector as allowed/processing, record it.
+            // `payment_action` is the target contract, while `payments_enabled` and
+            // `is_processing` are accepted for compatibility with the generated file and
+            // earlier validator experiments.
+            let is_connector_allowed = resolve_payment_action(&resolved_config);
+
+            if is_connector_allowed {
+                superposition_evaluated_connectors.insert(connector.clone());
+            }
+        }
+    }
+
+    println!("eligible_connector_set {:?}", eligible_connector_set);
+    println!(
+        "evaluated_connector_set {:?}",
+        superposition_evaluated_connectors
+    );
+
+    let mut missing_in_superposition = eligible_connector_set
+        .difference(&superposition_evaluated_connectors)
+        .cloned()
+        .collect::<Vec<String>>();
+    missing_in_superposition.sort();
+
+    let mut extra_in_superposition = superposition_evaluated_connectors
+        .difference(&eligible_connector_set)
+        .cloned()
+        .collect::<Vec<String>>();
+    extra_in_superposition.sort();
+
+    if !missing_in_superposition.is_empty() || !extra_in_superposition.is_empty() {
         return Err(error_stack::report!(
             errors::ApiErrorResponse::PreconditionFailed {
                 message: format!(
-                    "Connector mismatch between eligible connectors and superposition evaluated \
-                     connectors: [{}]",
-                    mismatched_connectors.join(", ")
+                    "Connector mismatch between eligible connectors and superposition evaluated connectors. \
+                     eligible_connector_set: {eligible_connector_set:?}, \
+                     evaluated_connector_set: {superposition_evaluated_connectors:?}, \
+                     missing_in_superposition: [{}], extra_in_superposition: [{}]",
+                    missing_in_superposition.join(", "),
+                    extra_in_superposition.join(", ")
                 ),
             }
         ));

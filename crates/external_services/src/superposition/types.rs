@@ -191,6 +191,28 @@ impl ConfigContext {
     pub fn get(&self, key: &str) -> Option<&str> {
         self.values.get(key).map(String::as_str)
     }
+
+    /// Retain only the keys that appear in `dimension_keys`.
+    ///
+    /// Superposition silently ignores context fields that are not declared as
+    /// dimensions in the imported config.  Filtering them out up-front keeps
+    /// the evaluation context lean and makes it obvious which keys are
+    /// actually consulted.  If the dimension set is empty **no filtering is
+    /// performed** – this allows callers to treat a failed dimension-fetch as
+    /// "pass everything" (the current behaviour) rather than accidentally
+    /// dropping the entire context.
+    pub fn filter_to_dimensions(self, dimension_keys: &std::collections::HashSet<String>) -> Self {
+        if dimension_keys.is_empty() {
+            return self;
+        }
+        Self {
+            values: self
+                .values
+                .into_iter()
+                .filter(|(k, _)| dimension_keys.contains(k))
+                .collect(),
+        }
+    }
 }
 
 #[cfg(feature = "superposition")]

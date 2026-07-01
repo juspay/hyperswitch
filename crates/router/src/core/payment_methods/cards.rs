@@ -3577,6 +3577,7 @@ pub fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
 // ---------------------------------------------------------------------------
 
 #[cfg(feature = "v1")]
+#[derive(Debug)]
 pub struct MerchantEnabledPmsContext {
     pub payment_experiences_consolidated_hm: HashMap<
         api_enums::PaymentMethod,
