@@ -693,6 +693,20 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                 return Ok(());
             }
         };
+        // Netcetera / EMVCo cardExpiryDate is YYMM (2-digit year). External vault stores the card
+        // and the `{{$card_exp_year}}` injector template later resolves to whatever was vaulted; a
+        // 4-digit year (as the web SDK / VGS supplies) then yields a 6-char YYYYMM and the 3DS AReq
+        // fails validation ("cardExpiryDate: string has wrong length. Expected 4 but got 6").
+        // Normalise to the last two digits before vaulting so the template resolves to YY. Vault
+        // template tokens (`{{...}}`) are left untouched.
+        {
+            use hyperswitch_masking::PeekInterface;
+            let year = vault_card.card_exp_year.peek().clone();
+            if !year.contains("{{") && year.len() > 2 {
+                vault_card.card_exp_year =
+                    hyperswitch_masking::Secret::new(year[year.len() - 2..].to_string());
+            }
+        }
         let customer_id = payment_data
             .payment_intent
             .customer_id
