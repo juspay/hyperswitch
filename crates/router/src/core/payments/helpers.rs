@@ -2758,7 +2758,7 @@ pub fn determine_standard_vault_action(
                 Some(mandates::MandateReferenceId::ConnectorMandateId(_)) | None => {
                     VaultFetchAction::NoFetchAction
                 }
-                Some(mandates::MandateReferenceId::CardWithLimitedData) => {
+                Some(mandates::MandateReferenceId::CardWithLimitedData(_)) => {
                     VaultFetchAction::NoFetchAction
                 }
             },
