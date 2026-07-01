@@ -317,7 +317,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BlackhawknetworkRedeemResponse, T, Paym
                 status: match response.status {
                     BlackhawknetworkAttemptStatus::Approved => enums::AttemptStatus::Charged.into(),
                     BlackhawknetworkAttemptStatus::Declined => enums::AttemptStatus::Failure.into(),
-                    BlackhawknetworkAttemptStatus::Pending => enums::AttemptStatus::Pending,
+                    BlackhawknetworkAttemptStatus::Pending => enums::AttemptStatus::Pending.into(),
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(response.id),

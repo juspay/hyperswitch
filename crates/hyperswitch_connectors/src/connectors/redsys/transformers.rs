@@ -2300,7 +2300,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                     network_error_message: None,
                     connector_metadata: None,
                 });
-                (item.data.status, response)
+                (item.data.status.to_storage().unwrap_or_default(), response)
             }
             (Some(_), Some(_)) | (None, None) => {
                 Err(errors::ConnectorError::ResponseHandlingFailed)?
@@ -2308,7 +2308,7 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
         };
 
         Ok(Self {
-            status,
+            status: status.into(),
             response,
             ..item.data
         })

@@ -670,7 +670,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<KlarnaCaptureResponse>>
                 authentication_data: None,
                 charges: None,
             }),
-            status,
+            status: status.into(),
             ..item.data
         })
     }
