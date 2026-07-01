@@ -974,7 +974,11 @@ impl TryFrom<PaymentsSyncResponseRouterData<ArchipelPaymentsResponse>> for Payme
             .capture_method
             .ok_or_else(|| errors::ConnectorError::CaptureMethodNotSupported)?;
 
-        let archipel_flow: ArchipelPaymentFlow = (item.data.status.to_storage().unwrap_or_default(), capture_method).try_into()?;
+        let archipel_flow: ArchipelPaymentFlow = (
+            item.data.status.to_storage().unwrap_or_default(),
+            capture_method,
+        )
+            .try_into()?;
 
         let status: AttemptStatus =
             ArchipelFlowStatus::new(item.response.transaction_result, archipel_flow).into();

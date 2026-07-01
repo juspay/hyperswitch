@@ -2071,7 +2071,10 @@ fn construct_sync_request(
 }
 
 pub fn build_payment_sync_request(item: &PaymentsSyncRouterData) -> Result<Vec<u8>, Error> {
-    let transaction_type = get_transaction_type(item.status.to_storage().unwrap_or_default(), item.request.capture_method)?;
+    let transaction_type = get_transaction_type(
+        item.status.to_storage().unwrap_or_default(),
+        item.request.capture_method,
+    )?;
     let auth = RedsysAuthType::try_from(&item.connector_auth_type)?;
     let connector_transaction_id = item
         .request
