@@ -30,6 +30,7 @@ import getConnectorDetails, {
   extractIntegerAtEnd,
   getOriginalConnectorName,
   getValueByKey,
+  injectHelcimTestCard,
   setNormalizedValue,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
@@ -2746,6 +2747,8 @@ Cypress.Commands.add(
       confirmBody.split_payments = reqData.split_payments;
     }
 
+    injectHelcimTestCard(confirmBody, globalState);
+
     const headers = {
       "Content-Type": "application/json",
       "api-key": apiKey,
@@ -3525,6 +3528,8 @@ Cypress.Commands.add(
     if (reqData?.split_payments && isStripeConnect(globalState)) {
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
+
+    injectHelcimTestCard(createConfirmPaymentBody, globalState);
 
     const headers = {
       "Content-Type": "application/json",
