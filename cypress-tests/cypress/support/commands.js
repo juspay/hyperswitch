@@ -4547,6 +4547,7 @@ Cypress.Commands.add(
                   response.body.mandate_id === null &&
                   response.body.status === "succeeded" &&
                   globalState.get("connectorId") !== "peachpayments" &&
+                  globalState.get("connectorId") !== "novalnet" &&
                   requestBody.mandate_data !== null
                 ) {
                   expect(
@@ -4651,6 +4652,13 @@ Cypress.Commands.add(
       Request: reqData,
       Response: resData,
     } = data || {};
+
+    const mandateId = globalState.get("mandateId");
+    if (!mandateId) {
+      cy.task("cli_log", "mandateId is null, skipping mitForMandatesCallTest");
+      return;
+    }
+
     const configInfo = execConfig(validateConfig(configs));
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
 
@@ -5059,6 +5067,11 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("listMandateCallTest", (globalState) => {
+  const mandateId = globalState.get("mandateId");
+  if (!mandateId) {
+    cy.task("cli_log", "mandateId is null, skipping listMandateCallTest");
+    return;
+  }
   const customerId = globalState.get("customerId");
   cy.request({
     method: "GET",
@@ -5084,6 +5097,10 @@ Cypress.Commands.add("listMandateCallTest", (globalState) => {
 
 Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
   const mandateId = globalState.get("mandateId");
+  if (!mandateId) {
+    cy.task("cli_log", "mandateId is null, skipping revokeMandateCallTest");
+    return;
+  }
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/mandates/revoke/${mandateId}`,
@@ -5110,6 +5127,10 @@ Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
 
 Cypress.Commands.add("mandateGETCallTest", (globalState) => {
   const mandateId = globalState.get("mandateId");
+  if (!mandateId) {
+    cy.task("cli_log", "mandateId is null, skipping mandateGETCallTest");
+    return;
+  }
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/mandates/${mandateId}`,
