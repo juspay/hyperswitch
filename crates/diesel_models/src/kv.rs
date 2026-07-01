@@ -11,8 +11,8 @@ use diesel::{
     pg::Pg,
     query_builder::{
         bind_collector::RawBytesBindCollector, AsChangeset, AsQuery, CollectedQuery,
-        InsertStatement, IntoUpdateTarget, MoveableBindCollector, QueryBuilder, QueryFragment,
-        UpdateStatement,
+        DeleteStatement, InsertStatement, IntoUpdateTarget, MoveableBindCollector, QueryBuilder,
+        QueryFragment, UpdateStatement,
     },
     query_dsl::methods::{ExecuteDsl, FilterDsl, FindDsl},
     query_source::Table,
@@ -56,6 +56,7 @@ pub struct SerializableQuery {
 pub enum DatabaseOperation {
     Insert,
     Update,
+    Delete,
 }
 
 impl SerializableQuery {
@@ -230,4 +231,24 @@ where
     SerializableQuery::from_query(conn, query, entity_type, DatabaseOperation::Update)
         .await
         .attach_printable("Failed to generate update query (with predicate)")
+}
+
+pub(crate) async fn generate_delete_query_with_predicate<T, P, E>(
+    conn: &mut crate::PgPooledConn,
+    predicate: P,
+) -> crate::StorageResult<SerializableQuery>
+where
+    T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
+    Filter<T, P>: IntoUpdateTarget + 'static,
+    DeleteStatement<
+        <Filter<T, P> as HasTable>::Table,
+        <Filter<T, P> as IntoUpdateTarget>::WhereClause,
+    >: AsQuery + QueryFragment<Pg> + Send + 'static,
+    E: entity_type::EntityType,
+{
+    let entity_type = E::ENTITY_TYPE.to_owned();
+    let query = diesel::delete(<T as HasTable>::table().filter(predicate));
+    SerializableQuery::from_query(conn, query, entity_type, DatabaseOperation::Delete)
+        .await
+        .attach_printable("Failed to generate delete query (with predicate)")
 }
