@@ -340,10 +340,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .attach_printable(
                 "failed while fetching customer_document_details from payment_intent",
             )?;
-        let payment_method_data = request
-            .payment_method_data
-            .as_ref()
-            .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into));
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -364,7 +360,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 business_profile.use_billing_as_payment_method_billing,
             ),
             confirm: request.confirm,
-            payment_method_data,
+            payment_method_data: request
+                .payment_method_data
+                .as_ref()
+                .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into)),
             payment_method_token: None,
             payment_method_info,
             force_sync: None,

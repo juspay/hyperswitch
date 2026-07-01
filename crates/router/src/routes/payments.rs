@@ -1526,6 +1526,12 @@ pub async fn payments_complete_authorize_redirect(
             serde_json::from_value::<payment_types::PaymentsCompleteAuthorizeRedirectRequest>(
                 payload.clone(),
             )
+            .inspect_err(|error| {
+                logger::error!(
+                    ?error,
+                    "Failed to deserialize payments complete authorize redirect request PaymentsCompleteAuthorizeRedirectRequest , Defaulting to Json payload"
+                );
+            })
             .ok()
         })
         .map(|payload| {
