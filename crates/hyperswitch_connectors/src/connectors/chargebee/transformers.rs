@@ -628,7 +628,6 @@ impl ChargebeeInvoiceBody {
         let webhook_body = body
             .parse_struct::<Self>("ChargebeeInvoiceBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        println!("Webhook Body: {:?}", webhook_body);
         Ok(webhook_body)
     }
 }
