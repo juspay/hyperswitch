@@ -500,60 +500,49 @@ pub struct ChargebeeCardDetails {
     iin: String,
 }
 
+// Chargebee sends card brand values in lowercase snake_case (e.g. `visa`, `mastercard`,
+// `american_express`), which don't match `common_enums::CardNetwork`'s serde representation.
+// We deserialize into this connector-local enum, which mirrors the networks defined in
+// `CardNetwork`, and map it over via `From`.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum ChargebeeCardBrand {
     Visa,
     Mastercard,
     AmericanExpress,
-    Discover,
     Jcb,
     DinersClub,
-    Bancontact,
-    CmrFalabella,
-    TarjetaNaranja,
-    Nativa,
-    Cencosud,
-    Cabal,
-    Argencard,
-    Elo,
-    Hipercard,
-    Carnet,
+    Discover,
+    CartesBancaires,
+    UnionPay,
+    Interac,
     #[serde(rename = "rupay")]
     RuPay,
     Maestro,
-    Dankort,
-    CartesBancaires,
-    Mada,
-    #[serde(other)]
-    Other,
+    Star,
+    Pulse,
+    Accel,
+    Nyce,
 }
 
-impl ChargebeeCardBrand {
-    fn to_card_network(&self) -> Option<common_enums::CardNetwork> {
-        match self {
-            Self::Visa => Some(common_enums::CardNetwork::Visa),
-            Self::Mastercard => Some(common_enums::CardNetwork::Mastercard),
-            Self::AmericanExpress => Some(common_enums::CardNetwork::AmericanExpress),
-            Self::Discover => Some(common_enums::CardNetwork::Discover),
-            Self::Jcb => Some(common_enums::CardNetwork::JCB),
-            Self::DinersClub => Some(common_enums::CardNetwork::DinersClub),
-            Self::RuPay => Some(common_enums::CardNetwork::RuPay),
-            Self::Maestro => Some(common_enums::CardNetwork::Maestro),
-            Self::CartesBancaires => Some(common_enums::CardNetwork::CartesBancaires),
-            Self::Bancontact
-            | Self::CmrFalabella
-            | Self::TarjetaNaranja
-            | Self::Nativa
-            | Self::Cencosud
-            | Self::Cabal
-            | Self::Argencard
-            | Self::Elo
-            | Self::Hipercard
-            | Self::Carnet
-            | Self::Dankort
-            | Self::Mada
-            | Self::Other => None,
+impl From<ChargebeeCardBrand> for common_enums::CardNetwork {
+    fn from(brand: ChargebeeCardBrand) -> Self {
+        match brand {
+            ChargebeeCardBrand::Visa => Self::Visa,
+            ChargebeeCardBrand::Mastercard => Self::Mastercard,
+            ChargebeeCardBrand::AmericanExpress => Self::AmericanExpress,
+            ChargebeeCardBrand::Jcb => Self::JCB,
+            ChargebeeCardBrand::DinersClub => Self::DinersClub,
+            ChargebeeCardBrand::Discover => Self::Discover,
+            ChargebeeCardBrand::CartesBancaires => Self::CartesBancaires,
+            ChargebeeCardBrand::UnionPay => Self::UnionPay,
+            ChargebeeCardBrand::Interac => Self::Interac,
+            ChargebeeCardBrand::RuPay => Self::RuPay,
+            ChargebeeCardBrand::Maestro => Self::Maestro,
+            ChargebeeCardBrand::Star => Self::Star,
+            ChargebeeCardBrand::Pulse => Self::Pulse,
+            ChargebeeCardBrand::Accel => Self::Accel,
+            ChargebeeCardBrand::Nyce => Self::Nyce,
         }
     }
 }
@@ -765,7 +754,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             charge_id: None,
             // Need to populate these card info field
             card_info: api_models::payments::AdditionalCardInfo {
-                card_network: payment_method_details.card.brand.to_card_network(),
+                card_network: Some(payment_method_details.card.brand.into()),
                 card_isin: Some(payment_method_details.card.iin),
                 card_issuer: None,
                 card_type: None,
