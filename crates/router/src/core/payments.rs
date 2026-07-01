@@ -4244,6 +4244,13 @@ where
         ),
         authentication_connector: authentication_connector.clone(),
         authentication_id: Some(authentication_id.clone()),
+        // Persist payment_method/type on the challenge-halt (update_trackers' ConfirmUpdate is
+        // skipped by the HaltForSdkChallenge early return). Without this the attempt has a null
+        // payment_method until authorize, and a PSync in the SDK's post-challenge redirect flow
+        // (three_ds_authorize_url, before the results webhook lands) errors IR_04 — unlike normal
+        // payments, which persist it at confirm.
+        payment_method: payment_data.get_payment_attempt().payment_method,
+        payment_method_type: payment_data.get_payment_attempt().payment_method_type,
         updated_by: storage_scheme.to_string(),
     };
     let updated_attempt = state
@@ -6494,7 +6501,12 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 resource_id: req.resource_id,
                 merchant_id: req.merchant_id,
                 param: req.param,
-                force_sync: req.force_sync,
+                // External vault: report the local status only, never force a connector sync. The
+                // RRes webhook owns the authorize; a force_sync on a still-challenge-pending payment
+                // (no connector transaction yet) would call the PSP sync with nothing to sync and
+                // fail ("Something went wrong"), stranding the payment. Normal payments keep the
+                // requested force_sync.
+                force_sync: !is_external_vault_payment && req.force_sync,
                 connector: req.connector,
                 merchant_connector_details: req.creds_identifier.map(|creds_id| {
                     api::MerchantConnectorDetailsWrap {
@@ -14280,6 +14292,9 @@ async fn perform_external_vault_authentication_v1(
         external_threeds_authentication_type: Some(authentication_type),
         authentication_connector: authentication.authentication_connector.clone(),
         authentication_id: Some(authentication_id),
+        // Left unchanged (persisted on the challenge-halt); None skips the column.
+        payment_method: None,
+        payment_method_type: None,
         updated_by: storage_scheme.to_string(),
     };
     state
@@ -14602,6 +14617,9 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                     }),
                 authentication_connector: response.authentication_connector.map(|c| c.to_string()),
                 authentication_id: Some(response.authentication_id.clone()),
+                // Left unchanged; None skips the column.
+                payment_method: None,
+                payment_method_type: None,
                 updated_by: storage_scheme.to_string(),
             };
 
