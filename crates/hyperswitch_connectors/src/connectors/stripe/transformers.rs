@@ -3639,7 +3639,8 @@ where
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
 
-        let domain_status = common_enums::AttemptStatusDomain::from(item.response.status.to_owned());
+        let domain_status =
+            common_enums::AttemptStatusDomain::from(item.response.status.to_owned());
         let status = domain_status.to_storage().unwrap_or_default();
 
         let connector_response_data =
