@@ -387,23 +387,26 @@ where
         let request_id_string = request_id.as_str().to_string();
         let fut = self.service.call(request);
 
-        Box::pin(crate::request_context::scope(request_id_string, async move {
-            // Log incoming request IDs for correlation
-            if let Some(upstream_request_id) = incoming_request_id {
-                tracing::debug!(
-                    ?upstream_request_id,
-                    generated_request_id = %request_id,
-                    "Received upstream request ID for correlation"
-                );
-            }
+        Box::pin(crate::request_context::scope(
+            request_id_string,
+            async move {
+                // Log incoming request IDs for correlation
+                if let Some(upstream_request_id) = incoming_request_id {
+                    tracing::debug!(
+                        ?upstream_request_id,
+                        generated_request_id = %request_id,
+                        "Received upstream request ID for correlation"
+                    );
+                }
 
-            let mut response = fut.await?;
+                let mut response = fut.await?;
 
-            // Add request ID to response headers
-            response.headers_mut().insert(header_name, header_value);
+                // Add request ID to response headers
+                response.headers_mut().insert(header_name, header_value);
 
-            Ok(response)
-        }))
+                Ok(response)
+            },
+        ))
     }
 }
 
