@@ -71,6 +71,7 @@ pub struct ConnectorEventsResult {
     pub payout_id: Option<String>,
     pub connector_name: Option<String>,
     pub request_id: Option<String>,
+    pub url: Option<String>,
     pub flow: String,
     pub request: String,
     #[serde(rename = "masked_response")]
