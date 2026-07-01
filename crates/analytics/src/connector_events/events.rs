@@ -13,6 +13,7 @@ pub async fn get_connector_events<T>(
     merchant_id: &common_utils::id_type::MerchantId,
     query_param: ConnectorEventsRequest,
     pool: &T,
+    use_prism_tables: bool,
 ) -> FiltersResult<Vec<ConnectorEventsResult>>
 where
     T: AnalyticsDataSource + ConnectorEventLogAnalytics,
@@ -22,10 +23,13 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
-    let mut query_builder: QueryBuilder<T> = match query_param.payment_id {
-        Some(_) => QueryBuilder::new(AnalyticsCollection::PrismConnectorEvents),
-        None => QueryBuilder::new(AnalyticsCollection::PrismConnectorPayoutEvents),
-    };
+    let mut query_builder: QueryBuilder<T> =
+        match (use_prism_tables, query_param.payment_id.as_ref()) {
+            (true, Some(_)) => QueryBuilder::new(AnalyticsCollection::PrismConnectorEvents),
+            (true, None) => QueryBuilder::new(AnalyticsCollection::PrismConnectorPayoutEvents),
+            (false, Some(_)) => QueryBuilder::new(AnalyticsCollection::ConnectorEvents),
+            (false, None) => QueryBuilder::new(AnalyticsCollection::ConnectorPayoutEvents),
+        };
     query_builder.add_select_column("*").switch()?;
 
     query_builder
@@ -79,8 +83,8 @@ pub struct ConnectorEventsResult {
     pub error: Option<String>,
     pub status_code: u16,
     pub latency: Option<u128>,
-    pub source: Option<String>,
-    pub destination: Option<String>,
+    pub tenant_id: Option<String>,
+    pub service_name: Option<String>,
     pub execution_mode: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
