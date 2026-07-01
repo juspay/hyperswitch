@@ -6160,6 +6160,34 @@ Cypress.Commands.add("getPayoutRecurringData", (globalState, configKey) => {
   return cy.wrap({ payoutBody, data, shouldContinue });
 });
 
+Cypress.Commands.add(
+  "createConfirmRecurringPayout",
+  (globalState, configKey, confirm, autoFulfill) => {
+    const payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+    const data = payoutUtils.getConnectorDetails(
+      globalState.get("connectorId")
+    )["bank_transfer_pm"]["sepa_bank_transfer"][configKey];
+    const shouldContinue = payoutUtils.should_continue_further(data);
+    if (!shouldContinue) {
+      return cy.wrap(false);
+    }
+    if (
+      configKey === "RecurringUseMethod" ||
+      configKey === "RecurringInvalidConfirm"
+    ) {
+      data.Request.payout_method_id = globalState.get("payoutMethodId");
+    }
+    cy.createConfirmPayoutTest(
+      payoutBody,
+      data,
+      confirm,
+      autoFulfill,
+      globalState
+    );
+    return cy.wrap(payoutUtils.should_continue_further(data));
+  }
+);
+
 Cypress.Commands.add("verifyPayoutMethodId", (globalState) => {
   cy.wrap(globalState.get("payoutMethodId")).should("exist");
   cy.wrap(globalState.get("payoutMethodId")).should("not.be.null");
