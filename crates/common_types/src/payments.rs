@@ -59,6 +59,9 @@ pub enum SplitPaymentsRequest {
     /// XenditSplitPayment
     #[smithy(value_type = "XenditSplitRequest")]
     XenditSplitPayment(XenditSplitRequest),
+    /// PayloadSplitPayment
+    #[smithy(value_type = "PayloadSplitPaymentRequest")]
+    PayloadSplitPayment(PayloadSplitPaymentRequest),
 }
 impl_to_sql_from_sql_json!(SplitPaymentsRequest);
 
@@ -98,6 +101,54 @@ pub struct StripeSplitPaymentRequest {
     pub on_behalf_of: Option<String>,
 }
 impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
+
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
+)]
+#[diesel(sql_type = Jsonb)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// A single ledger entry distributing payment to one receiver for Payload split payments
+pub struct PayloadLedgerItem {
+    /// Signed amount in minor units (negative = debit from the payment)
+    #[schema(value_type = i64, example = -995)]
+    #[smithy(value_type = "i64")]
+    pub amount: MinorUnit,
+    /// processing_id of the receiver
+    #[smithy(value_type = "String")]
+    pub receiver_id: String,
+}
+impl_to_sql_from_sql_json!(PayloadLedgerItem);
+
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
+)]
+#[diesel(sql_type = Jsonb)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// Split payment configuration for Payload — distributes a payment across multiple receivers via ledger entries
+pub struct PayloadSplitPaymentRequest {
+    /// Ledger entries specifying how the payment is distributed across receivers
+    #[smithy(value_type = "Vec<PayloadLedgerItem>")]
+    pub ledger: Vec<PayloadLedgerItem>,
+}
+impl_to_sql_from_sql_json!(PayloadSplitPaymentRequest);
 
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
@@ -409,6 +460,9 @@ pub enum ConnectorChargeResponseData {
     /// XenditChargeResponseData
     #[smithy(value_type = "XenditChargeResponseData")]
     XenditSplitPayment(XenditChargeResponseData),
+    /// PayloadChargeResponseData
+    #[smithy(value_type = "PayloadSplitPaymentRequest")]
+    PayloadSplitPayment(PayloadSplitPaymentRequest),
 }
 
 impl_to_sql_from_sql_json!(ConnectorChargeResponseData);

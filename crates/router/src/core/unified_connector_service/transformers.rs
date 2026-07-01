@@ -8249,6 +8249,7 @@ impl ForeignFrom<&common_types::payments::SplitPaymentsRequest>
                 ),
             ),
             common_types::payments::SplitPaymentsRequest::XenditSplitPayment(_) => None,
+            common_types::payments::SplitPaymentsRequest::PayloadSplitPayment(_) => None,
         };
         Self { split_payment_type }
     }
