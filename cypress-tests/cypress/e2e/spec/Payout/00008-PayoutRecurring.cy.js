@@ -63,10 +63,10 @@ describe("[Payout] Recurring", () => {
         false,
         globalState
       ).then((response) => {
-        // Verify recurring=true is echoed back. payout_method_id is not checked
-        // here because Wise does not return a connector-level recurring mandate
-        // ID in the payout create response.
-        expect(response.body.recurring).to.eq(true);
+        // recurring=true because we explicitly set recurring:true in the request to mark this as a recurring payout.
+        // The API saves the payout method after success and echoes recurring:true.
+        // (payout_method_id not asserted here because Wise does not return it in the create response — see RecurringUseMethod TRIGGER_SKIP.)
+        cy.verifyRecurringPayoutResponse(response, true);
       });
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -100,7 +100,7 @@ describe("[Payout] Recurring", () => {
       }
 
       // Use the payout_method_id saved from the create-payout-with-recurring-true test
-      data.Request.payout_method_id = globalState.get("payoutMethodId");
+      cy.injectPayoutMethodId(data, globalState);
 
       cy.createConfirmPayoutTest(
         payoutBody,
@@ -109,9 +109,11 @@ describe("[Payout] Recurring", () => {
         false,
         globalState
       ).then((response) => {
-        // Verify recurring=true for payout using saved method
-        expect(response.body.recurring).to.eq(true);
-        expect(response.body.payout_method_id).to.eq(
+        // recurring=true and payout_method_id matches the saved method from the RecurringTrue test
+        // — this verifies the saved payout method can be reused for subsequent recurring payouts.
+        cy.verifyRecurringPayoutResponse(
+          response,
+          true,
           globalState.get("payoutMethodId")
         );
       });
@@ -152,8 +154,9 @@ describe("[Payout] Recurring", () => {
         false,
         globalState
       ).then((response) => {
-        // Verify recurring=false for non-recurring payouts
-        expect(response.body.recurring).to.eq(false);
+        // recurring=false because we explicitly set recurring:false in the request — this is a one-time payout.
+        // No payout method is saved for future reuse. The API echoes recurring:false.
+        cy.verifyRecurringPayoutResponse(response, false);
       });
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -192,8 +195,9 @@ describe("[Payout] Recurring", () => {
         false,
         globalState
       ).then((response) => {
-        // Verify recurring defaults to false when omitted
-        expect(response.body.recurring).to.eq(false);
+        // recurring defaults to false when the field is omitted (see crates/router/src/core/payouts.rs:3142: recurring: req.recurring.unwrap_or(false)).
+        // The API echoes recurring:false, confirming the default.
+        cy.verifyRecurringPayoutResponse(response, false);
       });
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -226,9 +230,11 @@ describe("[Payout] Recurring", () => {
 
       // Inject real payout_method_id from RecurringTrue to pass deserialization
       // so the confirm=false validation runs and returns the expected error
-      data.Request.payout_method_id = globalState.get("payoutMethodId");
+      cy.injectPayoutMethodId(data, globalState);
 
       // This test validates that using payout_method_id with confirm=false returns error
+      // Error assertion (IR_06: Confirm must be true for recurring payouts) is handled by
+      // createConfirmPayoutTest -> defaultErrorHandler using RecurringInvalidConfirm.Response.body.error config.
       cy.createConfirmPayoutTest(payoutBody, data, false, false, globalState);
 
       // For error responses, we expect should_continue_further to return false
