@@ -10,6 +10,23 @@ pub async fn connector_events_core(
     req: ConnectorEventsRequest,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> AnalyticsResult<Vec<ConnectorEventsResult>> {
+    connector_events_core_inner(pool, req, merchant_id, false).await
+}
+
+pub async fn prism_connector_events_core(
+    pool: &AnalyticsProvider,
+    req: ConnectorEventsRequest,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> AnalyticsResult<Vec<ConnectorEventsResult>> {
+    connector_events_core_inner(pool, req, merchant_id, true).await
+}
+
+async fn connector_events_core_inner(
+    pool: &AnalyticsProvider,
+    req: ConnectorEventsRequest,
+    merchant_id: &common_utils::id_type::MerchantId,
+    use_prism_tables: bool,
+) -> AnalyticsResult<Vec<ConnectorEventsResult>> {
     let data = match pool {
         AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented(
             "Connector Events not implemented for SQLX",
@@ -18,7 +35,7 @@ pub async fn connector_events_core(
         AnalyticsProvider::Clickhouse(ckh_pool)
         | AnalyticsProvider::CombinedSqlx(_, ckh_pool)
         | AnalyticsProvider::CombinedCkh(_, ckh_pool) => {
-            get_connector_events(merchant_id, req, ckh_pool).await
+            get_connector_events(merchant_id, req, ckh_pool, use_prism_tables).await
         }
     }
     .switch()?;

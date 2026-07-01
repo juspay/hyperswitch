@@ -1173,6 +1173,7 @@ pub enum AnalyticsFlow {
     GetApiEventMetrics,
     GetApiEventFilters,
     GetConnectorEvents,
+    GetPrismConnectorEvents,
     GetOutgoingWebhookEvents,
     GetGlobalSearchResults,
     GetSearchResults,
