@@ -102,7 +102,7 @@ where
 
         match (is_volatile, payment_method_id) {
             (Some(false), Some(pm_id)) => {
-                let should_update = resp.status.should_update_payment_method();
+                let should_update = resp.status.to_storage().unwrap_or_default().should_update_payment_method();
 
                 let payment_method_type = payment_data
                     .payment_attempt

@@ -627,7 +627,7 @@ pub async fn construct_refund_router_data<'a, F>(
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
-        status.into(),
+        status: status.into(),
         payment_method,
         payment_method_type: payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
