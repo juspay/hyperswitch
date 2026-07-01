@@ -1152,6 +1152,103 @@ impl
     }
 }
 
+// External-vault tuple builder: emits `card_proxy` from the re-fetched VGS alias so the RReq
+// (`/3ds/results`) routes through the UCS injector → VGS proxy (which presents the Netcetera mTLS
+// client cert). The RReq body is keyed by `threeDSServerTransID`; the alias is NOT substituted into
+// it (the VGS reveal filter has no matching card fields in the results request).
+impl
+    transformers::ForeignTryFrom<(
+        &RouterData<
+            uas_flows::PostAuthenticate,
+            router_request_types::PaymentsPostAuthenticateData,
+            PaymentsResponseData,
+        >,
+        &hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+    )> for payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        (router_data, external_vault_pmd): (
+            &RouterData<
+                uas_flows::PostAuthenticate,
+                router_request_types::PaymentsPostAuthenticateData,
+                PaymentsResponseData,
+            >,
+            &hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(
+            router_data.request.currency.unwrap_or_default(),
+        )?;
+
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+
+        // Build `card_proxy` from the external-vault alias, NOT the Luhn card field.
+        let payment_method =
+            unified_connector_service::build_unified_connector_service_payment_method_for_external_proxy(
+                external_vault_pmd.clone(),
+                router_data.request.payment_method_type,
+            )?;
+
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
+        Ok(Self {
+            merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
+            amount: router_data
+                .request
+                .minor_amount
+                .map(|minor_amount| payments_grpc::Money {
+                    minor_amount: minor_amount.get_amount_as_i64(),
+                    currency: currency.into(),
+                }),
+            payment_method: Some(payment_method),
+            customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
+                name: None,
+                email: router_data
+                    .request
+                    .email
+                    .clone()
+                    .map(|e| e.expose().expose().into()),
+                id: None,
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+                phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
+            }),
+            address: Some(address),
+            authentication_data: None,
+            metadata: None,
+            return_url: None,
+            continue_redirection_url: None,
+            state: None,
+            redirection_response: router_data
+                .request
+                .redirect_response
+                .clone()
+                .map(|redirection_response| {
+                    payments_grpc::RedirectionResponse::foreign_try_from(redirection_response)
+                })
+                .transpose()?,
+            browser_info: router_data
+                .request
+                .browser_info
+                .clone()
+                .map(payments_grpc::BrowserInformation::foreign_try_from)
+                .transpose()?,
+            connector_feature_data: None,
+            connector_order_reference_id: None,
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
+        })
+    }
+}
+
 impl
     transformers::ForeignTryFrom<
         &RouterData<
@@ -1238,6 +1335,220 @@ impl
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
+        })
+    }
+}
+
+/// External-vault pre-authenticate request builder.
+///
+/// CRUX: a VGS alias cannot ride the normal `payment_method` field — the Luhn-typed
+/// `PaymentsPreAuthenticateData.payment_method_data` won't even construct from an alias.
+/// So we build the gRPC pre-auth request from the standard `RouterData<PreAuthenticate, ...>`
+/// envelope (currency, amount, address, customer, browser_info, ...) but OVERRIDE the
+/// `payment_method` with the gRPC `card_proxy` (`ProxyCardDetails`) field, emitted from the
+/// external-vault payment method data via `build_unified_connector_service_payment_method_for_external_proxy`.
+/// This mirrors the external-vault authorize transform and keeps the alias entirely off the
+/// Luhn path. The `router_data.request.payment_method_data` (a placeholder card) is ignored.
+impl
+    transformers::ForeignTryFrom<(
+        &RouterData<
+            uas_flows::PreAuthenticate,
+            router_request_types::PaymentsPreAuthenticateData,
+            PaymentsResponseData,
+        >,
+        &hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+    )> for payments_grpc::PaymentMethodAuthenticationServicePreAuthenticateRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        (router_data, external_vault_pmd): (
+            &RouterData<
+                uas_flows::PreAuthenticate,
+                router_request_types::PaymentsPreAuthenticateData,
+                PaymentsResponseData,
+            >,
+            &hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(
+            router_data.request.currency.unwrap_or_default(),
+        )?;
+
+        // Build `card_proxy` from the external-vault alias, NOT from the Luhn card field.
+        let payment_method =
+            unified_connector_service::build_unified_connector_service_payment_method_for_external_proxy(
+                external_vault_pmd.clone(),
+                router_data.request.payment_method_type,
+            )?;
+
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+        let metadata = router_data
+            .request
+            .metadata
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+            .map(|s| s.into());
+
+        Ok(Self {
+            merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
+            amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
+                currency: currency.into(),
+            }),
+            payment_method: Some(payment_method),
+            customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
+                name: router_data
+                    .request
+                    .customer_name
+                    .clone()
+                    .map(|customer_name| customer_name.peek().to_owned()),
+                email: router_data
+                    .request
+                    .email
+                    .clone()
+                    .map(|e| e.expose().expose().into()),
+                id: None,
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+                phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
+            }),
+            address: Some(address),
+            enrolled_for_3ds: router_data.request.enrolled_for_3ds,
+            metadata,
+            return_url: router_data.request.router_return_url.clone(),
+            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            state: None,
+            browser_info: router_data
+                .request
+                .browser_info
+                .clone()
+                .map(payments_grpc::BrowserInformation::foreign_try_from)
+                .transpose()?,
+            connector_feature_data: None,
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
+            description: router_data.description.clone(),
+        })
+    }
+}
+
+/// External-vault authenticate (AReq) request builder.
+///
+/// CRUX: identical to the non-tuple `Authenticate` builder above, except the alias rides
+/// `card_proxy` (`ProxyCardDetails`) instead of the Luhn-typed `PaymentsAuthenticateData.payment_method_data`.
+/// We emit the gRPC `payment_method` from the external-vault payment method data via
+/// `build_unified_connector_service_payment_method_for_external_proxy` and keep every other field
+/// (currency, amount, address, customer, browser_info, `authentication_data`, ...) sourced from the
+/// `RouterData<Authenticate, ...>` envelope. The `authentication_data` carries the persisted pre-auth
+/// result (threeds_server_transaction_id, message_version, ds/acs trans ids, trans_status) so the
+/// connector can resume the 3DS handshake. This mirrors the external-vault pre-authenticate transform
+/// and keeps the alias entirely off the Luhn path.
+impl
+    transformers::ForeignTryFrom<(
+        &RouterData<
+            uas_flows::Authenticate,
+            router_request_types::PaymentsAuthenticateData,
+            PaymentsResponseData,
+        >,
+        &hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+    )> for payments_grpc::PaymentMethodAuthenticationServiceAuthenticateRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        (router_data, external_vault_pmd): (
+            &RouterData<
+                uas_flows::Authenticate,
+                router_request_types::PaymentsAuthenticateData,
+                PaymentsResponseData,
+            >,
+            &hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(
+            router_data.request.currency.unwrap_or_default(),
+        )?;
+
+        // Build `card_proxy` from the external-vault alias, NOT from the Luhn card field.
+        let payment_method =
+            unified_connector_service::build_unified_connector_service_payment_method_for_external_proxy(
+                external_vault_pmd.clone(),
+                router_data.request.payment_method_type,
+            )?;
+
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+
+        // Convert ucs_authentication_data (persisted pre-auth result) to gRPC format.
+        let authentication_data = router_data
+            .request
+            .authentication_data
+            .clone()
+            .map(payments_grpc::AuthenticationData::foreign_try_from)
+            .transpose()?;
+
+        Ok(Self {
+            merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
+            amount: router_data
+                .request
+                .minor_amount
+                .map(|minor_amount| payments_grpc::Money {
+                    minor_amount: minor_amount.get_amount_as_i64(),
+                    currency: currency.into(),
+                }),
+            payment_method: Some(payment_method),
+            customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
+                name: None,
+                email: router_data
+                    .request
+                    .email
+                    .clone()
+                    .map(|e| e.expose().expose().into()),
+                id: None,
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+                phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
+            }),
+            address: Some(address),
+            authentication_data,
+            metadata: None,
+            return_url: None,
+            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            state: None,
+            redirection_response: router_data
+                .request
+                .redirect_response
+                .clone()
+                .map(|redirection_response| {
+                    payments_grpc::RedirectionResponse::foreign_try_from(redirection_response)
+                })
+                .transpose()?,
+            browser_info: router_data
+                .request
+                .browser_info
+                .clone()
+                .map(payments_grpc::BrowserInformation::foreign_try_from)
+                .transpose()?,
+            connector_feature_data: None,
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
 }

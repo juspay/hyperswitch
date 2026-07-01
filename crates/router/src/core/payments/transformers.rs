@@ -721,6 +721,9 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
             RequestIncrementalAuthorization::True
         ),
         metadata: payment_data.payment_intent.metadata.clone().expose_option(),
+        // TODO(external-3ds-over-vgs): v2 PaymentConfirmData does not yet carry
+        // authentication / external_authentication_data; wire CAVV/ECI through here
+        // once v2 payment 3DS-over-external-vault is supported (see v1 path above).
         authentication_data: None,
         customer_acceptance: None,
         split_payments: None,
@@ -892,7 +895,19 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
             Some(RequestIncrementalAuthorization::True)
         ),
         metadata: payment_data.payment_intent.metadata.clone(),
-        authentication_data: None,
+        // Forward 3DS authentication proof (CAVV/ECI) to the PSP authorize on the
+        // external-vault proxy path: orchestrated auth record first, then merchant
+        // pass-through (three_ds_data) as fallback. Mirrors the standard authorize path.
+        authentication_data: payment_data
+            .authentication
+            .as_ref()
+            .map(AuthenticationData::foreign_try_from)
+            .transpose()?
+            .or(payment_data
+                .external_authentication_data
+                .as_ref()
+                .map(AuthenticationData::foreign_try_from)
+                .transpose()?),
         customer_acceptance: payment_data.customer_acceptance,
         split_payments: None,
         merchant_order_reference_id: None,
