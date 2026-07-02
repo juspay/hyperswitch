@@ -193,6 +193,14 @@ pub struct CardWithLimitedData {
 
     /// The ECI(Electronic Commerce Indicator) value for this authentication.
     pub eci: Option<String>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    pub network_transaction_id: Option<Secret<String>>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
 }
 
 // Determines if decryption should be performed
@@ -687,7 +695,13 @@ impl CardWithLimitedDetails {
         card_with_limited_data: CardWithLimitedData,
     ) -> (mandates::MandateReferenceId, PaymentMethodData) {
         (
-            mandates::MandateReferenceId::CardWithLimitedData,
+            mandates::MandateReferenceId::CardWithLimitedData(mandates::CardWithLimitedDataRef {
+                network_transaction_id: card_with_limited_data
+                    .clone()
+                    .network_transaction_id
+                    .map(|id| id.peek().to_string()),
+                transaction_link_id: card_with_limited_data.transaction_link_id.clone(),
+            }),
             PaymentMethodData::CardWithLimitedDetails(card_with_limited_data.into()),
         )
     }
@@ -1435,6 +1449,10 @@ pub struct CardToken {
 
     /// The CVC number for the card
     pub card_cvc: Option<Secret<String>>,
+
+    /// Token referencing a CVC vaulted in the hyperswitch (self-hosted) vault, resolved by the
+    /// server to the raw CVC for the self-hosted default-vault repeat-customer flow.
+    pub card_cvc_token: Option<Secret<String>>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
@@ -1736,6 +1754,7 @@ pub enum BankTransferData {
         expiry_date: Option<time::PrimitiveDateTime>,
     },
     PixEmv {},
+    PixQr {},
     PixAutomaticoPush {
         account_number: Option<Secret<String>>,
         branch_code: Option<Secret<String>>,
@@ -2856,10 +2875,12 @@ impl From<api_models::payments::CardToken> for CardToken {
         let api_models::payments::CardToken {
             card_holder_name,
             card_cvc,
+            card_cvc_token,
         } = value;
         Self {
             card_holder_name,
             card_cvc,
+            card_cvc_token,
         }
     }
 }
@@ -3077,6 +3098,7 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
                 expiry_date,
             },
             api_models::payments::BankTransferData::PixEmv {} => Self::PixEmv {},
+            api_models::payments::BankTransferData::PixQr {} => Self::PixQr {},
             api_models::payments::BankTransferData::PixAutomaticoPush {
                 account_number,
                 branch_code,
@@ -3147,6 +3169,7 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                 },
             )),
             BankTransferData::PixEmv {} => Self::PixEmv {},
+            BankTransferData::PixQr {} => Self::PixQr {},
             BankTransferData::PixAutomaticoPush {
                 account_number,
                 branch_code,
@@ -3480,6 +3503,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
             Self::PixEmv {} => api_enums::PaymentMethodType::PixEmv,
+            Self::PixQr {} => api_enums::PaymentMethodType::PixQr,
             Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
             Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
@@ -4412,6 +4436,8 @@ impl From<api_mandates::CardWithLimitedData> for CardWithLimitedData {
             card_exp_year: card_with_limited_data.card_exp_year,
             card_holder_name: card_with_limited_data.card_holder_name,
             eci: card_with_limited_data.eci,
+            network_transaction_id: card_with_limited_data.network_transaction_id,
+            transaction_link_id: card_with_limited_data.transaction_link_id,
         }
     }
 }

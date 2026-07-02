@@ -257,6 +257,7 @@ dispute_function = "report_download_config_dispute_function" # Config to downloa
 payment_function = "report_download_config_payment_function" # Config to download payment report
 refund_function = "report_download_config_refund_function"   # Config to download refund report
 payout_function = "report_download_config_payout_function"   # Config to download payout report
+relay_function = "report_download_config_relay_function"     # Config to download relay report
 region = "report_download_config_region"                     # Region of the bucket
 
 [opensearch]
@@ -403,13 +404,15 @@ base_url = "http://localhost:8000" #base url to call unified authentication serv
 base_url = "http://localhost:8080" # base url to call hyperswitch vault service
 
 [clone_connector_allowlist]
-merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
-connector_names = "connector_names"     # Comma-separated list of allowed connector names
+connector_names = "connector_names"     # Comma-separated list of cloneable connector names
+
+[clone_connector_allowlist.payment_method_types]
+payment_method = "payment_method_types" # <payment_method> = comma-separated cloneable payment_method_types
 
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
@@ -446,6 +449,12 @@ redis_ttl_buffer_in_seconds=300 # buffer time in seconds to be added to redis tt
 enabled = false                                # Enable or disable chat features
 hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
 encryption_key = ""                            # Key to encrypt and decrypt chats
+
+[sage]
+enabled = false                                # Master switch for sage sessions
+base_url = ""                                  # Sage base URL (e.g. https://sage.<env>.example.com)
+mint_path = ""                                 # Path on sage that mints a session (e.g. /api/session)
+infra_key = ""                                 # Shared bearer presented to sage; KMS-decrypted at boot
 
 [proxy_status_mapping]
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response

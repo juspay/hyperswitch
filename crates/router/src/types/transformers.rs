@@ -400,6 +400,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PixAutomaticoQr
             | api_enums::PaymentMethodType::PixKey
             | api_enums::PaymentMethodType::PixEmv
+            | api_enums::PaymentMethodType::PixQr
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex
             | api_enums::PaymentMethodType::PaySafeCard
@@ -1985,7 +1986,7 @@ impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
 impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
     fn foreign_from(customer: &domain::Customer) -> Self {
         Self {
-            id: Some(customer.customer_id.clone()),
+            id: Some(customer.get_id().clone()),
             name: customer
                 .name
                 .as_ref()
