@@ -204,6 +204,10 @@ pub enum Flow {
     PaymentsStart,
     /// Payments list flow.
     PaymentsList,
+    /// Aggregated payments list flow for a platform across its connected merchants.
+    PlatformPaymentsList,
+    /// Aggregated payments filter-values flow for a platform across its connected merchants.
+    PlatformPaymentsFilters,
     /// Payments filters flow
     PaymentsFilters,
     /// Payments aggregates flow

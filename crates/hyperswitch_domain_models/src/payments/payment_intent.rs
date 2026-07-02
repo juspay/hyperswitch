@@ -97,6 +97,26 @@ pub trait PaymentIntentInterface {
     ) -> error_stack::Result<Vec<PaymentIntent>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn get_filtered_payment_intents_attempt_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        filters: &PaymentIntentFetchConstraints,
+    ) -> error_stack::Result<
+        Vec<(
+            DieselPaymentIntent,
+            diesel_models::payment_attempt::PaymentAttempt,
+        )>,
+        Self::Error,
+    >;
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn get_payment_intents_attempt_count_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        filters: &PaymentIntentFetchConstraints,
+    ) -> error_stack::Result<i64, Self::Error>;
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         processor_merchant_id: &id_type::MerchantId,
@@ -1798,6 +1818,7 @@ pub struct PaymentIntentListParams {
     pub card_discovery: Option<Vec<common_enums::CardDiscovery>>,
     pub merchant_order_reference_id: Option<String>,
     pub customer_email: Option<Email>,
+    pub processor_merchant_id: Option<Vec<id_type::MerchantId>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1860,6 +1881,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             card_discovery: None,
             merchant_order_reference_id: None,
             customer_email: None,
+            processor_merchant_id: None,
         }))
     }
 }
@@ -1952,6 +1974,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             card_discovery: None,
             merchant_order_reference_id: None,
             customer_email: None,
+            processor_merchant_id: None,
         }))
     }
 }
@@ -2005,6 +2028,71 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 card_discovery,
                 merchant_order_reference_id,
                 customer_email,
+                processor_merchant_id: None,
+            }))
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<api_models::payments::PlatformPaymentListConstraints> for PaymentIntentFetchConstraints {
+    fn from(value: api_models::payments::PlatformPaymentListConstraints) -> Self {
+        let api_models::payments::PlatformPaymentListConstraints {
+            payment_id,
+            profile_id,
+            processor_merchant_id,
+            customer_id,
+            limit,
+            offset,
+            time_range,
+            start_amount,
+            end_amount,
+            connector,
+            currency,
+            status,
+            payment_method,
+            payment_method_type,
+            authentication_type,
+            merchant_connector_id,
+            card_network,
+            card_discovery,
+            merchant_order_reference_id,
+            order,
+        } = value;
+        if let Some(payment_intent_id) = payment_id {
+            Self::Single { payment_intent_id }
+        } else {
+            Self::List(Box::new(PaymentIntentListParams {
+                offset: offset.unwrap_or_default(),
+                starting_at: time_range.map(|time_range| time_range.start_time),
+                ending_at: time_range.and_then(|time_range| time_range.end_time),
+                amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some(
+                    api_models::payments::AmountFilter {
+                        start_amount,
+                        end_amount,
+                    },
+                ),
+                connector,
+                currency,
+                status,
+                payment_method,
+                payment_method_type,
+                authentication_type,
+                merchant_connector_id,
+                profile_id: profile_id.map(|profile_id| vec![profile_id]),
+                customer_id,
+                starting_after_id: None,
+                ending_before_id: None,
+                limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+                order: order.unwrap_or_default(),
+                card_network,
+                card_discovery,
+                merchant_order_reference_id,
+                // Customer email is PII encrypted per connected merchant; the platform list only
+                // has the platform key store and therefore cannot filter on it.
+                customer_email: None,
+                processor_merchant_id: processor_merchant_id
+                    .map(|processor_merchant_id| vec![processor_merchant_id]),
             }))
         }
     }
