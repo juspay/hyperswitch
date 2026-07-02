@@ -767,7 +767,7 @@ jobs:
                   "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_3}"'",
                   "payouts_connectors": "",
                   "platform_connectors": "",
-                  "parallel": 3,
+                  "parallel": 4,
                   "report_artifact_name": "cypress-mock-test-results-payments-batch-3",
                   "server_logs_artifact": "mock-server-logs-payments-batch-3"
                 }
