@@ -1485,18 +1485,12 @@ export const connectorDetails = {
         currency: "GBP",
       },
     }),
-    BankdebitMIT: {
+    BankdebitMIT: getCustomExchange({
       Request: {
         currency: "EUR",
         off_session: true,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
+    }),
     SepaMandate: getCustomExchange({
       Request: {
         payment_method: "bank_debit",
