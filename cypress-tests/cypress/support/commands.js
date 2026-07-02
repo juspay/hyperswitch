@@ -33,8 +33,6 @@ import getConnectorDetails, {
   injectHelcimTestCard,
   setNormalizedValue,
 } from "../e2e/configs/Payment/Utils";
-import * as payoutUtils from "../e2e/configs/Payout/Utils";
-import * as fixtures from "../fixtures/imports";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
@@ -6152,60 +6150,6 @@ Cypress.Commands.add(
     }
   }
 );
-
-Cypress.Commands.add("getPayoutRecurringData", (globalState, configKey) => {
-  const payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
-  const data = payoutUtils.getConnectorDetails(globalState.get("connectorId"))[
-    "bank_transfer_pm"
-  ]["sepa_bank_transfer"][configKey];
-  const shouldContinue = payoutUtils.should_continue_further(data);
-  return cy.wrap({ payoutBody, data, shouldContinue });
-});
-
-Cypress.Commands.add(
-  "createConfirmRecurringPayout",
-  (globalState, configKey, confirm, autoFulfill) => {
-    const payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
-    const data = payoutUtils.getConnectorDetails(
-      globalState.get("connectorId")
-    )["bank_transfer_pm"]["sepa_bank_transfer"][configKey];
-    const shouldContinue = payoutUtils.should_continue_further(data);
-    if (!shouldContinue) {
-      return cy.wrap(false);
-    }
-    if (
-      configKey === "RecurringUseMethod" ||
-      configKey === "RecurringInvalidConfirm"
-    ) {
-      data.Request.payout_method_id = globalState.get("payoutMethodId");
-    }
-    return cy
-      .createConfirmPayoutTest(
-        payoutBody,
-        data,
-        confirm,
-        autoFulfill,
-        globalState
-      )
-      .then((response) => {
-        if (response.body.payout_method_id) {
-          globalState.set("payoutMethodId", response.body.payout_method_id);
-        }
-        return payoutUtils.should_continue_further(data);
-      });
-  }
-);
-
-Cypress.Commands.add("verifyPayoutMethodId", (globalState) => {
-  cy.wrap(globalState.get("payoutMethodId")).should("exist");
-  cy.wrap(globalState.get("payoutMethodId")).should("not.be.null");
-  cy.wrap(globalState.get("payoutMethodId")).should("not.eq", "");
-});
-
-Cypress.Commands.add("injectPayoutMethodId", (data, globalState) => {
-  data.Request.payout_method_id = globalState.get("payoutMethodId");
-  return data;
-});
 
 // User API calls
 // Below 3 commands should be called in sequence to login a user

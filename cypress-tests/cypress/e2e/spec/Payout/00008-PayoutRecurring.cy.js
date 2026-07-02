@@ -1,3 +1,4 @@
+import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import * as utils from "../../configs/Payout/Utils";
 
@@ -41,39 +42,56 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-recurring-true", () => {
-      cy.createConfirmRecurringPayout(
-        globalState,
-        "RecurringTrue",
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["sepa_bank_transfer"]["RecurringTrue"];
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+        return;
+      }
+      cy.createConfirmPayoutTest(
+        fixtures.createPayoutBody,
+        data,
         true,
-        false
-      ).then((shouldProceed) => {
-        if (!shouldProceed) shouldContinue = false;
+        false,
+        globalState
+      ).then((response) => {
+        if (response.body.payout_method_id) {
+          globalState.set("payoutMethodId", response.body.payout_method_id);
+        }
       });
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("fulfill-recurring-payout-test", () => {
-      cy.getPayoutRecurringData(globalState, "RecurringTrueFulfill").then(
-        ({ data, shouldContinue: shouldProceed }) => {
-          if (!shouldProceed) {
-            shouldContinue = false;
-            return;
-          }
-          cy.fulfillPayoutCallTest({}, data, globalState);
-          if (shouldContinue)
-            shouldContinue = utils.should_continue_further(data);
-        }
-      );
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["sepa_bank_transfer"]["RecurringTrueFulfill"];
+      cy.fulfillPayoutCallTest({}, data, globalState);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("create-recurring-payout-using-saved-method", () => {
-      cy.createConfirmRecurringPayout(
-        globalState,
-        "RecurringUseMethod",
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["sepa_bank_transfer"]["RecurringUseMethod"];
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+        return;
+      }
+      data.Request.payout_method_id = globalState.get("payoutMethodId");
+      cy.createConfirmPayoutTest(
+        fixtures.createPayoutBody,
+        data,
         true,
-        false
-      ).then((shouldProceed) => {
-        if (!shouldProceed) shouldContinue = false;
+        false,
+        globalState
+      ).then((response) => {
+        if (response.body.payout_method_id) {
+          globalState.set("payoutMethodId", response.body.payout_method_id);
+        }
       });
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payout-call-test", () => {
@@ -91,14 +109,25 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-recurring-false", () => {
-      cy.createConfirmRecurringPayout(
-        globalState,
-        "RecurringFalse",
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["sepa_bank_transfer"]["RecurringFalse"];
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+        return;
+      }
+      cy.createConfirmPayoutTest(
+        fixtures.createPayoutBody,
+        data,
         true,
-        false
-      ).then((shouldProceed) => {
-        if (!shouldProceed) shouldContinue = false;
+        false,
+        globalState
+      ).then((response) => {
+        if (response.body.payout_method_id) {
+          globalState.set("payoutMethodId", response.body.payout_method_id);
+        }
       });
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payout-call-test", () => {
@@ -116,14 +145,25 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-recurring-omitted", () => {
-      cy.createConfirmRecurringPayout(
-        globalState,
-        "RecurringDefault",
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["sepa_bank_transfer"]["RecurringDefault"];
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+        return;
+      }
+      cy.createConfirmPayoutTest(
+        fixtures.createPayoutBody,
+        data,
         true,
-        false
-      ).then((shouldProceed) => {
-        if (!shouldProceed) shouldContinue = false;
+        false,
+        globalState
+      ).then((response) => {
+        if (response.body.payout_method_id) {
+          globalState.set("payoutMethodId", response.body.payout_method_id);
+        }
       });
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payout-call-test", () => {
@@ -141,14 +181,26 @@ describe("[Payout] Recurring", () => {
     });
 
     it("attempt-payout-without-confirm-should-fail", () => {
-      cy.createConfirmRecurringPayout(
-        globalState,
-        "RecurringInvalidConfirm",
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["sepa_bank_transfer"]["RecurringInvalidConfirm"];
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+        return;
+      }
+      data.Request.payout_method_id = globalState.get("payoutMethodId");
+      cy.createConfirmPayoutTest(
+        fixtures.createPayoutBody,
+        data,
         false,
-        false
-      ).then((shouldProceed) => {
-        if (!shouldProceed) shouldContinue = false;
+        false,
+        globalState
+      ).then((response) => {
+        if (response.body.payout_method_id) {
+          globalState.set("payoutMethodId", response.body.payout_method_id);
+        }
       });
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 });

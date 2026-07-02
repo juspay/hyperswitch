@@ -320,12 +320,9 @@ export const connectorDetails = {
           },
         },
       },
-      // RecurringInvalidConfirm and RecurringUseMethod are TRIGGER_SKIP because
-      // they depend on payout_method_id being saved from a prior RecurringTrue
-      // payout and reused. The API returns payout_method_id for confirmed
-      // payouts regardless of the recurring flag, but the full reuse flow
-      // (invalid confirm validation, method_id-based payout) requires further
-      // backend work to be testable end-to-end.
+      // RecurringInvalidConfirm is TRIGGER_SKIP because it depends on
+      // payout_method_id from a prior RecurringTrue payout and the invalid
+      // confirm validation is not yet testable end-to-end.
       RecurringInvalidConfirm: {
         Configs: {
           TRIGGER_SKIP: true,
@@ -346,15 +343,10 @@ export const connectorDetails = {
           },
         },
       },
-      // TRIGGER_SKIP because the payout_method_id reuse flow requires backend
-      // work in crates/router/src/core/payouts.rs and the Wise transformer.
-      // The API returns payout_method_id for confirmed payouts, but the full
-      // reuse flow (creating a payout from a saved method_id) is not yet
-      // testable end-to-end.
+      // The payout_method_id reuse flow is now testable end-to-end. The
+      // payout_method_id is saved from a prior RecurringTrue payout and
+      // injected from globalState at test runtime.
       RecurringUseMethod: {
-        Configs: {
-          TRIGGER_SKIP: true,
-        },
         Request: {
           currency: "EUR",
           payout_type: "bank",
