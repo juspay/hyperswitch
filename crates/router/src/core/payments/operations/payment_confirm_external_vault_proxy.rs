@@ -70,10 +70,11 @@ pub(crate) fn build_external_vault_payment_method_data(
                 .and_then(|wrapper| wrapper.vault_payment_method_token_data.as_ref())
             {
                 Some(VaultPaymentMethodData::VaultCardData(vault_card)) => {
-                    // Card expiry is carried on the vault tokens and the CVC on the request.
-                    // Both are required to authorize through the external vault proxy, so error
-                    // out explicitly rather than forwarding empty strings that fail downstream
-                    // connector validation.
+                    // Card expiry is carried on the vault tokens and is required. The CVC rides on
+                    // the request and is optional: the SDK-driven confirm supplies it, but the
+                    // webhook-driven 3DS-authenticated authorize has none (the CAVV replaces it), so
+                    // we forward `None` (the connector omits the field) rather than an empty string
+                    // that would fail downstream connector validation.
                     let card_exp_month = vault_card
                         .card_exp_month
                         .clone()
@@ -82,7 +83,7 @@ pub(crate) fn build_external_vault_payment_method_data(
                         .card_exp_year
                         .clone()
                         .get_required_value("card_exp_year")?;
-                    let card_cvc = token_data.card_cvc.clone().get_required_value("card_cvc")?;
+                    let card_cvc = token_data.card_cvc.clone();
 
                     Some(
                         hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
@@ -172,7 +173,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _flow_kind: operations::PaymentFlowKind,
-        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
@@ -196,21 +197,45 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        // NOTE: `RequiresCustomerAction` is intentionally NOT in the not-allowed list. After the
-        // external 3DS pre-auth emits a `ThreeDsInvoke`, the intent sits in `RequiresCustomerAction`;
-        // the SDK completes the challenge and RE-CONFIRMS to resume (Phase 4b-2b: post-authenticate
-        // -> authorize). That resume is the only way this operation sees `RequiresCustomerAction`.
-        helpers::validate_payment_status_against_not_allowed_statuses(
-            payment_intent.status,
-            &[
-                storage_enums::IntentStatus::Cancelled,
-                storage_enums::IntentStatus::Succeeded,
-                storage_enums::IntentStatus::Processing,
-                storage_enums::IntentStatus::RequiresCapture,
-                storage_enums::IntentStatus::RequiresMerchantAction,
-            ],
-            "external_vault_proxy_confirm",
-        )?;
+        // Mirror the standard confirm's source-based status gate. A `RequiresCustomerAction`
+        // intent may only be (re-)confirmed by the webhook / external-authenticator resume — after
+        // the external 3DS pre-auth emits a `ThreeDsInvoke` the intent sits in
+        // `RequiresCustomerAction`, and the challenge completion drives the pull=false authorize with
+        // `PaymentSource::ExternalAuthenticator`. A normal client confirm must NOT proceed on a
+        // `RequiresCustomerAction` intent (same as the standard confirm operation).
+        if [
+            Some(common_enums::PaymentSource::Webhook),
+            Some(common_enums::PaymentSource::ExternalAuthenticator),
+        ]
+        .contains(&header_payload.payment_confirm_source)
+        {
+            helpers::validate_payment_status_against_not_allowed_statuses(
+                payment_intent.status,
+                &[
+                    storage_enums::IntentStatus::Cancelled,
+                    storage_enums::IntentStatus::Succeeded,
+                    storage_enums::IntentStatus::Processing,
+                    storage_enums::IntentStatus::RequiresCapture,
+                    storage_enums::IntentStatus::RequiresMerchantAction,
+                    storage_enums::IntentStatus::Review,
+                ],
+                "external_vault_proxy_confirm",
+            )?;
+        } else {
+            helpers::validate_payment_status_against_not_allowed_statuses(
+                payment_intent.status,
+                &[
+                    storage_enums::IntentStatus::Cancelled,
+                    storage_enums::IntentStatus::Succeeded,
+                    storage_enums::IntentStatus::Processing,
+                    storage_enums::IntentStatus::RequiresCapture,
+                    storage_enums::IntentStatus::RequiresMerchantAction,
+                    storage_enums::IntentStatus::RequiresCustomerAction,
+                    storage_enums::IntentStatus::Review,
+                ],
+                "external_vault_proxy_confirm",
+            )?;
+        }
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
@@ -703,8 +728,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             use hyperswitch_masking::PeekInterface;
             let year = vault_card.card_exp_year.peek().clone();
             if !year.contains("{{") && year.len() > 2 {
-                vault_card.card_exp_year =
-                    hyperswitch_masking::Secret::new(year[year.len() - 2..].to_string());
+                vault_card.card_exp_year = Secret::new(year[year.len() - 2..].to_string());
             }
         }
         let customer_id = payment_data

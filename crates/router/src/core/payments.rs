@@ -4382,7 +4382,7 @@ where
             .map(String::from)
             .or_else(|| authentication.cavv.clone());
         if frictionless_cavv.is_none() {
-            frictionless_cavv = crate::core::payment_methods::vault::get_tokenized_data(
+            frictionless_cavv = vault::get_tokenized_data(
                 state,
                 authentication_id.get_string_repr(),
                 false,
@@ -4547,7 +4547,7 @@ where
                     card_number: post_auth_vault_card.card_number,
                     card_exp_month: post_auth_vault_card.card_exp_month.unwrap_or_default(),
                     card_exp_year: post_auth_vault_card.card_exp_year.unwrap_or_default(),
-                    card_cvc: Secret::new(String::new()),
+                    card_cvc: None,
                     bin_number: None,
                     last_four: None,
                     card_issuer: None,
@@ -13976,7 +13976,7 @@ async fn perform_external_vault_authentication_v1(
                     card_number: vault_card.card_number,
                     card_exp_month: vault_card.card_exp_month.unwrap_or_default(),
                     card_exp_year: vault_card.card_exp_year.unwrap_or_default(),
-                    card_cvc: Secret::new(String::new()),
+                    card_cvc: None,
                     bin_number: None,
                     last_four: None,
                     card_issuer: None,
