@@ -2315,24 +2315,12 @@ pub struct CaptureResponse {
     pub reference_id: Option<String>,
 }
 
-#[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
 pub enum Amount {
     Value(NonZeroI64),
     #[default]
     Zero,
 }
-
-// impl Serialize for Amount {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: Serializer,
-//     {
-//         match self {
-//             Self::Value(val) => serializer.serialize_i64(val.get()),
-//             Self::Zero => serializer.serialize_i64(0),
-//         }
-//     }
-// }
 
 impl From<Amount> for MinorUnit {
     fn from(amount: Amount) -> Self {
@@ -6178,7 +6166,6 @@ pub struct CustomRecoveryPaymentMethodData {
     pub additional_payment_method_info: AdditionalCardInfo,
 }
 
-// #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, ToSchema)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[cfg(feature = "v1")]
 pub enum PaymentIdType {
@@ -6192,22 +6179,6 @@ pub enum PaymentIdType {
     PreprocessingId(String),
 }
 
-// #[cfg(feature = "v1")]
-// impl Serialize for PaymentIdType {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: Serializer,
-//     {
-//         match self {
-//             Self::PaymentIntentId(id) => serializer.serialize_str(id.get_string_repr()),
-//             Self::ConnectorTransactionId(id) => serializer.serialize_str(id),
-//             Self::PaymentAttemptId(id) => serializer.serialize_str(id),
-//             Self::PreprocessingId(id) => serializer.serialize_str(id),
-//         }
-//     }
-// }
-
-// #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, ToSchema)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[cfg(feature = "v2")]
 pub enum PaymentIdType {
@@ -6220,21 +6191,6 @@ pub enum PaymentIdType {
     /// The identifier for preprocessing step
     PreprocessingId(String),
 }
-
-// #[cfg(feature = "v2")]
-// impl Serialize for PaymentIdType {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: Serializer,
-//     {
-//         match self {
-//             Self::PaymentIntentId(id) => serializer.serialize_str(id.get_string_repr()),
-//             Self::ConnectorTransactionId(id) => serializer.serialize_str(id),
-//             Self::PaymentAttemptId(id) => serializer.serialize_str(id),
-//             Self::PreprocessingId(id) => serializer.serialize_str(id),
-//         }
-//     }
-// }
 
 #[cfg(feature = "v1")]
 impl fmt::Display for PaymentIdType {
@@ -9019,6 +8975,8 @@ pub struct PaymentListResponseV2 {
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentListFilterConstraints {
+    /// Search text for scoped OpenSearch payment list search
+    pub query: Option<String>,
     /// The identifier for payment
     pub payment_id: Option<id_type::PaymentId>,
     /// The identifier for business profile
@@ -9054,6 +9012,24 @@ pub struct PaymentListFilterConstraints {
     pub order: Order,
     /// The List of all the card networks to filter payments list
     pub card_network: Option<Vec<enums::CardNetwork>>,
+    /// The card last four digits to filter payments list
+    pub card_last_4: Option<Vec<String>>,
+    /// The active attempt ids to filter payments list
+    pub active_attempt_id: Option<Vec<String>>,
+    /// The card issuers to filter payments list
+    pub card_issuer: Option<Vec<String>>,
+    /// The routing approaches to filter payments list
+    pub routing_approach: Option<Vec<api_enums::RoutingApproach>>,
+    /// The refund statuses to filter sessionized payments list
+    pub refunds_status: Option<Vec<String>>,
+    /// The dispute statuses to filter sessionized payments list
+    pub dispute_status: Option<Vec<String>>,
+    /// The client sources to filter payments list
+    pub client_source: Option<Vec<String>>,
+    /// The client versions to filter payments list
+    pub client_version: Option<Vec<String>>,
+    /// Whether the payment succeeded on the first attempt. `true` maps to attempt_count = 1, `false` maps to attempt_count > 1.
+    pub first_attempt: Option<Vec<bool>>,
     /// The identifier for merchant order reference id
     pub merchant_order_reference_id: Option<String>,
     /// Indicates the method by which a card is discovered during a payment
@@ -9071,6 +9047,15 @@ impl PaymentListFilterConstraints {
             && self.authentication_type.is_none()
             && self.merchant_connector_id.is_none()
             && self.card_network.is_none()
+            && self.card_last_4.is_none()
+            && self.active_attempt_id.is_none()
+            && self.card_issuer.is_none()
+            && self.routing_approach.is_none()
+            && self.refunds_status.is_none()
+            && self.dispute_status.is_none()
+            && self.client_source.is_none()
+            && self.client_version.is_none()
+            && self.first_attempt.is_none()
             && self.card_discovery.is_none()
     }
 }
@@ -10092,7 +10077,27 @@ pub enum ApplePayCombinedMetadata {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PeachpaymentsData {
     /// A numeric reference number supplied by the system retaining the original source information and used to assist in locating that information or a copy thereof.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub rrn: Option<String>,
+    /// Indicates the card-on-file transaction classification to use for Peach Payments when recurring_details.card_with_limited_data is supplied.
+    #[schema(value_type = Option<PeachpaymentsCardOnFileTransactionType>)]
+    #[smithy(value_type = "Option<PeachpaymentsCardOnFileTransactionType>")]
+    pub card_on_file_transaction_type: Option<PeachpaymentsCardOnFileTransactionType>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PeachpaymentsCardOnFileTransactionType {
+    /// One-off card payment without CVV.
+    OneOff,
+    /// Card without CVV where the customer is present — telephone sales where the customer reads the card, hospitality pre-auth, etc.
+    CustomerInitiatedTransaction,
+    /// Card without CVV where the customer is not present — backoffice recurring setup, merchant loading credentials on behalf of the customer.
+    MerchantInitiatedMandate,
+    /// Merchant-initiated charge where the merchant holds the card credentials.
+    MerchantInitiatedTransaction,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

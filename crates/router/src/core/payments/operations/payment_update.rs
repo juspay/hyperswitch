@@ -623,7 +623,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             .payment_intent
                             .customer_id
                             .as_ref()
-                            .is_some_and(|existing_id| existing_id != &cust.customer_id)
+                            .is_some_and(|existing_id| existing_id != cust.get_id())
                             .then_some(errors::StorageError::ValueNotFound(
                                 "Customer id mismatch between payment intent and request"
                                     .to_string(),

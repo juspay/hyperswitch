@@ -828,6 +828,19 @@ pub async fn get_organization_eligibility_config_for_pm_modular_service(
         .await
 }
 
+pub async fn get_should_perform_sdk_vaulting(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithOrgId,
+) -> bool {
+    dimensions
+        .get_should_perform_sdk_vaulting(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await
+}
+
 pub async fn get_should_schedule_modular_forward_compat(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProviderMerchantId,

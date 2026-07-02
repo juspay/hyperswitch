@@ -110,6 +110,12 @@ pub enum SuperpositionError {
     /// Error from the Superposition client
     #[error("Superposition client error: {0}")]
     ClientError(String),
+    /// Bad request rejected by Superposition
+    #[error("Superposition bad request: {0}")]
+    BadRequest(String),
+    /// Resource not found in Superposition (404)
+    #[error("Superposition resource not found: {0}")]
+    NotFound(String),
     /// Invalid configuration provided
     #[error("Invalid configuration: {0}")]
     InvalidConfiguration(String),

@@ -1970,6 +1970,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
 impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::PaymentListFilterConstraints) -> Self {
         let api_models::payments::PaymentListFilterConstraints {
+            query: _query,
             payment_id,
             profile_id,
             customer_id,
@@ -1986,6 +1987,15 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             merchant_connector_id,
             order,
             card_network,
+            card_last_4: _card_last_4,
+            active_attempt_id: _active_attempt_id,
+            card_issuer: _card_issuer,
+            routing_approach: _routing_approach,
+            refunds_status: _refunds_status,
+            dispute_status: _dispute_status,
+            client_source: _client_source,
+            client_version: _client_version,
+            first_attempt: _first_attempt,
             card_discovery,
             merchant_order_reference_id,
             customer_email,

@@ -11020,6 +11020,16 @@
             "type": "string",
             "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
             "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
           }
         }
       },
@@ -26709,12 +26719,29 @@
           }
         }
       },
+      "PeachpaymentsCardOnFileTransactionType": {
+        "type": "string",
+        "enum": [
+          "one_off",
+          "customer_initiated_transaction",
+          "merchant_initiated_mandate",
+          "merchant_initiated_transaction"
+        ]
+      },
       "PeachpaymentsData": {
         "type": "object",
         "properties": {
           "rrn": {
             "type": "string",
             "description": "A numeric reference number supplied by the system retaining the original source information and used to assist in locating that information or a copy thereof.",
+            "nullable": true
+          },
+          "card_on_file_transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PeachpaymentsCardOnFileTransactionType"
+              }
+            ],
             "nullable": true
           }
         }
