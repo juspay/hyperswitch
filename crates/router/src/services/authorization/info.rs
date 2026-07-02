@@ -50,6 +50,8 @@ fn get_group_description(group: PermissionGroup) -> Option<&'static str> {
         PermissionGroup::ApiKeysManage => None,
         PermissionGroup::ThemeView => Some("View Themes"),
         PermissionGroup::ThemeManage => Some("Manage Themes"),
+        PermissionGroup::ConfigurationsView => Some("View Configurations"),
+        PermissionGroup::ConfigurationsManage => Some("Create, modify and delete Configurations"),
         PermissionGroup::CloneConnectorManage => None, // Admin-only, no user-facing description
         PermissionGroup::ReconSourcesView => Some("View recon ingestion and transformation configs and files"),
         PermissionGroup::ReconSourcesManage => Some("Create and edit recon ingestion and transformation configs and download files"),
@@ -74,6 +76,7 @@ pub fn get_parent_group_description(group: ParentGroup) -> Option<&'static str> 
         ParentGroup::Webhook => None,
         ParentGroup::ApiKeys => None,
         ParentGroup::Theme => Some("Manage and view themes for the organization"),
+        ParentGroup::Configurations => Some("Manage and view configurations"),
         ParentGroup::CloneConnector => None, // Admin-only, no user-facing description
         ParentGroup::ReconSources => Some("Recon ingestion and transformation pipelines"),
         ParentGroup::ReconExceptions => Some("Recon exception investigation and resolution"),
