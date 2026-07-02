@@ -122,6 +122,8 @@ const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TAG: &str = "PM_MOD_FORWARD_COMPAT";
 const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TASK: &str = "PM_MOD_BACK_COMPAT";
 #[cfg(feature = "v2")]
 const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TAG: &str = "PM_MOD_BACK_COMPAT";
+const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
+const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
 #[cfg(feature = "v2")]
 const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
 
@@ -483,8 +485,14 @@ fn generate_task_id_for_payment_method_modular_compat_workflow(
     runner: storage::ProcessTrackerRunner,
     task: &str,
 ) -> String {
-    let suffix = common_utils::generate_id_with_len(8);
-    format!("{runner}_{task}_{key_id}_{suffix}")
+    let suffix = common_utils::generate_id_with_len(
+        PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_SUFFIX_LENGTH,
+    );
+    let prefix = format!("{runner}_{task}_");
+    let key_id_len = PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_MAX_LENGTH
+        .saturating_sub(prefix.len() + suffix.len() + 1);
+    let key_id = &key_id[..key_id.len().min(key_id_len)];
+    format!("{prefix}{key_id}_{suffix}")
 }
 
 fn payment_method_compat_modifier(payment_method: &domain::PaymentMethod) -> Option<String> {
@@ -2792,6 +2800,7 @@ async fn execute_payment_method_create(
                 payment_method,
                 pm_update,
                 platform.get_provider().get_account().storage_scheme,
+                // Inactivation on failed PM setup should not enqueue compatibility work.
                 None,
             )
             .await
@@ -5863,6 +5872,7 @@ pub async fn update_payment_method_status_internal(
             payment_method.clone(),
             pm_update,
             storage_scheme,
+            // This internal PM update path is not part of modular compatibility scheduling.
             None,
         )
         .await
@@ -6060,6 +6070,7 @@ pub async fn delete_payment_method_by_record(
         payment_method.clone(),
         pm_update,
         platform.get_provider().get_account().storage_scheme,
+        // Redaction updates should not trigger PM modular compat scheduling.
         None,
     )
     .await

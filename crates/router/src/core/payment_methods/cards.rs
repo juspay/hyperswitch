@@ -2534,6 +2534,7 @@ pub async fn add_payment_method_data(
                         payment_method,
                         pm_update,
                         provider.get_account().storage_scheme,
+                        // Inactivation is a legacy cleanup write and does not require compat.
                         None,
                     )
                     .await
@@ -3185,6 +3186,7 @@ pub async fn update_payment_method_metadata_and_network_token_data_and_last_used
     pm_network_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>>,
     storage_scheme: MerchantStorageScheme,
     initiator: Option<&domain::Initiator>,
+    compat_action: Option<domain::PaymentMethodCompatAction>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::AdditionalDataUpdate {
         locker_id: None,
@@ -3205,7 +3207,7 @@ pub async fn update_payment_method_metadata_and_network_token_data_and_last_used
         network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
     };
 
-    db.update_payment_method(key_store, pm, pm_update, storage_scheme, None)
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme, compat_action)
         .await
         .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
     Ok(())
@@ -3222,6 +3224,7 @@ pub async fn update_payment_method_network_token_data(
     pm_network_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>>,
     storage_scheme: MerchantStorageScheme,
     initiator: Option<&domain::Initiator>,
+    compat_action: Option<domain::PaymentMethodCompatAction>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::NetworkTokenDataUpdate {
         network_token_requestor_reference_id,
@@ -3233,12 +3236,13 @@ pub async fn update_payment_method_network_token_data(
         network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
     };
 
-    db.update_payment_method(key_store, pm, pm_update, storage_scheme, None)
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme, compat_action)
         .await
         .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn update_payment_method_and_last_used(
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
@@ -3247,6 +3251,7 @@ pub async fn update_payment_method_and_last_used(
     storage_scheme: MerchantStorageScheme,
     card_scheme: Option<String>,
     initiator: Option<&domain::Initiator>,
+    compat_action: Option<domain::PaymentMethodCompatAction>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
         payment_method_data: payment_method_update,
@@ -3256,7 +3261,7 @@ pub async fn update_payment_method_and_last_used(
             .and_then(|initiator| initiator.to_created_by())
             .map(|last_modified_by| last_modified_by.to_string()),
     };
-    db.update_payment_method(key_store, pm, pm_update, storage_scheme, None)
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme, compat_action)
         .await
         .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
     Ok(())
@@ -3279,9 +3284,15 @@ pub async fn update_payment_method_connector_mandate_details(
             .map(|last_modified_by| last_modified_by.to_string()),
     };
 
-    db.update_payment_method(key_store, pm, pm_update, storage_scheme, None)
-        .await
-        .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
+    db.update_payment_method(
+        key_store,
+        pm,
+        pm_update,
+        storage_scheme,
+        Some(super::payment_method_modular_backward_compat_action(state)),
+    )
+    .await
+    .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
     Ok(())
 }
 
@@ -3293,6 +3304,7 @@ pub async fn update_payment_method_connector_mandate_details(
     connector_mandate_details: Option<CommonMandateReference>,
     storage_scheme: MerchantStorageScheme,
     initiator: Option<&domain::Initiator>,
+    compat_action: Option<domain::PaymentMethodCompatAction>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let connector_mandate_details_value = connector_mandate_details
         .map(|common_mandate| {
@@ -3310,7 +3322,7 @@ pub async fn update_payment_method_connector_mandate_details(
             .map(|last_modified_by| last_modified_by.to_string()),
     };
 
-    db.update_payment_method(key_store, pm, pm_update, storage_scheme, None)
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme, compat_action)
         .await
         .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
     Ok(())
@@ -3328,6 +3340,7 @@ pub async fn update_payment_method_connector_mandate_details_and_network_token_d
     pm_network_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>>,
     storage_scheme: MerchantStorageScheme,
     initiator: Option<&domain::Initiator>,
+    compat_action: Option<domain::PaymentMethodCompatAction>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let connector_mandate_details_value = connector_mandate_details
         .map(|common_mandate| {
@@ -3356,7 +3369,7 @@ pub async fn update_payment_method_connector_mandate_details_and_network_token_d
         network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
     };
 
-    db.update_payment_method(key_store, pm, pm_update, storage_scheme, None)
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme, compat_action)
         .await
         .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
     Ok(())
@@ -3370,6 +3383,7 @@ pub async fn update_payment_method_network_transaction_link_id(
     network_transaction_link_id: Option<String>,
     storage_scheme: MerchantStorageScheme,
     initiator: Option<&domain::Initiator>,
+    compat_action: Option<domain::PaymentMethodCompatAction>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::NetworkTransactionLinkIdUpdate {
         network_transaction_link_id,
@@ -3378,7 +3392,7 @@ pub async fn update_payment_method_network_transaction_link_id(
             .map(|last_modified_by| last_modified_by.to_string()),
     };
 
-    db.update_payment_method(key_store, pm, pm_update, storage_scheme, None)
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme, compat_action)
         .await
         .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
     Ok(())
@@ -6352,6 +6366,7 @@ pub async fn update_last_used_at(
             payment_method.clone(),
             update_last_used,
             storage_scheme,
+            // Last-used-only updates do not change PM modular compatibility data.
             None,
         )
         .await

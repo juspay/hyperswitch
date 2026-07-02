@@ -299,6 +299,7 @@ impl BackwardCompatWorkflowBuilder<BackwardLockerCompatApplied> {
                 payment_method,
                 pm_update,
                 merchant_account.storage_scheme,
+                // Backward compat completion update must not recursively enqueue compat again.
                 None,
             )
             .await
@@ -521,6 +522,7 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
                         older_payment_method,
                         pm_update,
                         storage_scheme,
+                        // Metadata-change locker reconciliation is already inside backward compat.
                         None,
                     )
                     .await
@@ -750,6 +752,7 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
                         older_payment_method,
                         pm_update,
                         platform.get_provider().get_account().storage_scheme,
+                        // Backfill of the older PM is already part of backward compat execution.
                         None,
                     )
                     .await

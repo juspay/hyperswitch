@@ -373,13 +373,23 @@ pub async fn handle_metadata_update(
                 }
             };
             let db = &*state.store;
+            #[cfg(feature = "v1")]
+            let compat_action =
+                crate::core::payment_methods::payment_method_modular_forward_compat_action(
+                    state,
+                    &payment_method.merchant_id,
+                    payment_method.customer_id.as_ref(),
+                )
+                .await;
+            #[cfg(not(feature = "v1"))]
+            let compat_action = None;
 
             db.update_payment_method(
                 platform.get_processor().get_key_store(),
                 payment_method.clone(),
                 pm_update,
                 platform.get_processor().get_account().storage_scheme,
-                None,
+                compat_action,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

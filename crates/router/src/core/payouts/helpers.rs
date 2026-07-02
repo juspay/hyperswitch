@@ -833,6 +833,7 @@ pub async fn save_payout_data_to_locker(
                 existing_pm,
                 pm_update,
                 platform.get_processor().get_account().storage_scheme,
+                // Payout payment method writes are outside PM modular card compat.
                 None,
             )
             .await

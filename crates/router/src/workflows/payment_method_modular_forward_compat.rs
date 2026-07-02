@@ -461,6 +461,7 @@ impl ForwardCompatWorkflowBuilder<ForwardLockerCompatApplied> {
             payment_method.clone(),
             pm_update,
             self.merchant_account().storage_scheme,
+            // Forward compat completion update must not recursively enqueue another compat PT.
             None,
         )
         .await
