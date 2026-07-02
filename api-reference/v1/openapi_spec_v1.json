@@ -21344,6 +21344,13 @@
           }
         }
       },
+      "EventRecipient": {
+        "type": "string",
+        "enum": [
+          "merchant",
+          "connector"
+        ]
+      },
       "EventRetrieveResponse": {
         "allOf": [
           {
