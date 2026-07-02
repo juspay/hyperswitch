@@ -26,7 +26,7 @@ pub struct CreatePaymentMethodV1Request {
     pub payment_method: common_enums::PaymentMethod,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub customer_id: id_type::CustomerId, // Payment method data will be saved when customer acceptance is given, hence customer id will always be present
+    pub customer_id: id_type::GlobalCustomerId, // Payment method data will be saved when customer acceptance is given, hence customer id will always be present
     /// The payment method data for the normal create flow. `None` for the external vault proxy
     /// flow, where `proxy_card_data` is set instead.
     pub payment_method_data: Option<PaymentMethodData>,
@@ -43,7 +43,7 @@ pub struct ModularPMCreateRequest {
     pub payment_method_type: common_enums::PaymentMethod,
     pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub customer_id: id_type::CustomerId, // Payment method data will be saved when customer acceptance is given, hence customer id will always be present
+    pub customer_id: id_type::GlobalCustomerId,
     pub payment_method_data: PaymentMethodCreateData,
     pub billing: Option<payments::Address>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
