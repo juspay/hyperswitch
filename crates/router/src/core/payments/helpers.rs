@@ -3739,14 +3739,13 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     // match above resolves to None. Reconstruct the PaymentMethodData from the persisted
     // payment_method_type so downstream flows (e.g. UCS CompleteAuthorize) still receive a
     // payment_method and can run the transaction-create leg with the checkout_token.
-    let payment_method = payment_method.or_else(|| {
-        match payment_data.payment_attempt.payment_method_type {
+    let payment_method =
+        payment_method.or_else(|| match payment_data.payment_attempt.payment_method_type {
             Some(storage_enums::PaymentMethodType::Affirm) => Some(
                 domain::PaymentMethodData::PayLater(domain::PayLaterData::AffirmRedirect {}),
             ),
             _ => None,
-        }
-    });
+        });
 
     Ok((operation, payment_method, pm_id))
 }
