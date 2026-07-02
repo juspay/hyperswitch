@@ -22,7 +22,9 @@ class State {
     this.data["superpositionSecret"] = Cypress.env("SUPERPOSITION_SECRET");
     this.data["superpositionApiKey"] = Cypress.env("SUPERPOSITION_API_KEY");
     this.data["superpositionOrgId"] = Cypress.env("SUPERPOSITION_ORG_ID");
-    this.data["superpositionWorkspaceId"] = Cypress.env("SUPERPOSITION_WORKSPACE_ID");
+    this.data["superpositionWorkspaceId"] = Cypress.env(
+      "SUPERPOSITION_WORKSPACE_ID"
+    );
   }
 
   set(key, val) {

@@ -10586,7 +10586,8 @@ Cypress.Commands.add(
     const superpositionApiKey = globalState.get("superpositionApiKey");
     const resolvedProfileId = profileId || globalState.get("profileId");
     const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
-    const workspaceId = globalState.get("superpositionWorkspaceId") || "hyperswitch";
+    const workspaceId =
+      globalState.get("superpositionWorkspaceId") || "hyperswitch";
 
     if (!superpositionBaseUrl || !superpositionSecret || !superpositionApiKey) {
       cy.task(
@@ -10636,7 +10637,8 @@ Cypress.Commands.add("deleteSuperpositionConfig", (globalState, profileId) => {
   const superpositionApiKey = globalState.get("superpositionApiKey");
   const resolvedProfileId = profileId || globalState.get("profileId");
   const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
-  const workspaceId = globalState.get("superpositionWorkspaceId") || "hyperswitch";
+  const workspaceId =
+    globalState.get("superpositionWorkspaceId") || "hyperswitch";
 
   if (!superpositionBaseUrl || !superpositionSecret || !superpositionApiKey) {
     cy.task(
@@ -10688,7 +10690,8 @@ Cypress.Commands.add(
     const superpositionApiKey = globalState.get("superpositionApiKey");
     const resolvedProfileId = profileId || globalState.get("profileId");
     const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
-    const workspaceId = globalState.get("superpositionWorkspaceId") || "hyperswitch";
+    const workspaceId =
+      globalState.get("superpositionWorkspaceId") || "hyperswitch";
 
     if (!superpositionBaseUrl || !superpositionSecret || !superpositionApiKey) {
       cy.task(
@@ -10743,7 +10746,8 @@ Cypress.Commands.add(
     const superpositionApiKey = globalState.get("superpositionApiKey");
     const resolvedProfileId = profileId || globalState.get("profileId");
     const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
-    const workspaceId = globalState.get("superpositionWorkspaceId") || "hyperswitch";
+    const workspaceId =
+      globalState.get("superpositionWorkspaceId") || "hyperswitch";
 
     if (!superpositionBaseUrl || !superpositionSecret || !superpositionApiKey) {
       cy.task(
