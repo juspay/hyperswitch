@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.01.0-hotfix1
+
+### Features
+
+- **core/connector:** [Peachpayments] Add card_on_file_transaction_type to PeachPayments Metadata ([#13136](https://github.com/juspay/hyperswitch/pull/13136)) ([`6d765b1`](https://github.com/juspay/hyperswitch/commit/6d765b1181153d64aa5dbfea9138e7bbb25ccc72))
+
+**Full Changelog:** [`2026.07.01.0...2026.07.01.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.07.01.0...2026.07.01.0-hotfix1)
+
+- - -
+
 ## 2026.07.01.0
 
 ### Features
