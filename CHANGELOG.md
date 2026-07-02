@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.02.0
+
+### Features
+
+- **connector:** [Nuvei] add network token payment support (CIT + MIT NTID) ([#13093](https://github.com/juspay/hyperswitch/pull/13093)) ([`5023465`](https://github.com/juspay/hyperswitch/commit/5023465bb1920d794881cd36d824dee2d8ded8ef))
+- **connector-service:** Consume MandateAmountData.amount_money ([#12993](https://github.com/juspay/hyperswitch/pull/12993)) ([`d6cf109`](https://github.com/juspay/hyperswitch/commit/d6cf109f9903ad9026c2f0b8abcd9ea8f34d88e9))
+- **core:** Route webhooks to UCS based on flow-level rollout config ([#12705](https://github.com/juspay/hyperswitch/pull/12705)) ([`6e35007`](https://github.com/juspay/hyperswitch/commit/6e35007cca52f8f0ee425eaa8ee9f973dc08cbb2))
+- **user:** POST /user/launch_trace — federated HyperSage Trace session mint ([#13081](https://github.com/juspay/hyperswitch/pull/13081)) ([`c64e80a`](https://github.com/juspay/hyperswitch/commit/c64e80a117dd61c716d6f50ba56369234514eee3))
+
+### Bug Fixes
+
+- **connector:** [Cybersource] allow connector creation without metadata ([#13124](https://github.com/juspay/hyperswitch/pull/13124)) ([`d03ade3`](https://github.com/juspay/hyperswitch/commit/d03ade359559b7457bd6af71c4dc3093ba6c409a))
+- **router:**
+  - Change error for payment session expiry ([#12876](https://github.com/juspay/hyperswitch/pull/12876)) ([`6c307fc`](https://github.com/juspay/hyperswitch/commit/6c307fc09d84c5364f89050a3608649c2d1eb13d))
+  - Render Barclaycard 3DS DDC/step-up forms correctly via UCS ([#12988](https://github.com/juspay/hyperswitch/pull/12988)) ([`292c11e`](https://github.com/juspay/hyperswitch/commit/292c11e23e055c01b9d02d6b9e3856c7c3da1d61))
+
+### Testing
+
+- **cypress:** Add Helcim card payment configurations ([#12752](https://github.com/juspay/hyperswitch/pull/12752)) ([`46b62c2`](https://github.com/juspay/hyperswitch/commit/46b62c29152af35f1105ca14bd6fe4c5dee1e323))
+
+**Full Changelog:** [`2026.07.01.0...2026.07.02.0`](https://github.com/juspay/hyperswitch/compare/2026.07.01.0...2026.07.02.0)
+
+- - -
+
 ## 2026.07.01.0
 
 ### Features
