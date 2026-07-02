@@ -79,20 +79,13 @@ describe("Subscription Management tests", () => {
         "subscription_pm"
       ]["Create"];
 
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-        this.skip();
-      }
-
       cy.createSubscriptionTest(
         fixtures.createSubscriptionBody,
         data,
         globalState
       );
 
-      if (shouldContinue) {
-        shouldContinue = utils.should_continue_further(data);
-      }
+      shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-created-subscription-test", function () {

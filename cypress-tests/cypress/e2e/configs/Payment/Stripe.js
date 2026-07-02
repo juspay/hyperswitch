@@ -60,6 +60,10 @@ const multiUseMandateData = {
 const payment_method_data_3ds = {
   card: {
     last4: "3155",
+    card_type: null,
+    card_network: null,
+    card_issuer: null,
+    card_issuing_country: null,
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -75,6 +79,10 @@ const payment_method_data_3ds = {
 const payment_method_data_no3ds = {
   card: {
     last4: "0005",
+    card_type: null,
+    card_network: null,
+    card_issuer: null,
+    card_issuing_country: null,
     card_isin: "378282",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -1480,17 +1488,12 @@ export const connectorDetails = {
     // These configs define the request/response expectations for subscription tests.
     // customer_id is dynamically populated by the createSubscriptionTest command from globalState.
     Create: getCustomExchange({
-      Configs: {
-        // Stripe billing connector (stripebilling) is not available in local dev/CI
-        // — subscription creation is expected to fail; TRIGGER_SKIP skips downstream tests
-        TRIGGER_SKIP: true,
-      },
       Request: {
         customer_id: "", // Populated from globalState.get("customerId") in createSubscriptionTest
         item_price_id: "price_12345",
         payment_details: {
           return_url: "https://example.com/subscription/return",
-          payment_method_id: "", // Populated from globalState.get("paymentMethodId") in createSubscriptionTest
+          payment_method_id: "", // Empty string — standard codebase pattern. Populated at runtime from globalState.get("paymentMethodId") by createSubscriptionTest command (commands.js line 10684). Do NOT hardcode a value here.
         },
       },
       Response: {
