@@ -1,18 +1,19 @@
 use actix_web::{HttpRequest, HttpResponse};
 pub use api_models::superposition_proxy::{
     AuditLogResponse, ContextResponse, DefaultConfigResponse, DimensionResponse,
-    PaginatedListResponse, ResolveConfigResponse,
+    PaginatedListResponse, ResolveConfigExplanationResponse, ResolveConfigResponse,
 };
 use async_trait::async_trait;
 use common_utils::events::ApiEventMetric;
 use external_services::superposition::{
     context_put_from_request, create_context_output_to_struct, doc_map_to_json, document_to_value,
     list_audit_logs_to_response, list_contexts_to_response, list_default_configs_to_response,
-    list_dimensions_to_response, map_sdk_error, parse_datetime, value_to_document, AuditAction,
-    ContextFilterSortOn, ContextPutRequest, CreateContextInputBuilder, DateTime,
-    DimensionMatchStrategy, GetDetailedResolvedConfigInputBuilder, ListAuditLogsInputBuilder,
-    ListContextsInputBuilder, ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, SortBy,
-    SuperpositionError,
+    list_dimensions_to_response, map_sdk_error, parse_datetime,
+    resolve_config_explanation_to_response, value_to_document, AuditAction, ContextFilterSortOn,
+    ContextPutRequest, CreateContextInputBuilder, DateTime, DimensionMatchStrategy,
+    GetDetailedResolvedConfigInputBuilder, GetResolvedConfigExplanationInputBuilder,
+    ListAuditLogsInputBuilder, ListContextsInputBuilder, ListDefaultConfigsInputBuilder,
+    ListDimensionsInputBuilder, SortBy, SuperpositionError,
 };
 
 use crate::{
@@ -349,7 +350,7 @@ pub trait SuperpositionProxyFlow: Sized {
 
 /// Generic entry point shared by every Superposition proxy handler: runs the flow and
 /// wraps the result in a JSON `ApplicationResponse`.
-pub async fn handle_proxy_flow<R: SuperpositionProxyFlow>(
+pub async fn handle_superposition_proxy_flow<R: SuperpositionProxyFlow>(
     state: SessionState,
     auth: UserFromToken,
     request: R,
@@ -604,6 +605,60 @@ impl SuperpositionProxyFlow for ResolveDetailedConfigRequest {
         })?;
 
         Ok(ResolveConfigResponse(resolved_entries))
+    }
+}
+
+/// `GetResolvedConfigExplanation` request: config key plus context dimensions.
+#[derive(Debug, Clone)]
+pub struct ResolveConfigExplanationRequest {
+    pub key: String,
+    pub context: serde_json::Map<String, serde_json::Value>,
+}
+
+#[async_trait(?Send)]
+impl SuperpositionProxyFlow for ResolveConfigExplanationRequest {
+    type InputBuilder = GetResolvedConfigExplanationInputBuilder;
+    type Response = ResolveConfigExplanationResponse;
+
+    fn into_input(
+        self,
+        org_id: String,
+        workspace_id: String,
+    ) -> Result<Self::InputBuilder, error_stack::Report<errors::ApiErrorResponse>> {
+        let mut builder = GetResolvedConfigExplanationInputBuilder::default()
+            .org_id(org_id)
+            .workspace_id(workspace_id)
+            .key(self.key);
+
+        for (dimension_key, dimension_value) in self.context {
+            builder = builder.context(dimension_key, value_to_document(dimension_value));
+        }
+
+        Ok(builder)
+    }
+
+    async fn execute(
+        self,
+        state: &SessionState,
+        auth: &UserFromToken,
+        org_id: String,
+        workspace_id: String,
+    ) -> Result<Self::Response, error_stack::Report<errors::ApiErrorResponse>> {
+        let context_json = serde_json::Value::Object(self.context.clone());
+        validate_superposition_context_body(&context_json, auth)?;
+
+        let output = self
+            .into_input(org_id, workspace_id)?
+            .send_with(state.superposition_service.superposition_sdk_client())
+            .await
+            .map_err(|sdk_error| {
+                map_superposition_err(
+                    error_stack::report!(map_sdk_error(sdk_error)),
+                    "Failed to resolve config explanation from Superposition",
+                )
+            })?;
+
+        Ok(resolve_config_explanation_to_response(&output))
     }
 }
 

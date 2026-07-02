@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use api_models::superposition_proxy::{
     AuditLogResponse, ContextResponse, DefaultConfigResponse, DimensionResponse,
-    PaginatedListResponse,
+    PaginatedListResponse, ResolveConfigExplanationResponse, ResolveExplanationEntry,
 };
 pub use aws_smithy_types::DateTime;
 use aws_smithy_types::{Document, Number};
@@ -24,6 +24,7 @@ pub use superposition_sdk::{
     operation::{
         create_context::builders::CreateContextInputBuilder,
         get_detailed_resolved_config::builders::GetDetailedResolvedConfigInputBuilder,
+        get_resolved_config_explanation::builders::GetResolvedConfigExplanationInputBuilder,
         list_audit_logs::builders::ListAuditLogsInputBuilder,
         list_contexts::builders::ListContextsInputBuilder,
         list_default_configs::builders::ListDefaultConfigsInputBuilder,
@@ -272,6 +273,27 @@ pub fn list_audit_logs_to_response(
         total_pages: output.total_pages(),
         total_items: output.total_items(),
         data: output.data().iter().map(audit_log_full_to_struct).collect(),
+    }
+}
+
+/// Convert a Superposition SDK `GetResolvedConfigExplanationOutput` into the typed response.
+pub fn resolve_config_explanation_to_response(
+    output: &superposition_sdk::operation::get_resolved_config_explanation::GetResolvedConfigExplanationOutput,
+) -> ResolveConfigExplanationResponse {
+    let explanation = output.explanation();
+    ResolveConfigExplanationResponse {
+        key: explanation.key().to_owned(),
+        timeline: explanation
+            .timeline()
+            .iter()
+            .map(|item| ResolveExplanationEntry {
+                context_id: item.context_id().to_owned(),
+                condition: doc_map_to_json(item.condition()),
+                override_id: item.override_id().to_owned(),
+                value_before: document_to_value(item.value_before().clone()),
+                value_after: document_to_value(item.value_after().clone()),
+            })
+            .collect(),
     }
 }
 
