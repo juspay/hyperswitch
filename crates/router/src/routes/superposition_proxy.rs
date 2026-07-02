@@ -37,8 +37,14 @@ pub async fn list_contexts(
             let org_id = org_id.clone();
             let workspace_id = workspace_id.clone();
             async move {
-                superposition_proxy::handle_superposition_proxy_flow(state, user, request, org_id, workspace_id)
-                    .await
+                superposition_proxy::handle_superposition_proxy_flow(
+                    state,
+                    user,
+                    request,
+                    org_id,
+                    workspace_id,
+                )
+                .await
             }
         },
         &auth::JWTAuth {
@@ -74,8 +80,14 @@ pub async fn list_default_configs(
             let org_id = org_id.clone();
             let workspace_id = workspace_id.clone();
             async move {
-                superposition_proxy::handle_superposition_proxy_flow(state, user, request, org_id, workspace_id)
-                    .await
+                superposition_proxy::handle_superposition_proxy_flow(
+                    state,
+                    user,
+                    request,
+                    org_id,
+                    workspace_id,
+                )
+                .await
             }
         },
         &auth::JWTAuth {
@@ -111,8 +123,14 @@ pub async fn list_dimensions(
             let org_id = org_id.clone();
             let workspace_id = workspace_id.clone();
             async move {
-                superposition_proxy::handle_superposition_proxy_flow(state, user, request, org_id, workspace_id)
-                    .await
+                superposition_proxy::handle_superposition_proxy_flow(
+                    state,
+                    user,
+                    request,
+                    org_id,
+                    workspace_id,
+                )
+                .await
             }
         },
         &auth::JWTAuth {
@@ -148,8 +166,14 @@ pub async fn create_context(
             let org_id = org_id.clone();
             let workspace_id = workspace_id.clone();
             async move {
-                superposition_proxy::handle_superposition_proxy_flow(state, user, request, org_id, workspace_id)
-                    .await
+                superposition_proxy::handle_superposition_proxy_flow(
+                    state,
+                    user,
+                    request,
+                    org_id,
+                    workspace_id,
+                )
+                .await
             }
         },
         &auth::JWTAuth {
@@ -185,8 +209,14 @@ pub async fn resolve_detailed_config(
             let org_id = org_id.clone();
             let workspace_id = workspace_id.clone();
             async move {
-                superposition_proxy::handle_superposition_proxy_flow(state, user, request, org_id, workspace_id)
-                    .await
+                superposition_proxy::handle_superposition_proxy_flow(
+                    state,
+                    user,
+                    request,
+                    org_id,
+                    workspace_id,
+                )
+                .await
             }
         },
         &auth::JWTAuth {
@@ -226,8 +256,14 @@ pub async fn resolve_config_explanation(
             let org_id = org_id.clone();
             let workspace_id = workspace_id.clone();
             async move {
-                superposition_proxy::handle_superposition_proxy_flow(state, user, request, org_id, workspace_id)
-                    .await
+                superposition_proxy::handle_superposition_proxy_flow(
+                    state,
+                    user,
+                    request,
+                    org_id,
+                    workspace_id,
+                )
+                .await
             }
         },
         &auth::JWTAuth {
@@ -263,8 +299,14 @@ pub async fn list_audit_logs(
             let org_id = org_id.clone();
             let workspace_id = workspace_id.clone();
             async move {
-                superposition_proxy::handle_superposition_proxy_flow(state, user, request, org_id, workspace_id)
-                    .await
+                superposition_proxy::handle_superposition_proxy_flow(
+                    state,
+                    user,
+                    request,
+                    org_id,
+                    workspace_id,
+                )
+                .await
             }
         },
         &auth::JWTAuth {
