@@ -41,6 +41,8 @@ pub struct EventListConstraints {
     pub event_types: Option<HashSet<EventType>>,
     /// Filter all events by `is_overall_delivery_successful` field of the event.
     pub is_delivered: Option<bool>,
+    /// Filter all events by the recipient of the webhook.
+    pub recipient: Option<common_enums::EventRecipient>,
 }
 
 #[derive(Debug)]
@@ -53,9 +55,11 @@ pub enum EventListConstraintsInternal {
         event_classes: Option<HashSet<EventClass>>,
         event_types: Option<HashSet<EventType>>,
         is_delivered: Option<bool>,
+        recipient: Option<common_enums::EventRecipient>,
     },
     ObjectIdFilter {
         object_id: String,
+        recipient: Option<common_enums::EventRecipient>,
     },
     EventIdFilter {
         event_id: String,

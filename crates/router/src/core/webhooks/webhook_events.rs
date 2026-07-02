@@ -55,14 +55,14 @@ pub async fn list_initial_delivery_attempts(
         (now.date() - time::Duration::days(INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS)).midnight();
 
     let (events, total_count) = match constraints {
-        api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter { object_id } => {
+        api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter { object_id, recipient } => {
             let events = store
                 .list_initial_events_by_initiator_merchant_id_primary_object_id(
                     &merchant_id,
                     object_id.as_str(),
                     profile_id.clone(),
                     &key_store,
-                    None,
+                    recipient,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -113,6 +113,7 @@ pub async fn list_initial_delivery_attempts(
             event_classes,
             event_types,
             is_delivered,
+            recipient,
         } => {
             let limit = match limit {
                 Some(limit) if  limit <= INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT => Ok(Some(limit)),
@@ -178,7 +179,7 @@ pub async fn list_initial_delivery_attempts(
                             event_types.clone(),
                             is_delivered,
                             &key_store,
-                            None,
+                            recipient,
                         )
                         .await
                 }
@@ -193,7 +194,7 @@ pub async fn list_initial_delivery_attempts(
                             event_types.clone(),
                             is_delivered,
                             &key_store,
-                            None,
+                            recipient,
                         )
                         .await
                 }
@@ -210,7 +211,7 @@ pub async fn list_initial_delivery_attempts(
                             created_before,
                             event_types,
                             is_delivered,
-                            None,
+                            recipient,
                         )
                         .await
                 }
@@ -223,7 +224,7 @@ pub async fn list_initial_delivery_attempts(
                             created_before,
                             event_types,
                             is_delivered,
-                            None,
+                            recipient,
                         )
                         .await
                 }
