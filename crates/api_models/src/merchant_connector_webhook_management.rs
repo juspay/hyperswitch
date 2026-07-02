@@ -117,14 +117,65 @@ pub struct WebhookRegistrationError {
 }
 
 /// Register a webhook at the connector
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ConnectorWebhookRegisterRequest {
-    #[schema(value_type = Option<Scope>)]
+    #[schema(value_type = Scope)]
     pub scope: Scope,
     #[deprecated(note = "Use `scope` instead to specify the event type for registration.")]
     #[schema(value_type = Option<ConnectorWebhookEventType>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub event_type: Option<common_enums::ConnectorWebhookEventType>,
+    /// Internal marker set during deserialization when the caller used the deprecated
+    /// `event_type` field instead of `scope`. Used to decide whether to emit legacy response
+    /// fields for backward compatibility.
+    #[serde(skip)]
+    pub is_legacy_request: bool,
+}
+
+impl ConnectorWebhookRegisterRequest {
+    pub fn is_legacy_request(&self) -> bool {
+        self.is_legacy_request
+    }
+}
+
+fn event_type_to_scope(event_type: common_enums::ConnectorWebhookEventType) -> Scope {
+    match event_type {
+        common_enums::ConnectorWebhookEventType::AllEvents => Scope::NotSpecific,
+        common_enums::ConnectorWebhookEventType::SpecificEvent(event) => {
+            Scope::EventTypes(vec![event])
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for ConnectorWebhookRegisterRequest {
+    #[allow(deprecated)]
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct RawConnectorWebhookRegisterRequest {
+            scope: Option<Scope>,
+            #[serde(default)]
+            event_type: Option<common_enums::ConnectorWebhookEventType>,
+        }
+
+        let raw = RawConnectorWebhookRegisterRequest::deserialize(deserializer)?;
+
+        let (scope, is_legacy_request) = match (raw.scope, raw.event_type) {
+            (Some(scope), _) => (scope, false),
+            (None, Some(event_type)) => (event_type_to_scope(event_type), true),
+            (None, None) => {
+                return Err(serde::de::Error::custom(
+                    "missing field: either `scope` or deprecated `event_type` must be provided",
+                ))
+            }
+        };
+
+        Ok(Self {
+            scope,
+            event_type: raw.event_type,
+            is_legacy_request,
+        })
+    }
 }
 
 /// Connector-reported error code and message from the webhook secret generation step.
@@ -139,6 +190,22 @@ pub struct WebhookSecretErrorDetails {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RegisterConnectorWebhookResponse {
+    // Deprecated fields retained for backward compatibility.
+    #[schema(value_type = Option<ConnectorWebhookEventType>)]
+    #[deprecated(note = "Use `scope_type` and `results` instead.")]
+    pub event_type: Option<common_enums::ConnectorWebhookEventType>,
+    #[schema(value_type = Option<String>)]
+    #[deprecated(note = "Use `results` instead.")]
+    pub connector_webhook_id: Option<String>,
+    #[schema(value_type = Option<WebhookRegistrationStatus>)]
+    #[deprecated(note = "Use `results` instead.")]
+    pub webhook_registration_status: Option<WebhookRegistrationStatus>,
+    #[schema(value_type = Option<String>)]
+    #[deprecated(note = "Use `results` instead.")]
+    pub error_code: Option<String>,
+    #[schema(value_type = Option<String>)]
+    #[deprecated(note = "Use `results` instead.")]
+    pub error_message: Option<String>,
     /// The type of scope used for this registration.
     pub scope_type: ScopeType,
     /// List of identifiers that were requested to be registered.
@@ -173,6 +240,9 @@ pub enum ConnectorWebhookScope {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ConnectorWebhookResponse {
+    #[schema(value_type = Option<ConnectorWebhookEventType>)]
+    #[deprecated(note = "Use `scope` instead.")]
+    pub event_type: Option<common_enums::ConnectorWebhookEventType>,
     pub connector_webhook_id: String,
     pub scope: ConnectorWebhookScope,
 }

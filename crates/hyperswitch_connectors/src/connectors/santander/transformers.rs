@@ -2843,7 +2843,8 @@ pub fn decide_access_token_key_suffix(
                     Some(CurrentFlowInfo::ConnectorWebhookRegister { request_data }),
                     Some(enums::PaymentMethodType::PixAutomaticoQr),
                 ) => {
-                    if request_data.base_url.contains("{chaveKey}") {
+                    let base_url = request_data.base_url.to_string();
+                    if base_url.contains("{chaveKey}") || base_url.contains("%7BchaveKey%7D") {
                         Some(AccessTokenUrlPath::Leg1)
                     } else {
                         Some(AccessTokenUrlPath::Leg2)
@@ -2879,7 +2880,7 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for SantanderWebhookRegisterRe
     type Error = Error;
     fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            webhook_url: item.request.webhook_url.clone(),
+            webhook_url: Secret::new(item.request.webhook_url.clone().expose().to_string()),
         })
     }
 }
@@ -2900,7 +2901,7 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for SantanderBoletoWebhookRegi
                     code: boleto_metadata.covenant_code.peek().clone(),
                 },
             ],
-            webhook_url: item.request.webhook_url.clone(),
+            webhook_url: item.request.webhook_url.clone().expose(),
             bank_slip_billing_webhook_active: true,
             pix_billing_webhook_active: true,
         })

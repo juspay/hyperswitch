@@ -5,7 +5,7 @@ use api_models::merchant_connector_webhook_management::{
     RegisterConnectorWebhookResponse, Scope, ScopeIdentifier, ScopeType, WebhookRegistrationResult,
 };
 use common_utils::ext_traits::{Encode, ValueExt};
-use error_stack::{Report, ResultExt};
+use error_stack::{ensure, Report, ResultExt};
 use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     router_request_types::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
@@ -27,7 +27,7 @@ use crate::{
     SessionState,
 };
 
-fn is_webhook_auto_configuration_supported_from_toml(
+fn is_webhook_auto_config_supported(
     connector_name: types::Connector,
 ) -> RouterResult<Option<bool>> {
     let connector_config =
@@ -316,16 +316,15 @@ pub async fn validate_webhook_registration_request(
     webhook_register_request: ApiConnectorWebhookRegisterRequest,
     connectors: &Connectors,
 ) -> RouterResult<()> {
-    let is_supported =
-        is_webhook_auto_configuration_supported_from_toml(connector_data.connector_name)?;
+    let is_supported = is_webhook_auto_config_supported(connector_data.connector_name)?;
 
-    if !is_supported.unwrap_or(false) {
-        return Err(errors::ApiErrorResponse::FlowNotSupported {
+    ensure!(
+        is_supported.unwrap_or(false),
+        errors::ApiErrorResponse::FlowNotSupported {
             flow: "Webhook Registration".to_string(),
             connector: connector_data.connector_name.to_string(),
         }
-        .into());
-    }
+    );
 
     let plan = connector_data
         .connector
@@ -367,11 +366,13 @@ pub fn extract_requested_identifiers(scope: &Scope) -> Vec<ScopeIdentifier> {
 }
 
 #[cfg(feature = "v1")]
+#[allow(deprecated)]
 pub fn construct_connector_webhook_registration_response(
     results: Vec<WebhookRegistrationResult>,
     scope_type: ScopeType,
     requested: Vec<ScopeIdentifier>,
     generate_secret_response: Option<&ConnectorWebhookGenerateSecretResponse>,
+    is_legacy_request: bool,
 ) -> RouterResult<RegisterConnectorWebhookResponse> {
     let (secret_generation_status, secret_error) = generate_secret_response
         .map(|resp| {
@@ -386,22 +387,99 @@ pub fn construct_connector_webhook_registration_response(
         })
         .unwrap_or((None, None));
 
+    // Only emit deprecated response fields when the caller used the deprecated `event_type`
+    // New callers using `scope` receive only the new scope-based response.
+    let (event_type, connector_webhook_id, webhook_registration_status, error_code, error_message) =
+        if is_legacy_request {
+            let event_type = match scope_type {
+                ScopeType::NotSpecific => Some(common_enums::ConnectorWebhookEventType::AllEvents),
+                ScopeType::EventType => requested.iter().find_map(|identifier| match identifier {
+                    ScopeIdentifier::EventType(event) => Some(
+                        common_enums::ConnectorWebhookEventType::SpecificEvent(*event),
+                    ),
+                    _ => None,
+                }),
+                ScopeType::PaymentMethodType => None,
+            };
+
+            let (connector_webhook_id, webhook_registration_status, error_code, error_message) =
+                if let Some(success) = results
+                    .iter()
+                    .find(|result| result.connector_webhook_id.is_some())
+                {
+                    (
+                        success.connector_webhook_id.clone(),
+                        Some(success.status),
+                        None,
+                        None,
+                    )
+                } else if let Some(failure) = results.iter().find(|result| result.error.is_some()) {
+                    (
+                        None,
+                        Some(failure.status),
+                        failure.error.as_ref().map(|error| error.code.clone()),
+                        failure.error.as_ref().map(|error| error.message.clone()),
+                    )
+                } else {
+                    (
+                        None,
+                        results.first().map(|result| result.status),
+                        None,
+                        None,
+                    )
+                };
+
+            (
+                event_type,
+                connector_webhook_id,
+                webhook_registration_status,
+                error_code,
+                error_message,
+            )
+        } else {
+            (None, None, None, None, None)
+        };
+
     Ok(RegisterConnectorWebhookResponse {
         scope_type,
         requested,
         results,
         secret_generation_status,
         secret_error,
+        event_type,
+        connector_webhook_id,
+        webhook_registration_status,
+        error_code,
+        error_message,
     })
 }
+/// Legacy shape stored in `connector_webhook_registration_details` before scope-based
+/// registration was introduced.
+#[derive(serde::Deserialize)]
+struct LegacyConnectorWebhookData {
+    event_type: common_enums::ConnectorWebhookEventType,
+}
+
+/// Stored connector webhook registration entry. Supports both the legacy event_type shape
+/// and the new scope-based shape so that the list API works for records created before and
+/// after this change. New registrations always write the `New` shape.
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum StoredConnectorWebhookEntry {
+    Legacy(LegacyConnectorWebhookData),
+    New(ConnectorWebhookScope),
+}
+
 #[cfg(feature = "v1")]
+#[allow(deprecated)]
 pub fn get_connector_webhook_list_response(
     register_webhook_response: &Option<serde_json::Value>,
 ) -> RouterResult<Vec<api_models::merchant_connector_webhook_management::ConnectorWebhookResponse>>
 {
     use std::collections::HashMap;
 
-    let webhook_map: HashMap<String, ConnectorWebhookScope> = match register_webhook_response {
+    let webhook_map: HashMap<String, StoredConnectorWebhookEntry> = match register_webhook_response
+    {
         Some(webhook_response) => serde_json::from_value(webhook_response.clone())
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
         None => HashMap::new(),
@@ -409,10 +487,37 @@ pub fn get_connector_webhook_list_response(
 
     let webhooks = webhook_map
         .into_iter()
-        .map(|(connector_webhook_id, scope)| {
+        .map(|(connector_webhook_id, entry)| {
+            let (scope, event_type) = match entry {
+                StoredConnectorWebhookEntry::Legacy(legacy) => {
+                    let scope = match &legacy.event_type {
+                        common_enums::ConnectorWebhookEventType::AllEvents => {
+                            ConnectorWebhookScope::NotSpecific
+                        }
+                        common_enums::ConnectorWebhookEventType::SpecificEvent(event) => {
+                            ConnectorWebhookScope::EventType { value: *event }
+                        }
+                    };
+                    (scope, Some(legacy.event_type))
+                }
+                StoredConnectorWebhookEntry::New(scope) => {
+                    let event_type = match &scope {
+                        ConnectorWebhookScope::NotSpecific => {
+                            Some(common_enums::ConnectorWebhookEventType::AllEvents)
+                        }
+                        ConnectorWebhookScope::EventType { value } => Some(
+                            common_enums::ConnectorWebhookEventType::SpecificEvent(*value),
+                        ),
+                        ConnectorWebhookScope::PaymentMethodType { .. } => None,
+                    };
+                    (scope, event_type)
+                }
+            };
+
             api_models::merchant_connector_webhook_management::ConnectorWebhookResponse {
                 connector_webhook_id,
                 scope,
+                event_type,
             }
         })
         .collect();

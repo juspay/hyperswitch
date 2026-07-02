@@ -2429,12 +2429,15 @@ impl
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = req.request.base_url.clone();
+        let base_url_string = base_url.to_string();
 
-        if base_url.contains("{chaveKey}") {
+        // The placeholder may be literal in the raw config string or percent-encoded after
+        // parsing into `url::Url`.
+        if base_url_string.contains("{chaveKey}") || base_url_string.contains("%7BchaveKey%7D") {
             let santander_mca_metadata =
                 SantanderMetadataObject::try_from(&req.connector_meta_data)?;
             let pix_key = match req.payment_method_type {
-                Some(enums::PaymentMethodType::PixEmv) => santander_mca_metadata
+                Some(enums::PaymentMethodType::PixQr) => santander_mca_metadata
                     .pix_qr
                     .ok_or(errors::ConnectorError::NoConnectorMetaData)?
                     .pix_key_value
@@ -2454,9 +2457,11 @@ impl
                     .into());
                 }
             };
-            Ok(base_url.replace("{chaveKey}", &pix_key))
+            Ok(base_url_string
+                .replace("{chaveKey}", &pix_key)
+                .replace("%7BchaveKey%7D", &pix_key))
         } else {
-            Ok(base_url)
+            Ok(base_url_string)
         }
     }
 
@@ -2467,7 +2472,7 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let base_url = &req.request.base_url;
 
-        if base_url.contains("workspaces") {
+        if base_url.as_str().contains("workspaces") {
             let connector_req = SantanderBoletoWebhookRegisterRequest::try_from(req)?;
             Ok(RequestContent::Json(Box::new(connector_req)))
         } else {
@@ -2483,7 +2488,7 @@ impl
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
 
-        let method = if req.request.base_url.contains("workspaces") {
+        let method = if req.request.base_url.as_str().contains("workspaces") {
             Method::Post
         } else {
             Method::Put
@@ -2516,7 +2521,7 @@ impl
     ) -> CustomResult<ConnectorWebhookRegisterRouterData, errors::ConnectorError> {
         let base_url = &data.request.base_url;
 
-        if base_url.contains("workspaces") {
+        if base_url.as_str().contains("workspaces") {
             let response: SantanderBoletoWebhookRegisterResponse = res
                 .response
                 .parse_struct("SantanderBoletoWebhookRegisterResponse")
@@ -2530,7 +2535,9 @@ impl
                 data: data.clone(),
                 http_code: res.status_code,
             })
-        } else if base_url.contains("webhookrec") || base_url.contains("webhookcobr") {
+        } else if base_url.as_str().contains("webhookrec")
+            || base_url.as_str().contains("webhookcobr")
+        {
             let response: SantanderEmptyResponse = res
                 .response
                 .parse_struct("SantanderEmptyResponse")

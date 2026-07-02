@@ -622,7 +622,7 @@ pub struct SantanderBoletoWebhookRegisterRequest {
     pub description: String,
     pub covenants: Vec<SantanderBoletoCovenant>,
     #[serde(rename = "webhookURL")]
-    pub webhook_url: Secret<String>,
+    pub webhook_url: url::Url,
     #[serde(rename = "bankSlipBillingWebhookActive")]
     pub bank_slip_billing_webhook_active: bool,
     #[serde(rename = "pixBillingWebhookActive")]

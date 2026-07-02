@@ -2582,7 +2582,13 @@ impl
         let auth = adyen::AdyenAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let merchant_id = auth.merchant_account.expose();
-        Ok(req.request.base_url.replace("{merchantId}", &merchant_id))
+        let base_url = req.request.base_url.to_string();
+
+        // The placeholder may be literal in the raw config string or percent-encoded after
+        // parsing into `url::Url`.
+        Ok(base_url
+            .replace("{merchantId}", &merchant_id)
+            .replace("%7BmerchantId%7D", &merchant_id))
     }
 
     fn get_request_body(

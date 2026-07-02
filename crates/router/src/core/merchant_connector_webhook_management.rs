@@ -201,6 +201,8 @@ pub async fn register_connector_webhook(
         Some(mca.merchant_connector_id.clone()),
     )?;
 
+    let is_legacy_request = req.is_legacy_request();
+
     configure_connector_webhook_flow::validate_webhook_registration_request(
         &connector_data,
         req.clone(),
@@ -229,15 +231,19 @@ pub async fn register_connector_webhook(
         );
 
         let merchant_connector_id = mca.merchant_connector_id.get_string_repr();
+        let webhook_url =
+            helpers::create_webhook_url(&state.base_url, &mca.merchant_id, merchant_connector_id);
         let scoped_request = ConnectorWebhookRegisterRequest {
             scope: identifier.clone(),
-            base_url: base_url.clone(),
-            webhook_url: helpers::create_webhook_url(
-                &state.base_url,
-                &mca.merchant_id,
-                merchant_connector_id,
-            )
-            .into(),
+            base_url: base_url
+                .parse::<url::Url>()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid base_url in webhook registration plan")?,
+            webhook_url: webhook_url
+                .parse::<url::Url>()
+                .map(hyperswitch_masking::Secret::new)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid webhook_url for connector registration")?,
         };
 
         let connector_integration: services::BoxedConnectorWebhookConfigurationInterface<
@@ -411,6 +417,7 @@ pub async fn register_connector_webhook(
             scope_type,
             requested,
             generate_secret_response.as_ref(),
+            is_legacy_request,
         )?;
 
     Ok(service_api::ApplicationResponse::Json(response))

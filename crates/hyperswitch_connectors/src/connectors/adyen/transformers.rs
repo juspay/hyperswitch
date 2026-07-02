@@ -7363,7 +7363,7 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
         };
         Ok(Self {
             webhook_type,
-            url: item.request.webhook_url.clone(),
+            url: Secret::new(item.request.webhook_url.clone().expose().to_string()),
             active: true,
             communication_format: CommunicationFormat::Json,
         })

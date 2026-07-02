@@ -1046,7 +1046,9 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = requests::PayloadWebhookRegisterRequest {
             trigger: requests::PayloadEventType::try_from(req.request.scope.clone())?,
-            url: req.request.webhook_url.clone(),
+            url: hyperswitch_masking::Secret::new(
+                req.request.webhook_url.clone().expose().to_string(),
+            ),
             sender_secret: None,
         };
 

@@ -3,9 +3,9 @@ pub struct ConnectorWebhookRegisterRequest {
     /// The scope of this webhook registration.
     pub scope: api_models::merchant_connector_webhook_management::ScopeIdentifier,
     /// The webhook URL to register.
-    pub webhook_url: hyperswitch_masking::Secret<String>,
+    pub webhook_url: hyperswitch_masking::Secret<url::Url>,
     /// The entire URL of the connector
-    pub base_url: String,
+    pub base_url: url::Url,
 }
 
 #[derive(Debug, Clone)]
