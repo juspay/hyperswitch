@@ -3252,7 +3252,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
 
         state
             .store
-            .update_payment_method(key_store, payment_method, pm_update, storage_scheme)
+            .update_payment_method(key_store, payment_method, pm_update, storage_scheme, None)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;

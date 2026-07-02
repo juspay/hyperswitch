@@ -833,6 +833,7 @@ pub async fn save_payout_data_to_locker(
                 existing_pm,
                 pm_update,
                 platform.get_processor().get_account().storage_scheme,
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

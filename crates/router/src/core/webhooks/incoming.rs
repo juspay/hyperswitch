@@ -2899,6 +2899,7 @@ async fn update_connector_mandate_details(
                     payment_method_info,
                     pm_update,
                     platform.get_provider().get_account().storage_scheme,
+                    None,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
