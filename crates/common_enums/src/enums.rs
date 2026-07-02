@@ -9708,6 +9708,8 @@ pub enum PermissionGroup {
     CloneConnectorManage,
     ThemeView,
     ThemeManage,
+    ConfigurationsView,
+    ConfigurationsManage,
     ReconSourcesView,
     ReconSourcesManage,
     ReconExceptionsView,
@@ -9732,6 +9734,7 @@ pub enum ParentGroup {
     ApiKeys,
     CloneConnector,
     Theme,
+    Configurations,
     ReconSources,
     ReconExceptions,
     ReconTransactions,
@@ -9767,6 +9770,7 @@ pub enum Resource {
     ReconStagingEntry,
     ReconTransaction,
     ReconRule,
+    SuperpositionConfig,
 }
 
 #[derive(

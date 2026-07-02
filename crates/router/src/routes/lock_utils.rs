@@ -394,7 +394,13 @@ impl From<Flow> for ApiIdentifier {
             | Flow::NetworkTokenEligibilityCheck => Self::GenericTokenization,
 
             Flow::RecoveryDataBackfill | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
-            Flow::GetSuperpositionSdkConfig => Self::Superposition,
+            Flow::GetSuperpositionSdkConfig
+            | Flow::SuperpositionListContexts
+            | Flow::SuperpositionListDefaultConfigs
+            | Flow::SuperpositionListDimensions
+            | Flow::SuperpositionCreateContext
+            | Flow::SuperpositionResolveDetailedConfig
+            | Flow::SuperpositionListAuditLogs => Self::Superposition,
             Flow::MerchantConnectorWebhookRegister
             | Flow::MerchantConnectorWebhookList
             | Flow::MerchantConnectorWebhookGenerateSecret => {
