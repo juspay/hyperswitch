@@ -54,7 +54,7 @@ describe("Wallet tests", () => {
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
         data,
-        "three_ds",
+        "no_three_ds",
         "automatic",
         globalState
       );
