@@ -29,6 +29,7 @@ pub struct EventNew {
     pub is_overall_delivery_successful: Option<bool>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub initiator_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub recipient: Option<storage_enums::EventRecipient>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -64,6 +65,7 @@ pub struct Event {
     pub is_overall_delivery_successful: Option<bool>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub initiator_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub recipient: Option<storage_enums::EventRecipient>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, AsExpression, diesel::FromSqlRow)]
@@ -110,6 +112,11 @@ pub enum EventMetadata {
         subscription_id: common_utils::id_type::SubscriptionId,
         invoice_id: Option<common_utils::id_type::InvoiceId>,
         payment_id: Option<common_utils::id_type::PaymentId>,
+    },
+    #[cfg(feature = "v1")]
+    Surcharge {
+        payment_id: common_utils::id_type::PaymentId,
+        attempt_id: String,
     },
 }
 

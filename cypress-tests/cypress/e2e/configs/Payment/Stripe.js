@@ -1403,6 +1403,24 @@ export const connectorDetails = {
         },
       },
     }),
+    ConfirmWithoutPmData: getCustomExchange({
+      Request: {
+        payment_method: undefined,
+        payment_method_type: undefined,
+        payment_experience: undefined,
+        payment_method_data: undefined,
+        order_details: undefined,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_06",
+          },
+        },
+      },
+    }),
   },
   auth_service_eligibility: {
     // Storage flag does not affect authentication outcome — both enabled and

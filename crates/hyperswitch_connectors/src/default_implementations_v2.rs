@@ -17,7 +17,9 @@ use hyperswitch_domain_models::{
         dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateSurcharge, CalculateTax, Capture,
             CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
@@ -38,7 +40,9 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication,
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -62,7 +66,9 @@ use hyperswitch_domain_models::{
         VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
@@ -116,9 +122,7 @@ use hyperswitch_interfaces::{
             SubmitEvidenceV2,
         },
         files_v2::{FileUploadV2, RetrieveFileV2, UploadFileV2},
-        merchant_connector_webhook_management_v2::{
-            ConfigureConnectorWebhookV2, WebhookRegisterV2,
-        },
+        merchant_connector_webhook_management_v2::{WebhookGenerateSecretV2, WebhookRegisterV2},
         payments_v2::{
             CompleteRefundSurchrgeV2, CompleteSurchargeV2, ConnectorCustomerV2,
             ExternalVaultProxyPaymentsCreate, MandateSetupV2, PaymentApproveV2,
@@ -5312,14 +5316,22 @@ default_imp_for_new_connector_integration_external_vault_proxy!(
 macro_rules! default_imp_for_new_connector_integration_webhook_register {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl ConfigureConnectorWebhookV2 for $path::$connector {}
             impl WebhookRegisterV2 for $path::$connector {}
+            impl WebhookGenerateSecretV2 for $path::$connector {}
             impl
                 ConnectorIntegrationV2<
                 ConnectorWebhookRegister,
                 ConnectorWebhookConfigurationFlowData,
                 ConnectorWebhookRegisterRequest,
                 ConnectorWebhookRegisterResponse,
+            > for $path::$connector
+            {}
+            impl
+                ConnectorIntegrationV2<
+                ConnectorWebhookGenerateSecret,
+                ConnectorWebhookConfigurationFlowData,
+                ConnectorWebhookGenerateSecretRequest,
+                ConnectorWebhookGenerateSecretResponse,
             > for $path::$connector
             {}
         )*

@@ -860,6 +860,17 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
 }
 
+impl ConnectorEnum {
+    /// Whether the connector requires a separate HMAC generation call after registering the
+    /// webhook. Defaults to `false` for connectors that don't override it.
+    pub fn requires_webhook_secret_generation(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.requires_webhook_secret_generation(),
+            Self::New(connector) => connector.requires_webhook_secret_generation(),
+        }
+    }
+}
+
 impl ConnectorCommon for ConnectorEnum {
     fn id(&self) -> &'static str {
         match self {
