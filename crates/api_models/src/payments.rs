@@ -8975,6 +8975,8 @@ pub struct PaymentListResponseV2 {
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentListFilterConstraints {
+    /// Search text for scoped OpenSearch payment list search
+    pub query: Option<String>,
     /// The identifier for payment
     pub payment_id: Option<id_type::PaymentId>,
     /// The identifier for business profile
@@ -9010,6 +9012,24 @@ pub struct PaymentListFilterConstraints {
     pub order: Order,
     /// The List of all the card networks to filter payments list
     pub card_network: Option<Vec<enums::CardNetwork>>,
+    /// The card last four digits to filter payments list
+    pub card_last_4: Option<Vec<String>>,
+    /// The active attempt ids to filter payments list
+    pub active_attempt_id: Option<Vec<String>>,
+    /// The card issuers to filter payments list
+    pub card_issuer: Option<Vec<String>>,
+    /// The routing approaches to filter payments list
+    pub routing_approach: Option<Vec<api_enums::RoutingApproach>>,
+    /// The refund statuses to filter sessionized payments list
+    pub refunds_status: Option<Vec<String>>,
+    /// The dispute statuses to filter sessionized payments list
+    pub dispute_status: Option<Vec<String>>,
+    /// The client sources to filter payments list
+    pub client_source: Option<Vec<String>>,
+    /// The client versions to filter payments list
+    pub client_version: Option<Vec<String>>,
+    /// Whether the payment succeeded on the first attempt. `true` maps to attempt_count = 1, `false` maps to attempt_count > 1.
+    pub first_attempt: Option<Vec<bool>>,
     /// The identifier for merchant order reference id
     pub merchant_order_reference_id: Option<String>,
     /// Indicates the method by which a card is discovered during a payment
@@ -9027,6 +9047,15 @@ impl PaymentListFilterConstraints {
             && self.authentication_type.is_none()
             && self.merchant_connector_id.is_none()
             && self.card_network.is_none()
+            && self.card_last_4.is_none()
+            && self.active_attempt_id.is_none()
+            && self.card_issuer.is_none()
+            && self.routing_approach.is_none()
+            && self.refunds_status.is_none()
+            && self.dispute_status.is_none()
+            && self.client_source.is_none()
+            && self.client_version.is_none()
+            && self.first_attempt.is_none()
             && self.card_discovery.is_none()
     }
 }
