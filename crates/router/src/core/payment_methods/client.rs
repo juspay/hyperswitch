@@ -614,6 +614,7 @@ pub async fn list_payment_methods_client(
             connector_supports_installments,
             intent_data_input,
             &payment_intent_context.business_profile,
+            payment_intent_context.customer.as_ref(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to build intent_data")?;
