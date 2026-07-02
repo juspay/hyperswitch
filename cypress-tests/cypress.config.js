@@ -37,7 +37,10 @@ export default defineConfig({
               timeout: 3000,
             };
             const req = httpModule.request(options, (res) => {
-              resolve({ status: res.statusCode, healthy: res.statusCode === 200 });
+              resolve({
+                status: res.statusCode,
+                healthy: res.statusCode === 200,
+              });
             });
             req.on("error", () => resolve({ status: 0, healthy: false }));
             req.on("timeout", () => {
