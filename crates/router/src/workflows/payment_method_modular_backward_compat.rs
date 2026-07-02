@@ -358,8 +358,7 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
             let card_reference = payment_method
                 .locker_id
                 .clone()
-                .get_required_value("locker_id")?
-                .to_string();
+                .get_required_value("locker_id")?;
 
             let legacy_card_exists = match cards::get_card_from_vault(
                 state,
@@ -401,12 +400,14 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
                     )
                     .await;
 
-                let payload = cards::encode_vault_retrieve_request(
+                let generic_vault_id = domain::VaultId::generate(card_reference.clone());
+                let payload = cards::encode_v2_pm_vault_retrieve_request(
                     should_trigger_fingerprint_migration,
                     merchant_id.clone(),
                     &customer_id,
-                    &card_reference,
+                    &generic_vault_id,
                 )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "Failed to encode generic locker retrieve request in backward compatibility PT",
                 )?;
@@ -443,7 +444,7 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
                     transformers::StoreLockerReq::LockerCard(transformers::StoreCardReq {
                         merchant_id: merchant_id.clone(),
                         merchant_customer_id: customer_id.clone(),
-                        requestor_card_reference: Some(card_reference.to_owned()),
+                        requestor_card_reference: Some(card_reference.clone()),
                         card: Card {
                             card_number: locker_card_detail.card_number,
                             name_on_card: locker_card_detail.card_holder_name,

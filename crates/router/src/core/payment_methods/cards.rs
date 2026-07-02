@@ -1374,6 +1374,14 @@ impl PaymentMethodsController for PmCards<'_> {
         hyperswitch_domain_models::vault::PaymentMethodVaultingData,
         errors::VaultError,
     > {
+        let should_trigger_fingerprint_migration =
+            payment_method_utils::get_should_trigger_fingerprint_migration(
+                self.state,
+                Some(customer_id),
+                self.provider.get_provider_merchant_id(),
+            )
+            .await;
+
         let payload = if !is_v2_pm {
             pm_types::VaultRetrieveRequest {
                 entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
@@ -1386,13 +1394,12 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode VaultRetrieveRequest")?
         } else {
-            pm_types::GenericVaultRetrieveRequest {
-                entity_id: customer_id.clone(),
-                vault_id: vault_id.clone(),
-            }
-            .encode_to_vec()
-            .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode GenericVaultRetrieveRequest")?
+            encode_v2_pm_vault_retrieve_request(
+                should_trigger_fingerprint_migration,
+                merchant_id.clone(),
+                customer_id,
+                vault_id,
+            )?
         };
 
         let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(self.state, payload, None, None)
@@ -2152,6 +2159,33 @@ pub fn encode_vault_retrieve_request(
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultRetrieveRequest")
         .change_context(errors::ApiErrorResponse::InternalServerError)
+    }
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub fn encode_v2_pm_vault_retrieve_request(
+    should_trigger_fingerprint_migration: bool,
+    merchant_id: id_type::MerchantId,
+    customer_id: &id_type::CustomerId,
+    vault_id: &domain::VaultId,
+) -> errors::CustomResult<Vec<u8>, errors::VaultError> {
+    if should_trigger_fingerprint_migration {
+        pm_types::VaultRetrieveRequestNew {
+            entity_id: merchant_id,
+            vault_id: vault_id.clone(),
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultRetrieveRequestNew")
+    } else {
+        pm_types::GenericVaultRetrieveRequest {
+            entity_id: customer_id.to_owned(),
+            vault_id: vault_id.clone(),
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode GenericVaultRetrieveRequest")
     }
 }
 
