@@ -1109,8 +1109,10 @@ impl ConnectorSpecifications for Shift4 {
             api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&SHIFT4_CONNECTOR_INFO)
     }

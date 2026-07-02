@@ -1,27 +1,46 @@
 use std::marker::PhantomData;
 
 use api_models::merchant_connector_webhook_management::{
-    ConnectorWebhookRegisterRequest, RegisterConnectorWebhookResponse,
+    ConnectorWebhookRegisterRequest as ApiConnectorWebhookRegisterRequest, ConnectorWebhookScope,
+    RegisterConnectorWebhookResponse, Scope, ScopeIdentifier, ScopeType, WebhookRegistrationResult,
 };
 use common_utils::ext_traits::{Encode, ValueExt};
-use error_stack::ResultExt;
+use error_stack::{Report, ResultExt};
+use hyperswitch_domain_models::{
+    connector_endpoints::Connectors,
+    router_request_types::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+};
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::tracing::{self, instrument};
 
 use crate::{
     consts,
-    core::{errors::RouterResult, payments::helpers},
+    core::errors::{ConnectorErrorExt, RouterResult},
     errors, types,
     types::{
         api::ConnectorData, domain,
         ConnectorWebhookGenerateSecretRequest as ConnectorWebhookGenerateSecretData,
         ConnectorWebhookGenerateSecretResponse, ConnectorWebhookGenerateSecretRouterData,
-        ConnectorWebhookRegisterRequest as ConnectorWebhookRegisterData,
-        ConnectorWebhookRegisterResponse, ConnectorWebhookRegisterRouterData, ErrorResponse,
+        ConnectorWebhookRegisterRouterData, ErrorResponse,
     },
     SessionState,
 };
+
+fn is_webhook_auto_configuration_supported_from_toml(
+    connector_name: types::Connector,
+) -> RouterResult<Option<bool>> {
+    let connector_config =
+        connector_configs::connector::ConnectorConfig::get_connector_config(connector_name)
+            .map_err(|err| {
+                Report::from(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(format!("Failed to retrieve connector configuration: {err}"))
+            })?;
+
+    Ok(connector_config
+        .and_then(|toml| toml.connector_webhook_register_details)
+        .map(|details| details.webhook_auto_configuration_supported))
+}
 
 #[cfg(feature = "v2")]
 pub async fn construct_webhook_register_router_data(
@@ -29,7 +48,12 @@ pub async fn construct_webhook_register_router_data(
     _merchant_connector_account: domain::MerchantConnectorAccount,
     _webhook_register_request: ConnectorWebhookRegisterRequest,
 ) -> RouterResult<types::ConnectorWebhookRegisterRouterData> {
-    todo!()
+    Err(errors::ApiErrorResponse::NotImplemented {
+        message: errors::NotImplementedMessage::Reason(
+            "Webhook registration not yet implemented for v2".to_string(),
+        ),
+    }
+    .into())
 }
 
 #[cfg(feature = "v1")]
@@ -39,21 +63,17 @@ pub async fn construct_webhook_register_router_data<'a>(
     merchant_connector_account: &domain::MerchantConnectorAccount,
     webhook_register_request: ConnectorWebhookRegisterRequest,
 ) -> RouterResult<ConnectorWebhookRegisterRouterData> {
-    let merchant_connector_id = merchant_connector_account
-        .merchant_connector_id
-        .get_string_repr();
-    let request = ConnectorWebhookRegisterData {
-        webhook_url: helpers::create_webhook_url(
-            &state.base_url,
-            &merchant_connector_account.merchant_id,
-            merchant_connector_id,
-        ),
-        event_type: webhook_register_request.event_type,
-    };
-
     let auth_type = merchant_connector_account
         .get_connector_account_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let (payment_method, payment_method_type) = match &webhook_register_request.scope {
+        ScopeIdentifier::PaymentMethodType(pmt) => {
+            let pm = common_enums::PaymentMethod::from(*pmt);
+            (pm, Some(*pmt))
+        }
+        _ => (common_enums::PaymentMethod::default(), None),
+    };
 
     Ok(types::RouterData {
         flow: PhantomData,
@@ -65,8 +85,8 @@ pub async fn construct_webhook_register_router_data<'a>(
         tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: consts::IRRELEVANT_PAYMENT_ATTEMPT_ID.to_owned(),
         status: common_enums::AttemptStatus::default(),
-        payment_method: common_enums::PaymentMethod::default(),
-        payment_method_type: None,
+        payment_method,
+        payment_method_type,
         connector_auth_type: auth_type,
         description: None,
         address: types::PaymentAddress::default(),
@@ -83,7 +103,7 @@ pub async fn construct_webhook_register_router_data<'a>(
         preprocessing_id: None,
         payment_method_balance: None,
         connector_api_version: None,
-        request,
+        request: webhook_register_request,
         response: Err(ErrorResponse::default()),
         connector_request_reference_id: consts::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID
             .to_owned(),
@@ -199,21 +219,13 @@ pub async fn construct_generate_secret_router_data<'a>(
 
 #[cfg(feature = "v1")]
 pub fn construct_connector_webhook_registration_details(
-    register_webhook_response: &ConnectorWebhookRegisterResponse,
     merchant_connector_account: &domain::MerchantConnectorAccount,
-    connector_webhook_register_data: &ConnectorWebhookRegisterData,
+    registration_entries: Vec<(String, ScopeIdentifier)>,
     generated_secret: Option<Secret<String>>,
 ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
-    let connector_webhook_registration_details = if let Some(connector_webhook_id) =
-        register_webhook_response.connector_webhook_id.clone()
-    {
-        let webhook_event = connector_webhook_register_data.event_type;
-
-        let connector_webhook_value = serde_json::to_value(domain::ConnectorWebhookData {
-            event_type: webhook_event,
-        })
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
+    let connector_webhook_registration_details = if registration_entries.is_empty() {
+        None
+    } else {
         let mut connector_webhook_registration_details = merchant_connector_account
             .get_connector_webhook_registration_details()
             .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
@@ -222,11 +234,24 @@ pub fn construct_connector_webhook_registration_details(
             .as_object_mut()
             .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
-        map.insert(connector_webhook_id, connector_webhook_value);
+        for (connector_webhook_id, scope) in registration_entries {
+            let entry_value = match &scope {
+                ScopeIdentifier::NotSpecific => {
+                    serde_json::to_value(ConnectorWebhookScope::NotSpecific)
+                }
+                ScopeIdentifier::PaymentMethodType(pmt) => {
+                    serde_json::to_value(ConnectorWebhookScope::PaymentMethodType { value: *pmt })
+                }
+                ScopeIdentifier::EventType(evt) => {
+                    serde_json::to_value(ConnectorWebhookScope::EventType { value: *evt })
+                }
+            }
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+            map.insert(connector_webhook_id, entry_value);
+        }
 
         Some(connector_webhook_registration_details)
-    } else {
-        None
     };
 
     let connector_webhook_details = generated_secret
@@ -288,53 +313,64 @@ fn build_connector_webhook_details_with_secret(
 #[instrument(skip_all)]
 pub async fn validate_webhook_registration_request(
     connector_data: &ConnectorData,
-    webhook_register_request: ConnectorWebhookRegisterRequest,
+    webhook_register_request: ApiConnectorWebhookRegisterRequest,
+    connectors: &Connectors,
 ) -> RouterResult<()> {
-    let config = connector_data.connector.get_api_webhook_config();
+    let is_supported =
+        is_webhook_auto_configuration_supported_from_toml(connector_data.connector_name)?;
 
-    if !config.is_webhook_auto_configuration_supported {
-        Err(errors::ApiErrorResponse::FlowNotSupported {
+    if !is_supported.unwrap_or(false) {
+        return Err(errors::ApiErrorResponse::FlowNotSupported {
             flow: "Webhook Registration".to_string(),
             connector: connector_data.connector_name.to_string(),
         }
-        .into())
-    } else {
-        let is_supported = match webhook_register_request.event_type {
-            common_enums::ConnectorWebhookEventType::AllEvents => {
-                matches!(
-                    config.config_type,
-                    Some(
-                        common_types::connector_webhook_configuration::WebhookConfigType::AllEvents
-                    )
-                )
-            }
+        .into());
+    }
 
-            common_enums::ConnectorWebhookEventType::SpecificEvent(event) => {
-                matches!(
-                    config.config_type,
-                    Some(common_types::connector_webhook_configuration::WebhookConfigType::CustomEvents(
-                        ref supported_events
-                    )) if supported_events.contains(&event)
-                )
-            }
-        };
+    let plan = connector_data
+        .connector
+        .get_webhook_registration_plan(&webhook_register_request.scope, connectors)
+        .to_webhook_configuration_failed_response()?;
 
-        if !is_supported {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Webhook registration is not supported for the specified event type"
-                    .to_string(),
-            }
-            .into());
+    if plan.is_empty() {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Webhook registration is not supported for the requested scope".to_string(),
         }
+        .into());
+    }
 
-        Ok(())
+    Ok(())
+}
+
+pub fn determine_scope_type(scope: &Scope) -> ScopeType {
+    match scope {
+        Scope::NotSpecific => ScopeType::NotSpecific,
+        Scope::PaymentMethodTypes(_) => ScopeType::PaymentMethodType,
+        Scope::EventTypes(_) => ScopeType::EventType,
+        _ => ScopeType::NotSpecific,
+    }
+}
+
+pub fn extract_requested_identifiers(scope: &Scope) -> Vec<ScopeIdentifier> {
+    match scope {
+        Scope::NotSpecific => vec![ScopeIdentifier::NotSpecific],
+        Scope::PaymentMethodTypes(pmts) => pmts
+            .iter()
+            .map(|pmt| ScopeIdentifier::PaymentMethodType(*pmt))
+            .collect(),
+        Scope::EventTypes(evts) => evts
+            .iter()
+            .map(|evt| ScopeIdentifier::EventType(*evt))
+            .collect(),
+        _ => vec![ScopeIdentifier::NotSpecific],
     }
 }
 
 #[cfg(feature = "v1")]
 pub fn construct_connector_webhook_registration_response(
-    register_webhook_response: &ConnectorWebhookRegisterResponse,
-    connector_webhook_register_data: &ConnectorWebhookRegisterData,
+    results: Vec<WebhookRegistrationResult>,
+    scope_type: ScopeType,
+    requested: Vec<ScopeIdentifier>,
     generate_secret_response: Option<&ConnectorWebhookGenerateSecretResponse>,
 ) -> RouterResult<RegisterConnectorWebhookResponse> {
     let (secret_generation_status, secret_error) = generate_secret_response
@@ -351,11 +387,9 @@ pub fn construct_connector_webhook_registration_response(
         .unwrap_or((None, None));
 
     Ok(RegisterConnectorWebhookResponse {
-        event_type: connector_webhook_register_data.event_type,
-        connector_webhook_id: register_webhook_response.connector_webhook_id.clone(),
-        webhook_registration_status: register_webhook_response.status,
-        error_code: register_webhook_response.error_code.clone(),
-        error_message: register_webhook_response.error_message.clone(),
+        scope_type,
+        requested,
+        results,
         secret_generation_status,
         secret_error,
     })
@@ -367,8 +401,7 @@ pub fn get_connector_webhook_list_response(
 {
     use std::collections::HashMap;
 
-    let webhook_map: HashMap<String, domain::ConnectorWebhookData> = match register_webhook_response
-    {
+    let webhook_map: HashMap<String, ConnectorWebhookScope> = match register_webhook_response {
         Some(webhook_response) => serde_json::from_value(webhook_response.clone())
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
         None => HashMap::new(),
@@ -376,10 +409,10 @@ pub fn get_connector_webhook_list_response(
 
     let webhooks = webhook_map
         .into_iter()
-        .map(|(connector_webhook_id, webhook_data)| {
+        .map(|(connector_webhook_id, scope)| {
             api_models::merchant_connector_webhook_management::ConnectorWebhookResponse {
-                event_type: webhook_data.event_type,
                 connector_webhook_id,
+                scope,
             }
         })
         .collect();

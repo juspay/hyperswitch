@@ -32,6 +32,7 @@ pub mod vault_v2;
 
 use std::fmt::Debug;
 
+use api_models::merchant_connector_webhook_management::{Scope, ScopeIdentifier};
 use common_enums::{
     enums::{
         self, CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType,
@@ -632,11 +633,14 @@ pub trait ConnectorSpecifications {
         false
     }
 
-    /// Get connector's API webhook configuration object
-    fn get_api_webhook_config(
+    /// Returns the webhook registration plan for this connector.
+    /// Given the requested scope returns a list of (identifier, webhook_url)` tuples. Each tuple corresponds to one connector integration call.
+    fn get_webhook_registration_plan(
         &self,
-    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
-        &consts::DEFAULT_WEBHOOK_SETUP_CAPABILITIES
+        _scope: &Scope,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(ScopeIdentifier, String)>, errors::ConnectorError> {
+        Ok(Vec::new())
     }
 }
 

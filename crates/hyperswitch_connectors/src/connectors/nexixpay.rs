@@ -1357,6 +1357,7 @@ impl ConnectorSpecifications for Nexixpay {
             } => payment_method == Some(enums::PaymentMethod::Card) && auth_type.is_three_ds(),
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
 
@@ -1385,6 +1386,7 @@ impl ConnectorSpecifications for Nexixpay {
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
 }

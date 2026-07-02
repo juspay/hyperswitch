@@ -2687,8 +2687,10 @@ impl ConnectorSpecifications for Paypal {
             } => payment_method == Some(enums::PaymentMethod::Card),
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&PAYPAL_CONNECTOR_INFO)
     }

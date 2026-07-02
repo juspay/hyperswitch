@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{
+    merchant_connector_webhook_management::ScopeIdentifier, webhooks::IncomingWebhookEvent,
+};
 use common_enums::{self as common_enums, enums};
 use common_utils::{ext_traits::ValueExt, types::StringMajorUnit};
 use error_stack::ResultExt;
@@ -12,11 +14,16 @@ use hyperswitch_domain_models::{
         ErrorResponse, RouterData,
     },
     router_flow_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::PostCaptureVoid,
         refunds::{Execute, RSync},
     },
-    router_request_types::{PaymentsCancelPostCaptureData, ResponseId},
+    router_request_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        PaymentsCancelPostCaptureData, ResponseId,
+    },
     router_response_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
         ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RefundsResponseData,
     },
     types::{
@@ -860,5 +867,88 @@ impl TryFrom<responses::PayloadWebhookEvent> for responses::PayloadPaymentsRespo
                 response_type: None,
             },
         ))
+    }
+}
+
+impl TryFrom<ScopeIdentifier> for requests::PayloadEventType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: ScopeIdentifier) -> Result<Self, Self::Error> {
+        match item {
+            ScopeIdentifier::EventType(event_type) => {
+                match event_type {
+                    common_enums::EventType::PaymentProcessing => Ok(Self::Payment),
+                    common_enums::EventType::PaymentAuthorized
+                    | common_enums::EventType::PaymentPartiallyAuthorized => Ok(Self::Authorized),
+                    common_enums::EventType::PaymentSucceeded
+                    | common_enums::EventType::PaymentCaptured => Ok(Self::Processed),
+                    common_enums::EventType::PaymentFailed
+                    | common_enums::EventType::RefundFailed => Ok(Self::Decline),
+                    common_enums::EventType::PaymentCancelled => Ok(Self::Void),
+                    common_enums::EventType::PaymentCancelledPostCapture => Ok(Self::Reversal),
+                    common_enums::EventType::RefundSucceeded => Ok(Self::Refund),
+                    common_enums::EventType::DisputeOpened => Ok(Self::Reject),
+                    common_enums::EventType::DisputeAccepted
+                    | common_enums::EventType::DisputeLost => Ok(Self::Reversal),
+
+                    #[cfg(feature = "payouts")]
+                    common_enums::EventType::PayoutInitiated
+                    | common_enums::EventType::PayoutProcessing => Ok(Self::Credit),
+                    #[cfg(feature = "payouts")]
+                    common_enums::EventType::PayoutSuccess => Ok(Self::Deposit),
+                    #[cfg(feature = "payouts")]
+                    common_enums::EventType::PayoutFailed => Ok(Self::Decline),
+                    #[cfg(feature = "payouts")]
+                    common_enums::EventType::PayoutCancelled => Ok(Self::Void),
+                    #[cfg(feature = "payouts")]
+                    common_enums::EventType::PayoutReversed => Ok(Self::Reversal),
+
+                    _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                        message: "Webhook event type mapping failed".to_string(),
+                        connector: "payload",
+                    })),
+                }
+            }
+            ScopeIdentifier::NotSpecific | ScopeIdentifier::PaymentMethodType(_) => Err(
+                error_stack::report!(errors::ConnectorError::WebhookEventTypeNotFound),
+            ),
+        }
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookRegister,
+            responses::PayloadWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    >
+    for RouterData<
+        ConnectorWebhookRegister,
+        ConnectorWebhookRegisterRequest,
+        ConnectorWebhookRegisterResponse,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookRegister,
+            responses::PayloadWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
+                connector_webhook_id: Some(item.response.id),
+                status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
     }
 }

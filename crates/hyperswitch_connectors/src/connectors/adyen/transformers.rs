@@ -4,6 +4,7 @@ use std::{num::NonZeroU8, ops::Deref, str::FromStr};
 use api_models::payouts::{self, PayoutMethodData};
 use api_models::{
     enums,
+    merchant_connector_webhook_management::ScopeIdentifier,
     payments::{self, PollConfig, QrCodeInformation, VoucherNextStepData},
 };
 use base64::Engine;
@@ -7328,7 +7329,7 @@ pub enum CommunicationFormat {
 pub struct WebhookRegister {
     #[serde(rename = "type")]
     webhook_type: WebhookRegisterType,
-    url: String,
+    url: Secret<String>,
     active: bool,
     communication_format: CommunicationFormat,
 }
@@ -7352,8 +7353,14 @@ impl TryFrom<&common_enums::ConnectorWebhookEventType> for WebhookRegisterType {
 impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
-        let webhook_type = item.request.event_type;
-        let webhook_type: WebhookRegisterType = WebhookRegisterType::try_from(&webhook_type)?;
+        let webhook_type = match &item.request.scope {
+            ScopeIdentifier::EventType(event) => {
+                let webhook_event = common_enums::ConnectorWebhookEventType::SpecificEvent(*event);
+                WebhookRegisterType::try_from(&webhook_event)?
+            }
+            ScopeIdentifier::NotSpecific => WebhookRegisterType::Standard,
+            ScopeIdentifier::PaymentMethodType(_) => WebhookRegisterType::Standard,
+        };
         Ok(Self {
             webhook_type,
             url: item.request.webhook_url.clone(),
@@ -7363,7 +7370,7 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenWebhookRegisterResponse {
     id: String,
@@ -7395,6 +7402,7 @@ impl
     ) -> Result<Self, Self::Error> {
         Ok(ConnectorWebhookRegisterRouterData {
             response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
                 connector_webhook_id: Some(item.response.id.clone()),
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,

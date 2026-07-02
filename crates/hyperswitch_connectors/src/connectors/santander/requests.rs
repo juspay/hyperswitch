@@ -602,3 +602,29 @@ pub enum AccessTokenUrlPath {
     Leg2,
     Boleto,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderWebhookRegisterRequest {
+    pub webhook_url: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderBoletoCovenant {
+    pub code: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderBoletoWebhookRegisterRequest {
+    #[serde(rename = "type")]
+    pub workspace_type: String,
+    pub description: String,
+    pub covenants: Vec<SantanderBoletoCovenant>,
+    #[serde(rename = "webhookURL")]
+    pub webhook_url: Secret<String>,
+    #[serde(rename = "bankSlipBillingWebhookActive")]
+    pub bank_slip_billing_webhook_active: bool,
+    #[serde(rename = "pixBillingWebhookActive")]
+    pub pix_billing_webhook_active: bool,
+}

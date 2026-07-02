@@ -15,16 +15,21 @@ use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, BoletoVoucherData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::PushNotification, AuthorizeSessionToken, GenerateQr, SetupMandate,
     },
     router_request_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         AuthorizeSessionTokenData, CurrentFlowInfo, GenerateQrRequestData,
         PaymentsUpdateMetadataData, PushNotificationRequestData, ResponseId,
         SetupMandateRequestData,
     },
-    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse, MandateReference,
+        PaymentsResponseData, RefundsResponseData,
+    },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
         PaymentsPreAuthorizeCancelRouterData, PaymentsPushNotificationRouterData,
         PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData, RefundsRouterData,
     },
@@ -33,7 +38,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::{self},
 };
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::Url;
@@ -46,30 +51,33 @@ use crate::{
             RecurrenceLink, RecurrenceValue, RetryPolicy, SantanderAccountType,
             SantanderAuthRequest, SantanderAuthType, SantanderBoletoCancelOperation,
             SantanderBoletoCancelRequest, SantanderBoletoPaymentRequest,
-            SantanderBoletoUpdateRequest, SantanderDebtor, SantanderDiscountType,
-            SantanderGrantType, SantanderMetadataObject, SantanderPaymentRequest,
-            SantanderPaymentsCancelRequest, SantanderPixAutomaticCalendarRequest,
-            SantanderPixAutomaticDestinationRequest, SantanderPixAutomaticSolicitationRequest,
-            SantanderPixAutomaticoCobrCalendario, SantanderPixAutomaticoCobrRequest,
-            SantanderPixAutomaticoCobrValor, SantanderPixAutomaticoRecebedor,
-            SantanderPixCancelRequest, SantanderPixDueDateCalendarRequest,
-            SantanderPixImmediateCalendarRequest, SantanderPixQRPaymentRequest,
-            SantanderPixRequestCalendar, SantanderPostProcessingStepRequest, SantanderProtestType,
-            SantanderRefundRequest, SantanderRouterData, SantanderSetupMandateRequest,
-            SantanderValue, SantanderValueType,
+            SantanderBoletoUpdateRequest, SantanderBoletoWebhookRegisterRequest, SantanderDebtor,
+            SantanderDiscountType, SantanderGrantType, SantanderMetadataObject,
+            SantanderPaymentRequest, SantanderPaymentsCancelRequest,
+            SantanderPixAutomaticCalendarRequest, SantanderPixAutomaticDestinationRequest,
+            SantanderPixAutomaticSolicitationRequest, SantanderPixAutomaticoCobrCalendario,
+            SantanderPixAutomaticoCobrRequest, SantanderPixAutomaticoCobrValor,
+            SantanderPixAutomaticoRecebedor, SantanderPixCancelRequest,
+            SantanderPixDueDateCalendarRequest, SantanderPixImmediateCalendarRequest,
+            SantanderPixQRPaymentRequest, SantanderPixRequestCalendar,
+            SantanderPostProcessingStepRequest, SantanderProtestType, SantanderRefundRequest,
+            SantanderRouterData, SantanderSetupMandateRequest, SantanderValue, SantanderValueType,
+            SantanderWebhookRegisterRequest,
         },
         responses::{
             Beneficiary, Key, NsuComposite, Payer, RecurrenceStatus, SanatanderAccessTokenResponse,
             SanatanderTokenResponse, SantanderAdditionalInfo, SantanderBoletoDocumentKind,
             SantanderBoletoPaymentType, SantanderBoletoStatus,
-            SantanderCreatePixPayloadLocationResponse, SantanderDocumentKind, SantanderJourneyType,
+            SantanderBoletoWebhookRegisterResponse, SantanderCreatePixPayloadLocationResponse,
+            SantanderDocumentKind, SantanderEmptyResponse, SantanderJourneyType,
             SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
             SantanderPixAutomaticRecResponse, SantanderPixAutomaticSolicitationResponse,
             SantanderPixAutomaticoCobrStatus, SantanderPixAutomaticoCobrSyncResponse,
             SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
-            SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
-            SantanderSetupMandateResponse, SantanderUpdateMetadataResponse, SantanderVoidResponse,
-            SantanderVoidStatus, WaitScreenData,
+            SantanderPixQRCodeSyncResponse, SantanderPixWebhookRegisterResponse,
+            SantanderRefundResponse, SantanderRefundStatus, SantanderSetupMandateResponse,
+            SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus,
+            WaitScreenData,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -2828,7 +2836,27 @@ pub fn decide_access_token_key_suffix(
                 (None, Some(enums::PaymentMethodType::PixAutomaticoPush)) => {
                     Some(AccessTokenUrlPath::Leg2)
                 }
-                (None, Some(enums::PaymentMethodType::PixAutomaticoQr)) => None,
+                (None, Some(enums::PaymentMethodType::PixAutomaticoQr)) => {
+                    Some(AccessTokenUrlPath::Leg2)
+                }
+                (
+                    Some(CurrentFlowInfo::ConnectorWebhookRegister { request_data }),
+                    Some(enums::PaymentMethodType::PixAutomaticoQr),
+                ) => {
+                    if request_data.base_url.contains("{chaveKey}") {
+                        Some(AccessTokenUrlPath::Leg1)
+                    } else {
+                        Some(AccessTokenUrlPath::Leg2)
+                    }
+                }
+                (
+                    Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }),
+                    Some(enums::PaymentMethodType::PixAutomaticoPush),
+                ) => Some(AccessTokenUrlPath::Leg2),
+                (
+                    Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }),
+                    Some(enums::PaymentMethodType::PixQr),
+                ) => Some(AccessTokenUrlPath::Leg1),
                 // No payment method type or unsupported payment method type
                 (_, None) => None,
                 (_, Some(_)) => None,
@@ -2844,5 +2872,152 @@ impl From<SantanderJourneyType> for Option<ExpiryType> {
             SantanderJourneyType::Jornada4 => Some(ExpiryType::Scheduled),
             _ => None,
         }
+    }
+}
+
+impl TryFrom<&ConnectorWebhookRegisterRouterData> for SantanderWebhookRegisterRequest {
+    type Error = Error;
+    fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            webhook_url: item.request.webhook_url.clone(),
+        })
+    }
+}
+
+impl TryFrom<&ConnectorWebhookRegisterRouterData> for SantanderBoletoWebhookRegisterRequest {
+    type Error = Error;
+    fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
+        let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
+        let boleto_metadata = santander_mca_metadata
+            .boleto
+            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+
+        Ok(Self {
+            workspace_type: "BILLING".to_string(),
+            description: "Workspace de Cobrança".to_string(),
+            covenants: vec![
+                crate::connectors::santander::requests::SantanderBoletoCovenant {
+                    code: boleto_metadata.covenant_code.peek().clone(),
+                },
+            ],
+            webhook_url: item.request.webhook_url.clone(),
+            bank_slip_billing_webhook_active: true,
+            pix_billing_webhook_active: true,
+        })
+    }
+}
+
+fn santander_composite_webhook_id(
+    payment_method_type: Option<enums::PaymentMethodType>,
+    connector_webhook_id: &str,
+) -> String {
+    let pmt_slug = payment_method_type
+        .map(|pmt| format!("{:?}", pmt).to_lowercase())
+        .unwrap_or_else(|| "unknown".to_string());
+    format!("santander_{}_{}", pmt_slug, connector_webhook_id)
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderPixWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    > for ConnectorWebhookRegisterRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderPixWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(ConnectorWebhookRegisterRouterData {
+            response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
+                connector_webhook_id: Some(santander_composite_webhook_id(
+                    item.data.payment_method_type,
+                    &item.response.chave,
+                )),
+                status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderBoletoWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    > for ConnectorWebhookRegisterRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderBoletoWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(ConnectorWebhookRegisterRouterData {
+            response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
+                connector_webhook_id: Some(santander_composite_webhook_id(
+                    item.data.payment_method_type,
+                    &item.response.id,
+                )),
+                status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderEmptyResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    > for ConnectorWebhookRegisterRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderEmptyResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(ConnectorWebhookRegisterRouterData {
+            response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
+                connector_webhook_id: Some(santander_composite_webhook_id(
+                    item.data.payment_method_type,
+                    &uuid::Uuid::new_v4().to_string(),
+                )),
+                status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
     }
 }
