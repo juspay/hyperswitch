@@ -1386,27 +1386,11 @@ pub struct ServerTls {
     pub certificate: PathBuf,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct CellInformation {
     pub id: id_type::CellId,
 }
 
-#[cfg(feature = "v1")]
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-pub struct CellInformation {
-    pub id: String,
-}
-#[cfg(feature = "v1")]
-impl Default for CellInformation {
-    fn default() -> Self {
-        Self {
-            id: String::from("00"),
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
 impl Default for CellInformation {
     fn default() -> Self {
         // We provide a static default cell id for constructing application settings.
