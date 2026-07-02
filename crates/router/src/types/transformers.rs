@@ -2032,7 +2032,10 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
         }
 
         match (item.object_id.clone(), item.event_id.clone()) {
-            (Some(object_id), None) => Ok(Self::ObjectIdFilter { object_id, recipient: item.recipient.clone() }),
+            (Some(object_id), None) => Ok(Self::ObjectIdFilter {
+                object_id,
+                recipient: item.recipient.clone(),
+            }),
 
             (None, Some(event_id)) => Ok(Self::EventIdFilter { event_id }),
 

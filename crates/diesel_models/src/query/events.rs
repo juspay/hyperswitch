@@ -225,7 +225,7 @@ impl Event {
             )
             .order(dsl::created_at.desc())
             .into_boxed();
-      
+
         query = Self::apply_event_recipient(query, recipient);
 
         if let Some(profile_id) = profile_id {
@@ -344,7 +344,7 @@ impl Event {
             .order(dsl::created_at.desc())
             .into_boxed();
 
-         query = Self::apply_event_recipient(query, event_recipient);
+        query = Self::apply_event_recipient(query, event_recipient);
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
@@ -506,17 +506,17 @@ impl Event {
             diesel::dsl::Eq<dsl::is_overall_delivery_successful, bool>,
             Output = T,
         >,
-          T: diesel::query_dsl::methods::FilterDsl<
+        T: diesel::query_dsl::methods::FilterDsl<
             diesel::dsl::Eq<dsl::recipient, String>,
             Output = T,
         >,
         T: diesel::query_dsl::methods::FilterDsl<
-        diesel::dsl::Or<
-            diesel::dsl::Eq<dsl::recipient, String>,
-            diesel::dsl::IsNull<dsl::recipient>,
+            diesel::dsl::Or<
+                diesel::dsl::Eq<dsl::recipient, String>,
+                diesel::dsl::IsNull<dsl::recipient>,
+            >,
+            Output = T,
         >,
-        Output = T,
-        >
     {
         if let Some(profile_id) = profile_id {
             query = query.filter(dsl::business_profile_id.eq(profile_id));
@@ -544,7 +544,6 @@ impl Event {
 
         query = Self::apply_event_recipient(query, event_recipient);
 
-
         query
     }
 
@@ -558,31 +557,31 @@ impl Event {
             Output = T,
         >,
         T: diesel::query_dsl::methods::FilterDsl<
-        diesel::dsl::Or<
-            diesel::dsl::Eq<dsl::recipient, String>,
-            diesel::dsl::IsNull<dsl::recipient>,
+            diesel::dsl::Or<
+                diesel::dsl::Eq<dsl::recipient, String>,
+                diesel::dsl::IsNull<dsl::recipient>,
+            >,
+            Output = T,
         >,
-        Output = T,
-        >
     {
         match event_recipient {
-            
-                Some(common_enums::EventRecipient::Merchant) => {
-                    query = query.filter(dsl::recipient
+            Some(common_enums::EventRecipient::Merchant) => {
+                query = query.filter(
+                    dsl::recipient
                         .eq(common_enums::EventRecipient::Merchant.to_string())
-                    .or(
-                        dsl::recipient.is_null(), // Treat NULL recipient as Merchant for backward compatibility
-                    )
+                        .or(
+                            dsl::recipient.is_null(), // Treat NULL recipient as Merchant for backward compatibility
+                        ),
                 );
-                }
-                Some(common_enums::EventRecipient::Connector) => {
-                    query = query.filter(dsl::recipient.eq(common_enums::EventRecipient::Connector.to_string()));
-                }
-                None => {}
+            }
+            Some(common_enums::EventRecipient::Connector) => {
+                query = query
+                    .filter(dsl::recipient.eq(common_enums::EventRecipient::Connector.to_string()));
+            }
+            None => {}
         }
 
         query
-
     }
 
     #[allow(clippy::too_many_arguments)]

@@ -55,7 +55,10 @@ pub async fn list_initial_delivery_attempts(
         (now.date() - time::Duration::days(INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_DAYS)).midnight();
 
     let (events, total_count) = match constraints {
-        api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter { object_id, recipient } => {
+        api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter {
+            object_id,
+            recipient,
+        } => {
             let events = store
                 .list_initial_events_by_initiator_merchant_id_primary_object_id(
                     &merchant_id,
