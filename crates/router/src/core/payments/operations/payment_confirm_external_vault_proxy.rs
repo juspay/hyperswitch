@@ -168,7 +168,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _flow_kind: operations::PaymentFlowKind,
-        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
@@ -192,39 +192,22 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        if [
-            Some(common_enums::PaymentSource::Webhook),
-            Some(common_enums::PaymentSource::ExternalAuthenticator),
-        ]
-        .contains(&header_payload.payment_confirm_source)
-        {
-            helpers::validate_payment_status_against_not_allowed_statuses(
-                payment_intent.status,
-                &[
-                    storage_enums::IntentStatus::Cancelled,
-                    storage_enums::IntentStatus::Succeeded,
-                    storage_enums::IntentStatus::Processing,
-                    storage_enums::IntentStatus::RequiresCapture,
-                    storage_enums::IntentStatus::RequiresMerchantAction,
-                    storage_enums::IntentStatus::Review,
-                ],
-                "external_vault_proxy_confirm",
-            )?;
-        } else {
-            helpers::validate_payment_status_against_not_allowed_statuses(
-                payment_intent.status,
-                &[
-                    storage_enums::IntentStatus::Cancelled,
-                    storage_enums::IntentStatus::Succeeded,
-                    storage_enums::IntentStatus::Processing,
-                    storage_enums::IntentStatus::RequiresCapture,
-                    storage_enums::IntentStatus::RequiresMerchantAction,
-                    storage_enums::IntentStatus::RequiresCustomerAction,
-                    storage_enums::IntentStatus::Review,
-                ],
-                "external_vault_proxy_confirm",
-            )?;
-        }
+        // NOTE: `RequiresCustomerAction` is intentionally NOT in the not-allowed list. After the
+        // external 3DS pre-auth emits a `ThreeDsInvoke`, the intent sits in `RequiresCustomerAction`,
+        // and this operation is the resume handler that authorizes out of it — the frictionless SDK
+        // re-confirm AND the challenge webhook (pull=false, `PaymentSource::ExternalAuthenticator`)
+        // both proceed from `RequiresCustomerAction`. Only terminal / in-flight states are rejected.
+        helpers::validate_payment_status_against_not_allowed_statuses(
+            payment_intent.status,
+            &[
+                storage_enums::IntentStatus::Cancelled,
+                storage_enums::IntentStatus::Succeeded,
+                storage_enums::IntentStatus::Processing,
+                storage_enums::IntentStatus::RequiresCapture,
+                storage_enums::IntentStatus::RequiresMerchantAction,
+            ],
+            "external_vault_proxy_confirm",
+        )?;
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
@@ -668,9 +651,23 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         business_profile: &domain::Profile,
         _feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()> {
-        // Only create if customer has given acceptance
-        if payment_data.customer_acceptance.is_none() {
-            router_env::logger::info!("Skipping PM creation: customer_acceptance is None");
+        // Create the proxy-card payment method when the customer accepted saving it, OR when external
+        // 3DS authentication was requested. The external-3DS multi-leg flow (confirm ->
+        // /3ds/authentication AReq -> authorize) re-fetches the VGS alias server-side from the
+        // attempt's `payment_token` across requests (the SDK does not re-send the alias); that alias
+        // token is minted from this PM's `payment_method_id` at the challenge halt
+        // (`...pre_authenticate...` -> alias_payment_token). Without a PM here `payment_method_id` is
+        // None, no token is minted, and the AReq resume fails HE_02. This mirrors normal payments,
+        // which tokenize for external auth regardless of save-card
+        // (`tokenize_in_router_when_confirm_false_or_external_authentication`).
+        let is_external_three_ds_requested = payment_data
+            .payment_intent
+            .request_external_three_ds_authentication
+            == Some(true);
+        if payment_data.customer_acceptance.is_none() && !is_external_three_ds_requested {
+            router_env::logger::info!(
+                "Skipping PM creation: customer_acceptance is None and external 3DS not requested"
+            );
             return Ok(());
         }
         // A repeat payment that reuses a saved card (the `VaultCardTokenData` / `payment_token`

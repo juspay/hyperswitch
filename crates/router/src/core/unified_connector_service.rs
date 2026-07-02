@@ -1759,11 +1759,57 @@ fn get_ucs_client(
 #[cfg(feature = "v1")]
 pub fn build_connector_feature_data_from_auth_mca(
     merchant_connector_account: &MerchantConnectorAccountType,
+    force_3ds_challenge: Option<bool>,
+    results_response_notification_url: Option<String>,
+    notification_url: Option<String>,
+    // Acquirer data (`acquirer_bin` / `acquirer_merchant_id` / `acquirer_country_code`) resolved from
+    // the PSP MCA / profile acquirer config the way normal payments do, injected so it is not carried
+    // on the netcetera MCA. An object whose keys are merged verbatim into the metadata blob.
+    acquirer_metadata: Option<serde_json::Value>,
 ) -> CustomResult<Option<Secret<String>>, UnifiedConnectorServiceError> {
     merchant_connector_account
         .get_metadata()
         .map(|metadata| {
-            serde_json::to_string(&metadata.expose())
+            // Start from the auth-connector (e.g. netcetera) MCA metadata, then apply per-payment
+            // overrides so UCS's AReq matches how normal payments source these:
+            //   - `force_3ds_challenge`: the resolved per-payment value (payment intent -> business
+            //     profile default); UCS reads it out of this blob for the AReq challenge indicator.
+            //   - `results_response_notification_url`: the system-constructed pull=false RRes push
+            //     target (`{base_url}/webhooks/{merchant}/{mca}` via `create_webhook_url`). Injected
+            //     here so the merchant does NOT have to configure the webhook URL in MCA metadata,
+            //     mirroring normal payments which source it from the constructed `request.webhook_url`
+            //     (see the hyperswitch_connectors netcetera transformer). Overrides any metadata value.
+            //   - `notification_url`: the system-constructed browser CRes return (`three_ds_authorize_url`
+            //     via `create_authorize_url`), so it too is derived from the payment rather than MCA
+            //     metadata. UCS also feeds the top-level `three_ds_requestor_url` from this value.
+            // `None` for any leaves the MCA-metadata value untouched (non-authenticate legs).
+            let mut metadata_value = metadata.expose();
+            if let Some(obj) = metadata_value.as_object_mut() {
+                if let Some(force) = force_3ds_challenge {
+                    obj.insert(
+                        "force_3ds_challenge".to_string(),
+                        serde_json::Value::Bool(force),
+                    );
+                }
+                if let Some(url) = results_response_notification_url {
+                    obj.insert(
+                        "results_response_notification_url".to_string(),
+                        serde_json::Value::String(url),
+                    );
+                }
+                if let Some(url) = notification_url {
+                    obj.insert(
+                        "notification_url".to_string(),
+                        serde_json::Value::String(url),
+                    );
+                }
+                if let Some(serde_json::Value::Object(acquirer)) = acquirer_metadata {
+                    for (key, value) in acquirer {
+                        obj.insert(key, value);
+                    }
+                }
+            }
+            serde_json::to_string(&metadata_value)
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
                 .attach_printable(
                     "Failed to serialize authentication connector MCA metadata for connector_feature_data",

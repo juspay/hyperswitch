@@ -6180,7 +6180,8 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     })?;
                 authentication.authentication_type
             };
-
+        // For a challenge with pull=false the RRes webhook drives the authorize, so this call is
+        // status-only; frictionless (or pull=true) completes here.
         let authorize_completes_on_this_call = is_pull_mechanism_enabled
             || payment_external_authentication_type
                 != Some(common_enums::DecoupledAuthenticationType::Challenge);
@@ -13903,6 +13904,33 @@ async fn perform_external_vault_authentication_v1(
         business_profile.get_id().clone(),
     );
 
+    // AReq `notification_url` (browser CRes return) — derived from the payment via
+    // `create_authorize_url` (the `three_ds_authorize_url` endpoint), like normal payments. The UCS
+    // sources both MerchantData `notification_url` and the top-level `three_ds_requestor_url` from it.
+    let netcetera_notification_url = Some(helpers::create_authorize_url(
+        &state.base_url,
+        payment_attempt,
+        &psp_connector_name,
+    ));
+
+    // Acquirer data — resolved from the PSP (checkout) MCA metadata the way normal payments do,
+    // NOT the netcetera MCA. Injected into connector_feature_data below.
+    let netcetera_acquirer_metadata = psp_merchant_connector_account
+        .get_metadata()
+        .and_then(|metadata| {
+            let value = metadata.expose();
+            let obj = value.as_object()?;
+            let acquirer: serde_json::Map<String, serde_json::Value> = [
+                "acquirer_bin",
+                "acquirer_merchant_id",
+                "acquirer_country_code",
+            ]
+            .into_iter()
+            .filter_map(|key| obj.get(key).map(|val| (key.to_string(), val.clone())))
+            .collect();
+            (!acquirer.is_empty()).then_some(serde_json::Value::Object(acquirer))
+        });
+
     let authenticate_router_data =
         flows::authorize_flow::call_unified_connector_service_authenticate_for_external_proxy(
             &authenticate_router_data,
@@ -13914,6 +13942,15 @@ async fn perform_external_vault_authentication_v1(
             external_vault_merchant_connector_account,
             processor,
             execution_mode,
+            // Resolve the challenge preference the same way normal payments do: per-payment
+            // `force_3ds_challenge` from the intent, falling back to the business-profile default.
+            Some(
+                payment_intent
+                    .force_3ds_challenge
+                    .unwrap_or(business_profile.force_3ds_challenge),
+            ),
+            netcetera_notification_url,
+            netcetera_acquirer_metadata,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
