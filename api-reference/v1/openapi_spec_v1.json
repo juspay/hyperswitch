@@ -21268,7 +21268,7 @@
           "recipient": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/common_enums.EventRecipient"
+                "$ref": "#/components/schemas/EventRecipient"
               }
             ],
             "nullable": true
