@@ -2193,7 +2193,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         document_details,
                         initiator.and_then(|initiator| initiator.to_created_by()),
                         initiator.and_then(|initiator| initiator.to_created_by()),
-                        customers::generate_global_customer_id(&state.conf.cell_information.id),
+                        id_type::GlobalCustomerId::generate(&state.conf.cell_information.id),
                     );
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_store, storage_scheme)
@@ -2265,7 +2265,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     .attach_printable("Unable to encrypt customer details")?,
                 );
 
-                payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
+                payment_data.payment_intent.customer_id = Some(customer.get_id().clone());
 
                 Some(customer)
             }
@@ -3765,6 +3765,19 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
         }
         _ => Ok((None, None)),
     }?;
+
+    // For stateless redirect pay-later PMs (e.g. Affirm BNPL), the redirect-completion
+    // request carries no payment_method_data and there is no stored card/token, so the
+    // match above resolves to None. Reconstruct the PaymentMethodData from the persisted
+    // payment_method_type so downstream flows (e.g. UCS CompleteAuthorize) still receive a
+    // payment_method and can run the transaction-create leg with the checkout_token.
+    let payment_method =
+        payment_method.or_else(|| match payment_data.payment_attempt.payment_method_type {
+            Some(storage_enums::PaymentMethodType::Affirm) => Some(
+                domain::PaymentMethodData::PayLater(domain::PayLaterData::AffirmRedirect {}),
+            ),
+            _ => None,
+        });
 
     Ok((operation, payment_method, pm_id))
 }

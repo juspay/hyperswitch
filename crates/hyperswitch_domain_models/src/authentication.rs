@@ -772,25 +772,25 @@ pub trait AuthenticationInterface {
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> CustomResult<Authentication, Self::Error>;
 
-    async fn find_authentication_by_merchant_id_authentication_id(
+    async fn find_authentication_by_processor_merchant_id_authentication_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
         merchant_key_store: &crate::merchant_key_store::MerchantKeyStore,
         state: &KeyManagerState,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> CustomResult<Authentication, Self::Error>;
 
-    async fn find_authentication_by_merchant_id_connector_authentication_id(
+    async fn find_authentication_by_processor_merchant_id_connector_authentication_id(
         &self,
-        merchant_id: common_utils::id_type::MerchantId,
+        processor_merchant_id: common_utils::id_type::MerchantId,
         connector_authentication_id: String,
         merchant_key_store: &crate::merchant_key_store::MerchantKeyStore,
         state: &KeyManagerState,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> CustomResult<Authentication, Self::Error>;
 
-    async fn update_authentication_by_merchant_id_authentication_id(
+    async fn update_authentication_by_processor_merchant_id_authentication_id(
         &self,
         previous_state: Authentication,
         authentication_update: AuthenticationUpdate,
