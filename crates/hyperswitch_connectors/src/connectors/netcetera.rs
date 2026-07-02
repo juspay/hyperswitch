@@ -243,15 +243,6 @@ impl IncomingWebhook for Netcetera {
     }
 }
 
-fn build_endpoint(
-    base_url: &str,
-    connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
-) -> CustomResult<String, ConnectorError> {
-    let metadata = netcetera::NetceteraMetaData::try_from(connector_metadata)?;
-    let endpoint_prefix = metadata.endpoint_prefix;
-    Ok(base_url.replace("{{merchant_endpoint_prefix}}", &endpoint_prefix))
-}
-
 impl ConnectorPreAuthentication for Netcetera {}
 impl ConnectorPreAuthenticationVersionCall for Netcetera {}
 impl ExternalAuthentication for Netcetera {}
@@ -278,8 +269,7 @@ impl ConnectorIntegration<PreAuthentication, PreAuthNRequestData, Authentication
         req: &PreAuthNRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        let base_url = build_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-        Ok(format!("{base_url}/3ds/versioning"))
+        Ok(format!("{}/3ds/versioning", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -370,8 +360,7 @@ impl
         req: &ConnectorAuthenticationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        let base_url = build_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-        Ok(format!("{base_url}/3ds/authentication"))
+        Ok(format!("{}/3ds/authentication", self.base_url(connectors)))
     }
 
     fn get_request_body(
