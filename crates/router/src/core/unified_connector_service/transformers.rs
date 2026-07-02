@@ -2108,6 +2108,23 @@ impl
             .map(|additional_payment_data| {
                 payments_grpc::AdditionalPaymentData::foreign_from(additional_payment_data)
             });
+
+        // Forward the original mandate amount so UCS can populate cybersource's
+        // `merchantInitiatedTransaction.originalAuthorizedAmount` on MIT charges,
+        // matching the Direct flow (recurring_mandate_payment_data on RouterData).
+        let original_payment_authorized_amount = match router_data
+            .recurring_mandate_payment_data
+            .as_ref()
+            .and_then(|data| {
+                data.original_payment_authorized_amount
+                    .zip(data.original_payment_authorized_currency)
+            }) {
+            Some((minor_amount, original_currency)) => Some(payments_grpc::Money {
+                minor_amount,
+                currency: payments_grpc::Currency::foreign_try_from(original_currency)?.into(),
+            }),
+            None => None,
+        };
         Ok(Self {
             split_payments: router_data
                 .request
@@ -2121,7 +2138,7 @@ impl
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
             }),
-            original_payment_authorized_amount: None,
+            original_payment_authorized_amount,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             metadata: router_data
                 .request
