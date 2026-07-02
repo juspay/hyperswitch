@@ -123,7 +123,6 @@ impl<F: Send + Clone + Sync>
         platform: &domain::Platform,
         _profile: &domain::Profile,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _request_payload: Option<serde_json::Value>,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentAttemptRecordData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();

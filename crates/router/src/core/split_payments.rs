@@ -330,7 +330,6 @@ pub(crate) async fn split_payments_execute_core(
             get_tracker_response,
             CallConnectorAction::Trigger,
             header_payload.clone(),
-            None,
         ))
         .await?;
 
@@ -423,7 +422,6 @@ pub(crate) async fn split_payments_execute_core(
             get_tracker_response,
             CallConnectorAction::Trigger,
             header_payload.clone(),
-            None,
         ))
         .await?;
 

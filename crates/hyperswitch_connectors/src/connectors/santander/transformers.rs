@@ -1939,7 +1939,7 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
             .amount
             .map(|amount| {
                 StringMajorUnitForConnector
-                    .convert(amount, value.request.currency)
+                    .convert(amount, enums::Currency::BRL)
                     .change_context(errors::ConnectorError::ParsingFailed)
             })
             .transpose()?;
@@ -2069,20 +2069,13 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderPixQRPaymentRequ
                         );
                         Some(cal)
                     }
-                    None => {
-                        let cal = SantanderPixRequestCalendar::Immediate(
-                            SantanderPixImmediateCalendarRequest { expiracao: 3600 },
-                        );
-
-                        Some(cal)
-                    }
+                    None => None,
                 };
 
                 let (cpf, cnpj) = value
                     .request
                     .customer_document_details
                     .as_ref()
-                    .or(value.customer_document_details.as_ref())
                     .map(|customer_document_details| {
                         match customer_document_details.document_type {
                             common_types::customers::DocumentKind::Cpf => (
@@ -2212,7 +2205,7 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderPixQRPaymentRequ
                         .amount
                         .map(|amount| {
                             StringMajorUnitForConnector
-                                .convert(amount, value.request.currency)
+                                .convert(amount, enums::Currency::BRL)
                                 .change_context(errors::ConnectorError::ParsingFailed)
                                 .map(|original| SantanderValue { original })
                         })

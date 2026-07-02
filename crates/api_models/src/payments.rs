@@ -2315,24 +2315,24 @@ pub struct CaptureResponse {
     pub reference_id: Option<String>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq)]
 pub enum Amount {
     Value(NonZeroI64),
     #[default]
     Zero,
 }
 
-impl Serialize for Amount {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            Self::Value(val) => serializer.serialize_i64(val.get()),
-            Self::Zero => serializer.serialize_i64(0),
-        }
-    }
-}
+// impl Serialize for Amount {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         match self {
+//             Self::Value(val) => serializer.serialize_i64(val.get()),
+//             Self::Zero => serializer.serialize_i64(0),
+//         }
+//     }
+// }
 
 impl From<Amount> for MinorUnit {
     fn from(amount: Amount) -> Self {
@@ -3118,9 +3118,6 @@ mod payment_method_data_serde {
 
         match deserialize_to_inner {
             __Inner::OptionalPaymentMethod(value) => {
-                if value.is_null() {
-                    return Ok(None);
-                }
                 let parsed_value = serde_json::from_value::<__InnerPaymentMethodData>(value)
                     .map_err(|serde_json_error| de::Error::custom(serde_json_error.to_string()))?;
 
@@ -6181,6 +6178,7 @@ pub struct CustomRecoveryPaymentMethodData {
     pub additional_payment_method_info: AdditionalCardInfo,
 }
 
+// #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, ToSchema)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[cfg(feature = "v1")]
 pub enum PaymentIdType {
@@ -6194,6 +6192,22 @@ pub enum PaymentIdType {
     PreprocessingId(String),
 }
 
+// #[cfg(feature = "v1")]
+// impl Serialize for PaymentIdType {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         match self {
+//             Self::PaymentIntentId(id) => serializer.serialize_str(id.get_string_repr()),
+//             Self::ConnectorTransactionId(id) => serializer.serialize_str(id),
+//             Self::PaymentAttemptId(id) => serializer.serialize_str(id),
+//             Self::PreprocessingId(id) => serializer.serialize_str(id),
+//         }
+//     }
+// }
+
+// #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, ToSchema)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[cfg(feature = "v2")]
 pub enum PaymentIdType {
@@ -6206,6 +6220,21 @@ pub enum PaymentIdType {
     /// The identifier for preprocessing step
     PreprocessingId(String),
 }
+
+// #[cfg(feature = "v2")]
+// impl Serialize for PaymentIdType {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         match self {
+//             Self::PaymentIntentId(id) => serializer.serialize_str(id.get_string_repr()),
+//             Self::ConnectorTransactionId(id) => serializer.serialize_str(id),
+//             Self::PaymentAttemptId(id) => serializer.serialize_str(id),
+//             Self::PreprocessingId(id) => serializer.serialize_str(id),
+//         }
+//     }
+// }
 
 #[cfg(feature = "v1")]
 impl fmt::Display for PaymentIdType {

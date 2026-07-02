@@ -49,7 +49,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
-        _request_payload: Option<serde_json::Value>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -190,7 +189,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
             client_session_id: None,
             vault_session_details: None,
             external_vault_pmd: None,
-            request_payload: None,
+            update_request_fields: None,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),

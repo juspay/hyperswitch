@@ -9,7 +9,6 @@ pub mod operations;
 pub mod session_token;
 
 pub mod client_session;
-pub mod request_payload_helpers;
 #[cfg(feature = "retry")]
 pub mod retry;
 pub mod routing;
@@ -192,7 +191,6 @@ pub async fn payments_operation_core<F, Req, Op, FData, D>(
     get_tracker_response: operations::GetTrackerResponse<D>,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-    _request_payload: Option<serde_json::Value>,
 ) -> RouterResult<(
     D,
     Req,
@@ -529,7 +527,6 @@ pub async fn internal_payments_operation_core<F, Req, Op, FData, D>(
     get_tracker_response: operations::GetTrackerResponse<D>,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-    _request_payload: Option<serde_json::Value>,
 ) -> RouterResult<(
     D,
     Req,
@@ -662,7 +659,6 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     header_payload: HeaderPayload,
     dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
-    request_payload: Option<serde_json::Value>,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -723,7 +719,6 @@ where
             payment_method_fetch_data,
             dimensions,
             payment_pre_fetched_info,
-            request_payload,
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -1564,7 +1559,6 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
     dimensions: &DimensionsWithProcessorAndProviderMerchantId,
-    request_payload: Option<serde_json::Value>,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -1622,7 +1616,6 @@ where
             operations::PaymentMethodFetchData::default(),
             dimensions,
             None,
-            request_payload,
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -1824,7 +1817,6 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-    _request_payload: Option<serde_json::Value>,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -1908,7 +1900,6 @@ pub async fn external_vault_proxy_for_payments_operation_core<F, Req, Op, FData,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-    _request_payload: Option<serde_json::Value>,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -2079,7 +2070,6 @@ where
             &platform,
             &profile,
             &header_payload,
-            None,
         )
         .await?;
 
@@ -2165,7 +2155,6 @@ where
             &platform,
             &profile,
             &header_payload,
-            None,
         )
         .await?;
 
@@ -2786,7 +2775,6 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     eligible_connectors: Option<Vec<enums::Connector>>,
     header_payload: HeaderPayload,
     payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
-    request_payload: Option<serde_json::Value>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -2829,7 +2817,6 @@ where
             header_payload.clone(),
             &dimensions,
             payment_pre_fetched_info,
-            request_payload,
         )
         .await?;
 
@@ -2859,7 +2846,6 @@ pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-    request_payload: Option<serde_json::Value>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -2895,7 +2881,6 @@ where
             header_payload.clone(),
             return_raw_connector_response,
             &dimensions,
-            request_payload,
         )
         .await?;
 
@@ -2927,7 +2912,6 @@ pub async fn external_vault_proxy_for_payments_operation_core<F, Req, Op, FData,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
     dimensions: DimensionsWithProcessorAndProviderMerchantId,
-    request_payload: Option<serde_json::Value>,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -2989,7 +2973,6 @@ where
         payment_method_info,
         &dimensions,
         None,
-        request_payload,
     ))
     .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -3510,7 +3493,6 @@ pub async fn external_vault_proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-    request_payload: Option<serde_json::Value>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -3546,7 +3528,6 @@ where
             header_payload.clone(),
             return_raw_connector_response,
             dimensions,
-            request_payload,
         )
         .await?;
 
@@ -3576,7 +3557,6 @@ pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-    request_payload: Option<serde_json::Value>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -3614,7 +3594,6 @@ where
             &platform,
             &profile,
             &header_payload,
-            request_payload.clone(),
         )
         .await?;
 
@@ -3630,7 +3609,6 @@ where
             call_connector_action,
             header_payload.clone(),
             return_raw_connector_response,
-            request_payload,
         )
         .await?;
 
@@ -3658,7 +3636,6 @@ pub async fn external_vault_proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-    request_payload: Option<serde_json::Value>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -3696,7 +3673,6 @@ where
             &platform,
             &profile,
             &header_payload,
-            request_payload.clone(),
         )
         .await?;
 
@@ -3712,7 +3688,6 @@ where
             call_connector_action,
             header_payload.clone(),
             return_raw_connector_response,
-            request_payload,
         )
         .await?;
 
@@ -3775,7 +3750,6 @@ pub async fn record_attempt_core(
             &platform,
             &profile,
             &header_payload,
-            None,
         )
         .await?;
     let default_payment_status_data = PaymentStatusData {
@@ -3823,8 +3797,7 @@ pub async fn record_attempt_core(
             },
             CallConnectorAction::Trigger,
             HeaderPayload::default(),
-            None,
-         None,))
+            None,))
         .await
         {
             Ok((data, _, _, _)) => data,
@@ -4122,7 +4095,6 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     payment_id: id_type::GlobalPaymentId,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-    request_payload: Option<serde_json::Value>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -4166,7 +4138,6 @@ where
             &platform,
             &profile,
             &header_payload,
-            request_payload.clone(),
         )
         .await?;
 
@@ -4188,7 +4159,6 @@ where
                 get_tracker_response,
                 call_connector_action,
                 header_payload.clone(),
-                request_payload.clone(),
             )
             .await?;
             (
@@ -4215,7 +4185,6 @@ where
                 get_tracker_response,
                 call_connector_action,
                 header_payload.clone(),
-                request_payload.clone(),
             )
             .await?;
             (
@@ -4266,7 +4235,6 @@ pub(crate) async fn payments_execute_wrapper(
             payment_id,
             CallConnectorAction::Trigger,
             header_payload,
-            None,
         ))
         .await
     } else {
@@ -4380,7 +4348,6 @@ async fn decide_authorize_or_setup_intent_flow(
             payment_id,
             CallConnectorAction::Trigger,
             header_payload,
-            None,
         ))
         .await
     } else {
@@ -4401,7 +4368,6 @@ async fn decide_authorize_or_setup_intent_flow(
             payment_id,
             CallConnectorAction::Trigger,
             header_payload,
-            None,
         ))
         .await
     }
@@ -4634,7 +4600,6 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             None,
             HeaderPayload::default(),
             None,
-            None,
         ))
         .await?;
         let payments_response = match response {
@@ -4829,7 +4794,6 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 None,
                 HeaderPayload::default(),
                 None,
-                None,
             ),
         )
         .await?;
@@ -5005,7 +4969,6 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 &platform,
                 &profile,
                 &HeaderPayload::default(),
-                None,
             )
             .await?;
 
@@ -5052,7 +5015,6 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 get_tracker_response,
                 call_connector_action,
                 HeaderPayload::default(),
-                None,
             ))
             .await?;
 
@@ -5230,7 +5192,6 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
                     None,
-                    None,
                 ))
                 .await?
             } else {
@@ -5253,7 +5214,6 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
-                    None,
                     None,
                 ))
                 .await?
@@ -5289,7 +5249,6 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::default(),
-                    None,
                     None,
                 ),
             )
@@ -9515,6 +9474,22 @@ pub struct MandateConnectorDetails {
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
+/// Fields extracted from a payment-update request payload that are needed to
+/// compute the delta between the stored payment intent and the incoming update.
+#[derive(Clone, Debug)]
+pub struct PaymentDataUpdateRequestFields {
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub amount: Option<MinorUnit>,
+    pub connector_attempt_metadata: Option<serde_json::Value>,
+    pub connector_transaction_id: String,
+    pub description: Option<String>,
+    pub billing_descriptor: Option<common_payments_types::BillingDescriptor>,
+    pub billing_address: Option<api_models::payments::AddressDetails>,
+    pub metadata: Option<serde_json::Value>,
+    pub merchant_order_reference_id: Option<String>,
+    pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
+}
+
 #[derive(Clone)]
 pub struct PaymentData<F>
 where
@@ -9573,9 +9548,9 @@ where
     pub client_session_id: Option<id_type::ClientSessionId>,
     pub external_vault_pmd:
         Option<hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData>,
-    /// Optional: Original request payload from the route handler
-    /// Stored as generic serde_json::Value to support multiple request types
-    pub request_payload: Option<serde_json::Value>,
+    /// Fields from the update request payload used to compare against
+    /// the stored payment intent. Populated only for the payment-update flow.
+    pub update_request_fields: Option<PaymentDataUpdateRequestFields>,
 }
 
 #[cfg(feature = "v1")]

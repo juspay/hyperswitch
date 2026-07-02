@@ -80,7 +80,6 @@ use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
-use serde_json;
 
 #[cfg(feature = "v2")]
 pub use self::payment_attempt_list::PaymentGetListAttempts;
@@ -259,7 +258,6 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         payment_method_fetch_data: PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         payment_pre_fetched_info: Option<PaymentPreFetchedInformation>,
-        request_payload: Option<serde_json::Value>,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
     #[cfg(feature = "v2")]
@@ -272,7 +270,6 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         platform: &domain::Platform,
         profile: &domain::Profile,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        request_payload: Option<serde_json::Value>,
     ) -> RouterResult<GetTrackerResponse<D>>;
 
     #[cfg(feature = "v2")]

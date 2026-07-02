@@ -272,7 +272,6 @@ async fn payments_create_core() {
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
         None,
-        None,
     ))
     .await
     .unwrap();
@@ -587,7 +586,6 @@ async fn payments_create_core_adyen_no_redirect() {
         None,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
-        None,
         None,
     ))
     .await

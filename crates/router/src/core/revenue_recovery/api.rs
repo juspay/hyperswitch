@@ -58,7 +58,6 @@ pub async fn call_psync_api(
             &platform_from_revenue_recovery_data,
             &revenue_recovery_data.profile,
             &payments_domain::HeaderPayload::default(),
-            None,
         )
         .await?;
 
@@ -78,7 +77,6 @@ pub async fn call_psync_api(
         get_tracker_response,
         payments::CallConnectorAction::Trigger,
         payments_domain::HeaderPayload::default(),
-        None,
     ))
     .await?;
     Ok(payment_data)
@@ -128,7 +126,6 @@ pub async fn call_proxy_api(
             &platform_from_revenue_recovery_payment_data,
             &revenue_recovery_payment_data.profile,
             &payments_domain::HeaderPayload::default(),
-            None,
         )
         .await?;
 
@@ -148,7 +145,6 @@ pub async fn call_proxy_api(
         get_tracker_response,
         payments::CallConnectorAction::Trigger,
         payments_domain::HeaderPayload::default(),
-        None,
         None,
     ))
     .await?;

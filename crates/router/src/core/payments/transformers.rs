@@ -148,7 +148,7 @@ where
         state,
         customer_data: customer_details,
         customer_id: payment_data.payment_intent.customer_id.clone(),
-        request_payload: None,
+        update_request_fields: None,
     };
 
     let connector_mandate_request_reference_id = payment_data
@@ -2020,7 +2020,7 @@ where
         state,
         customer_data: customer_details.clone(),
         customer_id: payment_data.payment_intent.customer_id.clone(),
-        request_payload: None,
+        update_request_fields: None,
     };
 
     let customer_id = payment_data.payment_intent.customer_id.clone();
@@ -2340,7 +2340,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         state,
         customer_data: customer_details,
         customer_id: payment_data.payment_intent.customer_id.clone(),
-        request_payload: None,
+        update_request_fields: None,
     };
 
     let customer_id = payment_data.payment_intent.customer_id.clone();
@@ -5035,7 +5035,7 @@ where
     state: &'a SessionState,
     customer_data: Option<CustomerData>,
     customer_id: Option<common_utils::id_type::CustomerId>,
-    pub request_payload: Option<serde_json::Value>,
+    pub update_request_fields: Option<payments::PaymentDataUpdateRequestFields>,
 }
 
 #[cfg(feature = "v2")]
@@ -6460,30 +6460,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse feature metadata")?;
 
-        let request_payments = additional_data
-            .request_payload
-            .as_ref()
-            .map(|payload| {
-                payload
-                    .clone()
-                    .parse_value::<api_models::payments::PaymentsRequest>("PaymentsRequest")
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse request payload")?;
+        let request_fields = additional_data.update_request_fields.as_ref();
 
-        let request_feature_metadata = request_payments
-            .as_ref()
-            .and_then(|req| req.feature_metadata.clone());
+        let request_feature_metadata = request_fields.and_then(|req| req.feature_metadata.clone());
 
         let feature_metadata = api_payments::FeatureMetadata::diff(
             payment_data_feature_metadata.as_ref(),
             request_feature_metadata,
         );
 
-        let request_description = request_payments
-            .as_ref()
-            .and_then(|req| req.description.clone());
+        let request_description = request_fields.and_then(|req| req.description.clone());
         let description = changed(
             &payment_data.payment_intent.description,
             request_description,
@@ -6491,9 +6477,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
 
         let billing_descriptor = match (
             payment_data.payment_intent.get_billing_descriptor(),
-            request_payments
-                .clone()
-                .and_then(|req| req.billing_descriptor.clone()),
+            request_fields.and_then(|req| req.billing_descriptor.clone()),
         ) {
             (Some(stored_val), Some(req_val)) => {
                 if req_val != stored_val {
@@ -6508,9 +6492,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
 
         let metadata = match (
             payment_data.payment_intent.metadata.clone(),
-            request_payments
-                .as_ref()
-                .and_then(|req| req.metadata.clone()),
+            request_fields.and_then(|req| req.metadata.clone()),
         ) {
             (Some(stored_val), Some(req_val)) => {
                 if req_val != stored_val {
@@ -6523,16 +6505,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
             _ => None,
         };
 
-        let request_amount = request_payments
-            .as_ref()
-            .and_then(|req| req.amount)
-            .map(MinorUnit::from);
+        let request_amount = request_fields.and_then(|req| req.amount);
 
         let amount = changed(&Some(payment_data.payment_intent.amount), request_amount);
 
-        let request_merchant_order_reference_id = request_payments
-            .as_ref()
-            .and_then(|req| req.merchant_order_reference_id.clone());
+        let request_merchant_order_reference_id =
+            request_fields.and_then(|req| req.merchant_order_reference_id.clone());
         let stored_merchant_order_reference_id = payment_data
             .payment_intent
             .merchant_order_reference_id
@@ -6547,10 +6525,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
             .and_then(|address| address.address)
             .map(api_models::payments::AddressDetails::from);
 
-        let request_billing_address = request_payments
-            .as_ref()
-            .and_then(|req| req.billing.as_ref())
-            .and_then(|billing| billing.address.clone());
+        let request_billing_address = request_fields.and_then(|req| req.billing_address.clone());
 
         let billing_address = changed(&stored_billing_address, request_billing_address.clone())
             .or(request_billing_address);
@@ -6561,10 +6536,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?;
 
-        let request_customer_document_details = request_payments
-            .as_ref()
-            .and_then(|req| req.customer.as_ref())
-            .and_then(|customer| customer.document_details.clone());
+        let request_customer_document_details =
+            request_fields.and_then(|req| req.customer_document_details.clone());
 
         let customer_document_details = changed(
             &stored_customer_document_details,
@@ -8129,7 +8102,7 @@ pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
         state,
         customer_data: customer_details,
         customer_id: payment_data.payment_intent.customer_id.clone(),
-        request_payload: payment_data.request_payload,
+        update_request_fields: payment_data.update_request_fields,
     };
 
     let customer_id = payment_data.payment_intent.customer_id.clone();

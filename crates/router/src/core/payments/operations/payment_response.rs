@@ -37,8 +37,6 @@ use tracing_futures::Instrument;
 use super::payment_update::PaymentUpdate;
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
 #[cfg(feature = "v1")]
-use crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId;
-#[cfg(feature = "v1")]
 use crate::core::payment_methods::transformers::call_modular_payment_method_update;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::core::routing::helpers as routing_helpers;
@@ -4331,12 +4329,19 @@ impl<F: Clone + Send + Sync>
                     let storage_scheme = processor.get_account().storage_scheme;
                     let key_store = processor.get_key_store();
 
+                    let update_request_fields = payment_data
+                        .update_request_fields
+                        .as_ref()
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("update_request_fields not found in payment_data")?;
+
                     let (_, attempt_update, intent_update) =
                         Box::pin(PaymentUpdate::compute_payment_update_changes(
                             db,
                             processor,
                             dimensions,
                             payment_data.clone(),
+                            update_request_fields,
                         ))
                         .await?;
 

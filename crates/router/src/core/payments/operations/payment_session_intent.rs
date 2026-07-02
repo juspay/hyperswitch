@@ -126,7 +126,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
         platform: &domain::Platform,
         _profile: &domain::Profile,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _request_payload: Option<serde_json::Value>,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
         let storage_scheme = platform.get_processor().get_account().storage_scheme;

@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     pii::Email,
+    types::MinorUnit,
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -26,7 +27,7 @@ use crate::{
         mandate::helpers as m_helpers,
         payments::{
             self, client_session::ClientSessionManager, helpers, operations, CustomerDetails,
-            PaymentAddress, PaymentData,
+            PaymentAddress, PaymentData, PaymentDataUpdateRequestFields,
         },
         utils::{self as core_utils},
     },
@@ -64,7 +65,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
-        request_payload: Option<serde_json::Value>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
@@ -562,7 +562,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             client_session_id: None,
             vault_session_details: None,
             external_vault_pmd: None,
-            request_payload,
+            update_request_fields: Some(Self::extract_update_request_fields(request)),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1048,12 +1048,37 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
 impl PaymentUpdate {
     #[cfg(feature = "v1")]
+    fn extract_update_request_fields(
+        request: &api::PaymentsRequest,
+    ) -> PaymentDataUpdateRequestFields {
+        PaymentDataUpdateRequestFields {
+            feature_metadata: request.feature_metadata.clone(),
+            amount: request.amount.map(MinorUnit::from),
+            connector_attempt_metadata: None,
+            connector_transaction_id: String::new(),
+            description: request.description.clone(),
+            billing_descriptor: request.billing_descriptor.clone(),
+            billing_address: request
+                .billing
+                .as_ref()
+                .and_then(|billing| billing.address.clone()),
+            metadata: request.metadata.clone(),
+            merchant_order_reference_id: request.merchant_order_reference_id.clone(),
+            customer_document_details: request
+                .customer
+                .as_ref()
+                .and_then(|customer| customer.document_details.clone()),
+        }
+    }
+
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     pub(crate) async fn compute_payment_update_changes<F>(
         state: &SessionState,
         processor: &domain::Processor,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         payment_data: PaymentData<F>,
+        request: &PaymentDataUpdateRequestFields,
     ) -> RouterResult<(
         PaymentData<F>,
         storage::PaymentAttemptUpdate,
@@ -1229,47 +1254,30 @@ impl PaymentUpdate {
 
         let shipping_cost = payment_data.payment_intent.shipping_cost;
 
-        // Deserialize request_payload to PaymentsRequest for comparison
-        let request_payments = payment_data
-            .request_payload
-            .as_ref()
-            .map(|payload| {
-                payload
-                    .clone()
-                    .parse_value::<api_models::payments::PaymentsRequest>("PaymentsRequest")
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse request payload")?;
-
         let payment_intent_feature_metadata = payment_data
             .payment_intent
             .get_optional_feature_metadata()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse payment intent feature metadata")?;
 
-        let merchant_order_reference_id = request_payments
-            .as_ref()
-            .and_then(|req| req.merchant_order_reference_id.clone())
-            .or(payment_data
+        let merchant_order_reference_id =
+            request.merchant_order_reference_id.clone().or(payment_data
                 .payment_intent
                 .merchant_order_reference_id
                 .clone());
 
-        let description = request_payments
-            .as_ref()
-            .and_then(|req| req.description.clone())
+        let description = request
+            .description
+            .clone()
             .or(payment_data.payment_intent.description.clone());
 
-        let metadata = request_payments
-            .as_ref()
-            .and_then(|req| req.metadata.clone())
+        let metadata = request
+            .metadata
+            .clone()
             .or(payment_data.payment_intent.metadata.clone());
 
         let feature_metadata = match (
-            request_payments
-                .as_ref()
-                .and_then(|req| req.feature_metadata.clone()),
+            request.feature_metadata.clone(),
             payment_intent_feature_metadata,
         ) {
             (Some(request_meta), intent_meta) => Some(request_meta.merge(intent_meta)),
@@ -1360,10 +1368,21 @@ impl PaymentUpdate {
         let storage_scheme = processor.get_account().storage_scheme;
         let key_store = processor.get_key_store();
 
-        let (mut payment_data, attempt_update, intent_update) = Box::pin(
-            Self::compute_payment_update_changes(state, processor, dimensions, payment_data),
-        )
-        .await?;
+        let update_request_fields = payment_data
+            .update_request_fields
+            .clone()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("update_request_fields not found in payment_data")?;
+
+        let (mut payment_data, attempt_update, intent_update) =
+            Box::pin(Self::compute_payment_update_changes(
+                state,
+                processor,
+                dimensions,
+                payment_data,
+                &update_request_fields,
+            ))
+            .await?;
 
         payment_data.payment_attempt = state
             .store
