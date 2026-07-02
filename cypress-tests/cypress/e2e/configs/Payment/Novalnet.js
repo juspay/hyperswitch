@@ -855,10 +855,17 @@ export const connectorDetails = {
             country: "DE",
           },
         },
+        customer_acceptance: customerAcceptance,
+        setup_future_usage: "off_session",
+        mandate_data: multiUseMandateData,
+        payment_type: "new_mandate",
+        currency: "EUR",
       },
       Response: {
         status: 200,
-        body: {},
+        body: {
+          status: "succeeded",
+        },
       },
     },
     BankdebitMIT: {
@@ -871,7 +878,9 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {},
+        body: {
+          status: "succeeded",
+        },
       },
     },
   },
