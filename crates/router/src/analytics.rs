@@ -3775,7 +3775,7 @@ pub mod routes {
                         let search_req = GetSearchRequestWithIndex {
                             index: SearchIndex::SessionizerPaymentIntents,
                             search_req: GetSearchRequest {
-                                query: String::new(),
+                                query: constraints.query.unwrap_or_default(),
                                 filters: Some(filters),
                                 time_range: constraints.time_range,
                                 offset: constraints.offset.map(i64::from).unwrap_or(0),
@@ -3848,7 +3848,7 @@ pub mod routes {
                         let search_req = GetSearchRequestWithIndex {
                             index: SearchIndex::SessionizerPaymentIntents,
                             search_req: GetSearchRequest {
-                                query: String::new(),
+                                query: constraints.query.unwrap_or_default(),
                                 filters: Some(filters),
                                 time_range: constraints.time_range,
                                 offset: constraints.offset.map(i64::from).unwrap_or(0),
