@@ -195,6 +195,27 @@ export const connectorDetails = {
         },
       },
     },
+    ExtendedCardBin: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    },
     Capture: {
       Request: {
         amount_to_capture: 6000,
@@ -885,7 +906,7 @@ export const connectorDetails = {
     },
     RequiresCVVSavedCardWithCVV: {
       Request: {
-        setup_future_usage: "on_session",
+        card_cvc: "123",
       },
       Response: {
         status: 200,

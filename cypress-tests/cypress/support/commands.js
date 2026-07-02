@@ -10573,3 +10573,219 @@ Cypress.Commands.add("retrieveNonExistentPayoutTest", (globalState) => {
     expect(response.status).to.equal(404);
   });
 });
+
+// ============================================
+// Superposition Config Commands
+// ============================================
+
+Cypress.Commands.add(
+  "setSuperpositionConfig",
+  (globalState, overrideKey, overrideValue, profileId) => {
+    const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
+    const superpositionSecret = globalState.get("superpositionSecret");
+    const superpositionApiKey = globalState.get("superpositionApiKey");
+    const resolvedProfileId = profileId || globalState.get("profileId");
+    const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
+    const workspaceId = globalState.get("superpositionWorkspaceId") || "hyperswitch";
+
+    if (!superpositionBaseUrl || !superpositionSecret || !superpositionApiKey) {
+      cy.task(
+        "cli_log",
+        "Superposition credentials not set (SUPERPOSITION_BASE_URL, SUPERPOSITION_SECRET, SUPERPOSITION_API_KEY) — skipping config set"
+      );
+      return;
+    }
+
+    cy.request({
+      method: "PUT",
+      url: `${superpositionBaseUrl}/context`,
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        "x-org-id": orgId,
+        "x-workspace": workspaceId,
+        "X-Superposition-Secret": superpositionSecret,
+        "Content-Type": "application/json",
+        "api-key": superpositionApiKey,
+      },
+      body: {
+        override: { [overrideKey]: overrideValue },
+        context: { profile_id: resolvedProfileId },
+        description: "test config",
+        change_reason: "automated test",
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status, "superposition_config_status").to.equal(200);
+        cy.task(
+          "cli_log",
+          `Superposition config set: ${overrideKey}=${overrideValue} for profile_id=${resolvedProfileId}`
+        );
+      });
+    });
+    // Wait for the backend's superposition polling cache to refresh (polling_interval=2s in dev)
+    cy.wait(3500);
+  }
+);
+
+Cypress.Commands.add("deleteSuperpositionConfig", (globalState, profileId) => {
+  const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
+  const superpositionSecret = globalState.get("superpositionSecret");
+  const superpositionApiKey = globalState.get("superpositionApiKey");
+  const resolvedProfileId = profileId || globalState.get("profileId");
+  const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
+  const workspaceId = globalState.get("superpositionWorkspaceId") || "hyperswitch";
+
+  if (!superpositionBaseUrl || !superpositionSecret || !superpositionApiKey) {
+    cy.task(
+      "cli_log",
+      "Superposition credentials not set — skipping config delete"
+    );
+    return;
+  }
+
+  cy.request({
+    method: "DELETE",
+    url: `${superpositionBaseUrl}/context`,
+    headers: {
+      "User-Agent": "Mozilla/5.0",
+      "x-org-id": orgId,
+      "x-workspace": workspaceId,
+      "X-Superposition-Secret": superpositionSecret,
+      "Content-Type": "application/json",
+      "api-key": superpositionApiKey,
+    },
+    body: {
+      context: { profile_id: resolvedProfileId },
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        cy.task(
+          "cli_log",
+          `Superposition config deleted for profile_id=${resolvedProfileId}`
+        );
+      } else {
+        cy.task(
+          "cli_log",
+          `Superposition config delete returned status ${response.status} (may not exist)`
+        );
+      }
+    });
+  });
+});
+
+Cypress.Commands.add(
+  "setExtendedCardBinConfig",
+  (globalState, value, profileId) => {
+    const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
+    const superpositionSecret = globalState.get("superpositionSecret");
+    const superpositionApiKey = globalState.get("superpositionApiKey");
+    const resolvedProfileId = profileId || globalState.get("profileId");
+    const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
+    const workspaceId = globalState.get("superpositionWorkspaceId") || "hyperswitch";
+
+    if (!superpositionBaseUrl || !superpositionSecret || !superpositionApiKey) {
+      cy.task(
+        "cli_log",
+        "Superposition credentials not set — skipping extended card bin config"
+      );
+      return;
+    }
+
+    cy.request({
+      method: "PUT",
+      url: `${superpositionBaseUrl}/context`,
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        "x-org-id": orgId,
+        "x-workspace": workspaceId,
+        "X-Superposition-Secret": superpositionSecret,
+        "Content-Type": "application/json",
+        "api-key": superpositionApiKey,
+      },
+      body: {
+        override: { enable_extended_card_bin: value },
+        context: { profile_id: resolvedProfileId },
+        description: "test config",
+        change_reason: "automated test",
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(
+          response.status,
+          "superposition set extended_card_bin status"
+        ).to.equal(200);
+        cy.task(
+          "cli_log",
+          `Extended card bin config set: enable_extended_card_bin=${value} for profile_id=${resolvedProfileId}`
+        );
+      });
+    });
+    // Wait for the backend's superposition polling cache to refresh (polling_interval=2s in dev)
+    cy.wait(3500);
+  }
+);
+
+Cypress.Commands.add(
+  "deleteExtendedCardBinConfig",
+  (globalState, profileId) => {
+    const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
+    const superpositionSecret = globalState.get("superpositionSecret");
+    const superpositionApiKey = globalState.get("superpositionApiKey");
+    const resolvedProfileId = profileId || globalState.get("profileId");
+    const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
+    const workspaceId = globalState.get("superpositionWorkspaceId") || "hyperswitch";
+
+    if (!superpositionBaseUrl || !superpositionSecret || !superpositionApiKey) {
+      cy.task(
+        "cli_log",
+        "Superposition credentials not set — skipping extended card bin config delete"
+      );
+      return;
+    }
+
+    cy.request({
+      method: "DELETE",
+      url: `${superpositionBaseUrl}/context`,
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        "x-org-id": orgId,
+        "x-workspace": workspaceId,
+        "X-Superposition-Secret": superpositionSecret,
+        "Content-Type": "application/json",
+        "api-key": superpositionApiKey,
+      },
+      body: {
+        context: { profile_id: resolvedProfileId },
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          cy.task(
+            "cli_log",
+            `Extended card bin config deleted for profile_id=${resolvedProfileId}`
+          );
+        } else {
+          cy.task(
+            "cli_log",
+            `Extended card bin config delete returned ${response.status} (may not exist)`
+          );
+        }
+      });
+    });
+    // Wait for the backend's superposition polling cache to refresh (polling_interval=2s in dev)
+    cy.wait(3500);
+  }
+);
