@@ -217,10 +217,6 @@ export const connectorDetails = {
       },
     },
     PayoutPriority: {
-      Configs: {
-        // AdyenPlatform test IBAN does not support instant priority payouts
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payout_type: "bank",
         priority: "instant",
@@ -233,8 +229,7 @@ export const connectorDetails = {
       },
       // Status "initiated" is correct for instant priority with auto_fulfill=true
       // (create+confirm+fulfil flow). Verified via API Testing — confirm=true,
-      // auto_fulfill=true returns status "initiated". TRIGGER_SKIP=true because
-      // AdyenPlatform test IBAN does not support instant priority payouts.
+      // auto_fulfill=true returns status "initiated".
       Response: {
         status: 200,
         body: {
