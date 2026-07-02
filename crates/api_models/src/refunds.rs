@@ -518,6 +518,81 @@ pub struct RefundListResponse {
     pub data: Vec<RefundResponse>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PlatformRefundListRequest {
+    /// The identifier for the connected (processor) merchant whose credentials processed the refund
+    #[schema(value_type = Option<String>, example = "merchant_1668273825")]
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    /// Limit on the number of objects to return
+    pub limit: Option<i64>,
+    /// The starting point within a list of objects
+    pub offset: Option<i64>,
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc)
+    #[serde(flatten)]
+    pub time_range: Option<TimeRange>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct PlatformRefundListItem {
+    /// Unique identifier for the refund
+    pub refund_id: String,
+    /// The payment id against which the refund was initiated
+    #[schema(value_type = String)]
+    pub payment_id: common_utils::id_type::PaymentId,
+    /// Identifier of the platform merchant. Equals the caller's merchant id.
+    #[schema(value_type = String, example = "platform_merchant_1")]
+    pub merchant_id: common_utils::id_type::MerchantId,
+    /// Identifier of the connected merchant that owns this refund.
+    #[schema(value_type = Option<String>, example = "connected_merchant_1")]
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    /// Identifier of the business profile under which this refund was created.
+    #[schema(value_type = Option<String>, example = "pro_abcdefghijklmnop")]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+    /// The connector used for the refund
+    #[schema(example = "stripe")]
+    pub connector: String,
+    /// The merchant_connector_id of the processor through which this refund went through
+    #[schema(value_type = Option<String>)]
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    /// A unique identifier for a refund provided by the connector
+    pub connector_refund_id: Option<String>,
+    /// Payment attempt id against which the refund is initiated
+    pub attempt_id: String,
+    /// The refund amount in lowest denomination of the currency
+    #[schema(value_type = i64, example = 6540)]
+    pub refund_amount: MinorUnit,
+    /// Total payment amount on which the refund was initiated
+    #[schema(value_type = i64, example = 6540)]
+    pub total_amount: MinorUnit,
+    /// The three-letter ISO currency code
+    #[schema(value_type = Currency)]
+    pub currency: enums::Currency,
+    /// The status of the refund
+    pub refund_status: enums::RefundStatus,
+    /// Reason for the refund
+    pub refund_reason: Option<String>,
+    /// Description of the refund
+    pub description: Option<String>,
+    /// The timestamp at which refund was created
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    /// The timestamp at which refund was last modified
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub modified_at: PrimitiveDateTime,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct PlatformRefundListResponse {
+    /// The number of refunds included in the list
+    pub size: usize,
+    /// The list of refund summaries across the platform's connected merchants
+    pub data: Vec<PlatformRefundListItem>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, ToSchema)]
 pub struct RefundListMetaData {
     /// The list of available connector filters

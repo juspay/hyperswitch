@@ -1542,6 +1542,42 @@ pub async fn refund_list(
 }
 
 #[instrument(skip_all)]
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn refund_list_for_platform(
+    state: SessionState,
+    platform: domain::Platform,
+    req: api_models::refunds::PlatformRefundListRequest,
+) -> RouterResponse<api_models::refunds::PlatformRefundListResponse> {
+    let db = state.store;
+    let limit = validator::validate_refund_list(req.limit)?;
+    let offset = req.offset.unwrap_or_default();
+    let platform_merchant_id = platform.get_provider().get_account().get_id();
+
+    let refund_list = db
+        .filter_refund_by_platform_merchant_id(
+            platform_merchant_id,
+            &req.into(),
+            platform.get_provider().get_account().storage_scheme,
+            limit,
+            offset,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
+
+    let data: Vec<api_models::refunds::PlatformRefundListItem> = refund_list
+        .into_iter()
+        .map(ForeignFrom::foreign_from)
+        .collect();
+
+    Ok(services::ApplicationResponse::Json(
+        api_models::refunds::PlatformRefundListResponse {
+            size: data.len(),
+            data,
+        },
+    ))
+}
+
+#[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_filter_list(
     state: SessionState,
@@ -1797,6 +1833,35 @@ impl ForeignFrom<diesel_refund::Refund> for api::RefundResponse {
                 .as_ref()
                 .map(ConnectorTransactionId::get_id)
                 .map(ToOwned::to_owned),
+        }
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl ForeignFrom<diesel_refund::Refund> for api_models::refunds::PlatformRefundListItem {
+    fn foreign_from(refund: diesel_refund::Refund) -> Self {
+        Self {
+            refund_id: refund.refund_id,
+            payment_id: refund.payment_id,
+            merchant_id: refund.merchant_id,
+            processor_merchant_id: refund.processor_merchant_id,
+            profile_id: refund.profile_id,
+            connector: refund.connector,
+            merchant_connector_id: refund.merchant_connector_id,
+            connector_refund_id: refund
+                .connector_refund_id
+                .as_ref()
+                .map(ConnectorTransactionId::get_id)
+                .map(ToOwned::to_owned),
+            attempt_id: refund.attempt_id,
+            refund_amount: refund.refund_amount,
+            total_amount: refund.total_amount,
+            currency: refund.currency,
+            refund_status: refund.refund_status,
+            refund_reason: refund.refund_reason,
+            description: refund.description,
+            created_at: refund.created_at,
+            modified_at: refund.modified_at,
         }
     }
 }

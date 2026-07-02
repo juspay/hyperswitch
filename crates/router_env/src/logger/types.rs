@@ -261,6 +261,8 @@ pub enum Flow {
     RefundsUpdate,
     /// Refunds list flow.
     RefundsList,
+    /// Aggregated refunds list flow for a platform across its connected merchants.
+    PlatformRefundsList,
     /// Refunds filters flow
     RefundsFilters,
     /// Refunds aggregates flow

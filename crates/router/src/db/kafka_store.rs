@@ -3141,6 +3141,26 @@ impl RefundInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn filter_refund_by_platform_merchant_id(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        refund_details: &refunds::RefundListConstraints,
+        storage_scheme: MerchantStorageScheme,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
+        self.diesel_store
+            .filter_refund_by_platform_merchant_id(
+                platform_merchant_id,
+                refund_details,
+                storage_scheme,
+                limit,
+                offset,
+            )
+            .await
+    }
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_refund_by_meta_constraints(
         &self,
         processor_merchant_id: &id_type::MerchantId,

@@ -210,6 +210,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsRetrieveForceSync
             | Flow::RefundsUpdate
             | Flow::RefundsList
+            | Flow::PlatformRefundsList
             | Flow::RefundsFilters
             | Flow::RefundsAggregate
             | Flow::RefundsManualUpdate => Self::Refunds,

@@ -38,6 +38,15 @@ pub trait RefundDbExt: Sized {
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
     #[cfg(feature = "v1")]
+    async fn filter_by_platform_constraints(
+        conn: &PgPooledConn,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
+        refund_list_details: &refunds::RefundListConstraints,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
+
+    #[cfg(feature = "v1")]
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -174,6 +183,44 @@ impl RefundDbExt for Refund {
 
         if let Some(filter_refund_status) = &refund_list_details.refund_status {
             filter = filter.filter(dsl::refund_status.eq_any(filter_refund_status.clone()));
+        }
+
+        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
+
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_results_async(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering records by predicate")
+    }
+
+    #[cfg(feature = "v1")]
+    async fn filter_by_platform_constraints(
+        conn: &PgPooledConn,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
+        refund_list_details: &refunds::RefundListConstraints,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+        let mut filter = <Self as HasTable>::table()
+            .filter(dsl::merchant_id.eq(platform_merchant_id.to_owned()))
+            .order(dsl::modified_at.desc())
+            .limit(limit)
+            .offset(offset)
+            .into_boxed();
+
+        if let Some(processor_merchant_id) = &refund_list_details.processor_merchant_id {
+            filter = filter.filter(dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()));
+        }
+
+        if let Some(time_range) = refund_list_details.time_range {
+            filter = filter.filter(dsl::created_at.ge(time_range.start_time));
+
+            if let Some(end_time) = time_range.end_time {
+                filter = filter.filter(dsl::created_at.le(end_time));
+            }
         }
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());

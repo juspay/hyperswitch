@@ -487,6 +487,42 @@ pub async fn refunds_list(
 }
 
 #[cfg(all(feature = "v1", feature = "olap"))]
+/// Refunds - Platform List
+///
+/// To list the refunds across all connected merchants under a platform org
+#[instrument(skip_all, fields(flow = ?Flow::PlatformRefundsList))]
+pub async fn refunds_list_for_platform(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<api_models::refunds::PlatformRefundListRequest>,
+) -> HttpResponse {
+    let flow = Flow::PlatformRefundsList;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.into_inner(),
+        |state, auth: auth::AuthenticationData, req, _| {
+            refund_list_for_platform(state, auth.platform, req)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: true,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::MerchantRefundRead,
+                allow_connected: false,
+                allow_platform: true,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v1", feature = "olap"))]
 /// Refunds - List at profile level
 ///
 /// To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided
