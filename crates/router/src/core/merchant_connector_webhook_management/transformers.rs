@@ -3,8 +3,10 @@ use std::marker::PhantomData;
 use api_models::merchant_connector_webhook_management::{
     ConnectorWebhookRegisterRequest, RegisterConnectorWebhookResponse,
 };
+use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_interfaces::api::ConnectorSpecifications;
+use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::tracing::{self, instrument};
 
 use crate::{
@@ -13,6 +15,8 @@ use crate::{
     errors, types,
     types::{
         api::ConnectorData, domain,
+        ConnectorWebhookGenerateSecretRequest as ConnectorWebhookGenerateSecretData,
+        ConnectorWebhookGenerateSecretResponse, ConnectorWebhookGenerateSecretRouterData,
         ConnectorWebhookRegisterRequest as ConnectorWebhookRegisterData,
         ConnectorWebhookRegisterResponse, ConnectorWebhookRegisterRouterData, ErrorResponse,
     },
@@ -115,12 +119,94 @@ pub async fn construct_webhook_register_router_data<'a>(
 }
 
 #[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn construct_generate_secret_router_data<'a>(
+    state: &'a SessionState,
+    merchant_connector_account: &domain::MerchantConnectorAccount,
+    connector_webhook_id: String,
+) -> RouterResult<ConnectorWebhookGenerateSecretRouterData> {
+    let request = ConnectorWebhookGenerateSecretData {
+        connector_webhook_id,
+    };
+
+    let auth_type = merchant_connector_account
+        .get_connector_account_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get connector auth details for HMAC generation")?;
+
+    Ok(types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_connector_account.merchant_id.clone(),
+        customer_id: None,
+        connector_customer: None,
+        connector: merchant_connector_account.connector_name.clone(),
+        payment_id: consts::IRRELEVANT_PAYMENT_INTENT_ID.to_owned(),
+        tenant_id: state.tenant.tenant_id.clone(),
+        attempt_id: consts::IRRELEVANT_PAYMENT_ATTEMPT_ID.to_owned(),
+        status: common_enums::AttemptStatus::default(),
+        payment_method: common_enums::PaymentMethod::default(),
+        payment_method_type: None,
+        connector_auth_type: auth_type,
+        description: None,
+        address: types::PaymentAddress::default(),
+        auth_type: common_enums::AuthenticationType::default(),
+        connector_meta_data: merchant_connector_account.get_metadata().clone(),
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
+        amount_captured: None,
+        minor_amount_captured: None,
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        recurring_mandate_payment_data: None,
+        preprocessing_id: None,
+        payment_method_balance: None,
+        connector_api_version: None,
+        request,
+        response: Err(ErrorResponse::default()),
+        connector_request_reference_id: consts::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID
+            .to_owned(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        dispute_id: None,
+        refund_id: None,
+        payment_method_status: None,
+        connector_response: None,
+        integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
+        authentication_id: None,
+        psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
+        authorized_amount: None,
+        payout_id: None,
+        customer_document_details: None,
+        feature_data: None,
+        sender_payment_instrument_id: None,
+    })
+}
+
+#[cfg(feature = "v1")]
 pub fn construct_connector_webhook_registration_details(
     register_webhook_response: &ConnectorWebhookRegisterResponse,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     connector_webhook_register_data: &ConnectorWebhookRegisterData,
+    generated_secret: Option<Secret<String>>,
 ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
-    if let Some(connector_webhook_id) = register_webhook_response.connector_webhook_id.clone() {
+    let connector_webhook_registration_details = if let Some(connector_webhook_id) =
+        register_webhook_response.connector_webhook_id.clone()
+    {
         let webhook_event = connector_webhook_register_data.event_type;
 
         let connector_webhook_value = serde_json::to_value(domain::ConnectorWebhookData {
@@ -138,20 +224,64 @@ pub fn construct_connector_webhook_registration_details(
 
         map.insert(connector_webhook_id, connector_webhook_value);
 
-        Ok(
-            domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
-                connector_webhook_registration_details: Some(
-                    connector_webhook_registration_details,
-                ),
-            },
-        )
+        Some(connector_webhook_registration_details)
     } else {
-        Ok(
-            domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
-                connector_webhook_registration_details: None,
-            },
-        )
-    }
+        None
+    };
+
+    let connector_webhook_details = generated_secret
+        .map(|secret| {
+            build_connector_webhook_details_with_secret(merchant_connector_account, secret)
+        })
+        .transpose()?;
+
+    Ok(
+        domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+            connector_webhook_registration_details,
+            connector_webhook_details,
+        },
+    )
+}
+
+#[cfg(feature = "v1")]
+fn build_connector_webhook_details_with_secret(
+    merchant_connector_account: &domain::MerchantConnectorAccount,
+    secret: Secret<String>,
+) -> RouterResult<common_utils::pii::SecretSerdeValue> {
+    let existing_additional_secret = merchant_connector_account
+        .connector_webhook_details
+        .as_ref()
+        .and_then(|details| {
+            details
+                .clone()
+                .expose()
+                .parse_value::<api_models::admin::MerchantConnectorWebhookDetails>(
+                    "MerchantConnectorWebhookDetails",
+                )
+                .inspect_err(|err| {
+                    router_env::logger::warn!(
+                        ?err,
+                        "Failed to parse existing MerchantConnectorWebhookDetails; \
+                         dropping additional_secret while persisting generated secret"
+                    );
+                })
+                .ok()
+                .and_then(|parsed| parsed.additional_secret)
+        });
+
+    let merged = api_models::admin::MerchantConnectorWebhookDetails {
+        merchant_secret: secret,
+        additional_secret: existing_additional_secret,
+    };
+
+    let serialized = merged
+        .encode_to_value()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Failed to serialize MerchantConnectorWebhookDetails with generated secret",
+        )?;
+
+    Ok(Secret::new(serialized))
 }
 
 #[cfg(feature = "v1")]
@@ -205,13 +335,29 @@ pub async fn validate_webhook_registration_request(
 pub fn construct_connector_webhook_registration_response(
     register_webhook_response: &ConnectorWebhookRegisterResponse,
     connector_webhook_register_data: &ConnectorWebhookRegisterData,
+    generate_secret_response: Option<&ConnectorWebhookGenerateSecretResponse>,
 ) -> RouterResult<RegisterConnectorWebhookResponse> {
+    let (secret_generation_status, secret_error) = generate_secret_response
+        .map(|resp| {
+            let secret_error =
+                (resp.error_code.is_some() || resp.error_message.is_some()).then(|| {
+                    api_models::merchant_connector_webhook_management::WebhookSecretErrorDetails {
+                        code: resp.error_code.clone(),
+                        message: resp.error_message.clone(),
+                    }
+                });
+            (Some(resp.status), secret_error)
+        })
+        .unwrap_or((None, None));
+
     Ok(RegisterConnectorWebhookResponse {
         event_type: connector_webhook_register_data.event_type,
         connector_webhook_id: register_webhook_response.connector_webhook_id.clone(),
         webhook_registration_status: register_webhook_response.status,
         error_code: register_webhook_response.error_code.clone(),
         error_message: register_webhook_response.error_message.clone(),
+        secret_generation_status,
+        secret_error,
     })
 }
 #[cfg(feature = "v1")]

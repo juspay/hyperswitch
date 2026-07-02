@@ -156,7 +156,7 @@ impl common_utils::events::ApiEventMetric for EventRetrieveResponse {
 }
 
 /// The request information (headers and body) sent in the webhook.
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct OutgoingWebhookRequestContent {
     /// The request body sent in the webhook.
     #[schema(value_type = String)]
@@ -172,7 +172,7 @@ pub struct OutgoingWebhookRequestContent {
 }
 
 /// The response information (headers, body and status code) received for the webhook sent.
-#[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct OutgoingWebhookResponseContent {
     /// The response body received for the webhook sent.
     #[schema(value_type = Option<String>)]

@@ -81,6 +81,19 @@ use crate::{
 };
 
 #[cfg(feature = "v2")]
+fn get_customer_id_from_global_customer_id(
+    customer: &Option<domain::Customer>,
+) -> RouterResult<Option<common_utils::id_type::CustomerId>> {
+    let global_customer_id = customer.as_ref().map(|customer| customer.id.clone());
+
+    global_customer_id
+        .map(common_utils::id_type::CustomerId::try_from)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid global customer generated, not able to convert to reference id")
+}
+
+#[cfg(feature = "v2")]
 pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
     state: &'a SessionState,
     payment_data: PaymentData<F>,
@@ -342,14 +355,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
     // TODO: Take Globalid and convert to connector reference id
-    let customer_id = customer
-        .to_owned()
-        .map(|customer| common_utils::id_type::CustomerId::try_from(customer.id.clone()))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Invalid global customer generated, not able to convert to reference id",
-        )?;
+    let customer_id = get_customer_id_from_global_customer_id(customer)?;
 
     let connector_customer_id =
         payment_data.get_connector_customer_id(customer.as_ref(), merchant_connector_account);
@@ -619,14 +625,7 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
     // TODO: Take Globalid and convert to connector reference id
-    let customer_id = customer
-        .to_owned()
-        .map(|customer| common_utils::id_type::CustomerId::try_from(customer.id.clone()))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Invalid global customer generated, not able to convert to reference id",
-        )?;
+    let customer_id = get_customer_id_from_global_customer_id(customer)?;
 
     let connector_customer_id =
         payment_data.get_connector_customer_id(customer.as_ref(), merchant_connector_account);
@@ -1037,14 +1036,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    let customer_id = customer
-        .to_owned()
-        .map(|customer| common_utils::id_type::CustomerId::try_from(customer.id.clone()))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Invalid global customer generated, not able to convert to reference id",
-        )?;
+    let customer_id = get_customer_id_from_global_customer_id(customer)?;
 
     let payment_method = payment_data.payment_attempt.payment_method_type;
 
@@ -1429,14 +1421,7 @@ pub async fn construct_router_data_for_cancel<'a>(
     })?;
 
     // TODO: Take Globalid and convert to connector reference id
-    let customer_id = customer
-        .to_owned()
-        .map(|customer| common_utils::id_type::CustomerId::try_from(customer.id.clone()))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Invalid global customer generated, not able to convert to reference id",
-        )?;
+    let customer_id = get_customer_id_from_global_customer_id(customer)?;
     let payment_intent = payment_data.get_payment_intent();
     let attempt = payment_data.get_payment_attempt();
     let connector_request_reference_id = payment_data
@@ -1513,14 +1498,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
     // TODO: Take Globalid and convert to connector reference id
-    let customer_id = customer
-        .to_owned()
-        .map(|customer| common_utils::id_type::CustomerId::try_from(customer.id.clone()))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Invalid global customer generated, not able to convert to reference id",
-        )?;
+    let customer_id = get_customer_id_from_global_customer_id(customer)?;
     let billing_address = payment_data
         .payment_intent
         .billing_address
@@ -1719,14 +1697,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
     // TODO: Take Globalid and convert to connector reference id
-    let customer_id = customer
-        .to_owned()
-        .map(|customer| common_utils::id_type::CustomerId::try_from(customer.id.clone()))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Invalid global customer generated, not able to convert to reference id",
-        )?;
+    let customer_id = get_customer_id_from_global_customer_id(customer)?;
 
     let connector_customer_id = customer.as_ref().and_then(|customer| {
         customer
@@ -1837,6 +1808,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         feature_metadata: None,
         connector_intent_metadata: None,
         merchant_order_reference_id: None,
+        mit_category: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -4740,7 +4712,12 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             feature_metadata: None,
             reference_id: None,
             payment_link: None,
-            surcharge_details: None,
+            surcharge_details: pa.net_amount.get_surcharge_amount().map(|surcharge_amount| {
+                RequestSurchargeDetails {
+                    surcharge_amount,
+                    tax_amount: pa.net_amount.get_tax_on_surcharge(),
+                }
+            }),
             merchant_decision: None,
             incremental_authorization_allowed: None,
             authorization_count: None,
@@ -4891,6 +4868,8 @@ pub fn bank_transfer_next_steps_check(
                 != Some(diesel_models::enums::PaymentMethodType::PixAutomaticoPush)
             && payment_attempt.payment_method_type
                 != Some(diesel_models::enums::PaymentMethodType::PixEmv)
+            && payment_attempt.payment_method_type
+                != Some(diesel_models::enums::PaymentMethodType::PixQr)
         {
             let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
                 payment_attempt
@@ -6613,6 +6592,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 })
                 .transpose()?,
             merchant_order_reference_id,
+            mit_category: payment_data.payment_intent.mit_category,
         })
     }
 }

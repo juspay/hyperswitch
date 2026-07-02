@@ -1,8 +1,16 @@
 use common_utils::events::ApiEventMetric;
+use hyperswitch_masking::Secret;
 use serde_json::{Map, Value};
 use superposition_types::Config;
 
 use crate::enums as api_enums;
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SdkConfigRequest {
+    pub client_secret: Option<Secret<String>>,
+}
+
+impl ApiEventMetric for SdkConfigRequest {}
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

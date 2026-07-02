@@ -44,6 +44,7 @@ use crate::{
     consts,
     core::{
         card_testing_guard::utils as card_testing_guard_utils,
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate, payment_methods,
         payments::{
@@ -466,6 +467,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         business_profile: &domain::Profile,
+        dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -481,6 +483,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         business_profile: &domain::Profile,
+        dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -539,6 +542,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?;
 
+        let async_dimension = dimensions.clone();
         let save_payment_call_future = Box::pin(tokenization::save_payment_method(
             state,
             connector_name.clone(),
@@ -555,6 +559,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             payment_method_info.clone(),
             payment_data.payment_method_token.clone(),
             customer_details.clone(),
+            &async_dimension,
         ));
 
         let is_connector_mandate = resp.request.customer_acceptance.is_some()
@@ -685,6 +690,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let payment_method_token = payment_data.payment_method_token.clone();
 
             let cloned_platform = platform.clone();
+            let async_dimension = dimensions.clone();
             logger::info!("Call to save_payment_method in locker");
             let _task_handle = tokio::spawn(
                 async move {
@@ -706,6 +712,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         payment_method_info.clone(),
                         payment_method_token.clone(),
                         customer_details.clone(),
+                        &async_dimension,
                     ))
                     .await;
 
@@ -808,6 +815,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
         request_payment_method_data: Option<&domain::PaymentMethodData>,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -1027,6 +1035,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -1116,6 +1125,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
         request_payment_method_data: Option<&domain::PaymentMethodData>,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -1392,7 +1402,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
                                 .payment_intent
                                 .metadata
                                 .clone(),
-                            feature_metadata: payment_intent.feature_metadata.clone().map(hyperswitch_masking::Secret::new),
+                            feature_metadata: payment_intent.feature_metadata.clone(),
                             updated_by: payment_data.payment_intent.updated_by.clone(),
                         };
 
@@ -1797,6 +1807,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         business_profile: &domain::Profile,
+        dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -1853,6 +1864,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             payment_method_info,
             payment_data.payment_method_token.clone(),
             customer_details,
+            dimensions,
         ))
         .await?;
 
@@ -1953,6 +1965,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
         request_payment_method_data: Option<&domain::PaymentMethodData>,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -2005,6 +2018,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -2097,6 +2111,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
         request_payment_method_data: Option<&domain::PaymentMethodData>,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -2877,6 +2892,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             Some(mut authentication_store) => {
                 let authentication_update = hyperswitch_domain_models::authentication::AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status: enums::AuthenticationLifecycleStatus::Used,
+                updated_by: processor.get_account().storage_scheme.to_string(),
             };
                 let updated_authentication = state
                     .store
@@ -2885,6 +2901,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         authentication_update,
                         processor.get_key_store(),
                         &key_manager_state,
+                        processor.get_account().storage_scheme,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -2893,7 +2910,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             }
             None => None,
         };
-    };
+    }
 
     let amount_captured = get_total_amount_captured(
         &router_data.request,
@@ -3021,7 +3038,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     });
 
     if payment_data.payment_attempt.status == enums::AttemptStatus::Failure {
-        let _ = card_testing_guard_utils::increment_blocked_count_in_cache(
+        card_testing_guard_utils::increment_blocked_count_in_cache(
             state,
             payment_data.card_testing_guard_data.clone(),
         )
@@ -3079,11 +3096,7 @@ fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
             ),
             updated_by: processor.get_account().storage_scheme.to_string(),
             incremental_authorization_allowed: Some(false),
-            feature_metadata: payment_data
-                .payment_intent
-                .feature_metadata
-                .clone()
-                .map(hyperswitch_masking::Secret::new),
+            feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
         },
         Ok(types::PaymentsResponseData::PostCaptureVoidResponse {
             post_capture_void_status,
@@ -3118,11 +3131,7 @@ fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
             incremental_authorization_allowed: payment_data
                 .payment_intent
                 .incremental_authorization_allowed,
-            feature_metadata: payment_data
-                .payment_intent
-                .feature_metadata
-                .clone()
-                .map(hyperswitch_masking::Secret::new),
+            feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
         },
     }
 }
@@ -3721,6 +3730,7 @@ impl
         >,
         _business_profile: &domain::Profile,
         request_payment_method_data: Option<&domain::PaymentMethodData>,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         hyperswitch_domain_models::router_flow_types::ExternalVaultProxy: 'b + Clone + Send + Sync,
@@ -3939,6 +3949,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
         platform: &domain::Platform,
         payment_data: &mut PaymentConfirmData<F>,
         business_profile: &domain::Profile,
+        dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,

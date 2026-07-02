@@ -212,6 +212,20 @@ pub struct PaymentPreFetchedInformation {
     pub payment_attempt: storage::PaymentAttempt,
 }
 
+/// Identifies the payments core that invoked `get_trackers`.
+///
+/// Threaded into the v1 `get_trackers` (like `auth_flow`) so that, on a single-call
+/// create+confirm (`confirm = true`), `PaymentCreate` knows which confirm operation to
+/// hand off to: the standard `PaymentConfirm` or, for the external vault proxy core,
+/// `PaymentExternalVaultProxyConfirm`. Every other operation ignores it.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PaymentFlowKind {
+    #[default]
+    Standard,
+    ExternalVaultProxy,
+}
+
 #[cfg(feature = "v2")]
 pub struct GetTrackerResponse<D> {
     pub payment_data: D,
@@ -239,6 +253,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         request: &R,
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
+        flow_kind: PaymentFlowKind,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
@@ -335,12 +350,14 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
     #[cfg(feature = "v1")]
+    #[allow(clippy::too_many_arguments)]
     async fn create_payment_method(
         &self,
         _state: &SessionState,
         _request: &R,
         _platform: &domain::Platform,
         _payment_data: &mut D,
+        _customer: Option<&domain::Customer>,
         _business_profile: &domain::Profile,
         _feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()> {
@@ -631,6 +648,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _platform: &domain::Platform,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -667,6 +685,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
         _request_payment_method_data: Option<&domain::PaymentMethodData>,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,

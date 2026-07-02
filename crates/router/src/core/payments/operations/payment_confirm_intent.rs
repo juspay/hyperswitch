@@ -561,17 +561,18 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                 Some(domain::payment_method_data::PaymentMethodData::CardToken(card_token)),
                 None,
             ) => {
-                let (payment_method, vault_data) =
+                let (payment_method, vault_data) = Box::pin(
                     payment_methods::vault::retrieve_payment_method_from_vault_using_payment_token(
                         state,
                         platform,
                         business_profile,
                         payment_token,
                         &payment_data.payment_attempt.payment_method_type,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to retrieve payment method from vault")?;
+                    ),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to retrieve payment method from vault")?;
 
                 let (card_cvc, card_holder_name) = {
                     (
@@ -703,7 +704,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                 mandates::MandateReferenceId::ConnectorMandateId(_) => true,
                 mandates::MandateReferenceId::NetworkMandateId(_)
                 | mandates::MandateReferenceId::NetworkTokenWithNTI(_)
-                | mandates::MandateReferenceId::CardWithLimitedData => false,
+                | mandates::MandateReferenceId::CardWithLimitedData(_) => false,
             })
             .unwrap_or(false);
 

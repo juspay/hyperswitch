@@ -133,6 +133,7 @@ pub enum PayoutAttemptUpdate {
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payout_attempt)]
+#[router_derive::apply_changeset(target = PayoutAttempt)]
 pub struct PayoutAttemptUpdateInternal {
     pub payout_token: Option<String>,
     pub connector_payout_id: Option<String>,
@@ -266,56 +267,6 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
 
 impl PayoutAttemptUpdate {
     pub fn apply_changeset(self, source: PayoutAttempt) -> PayoutAttempt {
-        let PayoutAttemptUpdateInternal {
-            payout_token,
-            connector_payout_id,
-            status,
-            error_message,
-            error_code,
-            is_eligible,
-            business_country,
-            business_label,
-            connector,
-            routing_info,
-            last_modified_at,
-            address_id,
-            customer_id,
-            merchant_connector_id,
-            unified_code,
-            unified_message,
-            additional_payout_method_data,
-            merchant_order_reference_id,
-            payout_connector_metadata,
-            source_bank_data_token,
-            additional_source_bank_data,
-        } = self.into();
-        PayoutAttempt {
-            payout_token: payout_token.or(source.payout_token),
-            connector_payout_id: connector_payout_id.or(source.connector_payout_id),
-            status: status.unwrap_or(source.status),
-            error_message: error_message.or(source.error_message),
-            error_code: error_code.or(source.error_code),
-            is_eligible: is_eligible.or(source.is_eligible),
-            business_country: business_country.or(source.business_country),
-            business_label: business_label.or(source.business_label),
-            connector: connector.or(source.connector),
-            routing_info: routing_info.or(source.routing_info),
-            last_modified_at,
-            address_id: address_id.or(source.address_id),
-            customer_id: customer_id.or(source.customer_id),
-            merchant_connector_id: merchant_connector_id.or(source.merchant_connector_id),
-            unified_code: unified_code.or(source.unified_code),
-            unified_message: unified_message.or(source.unified_message),
-            additional_payout_method_data: additional_payout_method_data
-                .or(source.additional_payout_method_data),
-            merchant_order_reference_id: merchant_order_reference_id
-                .or(source.merchant_order_reference_id),
-            payout_connector_metadata: payout_connector_metadata
-                .or(source.payout_connector_metadata),
-            source_bank_data_token: source_bank_data_token.or(source.source_bank_data_token),
-            additional_source_bank_data: additional_source_bank_data
-                .or(source.additional_source_bank_data),
-            ..source
-        }
+        PayoutAttemptUpdateInternal::from(self).apply_changeset(source)
     }
 }

@@ -891,6 +891,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Pix
             | enums::PaymentMethodType::PixKey
             | enums::PaymentMethodType::PixEmv
+            | enums::PaymentMethodType::PixQr
             | enums::PaymentMethodType::PixAutomaticoPush
             | enums::PaymentMethodType::PixAutomaticoQr
             | enums::PaymentMethodType::UpiCollect
@@ -1538,6 +1539,7 @@ fn create_stripe_payment_method(
             payment_method_data::BankTransferData::PixAutomaticoPush { .. }
             | payment_method_data::BankTransferData::PixAutomaticoQr {}
             | payment_method_data::BankTransferData::PixEmv {}
+            | payment_method_data::BankTransferData::PixQr {}
             | payment_method_data::BankTransferData::Pse {}
             | payment_method_data::BankTransferData::LocalBankTransfer { .. }
             | payment_method_data::BankTransferData::InstantBankTransfer {}
@@ -2220,7 +2222,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         setup_future_usage,
                     )
                 }
-                Some(mandates::MandateReferenceId::CardWithLimitedData) => {
+                Some(mandates::MandateReferenceId::CardWithLimitedData(_)) => {
                     Err(ConnectorError::NotSupported {
                         message: "Card Only MIT for payment method".to_string(),
                         connector: "Stripe",
@@ -4807,6 +4809,7 @@ impl
                 }
                 payment_method_data::BankTransferData::Pix { .. }
                 | payment_method_data::BankTransferData::PixEmv {}
+                | payment_method_data::BankTransferData::PixQr {}
                 | payment_method_data::BankTransferData::PixAutomaticoPush { .. }
                 | payment_method_data::BankTransferData::PixAutomaticoQr {}
                 | payment_method_data::BankTransferData::Pse {}

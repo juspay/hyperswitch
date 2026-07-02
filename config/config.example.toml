@@ -580,8 +580,8 @@ slack_invite_url = "https://www.example.com/"   # Slack invite url for hyperswit
 discord_invite_url = "https://www.example.com/" # Discord invite url for hyperswitch
 
 [zero_mandates.supported_payment_methods]
-card.credit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,archipel,mollie"
-card.debit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,archipel,mollie"
+card.credit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,archipel,mollie,imerchantsolutions,peachpayments"
+card.debit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,archipel,mollie,imerchantsolutions,peachpayments"
 wallet.paypal = { connector_list = "adyen" }                                          # Mandate supported payment method type and connector for wallets
 pay_later.klarna = { connector_list = "adyen" }                                       # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless,adyen" }                              # Mandate supported payment method type and connector for bank_debit
@@ -590,16 +590,17 @@ bank_debit.bacs = { connector_list = "adyen" }                                  
 bank_debit.sepa = { connector_list = "gocardless,adyen" }                             # Mandate supported payment method type and connector for bank_debit
 bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }                   # Mandate supported payment method type and connector for bank_redirect
 bank_redirect.sofort = { connector_list = "stripe,globalpay" }
-wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica,authorizedotnet,worldpayxml,payme" }
+wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica,authorizedotnet,worldpayxml,payme,imerchantsolutions" }
 wallet.samsung_pay = { connector_list = "cybersource" }
-wallet.google_pay = { connector_list = "stripe,bankofamerica,authorizedotnet,cybersource,worldpayxml" }
+wallet.google_pay = { connector_list = "stripe,bankofamerica,authorizedotnet,cybersource,worldpayxml,imerchantsolutions" }
 bank_redirect.giropay = { connector_list = "globalpay" }
 bank_transfer.pix_automatico_push = { connector_list = "santander" }
 bank_transfer.pix_automatico_qr = { connector_list = "santander" }
+network_token.network_token.connector_list = "peachpayments"
 
 [mandates.supported_payment_methods]
-card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie.airwallex,peachpayments"
-card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments"
+card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie.airwallex,peachpayments,imerchantsolutions"
+card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions"
 wallet.paypal = { connector_list = "adyen,novalnet" }                                          # Mandate supported payment method type and connector for wallets
 pay_later.klarna = { connector_list = "adyen" }                                       # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless,adyen" }                              # Mandate supported payment method type and connector for bank_debit
@@ -608,10 +609,11 @@ bank_debit.bacs = { connector_list = "adyen" }                                  
 bank_debit.sepa = { connector_list = "gocardless,adyen" }                             # Mandate supported payment method type and connector for bank_debit
 bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }                   # Mandate supported payment method type and connector for bank_redirect
 bank_redirect.sofort = { connector_list = "globalpay" }
-wallet.apple_pay = { connector_list = "stripe,adyen,braintree,cybersource,noon,bankofamerica,authorizedotnet,novalnet,worldpayxml" }
+wallet.apple_pay = { connector_list = "stripe,adyen,braintree,cybersource,noon,bankofamerica,authorizedotnet,novalnet,worldpayxml,imerchantsolutions" }
 wallet.samsung_pay = { connector_list = "cybersource" }
-wallet.google_pay = { connector_list = "bankofamerica,authorizedotnet,novalnet,worldpayxml" }
+wallet.google_pay = { connector_list = "bankofamerica,authorizedotnet,novalnet,worldpayxml,imerchantsolutions" }
 bank_redirect.giropay = { connector_list = "globalpay" }
+network_token.network_token.connector_list = "peachpayments"
 
 
 [mandates.update_mandate_supported]
@@ -997,7 +999,7 @@ google_pay = { country = "AU,AT,BE,BR,CA,CN,HK,MY,NZ,SG,US", currency = "AUD,EUR
 apple_pay = { country = "AU,NZ,CN,HK,JP,SG,MY,KR,TW,VN,GB,IE,FR,DE,IT,ES,PT,NL,BE,LU,AT,CH,SE,FI,DK,NO,PL,CZ,SK,HU,LT,LV,EE,GR,RO,BG,HR,SI,MT,CY,IS,LI,MC,SM,VA,US,CA,MX,BR,AR,CL,CO,PE,UY,CR,PA,DO,EC,SV,GT,HN,BS,PR,AE,SA,QA,KW,BH,OM,IL,JO,PS,EG,MA,ZA,GE,AM,AZ,MD,ME,MK,AL,BA,RS,UA", currency = "AUD,BRL,CAD,CHF,CZK,DKK,EUR,GBP,HKD,HUF,ILS,JPY,MXN,NOK,NZD,PHP,PLN,SEK,SGD,THB,TWD,USD" }
 
 [pm_filters.santander]
-pix_emv = { country = "BR", currency = "BRL" }
+pix_qr = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
 pix_automatico_qr = { country = "BR", currency = "BRL" }
 pix_automatico_push = { country = "BR", currency = "BRL" }
@@ -1306,7 +1308,7 @@ fetch_altid_url= ""           # base url to fetch Alt-ID and cryptogram for gues
 connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3" # Supported connectors for network transaction id
+connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments" # Supported connectors for network transaction id
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
@@ -1340,7 +1342,7 @@ url = "http://localhost:8080"           # Open Router URL
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url
@@ -1379,8 +1381,10 @@ max_random_schedule_delay_in_seconds = 300  # max random delay in seconds to sch
 redis_ttl_buffer_in_seconds= 300 # buffer time in seconds to be added to redis ttl for Revenue Recovery
 
 [clone_connector_allowlist]
-merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
-connector_names = "connector_names"     # Comma-separated list of allowed connector names
+connector_names = "connector_names"     # Comma-separated list of cloneable connector names
+
+[clone_connector_allowlist.payment_method_types]
+payment_method = "payment_method_types" # <payment_method> = comma-separated cloneable payment_method_types
 
 [infra_values]
 cluster = "CLUSTER"         # value of CLUSTER from deployment
