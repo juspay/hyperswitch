@@ -2346,6 +2346,27 @@ impl
         let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)
             .attach_printable("Failed to convert authentication type")?;
 
+        // Original authorized amount from the initial (CIT) payment, required by connectors
+        // (e.g. Cybersource MIT authorizationOptions.merchantInitiatedTransaction) to build the
+        // stored-credential request. Mirrors the Direct gateway, which reads the same
+        // `recurring_mandate_payment_data` off RouterData; omitting it left UCS emitting null.
+        let original_payment_authorized_amount = router_data
+            .recurring_mandate_payment_data
+            .as_ref()
+            .and_then(|recurring_mandate_payment_data| {
+                recurring_mandate_payment_data
+                    .original_payment_authorized_amount
+                    .zip(recurring_mandate_payment_data.original_payment_authorized_currency)
+            })
+            .map(|(minor_amount, original_currency)| {
+                payments_grpc::Currency::foreign_try_from(original_currency).map(|currency| {
+                    payments_grpc::Money {
+                        minor_amount,
+                        currency: currency.into(),
+                    }
+                })
+            })
+            .transpose()?;
         Ok(Self {
             split_payments: router_data
                 .request
@@ -2359,7 +2380,7 @@ impl
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
             }),
-            original_payment_authorized_amount: None,
+            original_payment_authorized_amount,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             metadata: router_data
                 .request
