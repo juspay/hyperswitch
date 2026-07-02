@@ -10537,7 +10537,7 @@ Cypress.Commands.add(
         if (response.status === expectedStatus) {
           if (response.status === 200) {
             // reset_tracking_id returns HTTP 200 with empty body
-            expect(response.body).to.be.empty;
+            expect(response.body || "").to.be.empty;
           } else {
             expect(response.body).to.have.property("error");
           }
