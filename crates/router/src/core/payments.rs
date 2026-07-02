@@ -6418,17 +6418,76 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     })?;
                 authentication.authentication_type
             };
-        // External-3DS over VGS external vault never authorizes through this redirect flow: the
-        // standard `PaymentConfirm` below has no VGS proxy (it would error IR_04 "Missing required
-        // param: payment_method"). The authorize is owned by the RRes webhook (pull=false) or the
-        // confirm/resume (frictionless), so the SDK's post-challenge `three_ds_authorize_url` call
-        // only reports status here — a plain PSync — matching normal-payments pull=false+Challenge
-        // behaviour (pending before the webhook lands, succeeded after) instead of erroring.
-        let should_authorize_via_redirect = !is_external_vault_payment
-            && (is_pull_mechanism_enabled
-                || payment_external_authentication_type
-                    != Some(common_enums::DecoupledAuthenticationType::Challenge));
-        let response = if should_authorize_via_redirect {
+        // Whether THIS post-3DS `three_ds_authorize_url` call should drive the authorize, vs only
+        // report status. It drives it for frictionless (or pull=true); for a challenge with
+        // pull=false the RRes webhook drives the authorize, so this call must be status-only —
+        // otherwise it re-authorizes an already-succeeded payment (IR_16 "status succeeded"). Same
+        // rule for external vault and normal payments.
+        let authorize_completes_on_this_call = is_pull_mechanism_enabled
+            || payment_external_authentication_type
+                != Some(common_enums::DecoupledAuthenticationType::Challenge);
+        // External-3DS over VGS external vault authorizes via the external-vault-proxy confirm (the
+        // `is_external_vault_payment` branch below), NOT the standard `PaymentConfirm` here (which has
+        // no VGS proxy -> IR_04 "Missing required param: payment_method"). So
+        // `should_authorize_via_redirect` gates only the NON-external-vault redirect authorize and is
+        // always false for external vault.
+        let should_authorize_via_redirect =
+            !is_external_vault_payment && authorize_completes_on_this_call;
+        let response = if is_external_vault_payment && authorize_completes_on_this_call {
+            // Frictionless external-vault: the SDK's `three_ds_authorize_url` call must COMPLETE the
+            // payment via the external-vault-proxy confirm (which carries the VGS proxy). The redirect
+            // `PaymentConfirm` below has no VGS proxy (IR_04), and a bare PSync only reports status —
+            // leaving a frictionless payment stuck at `RequiresCustomerAction`. (A challenge payment
+            // is authorized by the pull=false RRes webhook, so it falls through to the status-only
+            // PSync else-branch; re-authorizing here would hit IR_16 "status succeeded".)
+            let payment_token = payment_attempt
+                .payment_token
+                .clone()
+                .get_required_value("payment_token")
+                .attach_printable(
+                    "payment_token missing on attempt for external vault 3DS authorize",
+                )?;
+            let external_vault_req = api::PaymentsRequest {
+                payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
+                    payment_intent.payment_id.clone(),
+                )),
+                merchant_id: req.merchant_id.clone(),
+                payment_token: Some(payment_token),
+                payment_method: Some(common_enums::PaymentMethod::Card),
+                payment_method_data: Some(api_models::payments::PaymentMethodDataRequest {
+                    payment_method_data: Some(
+                        api_models::payments::PaymentMethodData::VaultCardTokenData(
+                            api_models::payments::VaultCardToken {
+                                card_holder_name: None,
+                                card_cvc: None,
+                            },
+                        ),
+                    ),
+                    billing: None,
+                }),
+                ..Default::default()
+            };
+            Box::pin(external_vault_proxy_for_payments_core::<
+                api::ExternalVaultProxy,
+                api::PaymentsResponse,
+                _,
+                _,
+                _,
+                PaymentData<api::ExternalVaultProxy>,
+            >(
+                state.clone(),
+                req_state,
+                platform.clone(),
+                payment_intent.profile_id.clone(),
+                PaymentExternalVaultProxyConfirm,
+                external_vault_req,
+                services::api::AuthFlow::Merchant,
+                CallConnectorAction::Trigger,
+                HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                None,
+            ))
+            .await?
+        } else if should_authorize_via_redirect {
             let payment_confirm_req = api::PaymentsRequest {
                 payment_id: Some(req.resource_id.clone()),
                 merchant_id: req.merchant_id.clone(),
@@ -14135,6 +14194,38 @@ async fn perform_external_vault_authentication_v1(
         business_profile.get_id().clone(),
     );
 
+    // The AReq `notification_url` (browser CRes return) — derive it from the payment the way normal
+    // payments do (`create_authorize_url` = the `three_ds_authorize_url` endpoint) instead of the MCA
+    // metadata, so the merchant does not configure a URL there. NOTE: the UCS sources both the
+    // MerchantData `notification_url` and the top-level `three_ds_requestor_url` from this same value
+    // (metadata `notification_url` -> else request return_url), so both follow it; splitting them
+    // would need a UCS change.
+    let netcetera_notification_url = Some(helpers::create_authorize_url(
+        &state.base_url,
+        payment_attempt,
+        &psp_connector_name,
+    ));
+
+    // Acquirer data (`acquirer_bin` / `acquirer_merchant_id` / `acquirer_country_code`) — resolve
+    // from the PSP (checkout) MCA metadata the way normal payments do (see
+    // `helpers::get_payment_external_authentication_flow`), NOT the netcetera MCA. Injected into
+    // connector_feature_data below so the netcetera MCA does not carry acquirer config.
+    let netcetera_acquirer_metadata = psp_merchant_connector_account
+        .get_metadata()
+        .and_then(|metadata| {
+            let value = metadata.expose();
+            let obj = value.as_object()?;
+            let acquirer: serde_json::Map<String, serde_json::Value> = [
+                "acquirer_bin",
+                "acquirer_merchant_id",
+                "acquirer_country_code",
+            ]
+            .into_iter()
+            .filter_map(|key| obj.get(key).map(|val| (key.to_string(), val.clone())))
+            .collect();
+            (!acquirer.is_empty()).then_some(serde_json::Value::Object(acquirer))
+        });
+
     // ---- 7. Call UCS payment_authenticate with `card_proxy` + VGS metadata ------------------------
     // Auth connector MCA for the UCS call; the VGS vault MCA is preserved for the metadata header.
     let authenticate_router_data =
@@ -14148,6 +14239,15 @@ async fn perform_external_vault_authentication_v1(
             external_vault_merchant_connector_account,
             processor,
             execution_mode,
+            // Resolve the challenge preference the same way normal payments do: per-payment
+            // `force_3ds_challenge` from the intent, falling back to the business-profile default.
+            Some(
+                payment_intent
+                    .force_3ds_challenge
+                    .unwrap_or(business_profile.force_3ds_challenge),
+            ),
+            netcetera_notification_url,
+            netcetera_acquirer_metadata,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
