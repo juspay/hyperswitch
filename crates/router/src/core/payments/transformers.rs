@@ -422,16 +422,6 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .and_then(|noon| noon.order_category.clone())
     });
 
-    let peachpayments_data = connector_metadata
-        .as_ref()
-        .and_then(|cm| cm.peachpayments.clone());
-    let rrn = peachpayments_data
-        .as_ref()
-        .and_then(|peachpayments| peachpayments.rrn.clone());
-    let card_on_file_transaction_type = peachpayments_data
-        .as_ref()
-        .and_then(|peachpayments| peachpayments.card_on_file_transaction_type.clone());
-
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
