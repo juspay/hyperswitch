@@ -3061,7 +3061,14 @@ where
                 )
                 .await?;
 
-            if pre_auth_decision == ExternalVaultProxyPreAuthDecision::HaltForSdkChallenge {
+            // Halt the authorize and route payment_data straight to the response builder for BOTH
+            // the challenge outcome (emits a ThreeDsInvoke next_action) and the authentication-failure
+            // outcome (payment already transitioned to terminal Failed by fail_external_vault_post_authenticate).
+            if matches!(
+                pre_auth_decision,
+                ExternalVaultProxyPreAuthDecision::HaltForSdkChallenge
+                    | ExternalVaultProxyPreAuthDecision::HaltWithAuthenticationFailure
+            ) {
                 // FIRST confirm, challenge / separate-authentication path (Phase 4b-1): skip the
                 // authorize leg and route the persisted payment_data straight to the response builder,
                 // which emits a ThreeDsInvoke next_action. The SDK then drives /3ds/authentication
@@ -3160,7 +3167,14 @@ where
                 )
                 .await?;
 
-            if pre_auth_decision == ExternalVaultProxyPreAuthDecision::HaltForSdkChallenge {
+            // Halt the authorize and route payment_data straight to the response builder for BOTH
+            // the challenge outcome (emits a ThreeDsInvoke next_action) and the authentication-failure
+            // outcome (payment already transitioned to terminal Failed by fail_external_vault_post_authenticate).
+            if matches!(
+                pre_auth_decision,
+                ExternalVaultProxyPreAuthDecision::HaltForSdkChallenge
+                    | ExternalVaultProxyPreAuthDecision::HaltWithAuthenticationFailure
+            ) {
                 // FIRST confirm, challenge / separate-authentication path (Phase 4b-1): skip authorize
                 // and route payment_data to the response builder for the ThreeDsInvoke next_action.
                 // The SECOND confirm runs the post-authenticate resume inside the helper above (Phase
@@ -3879,6 +3893,11 @@ pub enum ExternalVaultProxyPreAuthDecision {
     /// Challenge or separate-authentication required: skip authorize, emit a `ThreeDsInvoke`
     /// next_action and let the SDK drive the `/3ds/authentication` flow (Phase 4b-2).
     HaltForSdkChallenge,
+    /// Authentication failed (declined / cardholder cancelled the challenge): the payment has been
+    /// transitioned to a terminal `Failed` state, so skip the authorize and route the failed
+    /// `payment_data` to the response builder (mirroring how normal payments end an auth failure)
+    /// instead of surfacing an error that would leave the payment stuck at `RequiresCustomerAction`.
+    HaltWithAuthenticationFailure,
 }
 
 /// Build an in-memory `AuthenticationStore` from a frictionless UCS pre-auth response. This mirrors
@@ -4592,6 +4611,7 @@ where
             return fail_external_vault_post_authenticate(
                 state,
                 processor,
+                payment_data,
                 authentication,
                 Some(err.message.clone()),
             )
@@ -4624,6 +4644,7 @@ where
         return fail_external_vault_post_authenticate(
             state,
             processor,
+            payment_data,
             authentication,
             Some(format!(
                 "External vault 3DS post-authenticate did not succeed (trans_status: {trans_status:?})"
@@ -4672,22 +4693,32 @@ where
     Ok(ExternalVaultProxyPreAuthDecision::ContinueToAuthorize)
 }
 
-/// Persist an external-vault post-authenticate failure and surface a structured error so the payment
-/// halts before the PSP authorize. Marks the authentication record `Failed` and returns
-/// `PaymentAuthenticationFailed` (improving on the 4b-1 `TODO(phase-4b-2)` auth-fail placeholder).
+/// Fail an external-vault authentication (declined, or the cardholder cancelled the challenge):
+/// mark the authentication record `Failed` AND transition the payment to a terminal `Failed` state
+/// (attempt -> Failure with `EXTERNAL_AUTHENTICATION_FAILURE`, intent -> Failed) — mirroring how
+/// normal payments end an auth failure (`status_handler_for_authentication_results`). Returns
+/// `HaltWithAuthenticationFailure` so the caller routes the failed `payment_data` to the response
+/// builder, NOT an error: erroring would leave the payment stuck at `RequiresCustomerAction` (and
+/// skip poll-completion + the outgoing merchant webhook) on a cancelled/declined challenge.
 #[cfg(feature = "v1")]
-async fn fail_external_vault_post_authenticate(
+async fn fail_external_vault_post_authenticate<F, D>(
     state: &SessionState,
     processor: &domain::Processor,
+    payment_data: &mut D,
     authentication: hyperswitch_domain_models::authentication::Authentication,
     error_message: Option<String>,
-) -> RouterResult<ExternalVaultProxyPreAuthDecision> {
+) -> RouterResult<ExternalVaultProxyPreAuthDecision>
+where
+    F: Send + Clone + Sync,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
     use hyperswitch_domain_models::authentication::AuthenticationUpdate;
 
     let key_store = processor.get_key_store();
     let key_manager_state: common_utils::types::keymanager::KeyManagerState = state.into();
     let storage_scheme = processor.get_account().storage_scheme;
 
+    // 1. Mark the authentication record Failed.
     let authentication_update = AuthenticationUpdate::ErrorUpdate {
         error_message: error_message.clone(),
         error_code: None,
@@ -4710,13 +4741,60 @@ async fn fail_external_vault_post_authenticate(
             "Failed to update external vault authentication record on post-authenticate failure",
         )?;
 
-    Err(error_stack::report!(
-        errors::ApiErrorResponse::PaymentAuthenticationFailed { data: None }
-    ))
-    .attach_printable(
-        error_message
-            .unwrap_or_else(|| "External vault 3DS post-authenticate failed".to_string()),
-    )
+    // 2. Transition the PAYMENT to a terminal failed state (attempt -> Failure, intent -> Failed)
+    //    with the EXTERNAL_AUTHENTICATION_FAILURE reason, so it is not left stuck at
+    //    RequiresCustomerAction and the response builder emits a `failed` payment.
+    let error_reason =
+        error_message.unwrap_or_else(|| "external authentication failure".to_string());
+    let attempt_update = storage::PaymentAttemptUpdate::RejectUpdate {
+        status: common_enums::AttemptStatus::Failure,
+        error_code: Some(Some("EXTERNAL_AUTHENTICATION_FAILURE".to_string())),
+        error_message: Some(Some(error_reason.clone())),
+        updated_by: storage_scheme.to_string(),
+    };
+    let updated_attempt = state
+        .store
+        .update_payment_attempt_with_attempt_id(
+            payment_data.get_payment_attempt().clone(),
+            attempt_update,
+            storage_scheme,
+            key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable(
+            "Failed to update payment_attempt on external vault authentication failure",
+        )?;
+    payment_data.set_payment_attempt(updated_attempt);
+
+    let intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
+        status: common_enums::IntentStatus::Failed,
+        incremental_authorization_allowed: None,
+        updated_by: storage_scheme.to_string(),
+        feature_metadata: None,
+    };
+    let updated_intent = state
+        .store
+        .update_payment_intent(
+            payment_data.get_payment_intent().clone(),
+            intent_update,
+            key_store,
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable(
+            "Failed to update payment_intent on external vault authentication failure",
+        )?;
+    payment_data.set_payment_intent(updated_intent);
+    payment_data.set_payment_intent_status(common_enums::IntentStatus::Failed);
+
+    logger::warn!(
+        external_vault_authentication_failed = true,
+        "External vault 3DS authentication failed; payment marked failed: {error_reason}"
+    );
+
+    Ok(ExternalVaultProxyPreAuthDecision::HaltWithAuthenticationFailure)
 }
 
 #[cfg(feature = "v1")]
