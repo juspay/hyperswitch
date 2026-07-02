@@ -491,19 +491,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             should_retry_with_pan,
         ))
         .await?;
-        // For redirect pay-later PMs (e.g. Affirm BNPL), the redirect-completion request
-        // carries no payment_method_data and there is no stored card/token, so make_pm_data
-        // returns None. Reconstruct the stateless PayLater(AffirmRedirect) from the persisted
-        // payment_method_type so the UCS CompleteAuthorize request carries payment_method and
-        // the connector can run the COMPLETE (transaction-create) leg with the checkout_token.
-        let payment_method_data = payment_method_data.or_else(|| {
-            match payment_data.payment_attempt.payment_method_type {
-                Some(storage_enums::PaymentMethodType::Affirm) => Some(
-                    domain::PaymentMethodData::PayLater(domain::PayLaterData::AffirmRedirect {}),
-                ),
-                _ => None,
-            }
-        });
         Ok((op, payment_method_data, pm_id))
     }
 
