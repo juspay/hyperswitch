@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.02.1
+
+### Bug Fixes
+
+- **connector:** [chargebee] fix chargebee webhook deserialization issue ([#13128](https://github.com/juspay/hyperswitch/pull/13128)) ([`cd49987`](https://github.com/juspay/hyperswitch/commit/cd499873228fd7e0676605a6b5f2058926dd96aa))
+
+**Full Changelog:** [`2026.07.02.0...2026.07.02.1`](https://github.com/juspay/hyperswitch/compare/2026.07.02.0...2026.07.02.1)
+
+- - -
+
 ## 2026.07.02.0
 
 ### Features
