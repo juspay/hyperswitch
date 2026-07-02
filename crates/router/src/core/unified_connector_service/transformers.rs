@@ -827,6 +827,56 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 .map(payments_grpc::PaymentMethodType::foreign_try_from)
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
+            mandate_reference: Option::<payments_grpc::ConnectorMandateReferenceId>::foreign_from(
+                router_data,
+            ),
+        })
+    }
+}
+
+impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
+    for payments_grpc::ConnectorMandateReferenceId
+{
+    fn foreign_from(value: &mandates::ConnectorMandateReferenceId) -> Self {
+        Self {
+            connector_mandate_id: value.get_connector_mandate_id(),
+            payment_method_id: value.get_payment_method_id(),
+            connector_mandate_request_reference_id: value
+                .get_connector_mandate_request_reference_id(),
+        }
+    }
+}
+
+impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
+    for Option<payments_grpc::ConnectorMandateReferenceId>
+{
+    fn foreign_from(
+        router_data: &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+    ) -> Self {
+        let structured = router_data.request.mandate_id.as_ref().and_then(|m| {
+            match m.mandate_reference_id.as_ref()? {
+                mandates::MandateReferenceId::ConnectorMandateId(r) => Some(r),
+                _ => None,
+            }
+        });
+
+        let connector_mandate_id = structured
+            .and_then(|r| r.get_connector_mandate_id())
+            .or_else(|| router_data.connector_mandate_request_reference_id.clone());
+        let payment_method_id = structured.and_then(|r| r.get_payment_method_id());
+        let connector_mandate_request_reference_id =
+            structured.and_then(|r| r.get_connector_mandate_request_reference_id());
+
+        if connector_mandate_id.is_none()
+            && payment_method_id.is_none()
+            && connector_mandate_request_reference_id.is_none()
+        {
+            return None;
+        }
+        Some(payments_grpc::ConnectorMandateReferenceId {
+            connector_mandate_id,
+            payment_method_id,
+            connector_mandate_request_reference_id,
         })
     }
 }
@@ -5818,50 +5868,85 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
         let mandate_type = mandate_data
             .mandate_type
             .as_ref()
-            .map(|domain_mandate_type| match domain_mandate_type {
-                MandateDataType::SingleUse(amount_data) => payments_grpc::MandateType {
-                    mandate_type: Some(payments_grpc::mandate_type::MandateType::SingleUse(
-                        payments_grpc::MandateAmountData {
-                            amount: amount_data.amount.get_amount_as_i64(),
-                            amount_type: None,
-                            frequency: None,
-                            currency: payments_grpc::Currency::foreign_try_from(
-                                amount_data.currency,
-                            )
-                            .unwrap_or(payments_grpc::Currency::Unspecified)
-                            .into(),
-                            start_date: amount_data.start_date.map(
-                                |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
+            .map(|domain_mandate_type|
+                     -> Result<_, error_stack::Report<UnifiedConnectorServiceError>> {
+                match domain_mandate_type {
+                    MandateDataType::SingleUse(amount_data) => {
+                        let currency =
+                            payments_grpc::Currency::foreign_try_from(amount_data.currency)?;
+                        Ok(payments_grpc::MandateType {
+                            mandate_type: Some(
+                                payments_grpc::mandate_type::MandateType::SingleUse(
+                                    #[allow(deprecated)]
+                                    payments_grpc::MandateAmountData {
+                                        amount: amount_data.amount.get_amount_as_i64(),
+                                        amount_type: None,
+                                        amount_money: Some(payments_grpc::Money {
+                                            minor_amount: amount_data
+                                                .amount
+                                                .get_amount_as_i64(),
+                                            currency: currency.into(),
+                                        }),
+                                        frequency: None,
+                                        currency: currency.into(),
+                                        start_date: amount_data.start_date.map(
+                                            |dt: time::PrimitiveDateTime| {
+                                                dt.assume_utc().unix_timestamp()
+                                            },
+                                        ),
+                                        end_date: amount_data.end_date.map(
+                                            |dt: time::PrimitiveDateTime| {
+                                                dt.assume_utc().unix_timestamp()
+                                            },
+                                        ),
+                                    },
+                                ),
                             ),
-                            end_date: amount_data.end_date.map(|dt: time::PrimitiveDateTime| {
-                                dt.assume_utc().unix_timestamp()
-                            }),
-                        },
-                    )),
-                },
-                MandateDataType::MultiUse(amount_data_opt) => payments_grpc::MandateType {
-                    mandate_type: amount_data_opt.as_ref().map(|amount_data| {
-                        payments_grpc::mandate_type::MandateType::MultiUse(
-                            payments_grpc::MandateAmountData {
-                                amount: amount_data.amount.get_amount_as_i64(),
-                                amount_type: None,
-                                frequency: None,
-                                currency: payments_grpc::Currency::foreign_try_from(
+                        })
+                    }
+                    MandateDataType::MultiUse(amount_data_opt) => {
+                        let mandate_type_inner = amount_data_opt
+                            .as_ref()
+                            .map(|amount_data| {
+                                let currency = payments_grpc::Currency::foreign_try_from(
                                     amount_data.currency,
+                                )?;
+                                Ok::<_, error_stack::Report<UnifiedConnectorServiceError>>(
+                                    payments_grpc::mandate_type::MandateType::MultiUse(
+                                        #[allow(deprecated)]
+                                        payments_grpc::MandateAmountData {
+                                            amount: amount_data.amount.get_amount_as_i64(),
+                                            amount_type: None,
+                                            amount_money: Some(payments_grpc::Money {
+                                                minor_amount: amount_data
+                                                    .amount
+                                                    .get_amount_as_i64(),
+                                                currency: currency.into(),
+                                            }),
+                                            frequency: None,
+                                            currency: currency.into(),
+                                            start_date: amount_data.start_date.map(
+                                                |dt: time::PrimitiveDateTime| {
+                                                    dt.assume_utc().unix_timestamp()
+                                                },
+                                            ),
+                                            end_date: amount_data.end_date.map(
+                                                |dt: time::PrimitiveDateTime| {
+                                                    dt.assume_utc().unix_timestamp()
+                                                },
+                                            ),
+                                        },
+                                    ),
                                 )
-                                .unwrap_or(payments_grpc::Currency::Unspecified)
-                                .into(),
-                                start_date: amount_data.start_date.map(
-                                    |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
-                                ),
-                                end_date: amount_data.end_date.map(
-                                    |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
-                                ),
-                            },
-                        )
-                    }),
-                },
-            });
+                            })
+                            .transpose()?;
+                        Ok(payments_grpc::MandateType {
+                            mandate_type: mandate_type_inner,
+                        })
+                    }
+                }
+            })
+            .transpose()?;
 
         Ok(Self {
             update_mandate_id: mandate_data.update_mandate_id.clone(),

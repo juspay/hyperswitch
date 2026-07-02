@@ -30,6 +30,7 @@ import getConnectorDetails, {
   extractIntegerAtEnd,
   getOriginalConnectorName,
   getValueByKey,
+  injectHelcimTestCard,
   setNormalizedValue,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
@@ -2471,10 +2472,19 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "sessionTokenCall",
   (sessionTokenBody, data, globalState) => {
-    const { Response: resData } = data || {};
+    const { Request: reqData = {}, Response: resData } = data || {};
 
-    sessionTokenBody.payment_id = globalState.get("paymentID");
-    sessionTokenBody.client_secret = globalState.get("clientSecret");
+    sessionTokenBody.wallets = reqData.wallets || [];
+    if ("payment_id" in reqData) {
+      sessionTokenBody.payment_id = reqData.payment_id;
+    } else {
+      sessionTokenBody.payment_id = globalState.get("paymentID");
+    }
+    if ("client_secret" in reqData) {
+      sessionTokenBody.client_secret = reqData.client_secret;
+    } else {
+      sessionTokenBody.client_secret = globalState.get("clientSecret");
+    }
 
     cy.request({
       method: "POST",
@@ -2501,17 +2511,12 @@ Cypress.Commands.add(
             expectedTokens.length
           );
 
-          // Verify specific fields in each session_token object
+          // Verify all keys in each session_token object
           expectedTokens.forEach((expectedToken, index) => {
             const actualToken = actualTokens[index];
-
-            // Check specific fields only
-            expect(actualToken.wallet_name, "wallet_name").to.equal(
-              expectedToken.wallet_name
-            );
-            expect(actualToken.connector, "connector").to.equal(
-              expectedToken.connector
-            );
+            for (const key in expectedToken) {
+              expect(actualToken[key], key).to.deep.equal(expectedToken[key]);
+            }
           });
         } else {
           defaultErrorHandler(response, resData);
@@ -2926,6 +2931,8 @@ Cypress.Commands.add(
       confirmBody.split_payments = reqData.split_payments;
     }
 
+    injectHelcimTestCard(confirmBody, globalState);
+
     const headers = {
       "Content-Type": "application/json",
       "api-key": apiKey,
@@ -3327,6 +3334,16 @@ Cypress.Commands.add(
                         response.body.next_action.redirect_to_url
                       );
                     }
+                    if (
+                      resData.Response &&
+                      resData.Response.body &&
+                      resData.Response.body.status
+                    ) {
+                      expect(
+                        response.body.status,
+                        "status should match config"
+                      ).to.equal(resData.Response.body.status);
+                    }
                   } else if (response.body.status === "failed") {
                     expect(response.body.error_code).to.equal(
                       resData.body.error_code
@@ -3695,6 +3712,8 @@ Cypress.Commands.add(
     if (reqData?.split_payments && isStripeConnect(globalState)) {
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
+
+    injectHelcimTestCard(createConfirmPaymentBody, globalState);
 
     const headers = {
       "Content-Type": "application/json",
@@ -7813,6 +7832,43 @@ Cypress.Commands.add("paymentMethodCreateCall", (globalState, pmData) => {
     } else {
       throw new Error(
         `Payment method create failed with status ${response.status}: ${JSON.stringify(response.body)}`
+      );
+    }
+  });
+});
+
+Cypress.Commands.add("getRawPaymentMethodDetailsCall", (globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const profileId = globalState.get("profileId");
+  const paymentMethodId = globalState.get("paymentMethodId");
+
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("pmServiceUrl")}/v1/payment-methods/${paymentMethodId}?fetch_raw_detail=true`,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "X-Profile-Id": profileId,
+      Authorization: `api-key=${apiKey}`,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    if (response.status === 200) {
+      expect(response.body).to.have.property("id");
+      expect(response.body.id).to.equal(paymentMethodId);
+      expect(response.body).to.have.property("payment_method_type");
+      expect(response.body).to.have.property("payment_method_subtype");
+      expect(response.body).to.have.property("payment_method_data");
+      const card = response.body.payment_method_data.card;
+      expect(card).to.have.property("last4_digits");
+      expect(card).to.have.property("expiry_month");
+      expect(card).to.have.property("expiry_year");
+      expect(card).to.have.property("card_holder_name");
+      expect(card).to.have.property("saved_to_locker");
+      expect(card.saved_to_locker).to.be.true;
+    } else {
+      throw new Error(
+        `Get raw payment method details failed with status ${response.status}: ${JSON.stringify(response.body)}`
       );
     }
   });
