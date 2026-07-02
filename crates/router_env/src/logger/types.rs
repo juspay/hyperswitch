@@ -419,6 +419,8 @@ pub enum Flow {
     GetDataFromHyperswitchAiFlow,
     // List all chat interactions
     ListAllChatInteractions,
+    /// Mint a sage session for the dashboard user.
+    LaunchSage,
     /// User Sign Up
     UserSignUp,
     /// User Sign Up
@@ -757,6 +759,18 @@ pub enum Flow {
     EmbeddedTokenInfo,
     /// Superposition SDK Config Get flow
     GetSuperpositionSdkConfig,
+    /// Superposition Proxy Get Context List flow
+    SuperpositionListContexts,
+    /// Superposition Proxy Get Default Configs List flow
+    SuperpositionListDefaultConfigs,
+    /// Superposition Proxy Get Dimensions List flow
+    SuperpositionListDimensions,
+    /// Superposition Proxy Create Context flow
+    SuperpositionCreateContext,
+    /// Superposition Proxy Resolve Detailed Config flow
+    SuperpositionResolveDetailedConfig,
+    /// Superposition Proxy List Audit Logs flow
+    SuperpositionListAuditLogs,
     // Get user details internal
     GetUserDetailsInternal,
     // List users internal

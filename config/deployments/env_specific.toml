@@ -450,6 +450,12 @@ enabled = false                                # Enable or disable chat features
 hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
 encryption_key = ""                            # Key to encrypt and decrypt chats
 
+[sage]
+enabled = false                                # Master switch for sage sessions
+base_url = ""                                  # Sage base URL (e.g. https://sage.<env>.example.com)
+mint_path = ""                                 # Path on sage that mints a session (e.g. /api/session)
+infra_key = ""                                 # Shared bearer presented to sage; KMS-decrypted at boot
+
 [proxy_status_mapping]
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
 
