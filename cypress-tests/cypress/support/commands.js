@@ -10661,7 +10661,15 @@ Cypress.Commands.add(
   "createSubscriptionTest",
   (createSubscriptionBody, data, globalState) => {
     const { Configs: configs = {} } = data;
-    execConfig(validateConfig(configs));
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task(
+        "cli_log",
+        "TRIGGER_SKIP enabled, skipping createSubscriptionTest"
+      );
+      return;
+    }
+    execConfig(validatedConfigs);
 
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
