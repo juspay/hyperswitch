@@ -49,37 +49,40 @@ describe("Connector Account Create flow test", () => {
     }
   );
 
-  // connector_3/4/5 are only needed for Stripe bank debit multi-credential setup
-  // (SEPA=connector_5, BACS=connector_3, BECS=connector_4)
-  ["connector_3", "connector_4", "connector_5"].forEach((connectorValue) => {
-    context(
-      `Create business profile and merchant connector account for ${connectorValue}`,
-      () => {
-        before(function () {
-          const connectorId = globalState.get("connectorId");
-          if (!["stripe", "stripeconnect"].includes(connectorId)) {
-            this.skip();
-          }
-        });
+  it("Create remaining business profiles and merchant connector accounts", () => {
+    const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
+    const connectorCount = multipleConnectors?.status
+      ? multipleConnectors.count
+      : 0;
 
-        it(`Create business profile for ${connectorValue}`, () => {
-          utils.createBusinessProfile(
-            fixtures.businessProfile.bpCreate,
-            globalState,
-            { nextConnector: true, value: connectorValue }
-          );
-        });
+    if (connectorCount <= 2) {
+      cy.task(
+        "cli_log",
+        "Skipping additional connector account setup; no extra connector credentials configured."
+      );
+      return;
+    }
 
-        it(`Create merchant connector account for ${connectorValue}`, () => {
-          utils.createMerchantConnectorAccount(
-            "payment_processor",
-            fixtures.createConnectorBody,
-            globalState,
-            payment_methods_enabled,
-            { nextConnector: true, value: connectorValue }
-          );
-        });
-      }
-    );
+    for (
+      let connectorIndex = 3;
+      connectorIndex <= connectorCount;
+      connectorIndex++
+    ) {
+      const connectorValue = `connector_${connectorIndex}`;
+
+      utils.createBusinessProfile(
+        fixtures.businessProfile.bpCreate,
+        globalState,
+        { nextConnector: true, value: connectorValue }
+      );
+
+      utils.createMerchantConnectorAccount(
+        "payment_processor",
+        fixtures.createConnectorBody,
+        globalState,
+        payment_methods_enabled,
+        { nextConnector: true, value: connectorValue }
+      );
+    }
   });
 });

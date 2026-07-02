@@ -67,6 +67,22 @@ const onlineCustomerAcceptance = {
   },
 };
 
+const connectorCredential = (connectorIndex) => ({
+  value: `connector_${connectorIndex}`,
+});
+
+const bankDebitCredentialIndex = {
+  Sepa: 5,
+  Ach: 1,
+  Becs: 4,
+  Bacs: 3,
+};
+
+const bankDebitConnectorCredential = (paymentMethodType) =>
+  connectorCredential(
+    bankDebitCredentialIndex[paymentMethodType] ?? bankDebitCredentialIndex.Sepa
+  );
+
 const payment_method_data_3ds = {
   card: {
     last4: "3155",
@@ -1435,17 +1451,9 @@ export const connectorDetails = {
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
       const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
-      const credentialMap = {
-        Sepa: { value: "connector_5" },
-        Ach: { value: "connector_1" },
-        Becs: { value: "connector_4" },
-        Bacs: { value: "connector_3" },
-      };
       return {
         Configs: {
-          CONNECTOR_CREDENTIAL: credentialMap[paymentMethodType] || {
-            value: "connector_5",
-          },
+          CONNECTOR_CREDENTIAL: bankDebitConnectorCredential(paymentMethodType),
           ...(paymentMethodType === "Bacs" ? { TRIGGER_SKIP: true } : {}),
         },
         Request: {
@@ -1461,9 +1469,7 @@ export const connectorDetails = {
     },
     Sepa: {
       Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_5",
-        },
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Sepa"),
       },
       Request: {
         payment_method: "bank_debit",
@@ -1509,9 +1515,7 @@ export const connectorDetails = {
     },
     Becs: {
       Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_4",
-        },
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Becs"),
       },
       Request: {
         currency: "AUD",
@@ -1600,9 +1604,7 @@ export const connectorDetails = {
     },
     Bacs: {
       Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_3",
-        },
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Bacs"),
       },
       Request: {
         payment_method: "bank_debit",
@@ -1637,9 +1639,7 @@ export const connectorDetails = {
     },
     MandateSingleUseAch: {
       Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Ach"),
       },
       Request: {
         amount: 6540,
@@ -1685,9 +1685,7 @@ export const connectorDetails = {
     MandateSingleUseBacs: {
       Configs: {
         TRIGGER_SKIP: true,
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_3",
-        },
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Bacs"),
       },
       Request: {
         amount: 6540,
@@ -1735,9 +1733,7 @@ export const connectorDetails = {
     },
     MandateSingleUseSepa: {
       Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_5",
-        },
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Sepa"),
       },
       Request: {
         amount: 6540,
@@ -1786,9 +1782,7 @@ export const connectorDetails = {
     },
     MandateSingleUseBecs: {
       Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_4",
-        },
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Becs"),
       },
       Request: {
         amount: 6540,
@@ -1840,9 +1834,7 @@ export const connectorDetails = {
     },
     MITAutoCaptureSepa: {
       Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_5",
-        },
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Sepa"),
       },
       Request: {
         amount: 6540,
@@ -1877,9 +1869,7 @@ export const connectorDetails = {
     },
     MITAutoCaptureBecs: {
       Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_4",
-        },
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Becs"),
       },
       Request: {
         amount: 6540,
@@ -1917,9 +1907,7 @@ export const connectorDetails = {
     },
     MITAutoCaptureAch: {
       Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Ach"),
       },
       Request: {
         amount: 6540,
@@ -1936,9 +1924,7 @@ export const connectorDetails = {
     },
     MITAutoCaptureBacs: {
       Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_3",
-        },
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Bacs"),
       },
       Request: {
         amount: 6540,
