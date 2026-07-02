@@ -107,6 +107,10 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Profile]
         },
+        SuperpositionConfig: {
+            scopes: [Read, Write],
+            entities: [Profile]
+        },
     ]
 }
 
@@ -143,6 +147,7 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::ReconStagingEntry, _) => Some("Recon Staging Entries"),
         (Resource::ReconTransaction, _) => Some("Recon Transactions"),
         (Resource::ReconRule, _) => Some("Recon Rules"),
+        (Resource::SuperpositionConfig, _) => Some("Superposition Configs"),
     }
 }
 

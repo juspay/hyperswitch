@@ -907,12 +907,12 @@ impl webhooks::IncomingWebhook for Fiuu {
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
             parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
-                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
+                .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
         } else {
             request
                 .body
                 .parse_struct("fiuu::FiuuWebhooksResponse")
-                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
+                .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
         };
 
         match resource {

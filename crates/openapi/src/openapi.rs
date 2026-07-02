@@ -798,6 +798,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::HyperswitchVaultData,
         api_models::payments::VgsVaultData,
         api_models::payments::ProxyCardData,
+        api_models::payments::PeachpaymentsCardOnFileTransactionType,
         api_models::payment_methods::RequiredFieldInfo,
         api_models::payment_methods::DefaultPaymentMethod,
         api_models::payment_methods::MaskedBankDetails,

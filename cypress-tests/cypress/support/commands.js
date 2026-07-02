@@ -30,6 +30,7 @@ import getConnectorDetails, {
   extractIntegerAtEnd,
   getOriginalConnectorName,
   getValueByKey,
+  injectHelcimTestCard,
   setNormalizedValue,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
@@ -2287,10 +2288,19 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "sessionTokenCall",
   (sessionTokenBody, data, globalState) => {
-    const { Response: resData } = data || {};
+    const { Request: reqData = {}, Response: resData } = data || {};
 
-    sessionTokenBody.payment_id = globalState.get("paymentID");
-    sessionTokenBody.client_secret = globalState.get("clientSecret");
+    sessionTokenBody.wallets = reqData.wallets || [];
+    if ("payment_id" in reqData) {
+      sessionTokenBody.payment_id = reqData.payment_id;
+    } else {
+      sessionTokenBody.payment_id = globalState.get("paymentID");
+    }
+    if ("client_secret" in reqData) {
+      sessionTokenBody.client_secret = reqData.client_secret;
+    } else {
+      sessionTokenBody.client_secret = globalState.get("clientSecret");
+    }
 
     cy.request({
       method: "POST",
@@ -2317,17 +2327,12 @@ Cypress.Commands.add(
             expectedTokens.length
           );
 
-          // Verify specific fields in each session_token object
+          // Verify all keys in each session_token object
           expectedTokens.forEach((expectedToken, index) => {
             const actualToken = actualTokens[index];
-
-            // Check specific fields only
-            expect(actualToken.wallet_name, "wallet_name").to.equal(
-              expectedToken.wallet_name
-            );
-            expect(actualToken.connector, "connector").to.equal(
-              expectedToken.connector
-            );
+            for (const key in expectedToken) {
+              expect(actualToken[key], key).to.deep.equal(expectedToken[key]);
+            }
           });
         } else {
           defaultErrorHandler(response, resData);
@@ -2735,6 +2740,8 @@ Cypress.Commands.add(
     if (reqData?.split_payments && isStripeConnect(globalState)) {
       confirmBody.split_payments = reqData.split_payments;
     }
+
+    injectHelcimTestCard(confirmBody, globalState);
 
     const headers = {
       "Content-Type": "application/json",
@@ -3524,6 +3531,8 @@ Cypress.Commands.add(
     if (reqData?.split_payments && isStripeConnect(globalState)) {
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
+
+    injectHelcimTestCard(createConfirmPaymentBody, globalState);
 
     const headers = {
       "Content-Type": "application/json",

@@ -33,9 +33,23 @@ use crate::{
 };
 
 #[cfg(feature = "v1")]
+#[derive(Clone, Debug)]
+struct CustomerIdentifiers {
+    customer_id: id_type::CustomerId,
+    id: Option<id_type::GlobalCustomerId>,
+}
+
+#[cfg(feature = "v1")]
+impl CustomerIdentifiers {
+    fn new(customer_id: id_type::CustomerId, id: Option<id_type::GlobalCustomerId>) -> Self {
+        Self { customer_id, id }
+    }
+}
+
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct Customer {
-    pub customer_id: id_type::CustomerId,
+    identifiers: CustomerIdentifiers,
     pub merchant_id: id_type::MerchantId,
     #[encrypt]
     pub name: Option<Encryptable<Secret<String>>>,
@@ -58,7 +72,6 @@ pub struct Customer {
     pub document_details: OptionalEncryptableValue,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
-    key: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -110,11 +123,11 @@ impl Customer {
         document_details: OptionalEncryptableValue,
         created_by: Option<CreatedBy>,
         last_modified_by: Option<CreatedBy>,
-        key: String,
+        id: id_type::GlobalCustomerId,
     ) -> Self {
         let now = date_time::now();
         Self {
-            customer_id,
+            identifiers: CustomerIdentifiers::new(customer_id, Some(id)),
             merchant_id,
             name,
             email,
@@ -133,14 +146,19 @@ impl Customer {
             document_details,
             created_by,
             last_modified_by,
-            key: Some(key),
         }
     }
 
     /// Get the unique identifier of Customer
     #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &id_type::CustomerId {
-        &self.customer_id
+        &self.identifiers.customer_id
+    }
+
+    /// Get the global identifier of Customer.
+    #[cfg(feature = "v1")]
+    pub fn get_global_id(&self) -> Option<&id_type::GlobalCustomerId> {
+        self.identifiers.id.as_ref()
     }
 
     /// Get the global identifier of Customer
@@ -196,11 +214,6 @@ impl Customer {
             MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
         }
     }
-
-    #[cfg(feature = "v1")]
-    pub fn get_global_customer_id(&self) -> &Option<String> {
-        &self.key
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -210,7 +223,7 @@ impl behaviour::Conversion for Customer {
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::customers::Customer {
-            customer_id: self.customer_id.clone(),
+            customer_id: self.identifiers.customer_id.clone(),
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),
             email: self.email.map(Encryption::from),
@@ -231,7 +244,7 @@ impl behaviour::Conversion for Customer {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
-            id: self.key,
+            id: self.identifiers.id,
         })
     }
 
@@ -287,7 +300,7 @@ impl behaviour::Conversion for Customer {
             })?;
 
         Ok(Self {
-            customer_id: item.customer_id,
+            identifiers: CustomerIdentifiers::new(item.customer_id, item.id),
             merchant_id: item.merchant_id,
             name: encryptable_customer.name,
             email: encryptable_customer.email.map(|email| {
@@ -316,15 +329,14 @@ impl behaviour::Conversion for Customer {
             last_modified_by: item
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
-            key: item.id,
         })
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(diesel_models::customers::CustomerNew {
-            id: self.key,
-            customer_id: self.customer_id,
+            id: self.identifiers.id,
+            customer_id: self.identifiers.customer_id,
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),
             email: self.email.map(Encryption::from),
