@@ -5100,8 +5100,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let shipping_cost = payment_data.payment_intent.amount_details.shipping_cost;
 
-        let connector_metadata = payment_data.payment_intent.connector_metadata.clone();
-
         Ok(Self {
             payment_method_data: payment_method_data
                 .unwrap_or(domain::PaymentMethodData::Card(domain::Card::default())),
