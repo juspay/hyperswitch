@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use common_enums::{CallConnectorAction, ExecutionPath};
+use common_enums::{CallConnectorAction, ExecutionMode, ExecutionPath};
 use common_utils::{errors::CustomResult, id_type, request::Request, ucs_types};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{router_data::RouterData, router_flow_types as domain};
@@ -140,7 +140,16 @@ where
                             .contains(&connector_enum)
                     });
 
-                if is_ucs_psync_disabled {
+                // In shadow mode we always attempt the UCS call even when the
+                // connector is in the disabled list, so the comparison service
+                // receives real data from both sides and does not generate a
+                // false-positive typeDiff on connector_http_status_code.
+                if is_ucs_psync_disabled
+                    && !matches!(
+                        unified_connector_service_execution_mode,
+                        ExecutionMode::Shadow
+                    )
+                {
                     logger::info!(
                         "UCS PSync call disabled for connector: {}, skipping UCS call",
                         connector_name
