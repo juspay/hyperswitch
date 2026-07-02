@@ -135,7 +135,7 @@ pub async fn perform_post_authentication(
         );
     let authentication = state
         .store
-        .find_authentication_by_merchant_id_authentication_id(
+        .find_authentication_by_processor_merchant_id_authentication_id(
             &business_profile.merchant_id,
             &authentication_id,
             processor.get_key_store(),
@@ -221,6 +221,7 @@ pub async fn perform_post_authentication(
 pub async fn perform_pre_authentication(
     state: &SessionState,
     processor: &domain::Processor,
+    provider_merchant_id: common_utils::id_type::MerchantId,
     card: hyperswitch_domain_models::payment_method_data::Card,
     token: String,
     business_profile: &domain::Profile,
@@ -241,7 +242,7 @@ pub async fn perform_pre_authentication(
     let authentication_connector_name = authentication_connector.to_string();
     let authentication = utils::create_new_authentication(
         state,
-        business_profile.merchant_id.clone(),
+        provider_merchant_id,
         authentication_connector_name.clone(),
         token,
         business_profile.get_id().to_owned(),
