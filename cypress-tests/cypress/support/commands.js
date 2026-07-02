@@ -5919,34 +5919,36 @@ Cypress.Commands.add(
     createConfirmPayoutBody.confirm = confirm;
     createConfirmPayoutBody.customer_id = globalState.get("customerId");
 
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/payouts/create`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
-      failOnStatusCode: false,
-      body: createConfirmPayoutBody,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+    return cy
+      .request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/payouts/create`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": globalState.get("apiKey"),
+        },
+        failOnStatusCode: false,
+        body: createConfirmPayoutBody,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
 
-      cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
-        if (response.status === 200) {
-          globalState.set("payoutAmount", createConfirmPayoutBody.amount);
-          globalState.set("payoutID", response.body.payout_id);
-          if (response.body.payout_method_id) {
-            globalState.set("payoutMethodId", response.body.payout_method_id);
+        cy.wrap(response).then(() => {
+          expect(response.headers["content-type"]).to.include(
+            "application/json"
+          );
+          if (response.status === 200) {
+            globalState.set("payoutAmount", createConfirmPayoutBody.amount);
+            globalState.set("payoutID", response.body.payout_id);
+            for (const key in resData.body) {
+              expect(resData.body[key]).to.deep.equal(response.body[key]);
+            }
+          } else {
+            defaultErrorHandler(response, resData);
           }
-          for (const key in resData.body) {
-            expect(resData.body[key]).to.deep.equal(response.body[key]);
-          }
-        } else {
-          defaultErrorHandler(response, resData);
-        }
+          return response;
+        });
       });
-    });
   }
 );
 
@@ -6177,14 +6179,20 @@ Cypress.Commands.add(
     ) {
       data.Request.payout_method_id = globalState.get("payoutMethodId");
     }
-    cy.createConfirmPayoutTest(
-      payoutBody,
-      data,
-      confirm,
-      autoFulfill,
-      globalState
-    );
-    return cy.wrap(payoutUtils.should_continue_further(data));
+    return cy
+      .createConfirmPayoutTest(
+        payoutBody,
+        data,
+        confirm,
+        autoFulfill,
+        globalState
+      )
+      .then((response) => {
+        if (response.body.payout_method_id) {
+          globalState.set("payoutMethodId", response.body.payout_method_id);
+        }
+        return payoutUtils.should_continue_further(data);
+      });
   }
 );
 

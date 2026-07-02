@@ -258,11 +258,8 @@ export const connectorDetails = {
         },
       },
       RecurringTrueFulfill: {
-        Request: {
-          currency: "EUR",
-          payout_type: "bank",
-          recurring: true,
-        },
+        // Request not used — fulfillPayoutCallTest only sends { payout_id } from globalState
+        Request: {},
         Response: {
           status: 200,
           body: {
@@ -324,10 +321,11 @@ export const connectorDetails = {
         },
       },
       // RecurringInvalidConfirm and RecurringUseMethod are TRIGGER_SKIP because
-      // they depend on payout_method_id being returned by the connector (saved
-      // from RecurringTrue). Wise does not return payout_method_id in its
-      // payout response — this requires Rust changes to propagate the recurring
-      // flag through PayoutsData and implement it in the Wise transformer.
+      // they depend on payout_method_id being saved from a prior RecurringTrue
+      // payout and reused. The API returns payout_method_id for confirmed
+      // payouts regardless of the recurring flag, but the full reuse flow
+      // (invalid confirm validation, method_id-based payout) requires further
+      // backend work to be testable end-to-end.
       RecurringInvalidConfirm: {
         Configs: {
           TRIGGER_SKIP: true,
@@ -348,10 +346,11 @@ export const connectorDetails = {
           },
         },
       },
-      // TRIGGER_SKIP because Wise does not return payout_method_id — this
-      // requires Rust changes in crates/router/src/core/payouts.rs and the
-      // Wise transformer. This test will be enabled once the backend
-      // propagates payout_method_id for recurring payouts.
+      // TRIGGER_SKIP because the payout_method_id reuse flow requires backend
+      // work in crates/router/src/core/payouts.rs and the Wise transformer.
+      // The API returns payout_method_id for confirmed payouts, but the full
+      // reuse flow (creating a payout from a saved method_id) is not yet
+      // testable end-to-end.
       RecurringUseMethod: {
         Configs: {
           TRIGGER_SKIP: true,
