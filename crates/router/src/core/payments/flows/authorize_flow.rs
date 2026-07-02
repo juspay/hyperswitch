@@ -2023,10 +2023,9 @@ pub async fn call_unified_connector_service_post_authenticate_for_external_proxy
     // tuple builder; the reveal filter won't match the card-less RReq body, so nothing is substituted,
     // but the request goes through VGS with the client certificate.
     let mut payment_post_authenticate_request =
-        payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateRequest::foreign_try_from((
-            router_data,
-            external_vault_pmd,
-        ))
+        payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateRequest::foreign_try_from(
+            (router_data, external_vault_pmd),
+        )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct external-vault Payment Post Authenticate Request")?;
 
