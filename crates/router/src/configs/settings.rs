@@ -83,6 +83,7 @@ pub struct Settings<S: SecretState> {
     pub proxy: Proxy,
     pub env: Env,
     pub chat: SecretStateContainer<ChatSettings, S>,
+    pub sage: SecretStateContainer<SageSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
@@ -241,6 +242,15 @@ pub struct ChatSettings {
     pub enabled: bool,
     pub hyperswitch_ai_host: String,
     pub encryption_key: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct SageSettings {
+    pub enabled: bool,
+    pub base_url: String,
+    pub mint_path: String,
+    pub infra_key: Secret<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -1214,6 +1224,7 @@ impl Settings<SecuredSecret> {
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
         self.chat.get_inner().validate()?;
+        self.sage.get_inner().validate()?;
         self.cors.validate()?;
 
         self.scheduler
@@ -1375,27 +1386,11 @@ pub struct ServerTls {
     pub certificate: PathBuf,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct CellInformation {
     pub id: id_type::CellId,
 }
 
-#[cfg(feature = "v1")]
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-pub struct CellInformation {
-    pub id: String,
-}
-#[cfg(feature = "v1")]
-impl Default for CellInformation {
-    fn default() -> Self {
-        Self {
-            id: String::from("00"),
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
 impl Default for CellInformation {
     fn default() -> Self {
         // We provide a static default cell id for constructing application settings.

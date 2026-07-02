@@ -1595,4 +1595,375 @@ export const connectorDetails = {
       },
     }),
   },
+  wallet_pm: {
+    PaymentIntent: (walletType, overrideCurrency) => {
+      const currencyMap = {
+        AliPay: "USD",
+        AmazonPay: "USD",
+        Cashapp: "USD",
+        RevolutPay: "EUR",
+        WeChatPay: "USD",
+      };
+      return {
+        Request: {
+          currency: overrideCurrency || currencyMap[walletType] || "USD",
+          amount: 1000,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    PaymentIntentMandate: (walletType, overrideCurrency) => {
+      const currencyMap = {
+        AmazonPay: "USD",
+        Cashapp: "USD",
+        RevolutPay: "EUR",
+      };
+      return {
+        Request: {
+          currency: overrideCurrency || currencyMap[walletType] || "USD",
+          amount: 1000,
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    AliPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "ali_pay",
+        payment_method_data: {
+          wallet: {
+            ali_pay_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            country: "CN",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    },
+    AmazonPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "amazon_pay",
+        payment_method_data: {
+          wallet: {
+            amazon_pay_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    },
+    AmazonPayMandate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "amazon_pay",
+        payment_method_data: {
+          wallet: {
+            amazon_pay_redirect: {},
+          },
+        },
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "offline",
+            accepted_at: "1963-05-03T04:07:52.723Z",
+            online: {
+              ip_address: "in sit",
+              user_agent: "amet irure esse sunt",
+            },
+          },
+          mandate_type: {
+            single_use: {
+              amount: 1000,
+              currency: "USD",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    },
+    Cashapp: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "cashapp",
+        payment_method_data: {
+          wallet: {
+            cashapp_qr: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    },
+    CashappMandate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "cashapp",
+        payment_method_data: {
+          wallet: {
+            cashapp_qr: {},
+          },
+        },
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "offline",
+            accepted_at: "1963-05-03T04:07:52.723Z",
+            online: {
+              ip_address: "in sit",
+              user_agent: "amet irure esse sunt",
+            },
+          },
+          mandate_type: {
+            single_use: {
+              amount: 1000,
+              currency: "USD",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    },
+    RevolutPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "revolut_pay",
+        payment_method_data: {
+          wallet: {
+            revolut_pay: {},
+          },
+        },
+        mandate_data: null,
+        setup_future_usage: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+        TRIGGER_SKIP: true,
+      },
+    },
+    RevolutPayMandate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "revolut_pay",
+        payment_method_data: {
+          wallet: {
+            revolut_pay: {},
+          },
+        },
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "offline",
+            accepted_at: "1963-05-03T04:07:52.723Z",
+            online: {
+              ip_address: "in sit",
+              user_agent: "amet irure esse sunt",
+            },
+          },
+          mandate_type: {
+            single_use: {
+              amount: 1000,
+              currency: "EUR",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+        TRIGGER_SKIP: true,
+      },
+    },
+    WeChatPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "we_chat_pay",
+        payment_method_data: {
+          wallet: {
+            we_chat_pay_qr: {},
+          },
+        },
+        mandate_data: null,
+        setup_future_usage: null,
+        billing: {
+          address: {
+            country: "CN",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    },
+    AliPayInvalidCurrency: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "ali_pay",
+        payment_method_data: {
+          wallet: {
+            ali_pay_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "AliPay is not available in the selected region/currency",
+        },
+      },
+    },
+    AmazonPayInvalidCurrency: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "amazon_pay",
+        payment_method_data: {
+          wallet: {
+            amazon_pay_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "AmazonPay is not available in the selected region/currency",
+        },
+      },
+    },
+    CashappInvalidCurrency: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "cashapp",
+        payment_method_data: {
+          wallet: {
+            cashapp_qr: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "Cashapp is not available in the selected region/currency",
+        },
+      },
+    },
+    RevolutPayInvalidCurrency: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "revolut_pay",
+        payment_method_data: {
+          wallet: {
+            revolut_pay: {},
+          },
+        },
+        mandate_data: null,
+        setup_future_usage: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "RevolutPay is not available in the selected region/currency",
+        },
+      },
+    },
+    WeChatPayInvalidCurrency: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "we_chat_pay",
+        payment_method_data: {
+          wallet: {
+            we_chat_pay_qr: {},
+          },
+        },
+        mandate_data: null,
+        setup_future_usage: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "WeChatPay is not available in the selected region/currency",
+        },
+      },
+    },
+  },
 };
