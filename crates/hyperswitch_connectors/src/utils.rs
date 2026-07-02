@@ -2438,6 +2438,7 @@ pub trait PaymentsAuthorizeRequestData {
     ) -> Result<Secret<String>, Error>;
     fn is_cit_mandate_payment(&self) -> bool;
     fn get_optional_network_transaction_id(&self) -> Option<String>;
+    fn get_optional_transaction_link_id(&self) -> Option<String>;
     fn get_optional_email(&self) -> Option<Email>;
     fn get_card_network_from_additional_payment_method_data(
         &self,
@@ -2500,7 +2501,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None => None,
             })
     }
@@ -2555,7 +2556,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                     Some(connector_mandate_ids.clone())
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
                 | None => None,
             })
@@ -2662,7 +2663,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -2679,10 +2680,29 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
                     Some(network_transaction_id.network_transaction_id.clone())
                 }
-                Some(mandates::MandateReferenceId::ConnectorMandateId(_))
-                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
-                | None => None,
+                Some(mandates::MandateReferenceId::NetworkTokenWithNTI(ref_data)) => {
+                    Some(ref_data.network_transaction_id.clone())
+                }
+                Some(mandates::MandateReferenceId::CardWithLimitedData(ref_data)) => {
+                    ref_data.network_transaction_id.clone()
+                }
+                Some(mandates::MandateReferenceId::ConnectorMandateId(_)) | None => None,
+            })
+    }
+    fn get_optional_transaction_link_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(mandates::MandateReferenceId::NetworkMandateId(ref_data)) => {
+                    ref_data.transaction_link_id.clone()
+                }
+                Some(mandates::MandateReferenceId::NetworkTokenWithNTI(ref_data)) => {
+                    ref_data.transaction_link_id.clone()
+                }
+                Some(mandates::MandateReferenceId::CardWithLimitedData(ref_data)) => {
+                    ref_data.transaction_link_id.clone()
+                }
+                Some(mandates::MandateReferenceId::ConnectorMandateId(_)) | None => None,
             })
     }
     fn get_optional_email(&self) -> Option<Email> {
@@ -2813,7 +2833,7 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None => None,
             })
     }
@@ -3075,7 +3095,7 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -3103,7 +3123,7 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -3321,7 +3341,7 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })

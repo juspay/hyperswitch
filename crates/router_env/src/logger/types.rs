@@ -136,6 +136,8 @@ pub enum Flow {
     PaymentMethodsCreate,
     /// Payment methods migrate flow.
     PaymentMethodsMigrate,
+    /// Modular Payment methods migrate flow.
+    ModularPaymentMethodsMigrate,
     /// Payment methods batch update flow.
     PaymentMethodsBatchUpdate,
     /// Payment methods batch retrieve flow.
