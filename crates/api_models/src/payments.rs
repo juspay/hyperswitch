@@ -1522,7 +1522,7 @@ pub struct PaymentsRequest {
 
     /// Indicates whether the `payment_id` was provided by the merchant
     /// This value is inferred internally based on the request
-    #[serde(skip_deserializing)]
+    #[serde(skip_deserializing, skip_serializing)]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub is_payment_id_from_merchant: bool,
 
@@ -2315,11 +2315,23 @@ pub struct CaptureResponse {
     pub reference_id: Option<String>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Debug, serde::Deserialize, Clone, Copy, PartialEq, Eq)]
 pub enum Amount {
     Value(NonZeroI64),
     #[default]
     Zero,
+}
+
+impl Serialize for Amount {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::Value(val) => serializer.serialize_i64(val.get()),
+            Self::Zero => serializer.serialize_i64(0),
+        }
+    }
 }
 
 impl From<Amount> for MinorUnit {
@@ -3106,6 +3118,9 @@ mod payment_method_data_serde {
 
         match deserialize_to_inner {
             __Inner::OptionalPaymentMethod(value) => {
+                if value.is_null() {
+                    return Ok(None);
+                }
                 let parsed_value = serde_json::from_value::<__InnerPaymentMethodData>(value)
                     .map_err(|serde_json_error| de::Error::custom(serde_json_error.to_string()))?;
 
@@ -9539,7 +9554,8 @@ pub struct PaymentsUpdateMetadataRequest {
     #[schema(value_type = Object, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
-    #[schema(value_type = Option<FeatureMetadata>)]
+    /// Deprecated because feature_metadata update will be done via the /update api from now on
+    #[schema(value_type = Option<FeatureMetadata>, deprecated)]
     pub feature_metadata: Option<FeatureMetadata>,
 }
 
@@ -9552,10 +9568,12 @@ pub struct PaymentsUpdateMetadataResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// The status of the payment intent after the metadata update
-    #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
-    pub status: api_enums::IntentStatus,
+    /// Deprecated because there is no change in the status of payment intent after metadata update, and it might create confusion for the integrators.
+    #[schema(value_type = Option<IntentStatus>, example = "failed", default = "requires_confirmation", deprecated)]
+    pub status: Option<api_enums::IntentStatus>,
     /// Additional data that might be required by hyperswitch, to enable some specific features.
-    #[schema(value_type = Option<FeatureMetadata>)]
+    /// Deprecated because feature_metadata update will be done via the /update api from now on
+    #[deprecated(note = "feature_metadata update will be done via the /update api from now on")]
     #[schema(value_type = Option<FeatureMetadata>)]
     pub feature_metadata: Option<FeatureMetadata>,
 }
@@ -13700,13 +13718,13 @@ impl PaymentsUpdateMetadataRequest {
     pub fn validate(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
         let Self {
             metadata,
-            feature_metadata,
+            feature_metadata: _,
             payment_id: _,
         } = self;
 
-        if metadata.is_none() && feature_metadata.is_none() {
+        if metadata.is_none() {
             return Err(ValidationError::MissingRequiredField {
-                field_name: "metadata or feature_metadata".to_string(),
+                field_name: "metadata".to_string(),
             }
             .into());
         }

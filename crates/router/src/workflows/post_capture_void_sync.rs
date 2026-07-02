@@ -91,6 +91,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             hyperswitch_domain_models::payments::HeaderPayload::default(),
             &dimensions,
             None,
+            None,
         ))
         .await?;
 

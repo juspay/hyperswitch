@@ -281,6 +281,7 @@ where
                 None,
                 HeaderPayload::default(),
                 None,
+                None,
             ))
             .await?;
             logger::debug!("payment_id : {:?} has been cancelled since it has been found fraudulent by configured frm connector",payment_data.get_payment_attempt().payment_id);
@@ -337,6 +338,7 @@ where
                 None,
                 None,
                 HeaderPayload::default(),
+                None,
                 None,
             ))
             .await?;

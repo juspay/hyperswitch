@@ -495,6 +495,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
                 None,
+                None,
             ))
             .await?
             {

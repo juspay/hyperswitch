@@ -137,6 +137,7 @@ impl<F: Send + Clone + Sync>
         platform: &domain::Platform,
         profile: &domain::Profile,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _request_payload: Option<serde_json::Value>,
     ) -> RouterResult<
         operations::GetTrackerResponse<hyperswitch_domain_models::payments::PaymentCancelData<F>>,
     > {

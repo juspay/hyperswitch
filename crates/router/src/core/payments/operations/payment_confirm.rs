@@ -88,6 +88,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        request_payload: Option<serde_json::Value>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let operations::PaymentMethodFetchData {
@@ -946,6 +947,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             client_session_id: None,
             vault_session_details: None,
             external_vault_pmd: None,
+            request_payload,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -2850,8 +2852,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         description: m_description,
                         statement_descriptor_name: m_statement_descriptor_name,
                         statement_descriptor_suffix: m_statement_descriptor_suffix,
+                        billing_descriptor: payment_data.payment_intent.billing_descriptor.clone(),
                         order_details: m_order_details,
                         metadata: m_metadata,
+                        connector_metadata: payment_data.payment_intent.connector_metadata.clone(),
                         payment_confirm_source: header_payload.payment_confirm_source,
                         updated_by: m_storage_scheme,
                         fingerprint_id: None,

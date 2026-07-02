@@ -49,6 +49,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        _request_payload: Option<serde_json::Value>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest, PaymentData<F>>,
     > {
@@ -228,6 +229,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             card_testing_guard_data: None,
             vault_operation: None,
             vault_session_details: None,
+            request_payload: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
             is_manual_retry_enabled: None,
@@ -271,7 +273,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
         let key_store = processor.get_key_store();
 
         let metadata = payment_data.payment_intent.metadata.clone();
-        let feature_metadata = payment_data.payment_intent.feature_metadata.clone();
         payment_data.payment_intent = match metadata {
             Some(metadata) => state
                 .store
@@ -280,7 +281,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
                     storage::PaymentIntentUpdate::MetadataUpdate {
                         metadata: Some(metadata),
                         updated_by: storage_scheme.to_string(),
-                        feature_metadata,
                     },
                     key_store,
                     storage_scheme,

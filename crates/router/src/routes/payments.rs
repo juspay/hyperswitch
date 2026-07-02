@@ -594,6 +594,7 @@ pub async fn payments_start(
                 None,
                 HeaderPayload::default(),
                 None,
+                None,
             )
         },
         &auth::MerchantIdAuth(merchant_id),
@@ -685,6 +686,7 @@ pub async fn payments_retrieve(
                 None,
                 header_payload.clone(),
                 None,
+                None,
             )
         },
         auth::auth_type(
@@ -767,6 +769,7 @@ pub async fn payments_retrieve_with_gateway_creds(
                 None,
                 HeaderPayload::default(),
                 None,
+                None,
             )
         },
         &*auth_type,
@@ -796,6 +799,12 @@ pub async fn payments_update(
         return http_not_implemented();
     };
 
+    let request_payload =
+        match payments::request_payload_helpers::serialize_request_to_json(&payload) {
+            Ok(payload) => Some(payload),
+            Err(err) => return api::log_and_return_error_response(err),
+        };
+
     let payment_id = path.into_inner();
 
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
@@ -816,25 +825,40 @@ pub async fn payments_update(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, mut req, req_state| {
-            if let Some(client_secret) = auth.client_secret {
-                req.client_secret = Some(client_secret);
-            }
-
-            authorize_verify_select::<_>(
-                payments::PaymentUpdate,
+        |state, auth: auth::AuthenticationData, req, req_state| {
+            payments::payments_core::<
+                api_types::UpdatePostConfirm,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::UpdatePostConfirm>,
+            >(
                 state,
                 req_state,
                 auth.platform,
                 auth.profile.map(|profile| profile.get_id().clone()),
-                HeaderPayload::default(),
+                payments::PaymentUpdate,
                 req,
                 auth_flow,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+                header_payload.clone(),
+                None,
+                request_payload.clone(),
             )
         },
         &*auth_type,
@@ -929,6 +953,7 @@ pub async fn payments_post_session_tokens(
                 None,
                 header_payload.clone(),
                 None,
+                None,
             )
         },
         &*auth,
@@ -987,6 +1012,7 @@ pub async fn payments_update_metadata(
                 None,
                 None,
                 header_payload.clone(),
+                None,
                 None,
             )
         },
@@ -1126,6 +1152,7 @@ pub async fn payments_capture(
                 None,
                 HeaderPayload::default(),
                 None,
+                None,
             )
         },
         auth::auth_type(
@@ -1232,6 +1259,7 @@ pub async fn payments_dynamic_tax_calculation(
                 None,
                 None,
                 header_payload.clone(),
+                None,
                 None,
             )
         },
@@ -1387,6 +1415,7 @@ pub async fn payments_connector_session(
                 None,
                 None,
                 header_payload.clone(),
+                None,
                 None,
             )
         },
@@ -1660,6 +1689,7 @@ pub async fn payments_complete_authorize(
                 None,
                 HeaderPayload::default(),
                 None,
+                None,
             )
         },
         &*auth_type,
@@ -1726,6 +1756,7 @@ pub async fn payments_cancel(
                             crate::core::payment_methods::transformers::PaymentMethodFetchData::default(),
                             &preliminary_dimensions,
                             None,
+                            None,
                         )
                         .await?;
 
@@ -1779,7 +1810,7 @@ pub async fn payments_cancel(
                         None,
                         header_payload.clone(),
                         Some(payment_pre_fetched_info),
-                    ))
+                     None,))
                     .await
                 } else {
                     Box::pin(payments::payments_core::<
@@ -1802,7 +1833,7 @@ pub async fn payments_cancel(
                         None,
                         header_payload.clone(),
                         Some(payment_pre_fetched_info),
-                    ))
+                     None,))
                     .await
                 }
             }
@@ -1881,6 +1912,7 @@ pub async fn payments_cancel(
                 payment_id,
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
+                None,
             ))
             .await
         },
@@ -1943,6 +1975,7 @@ pub async fn payments_cancel_post_capture(
                 None,
                 HeaderPayload::default(),
                 None,
+                None,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -1992,6 +2025,7 @@ pub async fn payments_cancel_post_capture_retrieve(
                 None,
                 None,
                 HeaderPayload::default(),
+                None,
                 None,
             )
         },
@@ -2387,6 +2421,7 @@ pub async fn payments_approve(
                 None,
                 HeaderPayload::default(),
                 None,
+                None,
             )
         },
         match env::which() {
@@ -2459,6 +2494,7 @@ pub async fn payments_reject(
                 None,
                 None,
                 HeaderPayload::default(),
+                None,
                 None,
             )
         },
@@ -2541,6 +2577,7 @@ where
             payments::CallConnectorAction::Trigger,
             header_payload,
             req.all_keys_required,
+            None,
         )
         .await
     } else {
@@ -2606,6 +2643,7 @@ where
                             payments::CallConnectorAction::Trigger,
                             header_payload,
                             None,
+                            None,
                         ))
                         .await
                     } else {
@@ -2626,6 +2664,7 @@ where
                             auth_flow,
                             payments::CallConnectorAction::Trigger,
                             header_payload,
+                            None,
                             None,
                         ))
                         .await
@@ -2651,6 +2690,7 @@ where
                             eligible_routable_connectors.clone(),
                             header_payload.clone(),
                             &dimensions,
+                            None,
                             None,
                         ))
                         .await?;
@@ -2696,6 +2736,7 @@ where
                                     eligible_routable_connectors,
                                     header_payload.clone(),
                                     &dimensions,
+                                    None,
                                     None,
                                 ))
                                 .await?;
@@ -2752,6 +2793,7 @@ where
                     eligible_connectors,
                     header_payload,
                     None,
+                    None,
                 )
                 .await
             }
@@ -2800,6 +2842,7 @@ pub async fn payments_incremental_authorization(
                 None,
                 None,
                 HeaderPayload::default(),
+                None,
                 None,
             )
         },
@@ -2851,6 +2894,7 @@ pub async fn payments_extend_authorization(
                 None,
                 None,
                 HeaderPayload::default(),
+                None,
                 None,
             )
         },
@@ -3927,6 +3971,7 @@ pub async fn proxy_confirm_intent(
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
                 None,
+                None,
             ))
         },
         &auth::V2ApiKeyAuth {
@@ -4002,7 +4047,7 @@ pub async fn confirm_intent_with_external_vault_proxy(
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
                 None,
-            ))
+             None,))
         },
         auth::api_or_client_auth(
             &auth::V2ApiKeyAuth {
@@ -4087,6 +4132,7 @@ pub async fn payment_status(
                 payment_id,
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
+                None,
             ))
             .await
         },
@@ -4191,6 +4237,7 @@ pub async fn payments_status_with_gateway_creds(
                 payment_id,
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
+                None,
             ))
             .await
         },
@@ -4355,6 +4402,7 @@ pub async fn payments_capture(
                 payment_id,
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
+                None,
             ))
             .await
         },

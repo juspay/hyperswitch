@@ -154,6 +154,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
         platform: &domain::Platform,
         _profile: &domain::Profile,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _request_payload: Option<serde_json::Value>,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentConfirmData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();

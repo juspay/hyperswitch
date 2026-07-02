@@ -146,6 +146,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
         platform: &domain::Platform,
         profile: &domain::Profile,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _request_payload: Option<serde_json::Value>,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
         if let Some(routing_algorithm_id) = request.routing_algorithm_id.as_ref() {
