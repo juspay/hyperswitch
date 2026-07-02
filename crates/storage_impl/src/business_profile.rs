@@ -18,7 +18,6 @@ use crate::{
 #[async_trait::async_trait]
 impl<T: DatabaseStore> ProfileInterface for kv_router_store::KVRouterStore<T> {
     type Error = StorageError;
-    #[instrument(skip_all)]
     async fn insert_business_profile(
         &self,
         merchant_key_store: &MerchantKeyStore,
@@ -29,7 +28,6 @@ impl<T: DatabaseStore> ProfileInterface for kv_router_store::KVRouterStore<T> {
             .await
     }
 
-    #[instrument(skip_all)]
     async fn find_business_profile_by_profile_id(
         &self,
         merchant_key_store: &MerchantKeyStore,
@@ -55,7 +53,6 @@ impl<T: DatabaseStore> ProfileInterface for kv_router_store::KVRouterStore<T> {
             .await
     }
 
-    #[instrument(skip_all)]
     async fn find_business_profile_by_profile_name_merchant_id(
         &self,
         merchant_key_store: &MerchantKeyStore,
@@ -71,7 +68,6 @@ impl<T: DatabaseStore> ProfileInterface for kv_router_store::KVRouterStore<T> {
             .await
     }
 
-    #[instrument(skip_all)]
     async fn update_profile_by_profile_id(
         &self,
         merchant_key_store: &MerchantKeyStore,
@@ -83,7 +79,6 @@ impl<T: DatabaseStore> ProfileInterface for kv_router_store::KVRouterStore<T> {
             .await
     }
 
-    #[instrument(skip_all)]
     async fn delete_profile_by_profile_id_merchant_id(
         &self,
         profile_id: &common_utils::id_type::ProfileId,
@@ -94,7 +89,6 @@ impl<T: DatabaseStore> ProfileInterface for kv_router_store::KVRouterStore<T> {
             .await
     }
 
-    #[instrument(skip_all)]
     async fn list_profile_by_merchant_id(
         &self,
         merchant_key_store: &MerchantKeyStore,
@@ -109,18 +103,17 @@ impl<T: DatabaseStore> ProfileInterface for kv_router_store::KVRouterStore<T> {
 #[async_trait::async_trait]
 impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
     type Error = StorageError;
-    #[instrument(skip_all)]
     async fn insert_business_profile(
         &self,
         merchant_key_store: &MerchantKeyStore,
         business_profile: domain::Profile,
     ) -> CustomResult<domain::Profile, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let mut conn = pg_accounts_connection_write(self).await?;
         business_profile
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(StorageError::from(error)))?
             .convert(
@@ -133,16 +126,15 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
             .change_context(StorageError::DecryptionError)
     }
 
-    #[instrument(skip_all)]
     async fn find_business_profile_by_profile_id(
         &self,
         merchant_key_store: &MerchantKeyStore,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::Profile, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let mut conn = pg_accounts_connection_read(self).await?;
         self.call_database(
             merchant_key_store,
-            business_profile::Profile::find_by_profile_id(&conn, profile_id),
+            business_profile::Profile::find_by_profile_id(&mut conn, profile_id),
         )
         .await
     }
@@ -153,11 +145,11 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::Profile, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let mut conn = pg_accounts_connection_read(self).await?;
         self.call_database(
             merchant_key_store,
             business_profile::Profile::find_by_merchant_id_profile_id(
-                &conn,
+                &mut conn,
                 merchant_id,
                 profile_id,
             ),
@@ -165,18 +157,17 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         .await
     }
 
-    #[instrument(skip_all)]
     async fn find_business_profile_by_profile_name_merchant_id(
         &self,
         merchant_key_store: &MerchantKeyStore,
         profile_name: &str,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<domain::Profile, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let mut conn = pg_accounts_connection_read(self).await?;
         self.call_database(
             merchant_key_store,
             business_profile::Profile::find_by_profile_name_merchant_id(
-                &conn,
+                &mut conn,
                 profile_name,
                 merchant_id,
             ),
@@ -184,18 +175,17 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         .await
     }
 
-    #[instrument(skip_all)]
     async fn update_profile_by_profile_id(
         &self,
         merchant_key_store: &MerchantKeyStore,
         current_state: domain::Profile,
         profile_update: domain::ProfileUpdate,
     ) -> CustomResult<domain::Profile, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let mut conn = pg_accounts_connection_write(self).await?;
         Conversion::convert(current_state)
             .await
             .change_context(StorageError::EncryptionError)?
-            .update_by_profile_id(&conn, ProfileUpdateInternal::from(profile_update))
+            .update_by_profile_id(&mut conn, ProfileUpdateInternal::from(profile_update))
             .await
             .map_err(|error| report!(StorageError::from(error)))?
             .convert(
@@ -208,28 +198,26 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
             .change_context(StorageError::DecryptionError)
     }
 
-    #[instrument(skip_all)]
     async fn delete_profile_by_profile_id_merchant_id(
         &self,
         profile_id: &common_utils::id_type::ProfileId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
-        business_profile::Profile::delete_by_profile_id_merchant_id(&conn, profile_id, merchant_id)
+        let mut conn = pg_accounts_connection_write(self).await?;
+        business_profile::Profile::delete_by_profile_id_merchant_id(&mut conn, profile_id, merchant_id)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
     async fn list_profile_by_merchant_id(
         &self,
         merchant_key_store: &MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<domain::Profile>, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let mut conn = pg_accounts_connection_read(self).await?;
         self.find_resources(
             merchant_key_store,
-            business_profile::Profile::list_profile_by_merchant_id(&conn, merchant_id),
+            business_profile::Profile::list_profile_by_merchant_id(&mut conn, merchant_id),
         )
         .await
     }

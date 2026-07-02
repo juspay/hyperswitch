@@ -8,14 +8,14 @@ use crate::schema_v2::organization::dsl::id as dsl_identifier;
 use crate::{organization::*, query::generics, PgPooledConn, StorageResult};
 
 impl OrganizationNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Organization> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Organization> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Organization {
     pub async fn find_by_org_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         org_id: id_type::OrganizationId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -26,7 +26,7 @@ impl Organization {
     }
 
     pub async fn update_by_org_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         org_id: id_type::OrganizationId,
         update: OrganizationUpdate,
     ) -> StorageResult<Self> {

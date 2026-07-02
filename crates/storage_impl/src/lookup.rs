@@ -38,12 +38,12 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
         new: DieselReverseLookupNew,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<DieselReverseLookup, errors::StorageError> {
-        let conn = self
+        let mut conn = self
             .get_master_pool()
             .get()
             .await
             .change_context(errors::StorageError::DatabaseConnectionError)?;
-        new.insert(&conn).await.map_err(|er| {
+        new.insert(&mut conn).await.map_err(|er| {
             let new_err = diesel_error_to_data_error(*er.current_context());
             er.change_context(new_err)
         })
@@ -54,8 +54,8 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
         id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<DieselReverseLookup, errors::StorageError> {
-        let conn = utils::pg_connection_read(self).await?;
-        DieselReverseLookup::find_by_lookup_id(id, &conn)
+        let mut conn = utils::pg_connection_read(self).await?;
+        DieselReverseLookup::find_by_lookup_id(id, &mut conn)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(*er.current_context());

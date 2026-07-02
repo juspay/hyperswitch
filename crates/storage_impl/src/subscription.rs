@@ -20,7 +20,6 @@ use crate::{
 impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
     type Error = StorageError;
 
-    #[instrument(skip_all)]
     async fn insert_subscription_entry(
         &self,
         key_store: &MerchantKeyStore,
@@ -30,25 +29,23 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
             .construct_new()
             .await
             .change_context(StorageError::DecryptionError)?;
-        let conn = connection::pg_connection_write(self).await?;
-        self.call_database(key_store, sub_new.insert(&conn)).await
+        let mut conn = connection::pg_connection_write(self).await?;
+        self.call_database(key_store, sub_new.insert(&mut conn)).await
     }
-    #[instrument(skip_all)]
     async fn find_by_merchant_id_subscription_id(
         &self,
         key_store: &MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
         subscription_id: String,
     ) -> CustomResult<DomainSubscription, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         self.call_database(
             key_store,
-            Subscription::find_by_merchant_id_subscription_id(&conn, merchant_id, subscription_id),
+            Subscription::find_by_merchant_id_subscription_id(&mut conn, merchant_id, subscription_id),
         )
         .await
     }
 
-    #[instrument(skip_all)]
     async fn update_subscription_entry(
         &self,
         key_store: &MerchantKeyStore,
@@ -60,15 +57,14 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
             .construct_new()
             .await
             .change_context(StorageError::DecryptionError)?;
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         self.call_database(
             key_store,
-            Subscription::update_subscription_entry(&conn, merchant_id, subscription_id, sub_new),
+            Subscription::update_subscription_entry(&mut conn, merchant_id, subscription_id, sub_new),
         )
         .await
     }
 
-    #[instrument(skip_all)]
     async fn list_by_merchant_id_profile_id(
         &self,
         key_store: &MerchantKeyStore,
@@ -77,11 +73,11 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> CustomResult<Vec<DomainSubscription>, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         self.find_resources(
             key_store,
             Subscription::list_by_merchant_id_profile_id(
-                &conn,
+                &mut conn,
                 merchant_id,
                 profile_id,
                 limit,
@@ -96,7 +92,6 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
 impl<T: DatabaseStore> SubscriptionInterface for KVRouterStore<T> {
     type Error = StorageError;
 
-    #[instrument(skip_all)]
     async fn insert_subscription_entry(
         &self,
         key_store: &MerchantKeyStore,
@@ -106,7 +101,6 @@ impl<T: DatabaseStore> SubscriptionInterface for KVRouterStore<T> {
             .insert_subscription_entry(key_store, subscription_new)
             .await
     }
-    #[instrument(skip_all)]
     async fn find_by_merchant_id_subscription_id(
         &self,
         key_store: &MerchantKeyStore,
@@ -118,7 +112,6 @@ impl<T: DatabaseStore> SubscriptionInterface for KVRouterStore<T> {
             .await
     }
 
-    #[instrument(skip_all)]
     async fn update_subscription_entry(
         &self,
         key_store: &MerchantKeyStore,
@@ -131,7 +124,6 @@ impl<T: DatabaseStore> SubscriptionInterface for KVRouterStore<T> {
             .await
     }
 
-    #[instrument(skip_all)]
     async fn list_by_merchant_id_profile_id(
         &self,
         key_store: &MerchantKeyStore,
@@ -150,7 +142,6 @@ impl<T: DatabaseStore> SubscriptionInterface for KVRouterStore<T> {
 impl SubscriptionInterface for MockDb {
     type Error = StorageError;
 
-    #[instrument(skip_all)]
     async fn insert_subscription_entry(
         &self,
         _key_store: &MerchantKeyStore,
@@ -178,7 +169,6 @@ impl SubscriptionInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    #[instrument(skip_all)]
     async fn list_by_merchant_id_profile_id(
         &self,
         _key_store: &MerchantKeyStore,

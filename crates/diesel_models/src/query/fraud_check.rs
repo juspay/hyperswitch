@@ -5,7 +5,7 @@ use crate::{
 };
 
 impl FraudCheckNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<FraudCheck> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<FraudCheck> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -13,7 +13,7 @@ impl FraudCheckNew {
 impl FraudCheck {
     pub async fn update_with_attempt_id(
         self,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         fraud_check: FraudCheckUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
@@ -39,7 +39,7 @@ impl FraudCheck {
     }
 
     pub async fn get_with_payment_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         payment_id: common_utils::id_type::PaymentId,
         merchant_id: common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -53,7 +53,7 @@ impl FraudCheck {
     }
 
     pub async fn get_with_payment_id_if_present(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         payment_id: common_utils::id_type::PaymentId,
         merchant_id: common_utils::id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {

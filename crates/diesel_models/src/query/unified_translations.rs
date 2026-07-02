@@ -10,14 +10,14 @@ use crate::{
 };
 
 impl UnifiedTranslationsNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<UnifiedTranslations> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<UnifiedTranslations> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl UnifiedTranslations {
     pub async fn find_by_unified_code_unified_message_locale(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         unified_code: String,
         unified_message: String,
         locale: String,
@@ -33,7 +33,7 @@ impl UnifiedTranslations {
     }
 
     pub async fn update_by_unified_code_unified_message_locale(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         unified_code: String,
         unified_message: String,
         locale: String,
@@ -53,7 +53,7 @@ impl UnifiedTranslations {
             data.into(),
         )
         .await?
-        .first()
+        .get(0)
         .cloned()
         .ok_or_else(|| {
             report!(errors::DatabaseError::NotFound)
@@ -62,7 +62,7 @@ impl UnifiedTranslations {
     }
 
     pub async fn delete_by_unified_code_unified_message_locale(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         unified_code: String,
         unified_message: String,
         locale: String,

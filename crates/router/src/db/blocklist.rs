@@ -64,9 +64,9 @@ impl BlocklistInterface for Store {
         &self,
         pm_blocklist: storage::BlocklistNew,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         pm_blocklist
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -77,11 +77,11 @@ impl BlocklistInterface for Store {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
         // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
         let result = storage::Blocklist::find_by_processor_merchant_id_fingerprint_id(
-            &conn,
+            &mut conn,
             processor_merchant_id,
             fingerprint_id,
         )
@@ -95,7 +95,7 @@ impl BlocklistInterface for Store {
                     diesel_models::errors::DatabaseError::NotFound
                 ) {
                     storage::Blocklist::find_by_merchant_id_fingerprint_id(
-                        &conn,
+                        &mut conn,
                         processor_merchant_id,
                         fingerprint_id,
                     )
@@ -113,8 +113,8 @@ impl BlocklistInterface for Store {
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::Blocklist::list_by_processor_merchant_id(&conn, processor_merchant_id)
+        let mut conn = connection::pg_connection_read(self).await?;
+        storage::Blocklist::list_by_processor_merchant_id(&mut conn, processor_merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -127,9 +127,9 @@ impl BlocklistInterface for Store {
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         storage::Blocklist::list_by_processor_merchant_id_data_kind(
-            &conn,
+            &mut conn,
             processor_merchant_id,
             data_kind,
             limit,
@@ -147,9 +147,9 @@ impl BlocklistInterface for Store {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         storage::Blocklist::get_count_by_processor_merchant_id_data_kind(
-            &conn,
+            &mut conn,
             processor_merchant_id,
             data_kind,
         )
@@ -165,11 +165,11 @@ impl BlocklistInterface for Store {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
         // For old records processor_merchant_id is NULL, so we delete by merchant_id (which has the same value)
         let result = storage::Blocklist::delete_by_processor_merchant_id_fingerprint_id(
-            &conn,
+            &mut conn,
             processor_merchant_id,
             fingerprint_id,
         )
@@ -183,7 +183,7 @@ impl BlocklistInterface for Store {
                     diesel_models::errors::DatabaseError::NotFound
                 ) {
                     storage::Blocklist::delete_by_merchant_id_fingerprint_id(
-                        &conn,
+                        &mut conn,
                         processor_merchant_id,
                         fingerprint_id,
                     )
@@ -201,8 +201,8 @@ impl BlocklistInterface for Store {
         &self,
         entries: Vec<storage::BlocklistNew>,
     ) -> CustomResult<usize, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::BlocklistNew::bulk_insert_on_conflict_do_nothing(&conn, entries)
+        let mut conn = connection::pg_connection_write(self).await?;
+        storage::BlocklistNew::bulk_insert_on_conflict_do_nothing(&mut conn, entries)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }

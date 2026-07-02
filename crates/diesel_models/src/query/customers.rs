@@ -1,5 +1,5 @@
 #[cfg(feature = "v2")]
-use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel_async::RunQueryDsl;
 use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 #[cfg(feature = "v2")]
@@ -20,7 +20,7 @@ use crate::{
 };
 
 impl CustomerNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Customer> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Customer> {
         generics::generic_insert(conn, self).await
     }
 
@@ -42,7 +42,7 @@ pub struct CustomerListConstraints {
 impl Customer {
     #[cfg(feature = "v2")]
     pub async fn find_by_merchant_id_customer_id_for_global_id_migration(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &id_type::MerchantId,
         customer_id: &id_type::CustomerId,
     ) -> StorageResult<CustomerGlobalIdMigrationRow> {
@@ -59,7 +59,7 @@ impl Customer {
             ));
 
         match query
-            .first_async::<CustomerGlobalIdMigrationRow>(conn)
+            .first::<CustomerGlobalIdMigrationRow>(conn)
             .await
         {
             Ok(row) => Ok(row),
@@ -73,7 +73,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn update_global_id_for_migration(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &id_type::MerchantId,
         customer_id: &id_type::CustomerId,
         new_id: id_type::GlobalCustomerId,
@@ -95,7 +95,7 @@ impl Customer {
         ));
 
         match query
-            .get_result_async::<CustomerGlobalIdMigrationRow>(conn)
+            .get_result::<CustomerGlobalIdMigrationRow>(conn)
             .await
         {
             Ok(row) => Ok(row),
@@ -109,7 +109,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn update_by_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         id: id_type::GlobalCustomerId,
         customer: CustomerUpdateInternal,
     ) -> StorageResult<Self> {
@@ -132,7 +132,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn find_by_global_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         id: &id_type::GlobalCustomerId,
     ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
@@ -140,7 +140,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn find_by_global_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -155,7 +155,7 @@ impl Customer {
 
     #[cfg(feature = "v1")]
     pub async fn get_customer_count_by_merchant_id_and_constraints(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &id_type::MerchantId,
         customer_list_constraints: CustomerListConstraints,
     ) -> StorageResult<usize> {
@@ -185,7 +185,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn get_customer_count_by_merchant_id_and_constraints(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &id_type::MerchantId,
         customer_list_constraints: CustomerListConstraints,
     ) -> StorageResult<usize> {
@@ -215,7 +215,7 @@ impl Customer {
 
     #[cfg(feature = "v1")]
     pub async fn list_customers_by_merchant_id_and_constraints(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &id_type::MerchantId,
         constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
@@ -263,7 +263,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn list_customers_by_merchant_id_and_constraints(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &id_type::MerchantId,
         constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
@@ -311,7 +311,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn find_optional_by_merchant_id_merchant_reference_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
@@ -326,7 +326,7 @@ impl Customer {
 
     #[cfg(feature = "v1")]
     pub async fn find_optional_by_customer_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
@@ -339,7 +339,7 @@ impl Customer {
 
     #[cfg(feature = "v1")]
     pub async fn update_by_customer_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         customer_id: id_type::CustomerId,
         merchant_id: id_type::MerchantId,
         customer: CustomerUpdateInternal,
@@ -367,7 +367,7 @@ impl Customer {
 
     #[cfg(feature = "v1")]
     pub async fn delete_by_customer_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> StorageResult<bool> {
@@ -382,7 +382,7 @@ impl Customer {
 
     #[cfg(feature = "v2")]
     pub async fn find_by_merchant_reference_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_reference_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -397,7 +397,7 @@ impl Customer {
 
     #[cfg(feature = "v1")]
     pub async fn find_by_customer_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Self> {

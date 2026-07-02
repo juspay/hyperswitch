@@ -225,9 +225,9 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             .change_context(RedisError::StreamAppendFailed)
     }
 
-    pub async fn find_resource_by_id<D, R, M>(
-        &self,
-        key_store: &MerchantKeyStore,
+    pub async fn find_resource_by_id<'a, D, R, M>(
+        &'a self,
+        key_store: &'a MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         find_resource_db_fut: R,
         find_by: FindResourceBy<'_>,
@@ -235,7 +235,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     where
         D: DomainType,
         M: StorageModel<D>,
-        R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
+        R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send + 'a,
     {
         let database_call = || async {
             find_resource_db_fut.await.map_err(|error| {
@@ -294,9 +294,9 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)
     }
 
-    pub async fn find_optional_resource_by_id<D, R, M>(
-        &self,
-        key_store: &MerchantKeyStore,
+    pub async fn find_optional_resource_by_id<'a, D, R, M>(
+        &'a self,
+        key_store: &'a MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         find_resource_db_fut: R,
         find_by: FindResourceBy<'_>,
@@ -304,7 +304,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     where
         D: DomainType,
         M: StorageModel<D>,
-        R: futures::Future<Output = error_stack::Result<Option<M>, DatabaseError>> + Send,
+        R: futures::Future<Output = error_stack::Result<Option<M>, DatabaseError>> + Send + 'a,
     {
         let database_call = || async {
             find_resource_db_fut.await.map_err(|error| {
@@ -368,9 +368,9 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         }
     }
 
-    pub async fn insert_resource<D, R, M>(
-        &self,
-        key_store: &MerchantKeyStore,
+    pub async fn insert_resource<'a, D, R, M>(
+        &'a self,
+        key_store: &'a MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         create_resource_fut: R,
         resource_new: M,
@@ -385,7 +385,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     where
         D: Debug + Sync + Conversion,
         M: StorageModel<D>,
-        R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
+        R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send + 'a,
     {
         let storage_scheme = Box::pin(decide_storage_scheme::<_, M>(
             self,
@@ -442,9 +442,9 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         .change_context(errors::StorageError::DecryptionError)
     }
 
-    pub async fn update_resource<D, R, M>(
-        &self,
-        key_store: &MerchantKeyStore,
+    pub async fn update_resource<'a, D, R, M>(
+        &'a self,
+        key_store: &'a MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         update_resource_fut: R,
         updated_resource: M,
@@ -456,7 +456,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     where
         D: Debug + Sync + Conversion,
         M: StorageModel<D>,
-        R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
+        R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send + 'a,
     {
         match operation {
             Op::Update(key, field, updated_by) => {
@@ -502,9 +502,9 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         .await
         .change_context(errors::StorageError::DecryptionError)
     }
-    pub async fn filter_resources<D, R, M>(
-        &self,
-        key_store: &MerchantKeyStore,
+    pub async fn filter_resources<'a, D, R, M>(
+        &'a self,
+        key_store: &'a MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         filter_resource_db_fut: R,
         filter_fn: impl Fn(&M) -> bool,
@@ -517,7 +517,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     where
         D: Debug + Sync + Conversion,
         M: StorageModel<D>,
-        R: futures::Future<Output = error_stack::Result<Vec<M>, DatabaseError>> + Send,
+        R: futures::Future<Output = error_stack::Result<Vec<M>, DatabaseError>> + Send + 'a,
     {
         let db_call = || async {
             filter_resource_db_fut.await.map_err(|error| {

@@ -110,10 +110,10 @@ impl UserRoleInterface for Store {
         &self,
         user_role: storage::UserRoleNew,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
 
         user_role
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -128,9 +128,9 @@ impl UserRoleInterface for Store {
         profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         storage::UserRole::find_by_user_id_tenant_id_org_id_merchant_id_profile_id(
-            &conn,
+            &mut conn,
             user_id.to_owned(),
             tenant_id.to_owned(),
             org_id.to_owned(),
@@ -152,9 +152,9 @@ impl UserRoleInterface for Store {
         profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         storage::UserRole::find_by_user_id_tenant_id_org_id_merchant_id_profile_id_with_entity_type(
-            &conn,
+            &mut conn,
             user_id.to_owned(),
             tenant_id.to_owned(),
             org_id.to_owned(),
@@ -177,9 +177,9 @@ impl UserRoleInterface for Store {
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         storage::UserRole::update_by_user_id_tenant_id_org_id_merchant_id_profile_id(
-            &conn,
+            &mut conn,
             user_id.to_owned(),
             tenant_id.to_owned(),
             org_id.to_owned(),
@@ -202,9 +202,9 @@ impl UserRoleInterface for Store {
         profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         storage::UserRole::delete_by_user_id_tenant_id_org_id_merchant_id_profile_id(
-            &conn,
+            &mut conn,
             user_id.to_owned(),
             tenant_id.to_owned(),
             org_id.to_owned(),
@@ -220,9 +220,9 @@ impl UserRoleInterface for Store {
         &self,
         payload: ListUserRolesByUserIdPayload<'a>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         storage::UserRole::generic_user_roles_list_for_user(
-            &conn,
+            &mut conn,
             payload.user_id.to_owned(),
             payload.tenant_id.to_owned(),
             payload.org_id.cloned(),
@@ -242,9 +242,9 @@ impl UserRoleInterface for Store {
         user_id: &str,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         storage::UserRole::list_user_roles_by_user_id_across_tenants(
-            &conn,
+            &mut conn,
             user_id.to_owned(),
             limit,
         )
@@ -256,9 +256,9 @@ impl UserRoleInterface for Store {
         &self,
         payload: ListUserRolesByOrgIdPayload<'a>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         storage::UserRole::generic_user_roles_list_for_org_and_extra(
-            &conn,
+            &mut conn,
             payload.user_id.cloned(),
             payload.tenant_id.to_owned(),
             payload.org_id.to_owned(),

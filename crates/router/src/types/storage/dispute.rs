@@ -1,4 +1,4 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel_async::RunQueryDsl;
 use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 pub use diesel_models::dispute::{Dispute, DisputeNew, DisputeUpdate};
@@ -11,13 +11,13 @@ use crate::{connection::PgPooledConn, logger};
 #[async_trait::async_trait]
 pub trait DisputeDbExt: Sized {
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
     async fn get_dispute_status_with_count(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
@@ -27,7 +27,7 @@ pub trait DisputeDbExt: Sized {
 #[async_trait::async_trait]
 impl DisputeDbExt for Dispute {
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
@@ -107,7 +107,7 @@ impl DisputeDbExt for Dispute {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_results_async(conn),
+            filter.get_results(conn),
             db_metrics::DatabaseOperation::Filter,
         )
         .await
@@ -116,7 +116,7 @@ impl DisputeDbExt for Dispute {
     }
 
     async fn get_dispute_status_with_count(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
@@ -147,7 +147,7 @@ impl DisputeDbExt for Dispute {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            query.get_results_async::<(common_enums::DisputeStatus, i64)>(conn),
+            query.get_results::<(common_enums::DisputeStatus, i64)>(conn),
             db_metrics::DatabaseOperation::Count,
         )
         .await

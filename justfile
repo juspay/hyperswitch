@@ -279,7 +279,7 @@ superposition-up:
 
     # Detect container runtime
     if command -v docker &> /dev/null; then
-        COMPOSE="docker-compose"
+        COMPOSE="docker compose"
     elif command -v podman-compose &> /dev/null; then
         COMPOSE="podman-compose"
     else
@@ -306,7 +306,7 @@ superposition-down:
     set -euo pipefail
 
     if command -v docker &> /dev/null; then
-        docker-compose -f docker-compose-development.yml down
+        docker compose -f docker-compose-development.yml down
     elif command -v podman-compose &> /dev/null; then
         podman-compose -f docker-compose-development.yml down
     fi

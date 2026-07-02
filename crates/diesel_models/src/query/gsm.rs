@@ -6,14 +6,14 @@ use crate::{
 };
 
 impl GatewayStatusMappingNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<GatewayStatusMap> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<GatewayStatusMap> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl GatewayStatusMap {
     pub async fn find(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         connector: String,
         flow: String,
         sub_flow: String,
@@ -33,7 +33,7 @@ impl GatewayStatusMap {
     }
 
     pub async fn retrieve_decision(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         connector: String,
         flow: String,
         sub_flow: String,
@@ -46,7 +46,7 @@ impl GatewayStatusMap {
     }
 
     pub async fn update(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         connector: String,
         flow: String,
         sub_flow: String,
@@ -70,7 +70,7 @@ impl GatewayStatusMap {
             gsm.into(),
         )
         .await?
-        .first()
+        .get(0)
         .cloned()
         .ok_or_else(|| {
             report!(errors::DatabaseError::NotFound)
@@ -79,7 +79,7 @@ impl GatewayStatusMap {
     }
 
     pub async fn delete(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         connector: String,
         flow: String,
         sub_flow: String,

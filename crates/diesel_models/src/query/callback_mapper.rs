@@ -6,11 +6,11 @@ use crate::{
 };
 
 impl CallbackMapper {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Self> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Self> {
         generics::generic_insert(conn, self).await
     }
 
-    pub async fn find_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
+    pub async fn find_by_id(conn: &mut PgPooledConn, id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::id.eq(id.to_owned()),

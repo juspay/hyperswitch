@@ -47,11 +47,11 @@ impl RelayInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         new: hyperswitch_domain_models::relay::Relay,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         new.construct_new()
             .await
             .change_context(errors::StorageError::EncryptionError)?
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
@@ -70,12 +70,12 @@ impl RelayInterface for Store {
         current_state: hyperswitch_domain_models::relay::Relay,
         relay_update: hyperswitch_domain_models::relay::RelayUpdate,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         Conversion::convert(current_state)
             .await
             .change_context(errors::StorageError::EncryptionError)?
             .update(
-                &conn,
+                &mut conn,
                 diesel_models::relay::RelayUpdateInternal::from(relay_update),
             )
             .await
@@ -95,8 +95,8 @@ impl RelayInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         relay_id: &common_utils::id_type::RelayId,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        diesel_models::relay::Relay::find_by_id(&conn, relay_id)
+        let mut conn = connection::pg_connection_read(self).await?;
+        diesel_models::relay::Relay::find_by_id(&mut conn, relay_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
@@ -115,9 +115,9 @@ impl RelayInterface for Store {
         profile_id: &common_utils::id_type::ProfileId,
         connector_reference_id: &str,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         diesel_models::relay::Relay::find_by_profile_id_connector_reference_id(
-            &conn,
+            &mut conn,
             profile_id,
             connector_reference_id,
         )

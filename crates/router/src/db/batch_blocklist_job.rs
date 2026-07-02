@@ -50,8 +50,8 @@ impl BatchBlocklistJobInterface for Store {
         &self,
         new: storage::BatchBlocklistJobNew,
     ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        new.insert(&conn)
+        let mut conn = connection::pg_connection_write(self).await?;
+        new.insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -62,8 +62,8 @@ impl BatchBlocklistJobInterface for Store {
         id: &str,
         merchant_id: &str,
     ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::BatchBlocklistJob::find_by_id_merchant_id(&conn, id, merchant_id)
+        let mut conn = connection::pg_connection_read(self).await?;
+        storage::BatchBlocklistJob::find_by_id_merchant_id(&mut conn, id, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -75,8 +75,8 @@ impl BatchBlocklistJobInterface for Store {
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::BatchBlocklistJob>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::BatchBlocklistJob::list_by_merchant_id(&conn, merchant_id, limit, offset)
+        let mut conn = connection::pg_connection_read(self).await?;
+        storage::BatchBlocklistJob::list_by_merchant_id(&mut conn, merchant_id, limit, offset)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -88,8 +88,8 @@ impl BatchBlocklistJobInterface for Store {
         merchant_id: &str,
         update: storage::BatchBlocklistJobUpdate,
     ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::BatchBlocklistJob::update_by_id_merchant_id(&conn, id, merchant_id, update)
+        let mut conn = connection::pg_connection_write(self).await?;
+        storage::BatchBlocklistJob::update_by_id_merchant_id(&mut conn, id, merchant_id, update)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -99,8 +99,8 @@ impl BatchBlocklistJobInterface for Store {
         &self,
         merchant_id: &str,
     ) -> CustomResult<usize, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::BatchBlocklistJob::count_by_merchant_id(&conn, merchant_id)
+        let mut conn = connection::pg_connection_read(self).await?;
+        storage::BatchBlocklistJob::count_by_merchant_id(&mut conn, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }

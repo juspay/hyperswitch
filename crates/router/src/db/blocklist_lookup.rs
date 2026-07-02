@@ -37,9 +37,9 @@ impl BlocklistLookupInterface for Store {
         &self,
         blocklist_lookup_entry: storage::BlocklistLookupNew,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         blocklist_lookup_entry
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -50,8 +50,8 @@ impl BlocklistLookupInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::BlocklistLookup::find_by_merchant_id_fingerprint(&conn, merchant_id, fingerprint)
+        let mut conn = connection::pg_connection_read(self).await?;
+        storage::BlocklistLookup::find_by_merchant_id_fingerprint(&mut conn, merchant_id, fingerprint)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -62,8 +62,8 @@ impl BlocklistLookupInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::BlocklistLookup::delete_by_merchant_id_fingerprint(&conn, merchant_id, fingerprint)
+        let mut conn = connection::pg_connection_write(self).await?;
+        storage::BlocklistLookup::delete_by_merchant_id_fingerprint(&mut conn, merchant_id, fingerprint)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }

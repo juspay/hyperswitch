@@ -12,7 +12,7 @@ use crate::{
 };
 
 impl RefundNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Refund> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Refund> {
         generics::generic_insert(conn, self).await
     }
 
@@ -26,7 +26,7 @@ impl RefundNew {
 
 #[cfg(feature = "v1")]
 impl Refund {
-    pub async fn update(self, conn: &PgPooledConn, refund: RefundUpdate) -> StorageResult<Self> {
+    pub async fn update(self, conn: &mut PgPooledConn, refund: RefundUpdate) -> StorageResult<Self> {
         let processor_merchant_id = self
             .processor_merchant_id
             .clone()
@@ -56,7 +56,7 @@ impl Refund {
     // Fallback function for stagger release - updates by merchant_id when processor_merchant_id is NULL
     pub async fn update_by_merchant_id(
         self,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         refund: RefundUpdate,
     ) -> StorageResult<Self> {
         let processor_merchant_id = self
@@ -87,7 +87,7 @@ impl Refund {
 
     // This is required to be changed for KV.
     pub async fn find_by_processor_merchant_id_refund_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_id: &str,
     ) -> StorageResult<Self> {
@@ -102,7 +102,7 @@ impl Refund {
 
     // Fallback function for stagger release - queries by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_refund_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_id: &str,
     ) -> StorageResult<Self> {
@@ -116,7 +116,7 @@ impl Refund {
     }
 
     pub async fn find_by_processor_merchant_id_connector_refund_id_connector(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
@@ -133,7 +133,7 @@ impl Refund {
 
     // Fallback function for stagger release - queries by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_connector_refund_id_connector(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
@@ -149,7 +149,7 @@ impl Refund {
     }
 
     pub async fn find_by_internal_reference_id_processor_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         internal_reference_id: &str,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -164,7 +164,7 @@ impl Refund {
 
     // Fallback function for stagger release - queries by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_internal_reference_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         internal_reference_id: &str,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -178,7 +178,7 @@ impl Refund {
     }
 
     pub async fn find_by_processor_merchant_id_connector_transaction_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_transaction_id: &str,
     ) -> StorageResult<Vec<Self>> {
@@ -203,7 +203,7 @@ impl Refund {
     }
 
     pub async fn find_by_payment_id_processor_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         payment_id: &common_utils::id_type::PaymentId,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
@@ -241,7 +241,7 @@ impl Refund {
 impl Refund {
     pub async fn update_with_id(
         self,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         refund: RefundUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
@@ -260,7 +260,7 @@ impl Refund {
     }
 
     pub async fn find_by_global_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         id: &common_utils::id_type::GlobalRefundId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -271,7 +271,7 @@ impl Refund {
     }
 
     pub async fn find_by_merchant_id_connector_transaction_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_transaction_id: &str,
     ) -> StorageResult<Vec<Self>> {

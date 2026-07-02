@@ -1,10 +1,8 @@
-use bb8::PooledConnection;
 use common_utils::DbConnectionParams;
-use diesel::PgConnection;
 
 use crate::{settings::Database, Settings};
 
-pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
+pub type PgPool = diesel_async::pooled_connection::bb8::Pool<diesel_async::AsyncPgConnection>;
 
 #[allow(clippy::expect_used)]
 pub async fn redis_connection(conf: &Settings) -> redis_interface::RedisConnectionPool {
@@ -24,7 +22,8 @@ pub async fn diesel_make_pg_pool(
     schema: &str,
 ) -> PgPool {
     let database_url = database.get_database_url(schema);
-    let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
+    let manager =
+        diesel_async::pooled_connection::AsyncDieselConnectionManager::<diesel_async::AsyncPgConnection>::new(database_url);
     let pool = bb8::Pool::builder()
         .max_size(database.pool_size)
         .connection_timeout(std::time::Duration::from_secs(database.connection_timeout));
@@ -37,7 +36,8 @@ pub async fn diesel_make_pg_pool(
 #[allow(clippy::expect_used)]
 pub async fn pg_connection(
     pool: &PgPool,
-) -> PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>> {
+) -> diesel_async::pooled_connection::bb8::PooledConnection<'_, diesel_async::AsyncPgConnection>
+{
     pool.get()
         .await
         .expect("Couldn't retrieve PostgreSQL connection")

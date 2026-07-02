@@ -9,7 +9,7 @@ use crate::{
 };
 
 impl AddressNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Address> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Address> {
         generics::generic_insert(conn, self).await
     }
 
@@ -22,13 +22,13 @@ impl AddressNew {
 }
 
 impl Address {
-    pub async fn find_by_address_id(conn: &PgPooledConn, address_id: &str) -> StorageResult<Self> {
+    pub async fn find_by_address_id(conn: &mut PgPooledConn, address_id: &str) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, address_id.to_owned())
             .await
     }
 
     pub async fn update_by_address_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         address_id: String,
         address: AddressUpdateInternal,
     ) -> StorageResult<Self> {
@@ -58,7 +58,7 @@ impl Address {
 
     pub async fn update(
         self,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         address_update_internal: AddressUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
@@ -82,7 +82,7 @@ impl Address {
     }
 
     pub async fn delete_by_address_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         address_id: &str,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
@@ -93,7 +93,7 @@ impl Address {
     }
 
     pub async fn update_by_merchant_id_customer_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         customer_id: &common_utils::id_type::CustomerId,
         merchant_id: &common_utils::id_type::MerchantId,
         address: AddressUpdateInternal,
@@ -109,7 +109,7 @@ impl Address {
     }
 
     pub async fn find_by_merchant_id_payment_id_address_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
         address_id: &str,
@@ -138,7 +138,7 @@ impl Address {
     }
 
     pub async fn find_optional_by_address_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         address_id: &str,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(

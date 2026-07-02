@@ -1,11 +1,9 @@
-use bb8::PooledConnection;
 use common_utils::errors;
-use diesel::PgConnection;
 use error_stack::ResultExt;
 
-pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
+pub type PgPool = diesel_async::pooled_connection::bb8::Pool<diesel_async::AsyncPgConnection>;
 
-pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
+pub type PgPooledConn = diesel_async::AsyncPgConnection;
 
 /// Creates a Redis connection pool for the specified Redis settings
 /// # Panics
@@ -23,7 +21,10 @@ pub async fn redis_connection(
 pub async fn pg_connection_read<T: crate::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    diesel_async::pooled_connection::bb8::PooledConnection<
+        'static,
+        diesel_async::AsyncPgConnection,
+    >,
     crate::errors::StorageError,
 > {
     // If only OLAP is enabled get replica pool.
@@ -33,7 +34,7 @@ pub async fn pg_connection_read<T: crate::DatabaseStore>(
     // If either one of these are true we need to get master pool.
     //  1. Only OLTP is enabled.
     //  2. Both OLAP and OLTP is enabled.
-    //  3. Both OLAP and OLTP is disabled.
+    //  3. Both OLAP and OLTP are disabled.
     #[cfg(any(
         all(not(feature = "olap"), feature = "oltp"),
         all(feature = "olap", feature = "oltp"),
@@ -41,7 +42,7 @@ pub async fn pg_connection_read<T: crate::DatabaseStore>(
     ))]
     let pool = store.get_master_pool();
 
-    pool.get()
+    pool.get_owned()
         .await
         .change_context(crate::errors::StorageError::DatabaseConnectionError)
 }
@@ -49,13 +50,16 @@ pub async fn pg_connection_read<T: crate::DatabaseStore>(
 pub async fn pg_connection_write<T: crate::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    diesel_async::pooled_connection::bb8::PooledConnection<
+        'static,
+        diesel_async::AsyncPgConnection,
+    >,
     crate::errors::StorageError,
 > {
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_master_pool();
 
-    pool.get()
+    pool.get_owned()
         .await
         .change_context(crate::errors::StorageError::DatabaseConnectionError)
 }

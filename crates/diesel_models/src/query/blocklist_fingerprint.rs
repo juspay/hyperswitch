@@ -8,14 +8,14 @@ use crate::{
 };
 
 impl BlocklistFingerprintNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<BlocklistFingerprint> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<BlocklistFingerprint> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl BlocklistFingerprint {
     pub async fn find_by_merchant_id_fingerprint_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {

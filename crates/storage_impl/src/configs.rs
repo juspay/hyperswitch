@@ -18,7 +18,6 @@ use crate::{
 #[async_trait::async_trait]
 impl<T: DatabaseStore> ConfigInterface for kv_router_store::KVRouterStore<T> {
     type Error = StorageError;
-    #[instrument(skip_all)]
     async fn insert_config(
         &self,
         config: storage::ConfigNew,
@@ -26,7 +25,6 @@ impl<T: DatabaseStore> ConfigInterface for kv_router_store::KVRouterStore<T> {
         self.router_store.insert_config(config).await
     }
 
-    #[instrument(skip_all)]
     async fn update_config_in_database(
         &self,
         key: &str,
@@ -38,7 +36,6 @@ impl<T: DatabaseStore> ConfigInterface for kv_router_store::KVRouterStore<T> {
     }
 
     //update in DB and remove in redis and cache
-    #[instrument(skip_all)]
     async fn update_config_by_key(
         &self,
         key: &str,
@@ -49,7 +46,6 @@ impl<T: DatabaseStore> ConfigInterface for kv_router_store::KVRouterStore<T> {
             .await
     }
 
-    #[instrument(skip_all)]
     async fn find_config_by_key_from_db(
         &self,
         key: &str,
@@ -58,12 +54,10 @@ impl<T: DatabaseStore> ConfigInterface for kv_router_store::KVRouterStore<T> {
     }
 
     //check in cache, then redis then finally DB, and on the way back populate redis and cache
-    #[instrument(skip_all)]
     async fn find_config_by_key(&self, key: &str) -> CustomResult<storage::Config, StorageError> {
         self.router_store.find_config_by_key(key).await
     }
 
-    #[instrument(skip_all)]
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
@@ -75,7 +69,6 @@ impl<T: DatabaseStore> ConfigInterface for kv_router_store::KVRouterStore<T> {
             .await
     }
 
-    #[instrument(skip_all)]
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<storage::Config, StorageError> {
         self.router_store.delete_config_by_key(key).await
     }
@@ -84,14 +77,13 @@ impl<T: DatabaseStore> ConfigInterface for kv_router_store::KVRouterStore<T> {
 #[async_trait::async_trait]
 impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
     type Error = StorageError;
-    #[instrument(skip_all)]
     async fn insert_config(
         &self,
         config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         let inserted = config
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(StorageError::from(error)))?;
 
@@ -101,20 +93,18 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
         Ok(inserted)
     }
 
-    #[instrument(skip_all)]
     async fn update_config_in_database(
         &self,
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::Config::update_by_key(&conn, key, config_update)
+        let mut conn = connection::pg_connection_write(self).await?;
+        storage::Config::update_by_key(&mut conn, key, config_update)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
 
     //update in DB and remove in redis and cache
-    #[instrument(skip_all)]
     async fn update_config_by_key(
         &self,
         key: &str,
@@ -126,30 +116,27 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
         .await
     }
 
-    #[instrument(skip_all)]
     async fn find_config_by_key_from_db(
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::Config::find_by_key(&conn, key)
+        let mut conn = connection::pg_connection_write(self).await?;
+        storage::Config::find_by_key(&mut conn, key)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
 
     //check in cache, then redis then finally DB, and on the way back populate redis and cache
-    #[instrument(skip_all)]
     async fn find_config_by_key(&self, key: &str) -> CustomResult<storage::Config, StorageError> {
         let find_config_by_key_from_db = || async {
-            let conn = connection::pg_connection_write(self).await?;
-            storage::Config::find_by_key(&conn, key)
+            let mut conn = connection::pg_connection_write(self).await?;
+            storage::Config::find_by_key(&mut conn, key)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
         };
         cache::get_or_populate_in_memory(self, key, find_config_by_key_from_db, &CONFIG_CACHE).await
     }
 
-    #[instrument(skip_all)]
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
@@ -157,8 +144,8 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
         default_config: Option<String>,
     ) -> CustomResult<storage::Config, StorageError> {
         let find_else_unwrap_or = || async {
-            let conn = connection::pg_connection_write(self).await?;
-            match storage::Config::find_by_key(&conn, key)
+            let mut conn = connection::pg_connection_write(self).await?;
+            match storage::Config::find_by_key(&mut conn, key)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
             {
@@ -184,10 +171,9 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
         cache::get_or_populate_in_memory(self, key, find_else_unwrap_or, &CONFIG_CACHE).await
     }
 
-    #[instrument(skip_all)]
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<storage::Config, StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        let deleted = storage::Config::delete_by_key(&conn, key)
+        let mut conn = connection::pg_connection_write(self).await?;
+        let deleted = storage::Config::delete_by_key(&mut conn, key)
             .await
             .map_err(|error| report!(StorageError::from(error)))?;
 
@@ -201,7 +187,6 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
 #[async_trait::async_trait]
 impl ConfigInterface for MockDb {
     type Error = StorageError;
-    #[instrument(skip_all)]
     async fn insert_config(
         &self,
         config: storage::ConfigNew,

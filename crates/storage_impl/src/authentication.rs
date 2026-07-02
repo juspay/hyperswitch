@@ -58,7 +58,6 @@ async fn add_connector_authentication_id_to_reverse_lookup<T: DatabaseStore>(
 impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
     type Error = errors::StorageError;
 
-    #[instrument(skip_all)]
     async fn insert_authentication(
         &self,
         state: &common_utils::types::keymanager::KeyManagerState,
@@ -66,12 +65,12 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
         authentication: Authentication,
         _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let mut conn = pg_connection_write(self).await?;
         let inserted_authentication = authentication
             .construct_new()
             .await
             .change_context(errors::StorageError::EncryptionError)?
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| {
                 let new_err = diesel_error_to_data_error(*error.current_context());
@@ -87,7 +86,6 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
         .change_context(errors::StorageError::DecryptionError)
     }
 
-    #[instrument(skip_all)]
     async fn find_authentication_by_merchant_id_authentication_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -96,9 +94,9 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
         state: &common_utils::types::keymanager::KeyManagerState,
         _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         diesel_authentication::find_by_merchant_id_authentication_id(
-            &conn,
+            &mut conn,
             merchant_id,
             authentication_id,
         )
@@ -120,7 +118,6 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
         .await
     }
 
-    #[instrument(skip_all)]
     async fn find_authentication_by_merchant_id_connector_authentication_id(
         &self,
         merchant_id: common_utils::id_type::MerchantId,
@@ -129,9 +126,9 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
         state: &common_utils::types::keymanager::KeyManagerState,
         _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         diesel_authentication::find_authentication_by_merchant_id_connector_authentication_id(
-            &conn,
+            &mut conn,
             &merchant_id,
             &connector_authentication_id,
         )
@@ -153,7 +150,6 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
         .await
     }
 
-    #[instrument(skip_all)]
     async fn update_authentication_by_merchant_id_authentication_id(
         &self,
         previous_state: Authentication,
@@ -162,9 +158,9 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
         state: &common_utils::types::keymanager::KeyManagerState,
         _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let mut conn = pg_connection_write(self).await?;
         diesel_authentication::update_by_merchant_id_authentication_id(
-            &conn,
+            &mut conn,
             &previous_state.merchant_id,
             &previous_state.authentication_id,
             diesel_models::authentication::AuthenticationUpdateInternal::from(
@@ -194,7 +190,6 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
 impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
     type Error = errors::StorageError;
 
-    #[instrument(skip_all)]
     async fn insert_authentication(
         &self,
         state: &common_utils::types::keymanager::KeyManagerState,
@@ -311,7 +306,6 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
     async fn find_authentication_by_merchant_id_authentication_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -321,9 +315,9 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
         let database_call = || async {
-            let conn = pg_connection_read(self).await?;
+            let mut conn = pg_connection_read(self).await?;
             diesel_authentication::find_by_merchant_id_authentication_id(
-                &conn,
+                &mut conn,
                 merchant_id,
                 authentication_id,
             )
@@ -393,7 +387,6 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
         .change_context(errors::StorageError::DecryptionError)
     }
 
-    #[instrument(skip_all)]
     async fn find_authentication_by_merchant_id_connector_authentication_id(
         &self,
         merchant_id: common_utils::id_type::MerchantId,
@@ -403,9 +396,9 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
         let database_call = || async {
-            let conn = pg_connection_read(self).await?;
+            let mut conn = pg_connection_read(self).await?;
             diesel_authentication::find_authentication_by_merchant_id_connector_authentication_id(
-                &conn,
+                &mut conn,
                 &merchant_id,
                 &connector_authentication_id,
             )
@@ -475,7 +468,6 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
         .change_context(errors::StorageError::DecryptionError)
     }
 
-    #[instrument(skip_all)]
     async fn update_authentication_by_merchant_id_authentication_id(
         &self,
         previous_state: Authentication,

@@ -8,14 +8,14 @@ use crate::{
 };
 
 impl BatchBlocklistJobNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<BatchBlocklistJob> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<BatchBlocklistJob> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl BatchBlocklistJob {
     pub async fn find_by_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         id: &str,
         merchant_id: &str,
     ) -> StorageResult<Self> {
@@ -29,7 +29,7 @@ impl BatchBlocklistJob {
     }
 
     pub async fn list_by_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &str,
         limit: i64,
         offset: i64,
@@ -45,7 +45,7 @@ impl BatchBlocklistJob {
     }
 
     pub async fn count_by_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &str,
     ) -> StorageResult<usize> {
         generics::generic_count::<<Self as HasTable>::Table, _>(
@@ -56,7 +56,7 @@ impl BatchBlocklistJob {
     }
 
     pub async fn update_by_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         id: &str,
         merchant_id: &str,
         update: BatchBlocklistJobUpdate,

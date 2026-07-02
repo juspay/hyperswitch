@@ -44,13 +44,13 @@ impl UserKeyStoreInterface for Store {
         user_key_store: domain::UserKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         let user_id = user_key_store.user_id.clone();
         user_key_store
             .construct_new()
             .await
             .change_context(errors::StorageError::EncryptionError)?
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
@@ -69,9 +69,9 @@ impl UserKeyStoreInterface for Store {
         user_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::UserKeyStore, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
 
-        diesel_models::user_key_store::UserKeyStore::find_by_user_id(&conn, user_id)
+        diesel_models::user_key_store::UserKeyStore::find_by_user_id(&mut conn, user_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
@@ -90,10 +90,10 @@ impl UserKeyStoreInterface for Store {
         from: u32,
         limit: u32,
     ) -> CustomResult<Vec<domain::UserKeyStore>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
 
         let key_stores = diesel_models::user_key_store::UserKeyStore::get_all_user_key_stores(
-            &conn, from, limit,
+            &mut conn, from, limit,
         )
         .await
         .map_err(|err| report!(errors::StorageError::from(err)))?;

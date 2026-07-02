@@ -12,14 +12,14 @@ use crate::{
 };
 
 impl DynamicRoutingStatsNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<DynamicRoutingStats> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<DynamicRoutingStats> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl DynamicRoutingStats {
     pub async fn find_optional_by_attempt_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         attempt_id: String,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
@@ -33,7 +33,7 @@ impl DynamicRoutingStats {
     }
 
     pub async fn update(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         attempt_id: String,
         merchant_id: &common_utils::id_type::MerchantId,
         dynamic_routing_stat: DynamicRoutingStatsUpdate,
@@ -51,7 +51,7 @@ impl DynamicRoutingStats {
             dynamic_routing_stat,
         )
         .await?
-        .first()
+        .get(0)
         .cloned()
         .ok_or_else(|| {
             report!(errors::DatabaseError::NotFound)

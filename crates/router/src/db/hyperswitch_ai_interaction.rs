@@ -31,9 +31,9 @@ impl HyperswitchAiInteractionInterface for Store {
         &self,
         hyperswitch_ai_interaction: storage::HyperswitchAiInteractionNew,
     ) -> CustomResult<storage::HyperswitchAiInteraction, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         hyperswitch_ai_interaction
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -45,9 +45,9 @@ impl HyperswitchAiInteractionInterface for Store {
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::HyperswitchAiInteraction>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         storage::HyperswitchAiInteraction::filter_by_optional_merchant_id(
-            &conn,
+            &mut conn,
             merchant_id.as_ref(),
             limit,
             offset,

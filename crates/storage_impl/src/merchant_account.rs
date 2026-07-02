@@ -30,7 +30,6 @@ use crate::{
 #[async_trait::async_trait]
 impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterStore<T> {
     type Error = StorageError;
-    #[instrument(skip_all)]
     async fn insert_merchant(
         &self,
         merchant_account: domain::MerchantAccount,
@@ -41,7 +40,6 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
             .await
     }
 
-    #[instrument(skip_all)]
     async fn find_merchant_account_by_merchant_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -52,7 +50,6 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
             .await
     }
 
-    #[instrument(skip_all)]
     async fn update_merchant(
         &self,
         this: domain::MerchantAccount,
@@ -64,7 +61,6 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
             .await
     }
 
-    #[instrument(skip_all)]
     async fn update_specific_fields_in_merchant(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -76,7 +72,6 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
             .await
     }
 
-    #[instrument(skip_all)]
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
@@ -87,7 +82,6 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
     }
 
     #[cfg(feature = "olap")]
-    #[instrument(skip_all)]
     async fn list_merchant_accounts_by_organization_id(
         &self,
         organization_id: &common_utils::id_type::OrganizationId,
@@ -97,7 +91,6 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
             .await
     }
 
-    #[instrument(skip_all)]
     async fn delete_merchant_account_by_merchant_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -108,7 +101,6 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
     }
 
     #[cfg(feature = "olap")]
-    #[instrument(skip_all)]
     async fn list_multiple_merchant_accounts(
         &self,
         merchant_ids: Vec<common_utils::id_type::MerchantId>,
@@ -119,7 +111,6 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
     }
 
     #[cfg(feature = "olap")]
-    #[instrument(skip_all)]
     async fn list_merchant_and_org_ids(
         &self,
         limit: u32,
@@ -149,18 +140,17 @@ impl<T: DatabaseStore> MerchantAccountInterface for kv_router_store::KVRouterSto
 #[async_trait::async_trait]
 impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
     type Error = StorageError;
-    #[instrument(skip_all)]
     async fn insert_merchant(
         &self,
         merchant_account: domain::MerchantAccount,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let mut conn = pg_accounts_connection_write(self).await?;
         merchant_account
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(StorageError::from(error)))?
             .convert(
@@ -173,15 +163,14 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
             .change_context(StorageError::DecryptionError)
     }
 
-    #[instrument(skip_all)]
     async fn find_merchant_account_by_merchant_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, StorageError> {
         let fetch_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
-            storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
+            let mut conn = pg_accounts_connection_read(self).await?;
+            storage::MerchantAccount::find_by_merchant_id(&mut conn, merchant_id)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
         };
@@ -221,19 +210,18 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
     async fn update_merchant(
         &self,
         this: domain::MerchantAccount,
         merchant_account: domain::MerchantAccountUpdate,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let mut conn = pg_accounts_connection_write(self).await?;
 
         let updated_merchant_account = Conversion::convert(this)
             .await
             .change_context(StorageError::EncryptionError)?
-            .update(&conn, merchant_account.into())
+            .update(&mut conn, merchant_account.into())
             .await
             .map_err(|error| report!(StorageError::from(error)))?;
 
@@ -252,16 +240,15 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
             .change_context(StorageError::DecryptionError)
     }
 
-    #[instrument(skip_all)]
     async fn update_specific_fields_in_merchant(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_account: domain::MerchantAccountUpdate,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let mut conn = pg_accounts_connection_write(self).await?;
         let updated_merchant_account = storage::MerchantAccount::update_with_specific_fields(
-            &conn,
+            &mut conn,
             merchant_id,
             merchant_account.into(),
         )
@@ -283,15 +270,14 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
             .change_context(StorageError::DecryptionError)
     }
 
-    #[instrument(skip_all)]
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
     ) -> CustomResult<(domain::MerchantAccount, MerchantKeyStore), StorageError> {
         let fetch_by_pub_key_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let mut conn = pg_accounts_connection_read(self).await?;
 
-            storage::MerchantAccount::find_by_publishable_key(&conn, publishable_key)
+            storage::MerchantAccount::find_by_publishable_key(&mut conn, publishable_key)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
         };
@@ -331,16 +317,15 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
-    #[instrument(skip_all)]
     async fn list_merchant_accounts_by_organization_id(
         &self,
         organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, StorageError> {
         use futures::future::try_join_all;
-        let conn = pg_accounts_connection_read(self).await?;
+        let mut conn = pg_accounts_connection_read(self).await?;
 
         let encrypted_merchant_accounts =
-            storage::MerchantAccount::list_by_organization_id(&conn, organization_id)
+            storage::MerchantAccount::list_by_organization_id(&mut conn, organization_id)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))?;
 
@@ -375,34 +360,33 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         Ok(merchant_accounts)
     }
 
-    #[instrument(skip_all)]
     async fn delete_merchant_account_by_merchant_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
-
-        let is_deleted_func = || async {
-            storage::MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
-                .await
-                .map_err(|error| report!(StorageError::from(error)))
-        };
+        let mut conn = pg_accounts_connection_write(self).await?;
 
         let is_deleted;
 
         #[cfg(not(feature = "accounts_cache"))]
         {
-            is_deleted = is_deleted_func().await?;
+            is_deleted =
+                storage::MerchantAccount::delete_by_merchant_id(&mut conn, merchant_id)
+                    .await
+                    .map_err(|error| report!(StorageError::from(error)))?;
         }
 
         #[cfg(feature = "accounts_cache")]
         {
             let merchant_account =
-                storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
+                storage::MerchantAccount::find_by_merchant_id(&mut conn, merchant_id)
                     .await
                     .map_err(|error| report!(StorageError::from(error)))?;
 
-            is_deleted = is_deleted_func().await?;
+            is_deleted =
+                storage::MerchantAccount::delete_by_merchant_id(&mut conn, merchant_id)
+                    .await
+                    .map_err(|error| report!(StorageError::from(error)))?;
 
             publish_and_redact_merchant_account_cache(self, &merchant_account).await?;
         }
@@ -411,15 +395,14 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
-    #[instrument(skip_all)]
     async fn list_multiple_merchant_accounts(
         &self,
         merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let mut conn = pg_accounts_connection_read(self).await?;
 
         let encrypted_merchant_accounts =
-            storage::MerchantAccount::list_multiple_merchant_accounts(&conn, merchant_ids)
+            storage::MerchantAccount::list_multiple_merchant_accounts(&mut conn, merchant_ids)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))?;
 
@@ -467,7 +450,6 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
-    #[instrument(skip_all)]
     async fn list_merchant_and_org_ids(
         &self,
         limit: u32,
@@ -479,9 +461,9 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         )>,
         StorageError,
     > {
-        let conn = pg_accounts_connection_read(self).await?;
+        let mut conn = pg_accounts_connection_read(self).await?;
         let encrypted_merchant_accounts =
-            storage::MerchantAccount::list_all_merchant_accounts(&conn, limit, offset)
+            storage::MerchantAccount::list_all_merchant_accounts(&mut conn, limit, offset)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))?;
 
@@ -500,11 +482,11 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         &self,
         merchant_account: domain::MerchantAccountUpdate,
     ) -> CustomResult<usize, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let mut conn = pg_accounts_connection_read(self).await?;
 
         let db_func = || async {
             storage::MerchantAccount::update_all_merchant_accounts(
-                &conn,
+                &mut conn,
                 MerchantAccountUpdateInternal::from(merchant_account),
             )
             .await

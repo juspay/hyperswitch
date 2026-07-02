@@ -58,11 +58,11 @@ impl GsmInterface for Store {
         &self,
         rule: hyperswitch_domain_models::gsm::GatewayStatusMap,
     ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         let gsm_db_record = diesel_models::gsm::GatewayStatusMappingNew::try_from(rule)
             .change_context(errors::StorageError::SerializationFailed)
             .attach_printable("Failed to convert gsm domain models to diesel models")?
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
@@ -80,9 +80,9 @@ impl GsmInterface for Store {
         code: String,
         message: String,
     ) -> CustomResult<String, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         storage::GatewayStatusMap::retrieve_decision(
-            &conn, connector, flow, sub_flow, code, message,
+            &mut conn, connector, flow, sub_flow, code, message,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -97,9 +97,9 @@ impl GsmInterface for Store {
         code: String,
         message: String,
     ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         let gsm_db_record =
-            storage::GatewayStatusMap::find(&conn, connector, flow, sub_flow, code, message)
+            storage::GatewayStatusMap::find(&mut conn, connector, flow, sub_flow, code, message)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))?;
 
@@ -118,11 +118,11 @@ impl GsmInterface for Store {
         message: String,
         data: hyperswitch_domain_models::gsm::GatewayStatusMappingUpdate,
     ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         let gsm_update_data = diesel_models::gsm::GatewayStatusMappingUpdate::try_from(data)
             .change_context(errors::StorageError::SerializationFailed)?;
         let gsm_db_record = storage::GatewayStatusMap::update(
-            &conn,
+            &mut conn,
             connector,
             flow,
             sub_flow,
@@ -147,8 +147,8 @@ impl GsmInterface for Store {
         code: String,
         message: String,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::GatewayStatusMap::delete(&conn, connector, flow, sub_flow, code, message)
+        let mut conn = connection::pg_connection_write(self).await?;
+        storage::GatewayStatusMap::delete(&mut conn, connector, flow, sub_flow, code, message)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }

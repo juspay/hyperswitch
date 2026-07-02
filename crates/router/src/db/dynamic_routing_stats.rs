@@ -38,9 +38,9 @@ impl DynamicRoutingStatsInterface for Store {
         &self,
         dynamic_routing_stat: storage::DynamicRoutingStatsNew,
     ) -> CustomResult<storage::DynamicRoutingStats, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         dynamic_routing_stat
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -50,9 +50,9 @@ impl DynamicRoutingStatsInterface for Store {
         attempt_id: String,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Option<storage::DynamicRoutingStats>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         storage::DynamicRoutingStats::find_optional_by_attempt_id_merchant_id(
-            &conn,
+            &mut conn,
             attempt_id,
             merchant_id,
         )
@@ -66,8 +66,8 @@ impl DynamicRoutingStatsInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         data: storage::DynamicRoutingStatsUpdate,
     ) -> CustomResult<storage::DynamicRoutingStats, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::DynamicRoutingStats::update(&conn, attempt_id, merchant_id, data)
+        let mut conn = connection::pg_connection_write(self).await?;
+        storage::DynamicRoutingStats::update(&mut conn, attempt_id, merchant_id, data)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }

@@ -15,59 +15,54 @@ use crate::{
 impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
     type Error = StorageError;
 
-    #[instrument(skip_all)]
     async fn insert_card_issuer(
         &self,
         new: NewCardIssuer,
     ) -> CustomResult<CardIssuer, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        new.insert(&conn)
+        let mut conn = pg_connection_write(self).await?;
+        new.insert(&mut conn)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
     async fn update_card_issuer(
         &self,
         id: id_type::CardIssuerId,
         update: UpdateCardIssuer,
     ) -> CustomResult<CardIssuer, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        CardIssuer::update(&conn, id, update)
+        let mut conn = pg_connection_write(self).await?;
+        CardIssuer::update(&mut conn, id, update)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
     async fn delete_card_issuer(
         &self,
         id: id_type::CardIssuerId,
     ) -> CustomResult<bool, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        CardIssuer::delete_by_id(&conn, id)
+        let mut conn = pg_connection_write(self).await?;
+        CardIssuer::delete_by_id(&mut conn, id)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
     async fn list_card_issuers(
         &self,
         query: Option<String>,
         limit: Option<u8>,
     ) -> CustomResult<Vec<CardIssuer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
-        CardIssuer::list_filtered(&conn, query, limit.map(i64::from))
+        let mut conn = pg_connection_read(self).await?;
+        CardIssuer::list_filtered(&mut conn, query, limit.map(i64::from))
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
     async fn get_card_issuers_by_ids(
         &self,
         ids: Vec<id_type::CardIssuerId>,
     ) -> CustomResult<Vec<CardIssuer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
-        CardIssuer::find_by_ids(&conn, ids)
+        let mut conn = pg_connection_read(self).await?;
+        CardIssuer::find_by_ids(&mut conn, ids)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
@@ -77,59 +72,54 @@ impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
 impl<T: DatabaseStore> CardIssuersInterface for KVRouterStore<T> {
     type Error = StorageError;
 
-    #[instrument(skip_all)]
     async fn insert_card_issuer(
         &self,
         new: NewCardIssuer,
     ) -> CustomResult<CardIssuer, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        new.insert(&conn)
+        let mut conn = pg_connection_write(self).await?;
+        new.insert(&mut conn)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
     async fn update_card_issuer(
         &self,
         id: id_type::CardIssuerId,
         update: UpdateCardIssuer,
     ) -> CustomResult<CardIssuer, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        CardIssuer::update(&conn, id, update)
+        let mut conn = pg_connection_write(self).await?;
+        CardIssuer::update(&mut conn, id, update)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
     async fn delete_card_issuer(
         &self,
         id: id_type::CardIssuerId,
     ) -> CustomResult<bool, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        CardIssuer::delete_by_id(&conn, id)
+        let mut conn = pg_connection_write(self).await?;
+        CardIssuer::delete_by_id(&mut conn, id)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
     async fn list_card_issuers(
         &self,
         query: Option<String>,
         limit: Option<u8>,
     ) -> CustomResult<Vec<CardIssuer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
-        CardIssuer::list_filtered(&conn, query, limit.map(i64::from))
+        let mut conn = pg_connection_read(self).await?;
+        CardIssuer::list_filtered(&mut conn, query, limit.map(i64::from))
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
     async fn get_card_issuers_by_ids(
         &self,
         ids: Vec<id_type::CardIssuerId>,
     ) -> CustomResult<Vec<CardIssuer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
-        CardIssuer::find_by_ids(&conn, ids)
+        let mut conn = pg_connection_read(self).await?;
+        CardIssuer::find_by_ids(&mut conn, ids)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }

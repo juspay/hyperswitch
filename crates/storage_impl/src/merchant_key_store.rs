@@ -21,7 +21,6 @@ use crate::{
 #[async_trait::async_trait]
 impl<T: DatabaseStore> MerchantKeyStoreInterface for kv_router_store::KVRouterStore<T> {
     type Error = StorageError;
-    #[instrument(skip_all)]
     async fn insert_merchant_key_store(
         &self,
         merchant_key_store: domain::MerchantKeyStore,
@@ -32,7 +31,6 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for kv_router_store::KVRouterSt
             .await
     }
 
-    #[instrument(skip_all)]
     async fn get_merchant_key_store_by_merchant_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -43,7 +41,6 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for kv_router_store::KVRouterSt
             .await
     }
 
-    #[instrument(skip_all)]
     async fn delete_merchant_key_store_by_merchant_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -54,7 +51,6 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for kv_router_store::KVRouterSt
     }
 
     #[cfg(feature = "olap")]
-    #[instrument(skip_all)]
     async fn list_multiple_key_stores(
         &self,
         merchant_ids: Vec<common_utils::id_type::MerchantId>,
@@ -78,19 +74,18 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for kv_router_store::KVRouterSt
 #[async_trait::async_trait]
 impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
     type Error = StorageError;
-    #[instrument(skip_all)]
     async fn insert_merchant_key_store(
         &self,
         merchant_key_store: domain::MerchantKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, Self::Error> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let mut conn = pg_accounts_connection_write(self).await?;
         let merchant_id = merchant_key_store.merchant_id.clone();
         merchant_key_store
             .construct_new()
             .await
             .change_context(Self::Error::EncryptionError)?
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(Self::Error::from(error)))?
             .convert(
@@ -103,17 +98,16 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
             .change_context(Self::Error::DecryptionError)
     }
 
-    #[instrument(skip_all)]
     async fn get_merchant_key_store_by_merchant_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, Self::Error> {
         let fetch_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let mut conn = pg_accounts_connection_read(self).await?;
 
             diesel_models::merchant_key_store::MerchantKeyStore::find_by_merchant_id(
-                &conn,
+                &mut conn,
                 merchant_id,
             )
             .await
@@ -149,15 +143,14 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
     async fn delete_merchant_key_store_by_merchant_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, Self::Error> {
         let delete_func = || async {
-            let conn = pg_accounts_connection_write(self).await?;
+            let mut conn = pg_accounts_connection_write(self).await?;
             diesel_models::merchant_key_store::MerchantKeyStore::delete_by_merchant_id(
-                &conn,
+                &mut conn,
                 merchant_id,
             )
             .await
@@ -183,17 +176,16 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
-    #[instrument(skip_all)]
     async fn list_multiple_key_stores(
         &self,
         merchant_ids: Vec<common_utils::id_type::MerchantId>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, Self::Error> {
         let fetch_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let mut conn = pg_accounts_connection_read(self).await?;
 
             diesel_models::merchant_key_store::MerchantKeyStore::list_multiple_key_stores(
-                &conn,
+                &mut conn,
                 merchant_ids,
             )
             .await
@@ -221,9 +213,9 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
         from: u32,
         to: u32,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let mut conn = pg_accounts_connection_read(self).await?;
         let stores = diesel_models::merchant_key_store::MerchantKeyStore::list_all_key_stores(
-            &conn, from, to,
+            &mut conn, from, to,
         )
         .await
         .map_err(|err| report!(Self::Error::from(err)))?;

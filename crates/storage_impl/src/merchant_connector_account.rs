@@ -1,4 +1,4 @@
-use async_bb8_diesel::AsyncConnection;
+use diesel_async::AsyncConnection;
 use common_utils::{encryption::Encryption, ext_traits::AsyncExt};
 use diesel_models::merchant_connector_account as storage;
 use error_stack::{report, ResultExt};
@@ -21,7 +21,6 @@ use crate::{
 impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KVRouterStore<T> {
     type Error = StorageError;
     #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -38,7 +37,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     }
 
     #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         profile_id: &common_utils::id_type::ProfileId,
@@ -55,7 +53,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     }
 
     #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -71,7 +68,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
             .await
     }
 
-    #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
@@ -88,7 +84,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
             .await
     }
 
-    #[instrument(skip_all)]
     #[cfg(feature = "v2")]
     async fn find_merchant_connector_account_by_id(
         &self,
@@ -100,7 +95,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
             .await
     }
 
-    #[instrument(skip_all)]
     async fn insert_merchant_connector_account(
         &self,
         t: domain::MerchantConnectorAccount,
@@ -122,7 +116,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
             .await
     }
 
-    #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -138,7 +131,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
             .await
     }
 
-    #[instrument(skip_all)]
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
         &self,
@@ -150,7 +142,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
             .await
     }
 
-    #[instrument(skip_all)]
     async fn update_multiple_merchant_connector_accounts(
         &self,
         merchant_connector_accounts: Vec<(
@@ -163,7 +154,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
             .await
     }
 
-    #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn update_merchant_connector_account(
         &self,
@@ -176,7 +166,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
             .await
     }
 
-    #[instrument(skip_all)]
     #[cfg(feature = "v2")]
     async fn update_merchant_connector_account(
         &self,
@@ -189,7 +178,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
             .await
     }
 
-    #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
@@ -204,7 +192,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
             .await
     }
 
-    #[instrument(skip_all)]
     #[cfg(feature = "v2")]
     async fn delete_merchant_connector_account_by_id(
         &self,
@@ -220,7 +207,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
 impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     type Error = StorageError;
     #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -228,9 +214,9 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         let find_call = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let mut conn = pg_accounts_connection_read(self).await?;
             storage::MerchantConnectorAccount::find_by_merchant_id_connector(
-                &conn,
+                &mut conn,
                 merchant_id,
                 connector_label,
             )
@@ -276,7 +262,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     }
 
     #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         profile_id: &common_utils::id_type::ProfileId,
@@ -284,9 +269,9 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         let find_call = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let mut conn = pg_accounts_connection_read(self).await?;
             storage::MerchantConnectorAccount::find_by_profile_id_connector_name(
-                &conn,
+                &mut conn,
                 profile_id,
                 connector_name,
             )
@@ -332,16 +317,15 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     }
 
     #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_name: &str,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let mut conn = pg_accounts_connection_read(self).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id_connector_name(
-            &conn,
+            &mut conn,
             merchant_id,
             connector_name,
         )
@@ -366,7 +350,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         .await
     }
 
-    #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
@@ -375,9 +358,9 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         let find_call = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let mut conn = pg_accounts_connection_read(self).await?;
             storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
-                &conn,
+                &mut conn,
                 merchant_id,
                 merchant_connector_id,
             )
@@ -423,7 +406,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
     #[cfg(feature = "v2")]
     async fn find_merchant_connector_account_by_id(
         &self,
@@ -431,8 +413,8 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         let find_call = || async {
-            let conn = pg_accounts_connection_read(self).await?;
-            storage::MerchantConnectorAccount::find_by_id(&conn, id)
+            let mut conn = pg_accounts_connection_read(self).await?;
+            storage::MerchantConnectorAccount::find_by_id(&mut conn, id)
                 .await
                 .map_err(|error| report!(Self::Error::from(error)))
         };
@@ -473,17 +455,16 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
     async fn insert_merchant_connector_account(
         &self,
         t: domain::MerchantConnectorAccount,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let mut conn = pg_accounts_connection_write(self).await?;
         t.construct_new()
             .await
             .change_context(Self::Error::EncryptionError)?
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(Self::Error::from(error)))
             .async_and_then(|item| async {
@@ -505,10 +486,10 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         connector_type: common_enums::ConnectorType,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let mut conn = pg_accounts_connection_read(self).await?;
 
         storage::MerchantConnectorAccount::list_enabled_by_profile_id(
-            &conn,
+            &mut conn,
             profile_id,
             connector_type,
         )
@@ -533,17 +514,16 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         .await
     }
 
-    #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccounts, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let mut conn = pg_accounts_connection_read(self).await?;
         let merchant_connector_account_vec =
             storage::MerchantConnectorAccount::find_by_merchant_id(
-                &conn,
+                &mut conn,
                 merchant_id,
                 get_disabled,
             )
@@ -571,15 +551,14 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         ))
     }
 
-    #[instrument(skip_all)]
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
         &self,
         profile_id: &common_utils::id_type::ProfileId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
-        storage::MerchantConnectorAccount::list_by_profile_id(&conn, profile_id)
+        let mut conn = pg_accounts_connection_read(self).await?;
+        storage::MerchantConnectorAccount::list_by_profile_id(&mut conn, profile_id)
             .await
             .map_err(|error| report!(Self::Error::from(error)))
             .async_and_then(|items| async {
@@ -601,7 +580,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             .await
     }
 
-    #[instrument(skip_all)]
     async fn update_multiple_merchant_connector_accounts(
         &self,
         merchant_connector_accounts: Vec<(
@@ -609,10 +587,10 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             storage::MerchantConnectorAccountUpdateInternal,
         )>,
     ) -> CustomResult<(), Self::Error> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let mut conn = pg_accounts_connection_write(self).await?;
 
         async fn update_call(
-            connection: &diesel_models::PgPooledConn,
+            connection: &mut diesel_models::PgPooledConn,
             (merchant_connector_account, mca_update): (
                 domain::MerchantConnectorAccount,
                 storage::MerchantConnectorAccountUpdateInternal,
@@ -627,7 +605,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             Ok(())
         }
 
-        conn.transaction_async(|connection_pool| async move {
+        conn.transaction(async |connection_pool| {
             for (merchant_connector_account, update_merchant_connector_account) in
                 merchant_connector_accounts
             {
@@ -643,7 +621,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 let _merchant_connector_id = merchant_connector_account.get_id().clone();
 
                 let update = update_call(
-                    &connection_pool,
+                    connection_pool,
                     (
                         merchant_connector_account,
                         update_merchant_connector_account,
@@ -711,7 +689,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         Ok(())
     }
 
-    #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn update_merchant_connector_account(
         &self,
@@ -726,11 +703,11 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         let _merchant_connector_id = this.merchant_connector_id.clone();
 
         let update_call = || async {
-            let conn = pg_accounts_connection_write(self).await?;
+            let mut conn = pg_accounts_connection_write(self).await?;
             Conversion::convert(this)
                 .await
                 .change_context(Self::Error::EncryptionError)?
-                .update(&conn, merchant_connector_account)
+                .update(&mut conn, merchant_connector_account)
                 .await
                 .map_err(|error| report!(Self::Error::from(error)))
                 .async_and_then(|item| async {
@@ -791,7 +768,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
     #[cfg(feature = "v2")]
     async fn update_merchant_connector_account(
         &self,
@@ -806,11 +782,11 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         let _merchant_connector_id = this.get_id().clone();
 
         let update_call = || async {
-            let conn = pg_accounts_connection_write(self).await?;
+            let mut conn = pg_accounts_connection_write(self).await?;
             Conversion::convert(this)
                 .await
                 .change_context(Self::Error::EncryptionError)?
-                .update(&conn, merchant_connector_account)
+                .update(&mut conn, merchant_connector_account)
                 .await
                 .map_err(|error| report!(Self::Error::from(error)))
                 .async_and_then(|item| async {
@@ -868,23 +844,13 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, Self::Error> {
-        let conn = pg_accounts_connection_write(self).await?;
-        let delete_call = || async {
-            storage::MerchantConnectorAccount::delete_by_merchant_id_merchant_connector_id(
-                &conn,
-                merchant_id,
-                merchant_connector_id,
-            )
-            .await
-            .map_err(|error| report!(Self::Error::from(error)))
-        };
+        let mut conn = pg_accounts_connection_write(self).await?;
 
         #[cfg(feature = "accounts_cache")]
         {
@@ -894,7 +860,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             // creating new.
 
             let mca = storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
-                &conn,
+                &mut conn,
                 merchant_id,
                 merchant_connector_id,
             )
@@ -933,29 +899,37 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                         .into(),
                     ),
                 ],
-                delete_call,
+                move || async move {
+                    storage::MerchantConnectorAccount::delete_by_merchant_id_merchant_connector_id(
+                        &mut conn,
+                        merchant_id,
+                        merchant_connector_id,
+                    )
+                    .await
+                    .map_err(|error| report!(Self::Error::from(error)))
+                },
             )
             .await
         }
 
         #[cfg(not(feature = "accounts_cache"))]
         {
-            delete_call().await
+            storage::MerchantConnectorAccount::delete_by_merchant_id_merchant_connector_id(
+                &mut conn,
+                merchant_id,
+                merchant_connector_id,
+            )
+            .await
+            .map_err(|error| report!(Self::Error::from(error)))
         }
     }
 
-    #[instrument(skip_all)]
     #[cfg(feature = "v2")]
     async fn delete_merchant_connector_account_by_id(
         &self,
         id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, Self::Error> {
-        let conn = pg_accounts_connection_write(self).await?;
-        let delete_call = || async {
-            storage::MerchantConnectorAccount::delete_by_id(&conn, id)
-                .await
-                .map_err(|error| report!(Self::Error::from(error)))
-        };
+        let mut conn = pg_accounts_connection_write(self).await?;
 
         #[cfg(feature = "accounts_cache")]
         {
@@ -964,7 +938,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             // Used function from storage model to reuse the connection that made here instead of
             // creating new.
 
-            let mca = storage::MerchantConnectorAccount::find_by_id(&conn, id)
+            let mca = storage::MerchantConnectorAccount::find_by_id(&mut conn, id)
                 .await
                 .map_err(|error| report!(Self::Error::from(error)))?;
 
@@ -998,14 +972,20 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                         .into(),
                     ),
                 ],
-                delete_call,
+                move || async move {
+                    storage::MerchantConnectorAccount::delete_by_id(&mut conn, id)
+                        .await
+                        .map_err(|error| report!(Self::Error::from(error)))
+                },
             )
             .await
         }
 
         #[cfg(not(feature = "accounts_cache"))]
         {
-            delete_call().await
+            storage::MerchantConnectorAccount::delete_by_id(&mut conn, id)
+                .await
+                .map_err(|error| report!(Self::Error::from(error)))
         }
     }
 }

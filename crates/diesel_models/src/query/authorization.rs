@@ -11,14 +11,14 @@ use crate::{
 };
 
 impl AuthorizationNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Authorization> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Authorization> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Authorization {
     pub async fn update_by_processor_merchant_id_authorization_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: common_utils::id_type::MerchantId,
         authorization_id: String,
         authorization_update: AuthorizationUpdate,
@@ -58,7 +58,7 @@ impl Authorization {
 
     // Fallback function for stagger release - updates by merchant_id when processor_merchant_id is NULL
     pub async fn update_by_merchant_id_authorization_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: common_utils::id_type::MerchantId,
         authorization_id: String,
         authorization_update: AuthorizationUpdate,
@@ -97,7 +97,7 @@ impl Authorization {
     }
 
     pub async fn find_by_processor_merchant_id_payment_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
     ) -> StorageResult<Vec<Self>> {
@@ -115,7 +115,7 @@ impl Authorization {
 
     // Fallback function for stagger release - queries by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_payment_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
     ) -> StorageResult<Vec<Self>> {

@@ -155,12 +155,12 @@ mod storage {
             processor_merchant_id: &common_utils::id_type::MerchantId,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
             // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
             let result =
                 diesel_refund::Refund::find_by_internal_reference_id_processor_merchant_id(
-                    &conn,
+                    &mut conn,
                     internal_reference_id,
                     processor_merchant_id,
                 )
@@ -174,7 +174,7 @@ mod storage {
                         diesel_models::errors::DatabaseError::NotFound
                     ) {
                         diesel_refund::Refund::find_by_internal_reference_id_merchant_id(
-                            &conn,
+                            &mut conn,
                             internal_reference_id,
                             processor_merchant_id,
                         )
@@ -193,8 +193,8 @@ mod storage {
             new: diesel_refund::RefundNew,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
-            new.insert(&conn)
+            let mut conn = connection::pg_connection_write(self).await?;
+            new.insert(&mut conn)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -206,9 +206,9 @@ mod storage {
             connector_transaction_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             diesel_refund::Refund::find_by_processor_merchant_id_connector_transaction_id(
-                &conn,
+                &mut conn,
                 processor_merchant_id,
                 connector_transaction_id,
             )
@@ -222,8 +222,8 @@ mod storage {
             id: &common_utils::id_type::GlobalRefundId,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            diesel_refund::Refund::find_by_global_id(&conn, id)
+            let mut conn = connection::pg_connection_read(self).await?;
+            diesel_refund::Refund::find_by_global_id(&mut conn, id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -236,10 +236,10 @@ mod storage {
             refund: diesel_refund::RefundUpdate,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let mut conn = connection::pg_connection_write(self).await?;
             // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
             // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
-            let result = this.clone().update(&conn, refund.clone()).await;
+            let result = this.clone().update(&mut conn, refund.clone()).await;
 
             match result {
                 Ok(refund) => Ok(refund),
@@ -248,7 +248,7 @@ mod storage {
                         error.current_context(),
                         diesel_models::errors::DatabaseError::NotFound
                     ) {
-                        this.update_by_merchant_id(&conn, refund)
+                        this.update_by_merchant_id(&mut conn, refund)
                             .await
                             .map_err(|error| report!(errors::StorageError::from(error)))
                     } else {
@@ -266,8 +266,8 @@ mod storage {
             refund: diesel_refund::RefundUpdate,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
-            this.update_with_id(&conn, refund)
+            let mut conn = connection::pg_connection_write(self).await?;
+            this.update_with_id(&mut conn, refund)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -280,11 +280,11 @@ mod storage {
             refund_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
             // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
             let result = diesel_refund::Refund::find_by_processor_merchant_id_refund_id(
-                &conn,
+                &mut conn,
                 processor_merchant_id,
                 refund_id,
             )
@@ -298,7 +298,7 @@ mod storage {
                         diesel_models::errors::DatabaseError::NotFound
                     ) {
                         diesel_refund::Refund::find_by_merchant_id_refund_id(
-                            &conn,
+                            &mut conn,
                             processor_merchant_id,
                             refund_id,
                         )
@@ -320,12 +320,12 @@ mod storage {
             connector: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
             // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
             let result =
                 diesel_refund::Refund::find_by_processor_merchant_id_connector_refund_id_connector(
-                    &conn,
+                    &mut conn,
                     processor_merchant_id,
                     connector_refund_id,
                     connector,
@@ -340,7 +340,7 @@ mod storage {
                         diesel_models::errors::DatabaseError::NotFound
                     ) {
                         diesel_refund::Refund::find_by_merchant_id_connector_refund_id_connector(
-                            &conn,
+                            &mut conn,
                             processor_merchant_id,
                             connector_refund_id,
                             connector,
@@ -362,9 +362,9 @@ mod storage {
             processor_merchant_id: &common_utils::id_type::MerchantId,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             diesel_refund::Refund::find_by_payment_id_processor_merchant_id(
-                &conn,
+                &mut conn,
                 payment_id,
                 processor_merchant_id,
             )
@@ -382,9 +382,9 @@ mod storage {
             limit: i64,
             offset: i64,
         ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
-                &conn,
+                &mut conn,
                 processor_merchant_id,
                 refund_details,
                 limit,
@@ -404,9 +404,9 @@ mod storage {
             limit: i64,
             offset: i64,
         ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
-                &conn,
+                &mut conn,
                 merchant_id,
                 refund_details,
                 limit,
@@ -424,9 +424,9 @@ mod storage {
             refund_details: &api_models::payments::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(
-                &conn,
+                &mut conn,
                 processor_merchant_id,
                 refund_details,
             )
@@ -443,8 +443,8 @@ mod storage {
             time_range: &api_models::payments::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, processor_merchant_id,profile_id_list, time_range)
+            let mut conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&mut conn, processor_merchant_id,profile_id_list, time_range)
             .await
             .map_err(|error|report!(errors::StorageError::from(error)))
         }
@@ -457,9 +457,9 @@ mod storage {
             refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refunds_count(
-                &conn,
+                &mut conn,
                 processor_merchant_id,
                 refund_details,
             )
@@ -475,9 +475,9 @@ mod storage {
             refund_details: refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refunds_count(
-                &conn,
+                &mut conn,
                 merchant_id,
                 refund_details,
             )
@@ -521,10 +521,10 @@ mod storage {
             // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
             // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
             let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
+                let mut conn = connection::pg_connection_read(self).await?;
                 let result =
                     diesel_refund::Refund::find_by_internal_reference_id_processor_merchant_id(
-                        &conn,
+                        &mut conn,
                         internal_reference_id,
                         processor_merchant_id,
                     )
@@ -538,7 +538,7 @@ mod storage {
                             diesel_models::errors::DatabaseError::NotFound
                         ) {
                             diesel_refund::Refund::find_by_internal_reference_id_merchant_id(
-                                &conn,
+                                &mut conn,
                                 internal_reference_id,
                                 processor_merchant_id,
                             )
@@ -601,8 +601,8 @@ mod storage {
             .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_write(self).await?;
-                    new.insert(&conn)
+                    let mut conn = connection::pg_connection_write(self).await?;
+                    new.insert(&mut conn)
                         .await
                         .map_err(|error| report!(errors::StorageError::from(error)))
                 }
@@ -746,8 +746,8 @@ mod storage {
             new: diesel_refund::RefundNew,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
-            new.insert(&conn)
+            let mut conn = connection::pg_connection_write(self).await?;
+            new.insert(&mut conn)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -761,9 +761,9 @@ mod storage {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
             let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
+                let mut conn = connection::pg_connection_read(self).await?;
                 diesel_refund::Refund::find_by_processor_merchant_id_connector_transaction_id(
-                    &conn,
+                    &mut conn,
                     processor_merchant_id,
                     connector_transaction_id,
                 )
@@ -820,9 +820,9 @@ mod storage {
             connector_transaction_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             diesel_refund::Refund::find_by_merchant_id_connector_transaction_id(
-                &conn,
+                &mut conn,
                 processor_merchant_id,
                 connector_transaction_id,
             )
@@ -853,10 +853,10 @@ mod storage {
             .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_write(self).await?;
+                    let mut conn = connection::pg_connection_write(self).await?;
                     // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
                     // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
-                    let result = this.clone().update(&conn, refund.clone()).await;
+                    let result = this.clone().update(&mut conn, refund.clone()).await;
 
                     match result {
                         Ok(refund) => Ok(refund),
@@ -865,7 +865,7 @@ mod storage {
                                 error.current_context(),
                                 diesel_models::errors::DatabaseError::NotFound
                             ) {
-                                this.update_by_merchant_id(&conn, refund)
+                                this.update_by_merchant_id(&mut conn, refund)
                                     .await
                                     .map_err(|error| report!(errors::StorageError::from(error)))
                             } else {
@@ -967,8 +967,8 @@ mod storage {
             refund: diesel_refund::RefundUpdate,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
-            this.update_with_id(&conn, refund)
+            let mut conn = connection::pg_connection_write(self).await?;
+            this.update_with_id(&mut conn, refund)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -984,9 +984,9 @@ mod storage {
             // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
             // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
             let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
+                let mut conn = connection::pg_connection_read(self).await?;
                 let result = diesel_refund::Refund::find_by_processor_merchant_id_refund_id(
-                    &conn,
+                    &mut conn,
                     processor_merchant_id,
                     refund_id,
                 )
@@ -1000,7 +1000,7 @@ mod storage {
                             diesel_models::errors::DatabaseError::NotFound
                         ) {
                             diesel_refund::Refund::find_by_merchant_id_refund_id(
-                                &conn,
+                                &mut conn,
                                 processor_merchant_id,
                                 refund_id,
                             )
@@ -1064,10 +1064,10 @@ mod storage {
             // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
             // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
             let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
+                let mut conn = connection::pg_connection_read(self).await?;
                 let result =
                     diesel_refund::Refund::find_by_processor_merchant_id_connector_refund_id_connector(
-                        &conn,
+                        &mut conn,
                         processor_merchant_id,
                         connector_refund_id,
                         connector,
@@ -1082,7 +1082,7 @@ mod storage {
                             diesel_models::errors::DatabaseError::NotFound
                         ) {
                             diesel_refund::Refund::find_by_merchant_id_connector_refund_id_connector(
-                                &conn,
+                                &mut conn,
                                 processor_merchant_id,
                                 connector_refund_id,
                                 connector,
@@ -1144,9 +1144,9 @@ mod storage {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
             let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
+                let mut conn = connection::pg_connection_read(self).await?;
                 diesel_refund::Refund::find_by_payment_id_processor_merchant_id(
-                    &conn,
+                    &mut conn,
                     payment_id,
                     processor_merchant_id,
                 )
@@ -1190,8 +1190,8 @@ mod storage {
             id: &common_utils::id_type::GlobalRefundId,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            diesel_refund::Refund::find_by_global_id(&conn, id)
+            let mut conn = connection::pg_connection_read(self).await?;
+            diesel_refund::Refund::find_by_global_id(&mut conn, id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -1206,9 +1206,9 @@ mod storage {
             limit: i64,
             offset: i64,
         ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
-                &conn,
+                &mut conn,
                 processor_merchant_id,
                 refund_details,
                 limit,
@@ -1228,9 +1228,9 @@ mod storage {
             limit: i64,
             offset: i64,
         ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
-                &conn,
+                &mut conn,
                 merchant_id,
                 refund_details,
                 limit,
@@ -1248,8 +1248,8 @@ mod storage {
             refund_details: &common_utils::types::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(&conn, processor_merchant_id, refund_details)
+            let mut conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(&mut conn, processor_merchant_id, refund_details)
                         .await
                         .map_err(|error|report!(errors::StorageError::from(error)))
         }
@@ -1263,8 +1263,8 @@ mod storage {
             constraints: &common_utils::types::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, processor_merchant_id,profile_id_list, constraints)
+            let mut conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&mut conn, processor_merchant_id,profile_id_list, constraints)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -1277,9 +1277,9 @@ mod storage {
             refund_details: &refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refunds_count(
-                &conn,
+                &mut conn,
                 processor_merchant_id,
                 refund_details,
             )
@@ -1295,9 +1295,9 @@ mod storage {
             refund_details: refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refunds_count(
-                &conn,
+                &mut conn,
                 merchant_id,
                 refund_details,
             )

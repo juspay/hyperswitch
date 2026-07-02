@@ -9,14 +9,14 @@ use crate::{
 };
 
 impl ApiKeyNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<ApiKey> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<ApiKey> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl ApiKey {
     pub async fn update_by_merchant_id_key_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: common_utils::id_type::MerchantId,
         key_id: common_utils::id_type::ApiKeyId,
         api_key_update: ApiKeyUpdate,
@@ -55,7 +55,7 @@ impl ApiKey {
     }
 
     pub async fn revoke_by_merchant_id_key_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         key_id: &common_utils::id_type::ApiKeyId,
     ) -> StorageResult<bool> {
@@ -69,7 +69,7 @@ impl ApiKey {
     }
 
     pub async fn find_optional_by_merchant_id_key_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         key_id: &common_utils::id_type::ApiKeyId,
     ) -> StorageResult<Option<Self>> {
@@ -83,7 +83,7 @@ impl ApiKey {
     }
 
     pub async fn find_optional_by_hashed_api_key(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         hashed_api_key: HashedApiKey,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
@@ -94,7 +94,7 @@ impl ApiKey {
     }
 
     pub async fn find_by_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         limit: Option<i64>,
         offset: Option<i64>,

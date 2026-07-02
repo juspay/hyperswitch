@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel_async::RunQueryDsl;
 use diesel::{
     associations::HasTable,
     query_dsl::methods::{DistinctDsl, FilterDsl, SelectDsl},
@@ -21,7 +21,7 @@ use crate::{
 };
 
 impl PayoutAttemptNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PayoutAttempt> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<PayoutAttempt> {
         generics::generic_insert(conn, self).await
     }
 
@@ -36,7 +36,7 @@ impl PayoutAttemptNew {
 impl PayoutAttempt {
     pub async fn update_with_attempt_id(
         self,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         payout_attempt_update: PayoutAttemptUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
@@ -62,7 +62,7 @@ impl PayoutAttempt {
     }
 
     pub async fn find_by_merchant_id_payout_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &common_utils::id_type::PayoutId,
     ) -> StorageResult<Vec<Self>> {
@@ -84,7 +84,7 @@ impl PayoutAttempt {
     }
 
     pub async fn find_by_merchant_id_payout_id_payout_attempt_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &common_utils::id_type::PayoutId,
         payout_attempt_id: &str,
@@ -100,7 +100,7 @@ impl PayoutAttempt {
     }
 
     pub async fn find_by_merchant_id_payout_attempt_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         payout_attempt_id: &str,
     ) -> StorageResult<Self> {
@@ -114,7 +114,7 @@ impl PayoutAttempt {
     }
 
     pub async fn find_by_merchant_id_connector_payout_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_payout_id: &str,
     ) -> StorageResult<Self> {
@@ -128,7 +128,7 @@ impl PayoutAttempt {
     }
 
     pub async fn find_by_merchant_id_merchant_order_reference_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id_input: &common_utils::id_type::MerchantId,
         merchant_order_reference_id_input: &str,
     ) -> StorageResult<Self> {
@@ -142,7 +142,7 @@ impl PayoutAttempt {
     }
 
     pub async fn update_by_merchant_id_payout_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &common_utils::id_type::PayoutId,
         payout: PayoutAttemptUpdate,
@@ -155,7 +155,7 @@ impl PayoutAttempt {
             PayoutAttemptUpdateInternal::from(payout),
         )
         .await?
-        .first()
+        .get(0)
         .cloned()
         .ok_or_else(|| {
             report!(DatabaseError::NotFound).attach_printable("Error while updating payout")
@@ -163,7 +163,7 @@ impl PayoutAttempt {
     }
 
     pub async fn update_by_merchant_id_payout_attempt_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         payout_attempt_id: &str,
         payout: PayoutAttemptUpdate,
@@ -176,7 +176,7 @@ impl PayoutAttempt {
             PayoutAttemptUpdateInternal::from(payout),
         )
         .await?
-        .first()
+        .get(0)
         .cloned()
         .ok_or_else(|| {
             report!(DatabaseError::NotFound).attach_printable("Error while updating payout")
@@ -184,7 +184,7 @@ impl PayoutAttempt {
     }
 
     pub async fn get_filters_for_payouts(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         payouts: &[Payouts],
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<(
@@ -228,7 +228,7 @@ impl PayoutAttempt {
             .clone()
             .select(dsl::connector)
             .distinct()
-            .get_results_async::<Option<String>>(conn)
+            .get_results::<Option<String>>(conn)
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by connector")?
@@ -240,7 +240,7 @@ impl PayoutAttempt {
             .clone()
             .select(payout_dsl::destination_currency)
             .distinct()
-            .get_results_async::<enums::Currency>(conn)
+            .get_results::<enums::Currency>(conn)
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by currency")?
@@ -251,7 +251,7 @@ impl PayoutAttempt {
             .clone()
             .select(payout_dsl::payout_type)
             .distinct()
-            .get_results_async::<Option<enums::PayoutType>>(conn)
+            .get_results::<Option<enums::PayoutType>>(conn)
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by payout type")?

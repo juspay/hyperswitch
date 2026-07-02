@@ -70,7 +70,7 @@ use diesel_impl::{DieselArray, OptionalDieselArray};
 use diesel_impl::{RequiredFromNullable, RequiredFromNullableWithDefault};
 
 pub type StorageResult<T> = error_stack::Result<T, errors::DatabaseError>;
-pub type PgPooledConn = async_bb8_diesel::Connection<diesel::PgConnection>;
+pub type PgPooledConn = diesel_async::AsyncPgConnection;
 pub use self::{
     address::*, api_keys::*, callback_mapper::*, capture::*, cards_info::*, configs::*,
     customers::*, dispute::*, ephemeral_key::*, events::*, file::*, generic_link::*,

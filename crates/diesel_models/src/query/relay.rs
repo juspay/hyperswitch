@@ -9,7 +9,7 @@ use crate::{
 };
 
 impl RelayNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Relay> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Relay> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -17,7 +17,7 @@ impl RelayNew {
 impl Relay {
     pub async fn update(
         self,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         relay: RelayUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
@@ -37,7 +37,7 @@ impl Relay {
     }
 
     pub async fn find_by_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         id: &common_utils::id_type::RelayId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -48,7 +48,7 @@ impl Relay {
     }
 
     pub async fn find_by_profile_id_connector_reference_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,
         connector_reference_id: &str,
     ) -> StorageResult<Self> {

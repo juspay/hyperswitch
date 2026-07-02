@@ -1,21 +1,18 @@
 use std::fmt::Debug;
 
-use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel_async::{methods::LoadQuery, RunQueryDsl};
 use diesel::{
     associations::HasTable,
     debug_query,
     dsl::{count_star, Find, IsNotNull, Limit},
     helper_types::{Filter, IntoBoxed},
     insertable::CanInsertInSingleQuery,
-    pg::{Pg, PgConnection},
+    pg::Pg,
     query_builder::{
         AsChangeset, AsQuery, DeleteStatement, InsertStatement, IntoUpdateTarget, QueryFragment,
         QueryId, UpdateStatement,
     },
-    query_dsl::{
-        methods::{BoxedDsl, FilterDsl, FindDsl, LimitDsl, OffsetDsl, OrderDsl, SelectDsl},
-        LoadQuery, RunQueryDsl,
-    },
+    query_dsl::methods::{BoxedDsl, FilterDsl, FindDsl, LimitDsl, OffsetDsl, OrderDsl, SelectDsl},
     result::Error as DieselError,
     Expression, ExpressionMethods, Insertable, QueryDsl, QuerySource, Table,
 };
@@ -63,14 +60,17 @@ pub mod db_metrics {
 
 use db_metrics::*;
 
-pub async fn generic_insert<T, V, R>(conn: &PgPooledConn, values: V) -> StorageResult<R>
+pub fn generic_insert<'q, T, V, R>(
+    conn: &'q mut PgPooledConn,
+    values: V,
+) -> impl std::future::Future<Output = StorageResult<R>> + Send + 'q
 where
     T: HasTable<Table = T> + Table + 'static + Debug,
-    V: Debug + Insertable<T>,
+    V: Debug + Insertable<T> + 'q + Send,
     <T as QuerySource>::FromClause: QueryFragment<Pg> + Debug,
     <V as Insertable<T>>::Values: CanInsertInSingleQuery<Pg> + QueryFragment<Pg> + 'static,
     InsertStatement<T, <V as Insertable<T>>::Values>:
-        AsQuery + LoadQuery<'static, PgConnection, R> + Send,
+        AsQuery + LoadQuery<'q, PgPooledConn, R> + Send,
     R: Send + 'static,
 {
     let debug_values = format!("{values:?}");
@@ -78,22 +78,24 @@ where
     let query = diesel::insert_into(<T as HasTable>::table()).values(values);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    match track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::Insert)
-        .await
-    {
-        Ok(value) => Ok(value),
-        Err(err) => match err {
-            DieselError::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => {
-                Err(report!(err)).change_context(errors::DatabaseError::UniqueViolation)
-            }
-            _ => Err(report!(err)).change_context(errors::DatabaseError::Others),
-        },
+    async move {
+        match track_database_call::<T, _, _>(query.get_result(conn), DatabaseOperation::Insert)
+            .await
+        {
+            Ok(value) => Ok(value),
+            Err(err) => match err {
+                DieselError::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => {
+                    Err(report!(err)).change_context(errors::DatabaseError::UniqueViolation)
+                }
+                _ => Err(report!(err)).change_context(errors::DatabaseError::Others),
+            },
+        }
+        .attach_printable_lazy(|| format!("Error while inserting {debug_values}"))
     }
-    .attach_printable_lazy(|| format!("Error while inserting {debug_values}"))
 }
 
 pub async fn generic_update<T, V, P>(
-    conn: &PgPooledConn,
+    conn: &mut PgPooledConn,
     predicate: P,
     values: V,
 ) -> StorageResult<usize>
@@ -112,26 +114,27 @@ where
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    track_database_call::<T, _, _>(query.execute_async(conn), DatabaseOperation::Update)
+    track_database_call::<T, _, _>(query.execute(conn), DatabaseOperation::Update)
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
 }
 
-pub async fn generic_update_with_results<T, V, P, R>(
-    conn: &PgPooledConn,
+pub fn generic_update_with_results<'q, T, V, P, R>(
+    conn: &'q mut PgPooledConn,
     predicate: P,
     values: V,
-) -> StorageResult<Vec<R>>
+) -> impl std::future::Future<Output = StorageResult<Vec<R>>> + Send + 'q
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     V: AsChangeset<Target = <Filter<T, P> as HasTable>::Table> + Debug + 'static,
+    P: 'q + Send,
     Filter<T, P>: IntoUpdateTarget + 'static,
     UpdateStatement<
         <Filter<T, P> as HasTable>::Table,
         <Filter<T, P> as IntoUpdateTarget>::WhereClause,
         <V as AsChangeset>::Changeset,
-    >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + Clone,
+    >: AsQuery + LoadQuery<'q, PgPooledConn, R> + QueryFragment<Pg> + Send + Clone,
     R: Send + 'static,
 
     // For cloning query (UpdateStatement)
@@ -144,42 +147,45 @@ where
 
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
 
-    match track_database_call::<T, _, _>(
-        query.to_owned().get_results_async(conn),
-        DatabaseOperation::UpdateWithResults,
-    )
-    .await
-    {
-        Ok(result) => {
-            logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-            Ok(result)
+    async move {
+        match track_database_call::<T, _, _>(
+            query.to_owned().get_results(conn),
+            DatabaseOperation::UpdateWithResults,
+        )
+        .await
+        {
+            Ok(result) => {
+                logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+                Ok(result)
+            }
+            Err(DieselError::QueryBuilderError(_)) => {
+                Err(report!(errors::DatabaseError::NoFieldsToUpdate))
+                    .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
+            }
+            Err(DieselError::NotFound) => Err(report!(errors::DatabaseError::NotFound))
+                .attach_printable_lazy(|| format!("Error while updating {debug_values}")),
+            Err(error) => Err(error)
+                .change_context(errors::DatabaseError::Others)
+                .attach_printable_lazy(|| format!("Error while updating {debug_values}")),
         }
-        Err(DieselError::QueryBuilderError(_)) => {
-            Err(report!(errors::DatabaseError::NoFieldsToUpdate))
-                .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
-        }
-        Err(DieselError::NotFound) => Err(report!(errors::DatabaseError::NotFound))
-            .attach_printable_lazy(|| format!("Error while updating {debug_values}")),
-        Err(error) => Err(error)
-            .change_context(errors::DatabaseError::Others)
-            .attach_printable_lazy(|| format!("Error while updating {debug_values}")),
     }
 }
 
-pub async fn generic_update_with_unique_predicate_get_result<T, V, P, R>(
-    conn: &PgPooledConn,
+pub fn generic_update_with_unique_predicate_get_result<'q, T, V, P, R>(
+    conn: &'q mut PgPooledConn,
     predicate: P,
     values: V,
-) -> StorageResult<R>
+) -> impl std::future::Future<Output = StorageResult<R>> + Send + 'q
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    V: AsChangeset<Target = <Filter<T, P> as HasTable>::Table> + Debug + 'static,
+    V: AsChangeset<Target = <Filter<T, P> as HasTable>::Table> + Debug + 'static + Send,
+    P: 'q + Send,
     Filter<T, P>: IntoUpdateTarget + 'static,
     UpdateStatement<
         <Filter<T, P> as HasTable>::Table,
         <Filter<T, P> as IntoUpdateTarget>::WhereClause,
         <V as AsChangeset>::Changeset,
-    >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send,
+    >: AsQuery + LoadQuery<'q, PgPooledConn, R> + QueryFragment<Pg> + Send,
     R: Send + 'static,
 
     // For cloning query (UpdateStatement)
@@ -188,38 +194,40 @@ where
     <V as AsChangeset>::Changeset: Clone,
     <<Filter<T, P> as HasTable>::Table as QuerySource>::FromClause: Clone,
 {
-    generic_update_with_results::<<T as HasTable>::Table, _, _, _>(conn, predicate, values)
-        .await
-        .map(|mut vec_r| {
-            if vec_r.is_empty() {
-                Err(errors::DatabaseError::NotFound)
-            } else if vec_r.len() != 1 {
-                Err(errors::DatabaseError::Others)
-            } else {
-                vec_r.pop().ok_or(errors::DatabaseError::Others)
-            }
-            .attach_printable("Maybe not queried using a unique key")
-        })?
+    async move {
+        generic_update_with_results::<<T as HasTable>::Table, _, _, _>(conn, predicate, values)
+            .await
+            .map(|mut vec_r| {
+                if vec_r.is_empty() {
+                    Err(errors::DatabaseError::NotFound)
+                } else if vec_r.len() != 1 {
+                    Err(errors::DatabaseError::Others)
+                } else {
+                    vec_r.pop().ok_or(errors::DatabaseError::Others)
+                }
+                .attach_printable("Maybe not queried using a unique key")
+            })?
+    }
 }
 
-pub async fn generic_update_by_id<T, V, Pk, R>(
-    conn: &PgPooledConn,
+pub fn generic_update_by_id<'q, T, V, Pk, R>(
+    conn: &'q mut PgPooledConn,
     id: Pk,
     values: V,
-) -> StorageResult<R>
+) -> impl std::future::Future<Output = StorageResult<R>> + Send + 'q
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
-    V: AsChangeset<Target = <Find<T, Pk> as HasTable>::Table> + Debug,
-    Find<T, Pk>: IntoUpdateTarget + QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
+    V: AsChangeset<Target = <Find<T, Pk> as HasTable>::Table> + Debug + 'q,
+    Pk: Clone + Debug + 'q + Send,
+    Find<T, Pk>: IntoUpdateTarget + QueryFragment<Pg> + Send + 'static,
     UpdateStatement<
         <Find<T, Pk> as HasTable>::Table,
         <Find<T, Pk> as IntoUpdateTarget>::WhereClause,
         <V as AsChangeset>::Changeset,
-    >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
+    >: AsQuery + LoadQuery<'q, PgPooledConn, R> + QueryFragment<Pg> + Send + 'static,
     Find<T, Pk>: LimitDsl,
-    Limit<Find<T, Pk>>: LoadQuery<'static, PgConnection, R>,
+    Limit<Find<T, Pk>>: LoadQuery<'q, PgPooledConn, R> + Send,
     R: Send + 'static,
-    Pk: Clone + Debug,
 
     // For cloning query (UpdateStatement)
     <Find<T, Pk> as HasTable>::Table: Clone,
@@ -231,29 +239,31 @@ where
 
     let query = diesel::update(<T as HasTable>::table().find(id.to_owned())).set(values);
 
-    match track_database_call::<T, _, _>(
-        query.to_owned().get_result_async(conn),
-        DatabaseOperation::UpdateOne,
-    )
-    .await
-    {
-        Ok(result) => {
-            logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-            Ok(result)
+    async move {
+        match track_database_call::<T, _, _>(
+            query.to_owned().get_result(conn),
+            DatabaseOperation::UpdateOne,
+        )
+        .await
+        {
+            Ok(result) => {
+                logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+                Ok(result)
+            }
+            Err(DieselError::QueryBuilderError(_)) => {
+                Err(report!(errors::DatabaseError::NoFieldsToUpdate))
+                    .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}"))
+            }
+            Err(DieselError::NotFound) => Err(report!(errors::DatabaseError::NotFound))
+                .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}")),
+            Err(error) => Err(error)
+                .change_context(errors::DatabaseError::Others)
+                .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}")),
         }
-        Err(DieselError::QueryBuilderError(_)) => {
-            Err(report!(errors::DatabaseError::NoFieldsToUpdate))
-                .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}"))
-        }
-        Err(DieselError::NotFound) => Err(report!(errors::DatabaseError::NotFound))
-            .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}")),
-        Err(error) => Err(error)
-            .change_context(errors::DatabaseError::Others)
-            .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}")),
     }
 }
 
-pub async fn generic_delete<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<bool>
+pub async fn generic_delete<T, P>(conn: &mut PgPooledConn, predicate: P) -> StorageResult<bool>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     Filter<T, P>: IntoUpdateTarget,
@@ -265,7 +275,7 @@ where
     let query = diesel::delete(<T as HasTable>::table().filter(predicate));
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    track_database_call::<T, _, _>(query.execute_async(conn), DatabaseOperation::Delete)
+    track_database_call::<T, _, _>(query.execute(conn), DatabaseOperation::Delete)
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting")
@@ -281,144 +291,167 @@ where
         })
 }
 
-pub async fn generic_delete_one_with_result<T, P, R>(
-    conn: &PgPooledConn,
+pub fn generic_delete_one_with_result<'q, T, P, R>(
+    conn: &'q mut PgPooledConn,
     predicate: P,
-) -> StorageResult<R>
+) -> impl std::future::Future<Output = StorageResult<R>> + Send + 'q
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
+    P: 'q + Send,
     Filter<T, P>: IntoUpdateTarget,
     DeleteStatement<
         <Filter<T, P> as HasTable>::Table,
         <Filter<T, P> as IntoUpdateTarget>::WhereClause,
-    >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
+    >: AsQuery + LoadQuery<'q, PgPooledConn, R> + QueryFragment<Pg> + Send + 'static,
     R: Send + Clone + 'static,
 {
     let query = diesel::delete(<T as HasTable>::table().filter(predicate));
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    track_database_call::<T, _, _>(
-        query.get_results_async(conn),
-        DatabaseOperation::DeleteWithResult,
-    )
-    .await
-    .change_context(errors::DatabaseError::Others)
-    .attach_printable("Error while deleting")
-    .and_then(|result| {
-        result.first().cloned().ok_or_else(|| {
-            report!(errors::DatabaseError::NotFound)
-                .attach_printable("Object to be deleted does not exist")
+    async move {
+        track_database_call::<T, _, _>(
+            query.get_results(conn),
+            DatabaseOperation::DeleteWithResult,
+        )
+        .await
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Error while deleting")
+        .and_then(|result| {
+            result.get(0).cloned().ok_or_else(|| {
+                report!(errors::DatabaseError::NotFound)
+                    .attach_printable("Object to be deleted does not exist")
+            })
         })
-    })
+    }
 }
 
-async fn generic_find_by_id_core<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
+pub fn generic_find_by_id_core<'q, T, Pk, R>(
+    conn: &'q mut PgPooledConn,
+    id: Pk,
+) -> impl std::future::Future<Output = StorageResult<R>> + Send + 'q
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
-    Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
-    Limit<Find<T, Pk>>: LoadQuery<'static, PgConnection, R>,
-    Pk: Clone + Debug,
+    Pk: Clone + Debug + 'q + Send,
+    Find<T, Pk>: LimitDsl + QueryFragment<Pg> + Send + 'static,
+    Limit<Find<T, Pk>>: LoadQuery<'q, PgPooledConn, R> + Send,
     R: Send + 'static,
 {
     let query = <T as HasTable>::table().find(id.to_owned());
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    match track_database_call::<T, _, _>(query.first_async(conn), DatabaseOperation::FindOne).await
-    {
-        Ok(value) => Ok(value),
-        Err(err) => match err {
-            DieselError::NotFound => {
-                Err(report!(err)).change_context(errors::DatabaseError::NotFound)
-            }
-            _ => Err(report!(err)).change_context(errors::DatabaseError::Others),
-        },
+    async move {
+        match track_database_call::<T, _, _>(query.first(conn), DatabaseOperation::FindOne).await
+        {
+            Ok(value) => Ok(value),
+            Err(err) => match err {
+                DieselError::NotFound => {
+                    Err(report!(err)).change_context(errors::DatabaseError::NotFound)
+                }
+                _ => Err(report!(err)).change_context(errors::DatabaseError::Others),
+            },
+        }
+        .attach_printable_lazy(|| format!("Error finding record by primary key: {id:?}"))
     }
-    .attach_printable_lazy(|| format!("Error finding record by primary key: {id:?}"))
 }
 
-pub async fn generic_find_by_id<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
+pub fn generic_find_by_id<'q, T, Pk, R>(
+    conn: &'q mut PgPooledConn,
+    id: Pk,
+) -> impl std::future::Future<Output = StorageResult<R>> + Send + 'q
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
-    Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
-    Limit<Find<T, Pk>>: LoadQuery<'static, PgConnection, R>,
-    Pk: Clone + Debug,
+    Pk: Clone + Debug + 'q + Send,
+    Find<T, Pk>: LimitDsl + QueryFragment<Pg> + Send + 'static,
+    Limit<Find<T, Pk>>: LoadQuery<'q, PgPooledConn, R> + Send,
     R: Send + 'static,
 {
-    generic_find_by_id_core::<T, _, _>(conn, id).await
+    generic_find_by_id_core::<T, _, _>(conn, id)
 }
 
-pub async fn generic_find_by_id_optional<T, Pk, R>(
-    conn: &PgPooledConn,
+pub fn generic_find_by_id_optional<'q, T, Pk, R>(
+    conn: &'q mut PgPooledConn,
     id: Pk,
-) -> StorageResult<Option<R>>
+) -> impl std::future::Future<Output = StorageResult<Option<R>>> + Send + 'q
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     <T as HasTable>::Table: FindDsl<Pk>,
-    Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
-    Limit<Find<T, Pk>>: LoadQuery<'static, PgConnection, R>,
-    Pk: Clone + Debug,
+    Pk: Clone + Debug + 'q + Send,
+    Find<T, Pk>: LimitDsl + QueryFragment<Pg> + Send + 'static,
+    Limit<Find<T, Pk>>: LoadQuery<'q, PgPooledConn, R> + Send,
     R: Send + 'static,
 {
-    to_optional(generic_find_by_id_core::<T, _, _>(conn, id).await)
+    async move { to_optional(generic_find_by_id_core::<T, _, _>(conn, id).await) }
 }
 
-async fn generic_find_one_core<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
+pub fn generic_find_one_core<'q, T, P, R>(
+    conn: &'q mut PgPooledConn,
+    predicate: P,
+) -> impl std::future::Future<Output = StorageResult<R>> + Send + 'q
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    Filter<T, P>: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
+    P: 'q + Send,
+    Filter<T, P>: LoadQuery<'q, PgPooledConn, R> + QueryFragment<Pg> + Send + 'static,
     R: Send + 'static,
 {
     let query = <T as HasTable>::table().filter(predicate);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::FindOne)
-        .await
-        .map_err(|err| match err {
-            DieselError::NotFound => report!(err).change_context(errors::DatabaseError::NotFound),
-            _ => report!(err).change_context(errors::DatabaseError::Others),
-        })
-        .attach_printable("Error finding record by predicate")
+    async move {
+        track_database_call::<T, _, _>(query.get_result(conn), DatabaseOperation::FindOne)
+            .await
+            .map_err(|err| match err {
+                DieselError::NotFound => report!(err).change_context(errors::DatabaseError::NotFound),
+                _ => report!(err).change_context(errors::DatabaseError::Others),
+            })
+            .attach_printable("Error finding record by predicate")
+    }
 }
 
-pub async fn generic_find_one<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
-where
-    T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    Filter<T, P>: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
-    R: Send + 'static,
-{
-    generic_find_one_core::<T, _, _>(conn, predicate).await
-}
-
-pub async fn generic_find_one_optional<T, P, R>(
-    conn: &PgPooledConn,
+pub fn generic_find_one<'q, T, P, R>(
+    conn: &'q mut PgPooledConn,
     predicate: P,
-) -> StorageResult<Option<R>>
+) -> impl std::future::Future<Output = StorageResult<R>> + Send + 'q
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    Filter<T, P>: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
+    P: 'q + Send,
+    Filter<T, P>: LoadQuery<'q, PgPooledConn, R> + QueryFragment<Pg> + Send + 'static,
     R: Send + 'static,
 {
-    to_optional(generic_find_one_core::<T, _, _>(conn, predicate).await)
+    generic_find_one_core::<T, _, _>(conn, predicate)
 }
 
-pub(super) async fn generic_filter<T, P, O, R>(
-    conn: &PgPooledConn,
+pub fn generic_find_one_optional<'q, T, P, R>(
+    conn: &'q mut PgPooledConn,
+    predicate: P,
+) -> impl std::future::Future<Output = StorageResult<Option<R>>> + Send + 'q
+where
+    T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
+    P: 'q + Send,
+    Filter<T, P>: LoadQuery<'q, PgPooledConn, R> + QueryFragment<Pg> + Send + 'static,
+    R: Send + 'static,
+{
+    async move { to_optional(generic_find_one_core::<T, _, _>(conn, predicate).await) }
+}
+
+pub fn generic_filter<'q, T, P, O, R>(
+    conn: &'q mut PgPooledConn,
     predicate: P,
     limit: Option<i64>,
     offset: Option<i64>,
     order: Option<O>,
-) -> StorageResult<Vec<R>>
+) -> impl std::future::Future<Output = StorageResult<Vec<R>>> + Send + 'q
 where
     T: HasTable<Table = T> + Table + BoxedDsl<'static, Pg> + GetPrimaryKey + 'static,
+    P: 'q + Send,
+    O: Expression + 'q + Send,
     IntoBoxed<'static, T, Pg>: FilterDsl<P, Output = IntoBoxed<'static, T, Pg>>
         + FilterDsl<IsNotNull<T::PK>, Output = IntoBoxed<'static, T, Pg>>
         + LimitDsl<Output = IntoBoxed<'static, T, Pg>>
         + OffsetDsl<Output = IntoBoxed<'static, T, Pg>>
         + OrderDsl<O, Output = IntoBoxed<'static, T, Pg>>
-        + LoadQuery<'static, PgConnection, R>
+        + LoadQuery<'q, PgPooledConn, R>
         + QueryFragment<Pg>
         + Send,
-    O: Expression,
     R: Send + 'static,
 {
     let mut query = T::table().into_boxed();
@@ -439,18 +472,24 @@ where
 
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    track_database_call::<T, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
-        .await
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable("Error filtering records by predicate")
+    async move {
+        track_database_call::<T, _, _>(query.get_results(conn), DatabaseOperation::Filter)
+            .await
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable("Error filtering records by predicate")
+    }
 }
 
-pub async fn generic_count<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<usize>
+pub fn generic_count<'q, T, P>(
+    conn: &'q mut PgPooledConn,
+    predicate: P,
+) -> impl std::future::Future<Output = StorageResult<usize>> + Send + 'q
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + SelectDsl<count_star> + 'static,
+    P: 'q + Send,
     Filter<T, P>: SelectDsl<count_star>,
     diesel::dsl::Select<Filter<T, P>, count_star>:
-        LoadQuery<'static, PgConnection, i64> + QueryFragment<Pg> + Send + 'static,
+        LoadQuery<'q, PgPooledConn, i64> + QueryFragment<Pg> + Send + 'static,
 {
     let query = <T as HasTable>::table()
         .filter(predicate)
@@ -458,17 +497,19 @@ where
 
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    let count_i64: i64 =
-        track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::Count)
-            .await
-            .change_context(errors::DatabaseError::Others)
-            .attach_printable("Error counting records by predicate")?;
+    async move {
+        let count_i64: i64 =
+            track_database_call::<T, _, _>(query.get_result(conn), DatabaseOperation::Count)
+                .await
+                .change_context(errors::DatabaseError::Others)
+                .attach_printable("Error counting records by predicate")?;
 
-    let count_usize = usize::try_from(count_i64).map_err(|_| {
-        report!(errors::DatabaseError::Others).attach_printable("Count value does not fit in usize")
-    })?;
+        let count_usize = usize::try_from(count_i64).map_err(|_| {
+            report!(errors::DatabaseError::Others).attach_printable("Count value does not fit in usize")
+        })?;
 
-    Ok(count_usize)
+        Ok(count_usize)
+    }
 }
 
 fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {

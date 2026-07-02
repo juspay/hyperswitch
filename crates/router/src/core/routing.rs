@@ -2513,7 +2513,7 @@ impl RoutableConnectors {
             .map(|conn| {
                 api::ConnectorData::get_connector_by_name(
                     &state.conf.connectors,
-                    &conn.connector.to_string(),
+                    &mut conn.connector.to_string(),
                     api::GetToken::Connector,
                     conn.merchant_connector_id.clone(),
                 )

@@ -30,10 +30,10 @@ impl CallbackMapperInterface for Store {
         &self,
         call_back_mapper: domain::CallbackMapper,
     ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         call_back_mapper
             .to_storage_model()
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .map(domain::CallbackMapper::from_storage_model)
@@ -44,8 +44,8 @@ impl CallbackMapperInterface for Store {
         &self,
         id: &str,
     ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::CallbackMapper::find_by_id(&conn, id)
+        let mut conn = connection::pg_connection_read(self).await?;
+        storage::CallbackMapper::find_by_id(&mut conn, id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .map(domain::CallbackMapper::from_storage_model)

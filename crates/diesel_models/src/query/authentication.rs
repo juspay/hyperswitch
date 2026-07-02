@@ -9,7 +9,7 @@ use crate::{
 };
 
 impl AuthenticationNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Authentication> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Authentication> {
         generics::generic_insert(conn, self).await
     }
 
@@ -23,7 +23,7 @@ impl AuthenticationNew {
 
 impl Authentication {
     pub async fn update_by_merchant_id_authentication_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
         authentication_update: AuthenticationUpdateInternal,
@@ -62,7 +62,7 @@ impl Authentication {
     }
 
     pub async fn find_by_merchant_id_authentication_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
     ) -> StorageResult<Self> {
@@ -76,7 +76,7 @@ impl Authentication {
     }
 
     pub async fn find_authentication_by_merchant_id_connector_authentication_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_authentication_id: &str,
     ) -> StorageResult<Self> {

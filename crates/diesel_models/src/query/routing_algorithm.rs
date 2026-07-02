@@ -1,4 +1,4 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel_async::RunQueryDsl;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
@@ -13,12 +13,12 @@ use crate::{
 };
 
 impl RoutingAlgorithm {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Self> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Self> {
         generics::generic_insert(conn, self).await
     }
 
     pub async fn find_by_algorithm_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         algorithm_id: &common_utils::id_type::RoutingId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -32,7 +32,7 @@ impl RoutingAlgorithm {
     }
 
     pub async fn find_by_algorithm_id_processor_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         algorithm_id: &common_utils::id_type::RoutingId,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -46,7 +46,7 @@ impl RoutingAlgorithm {
     }
 
     pub async fn find_by_algorithm_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         algorithm_id: &common_utils::id_type::RoutingId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Self> {
@@ -60,7 +60,7 @@ impl RoutingAlgorithm {
     }
 
     pub async fn find_metadata_by_algorithm_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         algorithm_id: &common_utils::id_type::RoutingId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<RoutingProfileMetadata> {
@@ -81,7 +81,7 @@ impl RoutingAlgorithm {
                     .and(dsl::profile_id.eq(profile_id.to_owned())),
             )
             .limit(1)
-            .load_async::<(
+            .load::<(
                 common_utils::id_type::ProfileId,
                 common_utils::id_type::RoutingId,
                 String,
@@ -122,7 +122,7 @@ impl RoutingAlgorithm {
     }
 
     pub async fn list_metadata_by_profile_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,
         limit: i64,
         offset: i64,
@@ -141,7 +141,7 @@ impl RoutingAlgorithm {
             .filter(dsl::profile_id.eq(profile_id.to_owned()))
             .limit(limit)
             .offset(offset)
-            .load_async::<(
+            .load::<(
                 common_utils::id_type::RoutingId,
                 common_utils::id_type::ProfileId,
                 String,
@@ -181,7 +181,7 @@ impl RoutingAlgorithm {
     }
 
     pub async fn list_metadata_by_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         limit: i64,
         offset: i64,
@@ -207,7 +207,7 @@ impl RoutingAlgorithm {
             .limit(limit)
             .offset(offset)
             .order(dsl::modified_at.desc())
-            .load_async::<(
+            .load::<(
                 common_utils::id_type::ProfileId,
                 common_utils::id_type::RoutingId,
                 String,
@@ -247,7 +247,7 @@ impl RoutingAlgorithm {
     }
 
     pub async fn list_metadata_by_merchant_id_transaction_type(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         transaction_type: &enums::TransactionType,
         limit: i64,
@@ -275,7 +275,7 @@ impl RoutingAlgorithm {
             .limit(limit)
             .offset(offset)
             .order(dsl::modified_at.desc())
-            .load_async::<(
+            .load::<(
                 common_utils::id_type::ProfileId,
                 common_utils::id_type::RoutingId,
                 String,

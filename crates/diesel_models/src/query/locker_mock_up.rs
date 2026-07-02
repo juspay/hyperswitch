@@ -8,13 +8,13 @@ use crate::{
 };
 
 impl LockerMockUpNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<LockerMockUp> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<LockerMockUp> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl LockerMockUp {
-    pub async fn find_by_card_id(conn: &PgPooledConn, card_id: &str) -> StorageResult<Self> {
+    pub async fn find_by_card_id(conn: &mut PgPooledConn, card_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::card_id.eq(card_id.to_owned()),
@@ -22,7 +22,7 @@ impl LockerMockUp {
         .await
     }
 
-    pub async fn delete_by_card_id(conn: &PgPooledConn, card_id: &str) -> StorageResult<Self> {
+    pub async fn delete_by_card_id(conn: &mut PgPooledConn, card_id: &str) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::card_id.eq(card_id.to_owned()),

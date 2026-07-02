@@ -1,13 +1,13 @@
-use bb8::PooledConnection;
-use diesel::PgConnection;
+use diesel_async::pooled_connection::bb8::PooledConnection;
+use diesel_async::AsyncPgConnection;
 use error_stack::ResultExt;
 use storage_impl::errors as storage_errors;
 
 use crate::errors;
 
-pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
+pub type PgPool = diesel_async::pooled_connection::bb8::Pool<AsyncPgConnection>;
 
-pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
+pub type PgPooledConn = AsyncPgConnection;
 
 /// Creates a Redis connection pool for the specified Redis settings
 /// # Panics
@@ -25,7 +25,7 @@ pub async fn redis_connection(
 pub async fn pg_connection_read<T: storage_impl::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    PooledConnection<'static, AsyncPgConnection>,
     storage_errors::StorageError,
 > {
     // If only OLAP is enabled get replica pool.
@@ -43,7 +43,7 @@ pub async fn pg_connection_read<T: storage_impl::DatabaseStore>(
     ))]
     let pool = store.get_master_pool();
 
-    pool.get()
+    pool.get_owned()
         .await
         .change_context(storage_errors::StorageError::DatabaseConnectionError)
 }
@@ -51,7 +51,7 @@ pub async fn pg_connection_read<T: storage_impl::DatabaseStore>(
 pub async fn pg_accounts_connection_read<T: storage_impl::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    PooledConnection<'static, AsyncPgConnection>,
     storage_errors::StorageError,
 > {
     // If only OLAP is enabled get replica pool.
@@ -69,7 +69,7 @@ pub async fn pg_accounts_connection_read<T: storage_impl::DatabaseStore>(
     ))]
     let pool = store.get_accounts_master_pool();
 
-    pool.get()
+    pool.get_owned()
         .await
         .change_context(storage_errors::StorageError::DatabaseConnectionError)
 }
@@ -77,13 +77,13 @@ pub async fn pg_accounts_connection_read<T: storage_impl::DatabaseStore>(
 pub async fn pg_connection_write<T: storage_impl::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    PooledConnection<'static, AsyncPgConnection>,
     storage_errors::StorageError,
 > {
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_master_pool();
 
-    pool.get()
+    pool.get_owned()
         .await
         .change_context(storage_errors::StorageError::DatabaseConnectionError)
 }
@@ -91,13 +91,13 @@ pub async fn pg_connection_write<T: storage_impl::DatabaseStore>(
 pub async fn pg_accounts_connection_write<T: storage_impl::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    PooledConnection<'static, AsyncPgConnection>,
     storage_errors::StorageError,
 > {
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_accounts_master_pool();
 
-    pool.get()
+    pool.get_owned()
         .await
         .change_context(storage_errors::StorageError::DatabaseConnectionError)
 }

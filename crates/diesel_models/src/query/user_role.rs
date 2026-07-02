@@ -1,4 +1,4 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel_async::RunQueryDsl;
 use common_enums::EntityType;
 use common_utils::id_type;
 use diesel::{
@@ -21,7 +21,7 @@ use crate::{
 };
 
 impl UserRoleNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<UserRole> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<UserRole> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -77,7 +77,7 @@ impl UserRole {
     }
 
     pub async fn find_by_user_id_tenant_id_org_id_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         user_id: String,
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
@@ -148,7 +148,7 @@ impl UserRole {
     }
 
     pub async fn find_by_user_id_tenant_id_org_id_merchant_id_profile_id_with_entity_type(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         user_id: String,
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
@@ -173,7 +173,7 @@ impl UserRole {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn update_by_user_id_tenant_id_org_id_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         user_id: String,
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
@@ -227,7 +227,7 @@ impl UserRole {
     }
 
     pub async fn delete_by_user_id_tenant_id_org_id_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         user_id: String,
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
@@ -253,7 +253,7 @@ impl UserRole {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn generic_user_roles_list_for_user(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         user_id: String,
         tenant_id: id_type::TenantId,
         org_id: Option<id_type::OrganizationId>,
@@ -299,7 +299,7 @@ impl UserRole {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            query.get_results_async(conn),
+            query.get_results(conn),
             generics::db_metrics::DatabaseOperation::Filter,
         )
         .await
@@ -316,7 +316,7 @@ impl UserRole {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn generic_user_roles_list_for_org_and_extra(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         user_id: Option<String>,
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
@@ -357,7 +357,7 @@ impl UserRole {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            query.get_results_async(conn),
+            query.get_results(conn),
             generics::db_metrics::DatabaseOperation::Filter,
         )
         .await
@@ -373,7 +373,7 @@ impl UserRole {
     }
 
     pub async fn list_user_roles_by_user_id_across_tenants(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         user_id: String,
         limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
@@ -387,7 +387,7 @@ impl UserRole {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            query.get_results_async(conn),
+            query.get_results(conn),
             generics::db_metrics::DatabaseOperation::Filter,
         )
         .await

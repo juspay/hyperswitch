@@ -8,14 +8,14 @@ use crate::{
 };
 
 impl HyperswitchAiInteractionNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<HyperswitchAiInteraction> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<HyperswitchAiInteraction> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl HyperswitchAiInteraction {
     pub async fn filter_by_optional_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: Option<&common_utils::id_type::MerchantId>,
         limit: i64,
         offset: i64,

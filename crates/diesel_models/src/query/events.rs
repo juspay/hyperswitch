@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel_async::RunQueryDsl;
 use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
     NullableExpressionMethods, QueryDsl,
@@ -20,13 +20,13 @@ use crate::{
 };
 
 impl EventNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Event> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Event> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Event {
-    pub async fn find_by_event_id(conn: &PgPooledConn, event_id: &str) -> StorageResult<Self> {
+    pub async fn find_by_event_id(conn: &mut PgPooledConn, event_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::event_id.eq(event_id.to_owned()),
@@ -35,7 +35,7 @@ impl Event {
     }
 
     pub async fn find_by_merchant_id_event_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         event_id: &str,
     ) -> StorageResult<Self> {
@@ -49,7 +49,7 @@ impl Event {
     }
 
     pub async fn find_by_merchant_id_idempotent_event_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         idempotent_event_id: &str,
     ) -> StorageResult<Self> {
@@ -63,7 +63,7 @@ impl Event {
     }
 
     pub async fn find_by_initiator_merchant_id_idempotent_event_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
         idempotent_event_id: &str,
     ) -> StorageResult<Self> {
@@ -85,7 +85,7 @@ impl Event {
     }
 
     pub async fn list_initial_attempts_by_merchant_id_primary_object_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
         event_recipient: Option<common_enums::EventRecipient>,
@@ -107,14 +107,14 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+        track_database_call::<Self, _, _>(query.get_results(conn), DatabaseOperation::Filter)
             .await
             .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
             .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn find_initial_attempt_by_merchant_id_initial_attempt_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
     ) -> StorageResult<Option<Self>> {
@@ -136,7 +136,7 @@ impl Event {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn list_initial_attempts_by_merchant_id_constraints(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
@@ -169,14 +169,14 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+        track_database_call::<Self, _, _>(query.get_results(conn), DatabaseOperation::Filter)
             .await
             .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
             .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn list_by_merchant_id_initial_attempt_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
         event_recipient: Option<common_enums::EventRecipient>,
@@ -196,14 +196,14 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+        track_database_call::<Self, _, _>(query.get_results(conn), DatabaseOperation::Filter)
             .await
             .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
             .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn list_initial_attempts_by_initiator_merchant_id_primary_object_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
         profile_id: Option<common_utils::id_type::ProfileId>,
@@ -240,7 +240,7 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+        track_database_call::<Self, _, _>(query.get_results(conn), DatabaseOperation::Filter)
             .await
             .change_context(DatabaseError::Others)
             .attach_printable(
@@ -250,7 +250,7 @@ impl Event {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn list_initial_attempts_by_initiator_merchant_id_constraints(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
@@ -293,14 +293,14 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+        track_database_call::<Self, _, _>(query.get_results(conn), DatabaseOperation::Filter)
             .await
             .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
             .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn list_by_initiator_merchant_id_initial_attempt_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         initial_attempt_id: &str,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
         event_recipient: Option<common_enums::EventRecipient>,
@@ -329,14 +329,14 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+        track_database_call::<Self, _, _>(query.get_results(conn), DatabaseOperation::Filter)
             .await
             .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
             .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn list_initial_attempts_by_profile_id_primary_object_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
         event_recipient: Option<common_enums::EventRecipient>,
@@ -358,14 +358,14 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+        track_database_call::<Self, _, _>(query.get_results(conn), DatabaseOperation::Filter)
             .await
             .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
             .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn find_initial_attempt_by_profile_id_initial_attempt_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,
         initial_attempt_id: &str,
     ) -> StorageResult<Option<Self>> {
@@ -387,7 +387,7 @@ impl Event {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn list_initial_attempts_by_profile_id_constraints(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
@@ -420,14 +420,14 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+        track_database_call::<Self, _, _>(query.get_results(conn), DatabaseOperation::Filter)
             .await
             .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
             .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn list_by_profile_id_initial_attempt_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,
         initial_attempt_id: &str,
     ) -> StorageResult<Vec<Self>> {
@@ -444,7 +444,7 @@ impl Event {
     }
 
     pub async fn update_by_event_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         event_id: &str,
         event: EventUpdateInternal,
     ) -> StorageResult<Self> {
@@ -458,7 +458,7 @@ impl Event {
     }
 
     pub async fn update_by_merchant_id_event_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         event_id: &str,
         event: EventUpdateInternal,
@@ -554,7 +554,7 @@ impl Event {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn count_initial_attempts_by_constraints(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: Option<common_utils::id_type::ProfileId>,
         created_after: time::PrimitiveDateTime,
@@ -587,7 +587,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            query.get_result_async::<i64>(conn),
+            query.get_result::<i64>(conn),
             DatabaseOperation::Count,
         )
         .await
@@ -596,7 +596,7 @@ impl Event {
     }
 
     pub async fn count_initial_attempts_by_profile_id_constraints(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,
         created_after: time::PrimitiveDateTime,
         created_before: time::PrimitiveDateTime,
@@ -628,7 +628,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            query.get_result_async::<i64>(conn),
+            query.get_result::<i64>(conn),
             DatabaseOperation::Count,
         )
         .await
@@ -638,7 +638,7 @@ impl Event {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn count_initial_attempts_by_initiator_merchant_id_constraints(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: Option<common_utils::id_type::ProfileId>,
         created_after: time::PrimitiveDateTime,
@@ -681,7 +681,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            query.get_result_async::<i64>(conn),
+            query.get_result::<i64>(conn),
             DatabaseOperation::Count,
         )
         .await

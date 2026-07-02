@@ -6,21 +6,21 @@ use crate::{
 };
 
 impl UserAuthenticationMethodNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<UserAuthenticationMethod> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<UserAuthenticationMethod> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl UserAuthenticationMethod {
     pub async fn get_user_authentication_method_by_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 
     pub async fn list_user_authentication_methods_for_auth_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         auth_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
@@ -34,7 +34,7 @@ impl UserAuthenticationMethod {
     }
 
     pub async fn list_user_authentication_methods_for_owner_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         owner_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
@@ -48,7 +48,7 @@ impl UserAuthenticationMethod {
     }
 
     pub async fn update_user_authentication_method(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         id: &str,
         user_authentication_method_update: UserAuthenticationMethodUpdate,
     ) -> StorageResult<Self> {
@@ -66,7 +66,7 @@ impl UserAuthenticationMethod {
     }
 
     pub async fn list_user_authentication_methods_for_email_domain(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         email_domain: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(

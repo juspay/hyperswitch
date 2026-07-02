@@ -9,7 +9,7 @@ use crate::{
 };
 
 impl DisputeNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Dispute> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Dispute> {
         generics::generic_insert(conn, self).await
     }
 
@@ -23,7 +23,7 @@ impl DisputeNew {
 
 impl Dispute {
     pub async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
         connector_dispute_id: &str,
@@ -39,7 +39,7 @@ impl Dispute {
     }
 
     pub async fn find_by_processor_merchant_id_dispute_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_id: &str,
     ) -> StorageResult<Self> {
@@ -53,7 +53,7 @@ impl Dispute {
     }
 
     pub async fn find_by_processor_merchant_id_payment_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
     ) -> StorageResult<Vec<Self>> {
@@ -79,7 +79,7 @@ impl Dispute {
 
     // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_payment_id_connector_dispute_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
         connector_dispute_id: &str,
@@ -96,7 +96,7 @@ impl Dispute {
 
     // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_dispute_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_id: &str,
     ) -> StorageResult<Self> {
@@ -111,7 +111,7 @@ impl Dispute {
 
     // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_payment_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
     ) -> StorageResult<Vec<Self>> {
@@ -132,7 +132,7 @@ impl Dispute {
         .await
     }
 
-    pub async fn update(self, conn: &PgPooledConn, dispute: DisputeUpdate) -> StorageResult<Self> {
+    pub async fn update(self, conn: &mut PgPooledConn, dispute: DisputeUpdate) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,

@@ -1,10 +1,13 @@
-use async_bb8_diesel::{AsyncConnection, ConnectionError};
+use std::future::Future;
+use std::pin::Pin;
+
 use bb8::CustomizeConnection;
 use common_utils::{
     types::{keymanager, TenantConfig},
     DbConnectionParams,
 };
-use diesel::PgConnection;
+use diesel_async::pooled_connection::{AsyncDieselConnectionManager, PoolError};
+use diesel_async::{AsyncConnection, AsyncPgConnection};
 use error_stack::ResultExt;
 
 use crate::{
@@ -12,8 +15,8 @@ use crate::{
     errors::{StorageError, StorageResult},
 };
 
-pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
-pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
+pub type PgPool = diesel_async::pooled_connection::bb8::Pool<AsyncPgConnection>;
+pub type PgPooledConn = AsyncPgConnection;
 
 #[async_trait::async_trait]
 pub trait DatabaseStore: Clone + Send + Sync {
@@ -149,7 +152,7 @@ pub async fn diesel_make_pg_pool(
     test_transaction: bool,
 ) -> StorageResult<PgPool> {
     let database_url = database.get_database_url(schema);
-    let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
+    let manager = AsyncDieselConnectionManager::<AsyncPgConnection>::new(database_url);
     let mut pool = bb8::Pool::builder()
         .max_size(database.pool_size)
         .min_idle(database.min_idle)
@@ -170,16 +173,16 @@ pub async fn diesel_make_pg_pool(
 #[derive(Debug)]
 struct TestTransaction;
 
-#[async_trait::async_trait]
-impl CustomizeConnection<PgPooledConn, ConnectionError> for TestTransaction {
-    #[allow(clippy::unwrap_used)]
-    async fn on_acquire(&self, conn: &mut PgPooledConn) -> Result<(), ConnectionError> {
-        use diesel::Connection;
-
-        conn.run(|conn| {
-            conn.begin_test_transaction().unwrap();
+impl CustomizeConnection<AsyncPgConnection, PoolError> for TestTransaction {
+    fn on_acquire<'a>(
+        &'a self,
+        conn: &'a mut AsyncPgConnection,
+    ) -> Pin<Box<dyn Future<Output = Result<(), PoolError>> + Send + 'a>> {
+        Box::pin(async move {
+            conn.begin_test_transaction()
+                .await
+                .map_err(PoolError::QueryError)?;
             Ok(())
         })
-        .await
     }
 }

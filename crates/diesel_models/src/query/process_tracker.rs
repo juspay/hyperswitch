@@ -14,7 +14,7 @@ use crate::{
 
 impl ProcessTrackerNew {
     #[instrument(skip(conn))]
-    pub async fn insert_process(self, conn: &PgPooledConn) -> StorageResult<ProcessTracker> {
+    pub async fn insert_process(self, conn: &mut PgPooledConn) -> StorageResult<ProcessTracker> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -23,7 +23,7 @@ impl ProcessTracker {
     #[instrument(skip(conn))]
     pub async fn update(
         self,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         process: ProcessTrackerUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
@@ -43,7 +43,7 @@ impl ProcessTracker {
 
     #[instrument(skip(conn))]
     pub async fn update_process_status_by_ids(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         task_ids: Vec<String>,
         task_update: ProcessTrackerUpdate,
     ) -> StorageResult<usize> {
@@ -56,7 +56,7 @@ impl ProcessTracker {
     }
 
     #[instrument(skip(conn))]
-    pub async fn find_process_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Option<Self>> {
+    pub async fn find_process_by_id(conn: &mut PgPooledConn, id: &str) -> StorageResult<Option<Self>> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             id.to_owned(),
@@ -66,7 +66,7 @@ impl ProcessTracker {
 
     #[instrument(skip(conn))]
     pub async fn find_processes_by_time_status(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         time_lower_limit: PrimitiveDateTime,
         time_upper_limit: PrimitiveDateTime,
         status: enums::ProcessTrackerStatus,
@@ -93,7 +93,7 @@ impl ProcessTracker {
 
     #[instrument(skip(conn))]
     pub async fn find_processes_to_clean(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         time_lower_limit: PrimitiveDateTime,
         time_upper_limit: PrimitiveDateTime,
         runner: &str,
@@ -123,7 +123,7 @@ impl ProcessTracker {
 
     #[instrument(skip(conn))]
     pub async fn reinitialize_limbo_processes(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         ids: Vec<String>,
         schedule_time: PrimitiveDateTime,
     ) -> StorageResult<usize> {

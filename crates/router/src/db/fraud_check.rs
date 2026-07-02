@@ -42,8 +42,8 @@ impl FraudCheckInterface for Store {
         &self,
         new: storage::FraudCheckNew,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        new.insert(&conn)
+        let mut conn = connection::pg_connection_write(self).await?;
+        new.insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -54,8 +54,8 @@ impl FraudCheckInterface for Store {
         this: FraudCheck,
         fraud_check: FraudCheckUpdate,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        this.update_with_attempt_id(&conn, fraud_check)
+        let mut conn = connection::pg_connection_write(self).await?;
+        this.update_with_attempt_id(&mut conn, fraud_check)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -66,8 +66,8 @@ impl FraudCheckInterface for Store {
         payment_id: common_utils::id_type::PaymentId,
         merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        FraudCheck::get_with_payment_id(&conn, payment_id, merchant_id)
+        let mut conn = connection::pg_connection_write(self).await?;
+        FraudCheck::get_with_payment_id(&mut conn, payment_id, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -78,8 +78,8 @@ impl FraudCheckInterface for Store {
         payment_id: common_utils::id_type::PaymentId,
         merchant_id: common_utils::id_type::MerchantId,
     ) -> CustomResult<Option<FraudCheck>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        FraudCheck::get_with_payment_id_if_present(&conn, payment_id, merchant_id)
+        let mut conn = connection::pg_connection_write(self).await?;
+        FraudCheck::get_with_payment_id_if_present(&mut conn, payment_id, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }

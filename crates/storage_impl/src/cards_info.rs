@@ -16,28 +16,25 @@ impl KvStorePartition for CardInfo {}
 #[async_trait::async_trait]
 impl<T: DatabaseStore> CardsInfoInterface for RouterStore<T> {
     type Error = StorageError;
-    #[instrument(skip_all)]
     async fn get_card_info(&self, card_iin: &str) -> CustomResult<Option<CardInfo>, StorageError> {
-        let conn = pg_connection_read(self).await?;
-        CardInfo::find_by_iin(&conn, card_iin)
+        let mut conn = pg_connection_read(self).await?;
+        CardInfo::find_by_iin(&mut conn, card_iin)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
-    #[instrument(skip_all)]
     async fn add_card_info(&self, data: CardInfo) -> CustomResult<CardInfo, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        data.insert(&conn)
+        let mut conn = pg_connection_write(self).await?;
+        data.insert(&mut conn)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
-    #[instrument(skip_all)]
     async fn update_card_info(
         &self,
         card_iin: String,
         data: UpdateCardInfo,
     ) -> CustomResult<CardInfo, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        CardInfo::update(&conn, card_iin, data)
+        let mut conn = pg_connection_write(self).await?;
+        CardInfo::update(&mut conn, card_iin, data)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
@@ -46,28 +43,25 @@ impl<T: DatabaseStore> CardsInfoInterface for RouterStore<T> {
 #[async_trait::async_trait]
 impl<T: DatabaseStore> CardsInfoInterface for KVRouterStore<T> {
     type Error = StorageError;
-    #[instrument(skip_all)]
     async fn get_card_info(&self, card_iin: &str) -> CustomResult<Option<CardInfo>, StorageError> {
-        let conn = pg_connection_read(self).await?;
-        CardInfo::find_by_iin(&conn, card_iin)
+        let mut conn = pg_connection_read(self).await?;
+        CardInfo::find_by_iin(&mut conn, card_iin)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
-    #[instrument(skip_all)]
     async fn add_card_info(&self, data: CardInfo) -> CustomResult<CardInfo, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        data.insert(&conn)
+        let mut conn = pg_connection_write(self).await?;
+        data.insert(&mut conn)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
-    #[instrument(skip_all)]
     async fn update_card_info(
         &self,
         card_iin: String,
         data: UpdateCardInfo,
     ) -> CustomResult<CardInfo, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        CardInfo::update(&conn, card_iin, data)
+        let mut conn = pg_connection_write(self).await?;
+        CardInfo::update(&mut conn, card_iin, data)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
@@ -76,7 +70,6 @@ impl<T: DatabaseStore> CardsInfoInterface for KVRouterStore<T> {
 #[async_trait::async_trait]
 impl CardsInfoInterface for MockDb {
     type Error = StorageError;
-    #[instrument(skip_all)]
     async fn get_card_info(&self, card_iin: &str) -> CustomResult<Option<CardInfo>, StorageError> {
         Ok(self
             .cards_info

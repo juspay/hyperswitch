@@ -37,9 +37,9 @@ impl AuthorizationInterface for Store {
         &self,
         authorization: storage::AuthorizationNew,
     ) -> CustomResult<storage::Authorization, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         authorization
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -50,11 +50,11 @@ impl AuthorizationInterface for Store {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
     ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         // Stagger release fallback: first try processor_merchant_id, if empty fallback to merchant_id
         // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
         let authorizations = storage::Authorization::find_by_processor_merchant_id_payment_id(
-            &conn,
+            &mut conn,
             processor_merchant_id,
             payment_id,
         )
@@ -63,7 +63,7 @@ impl AuthorizationInterface for Store {
 
         if authorizations.is_empty() {
             storage::Authorization::find_by_merchant_id_payment_id(
-                &conn,
+                &mut conn,
                 processor_merchant_id,
                 payment_id,
             )
@@ -81,11 +81,11 @@ impl AuthorizationInterface for Store {
         authorization_id: String,
         authorization: storage::AuthorizationUpdate,
     ) -> CustomResult<storage::Authorization, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
         // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
         let result = storage::Authorization::update_by_processor_merchant_id_authorization_id(
-            &conn,
+            &mut conn,
             processor_merchant_id.clone(),
             authorization_id.clone(),
             authorization.clone(),
@@ -100,7 +100,7 @@ impl AuthorizationInterface for Store {
                     diesel_models::errors::DatabaseError::NotFound
                 ) {
                     storage::Authorization::update_by_merchant_id_authorization_id(
-                        &conn,
+                        &mut conn,
                         processor_merchant_id,
                         authorization_id,
                         authorization,

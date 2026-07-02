@@ -50,13 +50,13 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
 
         tokenization
             .construct_new()
             .await
             .change_context(errors::StorageError::EncryptionError)?
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
@@ -75,9 +75,9 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
 
-        let tokenization = tokenization_diesel::Tokenization::find_by_id(&conn, token)
+        let tokenization = tokenization_diesel::Tokenization::find_by_id(&mut conn, token)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
@@ -101,7 +101,7 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
 
         let tokenization_record = Conversion::convert(tokenization_record)
             .await
@@ -109,7 +109,7 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         self.call_database(
             merchant_key_store,
             tokenization_record.update_with_id(
-                &conn,
+                &mut conn,
                 tokenization_diesel::TokenizationUpdateInternal::from(tokenization_update),
             ),
         )

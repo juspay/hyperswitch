@@ -50,9 +50,9 @@ impl UserAuthenticationMethodInterface for Store {
         &self,
         user_authentication_method: storage::UserAuthenticationMethodNew,
     ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         user_authentication_method
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -62,8 +62,8 @@ impl UserAuthenticationMethodInterface for Store {
         &self,
         id: &str,
     ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::UserAuthenticationMethod::get_user_authentication_method_by_id(&conn, id)
+        let mut conn = connection::pg_connection_read(self).await?;
+        storage::UserAuthenticationMethod::get_user_authentication_method_by_id(&mut conn, id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -73,9 +73,9 @@ impl UserAuthenticationMethodInterface for Store {
         &self,
         auth_id: &str,
     ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         storage::UserAuthenticationMethod::list_user_authentication_methods_for_auth_id(
-            &conn, auth_id,
+            &mut conn, auth_id,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -86,9 +86,9 @@ impl UserAuthenticationMethodInterface for Store {
         &self,
         owner_id: &str,
     ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         storage::UserAuthenticationMethod::list_user_authentication_methods_for_owner_id(
-            &conn, owner_id,
+            &mut conn, owner_id,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -100,9 +100,9 @@ impl UserAuthenticationMethodInterface for Store {
         id: &str,
         user_authentication_method_update: storage::UserAuthenticationMethodUpdate,
     ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         storage::UserAuthenticationMethod::update_user_authentication_method(
-            &conn,
+            &mut conn,
             id,
             user_authentication_method_update,
         )
@@ -115,9 +115,9 @@ impl UserAuthenticationMethodInterface for Store {
         &self,
         email_domain: &str,
     ) -> CustomResult<Vec<storage::UserAuthenticationMethod>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         storage::UserAuthenticationMethod::list_user_authentication_methods_for_email_domain(
-            &conn,
+            &mut conn,
             email_domain,
         )
         .await

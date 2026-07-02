@@ -8,14 +8,14 @@ use crate::{
 };
 
 impl BlocklistLookupNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<BlocklistLookup> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<BlocklistLookup> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl BlocklistLookup {
     pub async fn find_by_merchant_id_fingerprint(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> StorageResult<Self> {
@@ -29,7 +29,7 @@ impl BlocklistLookup {
     }
 
     pub async fn delete_by_merchant_id_fingerprint(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> StorageResult<Self> {

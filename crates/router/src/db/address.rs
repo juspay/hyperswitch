@@ -101,8 +101,8 @@ mod storage {
             address_id: &str,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            storage_types::Address::find_by_address_id(&conn, address_id)
+            let mut conn = connection::pg_connection_read(self).await?;
+            storage_types::Address::find_by_address_id(&mut conn, address_id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
@@ -128,9 +128,9 @@ mod storage {
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             storage_types::Address::find_by_merchant_id_payment_id_address_id(
-                &conn,
+                &mut conn,
                 merchant_id,
                 payment_id,
                 address_id,
@@ -153,8 +153,8 @@ mod storage {
             address: storage_types::AddressUpdate,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
-            storage_types::Address::update_by_address_id(&conn, address_id, address.into())
+            let mut conn = connection::pg_connection_write(self).await?;
+            storage_types::Address::update_by_address_id(&mut conn, address_id, address.into())
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
@@ -180,12 +180,12 @@ mod storage {
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let mut conn = connection::pg_connection_write(self).await?;
             let address = Conversion::convert(this)
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
             address
-                .update(&conn, address_update.into())
+                .update(&mut conn, address_update.into())
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
@@ -210,12 +210,12 @@ mod storage {
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let mut conn = connection::pg_connection_write(self).await?;
             address
                 .construct_new()
                 .await
                 .change_context(errors::StorageError::EncryptionError)?
-                .insert(&conn)
+                .insert(&mut conn)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
@@ -238,12 +238,12 @@ mod storage {
             address: domain::CustomerAddress,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let mut conn = connection::pg_connection_write(self).await?;
             address
                 .construct_new()
                 .await
                 .change_context(errors::StorageError::EncryptionError)?
-                .insert(&conn)
+                .insert(&mut conn)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
@@ -268,9 +268,9 @@ mod storage {
             address: storage_types::AddressUpdate,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<Vec<domain::Address>, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let mut conn = connection::pg_connection_write(self).await?;
             storage_types::Address::update_by_merchant_id_customer_id(
-                &conn,
+                &mut conn,
                 customer_id,
                 merchant_id,
                 address.into(),
@@ -327,8 +327,8 @@ mod storage {
             address_id: &str,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            storage_types::Address::find_by_address_id(&conn, address_id)
+            let mut conn = connection::pg_connection_read(self).await?;
+            storage_types::Address::find_by_address_id(&mut conn, address_id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
@@ -354,10 +354,10 @@ mod storage {
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
             let database_call = || async {
+                let mut conn = connection::pg_connection_read(self).await?;
                 storage_types::Address::find_by_merchant_id_payment_id_address_id(
-                    &conn,
+                    &mut conn,
                     merchant_id,
                     payment_id,
                     address_id,
@@ -414,8 +414,8 @@ mod storage {
             address: storage_types::AddressUpdate,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
-            storage_types::Address::update_by_address_id(&conn, address_id, address.into())
+            let mut conn = connection::pg_connection_write(self).await?;
+            storage_types::Address::update_by_address_id(&mut conn, address_id, address.into())
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
@@ -441,7 +441,7 @@ mod storage {
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let mut conn = connection::pg_connection_write(self).await?;
             let address = Conversion::convert(this)
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
@@ -460,7 +460,7 @@ mod storage {
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     address
-                        .update(&conn, address_update.into())
+                        .update(&mut conn, address_update.into())
                         .await
                         .map_err(|error| report!(errors::StorageError::from(error)))
                         .async_and_then(|address| async {
@@ -543,9 +543,9 @@ mod storage {
             .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_write(self).await?;
+                    let mut conn = connection::pg_connection_write(self).await?;
                     address_new
-                        .insert(&conn)
+                        .insert(&mut conn)
                         .await
                         .map_err(|error| report!(errors::StorageError::from(error)))
                         .async_and_then(|address| async {
@@ -636,12 +636,12 @@ mod storage {
             address: domain::CustomerAddress,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<domain::Address, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let mut conn = connection::pg_connection_write(self).await?;
             address
                 .construct_new()
                 .await
                 .change_context(errors::StorageError::EncryptionError)?
-                .insert(&conn)
+                .insert(&mut conn)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
                 .async_and_then(|address| async {
@@ -666,9 +666,9 @@ mod storage {
             address: storage_types::AddressUpdate,
             key_store: &domain::MerchantKeyStore,
         ) -> CustomResult<Vec<domain::Address>, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let mut conn = connection::pg_connection_write(self).await?;
             storage_types::Address::update_by_merchant_id_customer_id(
-                &conn,
+                &mut conn,
                 customer_id,
                 merchant_id,
                 address.into(),

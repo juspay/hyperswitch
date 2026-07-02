@@ -10,7 +10,7 @@ use crate::{
 };
 
 impl CaptureNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Capture> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Capture> {
         generics::generic_insert(conn, self).await
     }
 
@@ -23,7 +23,7 @@ impl CaptureNew {
 }
 
 impl Capture {
-    pub async fn find_by_capture_id(conn: &PgPooledConn, capture_id: &str) -> StorageResult<Self> {
+    pub async fn find_by_capture_id(conn: &mut PgPooledConn, capture_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::capture_id.eq(capture_id.to_owned()),
@@ -33,7 +33,7 @@ impl Capture {
 
     pub async fn update_with_capture_id(
         self,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         capture: CaptureUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
@@ -60,7 +60,7 @@ impl Capture {
         merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
         authorized_attempt_id: &str,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,

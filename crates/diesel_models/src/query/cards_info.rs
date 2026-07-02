@@ -10,18 +10,18 @@ use crate::{
 };
 
 impl CardInfo {
-    pub async fn find_by_iin(conn: &PgPooledConn, card_iin: &str) -> StorageResult<Option<Self>> {
+    pub async fn find_by_iin(conn: &mut PgPooledConn, card_iin: &str) -> StorageResult<Option<Self>> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             card_iin.to_owned(),
         )
         .await
     }
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Self> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Self> {
         generics::generic_insert(conn, self).await
     }
     pub async fn update(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         card_iin: String,
         data: UpdateCardInfo,
     ) -> StorageResult<Self> {
@@ -31,7 +31,7 @@ impl CardInfo {
             data,
         )
         .await?
-        .first()
+        .get(0)
         .cloned()
         .ok_or_else(|| {
             report!(errors::DatabaseError::NotFound)

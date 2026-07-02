@@ -1,4 +1,4 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel_async::RunQueryDsl;
 use common_enums::EntityType;
 use common_utils::id_type;
 use diesel::{
@@ -14,7 +14,7 @@ use crate::{
 };
 
 impl RoleNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Role> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Role> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -33,7 +33,7 @@ impl Role {
             .unwrap_or(vec![current_entity])
     }
 
-    pub async fn find_by_role_id(conn: &PgPooledConn, role_id: &str) -> StorageResult<Self> {
+    pub async fn find_by_role_id(conn: &mut PgPooledConn, role_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::role_id.eq(role_id.to_owned()),
@@ -42,7 +42,7 @@ impl Role {
     }
 
     pub async fn find_by_role_id_in_lineage(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         role_id: &str,
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
@@ -70,7 +70,7 @@ impl Role {
     }
 
     pub async fn find_by_role_id_org_id_tenant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         role_id: &str,
         org_id: &id_type::OrganizationId,
         tenant_id: &id_type::TenantId,
@@ -86,7 +86,7 @@ impl Role {
     }
 
     pub async fn update_by_role_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         role_id: &str,
         role_update: RoleUpdate,
     ) -> StorageResult<Self> {
@@ -103,7 +103,7 @@ impl Role {
         .await
     }
 
-    pub async fn delete_by_role_id(conn: &PgPooledConn, role_id: &str) -> StorageResult<Self> {
+    pub async fn delete_by_role_id(conn: &mut PgPooledConn, role_id: &str) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::role_id.eq(role_id.to_owned()),
@@ -113,7 +113,7 @@ impl Role {
 
     //TODO: Remove once generic_list_roles_by_entity_type is stable
     pub async fn generic_roles_list_for_org(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
         merchant_id: Option<id_type::MerchantId>,
@@ -144,7 +144,7 @@ impl Role {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            query.get_results_async(conn),
+            query.get_results(conn),
             generics::db_metrics::DatabaseOperation::Filter,
         )
         .await
@@ -160,7 +160,7 @@ impl Role {
     }
 
     pub async fn generic_list_roles_by_entity_type(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         payload: ListRolesByEntityPayload,
         is_lineage_data_required: bool,
         tenant_id: id_type::TenantId,
@@ -209,7 +209,7 @@ impl Role {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            query.get_results_async(conn),
+            query.get_results(conn),
             generics::db_metrics::DatabaseOperation::Filter,
         )
         .await

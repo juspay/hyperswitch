@@ -44,8 +44,8 @@ mod storage {
             new: ReverseLookupNew,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<ReverseLookup, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
-            new.insert(&conn)
+            let mut conn = connection::pg_connection_write(self).await?;
+            new.insert(&mut conn)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -56,8 +56,8 @@ mod storage {
             id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<ReverseLookup, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            ReverseLookup::find_by_lookup_id(id, &conn)
+            let mut conn = connection::pg_connection_read(self).await?;
+            ReverseLookup::find_by_lookup_id(id, &mut conn)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -101,8 +101,8 @@ mod storage {
             .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_write(self).await?;
-                    new.insert(&conn)
+                    let mut conn = connection::pg_connection_write(self).await?;
+                    new.insert(&mut conn)
                         .await
                         .map_err(|error| report!(errors::StorageError::from(error)))
                 }
@@ -154,8 +154,8 @@ mod storage {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<ReverseLookup, errors::StorageError> {
             let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
-                ReverseLookup::find_by_lookup_id(id, &conn)
+                let mut conn = connection::pg_connection_read(self).await?;
+                ReverseLookup::find_by_lookup_id(id, &mut conn)
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error)))
             };

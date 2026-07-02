@@ -11535,7 +11535,7 @@ where
         .map(|conn| {
             api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
-                &conn.connector.to_string(),
+                &mut conn.connector.to_string(),
                 api::GetToken::Connector,
                 conn.merchant_connector_id,
             )
@@ -12448,7 +12448,7 @@ pub async fn route_connector_v2_for_payments(
             routing_data.merchant_connector_id = conn.merchant_connector_id.clone();
             api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
-                &conn.connector.to_string(),
+                &mut conn.connector.to_string(),
                 api::GetToken::Connector,
                 conn.merchant_connector_id.clone(),
             )
@@ -12565,7 +12565,7 @@ pub async fn route_connector_v1_for_payouts(
         .map(|conn| {
             api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
-                &conn.connector.to_string(),
+                &mut conn.connector.to_string(),
                 api::GetToken::Connector,
                 conn.merchant_connector_id,
             )

@@ -41,8 +41,8 @@ impl FileMetadataInterface for Store {
         &self,
         file: storage::FileMetadataNew,
     ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        file.insert(&conn)
+        let mut conn = connection::pg_connection_write(self).await?;
+        file.insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -53,11 +53,11 @@ impl FileMetadataInterface for Store {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
         // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
         let result = storage::FileMetadata::find_by_processor_merchant_id_file_id(
-            &conn,
+            &mut conn,
             processor_merchant_id,
             file_id,
         )
@@ -71,7 +71,7 @@ impl FileMetadataInterface for Store {
                     diesel_models::errors::DatabaseError::NotFound
                 ) {
                     storage::FileMetadata::find_by_merchant_id_file_id(
-                        &conn,
+                        &mut conn,
                         processor_merchant_id,
                         file_id,
                     )
@@ -90,11 +90,11 @@ impl FileMetadataInterface for Store {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
         // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
         let result = storage::FileMetadata::delete_by_processor_merchant_id_file_id(
-            &conn,
+            &mut conn,
             processor_merchant_id,
             file_id,
         )
@@ -108,7 +108,7 @@ impl FileMetadataInterface for Store {
                     diesel_models::errors::DatabaseError::NotFound
                 ) {
                     storage::FileMetadata::delete_by_merchant_id_file_id(
-                        &conn,
+                        &mut conn,
                         processor_merchant_id,
                         file_id,
                     )
@@ -127,8 +127,8 @@ impl FileMetadataInterface for Store {
         this: storage::FileMetadata,
         file_metadata: storage::FileMetadataUpdate,
     ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        this.update(&conn, file_metadata)
+        let mut conn = connection::pg_connection_write(self).await?;
+        this.update(&mut conn, file_metadata)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }

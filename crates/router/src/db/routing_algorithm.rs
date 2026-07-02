@@ -66,9 +66,9 @@ impl RoutingAlgorithmInterface for Store {
         &self,
         routing_algorithm: routing_storage::RoutingAlgorithm,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         routing_algorithm
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -79,9 +79,9 @@ impl RoutingAlgorithmInterface for Store {
         profile_id: &common_utils::id_type::ProfileId,
         algorithm_id: &common_utils::id_type::RoutingId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         routing_storage::RoutingAlgorithm::find_by_algorithm_id_profile_id(
-            &conn,
+            &mut conn,
             algorithm_id,
             profile_id,
         )
@@ -95,11 +95,11 @@ impl RoutingAlgorithmInterface for Store {
         algorithm_id: &common_utils::id_type::RoutingId,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
         // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
         let result = routing_storage::RoutingAlgorithm::find_by_algorithm_id_processor_merchant_id(
-            &conn,
+            &mut conn,
             algorithm_id,
             processor_merchant_id,
         )
@@ -110,7 +110,7 @@ impl RoutingAlgorithmInterface for Store {
             Err(error) => {
                 if matches!(error.current_context(), DatabaseError::NotFound) {
                     routing_storage::RoutingAlgorithm::find_by_algorithm_id_merchant_id(
-                        &conn,
+                        &mut conn,
                         algorithm_id,
                         processor_merchant_id,
                     )
@@ -129,9 +129,9 @@ impl RoutingAlgorithmInterface for Store {
         algorithm_id: &common_utils::id_type::RoutingId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<routing_storage::RoutingProfileMetadata> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         routing_storage::RoutingAlgorithm::find_metadata_by_algorithm_id_profile_id(
-            &conn,
+            &mut conn,
             algorithm_id,
             profile_id,
         )
@@ -146,9 +146,9 @@ impl RoutingAlgorithmInterface for Store {
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         routing_storage::RoutingAlgorithm::list_metadata_by_profile_id(
-            &conn, profile_id, limit, offset,
+            &mut conn, profile_id, limit, offset,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -161,9 +161,9 @@ impl RoutingAlgorithmInterface for Store {
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         routing_storage::RoutingAlgorithm::list_metadata_by_merchant_id(
-            &conn,
+            &mut conn,
             merchant_id,
             limit,
             offset,
@@ -179,9 +179,9 @@ impl RoutingAlgorithmInterface for Store {
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         routing_storage::RoutingAlgorithm::list_metadata_by_merchant_id_transaction_type(
-            &conn,
+            &mut conn,
             merchant_id,
             transaction_type,
             limit,

@@ -2,19 +2,19 @@ mod bind_params;
 mod entity_type;
 mod pg_type_metadata;
 
-use async_bb8_diesel::AsyncConnection;
+use diesel_async::RunQueryDsl;
 use common_utils::pii;
 use diesel::{
     associations::HasTable,
     debug_query,
     dsl::{Filter, Find},
-    pg::Pg,
+    pg::{Pg, PgMetadataLookup, PgTypeMetadata},
     query_builder::{
         bind_collector::RawBytesBindCollector, AsChangeset, AsQuery, CollectedQuery,
         InsertStatement, IntoUpdateTarget, MoveableBindCollector, QueryBuilder, QueryFragment,
         UpdateStatement,
     },
-    query_dsl::methods::{ExecuteDsl, FilterDsl, FindDsl},
+    query_dsl::methods::{FilterDsl, FindDsl},
     query_source::Table,
     Insertable,
 };
@@ -25,6 +25,19 @@ use router_env::logger;
 use crate::errors;
 
 type SecretBinaryData = Secret<Vec<u8>, pii::BinaryDataStrategy>;
+
+/// A no-op `PgMetadataLookup` for bind collection without a live connection.
+///
+/// For built-in PostgreSQL types (Text, Integer, Bool, etc.), `lookup_type` is
+/// never called — their OIDs are statically known. Custom user-defined types
+/// are not used in drainer queries, so this implementation returning placeholder
+/// OIDs is safe.
+struct StaticPgMetadataLookup;
+impl PgMetadataLookup for StaticPgMetadataLookup {
+    fn lookup_type(&mut self, _type_name: &str, _schema: Option<&str>) -> PgTypeMetadata {
+        PgTypeMetadata::from_result(Ok((0, 0)))
+    }
+}
 
 /// The SQL query and its bind parameters, in a (de)serialization-friendly representation
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -38,7 +51,7 @@ pub struct SerializableQuery {
 
     /// The metadata associated with each bind parameter
     #[serde(with = "pg_type_metadata")]
-    metadata: Vec<diesel::pg::PgTypeMetadata>,
+    metadata: Vec<PgTypeMetadata>,
 
     /// Whether this query is safe to store in the prepared statement cache
     safe_to_cache_prepared: bool,
@@ -68,7 +81,7 @@ impl SerializableQuery {
     }
 
     async fn from_query<Q>(
-        conn: &mut crate::PgPooledConn,
+        _conn: &mut crate::PgPooledConn,
         query: Q,
         entity_type: String,
         operation: DatabaseOperation,
@@ -92,15 +105,13 @@ impl SerializableQuery {
                 "Failed to determine whether query is safe to store in prepared statement cache",
             )?;
 
-        let bind_collector = conn
-            .run(move |c| {
-                let mut bc = RawBytesBindCollector::<Pg>::new();
-                query.collect_binds(&mut bc, c, &Pg)?;
-                Ok::<RawBytesBindCollector<Pg>, diesel::result::Error>(bc)
-            })
-            .await
+        let mut bc = RawBytesBindCollector::<Pg>::new();
+        let mut metadata_lookup = StaticPgMetadataLookup;
+        query
+            .collect_binds(&mut bc, &mut metadata_lookup, &Pg)
             .change_context(errors::DatabaseError::QueryGenerationFailed)
             .attach_printable("Failed to construct bind parameters")?;
+        let bind_collector = bc;
 
         let serializable_query = Self {
             sql,
@@ -144,7 +155,8 @@ impl SerializableQuery {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        conn.run(move |c| ExecuteDsl::execute(query, c))
+        query
+            .execute(conn)
             .await
             .attach_printable("Failed to execute drainer query")
             .switch()

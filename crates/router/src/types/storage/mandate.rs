@@ -1,4 +1,4 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel_async::RunQueryDsl;
 use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 pub use diesel_models::mandate::{
@@ -12,7 +12,7 @@ use crate::{connection::PgPooledConn, logger};
 #[async_trait::async_trait]
 pub trait MandateDbExt: Sized {
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         mandate_list_constraints: api_models::mandates::MandateListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
@@ -21,7 +21,7 @@ pub trait MandateDbExt: Sized {
 #[async_trait::async_trait]
 impl MandateDbExt for Mandate {
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         mandate_list_constraints: api_models::mandates::MandateListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
@@ -61,7 +61,7 @@ impl MandateDbExt for Mandate {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         filter
-            .get_results_async(conn)
+            .get_results(conn)
             .await
             // The query built here returns an empty Vec when no records are found, and if any error does occur,
             // it would be an internal database error, due to which we are raising a DatabaseError::Unknown error

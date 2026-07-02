@@ -9,14 +9,14 @@ use crate::{
 };
 
 impl UserNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<User> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<User> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl User {
     pub async fn find_active_by_user_email(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         user_email: &pii::Email,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -31,7 +31,7 @@ impl User {
     }
 
     pub async fn find_by_user_email(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         user_email: &pii::Email,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -41,7 +41,7 @@ impl User {
         .await
     }
 
-    pub async fn find_active_by_user_id(conn: &PgPooledConn, user_id: &str) -> StorageResult<Self> {
+    pub async fn find_active_by_user_id(conn: &mut PgPooledConn, user_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             users_dsl::user_id.eq(user_id.to_owned()).and(
@@ -53,7 +53,7 @@ impl User {
         .await
     }
 
-    pub async fn find_by_user_id(conn: &PgPooledConn, user_id: &str) -> StorageResult<Self> {
+    pub async fn find_by_user_id(conn: &mut PgPooledConn, user_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             users_dsl::user_id.eq(user_id.to_owned()),
@@ -62,7 +62,7 @@ impl User {
     }
 
     pub async fn update_active_by_user_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         user_id: &str,
         user_update: UserUpdate,
     ) -> StorageResult<Self> {
@@ -84,7 +84,7 @@ impl User {
     }
 
     pub async fn update_active_by_user_email(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         user_email: &pii::Email,
         user_update: UserUpdate,
     ) -> StorageResult<Self> {
@@ -106,7 +106,7 @@ impl User {
     }
 
     pub async fn find_active_users_by_user_ids(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         user_ids: Vec<String>,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
@@ -129,7 +129,7 @@ impl User {
     }
 
     pub async fn list_users_by_user_ids(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         user_ids: Vec<String>,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
@@ -142,7 +142,7 @@ impl User {
     }
 
     pub async fn reactivate_by_user_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         user_id: &str,
         user_update: ReactivateUserUpdate,
     ) -> StorageResult<Self> {

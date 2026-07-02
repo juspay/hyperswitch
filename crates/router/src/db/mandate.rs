@@ -86,10 +86,10 @@ mod storage {
             mandate_id: &str,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
             let database_call = || async {
+                let mut conn = connection::pg_connection_read(self).await?;
                 storage_types::Mandate::find_by_merchant_id_mandate_id(
-                    &conn,
+                    &mut conn,
                     merchant_id,
                     mandate_id,
                 )
@@ -135,10 +135,10 @@ mod storage {
             connector_mandate_id: &str,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
             let database_call = || async {
+                let mut conn = connection::pg_connection_read(self).await?;
                 storage_types::Mandate::find_by_merchant_id_connector_mandate_id(
-                    &conn,
+                    &mut conn,
                     merchant_id,
                     connector_mandate_id,
                 )
@@ -192,8 +192,8 @@ mod storage {
             merchant_id: &id_type::MerchantId,
             customer_id: &id_type::CustomerId,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            storage_types::Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id)
+            let mut conn = connection::pg_connection_read(self).await?;
+            storage_types::Mandate::find_by_merchant_id_customer_id(&mut conn, merchant_id, customer_id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -204,8 +204,8 @@ mod storage {
             &self,
             id: &id_type::GlobalCustomerId,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            storage_types::Mandate::find_by_global_customer_id(&conn, id)
+            let mut conn = connection::pg_connection_read(self).await?;
+            storage_types::Mandate::find_by_global_customer_id(&mut conn, id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -219,7 +219,7 @@ mod storage {
             mandate: storage_types::Mandate,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let mut conn = connection::pg_connection_write(self).await?;
             let key = PartitionKey::MerchantIdMandateId {
                 merchant_id,
                 mandate_id,
@@ -234,7 +234,7 @@ mod storage {
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     storage_types::Mandate::update_by_merchant_id_mandate_id(
-                        &conn,
+                        &mut conn,
                         merchant_id,
                         mandate_id,
                         mandate_update.convert_to_mandate_update(storage_scheme),
@@ -306,8 +306,8 @@ mod storage {
             merchant_id: &id_type::MerchantId,
             mandate_constraints: api_models::mandates::MandateListConstraints,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            storage_types::Mandate::filter_by_constraints(&conn, merchant_id, mandate_constraints)
+            let mut conn = connection::pg_connection_read(self).await?;
+            storage_types::Mandate::filter_by_constraints(&mut conn, merchant_id, mandate_constraints)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -318,7 +318,7 @@ mod storage {
             mut mandate: storage_types::MandateNew,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let mut conn = connection::pg_connection_write(self).await?;
             let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Mandate>(
                 self,
                 storage_scheme,
@@ -328,7 +328,7 @@ mod storage {
             mandate.update_storage_scheme(storage_scheme);
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => mandate
-                    .insert(&conn)
+                    .insert(&mut conn)
                     .await
                     .map_err(|error| report!(errors::StorageError::from(error))),
                 MerchantStorageScheme::RedisKv => {
@@ -421,8 +421,8 @@ mod storage {
             mandate_id: &str,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            storage_types::Mandate::find_by_merchant_id_mandate_id(&conn, merchant_id, mandate_id)
+            let mut conn = connection::pg_connection_read(self).await?;
+            storage_types::Mandate::find_by_merchant_id_mandate_id(&mut conn, merchant_id, mandate_id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -434,9 +434,9 @@ mod storage {
             connector_mandate_id: &str,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             storage_types::Mandate::find_by_merchant_id_connector_mandate_id(
-                &conn,
+                &mut conn,
                 merchant_id,
                 connector_mandate_id,
             )
@@ -450,8 +450,8 @@ mod storage {
             merchant_id: &id_type::MerchantId,
             customer_id: &id_type::CustomerId,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            storage_types::Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id)
+            let mut conn = connection::pg_connection_read(self).await?;
+            storage_types::Mandate::find_by_merchant_id_customer_id(&mut conn, merchant_id, customer_id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -463,8 +463,8 @@ mod storage {
             &self,
             customer_id: &id_type::GlobalCustomerId,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            storage_types::Mandate::find_by_global_id(&conn, customer_id)
+            let mut conn = connection::pg_connection_read(self).await?;
+            storage_types::Mandate::find_by_global_id(&mut conn, customer_id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -478,9 +478,9 @@ mod storage {
             _mandate: storage_types::Mandate,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let mut conn = connection::pg_connection_write(self).await?;
             storage_types::Mandate::update_by_merchant_id_mandate_id(
-                &conn,
+                &mut conn,
                 merchant_id,
                 mandate_id,
                 storage_types::MandateUpdateInternal::from(mandate_update),
@@ -495,8 +495,8 @@ mod storage {
             merchant_id: &id_type::MerchantId,
             mandate_constraints: api_models::mandates::MandateListConstraints,
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            storage_types::Mandate::filter_by_constraints(&conn, merchant_id, mandate_constraints)
+            let mut conn = connection::pg_connection_read(self).await?;
+            storage_types::Mandate::filter_by_constraints(&mut conn, merchant_id, mandate_constraints)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -507,9 +507,9 @@ mod storage {
             mandate: storage_types::MandateNew,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let mut conn = connection::pg_connection_write(self).await?;
             mandate
-                .insert(&conn)
+                .insert(&mut conn)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }

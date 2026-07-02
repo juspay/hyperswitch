@@ -18,12 +18,12 @@ redis-rs = ["redis_interface/redis-rs", "redis_interface/metrics"]
 
 [dependencies]
 actix-web = "4.11.0"
-async-bb8-diesel = "0.2.1"
 async-trait = "0.1.88"
-bb8 = "0.8"
+bb8 = "0.9"
 clap = { version = "4.5.38", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.14.1", features = ["toml"] }
 diesel = { version = "2.2.10", features = ["postgres"] }
+diesel-async = { version = "0.9", features = ["postgres", "bb8"] }
 error-stack = "0.4.1"
 mime = "0.3.17"
 reqwest = { version = "0.11.27" }

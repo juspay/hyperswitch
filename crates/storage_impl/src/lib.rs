@@ -254,16 +254,16 @@ impl<T: DatabaseStore> RouterStore<T> {
         }
     }
 
-    pub async fn find_resources<D, R, M>(
-        &self,
-        key_store: &MerchantKeyStore,
+    pub async fn find_resources<'a, D, R, M>(
+        &'a self,
+        key_store: &'a MerchantKeyStore,
         execute_query: R,
     ) -> error_stack::Result<Vec<D>, StorageError>
     where
         D: Debug + Sync + Conversion,
         R: futures::Future<
                 Output = error_stack::Result<Vec<M>, diesel_models::errors::DatabaseError>,
-            > + Send,
+            > + Send + 'a,
         M: ReverseConversion<D>,
     {
         let resource_futures = execute_query
@@ -663,5 +663,17 @@ impl UniqueConstraints for diesel_models::Dispute {
     }
     fn table_name(&self) -> &str {
         "Dispute"
+    }
+}
+
+#[cfg(test)]
+mod sync_test {
+    fn _assert_sync<T: Sync>() {}
+    fn _assert_send<T: Send>() {}
+    
+    #[test]
+    fn test_pool_sync() {
+        _assert_sync::<crate::PgPool>();
+        _assert_send::<crate::PgPool>();
     }
 }

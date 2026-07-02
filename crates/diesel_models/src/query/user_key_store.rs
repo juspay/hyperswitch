@@ -8,14 +8,14 @@ use crate::{
 };
 
 impl UserKeyStoreNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<UserKeyStore> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<UserKeyStore> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl UserKeyStore {
     pub async fn get_all_user_key_stores(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         from: u32,
         limit: u32,
     ) -> StorageResult<Vec<Self>> {
@@ -34,7 +34,7 @@ impl UserKeyStore {
         .await
     }
 
-    pub async fn find_by_user_id(conn: &PgPooledConn, user_id: &str) -> StorageResult<Self> {
+    pub async fn find_by_user_id(conn: &mut PgPooledConn, user_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::user_id.eq(user_id.to_owned()),

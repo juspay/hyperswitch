@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
-use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
+use diesel_async::{AsyncConnection, RunQueryDsl};
 use common_utils::{errors::CustomResult, id_type};
 use diesel_models::{Config, ConfigNew};
 use error_stack::ResultExt;
@@ -117,41 +117,39 @@ pub trait HealthCheckInterface {
 #[async_trait::async_trait]
 impl HealthCheckInterface for Store {
     async fn health_check_db(&self) -> CustomResult<(), HealthCheckDBError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let mut conn = pg_connection(&self.master_pool).await;
 
         conn
-            .transaction_async(|conn| {
-                Box::pin(async move {
-                    let query =
-                        diesel::select(diesel::dsl::sql::<diesel::sql_types::Integer>("1 + 1"));
-                    let _x: i32 = query.get_result_async(&conn).await.map_err(|err| {
-                        logger::error!(read_err=?err,"Error while reading element in the database");
-                        HealthCheckDBError::DbReadError
-                    })?;
+            .transaction(async |conn| {
+                let query =
+                    diesel::select(diesel::dsl::sql::<diesel::sql_types::Integer>("1 + 1"));
+                let _x: i32 = query.get_result::<i32>(conn).await.map_err(|err| {
+                    logger::error!(read_err=?err,"Error while reading element in the database");
+                    HealthCheckDBError::DbReadError
+                })?;
 
-                    logger::debug!("Database read was successful");
+                logger::debug!("Database read was successful");
 
-                    let config = ConfigNew {
-                        key: "test_key".to_string(),
-                        config: "test_value".to_string(),
-                    };
+                let config = ConfigNew {
+                    key: "test_key".to_string(),
+                    config: "test_value".to_string(),
+                };
 
-                    config.insert(&conn).await.map_err(|err| {
-                        logger::error!(write_err=?err,"Error while writing to database");
-                        HealthCheckDBError::DbWriteError
-                    })?;
+                config.insert(conn).await.map_err(|err| {
+                    logger::error!(write_err=?err,"Error while writing to database");
+                    HealthCheckDBError::DbWriteError
+                })?;
 
-                    logger::debug!("Database write was successful");
+                logger::debug!("Database write was successful");
 
-                    Config::delete_by_key(&conn, "test_key").await.map_err(|err| {
-                        logger::error!(delete_err=?err,"Error while deleting element in the database");
-                        HealthCheckDBError::DbDeleteError
-                    })?;
+                Config::delete_by_key(conn, "test_key").await.map_err(|err| {
+                    logger::error!(delete_err=?err,"Error while deleting element in the database");
+                    HealthCheckDBError::DbDeleteError
+                })?;
 
-                    logger::debug!("Database delete was successful");
+                logger::debug!("Database delete was successful");
 
-                    Ok::<_, HealthCheckDBError>(())
-                })
+                Ok::<_, HealthCheckDBError>(())
             })
             .await?;
 

@@ -11,7 +11,7 @@ use crate::{
 };
 
 impl ProfileNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Profile> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Profile> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -19,7 +19,7 @@ impl ProfileNew {
 impl Profile {
     pub async fn update_by_profile_id(
         self,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         business_profile: ProfileUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
@@ -38,7 +38,7 @@ impl Profile {
     }
 
     pub async fn find_by_profile_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -49,7 +49,7 @@ impl Profile {
     }
 
     pub async fn find_by_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Self> {
@@ -63,7 +63,7 @@ impl Profile {
     }
 
     pub async fn find_by_profile_name_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         profile_name: &str,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -77,7 +77,7 @@ impl Profile {
     }
 
     pub async fn list_profile_by_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
@@ -96,7 +96,7 @@ impl Profile {
     }
 
     pub async fn delete_by_profile_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<bool> {

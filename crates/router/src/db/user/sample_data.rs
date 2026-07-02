@@ -86,7 +86,7 @@ impl BatchSampleDataInterface for Store {
         batch: Vec<PaymentIntent>,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
-        let conn = pg_connection_write(self)
+        let mut conn = pg_connection_write(self)
             .await
             .change_context(StorageError::DatabaseConnectionError)?;
         let new_intents = try_join_all(batch.into_iter().map(|payment_intent| async {
@@ -96,7 +96,7 @@ impl BatchSampleDataInterface for Store {
                 .change_context(StorageError::EncryptionError)
         }))
         .await?;
-        sample_data_queries::insert_payment_intents(&conn, new_intents)
+        sample_data_queries::insert_payment_intents(&mut conn, new_intents)
             .await
             .map_err(diesel_error_to_data_error)
             .map(|v| {
@@ -120,10 +120,10 @@ impl BatchSampleDataInterface for Store {
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentAttempt>, StorageError> {
-        let conn = pg_connection_write(self)
+        let mut conn = pg_connection_write(self)
             .await
             .change_context(StorageError::DatabaseConnectionError)?;
-        sample_data_queries::insert_payment_attempts(&conn, batch)
+        sample_data_queries::insert_payment_attempts(&mut conn, batch)
             .await
             .map_err(diesel_error_to_data_error)
             .map(|v| {
@@ -145,10 +145,10 @@ impl BatchSampleDataInterface for Store {
         &self,
         batch: Vec<RefundNew>,
     ) -> CustomResult<Vec<Refund>, StorageError> {
-        let conn = pg_connection_write(self)
+        let mut conn = pg_connection_write(self)
             .await
             .change_context(StorageError::DatabaseConnectionError)?;
-        sample_data_queries::insert_refunds(&conn, batch)
+        sample_data_queries::insert_refunds(&mut conn, batch)
             .await
             .map_err(diesel_error_to_data_error)
     }
@@ -158,10 +158,10 @@ impl BatchSampleDataInterface for Store {
         &self,
         batch: Vec<DisputeNew>,
     ) -> CustomResult<Vec<Dispute>, StorageError> {
-        let conn = pg_connection_write(self)
+        let mut conn = pg_connection_write(self)
             .await
             .change_context(StorageError::DatabaseConnectionError)?;
-        sample_data_queries::insert_disputes(&conn, batch)
+        sample_data_queries::insert_disputes(&mut conn, batch)
             .await
             .map_err(diesel_error_to_data_error)
     }
@@ -173,10 +173,10 @@ impl BatchSampleDataInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
-        let conn = pg_connection_write(self)
+        let mut conn = pg_connection_write(self)
             .await
             .change_context(StorageError::DatabaseConnectionError)?;
-        sample_data_queries::delete_payment_intents(&conn, merchant_id)
+        sample_data_queries::delete_payment_intents(&mut conn, merchant_id)
             .await
             .map_err(diesel_error_to_data_error)
             .map(|v| {
@@ -200,10 +200,10 @@ impl BatchSampleDataInterface for Store {
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentAttempt>, StorageError> {
-        let conn = pg_connection_write(self)
+        let mut conn = pg_connection_write(self)
             .await
             .change_context(StorageError::DatabaseConnectionError)?;
-        sample_data_queries::delete_payment_attempts(&conn, merchant_id)
+        sample_data_queries::delete_payment_attempts(&mut conn, merchant_id)
             .await
             .map_err(diesel_error_to_data_error)
             .map(|res| {
@@ -225,10 +225,10 @@ impl BatchSampleDataInterface for Store {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<Refund>, StorageError> {
-        let conn = pg_connection_write(self)
+        let mut conn = pg_connection_write(self)
             .await
             .change_context(StorageError::DatabaseConnectionError)?;
-        sample_data_queries::delete_refunds(&conn, merchant_id)
+        sample_data_queries::delete_refunds(&mut conn, merchant_id)
             .await
             .map_err(diesel_error_to_data_error)
     }
@@ -238,10 +238,10 @@ impl BatchSampleDataInterface for Store {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<Dispute>, StorageError> {
-        let conn = pg_connection_write(self)
+        let mut conn = pg_connection_write(self)
             .await
             .change_context(StorageError::DatabaseConnectionError)?;
-        sample_data_queries::delete_disputes(&conn, merchant_id)
+        sample_data_queries::delete_disputes(&mut conn, merchant_id)
             .await
             .map_err(diesel_error_to_data_error)
     }

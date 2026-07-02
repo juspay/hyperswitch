@@ -70,8 +70,8 @@ impl ProcessTrackerInterface for Store {
         &self,
         id: &str,
     ) -> CustomResult<Option<storage::ProcessTracker>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::ProcessTracker::find_process_by_id(&conn, id)
+        let mut conn = connection::pg_connection_read(self).await?;
+        storage::ProcessTracker::find_process_by_id(&mut conn, id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -81,8 +81,8 @@ impl ProcessTrackerInterface for Store {
         ids: Vec<String>,
         schedule_time: PrimitiveDateTime,
     ) -> CustomResult<usize, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::ProcessTracker::reinitialize_limbo_processes(&conn, ids, schedule_time)
+        let mut conn = connection::pg_connection_write(self).await?;
+        storage::ProcessTracker::reinitialize_limbo_processes(&mut conn, ids, schedule_time)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -94,9 +94,9 @@ impl ProcessTrackerInterface for Store {
         status: storage_enums::ProcessTrackerStatus,
         limit: Option<i64>,
     ) -> CustomResult<Vec<storage::ProcessTracker>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         storage::ProcessTracker::find_processes_by_time_status(
-            &conn,
+            &mut conn,
             time_lower_limit,
             time_upper_limit,
             status,
@@ -111,8 +111,8 @@ impl ProcessTrackerInterface for Store {
         &self,
         new: storage::ProcessTrackerNew,
     ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        new.insert_process(&conn)
+        let mut conn = connection::pg_connection_write(self).await?;
+        new.insert_process(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -122,8 +122,8 @@ impl ProcessTrackerInterface for Store {
         this: storage::ProcessTracker,
         process: storage::ProcessTrackerUpdate,
     ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        this.update(&conn, process)
+        let mut conn = connection::pg_connection_write(self).await?;
+        this.update(&mut conn, process)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -187,8 +187,8 @@ impl ProcessTrackerInterface for Store {
         task_ids: Vec<String>,
         task_update: storage::ProcessTrackerUpdate,
     ) -> CustomResult<usize, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::ProcessTracker::update_process_status_by_ids(&conn, task_ids, task_update)
+        let mut conn = connection::pg_connection_write(self).await?;
+        storage::ProcessTracker::update_process_status_by_ids(&mut conn, task_ids, task_update)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }

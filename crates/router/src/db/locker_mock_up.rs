@@ -33,8 +33,8 @@ impl LockerMockUpInterface for Store {
         &self,
         card_id: &str,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::LockerMockUp::find_by_card_id(&conn, card_id)
+        let mut conn = connection::pg_connection_read(self).await?;
+        storage::LockerMockUp::find_by_card_id(&mut conn, card_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -44,8 +44,8 @@ impl LockerMockUpInterface for Store {
         &self,
         new: storage::LockerMockUpNew,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        new.insert(&conn)
+        let mut conn = connection::pg_connection_write(self).await?;
+        new.insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -55,8 +55,8 @@ impl LockerMockUpInterface for Store {
         &self,
         card_id: &str,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::LockerMockUp::delete_by_card_id(&conn, card_id)
+        let mut conn = connection::pg_connection_write(self).await?;
+        storage::LockerMockUp::delete_by_card_id(&mut conn, card_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }

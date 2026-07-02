@@ -12,7 +12,7 @@ use crate::{
 };
 
 impl PaymentIntentNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentIntent> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<PaymentIntent> {
         generics::generic_insert(conn, self).await
     }
 
@@ -28,7 +28,7 @@ impl PaymentIntent {
     #[cfg(feature = "v2")]
     pub async fn update(
         self,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         payment_intent_update: payment_intent::PaymentIntentUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
@@ -48,7 +48,7 @@ impl PaymentIntent {
 
     #[cfg(feature = "v2")]
     pub async fn find_by_global_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         id: &common_utils::id_type::GlobalPaymentId,
     ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
@@ -57,7 +57,7 @@ impl PaymentIntent {
     #[cfg(feature = "v1")]
     pub async fn update(
         self,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         payment_intent: payment_intent::PaymentIntentUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
@@ -81,7 +81,7 @@ impl PaymentIntent {
 
     #[cfg(feature = "v2")]
     pub async fn find_by_merchant_reference_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_reference_id: &str,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -98,7 +98,7 @@ impl PaymentIntent {
     // In an active-active setup, a lookup table should be implemented, and the merchant reference ID will serve as the idempotency key.
     #[cfg(feature = "v2")]
     pub async fn find_by_merchant_reference_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_reference_id: &common_utils::id_type::PaymentReferenceId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Self> {
@@ -113,7 +113,7 @@ impl PaymentIntent {
 
     #[cfg(feature = "v1")]
     pub async fn find_by_payment_id_processor_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         payment_id: &common_utils::id_type::PaymentId,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -128,7 +128,7 @@ impl PaymentIntent {
 
     #[cfg(feature = "v2")]
     pub async fn find_optional_by_merchant_reference_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_reference_id: &str,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
@@ -143,7 +143,7 @@ impl PaymentIntent {
 
     #[cfg(feature = "v1")]
     pub async fn find_optional_by_payment_id_processor_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         payment_id: &common_utils::id_type::PaymentId,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {

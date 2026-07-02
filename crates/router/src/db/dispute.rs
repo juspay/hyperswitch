@@ -83,9 +83,9 @@ mod storage_impl {
             dispute: storage_types::DisputeNew,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
+            let mut conn = connection::pg_connection_write(self).await?;
             dispute
-                .insert(&conn)
+                .insert(&mut conn)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -98,10 +98,10 @@ mod storage_impl {
             connector_dispute_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Option<storage_types::Dispute>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             let result =
                 storage_types::Dispute::find_by_processor_merchant_id_payment_id_connector_dispute_id(
-                    &conn,
+                    &mut conn,
                     processor_merchant_id,
                     payment_id,
                     connector_dispute_id,
@@ -113,7 +113,7 @@ mod storage_impl {
                 Some(dispute) => Ok(Some(dispute)),
                 None => {
                     storage_types::Dispute::find_by_merchant_id_payment_id_connector_dispute_id(
-                        &conn,
+                        &mut conn,
                         processor_merchant_id,
                         payment_id,
                         connector_dispute_id,
@@ -131,9 +131,9 @@ mod storage_impl {
             dispute_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             let result = storage_types::Dispute::find_by_processor_merchant_id_dispute_id(
-                &conn,
+                &mut conn,
                 processor_merchant_id,
                 dispute_id,
             )
@@ -147,7 +147,7 @@ mod storage_impl {
                         diesel_models::errors::DatabaseError::NotFound
                     ) {
                         storage_types::Dispute::find_by_merchant_id_dispute_id(
-                            &conn,
+                            &mut conn,
                             processor_merchant_id,
                             dispute_id,
                         )
@@ -167,9 +167,9 @@ mod storage_impl {
             payment_id: &common_utils::id_type::PaymentId,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             storage_types::Dispute::find_by_processor_merchant_id_payment_id(
-                &conn,
+                &mut conn,
                 processor_merchant_id,
                 payment_id,
             )
@@ -184,9 +184,9 @@ mod storage_impl {
             dispute_constraints: &disputes::DisputeListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             storage_types::Dispute::filter_by_constraints(
-                &conn,
+                &mut conn,
                 processor_merchant_id,
                 dispute_constraints,
             )
@@ -201,8 +201,8 @@ mod storage_impl {
             dispute: storage_types::DisputeUpdate,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
-            this.update(&conn, dispute)
+            let mut conn = connection::pg_connection_write(self).await?;
+            this.update(&mut conn, dispute)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -215,9 +215,9 @@ mod storage_impl {
             time_range: &common_utils::types::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             storage_types::Dispute::get_dispute_status_with_count(
-                &conn,
+                &mut conn,
                 processor_merchant_id,
                 profile_id_list,
                 time_range,
@@ -266,9 +266,9 @@ mod storage_impl {
             .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_write(self).await?;
+                    let mut conn = connection::pg_connection_write(self).await?;
                     dispute
-                        .insert(&conn)
+                        .insert(&mut conn)
                         .await
                         .map_err(|error| report!(errors::StorageError::from(error)))
                 }
@@ -382,10 +382,10 @@ mod storage_impl {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Option<storage_types::Dispute>, errors::StorageError> {
             let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
+                let mut conn = connection::pg_connection_read(self).await?;
                 let result =
                     storage_types::Dispute::find_by_processor_merchant_id_payment_id_connector_dispute_id(
-                        &conn,
+                        &mut conn,
                         processor_merchant_id,
                         payment_id,
                         connector_dispute_id,
@@ -400,7 +400,7 @@ mod storage_impl {
                             diesel_models::errors::DatabaseError::NotFound
                         ) {
                             storage_types::Dispute::find_by_merchant_id_payment_id_connector_dispute_id(
-                                &conn,
+                                &mut conn,
                                 processor_merchant_id,
                                 payment_id,
                                 connector_dispute_id,
@@ -462,9 +462,9 @@ mod storage_impl {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
             let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
+                let mut conn = connection::pg_connection_read(self).await?;
                 let result = storage_types::Dispute::find_by_processor_merchant_id_dispute_id(
-                    &conn,
+                    &mut conn,
                     processor_merchant_id,
                     dispute_id,
                 )
@@ -478,7 +478,7 @@ mod storage_impl {
                             diesel_models::errors::DatabaseError::NotFound
                         ) {
                             storage_types::Dispute::find_by_merchant_id_dispute_id(
-                                &conn,
+                                &mut conn,
                                 processor_merchant_id,
                                 dispute_id,
                             )
@@ -537,9 +537,9 @@ mod storage_impl {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
             let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
+                let mut conn = connection::pg_connection_read(self).await?;
                 storage_types::Dispute::find_by_processor_merchant_id_payment_id(
-                    &conn,
+                    &mut conn,
                     processor_merchant_id,
                     payment_id,
                 )
@@ -585,9 +585,9 @@ mod storage_impl {
             dispute_constraints: &disputes::DisputeListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             storage_types::Dispute::filter_by_constraints(
-                &conn,
+                &mut conn,
                 processor_merchant_id,
                 dispute_constraints,
             )
@@ -613,8 +613,8 @@ mod storage_impl {
             .await;
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_write(self).await?;
-                    let result = this.clone().update(&conn, dispute).await;
+                    let mut conn = connection::pg_connection_write(self).await?;
+                    let result = this.clone().update(&mut conn, dispute).await;
 
                     match result {
                         Ok(dispute) => Ok(dispute),
@@ -624,7 +624,7 @@ mod storage_impl {
                                 diesel_models::errors::DatabaseError::NotFound
                             ) {
                                 storage_types::Dispute::find_by_merchant_id_dispute_id(
-                                    &conn,
+                                    &mut conn,
                                     &merchant_id,
                                     &this.dispute_id,
                                 )
@@ -683,9 +683,9 @@ mod storage_impl {
             time_range: &common_utils::types::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let mut conn = connection::pg_connection_read(self).await?;
             storage_types::Dispute::get_dispute_status_with_count(
-                &conn,
+                &mut conn,
                 processor_merchant_id,
                 profile_id_list,
                 time_range,

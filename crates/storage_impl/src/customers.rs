@@ -51,7 +51,6 @@ mod label {
 #[async_trait::async_trait]
 impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterStore<T> {
     type Error = StorageError;
-    #[instrument(skip_all)]
     // check customer not found in kv and fallback to db
     #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
@@ -61,13 +60,13 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         let maybe_result = self
             .find_optional_resource_by_id(
                 key_store,
                 storage_scheme,
                 customers::Customer::find_optional_by_customer_id_merchant_id(
-                    &conn,
+                    &mut conn,
                     customer_id,
                     merchant_id,
                 ),
@@ -87,7 +86,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         })
     }
 
-    #[instrument(skip_all)]
     // check customer not found in kv and fallback to db
     #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
@@ -97,12 +95,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         self.find_optional_resource_by_id(
             key_store,
             storage_scheme,
             customers::Customer::find_optional_by_customer_id_merchant_id(
-                &conn,
+                &mut conn,
                 customer_id,
                 merchant_id,
             ),
@@ -125,13 +123,13 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         let maybe_result = self
             .find_optional_resource_by_id(
                 key_store,
                 storage_scheme,
                 customers::Customer::find_optional_by_merchant_id_merchant_reference_id(
-                    &conn,
+                    &mut conn,
                     merchant_reference_id,
                     merchant_id,
                 ),
@@ -152,7 +150,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     }
 
     #[cfg(feature = "v2")]
-    #[instrument(skip_all)]
     async fn find_customer_for_global_id_migration(
         &self,
         customer_id: &id_type::CustomerId,
@@ -164,7 +161,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     }
 
     #[cfg(feature = "v2")]
-    #[instrument(skip_all)]
     async fn update_customer_global_id_for_migration(
         &self,
         customer_id: &id_type::CustomerId,
@@ -177,7 +173,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     }
 
     #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
         customer_id: id_type::CustomerId,
@@ -187,7 +182,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let mut conn = pg_connection_write(self).await?;
         let customer = Conversion::convert(customer)
             .await
             .change_context(StorageError::EncryptionError)?;
@@ -217,7 +212,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             key_store,
             storage_scheme,
             customers::Customer::update_by_customer_id_merchant_id(
-                &conn,
+                &mut conn,
                 customer_id.clone(),
                 merchant_id.clone(),
                 customer_update.clone().into(),
@@ -232,7 +227,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     }
 
     #[cfg(feature = "v2")]
-    #[instrument(skip_all)]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
         merchant_reference_id: &id_type::CustomerId,
@@ -240,13 +234,13 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         let result: domain::Customer = self
             .find_resource_by_id(
                 key_store,
                 storage_scheme,
                 customers::Customer::find_by_merchant_reference_id_merchant_id(
-                    &conn,
+                    &mut conn,
                     merchant_reference_id,
                     merchant_id,
                 ),
@@ -267,7 +261,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     }
 
     #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &id_type::CustomerId,
@@ -275,13 +268,13 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         let result: domain::Customer = self
             .find_resource_by_id(
                 key_store,
                 storage_scheme,
                 customers::Customer::find_by_customer_id_merchant_id(
-                    &conn,
+                    &mut conn,
                     customer_id,
                     merchant_id,
                 ),
@@ -301,7 +294,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         }
     }
 
-    #[instrument(skip_all)]
     async fn list_customers_by_merchant_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -313,7 +305,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .await
     }
 
-    #[instrument(skip_all)]
     async fn list_customers_by_merchant_id_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -326,14 +317,13 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     }
 
     #[cfg(feature = "v2")]
-    #[instrument(skip_all)]
     async fn insert_customer(
         &self,
         customer_data: domain::Customer,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let mut conn = pg_connection_write(self).await?;
         let id = customer_data.id.clone();
         let key = PartitionKey::GlobalId {
             id: id.get_string_repr(),
@@ -371,7 +361,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         self.insert_resource(
             key_store,
             decided_storage_scheme,
-            new_customer.clone().insert(&conn),
+            new_customer.clone().insert(&mut conn),
             new_customer.clone().into(),
             kv_router_store::InsertResourceParams {
                 drainer_query,
@@ -385,14 +375,13 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     }
 
     #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn insert_customer(
         &self,
         customer_data: domain::Customer,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let mut conn = pg_connection_write(self).await?;
         let key = PartitionKey::MerchantIdCustomerId {
             merchant_id: &customer_data.merchant_id.clone(),
             customer_id: &customer_data.customer_id.clone(),
@@ -422,7 +411,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         self.insert_resource(
             key_store,
             storage_scheme,
-            new_customer.clone().insert(&conn),
+            new_customer.clone().insert(&mut conn),
             customer,
             kv_router_store::InsertResourceParams {
                 drainer_query,
@@ -436,7 +425,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     }
 
     #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &id_type::CustomerId,
@@ -448,19 +436,18 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     }
 
     #[cfg(feature = "v2")]
-    #[instrument(skip_all)]
     async fn find_customer_by_global_id(
         &self,
         id: &id_type::GlobalCustomerId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         let result: domain::Customer = self
             .find_resource_by_id(
                 key_store,
                 storage_scheme,
-                customers::Customer::find_by_global_id(&conn, id),
+                customers::Customer::find_by_global_id(&mut conn, id),
                 kv_router_store::FindResourceBy::Id(
                     format!("cust_{}", id.get_string_repr()),
                     PartitionKey::GlobalId {
@@ -478,7 +465,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     }
 
     #[cfg(feature = "v2")]
-    #[instrument(skip_all)]
     async fn find_customer_by_global_id_merchant_id(
         &self,
         id: &id_type::GlobalCustomerId,
@@ -486,12 +472,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         let result: domain::Customer = self
             .find_resource_by_id(
                 key_store,
                 storage_scheme,
-                customers::Customer::find_by_global_id_merchant_id(&conn, id, merchant_id),
+                customers::Customer::find_by_global_id_merchant_id(&mut conn, id, merchant_id),
                 kv_router_store::FindResourceBy::Id(
                     format!("cust_{}", id.get_string_repr()),
                     PartitionKey::GlobalId {
@@ -513,7 +499,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     }
 
     #[cfg(feature = "v2")]
-    #[instrument(skip_all)]
     async fn update_customer_by_global_id(
         &self,
         id: &id_type::GlobalCustomerId,
@@ -522,14 +507,14 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let mut conn = pg_connection_write(self).await?;
         let customer = Conversion::convert(customer)
             .await
             .change_context(StorageError::EncryptionError)?;
         let customer_update_internal =
             diesel_models::CustomerUpdateInternal::from(customer_update.clone());
         let database_call =
-            customers::Customer::update_by_id(&conn, id.clone(), customer_update_internal.clone());
+            customers::Customer::update_by_id(&mut conn, id.clone(), customer_update_internal.clone());
         let key = PartitionKey::GlobalId {
             id: id.get_string_repr(),
         };
@@ -560,7 +545,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
 #[async_trait::async_trait]
 impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     type Error = StorageError;
-    #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
@@ -569,12 +553,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         let maybe_customer: Option<domain::Customer> = self
             .find_optional_resource(
                 key_store,
                 customers::Customer::find_optional_by_customer_id_merchant_id(
-                    &conn,
+                    &mut conn,
                     customer_id,
                     merchant_id,
                 ),
@@ -592,7 +576,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         })
     }
 
-    #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
@@ -601,11 +584,11 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         self.find_optional_resource(
             key_store,
             customers::Customer::find_optional_by_customer_id_merchant_id(
-                &conn,
+                &mut conn,
                 customer_id,
                 merchant_id,
             ),
@@ -613,7 +596,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         .await
     }
 
-    #[instrument(skip_all)]
     #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
@@ -622,12 +604,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         let maybe_customer: Option<domain::Customer> = self
             .find_optional_resource(
                 key_store,
                 customers::Customer::find_optional_by_merchant_id_merchant_reference_id(
-                    &conn,
+                    &mut conn,
                     customer_id,
                     merchant_id,
                 ),
@@ -646,15 +628,14 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     }
 
     #[cfg(feature = "v2")]
-    #[instrument(skip_all)]
     async fn find_customer_for_global_id_migration(
         &self,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         customers::Customer::find_by_merchant_id_customer_id_for_global_id_migration(
-            &conn,
+            &mut conn,
             merchant_id,
             customer_id,
         )
@@ -666,15 +647,14 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     }
 
     #[cfg(feature = "v2")]
-    #[instrument(skip_all)]
     async fn update_customer_global_id_for_migration(
         &self,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         new_id: id_type::GlobalCustomerId,
     ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        customers::Customer::update_global_id_for_migration(&conn, merchant_id, customer_id, new_id)
+        let mut conn = pg_connection_write(self).await?;
+        customers::Customer::update_global_id_for_migration(&mut conn, merchant_id, customer_id, new_id)
             .await
             .map_err(|error| {
                 let new_err = diesel_error_to_data_error(*error.current_context());
@@ -683,7 +663,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     }
 
     #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
         customer_id: id_type::CustomerId,
@@ -693,11 +672,11 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let mut conn = pg_connection_write(self).await?;
         self.call_database(
             key_store,
             customers::Customer::update_by_customer_id_merchant_id(
-                &conn,
+                &mut conn,
                 customer_id,
                 merchant_id.clone(),
                 customer_update.into(),
@@ -707,7 +686,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     }
 
     #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &id_type::CustomerId,
@@ -715,12 +693,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         let customer: domain::Customer = self
             .call_database(
                 key_store,
                 customers::Customer::find_by_customer_id_merchant_id(
-                    &conn,
+                    &mut conn,
                     customer_id,
                     merchant_id,
                 ),
@@ -733,7 +711,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     }
 
     #[cfg(feature = "v2")]
-    #[instrument(skip_all)]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
         merchant_reference_id: &id_type::CustomerId,
@@ -741,12 +718,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         let customer: domain::Customer = self
             .call_database(
                 key_store,
                 customers::Customer::find_by_merchant_reference_id_merchant_id(
-                    &conn,
+                    &mut conn,
                     merchant_reference_id,
                     merchant_id,
                 ),
@@ -758,20 +735,19 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
     async fn list_customers_by_merchant_id(
         &self,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         constraints: domain::CustomerListConstraints,
     ) -> CustomResult<Vec<domain::Customer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         let customer_list_constraints =
             diesel_models::query::customers::CustomerListConstraints::from(constraints);
         self.find_resources(
             key_store,
             customers::Customer::list_customers_by_merchant_id_and_constraints(
-                &conn,
+                &mut conn,
                 merchant_id,
                 customer_list_constraints,
             ),
@@ -779,14 +755,13 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         .await
     }
 
-    #[instrument(skip_all)]
     async fn list_customers_by_merchant_id_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         constraints: domain::CustomerListConstraints,
     ) -> CustomResult<(Vec<domain::Customer>, usize), StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         let customer_list_constraints =
             diesel_models::query::customers::CustomerListConstraints::from(constraints);
         let customers_constraints = diesel_models::query::customers::CustomerListConstraints {
@@ -799,14 +774,14 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .find_resources(
                 key_store,
                 customers::Customer::list_customers_by_merchant_id_and_constraints(
-                    &conn,
+                    &mut conn,
                     merchant_id,
                     customers_constraints,
                 ),
             )
             .await?;
         let total_count = customers::Customer::get_customer_count_by_merchant_id_and_constraints(
-            &conn,
+            &mut conn,
             merchant_id,
             customer_list_constraints,
         )
@@ -818,31 +793,29 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         Ok((customers, total_count))
     }
 
-    #[instrument(skip_all)]
     async fn insert_customer(
         &self,
         customer_data: domain::Customer,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let mut conn = pg_connection_write(self).await?;
         let customer_new = customer_data
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?;
-        self.call_database(key_store, customer_new.insert(&conn))
+        self.call_database(key_store, customer_new.insert(&mut conn))
             .await
     }
 
     #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<bool, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        customers::Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
+        let mut conn = pg_connection_write(self).await?;
+        customers::Customer::delete_by_customer_id_merchant_id(&mut conn, customer_id, merchant_id)
             .await
             .map_err(|error| {
                 let new_err = diesel_error_to_data_error(*error.current_context());
@@ -860,25 +833,24 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let mut conn = pg_connection_write(self).await?;
         self.call_database(
             key_store,
-            customers::Customer::update_by_id(&conn, id.clone(), customer_update.into()),
+            customers::Customer::update_by_id(&mut conn, id.clone(), customer_update.into()),
         )
         .await
     }
 
     #[cfg(feature = "v2")]
-    #[instrument(skip_all)]
     async fn find_customer_by_global_id(
         &self,
         id: &id_type::GlobalCustomerId,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         let customer: domain::Customer = self
-            .call_database(key_store, customers::Customer::find_by_global_id(&conn, id))
+            .call_database(key_store, customers::Customer::find_by_global_id(&mut conn, id))
             .await?;
         match customer.name {
             Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
@@ -887,7 +859,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     }
 
     #[cfg(feature = "v2")]
-    #[instrument(skip_all)]
     async fn find_customer_by_global_id_merchant_id(
         &self,
         id: &id_type::GlobalCustomerId,
@@ -895,11 +866,11 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         let customer: domain::Customer = self
             .call_database(
                 key_store,
-                customers::Customer::find_by_global_id_merchant_id(&conn, id, merchant_id),
+                customers::Customer::find_by_global_id_merchant_id(&mut conn, id, merchant_id),
             )
             .await?;
         match customer.name {
@@ -1079,7 +1050,6 @@ impl domain::CustomerInterface for MockDb {
     }
 
     #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
         _customer_id: id_type::CustomerId,

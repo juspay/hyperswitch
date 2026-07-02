@@ -44,9 +44,9 @@ impl UnifiedTranslationsInterface for Store {
         &self,
         translation: storage::UnifiedTranslationsNew,
     ) -> CustomResult<storage::UnifiedTranslations, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         translation
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -58,9 +58,9 @@ impl UnifiedTranslationsInterface for Store {
         locale: String,
         data: storage::UnifiedTranslationsUpdate,
     ) -> CustomResult<storage::UnifiedTranslations, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         storage::UnifiedTranslations::update_by_unified_code_unified_message_locale(
-            &conn,
+            &mut conn,
             unified_code,
             unified_message,
             locale,
@@ -76,10 +76,10 @@ impl UnifiedTranslationsInterface for Store {
         unified_message: String,
         locale: String,
     ) -> CustomResult<String, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let mut conn = connection::pg_connection_read(self).await?;
         let translations =
             storage::UnifiedTranslations::find_by_unified_code_unified_message_locale(
-                &conn,
+                &mut conn,
                 unified_code,
                 unified_message,
                 locale,
@@ -95,9 +95,9 @@ impl UnifiedTranslationsInterface for Store {
         unified_message: String,
         locale: String,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let mut conn = connection::pg_connection_write(self).await?;
         storage::UnifiedTranslations::delete_by_unified_code_unified_message_locale(
-            &conn,
+            &mut conn,
             unified_code,
             unified_message,
             locale,

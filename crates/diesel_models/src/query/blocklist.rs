@@ -1,4 +1,4 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel_async::RunQueryDsl;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use error_stack::ResultExt;
 
@@ -11,12 +11,12 @@ use crate::{
 };
 
 impl BlocklistNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Blocklist> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Blocklist> {
         generics::generic_insert(conn, self).await
     }
 
     pub async fn bulk_insert_on_conflict_do_nothing(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         entries: Vec<Self>,
     ) -> StorageResult<usize> {
         let query = diesel::insert_into(<Blocklist as HasTable>::table())
@@ -25,7 +25,7 @@ impl BlocklistNew {
             .do_nothing();
 
         generics::db_metrics::track_database_call::<<Blocklist as HasTable>::Table, _, _>(
-            query.execute_async(conn),
+            query.execute(conn),
             generics::db_metrics::DatabaseOperation::Insert,
         )
         .await
@@ -37,7 +37,7 @@ impl BlocklistNew {
 
 impl Blocklist {
     pub async fn find_by_processor_merchant_id_fingerprint_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
@@ -52,7 +52,7 @@ impl Blocklist {
 
     // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_fingerprint_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
@@ -66,7 +66,7 @@ impl Blocklist {
     }
 
     pub async fn list_by_processor_merchant_id_data_kind(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
@@ -88,7 +88,7 @@ impl Blocklist {
     }
 
     pub async fn get_count_by_processor_merchant_id_data_kind(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         data_kind: common_enums::BlocklistDataKind,
     ) -> StorageResult<usize> {
@@ -105,7 +105,7 @@ impl Blocklist {
     }
 
     pub async fn list_by_processor_merchant_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
@@ -123,7 +123,7 @@ impl Blocklist {
     }
 
     pub async fn delete_by_processor_merchant_id_fingerprint_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
@@ -138,7 +138,7 @@ impl Blocklist {
 
     // Fallback function for stagger release - deletes by merchant_id when processor_merchant_id is NULL
     pub async fn delete_by_merchant_id_fingerprint_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {

@@ -1,4 +1,4 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel_async::RunQueryDsl;
 use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
     JoinOnDsl, QueryDsl,
@@ -15,7 +15,7 @@ use crate::{
 };
 
 impl PayoutsNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Payouts> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<Payouts> {
         generics::generic_insert(conn, self).await
     }
 
@@ -29,7 +29,7 @@ impl PayoutsNew {
 impl Payouts {
     pub async fn update(
         self,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         payout_update: PayoutsUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
@@ -52,7 +52,7 @@ impl Payouts {
     }
 
     pub async fn find_by_merchant_id_payout_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &common_utils::id_type::PayoutId,
     ) -> StorageResult<Self> {
@@ -66,7 +66,7 @@ impl Payouts {
     }
 
     pub async fn update_by_merchant_id_payout_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &common_utils::id_type::PayoutId,
         payout: PayoutsUpdate,
@@ -79,7 +79,7 @@ impl Payouts {
             PayoutsUpdateInternal::from(payout),
         )
         .await?
-        .first()
+        .get(0)
         .cloned()
         .ok_or_else(|| {
             report!(errors::DatabaseError::NotFound).attach_printable("Error while updating payout")
@@ -87,7 +87,7 @@ impl Payouts {
     }
 
     pub async fn find_optional_by_merchant_id_payout_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &common_utils::id_type::PayoutId,
     ) -> StorageResult<Option<Self>> {
@@ -102,7 +102,7 @@ impl Payouts {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn get_total_count_of_payouts(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         active_payout_ids: &[common_utils::id_type::PayoutId],
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
@@ -136,7 +136,7 @@ impl Payouts {
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_result_async::<i64>(conn),
+            filter.get_result::<i64>(conn),
             db_metrics::DatabaseOperation::Filter,
         )
         .await

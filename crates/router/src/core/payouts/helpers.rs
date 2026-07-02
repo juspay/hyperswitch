@@ -1111,7 +1111,7 @@ pub async fn decide_payout_connector(
             .map(|conn| {
                 api::ConnectorData::get_payout_connector_by_name(
                     &state.conf.connectors,
-                    &conn.connector.to_string(),
+                    &mut conn.connector.to_string(),
                     api::GetToken::Connector,
                     payout_attempt.merchant_connector_id.clone(),
                 )
@@ -1162,7 +1162,7 @@ pub async fn decide_payout_connector(
             .map(|conn| {
                 api::ConnectorData::get_payout_connector_by_name(
                     &state.conf.connectors,
-                    &conn.connector.to_string(),
+                    &mut conn.connector.to_string(),
                     api::GetToken::Connector,
                     payout_attempt.merchant_connector_id.clone(),
                 )

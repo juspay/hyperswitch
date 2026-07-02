@@ -14,7 +14,7 @@ use crate::{
 };
 
 impl GenericLinkNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<GenericLinkState> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<GenericLinkState> {
         generics::generic_insert(conn, self)
             .await
             .and_then(|res: GenericLink| {
@@ -26,7 +26,7 @@ impl GenericLinkNew {
 
     pub async fn insert_pm_collect_link(
         self,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
     ) -> StorageResult<PaymentMethodCollectLink> {
         generics::generic_insert(conn, self)
             .await
@@ -37,7 +37,7 @@ impl GenericLinkNew {
             })
     }
 
-    pub async fn insert_payout_link(self, conn: &PgPooledConn) -> StorageResult<PayoutLink> {
+    pub async fn insert_payout_link(self, conn: &mut PgPooledConn) -> StorageResult<PayoutLink> {
         generics::generic_insert(conn, self)
             .await
             .and_then(|res: GenericLink| {
@@ -50,7 +50,7 @@ impl GenericLinkNew {
 
 impl GenericLink {
     pub async fn find_generic_link_by_link_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         link_id: &str,
     ) -> StorageResult<GenericLinkState> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -66,7 +66,7 @@ impl GenericLink {
     }
 
     pub async fn find_pm_collect_link_by_link_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         link_id: &str,
     ) -> StorageResult<PaymentMethodCollectLink> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -82,7 +82,7 @@ impl GenericLink {
     }
 
     pub async fn find_payout_link_by_link_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         link_id: &str,
     ) -> StorageResult<PayoutLink> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -101,7 +101,7 @@ impl GenericLink {
 impl PayoutLink {
     pub async fn update_payout_link(
         self,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         payout_link_update: PayoutLinkUpdate,
     ) -> StorageResult<Self> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(

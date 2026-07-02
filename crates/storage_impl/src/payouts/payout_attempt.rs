@@ -35,7 +35,6 @@ use crate::{
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
     type Error = errors::StorageError;
-    #[instrument(skip_all)]
     async fn insert_payout_attempt(
         &self,
         new_payout_attempt: PayoutAttemptNew,
@@ -147,7 +146,6 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
     async fn update_payout_attempt(
         &self,
         this: &PayoutAttempt,
@@ -250,7 +248,6 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -315,7 +312,6 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -373,7 +369,6 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_connector_payout_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -434,7 +429,6 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[instrument(skip_all)]
     async fn get_filters_for_payouts(
         &self,
         payouts: &[Payouts],
@@ -446,7 +440,6 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
             .await
     }
 
-    #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_merchant_order_reference_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -477,16 +470,15 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
     type Error = errors::StorageError;
-    #[instrument(skip_all)]
     async fn insert_payout_attempt(
         &self,
         new: PayoutAttemptNew,
         _payouts: &Payouts,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let mut conn = pg_connection_write(self).await?;
         new.to_storage_model()
-            .insert(&conn)
+            .insert(&mut conn)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(*er.current_context());
@@ -495,7 +487,6 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
             .map(PayoutAttempt::from_storage_model)
     }
 
-    #[instrument(skip_all)]
     async fn update_payout_attempt(
         &self,
         this: &PayoutAttempt,
@@ -503,10 +494,10 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         _payouts: &Payouts,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
-        let conn = pg_connection_write(self).await?;
+        let mut conn = pg_connection_write(self).await?;
         this.clone()
             .to_storage_model()
-            .update_with_attempt_id(&conn, payout.to_storage_model())
+            .update_with_attempt_id(&mut conn, payout.to_storage_model())
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(*er.current_context());
@@ -515,16 +506,15 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
             .map(PayoutAttempt::from_storage_model)
     }
 
-    #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         payout_attempt_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         DieselPayoutAttempt::find_by_merchant_id_payout_attempt_id(
-            &conn,
+            &mut conn,
             merchant_id,
             payout_attempt_id,
         )
@@ -536,7 +526,6 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         })
     }
 
-    #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -544,9 +533,9 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         payout_attempt_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         DieselPayoutAttempt::find_by_merchant_id_payout_id_payout_attempt_id(
-            &conn,
+            &mut conn,
             merchant_id,
             payout_id,
             payout_attempt_id,
@@ -559,16 +548,15 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         })
     }
 
-    #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_connector_payout_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_payout_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         DieselPayoutAttempt::find_by_merchant_id_connector_payout_id(
-            &conn,
+            &mut conn,
             merchant_id,
             connector_payout_id,
         )
@@ -580,20 +568,19 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         })
     }
 
-    #[instrument(skip_all)]
     async fn get_filters_for_payouts(
         &self,
         payouts: &[Payouts],
         merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PayoutListFilters, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         let payouts = payouts
             .iter()
             .cloned()
             .map(|payouts| payouts.to_storage_model())
             .collect::<Vec<diesel_models::Payouts>>();
-        DieselPayoutAttempt::get_filters_for_payouts(&conn, payouts.as_slice(), merchant_id)
+        DieselPayoutAttempt::get_filters_for_payouts(&mut conn, payouts.as_slice(), merchant_id)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(*er.current_context());
@@ -622,16 +609,15 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
             )
     }
 
-    #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_merchant_order_reference_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_order_reference_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let mut conn = pg_connection_read(self).await?;
         DieselPayoutAttempt::find_by_merchant_id_merchant_order_reference_id(
-            &conn,
+            &mut conn,
             merchant_id,
             merchant_order_reference_id,
         )
@@ -649,8 +635,8 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         payout_id: &common_utils::id_type::PayoutId,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PayoutAttempt>, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
-        DieselPayoutAttempt::find_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
+        let mut conn = pg_connection_read(self).await?;
+        DieselPayoutAttempt::find_by_merchant_id_payout_id(&mut conn, merchant_id, payout_id)
             .await
             .map(|attempts| {
                 attempts

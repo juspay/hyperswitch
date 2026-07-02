@@ -8,14 +8,14 @@ use crate::{
 };
 
 impl PaymentLinkNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentLink> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<PaymentLink> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl PaymentLink {
     pub async fn find_link_by_payment_link_id(
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
         payment_link_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(

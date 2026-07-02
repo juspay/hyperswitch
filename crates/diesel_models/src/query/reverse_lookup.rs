@@ -9,13 +9,13 @@ use crate::{
 };
 
 impl ReverseLookupNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<ReverseLookup> {
+    pub async fn insert(self, conn: &mut PgPooledConn) -> StorageResult<ReverseLookup> {
         generics::generic_insert(conn, self).await
     }
 
     pub async fn batch_insert(
         reverse_lookups: Vec<Self>,
-        conn: &PgPooledConn,
+        conn: &mut PgPooledConn,
     ) -> StorageResult<()> {
         generics::generic_insert::<_, _, ReverseLookup>(conn, reverse_lookups).await?;
         Ok(())
@@ -29,7 +29,7 @@ impl ReverseLookupNew {
     }
 }
 impl ReverseLookup {
-    pub async fn find_by_lookup_id(lookup_id: &str, conn: &PgPooledConn) -> StorageResult<Self> {
+    pub async fn find_by_lookup_id(lookup_id: &str, conn: &mut PgPooledConn) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::lookup_id.eq(lookup_id.to_owned()),
