@@ -4384,22 +4384,15 @@ where
 
     // ---- 1b. Frictionless short-circuit -------------------------------------------------------
     // If the AReq already fully authenticated the payment (trans_status Y → authentication Success),
-    // the cavv is in the ARes (the `/3ds/authentication` leg stashed it in `connector_metadata`) and
-    // there is NO 3DS results (RReq) step — Netcetera rejects a results call for a non-challenge
+    // the cavv is in the ARes (the `/3ds/authentication` leg vaulted it keyed by authentication_id)
+    // and there is NO 3DS results (RReq) step — Netcetera rejects a results call for a non-challenge
     // transaction. Authorize directly with the persisted cavv instead of calling post-authenticate.
     if authentication.authentication_status == common_enums::AuthenticationStatus::Success {
-        // Resolve the cavv from (in order): the frictionless ARes stash in `connector_metadata`,
-        // the `cavv` column, then the temp-locker vault. A completed CHALLENGE delivers the cavv
-        // via the results (RRes) webhook, which vaults it keyed by the authentication_id
-        // (`payment_methods::vault::create_tokenize` in the external-authentication webhook flow)
-        // rather than writing `connector_metadata`; the vault fallback lets that path resolve too.
-        let mut frictionless_cavv = authentication
-            .connector_metadata
-            .as_ref()
-            .and_then(|metadata| metadata.get("external_vault_frictionless_cavv"))
-            .and_then(|value| value.as_str())
-            .map(String::from)
-            .or_else(|| authentication.cavv.clone());
+        // Resolve the cavv from (in order): the `cavv` column, then the temp-locker vault. BOTH the
+        // frictionless AReq leg and the completed CHALLENGE (results/RRes webhook) vault the cavv
+        // (encrypted) keyed by the authentication_id rather than storing it plaintext, so the vault
+        // is the primary source; the `cavv` column covers records that carried it from creation.
+        let mut frictionless_cavv = authentication.cavv.clone();
         if frictionless_cavv.is_none() {
             frictionless_cavv = vault::get_tokenized_data(
                 state,
@@ -14393,15 +14386,14 @@ async fn perform_external_vault_authentication_v1(
         .or_else(|| authentication.threeds_server_transaction_id.clone());
 
     // Frictionless authentications (trans_status Y) carry the cavv directly in the ARes. The
-    // authentication `cavv` DB column is only writable at creation, so stash the cavv in
-    // `connector_metadata`; the post-authenticate resume reads it and skips the 3DS results (RReq)
-    // step, which does not exist for a non-challenge transaction.
+    // authentication `cavv` DB column is only writable at creation, so vault the cavv (encrypted,
+    // keyed by authentication_id) after the update below — the SAME store the challenge RRes webhook
+    // uses — rather than stashing it as plaintext in `connector_metadata`. The post-authenticate
+    // resume reads it back from the vault and skips the 3DS results (RReq) step, which does not exist
+    // for a non-challenge transaction.
     let areq_cavv = areq_authentication_data
         .as_ref()
         .and_then(|data| data.cavv.as_ref().map(|cavv| cavv.peek().clone()));
-    let areq_connector_metadata = areq_cavv
-        .as_ref()
-        .map(|cavv| serde_json::json!({ "external_vault_frictionless_cavv": cavv }));
 
     let authentication_type = match trans_status {
         common_enums::TransactionStatus::ChallengeRequired
@@ -14436,7 +14428,8 @@ async fn perform_external_vault_authentication_v1(
         acs_reference_number: None,
         acs_trans_id: acs_trans_id.clone(),
         acs_signed_content: None,
-        connector_metadata: areq_connector_metadata,
+        // cavv is vaulted (encrypted) below, not stashed here.
+        connector_metadata: None,
         authentication_status,
         ds_trans_id,
         eci,
@@ -14463,6 +14456,22 @@ async fn perform_external_vault_authentication_v1(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update external vault authentication record")?;
+
+    // Vault the frictionless cavv (encrypted, keyed by authentication_id) so the post-authenticate
+    // resume reads it back from the vault — the same store/key the challenge RRes webhook uses. This
+    // keeps the cavv out of plaintext DB columns / connector_metadata. (Challenge AReqs have no cavv
+    // yet; it arrives on the RRes and is vaulted by the external-authentication webhook flow.)
+    if let Some(cavv) = areq_cavv {
+        vault::create_tokenize_without_configurable_expiry(
+            state,
+            cavv,
+            None,
+            authentication_id.get_string_repr().to_string(),
+            key_store.key.get_inner(),
+        )
+        .await
+        .attach_printable("Failed to vault frictionless cavv for external vault 3DS authenticate")?;
+    }
 
     let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
         status: payment_attempt.status,
