@@ -508,6 +508,8 @@ impl
             )),
         };
 
+        let peachpayments_data = get_peachpayments_data(item);
+
         let ecommerce_data = EcommercePaymentOnlyTransactionData::NetworkToken(
             EcommerceNetworkTokenPaymentOnlyTransactionData {
                 merchant_information,
@@ -523,7 +525,9 @@ impl
                     },
                     mode: CofMode::Initial,
                 },
-                rrn: item.router_data.request.rrn.clone(),
+                rrn: peachpayments_data
+                    .as_ref()
+                    .and_then(|peachpayments| peachpayments.rrn.clone()),
                 pre_auth_inc_ext_capture_flow: get_transaction_operations(item),
                 trace_id: None,
                 transaction_link_id: None,
@@ -581,13 +585,17 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
             None
         };
 
+        let peachpayments_data = get_peachpayments_data(item);
+
         let ecommerce_data =
             EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
                 merchant_information,
                 routing_reference,
                 card,
                 amount: get_amount_details(item),
-                rrn: item.router_data.request.rrn.clone(),
+                rrn: peachpayments_data
+                    .as_ref()
+                    .and_then(|peachpayments| peachpayments.rrn.clone()),
                 pre_auth_inc_ext_capture_flow: get_transaction_operations(item),
                 cof_data,
                 trace_id: None,
@@ -635,11 +643,11 @@ impl
             eci: card_with_limited_details.eci.clone(),
         };
 
-        let card_on_file_transaction_type = item
-            .router_data
-            .request
-            .card_on_file_transaction_type
-            .clone();
+        let peachpayments_data = get_peachpayments_data(item);
+
+        let card_on_file_transaction_type = peachpayments_data
+            .as_ref()
+            .and_then(|peachpayments| peachpayments.card_on_file_transaction_type.clone());
 
         let cof_data = match card_on_file_transaction_type {
             Some(api_models::payments::PeachpaymentsCardOnFileTransactionType::OneOff)
@@ -680,7 +688,9 @@ impl
                 routing_reference,
                 card,
                 amount: get_amount_details(item),
-                rrn: item.router_data.request.rrn.clone(),
+                rrn: peachpayments_data
+                    .as_ref()
+                    .and_then(|peachpayments| peachpayments.rrn.clone()),
                 pre_auth_inc_ext_capture_flow: get_transaction_operations(item),
                 cof_data,
                 trace_id,
@@ -740,13 +750,17 @@ impl
 
         let transaction_link_id = item.router_data.request.get_optional_transaction_link_id();
 
+        let peachpayments_data = get_peachpayments_data(item);
+
         let ecommerce_data =
             EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
                 merchant_information,
                 routing_reference,
                 card,
                 amount: get_amount_details(item),
-                rrn: item.router_data.request.rrn.clone(),
+                rrn: peachpayments_data
+                    .as_ref()
+                    .and_then(|peachpayments| peachpayments.rrn.clone()),
                 pre_auth_inc_ext_capture_flow: get_transaction_operations(item),
                 cof_data,
                 trace_id,
@@ -802,6 +816,8 @@ impl
 
         let transaction_link_id = item.router_data.request.get_optional_transaction_link_id();
 
+        let peachpayments_data = get_peachpayments_data(item);
+
         let ecommerce_data = EcommercePaymentOnlyTransactionData::NetworkToken(
             EcommerceNetworkTokenPaymentOnlyTransactionData {
                 merchant_information,
@@ -813,7 +829,9 @@ impl
                     source: CofSource::Mit,
                     mode: CofMode::Subsequent,
                 },
-                rrn: item.router_data.request.rrn.clone(),
+                rrn: peachpayments_data
+                    .as_ref()
+                    .and_then(|peachpayments| peachpayments.rrn.clone()),
                 pre_auth_inc_ext_capture_flow: get_transaction_operations(item),
                 trace_id,
                 transaction_link_id,
@@ -855,6 +873,16 @@ fn get_amount_details(
         currency_code: item.router_data.request.currency,
         display_amount: None,
     }
+}
+
+fn get_peachpayments_data(
+    item: &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+) -> Option<api_models::payments::PeachpaymentsData> {
+    item.router_data
+        .request
+        .connector_intent_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.peachpayments.clone())
 }
 
 fn get_cof_type(item: &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>) -> CofType {

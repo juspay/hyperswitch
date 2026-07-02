@@ -501,8 +501,6 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         is_stored_credential: None,
         billing_descriptor: None,
         partner_merchant_identifier_details: None,
-        rrn,
-        card_on_file_transaction_type,
         feature_metadata: None,
         installment_details: None,
         connector_intent_metadata: None,
@@ -5114,16 +5112,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let connector_metadata = payment_data.payment_intent.connector_metadata.clone();
 
-        let peachpayments_data = connector_metadata
-            .as_ref()
-            .and_then(|cm| cm.peachpayments.clone());
-        let rrn = peachpayments_data
-            .as_ref()
-            .and_then(|peachpayments| peachpayments.rrn.clone());
-        let card_on_file_transaction_type = peachpayments_data
-            .as_ref()
-            .and_then(|peachpayments| peachpayments.card_on_file_transaction_type.clone());
-
         Ok(Self {
             payment_method_data: payment_method_data
                 .unwrap_or(domain::PaymentMethodData::Card(domain::Card::default())),
@@ -5181,8 +5169,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             is_stored_credential: None,
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
-            rrn,
-            card_on_file_transaction_type,
             feature_metadata: None,
             installment_details: None,
             connector_intent_metadata: None,
@@ -5260,16 +5246,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .and_then(|braintree| braintree.merchant_account_id.clone());
         let merchant_config_currency =
             braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
-
-        let peachpayments_data = connector_metadata
-            .as_ref()
-            .and_then(|cm| cm.peachpayments.clone());
-        let rrn = peachpayments_data
-            .as_ref()
-            .and_then(|peachpayments| peachpayments.rrn.clone());
-        let card_on_file_transaction_type = peachpayments_data
-            .as_ref()
-            .and_then(|peachpayments| peachpayments.card_on_file_transaction_type.clone());
 
         let order_details = additional_data
             .payment_data
@@ -5462,8 +5438,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             partner_merchant_identifier_details: payment_data
                 .payment_intent
                 .partner_merchant_identifier_details,
-            rrn,
-            card_on_file_transaction_type,
             feature_metadata,
             installment_details: payment_data.payment_attempt.installment_data.clone(),
             connector_intent_metadata,
