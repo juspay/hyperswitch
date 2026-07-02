@@ -4246,7 +4246,7 @@ fn convert_from_saved_payment_method_data(
                     card_network: card_details.card_network,
                     card_issuer: card_details.card_issuer,
                     card_type: card_details.card_type,
-                    card_cvc: vault_token.card_cvc,
+                    card_cvc: Some(vault_token.card_cvc),
                     co_badged_card_data: None, // Co-badged data is not supported in external vault
                     bank_code: None,           // Bank code is not stored in external vault
                 },

@@ -549,6 +549,11 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
+    /// Netcetera (external-3DS over VGS) needs no credential config: its mTLS client cert is
+    /// handled on the VGS outbound route and merchant fields ride `connector_feature_data`. UCS
+    /// ignores this header (the `x-auth: no-key` shortcut fires first); it exists only so the
+    /// connector is handled uniformly in the config match rather than via a special-case guard.
+    Netcetera,
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1482,6 +1487,10 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Interpayments requires HeaderKey auth type")),
             },
+            // Netcetera is a no-key connector (mTLS on the VGS outbound route, merchant fields
+            // ride `connector_feature_data`), so it carries no credential config. UCS ignores this
+            // via the `x-auth: no-key` shortcut.
+            Connector::Netcetera => Ok(ConnectorSpecificConfig::Netcetera),
             // --- Unsupported connectors ---
             _ => Err(
                 error_stack::report!(errors::ApiErrorResponse::InternalServerError)
@@ -1503,14 +1512,6 @@ pub fn build_connector_config_header(
     let connector = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| format!("Invalid connector name: {}", connector_name))?;
-
-    // Netcetera (external-3DS over VGS) needs no credential config in the UCS path:
-    // its mTLS client cert is handled on the VGS outbound route, and merchant fields
-    // ride `connector_feature_data`. Omit the `x-connector-config` header so UCS falls
-    // back to the legacy `x-connector` + `x-auth: no-key` routing.
-    if matches!(connector, Connector::Netcetera) {
-        return Ok(None);
-    }
 
     let config = ConnectorSpecificConfig::foreign_try_from((
         connector,

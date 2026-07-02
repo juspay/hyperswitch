@@ -533,7 +533,9 @@ pub struct ExternalVaultCard {
     pub card_number: Secret<String>,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
-    pub card_cvc: Secret<String>,
+    // Optional: present on the SDK-driven confirm, absent on a 3DS-authenticated re-authorize
+    // (the CAVV replaces it) — mirrors the optional CVC on `CardToken` / `VaultCardToken`.
+    pub card_cvc: Option<Secret<String>>,
     pub bin_number: Option<String>,
     pub last_four: Option<String>,
     pub card_issuer: Option<String>,
@@ -2015,7 +2017,7 @@ impl From<api_models::payments::ProxyCardData> for ExternalVaultCard {
             card_number,
             card_exp_month,
             card_exp_year,
-            card_cvc,
+            card_cvc: Some(card_cvc),
             bin_number,
             last_four,
             card_issuer,
@@ -2328,7 +2330,7 @@ impl From<ExternalVaultCard> for payment_methods::ProxyCardDetails {
             card_network: card.card_network,
             card_issuer: card.card_issuer,
             card_type: card.card_type,
-            card_cvc: Some(card.card_cvc),
+            card_cvc: card.card_cvc,
             bin_number: card.bin_number,
             last_four: card.last_four,
         }
