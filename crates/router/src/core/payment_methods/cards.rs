@@ -4970,6 +4970,7 @@ pub async fn list_payment_methods(
                 pms_ctx.connector_supports_installments,
                 extra,
                 &business_profile,
+                customer.as_ref(),
             )
         })
         .transpose()
