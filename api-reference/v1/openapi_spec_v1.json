@@ -30533,6 +30533,11 @@
             ],
             "nullable": true
           },
+          "email": {
+            "type": "string",
+            "description": "The email associated with the payment",
+            "nullable": true
+          },
           "metadata": {
             "type": "object",
             "description": "Additional metadata",
