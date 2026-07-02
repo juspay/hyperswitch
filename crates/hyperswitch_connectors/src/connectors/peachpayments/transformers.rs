@@ -35,6 +35,7 @@ use crate::{
     },
 };
 
+const CHARGE_METHOD: &str = "ecommerce_card_payment_only";
 const CONNECTOR: &str = "Peachpayments";
 
 pub struct PeachpaymentsRouterData<T> {
@@ -61,8 +62,6 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for PeachPaymentsConnectorMetadataO
         Ok(metadata)
     }
 }
-
-const CHARGE_METHOD: &str = "ecommerce_card_payment_only";
 
 // Card Gateway API Transaction Request
 #[derive(Debug, Serialize, PartialEq)]
@@ -525,9 +524,7 @@ impl
                     },
                     mode: CofMode::Initial,
                 },
-                rrn: peachpayments_data
-                    .as_ref()
-                    .and_then(|peachpayments| peachpayments.rrn.clone()),
+                rrn: get_rrn(&peachpayments_data),
                 pre_auth_inc_ext_capture_flow: get_transaction_operations(item),
                 trace_id: None,
                 transaction_link_id: None,
@@ -593,9 +590,7 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
                 routing_reference,
                 card,
                 amount: get_amount_details(item),
-                rrn: peachpayments_data
-                    .as_ref()
-                    .and_then(|peachpayments| peachpayments.rrn.clone()),
+                rrn: get_rrn(&peachpayments_data),
                 pre_auth_inc_ext_capture_flow: get_transaction_operations(item),
                 cof_data,
                 trace_id: None,
@@ -688,9 +683,7 @@ impl
                 routing_reference,
                 card,
                 amount: get_amount_details(item),
-                rrn: peachpayments_data
-                    .as_ref()
-                    .and_then(|peachpayments| peachpayments.rrn.clone()),
+                rrn: get_rrn(&peachpayments_data),
                 pre_auth_inc_ext_capture_flow: get_transaction_operations(item),
                 cof_data,
                 trace_id,
@@ -758,9 +751,7 @@ impl
                 routing_reference,
                 card,
                 amount: get_amount_details(item),
-                rrn: peachpayments_data
-                    .as_ref()
-                    .and_then(|peachpayments| peachpayments.rrn.clone()),
+                rrn: get_rrn(&peachpayments_data),
                 pre_auth_inc_ext_capture_flow: get_transaction_operations(item),
                 cof_data,
                 trace_id,
@@ -829,9 +820,7 @@ impl
                     source: CofSource::Mit,
                     mode: CofMode::Subsequent,
                 },
-                rrn: peachpayments_data
-                    .as_ref()
-                    .and_then(|peachpayments| peachpayments.rrn.clone()),
+                rrn: get_rrn(&peachpayments_data),
                 pre_auth_inc_ext_capture_flow: get_transaction_operations(item),
                 trace_id,
                 transaction_link_id,
@@ -883,6 +872,12 @@ fn get_peachpayments_data(
         .connector_intent_metadata
         .as_ref()
         .and_then(|metadata| metadata.peachpayments.clone())
+}
+
+fn get_rrn(peachpayments_data: &Option<api_models::payments::PeachpaymentsData>) -> Option<String> {
+    peachpayments_data
+        .as_ref()
+        .and_then(|peachpayments| peachpayments.rrn.clone())
 }
 
 fn get_cof_type(item: &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>) -> CofType {
