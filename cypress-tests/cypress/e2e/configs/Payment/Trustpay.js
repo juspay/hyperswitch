@@ -542,18 +542,15 @@ export const connectorDetails = {
       },
     },
     SessionToken: {
+      Request: {
+        wallets: ["apple_pay", "google_pay"],
+      },
       Response: {
         status: 200,
         body: {
           session_token: [
-            {
-              wallet_name: "apple_pay",
-              connector: "trustpay",
-            },
-            {
-              wallet_name: "google_pay",
-              connector: "trustpay",
-            },
+            { wallet_name: "apple_pay", connector: "trustpay" },
+            { wallet_name: "google_pay", connector: "trustpay" },
           ],
         },
       },
@@ -906,6 +903,84 @@ export const connectorDetails = {
       path: "PaymentInformation.References.MerchantReference",
       type: "string",
       source: "paymentAttemptID",
+    },
+  },
+  wallet_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    DelayedSessionToken: {
+      Request: {
+        wallets: ["apple_pay", "google_pay"],
+      },
+      Response: {
+        status: 200,
+        body: {
+          session_token: [
+            {
+              wallet_name: "apple_pay",
+              connector: "trustpay",
+              delayed_session_token: true,
+              sdk_next_action: {
+                next_action: "confirm",
+                should_block_confirm: null,
+              },
+            },
+            {
+              wallet_name: "google_pay",
+              connector: "trustpay",
+              delayed_session_token: true,
+              sdk_next_action: {
+                next_action: "confirm",
+                should_block_confirm: null,
+              },
+            },
+          ],
+        },
+      },
+    },
+    DelayedSessionTokenMissingClientSecret: {
+      Request: {
+        wallets: ["apple_pay", "google_pay"],
+        client_secret: null,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+            message: "Missing required param: client_secret",
+          },
+        },
+      },
+    },
+    DelayedSessionTokenInvalidPaymentId: {
+      Request: {
+        wallets: ["apple_pay", "google_pay"],
+        payment_id: "pay_nonexistent12345",
+        client_secret: "pay_nonexistent12345_secret_xyz",
+      },
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "HE_02",
+            message: "Payment does not exist in our records",
+          },
+        },
+      },
     },
   },
 };
