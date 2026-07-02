@@ -28,7 +28,8 @@ env:
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_2: "paypal redsys zift"
   EXTENDED_PAYOUTS_CONNECTORS: "adyenplatform wise"
   MOCK_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat zift loonio cashtocode"
-  MOCK_PAYMENTS_CONNECTORS_BATCH_2: "redsys braintree worldpayxml stripe" 
+  MOCK_PAYMENTS_CONNECTORS_BATCH_2: "redsys worldpayxml cybersource braintree fiuu stripe"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_3: "nmi"
   MOCK_PAYOUTS_CONNECTORS: "adyenplatform wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -757,9 +758,18 @@ jobs:
                   "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_2}"'",
                   "payouts_connectors": "",
                   "platform_connectors": "",
-                  "parallel": 4,
+                  "parallel": 6,
                   "report_artifact_name": "cypress-mock-test-results-payments-batch-2",
                   "server_logs_artifact": "mock-server-logs-payments-batch-2"
+                },
+                {
+                  "name": "mock-payments-batch-3",
+                  "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_3}"'",
+                  "payouts_connectors": "",
+                  "platform_connectors": "",
+                  "parallel": 2,
+                  "report_artifact_name": "cypress-mock-test-results-payments-batch-3",
+                  "server_logs_artifact": "mock-server-logs-payments-batch-3"
                 }
               ]
             }'
