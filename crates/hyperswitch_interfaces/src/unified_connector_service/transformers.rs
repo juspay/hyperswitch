@@ -253,6 +253,47 @@ pub struct ConnectorErrorInner {
     pub network_error_message: Option<String>,
 }
 
+/// Map the UCS gRPC split response (connected-account / split-payment charge
+/// details returned on sync) back into the hyperswitch `ConnectorChargeResponseData`
+/// so the `charges` field on the synced payment matches the direct (non-UCS) path.
+fn convert_connector_charge_response(
+    splits: payments_grpc::ConnectorSplitResponseData,
+) -> Option<common_types::payments::ConnectorChargeResponseData> {
+    use payments_grpc::connector_split_response_data::SplitResponseType;
+
+    match splits.split_response_type? {
+        SplitResponseType::StripeSplitResponse(stripe) => {
+            let charge_type = match stripe.charge_type() {
+                payments_grpc::PaymentChargeType::StripeDestination => {
+                    common_enums::PaymentChargeType::Stripe(
+                        common_enums::StripeChargeType::Destination,
+                    )
+                }
+                // STRIPE_DIRECT and the unspecified default both map to Direct.
+                _ => {
+                    common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct)
+                }
+            };
+            Some(
+                common_types::payments::ConnectorChargeResponseData::StripeSplitPayment(
+                    common_types::payments::StripeChargeResponseData {
+                        charge_id: stripe.charge_id,
+                        charge_type,
+                        application_fees: stripe
+                            .application_fees
+                            .map(common_utils::types::MinorUnit::new),
+                        transfer_account_id: stripe.transfer_account_id,
+                        on_behalf_of: stripe.on_behalf_of,
+                    },
+                ),
+            )
+        }
+        // Adyen split-charge response mapping is not yet wired on the UCS shadow
+        // path; falls back to None (matches prior behavior, no regression).
+        SplitResponseType::AdyenSplitResponse(_) => None,
+    }
+}
+
 impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
@@ -358,7 +399,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                     connector_response_reference_id: response.merchant_transaction_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
-                    charges: None,
+                    charges: response.splits.and_then(convert_connector_charge_response),
                 },
                 status,
             ))
