@@ -13282,6 +13282,7 @@ pub async fn payments_manual_status_update(
     let intent_update = storage::PaymentIntentUpdate::ManualUpdate {
         status: Some(intent_status),
         updated_by: merchant_account.storage_scheme.to_string(),
+        amount_captured: None,
     };
 
     state
