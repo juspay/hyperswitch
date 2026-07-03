@@ -405,20 +405,13 @@ export function createMerchantConnectorAccount(
 }
 
 function getMultipleConnectorCredentialValues(globalState) {
-  const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
+  const connectorCount = globalState.get("MULTIPLE_CONNECTORS")?.count || 0;
   const firstAdditionalConnectorIndex = 2;
   const getConnectorCredentialValue = (connectorIndex) =>
     `connector_${connectorIndex}`;
 
-  if (
-    !multipleConnectors?.status ||
-    multipleConnectors.count < firstAdditionalConnectorIndex
-  ) {
-    return [];
-  }
-
   return Array.from(
-    { length: multipleConnectors.count - firstAdditionalConnectorIndex + 1 },
+    { length: connectorCount - firstAdditionalConnectorIndex + 1 },
     (_, index) =>
       getConnectorCredentialValue(index + firstAdditionalConnectorIndex)
   );
