@@ -10620,3 +10620,204 @@ Cypress.Commands.add("retrieveNonExistentPayoutTest", (globalState) => {
     expect(response.status).to.equal(404);
   });
 });
+
+/**
+ * Creates an acquirer configuration for a business profile.
+ *
+ * POST /profile_acquirer
+ *
+ * @param {Object} requestBody  - Acquirer config fields (profile_id is set from globalState on success)
+ * @param {Object} globalState  - Global state instance
+ * @param {number} expectedStatus - Expected HTTP status (default 200)
+ * @param {string} profilePrefix - globalState key prefix for profileId (default "profile")
+ */
+Cypress.Commands.add(
+  "createAcquirerConfigTest",
+  (
+    requestBody,
+    globalState,
+    expectedStatus = 200,
+    profilePrefix = "profile"
+  ) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+
+    if (expectedStatus === 200) {
+      requestBody.profile_id = globalState.get(`${profilePrefix}Id`);
+    }
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/profile_acquirer`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: requestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
+        if (expectedStatus === 200) {
+          globalState.set(
+            "profileAcquirerId",
+            response.body.profile_acquirer_id
+          );
+          expect(response.body).to.have.property("profile_acquirer_id");
+          expect(response.body.profile_id).to.equal(
+            globalState.get(`${profilePrefix}Id`)
+          );
+          expect(response.body.network).to.equal(requestBody.network);
+          expect(response.body.acquirer_assigned_merchant_id).to.equal(
+            requestBody.acquirer_assigned_merchant_id
+          );
+          expect(response.body.merchant_name).to.equal(
+            requestBody.merchant_name
+          );
+          expect(response.body.acquirer_bin).to.equal(requestBody.acquirer_bin);
+          if (requestBody.acquirer_ica !== undefined) {
+            expect(response.body.acquirer_ica).to.equal(
+              requestBody.acquirer_ica
+            );
+          }
+          if (requestBody.acquirer_fraud_rate !== undefined) {
+            expect(response.body.acquirer_fraud_rate).to.equal(
+              requestBody.acquirer_fraud_rate
+            );
+          }
+          expect(response.body.acquirer_country_code).to.equal("840");
+          if (requestBody.is_default !== undefined) {
+            expect(response.body.is_default).to.equal(requestBody.is_default);
+          }
+        } else {
+          expect(response.body.error).to.exist;
+          if (expectedStatus === 404) {
+            expect(response.body.error.code).to.equal("HE_02");
+          } else if (expectedStatus === 422) {
+            expect(response.body.error.code).to.equal("IR_06");
+          }
+        }
+      });
+    });
+  }
+);
+
+/**
+ * Updates an existing acquirer configuration.
+ *
+ * POST /profile_acquirer/{profile_id}/{profile_acquirer_id}
+ *
+ * @param {Object} requestBody  - Fields to update (must include `network` unless only changing is_default)
+ * @param {Object} globalState  - Global state instance
+ * @param {number} expectedStatus - Expected HTTP status (default 200)
+ * @param {string} profilePrefix - globalState key prefix for profileId (default "profile")
+ * @param {string|null} profileAcquirerIdOverride - Override for profileAcquirerId (for error cases)
+ */
+Cypress.Commands.add(
+  "updateAcquirerConfigTest",
+  (
+    requestBody,
+    globalState,
+    expectedStatus = 200,
+    profilePrefix = "profile",
+    profileAcquirerIdOverride = null
+  ) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+    const profileAcquirerId =
+      profileAcquirerIdOverride || globalState.get("profileAcquirerId");
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/profile_acquirer/${profileId}/${profileAcquirerId}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: requestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
+        if (expectedStatus === 200) {
+          expect(response.body.profile_acquirer_id).to.equal(profileAcquirerId);
+          expect(response.body.profile_id).to.equal(profileId);
+          expect(response.body.network).to.equal(requestBody.network);
+          expect(response.body.acquirer_assigned_merchant_id).to.equal(
+            requestBody.acquirer_assigned_merchant_id
+          );
+          expect(response.body.merchant_name).to.equal(
+            requestBody.merchant_name
+          );
+          expect(response.body.acquirer_bin).to.equal(requestBody.acquirer_bin);
+          if (requestBody.acquirer_ica !== undefined) {
+            expect(response.body.acquirer_ica).to.equal(
+              requestBody.acquirer_ica
+            );
+          }
+          if (requestBody.acquirer_fraud_rate !== undefined) {
+            expect(response.body.acquirer_fraud_rate).to.equal(
+              requestBody.acquirer_fraud_rate
+            );
+          }
+          expect(response.body.acquirer_country_code).to.equal("840");
+          if (requestBody.is_default !== undefined) {
+            expect(response.body.is_default).to.equal(requestBody.is_default);
+          }
+        } else {
+          expect(response.body.error).to.exist;
+          if (expectedStatus === 404) {
+            expect(response.body.error.code).to.equal("HE_02");
+          } else if (expectedStatus === 422) {
+            expect(response.body.error.code).to.equal("IR_06");
+          }
+        }
+      });
+    });
+  }
+);
+
+/**
+ * Retrieves a specific business profile by id.
+ *
+ * GET /account/{merchant_id}/business_profile/{profile_id}
+ *
+ * @param {Object} globalState  - Global state instance
+ * @param {string} profilePrefix - globalState key prefix for profileId (default "profile")
+ * @returns {Cypress.Chainable} - The response object for spec-level assertions
+ */
+Cypress.Commands.add(
+  "retrieveBusinessProfileTest",
+  (globalState, profilePrefix = "profile") => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+
+    return cy
+      .request({
+        method: "GET",
+        url: `${baseUrl}/account/${merchantId}/business_profile/${profileId}`,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        expect(response.status).to.equal(200);
+        return cy.wrap(response);
+      });
+  }
+);
