@@ -2,6 +2,31 @@ import { getCustomExchange } from "./Modifiers";
 
 export const connectorDetails = {
   pay_later_pm: {
+    AutoCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    ManualCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    Klarna: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    CaptureOnWrongStatus: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    ConfirmWithoutPmData: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     PaymentIntent: (_paymentMethodType) =>
       getCustomExchange({
