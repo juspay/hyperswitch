@@ -215,10 +215,7 @@ impl Platform {
     pub fn get_processor(&self) -> &Processor {
         &self.processor
     }
-
-    /// The provider viewed as a `Processor`, for looking up provider-owned connectors (e.g. vault
-    /// connectors, which must live on platform/standard merchants). Equals `get_processor()` for a
-    /// standard merchant.
+    
     pub fn get_provider_as_processor(&self) -> Processor {
         Processor::new(
             self.provider.get_account().clone(),
