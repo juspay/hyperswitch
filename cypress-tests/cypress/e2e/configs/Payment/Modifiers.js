@@ -17,6 +17,7 @@ function normalize(input) {
     cybersource: "Cybersource",
     datatrans: "Datatrans",
     facilitapay: "Facilitapay",
+    helcim: "Helcim",
     noon: "Noon",
     paybox: "Paybox",
     paypal: "Paypal",

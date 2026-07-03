@@ -2896,7 +2896,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             };
                 let updated_authentication = state
                     .store
-                    .update_authentication_by_merchant_id_authentication_id(
+                    .update_authentication_by_processor_merchant_id_authentication_id(
                         authentication_store.authentication,
                         authentication_update,
                         processor.get_key_store(),

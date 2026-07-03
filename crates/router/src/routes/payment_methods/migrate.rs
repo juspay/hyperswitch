@@ -460,12 +460,13 @@ impl MigrationBatch<EligibilityVerified> {
                                 )
                                 .await
                             {
-                                Ok(customer) => {
-                                    customer.get_global_customer_id().clone().ok_or_else(|| {
+                                Ok(customer) => customer
+                                    .get_global_id()
+                                    .map(|id| id.get_string_repr().to_owned())
+                                    .ok_or_else(|| {
                                         "Customer global id is required for fingerprint migration"
                                             .to_string()
-                                    })
-                                }
+                                    }),
                                 Err(error) => {
                                     Err(format!("Failed to fetch customer record: {error:?}"))
                                 }

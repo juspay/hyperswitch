@@ -39,6 +39,7 @@ import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
+import { connectorDetails as helcimConnectorDetails } from "./Helcim.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
@@ -120,6 +121,7 @@ const connectorDetails = {
   getnet: getnetConnectorDetails,
   gigadat: gigadatConnectorDetails,
   globalpay: globalpayConnectorDetails,
+  helcim: helcimConnectorDetails,
   hipay: hipayConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
@@ -473,7 +475,9 @@ export const CONNECTOR_LISTS = {
       "loonio",
       "redsys",
       "worldpayxml",
+      "helcim",
     ],
+    SAVE_CARD: ["helcim"],
     // Add more exclusion lists
   },
 
@@ -561,8 +565,8 @@ export const CONNECTOR_LISTS = {
       "paypal",
     ],
     MIFINITY_WALLET: ["mifinity"],
-    ALIPAY_WALLET: ["multisafepay"],
-    WECHATPAY_WALLET: ["multisafepay"],
+    ALIPAY_WALLET: ["stripe", "multisafepay"],
+    WECHATPAY_WALLET: ["stripe", "multisafepay"],
     MBWAY_WALLET: ["multisafepay"],
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
@@ -616,6 +620,9 @@ export const CONNECTOR_LISTS = {
     GIFT_CARD: ["adyen"],
     VOUCHER: ["adyen", "dlocal"],
     RELAY_OPERATIONS: ["bankofamerica"],
+    AMAZONPAY_WALLET: ["stripe"],
+    CASHAPP_WALLET: ["stripe"],
+    REVOLUTPAY_WALLET: ["stripe"],
     PAY_LATER: [
       "klarna",
       "adyen",
@@ -677,6 +684,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
+    PAYOUT_PRIORITY: ["adyenplatform"],
     DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
     // Add more inclusion lists
@@ -740,4 +748,58 @@ function coerceValue(value, type) {
     default:
       return value;
   }
+}
+
+export function stampPaymentMethodType(scenarios, paymentMethodType) {
+  const cloned = JSON.parse(JSON.stringify(scenarios));
+  for (const scenario of Object.values(cloned)) {
+    if (scenario.Request && typeof scenario.Request === "object") {
+      scenario.Request.payment_method_type = paymentMethodType;
+    }
+  }
+  return cloned;
+}
+
+// Rotate cards to avoid Helcim's duplicate-decline window.
+// Helcim has strict idempotency rules which include identifying card number,
+// cardholder name, etc. If they are found in any retry within 5 minutes of a
+// previous transaction it will be marked as a duplicate. Therefore we rotate
+// the cards and try to deny retries.
+const helcimTestCards = [
+  "4111111111111111",
+  "4000000000000002",
+  "4242424242424242",
+  "4012888888881881",
+  "4000056655665556",
+  "4532015112830366",
+  "4000000000000127",
+  "4000000000000119",
+  "4111111111111129",
+  "4111111111111137",
+  "4111111111111145",
+  "4111111111111152",
+  "4000000000000259",
+  "4000000000003238",
+  "5555555555554444",
+  "5105105105105100",
+  "5200828282828210",
+  "5100000000000008",
+  "4111111111111160",
+  "4000000000000340",
+];
+
+export function injectHelcimTestCard(body, globalState) {
+  if (globalState.get("connectorId") !== "helcim") return;
+  if (!body.payment_method_data?.card) return;
+
+  const testOffset = globalState.get("helcimCardIndex") ?? 0;
+  const timeOffset = Math.floor(Date.now() / 1000) % helcimTestCards.length;
+  const idx = (timeOffset + testOffset) % helcimTestCards.length;
+  globalState.set("helcimCardIndex", testOffset + 1);
+
+  const ts = Date.now();
+  const rnd = Math.floor(Math.random() * 100000);
+  const uniqueSuffix = `${ts.toString(36)}_${rnd}`;
+  body.payment_method_data.card.card_number = helcimTestCards[idx];
+  body.payment_method_data.card.card_holder_name = `HelcimTest ${uniqueSuffix}`;
 }
