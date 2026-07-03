@@ -1083,6 +1083,49 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Create Access Token Granular for payouts
+    ///
+    /// Identical to [`Self::create_access_token`] but attaches the payout connector
+    /// header (`x-payout-connector`) so the merchant-authentication flow resolves the
+    /// payout connector variant instead of the payment one.
+    pub async fn create_access_token_for_payouts(
+        &self,
+        create_access_token_request: payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<
+            payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
+    > {
+        let mut request = tonic::Request::new(create_access_token_request);
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata = build_unified_connector_service_grpc_headers_for_payouts(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
+        *request.metadata_mut() = metadata;
+
+        self.merchant_authentication_service_client
+            .clone()
+            .create_server_authentication_token(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="create_server_authentication_token_for_payouts",
+                    connector_name=?connector_name,
+                    "UCS create server authentication token gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payout Transfer
     pub async fn payout_transfer(
         &self,

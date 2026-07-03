@@ -102,20 +102,48 @@ where
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
-        let merchant_reference_id = unified_connector_service::parse_merchant_reference_id(
-            header_payload
-                .x_reference_id
-                .as_deref()
-                .unwrap_or(router_data.payment_id.as_str()),
-        )
-        .map(ucs_types::UcsReferenceId::Payment);
+        // A merchant-authentication (access-token) call can originate from either a
+        // payment or a payout. When it is a payout, attach the payout reference/resource
+        // ids so the downstream call carries the real payout reference and (via the
+        // payout gRPC client) resolves the payout connector variant.
+        let is_payout = router_data.payout_id.is_some();
 
-        let resource_id = id_type::PaymentResourceId::from_str(router_data.attempt_id.as_str())
-            .inspect_err(
-                |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
-            )
-            .ok()
-            .map(ucs_types::UcsResourceId::PaymentAttempt);
+        let (merchant_reference_id, resource_id) =
+            if let Some(payout_id) = router_data.payout_id.as_deref() {
+                let merchant_reference_id =
+                    unified_connector_service::parse_merchant_payout_reference_id(
+                        header_payload.x_reference_id.as_deref().unwrap_or(payout_id),
+                    )
+                    .map(ucs_types::UcsReferenceId::Payout);
+
+                let resource_id =
+                    id_type::PayoutResourceId::from_str(router_data.attempt_id.as_str())
+                        .inspect_err(|err| {
+                            logger::warn!(error=?err, "Invalid Payout AttemptId for UCS resource id")
+                        })
+                        .ok()
+                        .map(ucs_types::UcsResourceId::PayoutAttempt);
+
+                (merchant_reference_id, resource_id)
+            } else {
+                let merchant_reference_id = unified_connector_service::parse_merchant_reference_id(
+                    header_payload
+                        .x_reference_id
+                        .as_deref()
+                        .unwrap_or(router_data.payment_id.as_str()),
+                )
+                .map(ucs_types::UcsReferenceId::Payment);
+
+                let resource_id =
+                    id_type::PaymentResourceId::from_str(router_data.attempt_id.as_str())
+                        .inspect_err(|err| {
+                            logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id")
+                        })
+                        .ok()
+                        .map(ucs_types::UcsResourceId::PaymentAttempt);
+
+                (merchant_reference_id, resource_id)
+            };
 
         let header_payload = state
             .get_grpc_headers_ucs(unified_connector_service_execution_mode)
@@ -131,14 +159,24 @@ where
             header_payload,
             unified_connector_service_execution_mode,
             |mut router_data, create_access_token_request, grpc_headers| async move {
-                let response = client
-                    .create_access_token(
-                        create_access_token_request,
-                        connector_auth_metadata,
-                        grpc_headers,
-                    )
-                    .await
-                    .attach_printable("Failed to create access token")?;
+                let response = if is_payout {
+                    client
+                        .create_access_token_for_payouts(
+                            create_access_token_request,
+                            connector_auth_metadata,
+                            grpc_headers,
+                        )
+                        .await
+                } else {
+                    client
+                        .create_access_token(
+                            create_access_token_request,
+                            connector_auth_metadata,
+                            grpc_headers,
+                        )
+                        .await
+                }
+                .attach_printable("Failed to create access token")?;
 
                 let create_access_token_response = response.into_inner();
 
