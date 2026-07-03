@@ -17,7 +17,7 @@ describe("Acquirer-specific configurations", () => {
   context(
     "Create, Update, and Verify Visa Acquirer Config (is_default=true)",
     () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       beforeEach(function () {
         if (!shouldContinue) {
@@ -70,7 +70,7 @@ describe("Acquirer-specific configurations", () => {
   );
 
   context("Error Cases — Update (requires existing Visa acquirer)", () => {
-    let shouldContinue = true;
+    const shouldContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue || !globalState.get("profileAcquirerId")) {
@@ -102,7 +102,7 @@ describe("Acquirer-specific configurations", () => {
   context(
     "Create Second Acquirer Config (Mastercard, is_default=false)",
     () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       beforeEach(function () {
         if (!shouldContinue || !globalState.get("profileId")) {
@@ -136,7 +136,7 @@ describe("Acquirer-specific configurations", () => {
   );
 
   context("Error Cases — Create (independent)", () => {
-    let shouldContinue = true;
+    const shouldContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue) {
