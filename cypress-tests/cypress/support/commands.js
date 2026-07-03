@@ -37,12 +37,16 @@ import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import { handleRedirection } from "./redirectionHandler";
-
-// In MITM replay mode (MOCK_SERVER=true) there is no live browser redirection
-// to drive. Cypress.env may return a boolean or a string, hence String().
-function isMockServer() {
-  return String(Cypress.env("MOCK_SERVER")) === "true";
-}
+import {
+  isMockServer,
+  isRecordMode,
+  isReplayMode,
+  mockRecord3ds,
+  mockRecordBankRedirect,
+  mockReplay3ds,
+  mockReplayBankRedirect,
+  resetMitmRedirectSeq,
+} from "./mitmProxy";
 
 // Returns true (after logging a consistent skip line) when a redirection
 // command should bail out early because we're in replay mode.
@@ -493,155 +497,6 @@ function cleanupProcessedRequestIds(
 const EXPECTED_ALGORITHM = "HMAC-SHA512";
 const HASH_ALGO = "sha512";
 const SIGNATURE_HEX_LENGTH = 128;
-
-const _redirectReadCount = {};
-
-const JS_IFRAME_CONNECTORS = {
-  stripe: {
-    path: "redirect/response",
-    params: (gs) => ({
-      payment_intent: gs.get("connectorTransactionID"),
-      redirect_status: "succeeded",
-    }),
-  },
-  stripeconnect: {
-    path: "redirect/response",
-    params: (gs) => ({
-      payment_intent: gs.get("connectorTransactionID"),
-      redirect_status: "succeeded",
-    }),
-  },
-};
-
-function nextRedirectSeq(testIdHash) {
-  _redirectReadCount[testIdHash] = (_redirectReadCount[testIdHash] || 0) + 1;
-  return String(_redirectReadCount[testIdHash]).padStart(3, "0");
-}
-
-function getRedirectBodyFile(connectorId, testIdHash, seq) {
-  const captureDir = Cypress.env("CAPTURE_DIR");
-  return `${captureDir}/${connectorId}/Payment/redirect-bodies/${testIdHash}-${seq}-redirect-body.json`;
-}
-
-function reserveRedirectRid(adminUrl, testIdHash, paymentId, stepOffset) {
-  const currentStep = Cypress._getStepCounter ? Cypress._getStepCounter() : 0;
-  const rid = `${testIdHash}-${String(currentStep + stepOffset).padStart(3, "0")}`;
-  cy.request({
-    method: "POST",
-    url: `${adminUrl}/reserve`,
-    body: { rid, testIdHash, paymentId },
-    failOnStatusCode: false,
-    timeout: 2000,
-  });
-}
-
-function replayRedirectBody(saved, paymentId, merchantId, notificationUrl) {
-  const hyperswitchUrl =
-    Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
-  if (saved && saved.__redirect_method === "GET") {
-    const qs = new URLSearchParams(saved.__query || {}).toString();
-    const base = saved.__redirect_segment
-      ? `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`
-      : notificationUrl;
-    cy.request({
-      method: "GET",
-      url: qs ? `${base}?${qs}` : base,
-      failOnStatusCode: false,
-      followRedirect: false,
-    });
-  } else if (saved) {
-    const postBody =
-      saved.__redirect_method === "POST" && saved.__body ? saved.__body : saved;
-    const postUrl = saved.__redirect_segment
-      ? `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`
-      : notificationUrl;
-    cy.request({
-      method: "POST",
-      url: postUrl,
-      form: true,
-      body: postBody,
-      failOnStatusCode: false,
-      followRedirect: false,
-    });
-  } else {
-    cy.then(() => {
-      if (Cypress._buildRequestId) Cypress._buildRequestId();
-    });
-  }
-}
-
-function replayJsConnectorRedirect(
-  jsConnector,
-  saved,
-  paymentId,
-  merchantId,
-  globalState
-) {
-  const hyperswitchUrl =
-    Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
-  if (saved && saved.__redirect_method === "GET" && saved.__redirect_segment) {
-    const url = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`;
-    const qs = new URLSearchParams(saved.__query || {}).toString();
-    cy.request({
-      method: "GET",
-      url: qs ? `${url}?${qs}` : url,
-      failOnStatusCode: false,
-      followRedirect: false,
-    });
-  } else {
-    const returnUrl = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${jsConnector.path}/${globalState.get("connectorId")}`;
-    const params = jsConnector.params(globalState);
-    const hasValues = Object.values(params).every(
-      (v) => v !== undefined && v !== null
-    );
-    if (hasValues) {
-      const qs = new URLSearchParams(params).toString();
-      cy.request({
-        method: "GET",
-        url: `${returnUrl}?${qs}`,
-        failOnStatusCode: false,
-        followRedirect: false,
-      });
-    } else {
-      cy.then(() => {
-        if (Cypress._buildRequestId) Cypress._buildRequestId();
-      });
-    }
-  }
-}
-
-function replayRedirectInMockServer(
-  connectorId,
-  globalState,
-  redirectBodyFile,
-  notificationUrl,
-  { preRequest } = {}
-) {
-  const paymentId = globalState.get("paymentID");
-  const merchantId = globalState.get("merchantId");
-  const jsConnector = JS_IFRAME_CONNECTORS[connectorId];
-
-  if (preRequest) {
-    preRequest();
-  }
-
-  if (jsConnector) {
-    cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
-      replayJsConnectorRedirect(
-        jsConnector,
-        saved,
-        paymentId,
-        merchantId,
-        globalState
-      );
-    });
-    return;
-  }
-
-  cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
-    replayRedirectBody(saved, paymentId, merchantId, notificationUrl);
-  });
-}
 
 function resolveAlgorithm(signatureAlgorithm) {
   expect(
@@ -5287,9 +5142,9 @@ Cypress.Commands.add(
   "handleRedirection",
   (globalState, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
-    // Cassettes recorded from a non-3DS scenario won't carry a
-    // next_action URL; fall back to example.com so replay can still
-    // burn the step-counter slot and reach later assertions.
+    // Cassettes recorded from a non-3DS scenario won't carry a next_action
+    // URL; fall back to example.com so replay can still burn the step-counter
+    // slot and reach later assertions.
     let nextActionUrl = globalState.get("nextActionUrl");
     if (!nextActionUrl) {
       cy.task(
@@ -5299,67 +5154,25 @@ Cypress.Commands.add(
       nextActionUrl = "https://example.com";
     }
 
-    const redirectProxyActive = !!Cypress.env("REDIRECT_PROXY_ADMIN_URL");
-    const isProxyEnabled = String(Cypress.env("IS_PROXY_ENABLED")) === "true";
-
-    if (redirectProxyActive && !isMockServer()) {
-      const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
-      const redirectProxyAdminUrl = Cypress.env("REDIRECT_PROXY_ADMIN_URL");
-      const paymentId = globalState.get("paymentID");
-
-      reserveRedirectRid(redirectProxyAdminUrl, testIdHash, paymentId, 2);
-
-      const expectedUrl = new URL(expectedRedirection);
-      const redirectionUrl = new URL(nextActionUrl);
-      handleRedirection(
-        "three_ds",
-        { redirectionUrl, expectedUrl },
-        connectorId,
-        globalState.get("paymentMethodType")
+    if (isRecordMode()) {
+      mockRecord3ds(
+        globalState,
+        nextActionUrl,
+        expectedRedirection,
+        handleRedirection
       );
-      cy.then(() => {
-        if (Cypress._buildRequestId) Cypress._buildRequestId();
-      });
       return;
     }
 
-    if (isProxyEnabled && isMockServer()) {
-      const baseUrl = globalState.get("baseUrl");
-      const paymentId = globalState.get("paymentID");
-      const merchantId = globalState.get("merchantId");
-      const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
-      const seq = nextRedirectSeq(testIdHash);
-      const redirectBodyFile = getRedirectBodyFile(
-        connectorId,
-        testIdHash,
-        seq
-      );
-      const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
-
-      replayRedirectInMockServer(
-        connectorId,
-        globalState,
-        redirectBodyFile,
-        notificationUrl,
-        {
-          preRequest: () =>
-            cy.request({
-              url: nextActionUrl,
-              failOnStatusCode: false,
-              followRedirect: false,
-            }),
-        }
-      );
+    if (isReplayMode()) {
+      mockReplay3ds(globalState, connectorId, nextActionUrl);
       return;
     }
 
     if (isMockServer()) {
-      // In MITM replay mode the ThreeDS browser flow is skipped.  Consume one
-      // cy.request slot so the Cypress step counter stays aligned with how the
-      // cassettes were recorded (threeDsRedirection() always issues one request
-      // before starting browser navigation).  The force_sync Retrieve that
-      // follows will call Stripe PSync, receive "requires_capture" from the
-      // cassette, and HS transitions the payment state automatically.
+      // Consume one cy.request slot so the step counter stays aligned with
+      // how cassettes were recorded (threeDsRedirection always issues one
+      // request before browser navigation).
       if (Cypress.env("PROXY_ADMIN_URL")) {
         cy.request({
           url: nextActionUrl,
@@ -5370,11 +5183,12 @@ Cypress.Commands.add(
       return;
     }
 
-    const expectedUrl = new URL(expectedRedirection);
-    const redirectionUrl = new URL(nextActionUrl);
     handleRedirection(
       "three_ds",
-      { redirectionUrl, expectedUrl },
+      {
+        redirectionUrl: new URL(nextActionUrl),
+        expectedUrl: new URL(expectedRedirection),
+      },
       connectorId,
       globalState.get("paymentMethodType")
     );
@@ -5387,55 +5201,25 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
-    const redirectProxyActive = !!Cypress.env("REDIRECT_PROXY_ADMIN_URL");
-    const isProxyEnabled = String(Cypress.env("IS_PROXY_ENABLED")) === "true";
-
     // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
     // trying to handle that specific case results in stripe 3ds tests to fail
     if (connectorId === "adyen" && paymentMethodType === "sofort") {
       return;
     }
 
-    if (redirectProxyActive && !isMockServer()) {
-      const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
-      const redirectProxyAdminUrl = Cypress.env("REDIRECT_PROXY_ADMIN_URL");
-      const paymentId = globalState.get("paymentID");
-
-      reserveRedirectRid(redirectProxyAdminUrl, testIdHash, paymentId, 1);
-
-      const expectedUrl = new URL(expectedRedirection);
-      const redirectionUrl = new URL(nextActionUrl);
-      handleRedirection(
-        "bank_redirect",
-        { redirectionUrl, expectedUrl },
-        connectorId,
-        paymentMethodType
+    if (isRecordMode()) {
+      mockRecordBankRedirect(
+        globalState,
+        nextActionUrl,
+        expectedRedirection,
+        paymentMethodType,
+        handleRedirection
       );
-      cy.then(() => {
-        if (Cypress._buildRequestId) Cypress._buildRequestId();
-      });
       return;
     }
 
-    if (isProxyEnabled && isMockServer()) {
-      const baseUrl = globalState.get("baseUrl");
-      const paymentId = globalState.get("paymentID");
-      const merchantId = globalState.get("merchantId");
-      const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
-      const seq = nextRedirectSeq(testIdHash);
-      const redirectBodyFile = getRedirectBodyFile(
-        connectorId,
-        testIdHash,
-        seq
-      );
-      const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
-
-      replayRedirectInMockServer(
-        connectorId,
-        globalState,
-        redirectBodyFile,
-        notificationUrl
-      );
+    if (isReplayMode()) {
+      mockReplayBankRedirect(globalState, connectorId);
       return;
     }
 
@@ -5443,11 +5227,12 @@ Cypress.Commands.add(
       return;
     }
 
-    const expectedUrl = new URL(expectedRedirection);
-    const redirectionUrl = new URL(nextActionUrl);
     handleRedirection(
       "bank_redirect",
-      { redirectionUrl, expectedUrl },
+      {
+        redirectionUrl: new URL(nextActionUrl),
+        expectedUrl: new URL(expectedRedirection),
+      },
       connectorId,
       paymentMethodType
     );
@@ -10871,5 +10656,5 @@ Cypress.Commands.add("retrieveNonExistentPayoutTest", (globalState) => {
 });
 
 Cypress.Commands.add("resetRedirectReadCount", (testIdHash) => {
-  delete _redirectReadCount[testIdHash];
+  resetMitmRedirectSeq(testIdHash);
 });
