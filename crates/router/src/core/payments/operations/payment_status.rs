@@ -478,14 +478,13 @@ async fn get_tracker_for_sync<
             None
         };
 
-    let merchant_id = payment_intent.merchant_id.clone();
     let key_manager_state = &(state).into();
 
     let authentication_store =
         if let Some(ref authentication_id) = payment_attempt.authentication_id {
             let authentication = db
-                .find_authentication_by_merchant_id_authentication_id(
-                    &merchant_id,
+                .find_authentication_by_processor_merchant_id_authentication_id(
+                    platform.get_processor().get_account().get_id(),
                     authentication_id,
                     platform.get_processor().get_key_store(),
                     key_manager_state,

@@ -378,7 +378,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             merchant_connector_account,
         ) => Some(helpers::create_webhook_url(
             router_base_url,
-            &attempt.merchant_id,
+            &attempt.processor_merchant_id,
             merchant_connector_account.get_id().get_string_repr(),
         )),
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
@@ -642,7 +642,7 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
             merchant_connector_account,
         ) => Some(helpers::create_webhook_url(
             router_base_url,
-            &attempt.merchant_id,
+            &attempt.processor_merchant_id,
             merchant_connector_account.get_id().get_string_repr(),
         )),
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
@@ -806,7 +806,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
 
     let webhook_url = Some(helpers::create_webhook_url(
         &state.base_url,
-        &attempt.merchant_id,
+        &attempt.processor_merchant_id,
         &merchant_connector_account_id_or_connector_name,
     ));
 
@@ -1717,7 +1717,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
             merchant_connector_account,
         ) => Some(helpers::create_webhook_url(
             router_base_url,
-            &attempt.merchant_id,
+            &attempt.processor_merchant_id,
             merchant_connector_account.get_id().get_string_repr(),
         )),
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
@@ -5033,7 +5033,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let webhook_url = Some(helpers::create_webhook_url(
             router_base_url,
-            &attempt.merchant_id,
+            &attempt.processor_merchant_id,
             merchant_connector_account_id_or_connector_name,
         ));
         let router_return_url = Some(helpers::create_redirect_url(
@@ -5240,7 +5240,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let webhook_url = Some(helpers::create_webhook_url(
             router_base_url,
-            &attempt.merchant_id,
+            &attempt.processor_merchant_id,
             merchant_connector_account_id_or_connector_name,
         ));
         let router_return_url = Some(helpers::create_redirect_url(
@@ -5670,7 +5670,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             .ok_or(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         let webhook_url: Option<_> = Some(helpers::create_webhook_url(
             router_base_url,
-            &attempt.merchant_id,
+            &attempt.processor_merchant_id,
             merchant_connector_account_id,
         ));
         Ok(Self {
@@ -5736,7 +5736,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .ok_or(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         let webhook_url: Option<_> = Some(helpers::create_webhook_url(
             router_base_url,
-            &attempt.merchant_id,
+            &attempt.processor_merchant_id,
             merchant_connector_account_id,
         ));
         let capture_method = payment_data.payment_intent.capture_method;
@@ -5805,7 +5805,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .ok_or(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         let webhook_url: Option<_> = Some(helpers::create_webhook_url(
             router_base_url,
-            &attempt.merchant_id,
+            &attempt.processor_merchant_id,
             merchant_connector_account_id,
         ));
         let capture_method = payment_data.payment_attempt.capture_method;
@@ -6882,7 +6882,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             .unwrap_or(connector_name);
         let webhook_url = Some(helpers::create_webhook_url(
             router_base_url,
-            &attempt.merchant_id,
+            &attempt.processor_merchant_id,
             merchant_connector_account_id_or_connector_name,
         ));
         let complete_authorize_url = Some(helpers::create_complete_authorize_url(
@@ -7244,7 +7244,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             .unwrap_or(connector_name);
         let webhook_url = Some(helpers::create_webhook_url(
             router_base_url,
-            &attempt.merchant_id,
+            &attempt.processor_merchant_id,
             merchant_connector_account_id_or_connector_name,
         ));
         let router_return_url = Some(helpers::create_redirect_url(

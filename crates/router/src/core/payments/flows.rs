@@ -364,20 +364,23 @@ pub fn should_initiate_capture_flow(
     status: common_enums::AttemptStatus,
 ) -> bool {
     match status {
-        common_enums::AttemptStatus::Authorized => {
-            if let Some(api_enums::CaptureMethod::SequentialAutomatic) = capture_method {
-                match connector_name {
-                    router_types::Connector::Paybox => {
-                        // Check CIT conditions for Paybox
-                        setup_future_usage == Some(api_enums::FutureUsage::OffSession)
-                            && customer_acceptance.is_some()
-                    }
-                    _ => false,
+        common_enums::AttemptStatus::Authorized => match capture_method {
+            Some(api_enums::CaptureMethod::SequentialAutomatic) => match connector_name {
+                router_types::Connector::Paybox => {
+                    // Check CIT conditions for Paybox
+                    setup_future_usage == Some(api_enums::FutureUsage::OffSession)
+                        && customer_acceptance.is_some()
                 }
-            } else {
-                false
+                _ => false,
+            },
+            // Affirm (BNPL) authorizes the loan on the transaction-create (CompleteAuthorize)
+            // leg and needs a follow-up capture (POST /transactions/{id}/capture) to settle for
+            // automatic capture, so chain the capture flow when it comes back Authorized.
+            Some(api_enums::CaptureMethod::Automatic) => {
+                matches!(connector_name, router_types::Connector::Affirm)
             }
-        }
+            _ => false,
+        },
         _ => false,
     }
 }
