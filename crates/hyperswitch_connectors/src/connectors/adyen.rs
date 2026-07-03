@@ -1961,7 +1961,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Adyen {
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(
-            errors::ConnectorError::NotImplemented("Refund Sync flow not Implemented".to_string())
+            errors::ConnectorError::NotImplemented("Refund Sync flow".to_string())
                 .into(),
         )
     }
