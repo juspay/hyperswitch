@@ -215,7 +215,7 @@ impl Platform {
     pub fn get_processor(&self) -> &Processor {
         &self.processor
     }
-    
+
     pub fn get_provider_as_processor(&self) -> Processor {
         Processor::new(
             self.provider.get_account().clone(),
