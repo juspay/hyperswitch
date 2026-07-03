@@ -75,7 +75,7 @@ generate_permissions! {
             scopes: [Read],
             entities: [Profile]
         },
-        InternalConnector: {
+        CloneConnector: {
             scopes: [Write],
             entities: [Merchant]
         },
@@ -107,6 +107,10 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Profile]
         },
+        SuperpositionConfig: {
+            scopes: [Read, Write],
+            entities: [Profile]
+        },
     ]
 }
 
@@ -120,14 +124,14 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::Payout, _) => Some("Payouts"),
         (Resource::ApiKey, _) => Some("Api Keys"),
         (Resource::Connector, _) => {
-            Some("Payment Processors, Payout Processors, Fraud & Risk Managers")
+            Some("Payment Processors, Payout Processors, 3ds Authenticators, Fraud & Risk Managers, PM Auth Processor,Tax Processors, Billing Processors, Vault Processors")
         }
         (Resource::Routing, _) => Some("Routing"),
         (Resource::Subscription, _) => Some("Subscription"),
         (Resource::RevenueRecovery, _) => Some("Revenue Recovery"),
         (Resource::ThreeDsDecisionManager, _) => Some("3DS Decision Manager"),
         (Resource::SurchargeDecisionManager, _) => Some("Surcharge Decision Manager"),
-        (Resource::Analytics, _) => Some("Analytics"),
+        (Resource::Analytics, _) => Some("Insights, Payments, Refunds, Authentication, Routing"),
         (Resource::Report, _) => Some("Operation Reports"),
         (Resource::User, _) => Some("Users"),
         (Resource::WebhookEvent, _) => Some("Webhook Events"),
@@ -136,13 +140,14 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::Account, EntityType::Organization) => Some("Organization Account"),
         (Resource::Account, EntityType::Tenant) => Some("Tenant Account"),
         (Resource::Theme, _) => Some("Themes"),
-        (Resource::InternalConnector, _) => None,
+        (Resource::CloneConnector, _) => None,
         (Resource::ReconIngestion, _) => Some("Recon Ingestion Configs"),
         (Resource::ReconTransformation, _) => Some("Recon Transformation Configs"),
         (Resource::ReconException, _) => Some("Recon Exception Management"),
         (Resource::ReconStagingEntry, _) => Some("Recon Staging Entries"),
         (Resource::ReconTransaction, _) => Some("Recon Transactions"),
         (Resource::ReconRule, _) => Some("Recon Rules"),
+        (Resource::SuperpositionConfig, _) => Some("Superposition Configs"),
     }
 }
 

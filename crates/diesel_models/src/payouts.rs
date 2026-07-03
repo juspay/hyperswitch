@@ -124,6 +124,7 @@ pub enum PayoutsUpdate {
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payouts)]
+#[router_derive::apply_changeset(target = Payouts)]
 pub struct PayoutsUpdateInternal {
     pub amount: Option<MinorUnit>,
     pub destination_currency: Option<storage_enums::Currency>,
@@ -233,46 +234,6 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
 
 impl PayoutsUpdate {
     pub fn apply_changeset(self, source: Payouts) -> Payouts {
-        let PayoutsUpdateInternal {
-            amount,
-            destination_currency,
-            source_currency,
-            description,
-            recurring,
-            auto_fulfill,
-            return_url,
-            entity_type,
-            metadata,
-            payout_method_id,
-            profile_id,
-            status,
-            last_modified_at,
-            attempt_count,
-            confirm,
-            payout_type,
-            address_id,
-            customer_id,
-        } = self.into();
-        Payouts {
-            amount: amount.unwrap_or(source.amount),
-            destination_currency: destination_currency.unwrap_or(source.destination_currency),
-            source_currency: source_currency.unwrap_or(source.source_currency),
-            description: description.or(source.description),
-            recurring: recurring.unwrap_or(source.recurring),
-            auto_fulfill: auto_fulfill.unwrap_or(source.auto_fulfill),
-            return_url: return_url.or(source.return_url),
-            entity_type: entity_type.unwrap_or(source.entity_type),
-            metadata: metadata.or(source.metadata),
-            payout_method_id: payout_method_id.or(source.payout_method_id),
-            profile_id: profile_id.unwrap_or(source.profile_id),
-            status: status.unwrap_or(source.status),
-            last_modified_at,
-            attempt_count: attempt_count.unwrap_or(source.attempt_count),
-            confirm: confirm.or(source.confirm),
-            payout_type: payout_type.or(source.payout_type),
-            address_id: address_id.or(source.address_id),
-            customer_id: customer_id.or(source.customer_id),
-            ..source
-        }
+        PayoutsUpdateInternal::from(self).apply_changeset(source)
     }
 }

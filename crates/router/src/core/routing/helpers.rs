@@ -1967,7 +1967,7 @@ pub async fn disable_dynamic_routing_algorithm(
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn enable_dynamic_routing_algorithm(
     state: &SessionState,
-    key_store: domain::MerchantKeyStore,
+    platform: &domain::Platform,
     business_profile: domain::Profile,
     feature_to_enable: routing_types::DynamicRoutingFeatures,
     dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
@@ -1982,7 +1982,7 @@ pub async fn enable_dynamic_routing_algorithm(
 
             Box::pin(enable_specific_routing_algorithm(
                 state,
-                key_store,
+                platform,
                 business_profile,
                 feature_to_enable,
                 dynamic_routing.clone(),
@@ -1995,7 +1995,7 @@ pub async fn enable_dynamic_routing_algorithm(
         routing_types::DynamicRoutingType::EliminationRouting => {
             Box::pin(enable_specific_routing_algorithm(
                 state,
-                key_store,
+                platform,
                 business_profile,
                 feature_to_enable,
                 dynamic_routing.clone(),
@@ -2018,7 +2018,7 @@ pub async fn enable_dynamic_routing_algorithm(
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn enable_specific_routing_algorithm<A>(
     state: &SessionState,
-    key_store: domain::MerchantKeyStore,
+    platform: &domain::Platform,
     business_profile: domain::Profile,
     feature_to_enable: routing_types::DynamicRoutingFeatures,
     mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
@@ -2033,7 +2033,7 @@ where
     if let Some(payload) = payload {
         return create_specific_dynamic_routing_setup(
             state,
-            key_store,
+            platform,
             business_profile,
             feature_to_enable,
             dynamic_routing_algo_ref,
@@ -2046,7 +2046,7 @@ where
     let Some(mut algo_type) = algo_type else {
         return default_specific_dynamic_routing_setup(
             state,
-            key_store,
+            platform,
             business_profile,
             feature_to_enable,
             dynamic_routing_algo_ref,
@@ -2063,7 +2063,7 @@ where
     else {
         return default_specific_dynamic_routing_setup(
             state,
-            key_store,
+            platform,
             business_profile,
             feature_to_enable,
             dynamic_routing_algo_ref,
@@ -2088,7 +2088,7 @@ where
     dynamic_routing_algo_ref.update_enabled_features(dynamic_routing_type, feature_to_enable);
     update_business_profile_active_dynamic_algorithm_ref(
         db,
-        &key_store,
+        platform.get_processor().get_key_store(),
         business_profile,
         dynamic_routing_algo_ref.clone(),
     )
@@ -2110,7 +2110,7 @@ where
 #[instrument(skip_all)]
 pub async fn default_specific_dynamic_routing_setup(
     state: &SessionState,
-    key_store: domain::MerchantKeyStore,
+    platform: &domain::Platform,
     business_profile: domain::Profile,
     feature_to_enable: routing_types::DynamicRoutingFeatures,
     mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
@@ -2118,7 +2118,8 @@ pub async fn default_specific_dynamic_routing_setup(
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
     let profile_id = business_profile.get_id().clone();
-    let merchant_id = business_profile.merchant_id.clone();
+    let merchant_id = platform.get_provider().get_account().get_id().to_owned();
+    let processor_merchant_id = business_profile.merchant_id.clone();
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
     let timestamp = common_utils::date_time::now();
 
@@ -2134,7 +2135,7 @@ pub async fn default_specific_dynamic_routing_setup(
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),
-                merchant_id,
+                merchant_id: merchant_id.clone(),
                 name: SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
                 description: None,
                 kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
@@ -2143,6 +2144,11 @@ pub async fn default_specific_dynamic_routing_setup(
                 modified_at: timestamp,
                 algorithm_for: common_enums::TransactionType::Payment,
                 decision_engine_routing_id: None,
+                processor_merchant_id: Some(processor_merchant_id.clone()),
+                created_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|created_by| created_by.to_string()),
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
@@ -2165,6 +2171,11 @@ pub async fn default_specific_dynamic_routing_setup(
                 modified_at: timestamp,
                 algorithm_for: common_enums::TransactionType::Payment,
                 decision_engine_routing_id: None,
+                processor_merchant_id: Some(processor_merchant_id),
+                created_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|created_by| created_by.to_string()),
             }
         }
 
@@ -2204,7 +2215,7 @@ pub async fn default_specific_dynamic_routing_setup(
     );
     update_business_profile_active_dynamic_algorithm_ref(
         db,
-        &key_store,
+        platform.get_processor().get_key_store(),
         business_profile,
         dynamic_routing_algo_ref,
     )
@@ -2223,7 +2234,7 @@ pub async fn default_specific_dynamic_routing_setup(
 #[instrument(skip_all)]
 pub async fn create_specific_dynamic_routing_setup(
     state: &SessionState,
-    key_store: domain::MerchantKeyStore,
+    platform: &domain::Platform,
     business_profile: domain::Profile,
     feature_to_enable: routing_types::DynamicRoutingFeatures,
     mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
@@ -2232,7 +2243,8 @@ pub async fn create_specific_dynamic_routing_setup(
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
     let profile_id = business_profile.get_id().clone();
-    let merchant_id = business_profile.merchant_id.clone();
+    let merchant_id = platform.get_provider().get_account().get_id().to_owned();
+    let processor_merchant_id = business_profile.merchant_id.clone();
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
     let timestamp = common_utils::date_time::now();
 
@@ -2259,7 +2271,7 @@ pub async fn create_specific_dynamic_routing_setup(
             routing_algorithm::RoutingAlgorithm {
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),
-                merchant_id,
+                merchant_id: merchant_id.clone(),
                 name: SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
                 description: None,
                 kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
@@ -2268,6 +2280,11 @@ pub async fn create_specific_dynamic_routing_setup(
                 modified_at: timestamp,
                 algorithm_for: common_enums::TransactionType::Payment,
                 decision_engine_routing_id: None,
+                processor_merchant_id: Some(processor_merchant_id.clone()),
+                created_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|created_by| created_by.to_string()),
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
@@ -2301,6 +2318,11 @@ pub async fn create_specific_dynamic_routing_setup(
                 modified_at: timestamp,
                 algorithm_for: common_enums::TransactionType::Payment,
                 decision_engine_routing_id: None,
+                processor_merchant_id: Some(processor_merchant_id),
+                created_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|created_by| created_by.to_string()),
             }
         }
 
@@ -2321,7 +2343,7 @@ pub async fn create_specific_dynamic_routing_setup(
     dynamic_routing_algo_ref.update_feature(feature_to_enable, dynamic_routing_type);
     update_business_profile_active_dynamic_algorithm_ref(
         db,
-        &key_store,
+        platform.get_processor().get_key_store(),
         business_profile,
         dynamic_routing_algo_ref,
     )

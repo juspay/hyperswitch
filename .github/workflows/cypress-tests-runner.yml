@@ -33,7 +33,7 @@ env:
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
-  RUST_MIN_STACK: 11534336
+  RUST_MIN_STACK: 16777216
 
 jobs:
   formatter:
@@ -763,7 +763,7 @@ jobs:
       (github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' &&
         contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && !cancelled()
-    runs-on: hyperswitch-runners
+    runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-mock-matrix.outputs['mock-matrix']) }}
@@ -1136,8 +1136,9 @@ jobs:
     name: MITM Mock Cypress Tests — Consolidated Result
     needs: [mitm-cassette-replay-cypress-tests]
     if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+      (github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' &&
+        contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && !cancelled()
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write

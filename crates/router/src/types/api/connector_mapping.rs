@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use error_stack::{report, ResultExt};
-use hyperswitch_connectors::connectors::{Paytm, Phonepe};
+use hyperswitch_connectors::connectors::{Payconex, Paytm, Phonepe};
 
 use crate::{
     configs::settings::Connectors,
@@ -103,6 +103,9 @@ impl ConnectorData {
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match enums::Connector::from_str(connector_name) {
             Ok(name) => match name {
+                enums::Connector::AbsaSanlam => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::AbsaSanlam::new())))
+                }
                 enums::Connector::Aci => Ok(ConnectorEnum::Old(Box::new(connector::Aci::new()))),
                 enums::Connector::Adyen => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Adyen::new())))
@@ -313,6 +316,9 @@ impl ConnectorData {
                 enums::Connector::Inespay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Inespay::new())))
                 }
+                enums::Connector::Interpayments => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Interpayments::new(),
+                ))),
                 enums::Connector::Itaubank => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
                 }
@@ -476,9 +482,6 @@ impl ConnectorData {
                 enums::Connector::Truelayer => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Truelayer::new())))
                 }
-                enums::Connector::Sanlam => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Sanlam::new())))
-                }
                 enums::Connector::Trustly => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustly::new())))
                 }
@@ -512,14 +515,14 @@ impl ConnectorData {
                 | enums::Connector::Gpayments
                 | enums::Connector::Threedsecureio
                 | enums::Connector::Cardinal
-                | enums::Connector::Taxjar
-                | enums::Connector::Interpayments => {
+                | enums::Connector::Taxjar => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                 }
                 enums::Connector::Phonepe => Ok(ConnectorEnum::Old(Box::new(Phonepe::new()))),
                 enums::Connector::Paytm => Ok(ConnectorEnum::Old(Box::new(Paytm::new()))),
+                enums::Connector::Payconex => Ok(ConnectorEnum::Old(Box::new(Payconex::new()))),
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))

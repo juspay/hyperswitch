@@ -153,13 +153,13 @@ where
     C::Output: ConfigType,
     open_feature::Client: superposition::GetValue<C::Output>,
 {
-    let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
+    let db_keys = <C as DatabaseBackedConfig>::db_keys(dimensions);
     let context = dimensions.to_superposition_context();
 
     fetch_db_config::<C>(
         storage,
         superposition_client,
-        db_key.as_deref(),
+        db_keys.iter().map(|k| k.as_deref()).collect(),
         context,
         targeting_key,
     )
@@ -173,7 +173,9 @@ pub trait DatabaseBackedConfig: superposition::Config {
     const KEY: &'static str;
 
     /// Generate the database key for this config based on dimensions
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String>;
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
 
     /// Parse the raw database config string into the output type.
     /// Override this for configs whose DB format differs from the Output type
@@ -184,6 +186,10 @@ pub trait DatabaseBackedConfig: superposition::Config {
     {
         Self::Output::from_config_str(config_str).ok()
     }
+
+    fn db_keys(dimensions: &impl dimension_state::DimensionsBase) -> Vec<Option<String>> {
+        vec![Self::db_key(dimensions)]
+    }
 }
 
 /// Fetch configuration value from Superposition with database fallback.
@@ -192,7 +198,7 @@ pub trait DatabaseBackedConfig: superposition::Config {
 pub async fn fetch_db_config<C>(
     storage: &dyn db::StorageInterface,
     superposition_client: &superposition::SuperpositionClient,
-    db_key: Option<&str>,
+    db_keys: Vec<Option<&str>>,
     context: Option<ConfigContext>,
     targeting_key: Option<&C::TargetingKey>,
 ) -> C::Output
@@ -212,63 +218,61 @@ where
             router_env::logger::info!(
                 config_key = %config_type,
                 source = "superposition",
-                value = %value.to_config_string().unwrap_or_default(),
                 "Config resolved from superposition"
             );
             value
         }
-        Err(_) => match db_key {
-            Some(db_key) => {
-                router_env::logger::info!(
-                    "Retrieving config from database for key '{}'",
-                    config_type
-                );
+        Err(_) => {
+            // `attempted` tracks if at least one database key was valid (Some) and queried.
+            // This determines whether we log that we fallback to defaults or that no key was provided.
+            let mut attempted = false;
+            let mut resolved_value = None;
+            for db_key in db_keys.into_iter().flatten() {
+                attempted = true;
+                if resolved_value.is_none() {
+                    let config_result = storage.find_config_by_key(db_key).await;
 
-                let config_result = storage.find_config_by_key(db_key).await;
-
-                match config_result
-                    .ok()
-                    .and_then(|config| C::parse_db_config(&config.config, context.as_ref()))
-                {
-                    Some(value) => {
+                    if let Some(value) = config_result
+                        .ok()
+                        .and_then(|config| C::parse_db_config(&config.config, context.as_ref()))
+                    {
                         router_env::logger::info!(
                             config_key = %config_type,
                             db_key = %db_key,
                             source = "database",
-                            value = %value.to_config_string().unwrap_or_default(),
                             "Config resolved from database"
                         );
                         metrics::CONFIG_DATABASE_FETCH.add(
                             1,
                             router_env::metric_attributes!(("config_type", config_type)),
                         );
-                        value
+                        resolved_value = Some(value);
                     }
-                    None => {
+                }
+            }
+
+            match resolved_value {
+                Some(value) => value,
+                None => {
+                    if attempted {
                         router_env::logger::info!(
                             "Using default config value for key '{}'",
                             config_type
                         );
-                        metrics::CONFIG_DEFAULT_FALLBACK.add(
-                            1,
-                            router_env::metric_attributes!(("config_type", config_type)),
+                    } else {
+                        router_env::logger::info!(
+                            "No database key provided for config '{}', using default value",
+                            config_type
                         );
-                        default_value
                     }
+                    metrics::CONFIG_DEFAULT_FALLBACK.add(
+                        1,
+                        router_env::metric_attributes!(("config_type", config_type)),
+                    );
+                    default_value
                 }
             }
-            None => {
-                router_env::logger::info!(
-                    "No database key provided for config '{}', using default value",
-                    config_type
-                );
-                metrics::CONFIG_DEFAULT_FALLBACK.add(
-                    1,
-                    router_env::metric_attributes!(("config_type", config_type)),
-                );
-                default_value
-            }
-        },
+        }
     }
 }
 
@@ -277,7 +281,7 @@ where
 pub async fn fetch_db_config_object<C, T>(
     storage: &dyn db::StorageInterface,
     superposition_client: &superposition::SuperpositionClient,
-    db_key: Option<&str>,
+    db_keys: Vec<Option<&str>>,
     context: Option<ConfigContext>,
     targeting_key: Option<&C::TargetingKey>,
 ) -> T
@@ -289,7 +293,7 @@ where
     let json_value = fetch_db_config::<C>(
         storage,
         superposition_client,
-        db_key,
+        db_keys,
         context,
         targeting_key,
     )
@@ -370,13 +374,13 @@ where
     T: for<'de> serde::Deserialize<'de> + Default,
     open_feature::Client: superposition::GetValue<serde_json::Value>,
 {
-    let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
+    let db_keys = <C as DatabaseBackedConfig>::db_keys(dimensions);
     let context = dimensions.to_superposition_context();
 
     fetch_db_config_object::<C, T>(
         storage,
         superposition_client,
-        db_key.as_deref(),
+        db_keys.iter().map(|k| k.as_deref()).collect(),
         context,
         targeting_key,
     )
@@ -396,13 +400,13 @@ where
     T: std::str::FromStr,
     open_feature::Client: superposition::GetValue<String>,
 {
-    let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
+    let db_keys = <C as DatabaseBackedConfig>::db_keys(dimensions);
     let context = dimensions.to_superposition_context();
 
     let raw_value = fetch_db_config::<C>(
         storage,
         superposition_client,
-        db_key.as_deref(),
+        db_keys.iter().map(|k| k.as_deref()).collect(),
         context,
         targeting_key,
     )

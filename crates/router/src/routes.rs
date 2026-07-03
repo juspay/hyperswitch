@@ -27,8 +27,6 @@ pub mod gsm;
 pub mod health;
 pub mod hypersense;
 pub mod lock_utils;
-#[cfg(feature = "v1")]
-pub mod locker_migration;
 pub mod mandates;
 pub mod metrics;
 pub mod oidc;
@@ -56,6 +54,7 @@ pub mod revenue_recovery_redis;
 pub mod routing;
 #[cfg(feature = "v1")]
 pub mod subscription;
+pub mod superposition_proxy;
 pub mod superposition_sdk_config;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
@@ -96,7 +95,7 @@ pub use self::app::{
     Files, Forex, Gsm, Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount,
     Oidc, PaymentLink, PaymentMethods, Payments, Poll, ProcessTracker, ProcessTrackerDeprecated,
     Profile, ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks, SdkConfig, SessionState,
-    ThreeDsDecisionRule, User, UserDeprecated, Webhooks,
+    SuperpositionProxy, ThreeDsDecisionRule, User, UserDeprecated, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Subscription, Verify, WebhookEvents};

@@ -10,6 +10,7 @@ use crate::errors::api_error_response;
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct Connectors {
+    pub absa_sanlam: ConnectorParams,
     pub aci: ConnectorParams,
     pub authipay: ConnectorParams,
     pub adyen: AdyenParamsWithThreeBaseUrls,
@@ -93,6 +94,7 @@ pub struct Connectors {
     pub netcetera: ConnectorParams,
     pub nexinets: ConnectorParams,
     pub nexixpay: ConnectorParams,
+    pub payconex: ConnectorParams,
     pub nmi: ConnectorParams,
     pub nomupay: ConnectorParams,
     pub noon: ConnectorParamsWithModeType,
@@ -124,7 +126,6 @@ pub struct Connectors {
     pub recurly: ConnectorParams,
     pub redsys: ConnectorParams,
     pub revolv3: ConnectorParams,
-    pub sanlam: ConnectorParams,
     pub riskified: ConnectorParams,
     pub santander: ConnectorParams,
     pub shift4: ConnectorParams,

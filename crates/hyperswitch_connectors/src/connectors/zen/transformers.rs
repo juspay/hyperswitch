@@ -352,6 +352,8 @@ impl
             | BankTransferData::IndonesianBankTransfer { .. }
             | BankTransferData::PixAutomaticoPush { .. }
             | BankTransferData::PixAutomaticoQr {}
+            | BankTransferData::PixEmv {}
+            | BankTransferData::PixQr {}
             | BankTransferData::MandiriVaBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),

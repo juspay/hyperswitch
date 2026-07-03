@@ -398,6 +398,14 @@ export const connectorDetails = {
         },
       },
     },
+    SyncRefundScheduled: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
     // IncrementalAuth: { // commenting out due to credentials issue
     //   Request: {
     //     amount: 8000,
@@ -997,6 +1005,8 @@ export const connectorDetails = {
         },
       },
     },
+    ClientSessionInvalidConfirm:
+      commonConnectorDetails.card_pm.ClientSessionInvalidConfirm,
   },
   bank_transfer_pm: {
     Ach: {
@@ -1390,6 +1400,24 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    }),
+    ConfirmWithoutPmData: getCustomExchange({
+      Request: {
+        payment_method: undefined,
+        payment_method_type: undefined,
+        payment_experience: undefined,
+        payment_method_data: undefined,
+        order_details: undefined,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_06",
+          },
         },
       },
     }),

@@ -315,6 +315,30 @@ impl SecretsHandler for settings::ChatSettings {
 }
 
 #[async_trait::async_trait]
+impl SecretsHandler for settings::SageSettings {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let sage_settings = value.get_inner();
+
+        // Skip the secret fetch when disabled — costs zero.
+        let infra_key = if sage_settings.enabled {
+            secret_management_client
+                .get_secret(sage_settings.infra_key.clone())
+                .await?
+        } else {
+            sage_settings.infra_key.clone()
+        };
+
+        Ok(value.transition_state(|sage_settings| Self {
+            infra_key,
+            ..sage_settings
+        }))
+    }
+}
+
+#[async_trait::async_trait]
 impl SecretsHandler for settings::NetworkTokenizationService {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -516,6 +540,11 @@ pub(crate) async fn fetch_raw_secrets(
         .expect("Failed to decrypt chat configs");
 
     #[allow(clippy::expect_used)]
+    let sage = settings::SageSettings::convert_to_raw_secret(conf.sage, secret_management_client)
+        .await
+        .expect("Failed to decrypt sage configs");
+
+    #[allow(clippy::expect_used)]
     let superposition =
         external_services::superposition::SuperpositionClientConfig::convert_to_raw_secret(
             conf.superposition,
@@ -533,6 +562,7 @@ pub(crate) async fn fetch_raw_secrets(
         server: conf.server,
         application_source: conf.application_source,
         chat,
+        sage,
         master_database,
         redis: conf.redis,
         log: conf.log,
@@ -617,10 +647,11 @@ pub(crate) async fn fetch_raw_secrets(
         locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
         grpc_client: conf.grpc_client,
         crm: conf.crm,
-        #[cfg(feature = "v2")]
         cell_information: conf.cell_information,
         network_tokenization_supported_card_networks: conf
             .network_tokenization_supported_card_networks,
+        alt_id_required_card_networks_and_connector: conf
+            .alt_id_required_card_networks_and_connector,
         network_tokenization_service,
         network_tokenization_supported_connectors: conf.network_tokenization_supported_connectors,
         theme: conf.theme,

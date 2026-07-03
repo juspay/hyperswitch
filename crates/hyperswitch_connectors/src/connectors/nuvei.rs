@@ -21,21 +21,21 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
         unified_authentication_service::PreAuthenticate,
-        AuthorizeSessionToken, CompleteAuthorize, PostCaptureVoid, PreProcessing,
+        AuthorizeSessionToken, CompleteAuthorize, PostCaptureVoid, PostCaptureVoidSync,
+        PreProcessing,
     },
     router_request_types::{
         AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        SetupMandateRequestData,
+        PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData, PaymentsCaptureData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -43,9 +43,10 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsAuthorizeSessionTokenRouterData,
-        PaymentsCancelPostCaptureRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsPreAuthenticateRouterData,
-        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundsRouterData,
+        PaymentsCancelPostCaptureRouterData, PaymentsCancelPostCaptureSyncRouterData,
+        PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
+        PaymentsPreAuthenticateRouterData, PaymentsPreProcessingRouterData, PaymentsSyncRouterData,
+        RefundsRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -71,10 +72,7 @@ use crate::{
     connectors::nuvei::transformers::{NuveiPaymentsResponse, NuveiTransactionSyncResponse},
     constants::headers,
     types::ResponseRouterData,
-    utils::{
-        self, is_mandate_supported, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-        PaymentsSetupMandateRequestData, RouterData as _,
-    },
+    utils::{self, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData, RouterData as _},
 };
 
 #[derive(Clone)]
@@ -135,21 +133,7 @@ impl ConnectorCommon for Nuvei {
     }
 }
 
-impl ConnectorValidation for Nuvei {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::NetworkTransactionIdAndCardDetails,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Nuvei {}
 
 impl api::Payment for Nuvei {}
 
@@ -177,6 +161,7 @@ impl api::PaymentsCompleteAuthorize for Nuvei {}
 impl api::ConnectorAccessToken for Nuvei {}
 impl api::PaymentsPreProcessing for Nuvei {}
 impl api::PaymentPostCaptureVoid for Nuvei {}
+impl api::PaymentPostCaptureVoidSync for Nuvei {}
 impl api::PaymentsPreAuthenticate for Nuvei {}
 
 impl api::Payouts for Nuvei {}
@@ -668,6 +653,98 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nuv
         event_builder.map(|i| i.set_response_body(&nuvie_psync_common_response));
         router_env::logger::info!(connector_response=?nuvie_psync_common_response);
         let response = NuveiTransactionSyncResponse::from(nuvie_psync_common_response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        PostCaptureVoidSync,
+        PaymentsCancelPostCaptureSyncData,
+        PaymentsResponseData,
+    > for Nuvei
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelPostCaptureSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsCancelPostCaptureSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}ppp/api/v1/getTransactionDetails.do",
+            ConnectorCommon::base_url(self, connectors)
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCancelPostCaptureSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = nuvei::NuveiPaymentSyncRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+    fn build_request(
+        &self,
+        req: &PaymentsCancelPostCaptureSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsPostCaptureVoidSyncType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsPostCaptureVoidSyncType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsPostCaptureVoidSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelPostCaptureSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelPostCaptureSyncRouterData, errors::ConnectorError> {
+        let response: NuveiTransactionSyncResponse = res
+            .response
+            .parse_struct("NuveiPaymentSyncResponse")
+            .switch()?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         RouterData::try_from(ResponseRouterData {
             response,
@@ -1697,7 +1774,7 @@ static NUVEI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         enums::PaymentMethod::NetworkToken,
         enums::PaymentMethodType::NetworkToken,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,

@@ -58,9 +58,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         request: &api::PaymentsRequest,
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
+        _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
@@ -288,6 +290,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .get_feature_metadata_as_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error converting feature_metadata to Value")?
+            .map(hyperswitch_masking::Secret::new)
             .or(payment_intent.feature_metadata);
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
@@ -581,6 +584,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             external_authentication_data: None,
             client_session_id: None,
             vault_session_details: None,
+            external_vault_pmd: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -635,7 +639,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .payment_intent
                         .customer_id
                         .as_ref()
-                        .is_some_and(|existing_id| existing_id != &cust.customer_id)
+                        .is_some_and(|existing_id| existing_id != cust.get_id())
                         .then_some(errors::StorageError::ValueNotFound(
                             "Customer id mismatch between payment intent and request".to_string(),
                         ))
@@ -1095,11 +1099,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .is_iframe_redirection_enabled,
                     is_confirm_operation: false, // this is not a confirm operation
                     payment_channel: payment_data.payment_intent.payment_channel,
-                    feature_metadata: payment_data
-                        .payment_intent
-                        .feature_metadata
-                        .clone()
-                        .map(hyperswitch_masking::Secret::new),
+                    feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
                     tax_status: payment_data.payment_intent.tax_status,
                     discount_amount: payment_data.payment_intent.discount_amount,
                     order_date: payment_data.payment_intent.order_date,
@@ -1112,6 +1112,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     shipping_cost,
                     installment_options: payment_data.payment_intent.installment_options.clone(),
                     profile_acquirer_id: payment_data.payment_intent.profile_acquirer_id.clone(),
+                    external_surcharge_strategy: payment_data
+                        .payment_intent
+                        .external_surcharge_strategy,
+                    external_surcharge_applicable: payment_data
+                        .payment_intent
+                        .external_surcharge_applicable,
                 })),
                 key_store,
                 storage_scheme,
@@ -1141,7 +1147,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     payment_data.payment_intent.session_expiry,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to refresh client session during payment update")?;
 
             services::logger::debug!(

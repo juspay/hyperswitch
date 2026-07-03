@@ -914,18 +914,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         Some(diesel_models::enums::FutureUsage::OnSession);
                 };
 
-                if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
-                    &self.request,
-                ) {
-                    connector
-                        .connector
-                        .validate_mandate_payment(
-                            self.request.payment_method_type,
-                            self.request.payment_method_data.clone(),
-                        )
-                        .to_payment_failed_response()?;
-                };
-
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::Authorize,
                     types::PaymentsAuthorizeData,
@@ -1385,7 +1373,8 @@ fn transform_redirection_response_for_pre_authenticate_flow(
 > {
     match (connector, &response_data) {
         (
-            enums::connector_enums::Connector::Cybersource,
+            enums::connector_enums::Connector::Cybersource
+            | enums::connector_enums::Connector::Barclaycard,
             router_response_types::RedirectForm::Form {
                 endpoint,
                 method: _,
@@ -1403,11 +1392,24 @@ fn transform_redirection_response_for_pre_authenticate_flow(
                     field_name: "reference_id",
                 },
             )?;
-            Ok(router_response_types::RedirectForm::CybersourceAuthSetup {
-                access_token,
-                ddc_url,
-                reference_id,
-            })
+
+            match connector {
+                enums::connector_enums::Connector::Barclaycard => {
+                    Ok(router_response_types::RedirectForm::BarclaycardAuthSetup {
+                        access_token,
+                        ddc_url,
+                        reference_id,
+                    })
+                }
+                enums::connector_enums::Connector::Cybersource => {
+                    Ok(router_response_types::RedirectForm::CybersourceAuthSetup {
+                        access_token,
+                        ddc_url,
+                        reference_id,
+                    })
+                }
+                _ => Ok(response_data),
+            }
         }
         _ => Ok(response_data),
     }
@@ -1421,7 +1423,8 @@ fn transform_response_for_pre_authenticate_flow(
 > {
     match (connector, response_data.clone()) {
         (
-            enums::connector_enums::Connector::Cybersource,
+            enums::connector_enums::Connector::Cybersource
+            | enums::connector_enums::Connector::Barclaycard,
             router_response_types::PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
@@ -1602,7 +1605,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
     let connector_auth_metadata =
         unified_connector_service::build_unified_connector_service_auth_metadata(
             merchant_connector_account,
-            processor,
+            processor.get_account().get_id(),
             router_data.connector.clone(),
         )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)

@@ -31,6 +31,20 @@ impl RoutingAlgorithm {
         .await
     }
 
+    pub async fn find_by_algorithm_id_processor_merchant_id(
+        conn: &PgPooledConn,
+        algorithm_id: &common_utils::id_type::RoutingId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::algorithm_id
+                .eq(algorithm_id.to_owned())
+                .and(dsl::processor_merchant_id.eq(processor_merchant_id.to_owned())),
+        )
+        .await
+    }
+
     pub async fn find_by_algorithm_id_profile_id(
         conn: &PgPooledConn,
         algorithm_id: &common_utils::id_type::RoutingId,
@@ -183,7 +197,13 @@ impl RoutingAlgorithm {
                 dsl::modified_at,
                 dsl::algorithm_for,
             ))
-            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(
+                dsl::processor_merchant_id.eq(merchant_id.to_owned()).or(
+                    dsl::processor_merchant_id
+                        .is_null()
+                        .and(dsl::merchant_id.eq(merchant_id.to_owned())),
+                ),
+            )
             .limit(limit)
             .offset(offset)
             .order(dsl::modified_at.desc())
@@ -244,7 +264,13 @@ impl RoutingAlgorithm {
                 dsl::modified_at,
                 dsl::algorithm_for,
             ))
-            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(
+                dsl::processor_merchant_id.eq(merchant_id.to_owned()).or(
+                    dsl::processor_merchant_id
+                        .is_null()
+                        .and(dsl::merchant_id.eq(merchant_id.to_owned())),
+                ),
+            )
             .filter(dsl::algorithm_for.eq(transaction_type.to_owned()))
             .limit(limit)
             .offset(offset)

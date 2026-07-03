@@ -242,12 +242,12 @@ pub async fn construct_payout_router_data<'a, F>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: platform.get_processor().get_account().get_id().to_owned(),
-        customer_id: customer_details.to_owned().map(|c| c.customer_id),
+        customer_id: customer_details.as_ref().map(|c| c.get_id().clone()),
         tenant_id: state.tenant.tenant_id.clone(),
         connector_customer: get_payout_connector_customer_id(
             connector_data,
             connector_customer_id.clone(),
-            &customer_details.to_owned().map(|c| c.customer_id),
+            &customer_details.as_ref().map(|c| c.get_id().clone()),
             &payout_data.payment_method,
             &payout_data.payout_attempt,
         )?,
@@ -282,7 +282,7 @@ pub async fn construct_payout_router_data<'a, F>(
             customer_details: customer_details
                 .to_owned()
                 .map(|c| payments::CustomerDetails {
-                    customer_id: Some(c.customer_id),
+                    customer_id: Some(c.get_id().clone()),
                     name: c.name.map(Encryptable::into_inner),
                     email: c.email.map(Email::from),
                     phone: c.phone.map(Encryptable::into_inner),
@@ -2252,8 +2252,11 @@ pub async fn get_profile_id_from_business_details(
     }
 }
 
-pub fn get_poll_id(merchant_id: &common_utils::id_type::MerchantId, unique_id: String) -> String {
-    merchant_id.get_poll_id(&unique_id)
+pub fn get_poll_id(
+    processor_merchant_id: &common_utils::id_type::MerchantId,
+    unique_id: String,
+) -> String {
+    processor_merchant_id.get_poll_id(&unique_id)
 }
 
 pub fn get_external_authentication_request_poll_id(
@@ -2694,6 +2697,7 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn construct_vault_router_data<F>(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -2704,6 +2708,7 @@ pub async fn construct_vault_router_data<F>(
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
     should_generate_multiple_tokens: Option<bool>,
+    storage_type: Option<common_enums::StorageType>,
 ) -> RouterResult<VaultRouterDataV2<F>> {
     let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
@@ -2723,6 +2728,7 @@ pub async fn construct_vault_router_data<F>(
             connector_vault_id,
             connector_customer_id,
             should_generate_multiple_tokens,
+            storage_type,
         },
         response: Ok(types::VaultResponseData::default()),
     };

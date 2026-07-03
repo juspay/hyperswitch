@@ -7,7 +7,7 @@ use error_stack::{report, ResultExt};
 
 use super::generics;
 use crate::{
-    enums, errors,
+    enums, errors, kv,
     payouts::{Payouts, PayoutsNew, PayoutsUpdate, PayoutsUpdateInternal},
     query::generics::db_metrics,
     schema::{payout_attempt, payouts::dsl},
@@ -17,6 +17,13 @@ use crate::{
 impl PayoutsNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Payouts> {
         generics::generic_insert(conn, self).await
+    }
+
+    pub async fn generate_drainer_insert_query(
+        self,
+        conn: &mut PgPooledConn,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_insert_query(conn, self).await
     }
 }
 impl Payouts {
@@ -135,5 +142,23 @@ impl Payouts {
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error filtering count of payouts")
+    }
+}
+
+impl PayoutsUpdate {
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        payout_id: common_utils::id_type::PayoutId,
+        merchant_id: common_utils::id_type::MerchantId,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_with_predicate::<<Payouts as HasTable>::Table, _, _>(
+            conn,
+            dsl::payout_id
+                .eq(payout_id)
+                .and(dsl::merchant_id.eq(merchant_id)),
+            PayoutsUpdateInternal::from(self),
+        )
+        .await
     }
 }

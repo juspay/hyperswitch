@@ -1,6 +1,6 @@
 use common_utils::errors::CustomResult;
 use diesel_models::{
-    enums as storage_enums, kv,
+    enums as storage_enums,
     reverse_lookup::{
         ReverseLookup as DieselReverseLookup, ReverseLookupNew as DieselReverseLookupNew,
     },
@@ -91,15 +91,17 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                     source: new.source.clone(),
                     updated_by: storage_scheme.to_string(),
                 };
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Insert {
-                        insertable: Box::new(kv::Insertable::ReverseLookUp(new)),
-                    },
-                };
+
+                let mut query_gen_conn = utils::pg_connection_read(self).await?;
+                let drainer_query = new
+                    .generate_drainer_insert_query(&mut query_gen_conn)
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable("Failed to generate reverse lookup insert query")?;
 
                 match Box::pin(kv_wrapper::<DieselReverseLookup, _, _>(
                     self,
-                    KvOperation::SetNx(&created_rev_lookup, redis_entry),
+                    KvOperation::SetNx(&created_rev_lookup, drainer_query),
                     PartitionKey::CombinationKey {
                         combination: &format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
                     },

@@ -62,7 +62,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("EPS Create and Confirm flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -121,11 +121,22 @@ describe("Bank Redirect tests", () => {
           expected_redirection
         );
       });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["Eps"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+      });
     });
   });
 
   context("Giropay Create and Confirm flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -184,11 +195,22 @@ describe("Bank Redirect tests", () => {
           expected_redirection
         );
       });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["Giropay"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+      });
     });
   });
 
   context("iDEAL Create and Confirm flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -247,11 +269,22 @@ describe("Bank Redirect tests", () => {
           expected_redirection
         );
       });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["Ideal"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+      });
     });
   });
 
   context("Sofort Create and Confirm flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -309,6 +342,17 @@ describe("Bank Redirect tests", () => {
           payment_method_type,
           expected_redirection
         );
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["Sofort"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
     });
   });

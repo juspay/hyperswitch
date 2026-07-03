@@ -9,6 +9,7 @@
     "cypress-e2e": "npx cypress run --e2e",
     "cypress:ci": "npx cypress run --headless",
     "cypress:misc": "cypress run --headless --spec 'cypress/e2e/spec/Misc/**/*'",
+    "cypress:modular-pm-service": "cypress run --headless --spec 'cypress/e2e/spec/ModularPmService/**/*'",
     "cypress:payment-method-list": "cypress run --headless --spec 'cypress/e2e/spec/PaymentMethodList/**/*'",
     "cypress:payments": "cypress run --headless --spec 'cypress/e2e/spec/Payment/**/*'",
     "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/spec/Payout/**/*'",

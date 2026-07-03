@@ -360,7 +360,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             // If found, send back CustomerDetails from DB
             |optional_customer| {
                 Ok(optional_customer.map(|customer| api::CustomerDetails {
-                    id: Some(customer.customer_id.clone()),
+                    id: Some(customer.get_id().clone()),
                     name: customer.name.clone().map(|name| name.into_inner()),
                     email: customer.email.clone().map(Email::from),
                     phone: customer.phone.clone().map(|phone| phone.into_inner()),
@@ -420,32 +420,28 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 .attach_printable("Failed to form EncryptableCustomer")?;
 
         let new_customer_id = generate_customer_id_of_default_length();
-        let domain_customer = domain::Customer {
-            customer_id: new_customer_id.clone(),
-            merchant_id: self.merchant_account.get_id().clone(),
-            name: encryptable_customer.name,
-            email: encryptable_customer.email.map(|email| {
+        let domain_customer = domain::Customer::new(
+            new_customer_id.clone(),
+            self.merchant_account.get_id().clone(),
+            encryptable_customer.name,
+            encryptable_customer.email.map(|email| {
                 utils::Encryptable::new(
                     email.clone().into_inner().switch_strategy(),
                     email.into_encrypted(),
                 )
             }),
-            phone: encryptable_customer.phone,
-            description: None,
-            phone_country_code: self.customer.phone_country_code.to_owned(),
-            metadata: None,
-            connector_customer: None,
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-            address_id: None,
-            default_payment_method_id: None,
-            updated_by: None,
-            version: common_types::consts::API_VERSION,
-            tax_registration_id: encryptable_customer.tax_registration_id,
-            document_details: None,
-            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
-            last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
-        };
+            encryptable_customer.phone,
+            self.customer.phone_country_code.to_owned(),
+            None,
+            None,
+            None,
+            None,
+            encryptable_customer.tax_registration_id,
+            None,
+            initiator.and_then(|initiator| initiator.to_created_by()),
+            initiator.and_then(|initiator| initiator.to_created_by()),
+            id_type::GlobalCustomerId::generate(&self.state.conf.cell_information.id),
+        );
 
         db.insert_customer(
             domain_customer,
