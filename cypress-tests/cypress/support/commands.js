@@ -2358,6 +2358,15 @@ Cypress.Commands.add(
       Response: resData,
     } = data || {};
 
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task(
+        "cli_log",
+        "TRIGGER_SKIP enabled, skipping createPaymentIntentTest"
+      );
+      return;
+    }
+
     if (
       !createPaymentBody ||
       typeof createPaymentBody !== "object" ||
@@ -2368,7 +2377,7 @@ Cypress.Commands.add(
       );
     }
 
-    const configInfo = execConfig(validateConfig(configs));
+    const configInfo = execConfig(validatedConfigs);
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
 
     const body = JSON.parse(JSON.stringify(createPaymentBody));
@@ -5195,12 +5204,17 @@ Cypress.Commands.add(
     // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
     // trying to handle that specific case results in stripe 3ds tests to fail
     if (!(connectorId == "adyen" && paymentMethodType == "sofort")) {
-      handleRedirection(
-        "bank_redirect",
-        { redirectionUrl, expectedUrl },
-        connectorId,
-        paymentMethodType
-      );
+      // Wrap in cy.then() so that commands enqueued by handleRedirection
+      // (especially cy.origin() calls for PayJustNow) are chained inline
+      // and complete before subsequent test steps (Retrieve Payment, Refund).
+      cy.then(() => {
+        handleRedirection(
+          "bank_redirect",
+          { redirectionUrl, expectedUrl },
+          connectorId,
+          paymentMethodType
+        );
+      });
     }
   }
 );
