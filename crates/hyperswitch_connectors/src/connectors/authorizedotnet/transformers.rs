@@ -2303,6 +2303,7 @@ impl From<AuthorizedotnetWebhookEvent> for SyncStatus {
             AuthorizedotnetWebhookEvent::PriorAuthCapture => Self::SettledSuccessfully,
             AuthorizedotnetWebhookEvent::VoidCreated => Self::Voided,
             AuthorizedotnetWebhookEvent::RefundCreated => Self::RefundSettledSuccessfully,
+            AuthorizedotnetWebhookEvent::Unknown => Self::GeneralError,
         }
     }
 }
