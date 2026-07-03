@@ -412,14 +412,9 @@ export function createBusinessProfilesAndMerchantConnectorAccounts(
   globalState,
   paymentMethodsEnabled
 ) {
-  const additionalConnectorCredentials =
-    globalState
-      .get("MULTIPLE_CONNECTORS")
-      ?.connectorCredentials?.filter(
-        (connectorCredential) => connectorCredential !== "connector_1"
-      ) || [];
+  const connectorCount = globalState.get("MULTIPLE_CONNECTORS")?.count || 0;
 
-  if (additionalConnectorCredentials.length === 0) {
+  if (connectorCount <= 1) {
     cy.task(
       "cli_log",
       "Skipping multiple connector account setup; no multiple connector credentials configured."
@@ -427,10 +422,14 @@ export function createBusinessProfilesAndMerchantConnectorAccounts(
     return;
   }
 
-  additionalConnectorCredentials.forEach((connectorCredentialValue) => {
+  for (
+    let connectorIndex = 2;
+    connectorIndex <= connectorCount;
+    connectorIndex++
+  ) {
     const multipleConnector = {
       nextConnector: true,
-      value: connectorCredentialValue,
+      value: `connector_${connectorIndex}`,
     };
 
     createBusinessProfile(
@@ -446,7 +445,7 @@ export function createBusinessProfilesAndMerchantConnectorAccounts(
       paymentMethodsEnabled,
       multipleConnector
     );
-  });
+  }
 }
 
 export function updateBusinessProfile(
