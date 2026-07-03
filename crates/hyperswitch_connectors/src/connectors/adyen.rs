@@ -2115,6 +2115,10 @@ impl IncomingWebhook for Adyen {
         request: &IncomingWebhookRequestDetails<'_>,
         _context: Option<&WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
+        if request.body.is_empty(){
+            return Ok(api_models::webhooks::IncomingWebhookEvent::EndpointVerification);
+        }
+
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?;
 
