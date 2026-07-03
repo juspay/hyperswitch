@@ -1,7 +1,7 @@
 const keyPrefixes = {
   localhost: {
-    publishable_key: "pk_dev_",
-    key_id: "dev_",
+    publishable_key: "pk_snd_",
+    key_id: "snd_",
   },
   "host.docker.internal": {
     publishable_key: "pk_dev_",

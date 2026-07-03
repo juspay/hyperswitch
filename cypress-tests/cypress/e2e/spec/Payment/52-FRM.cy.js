@@ -63,6 +63,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
         ) {
           shouldContinue = false;
         }
+        cy.screenshot("frm-connector-creation");
       });
 
       cy.step("Create and Confirm Payment with FRM (Approve)", () => {
@@ -87,6 +88,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
+        cy.screenshot("frm-approve-payment");
       });
 
       cy.step("Retrieve Payment to Verify Status", () => {
@@ -96,6 +98,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
         }
 
         cy.retrievePaymentCallTest({ globalState });
+        cy.screenshot("frm-approve-payment-status");
       });
     });
 
