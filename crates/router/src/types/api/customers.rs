@@ -44,8 +44,9 @@ impl TryFrom<(domain::Customer, Option<payments::AddressDetails>)> for CustomerR
                     })
             })
             .transpose()?;
+        let customer_id = cust.get_id().clone();
         Ok(Self(customers::CustomerResponse {
-            customer_id: cust.customer_id,
+            customer_id,
             name: cust.name,
             email: cust.email,
             phone: cust.phone,

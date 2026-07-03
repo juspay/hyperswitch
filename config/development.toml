@@ -1487,6 +1487,7 @@ enabled = "true"
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"
 connection_timeout = 10
+request_timeout = 35
 ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
@@ -1534,6 +1535,12 @@ version = "HOSTNAME"
 enabled = false
 hyperswitch_ai_host = "http://0.0.0.0:8000"
 encryption_key = ""
+
+[sage]
+enabled = false           # Master switch for sage sessions
+base_url = ""             # Sage base URL
+mint_path = ""            # Path on sage that mints a session
+infra_key = ""            # Shared bearer presented to sage
 
 [proxy_status_mapping]
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response

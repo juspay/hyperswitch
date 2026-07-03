@@ -1760,6 +1760,7 @@ impl Currency {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
@@ -9708,6 +9709,8 @@ pub enum PermissionGroup {
     CloneConnectorManage,
     ThemeView,
     ThemeManage,
+    ConfigurationsView,
+    ConfigurationsManage,
     ReconSourcesView,
     ReconSourcesManage,
     ReconExceptionsView,
@@ -9732,6 +9735,7 @@ pub enum ParentGroup {
     ApiKeys,
     CloneConnector,
     Theme,
+    Configurations,
     ReconSources,
     ReconExceptions,
     ReconTransactions,
@@ -9767,6 +9771,7 @@ pub enum Resource {
     ReconStagingEntry,
     ReconTransaction,
     ReconRule,
+    SuperpositionConfig,
 }
 
 #[derive(
