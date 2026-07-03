@@ -2115,7 +2115,7 @@ impl IncomingWebhook for Adyen {
         request: &IncomingWebhookRequestDetails<'_>,
         _context: Option<&WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        if request.body.is_empty(){
+        if request.body.is_empty() {
             return Ok(api_models::webhooks::IncomingWebhookEvent::EndpointVerification);
         }
 
