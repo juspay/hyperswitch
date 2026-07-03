@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 
 use api_models::webhooks::IncomingWebhookEvent;
-use common_enums::{connector_enums::Connector, PayoutRetryType, PaymentMethodType, TransactionType};
+use common_enums::{
+    connector_enums::Connector, PaymentMethodType, PayoutRetryType, TransactionType,
+};
 use common_utils::id_type;
 use external_services::superposition;
 pub use hyperswitch_domain_models::platform::{ProcessorMerchantId, ProviderMerchantId};
@@ -157,7 +159,9 @@ impl
 }
 
 /// Can only add provider_merchant_id if not already present
-impl<M, O, P, T, Cn, PRT, Ev, Wpmt> Dimensions<NoProviderMerchantId, M, O, P, T, Cn, PRT, Ev, Wpmt> {
+impl<M, O, P, T, Cn, PRT, Ev, Wpmt>
+    Dimensions<NoProviderMerchantId, M, O, P, T, Cn, PRT, Ev, Wpmt>
+{
     pub fn with_provider_merchant_id(
         &self,
         id: ProviderMerchantId,
@@ -178,7 +182,9 @@ impl<M, O, P, T, Cn, PRT, Ev, Wpmt> Dimensions<NoProviderMerchantId, M, O, P, T,
 }
 
 /// Can only add processor_merchant_id if not already present
-impl<Pm, O, P, T, Cn, PRT, Ev, Wpmt> Dimensions<Pm, NoProcessorMerchantId, O, P, T, Cn, PRT, Ev, Wpmt> {
+impl<Pm, O, P, T, Cn, PRT, Ev, Wpmt>
+    Dimensions<Pm, NoProcessorMerchantId, O, P, T, Cn, PRT, Ev, Wpmt>
+{
     pub fn with_processor_merchant_id(
         &self,
         id: ProcessorMerchantId,
@@ -346,7 +352,9 @@ impl<Pm, M, O, P, T, Cn, PRT, Ev> Dimensions<Pm, M, O, P, T, Cn, PRT, Ev, NoPaym
 }
 
 /// Can only remove provider_merchant_id if currently present
-impl<M, O, P, T, Cn, PRT, Ev, Wpmt> Dimensions<HasProviderMerchantId, M, O, P, T, Cn, PRT, Ev, Wpmt> {
+impl<M, O, P, T, Cn, PRT, Ev, Wpmt>
+    Dimensions<HasProviderMerchantId, M, O, P, T, Cn, PRT, Ev, Wpmt>
+{
     pub fn without_provider_merchant_id(
         &self,
     ) -> Dimensions<NoProviderMerchantId, M, O, P, T, Cn, PRT, Ev, Wpmt> {
@@ -366,7 +374,9 @@ impl<M, O, P, T, Cn, PRT, Ev, Wpmt> Dimensions<HasProviderMerchantId, M, O, P, T
 }
 
 /// Can only remove processor_merchant_id if currently present
-impl<Pm, O, P, T, Cn, PRT, Ev, Wpmt> Dimensions<Pm, HasProcessorMerchantId, O, P, T, Cn, PRT, Ev, Wpmt> {
+impl<Pm, O, P, T, Cn, PRT, Ev, Wpmt>
+    Dimensions<Pm, HasProcessorMerchantId, O, P, T, Cn, PRT, Ev, Wpmt>
+{
     pub fn without_processor_merchant_id(
         &self,
     ) -> Dimensions<Pm, NoProcessorMerchantId, O, P, T, Cn, PRT, Ev, Wpmt> {
@@ -460,7 +470,9 @@ impl<Pm, M, O, P, T, Cn, PRT, Wpmt> Dimensions<Pm, M, O, P, T, Cn, PRT, HasWebho
 }
 
 /// provider_merchant_id getter - only available if HasProviderMerchantId
-impl<M, O, P, T, Cn, PRT, Ev, Wpmt> Dimensions<HasProviderMerchantId, M, O, P, T, Cn, PRT, Ev, Wpmt> {
+impl<M, O, P, T, Cn, PRT, Ev, Wpmt>
+    Dimensions<HasProviderMerchantId, M, O, P, T, Cn, PRT, Ev, Wpmt>
+{
     pub fn provider_merchant_id(&self) -> Result<&id_type::MerchantId, DimensionError> {
         self.provider_merchant_id
             .as_ref()
@@ -470,7 +482,9 @@ impl<M, O, P, T, Cn, PRT, Ev, Wpmt> Dimensions<HasProviderMerchantId, M, O, P, T
 }
 
 /// processor_merchant_id getter - only available if HasProcessorMerchantId
-impl<Pm, O, P, T, Cn, PRT, Ev, Wpmt> Dimensions<Pm, HasProcessorMerchantId, O, P, T, Cn, PRT, Ev, Wpmt> {
+impl<Pm, O, P, T, Cn, PRT, Ev, Wpmt>
+    Dimensions<Pm, HasProcessorMerchantId, O, P, T, Cn, PRT, Ev, Wpmt>
+{
     pub fn processor_merchant_id(&self) -> Result<&id_type::MerchantId, DimensionError> {
         self.processor_merchant_id
             .as_ref()
@@ -498,7 +512,9 @@ impl<Pm, M, O, T, Cn, PRT, Ev, Wpmt> Dimensions<Pm, M, O, HasProfileId, T, Cn, P
 }
 
 /// transaction_type getter - only available if HasTransactionType
-impl<Pm, M, O, P, Cn, PRT, Ev, Wpmt> Dimensions<Pm, M, O, P, HasTransactionType, Cn, PRT, Ev, Wpmt> {
+impl<Pm, M, O, P, Cn, PRT, Ev, Wpmt>
+    Dimensions<Pm, M, O, P, HasTransactionType, Cn, PRT, Ev, Wpmt>
+{
     pub fn transaction_type(&self) -> Result<TransactionType, DimensionError> {
         self.transaction_type
             .ok_or(DimensionError::MissingTransactionType)

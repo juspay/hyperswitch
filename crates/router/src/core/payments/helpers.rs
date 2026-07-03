@@ -8828,7 +8828,8 @@ where
 
             if skip_saving_wallet_at_connector {
                 logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
-                payment_data.set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
+                payment_data
+                    .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
             }
         }
     };
