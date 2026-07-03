@@ -404,6 +404,52 @@ export function createMerchantConnectorAccount(
   }
 }
 
+export function createBusinessProfilesAndMerchantConnectorAccounts(
+  paymentType,
+  createMerchantConnectorAccountBody,
+  createBusinessProfileBody,
+  globalState,
+  paymentMethodsEnabled
+) {
+  const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
+  const connectorCount = multipleConnectors?.status
+    ? multipleConnectors.count
+    : 0;
+
+  if (connectorCount <= 1) {
+    cy.task(
+      "cli_log",
+      "Skipping additional connector account setup; no multiple connector credentials configured."
+    );
+    return;
+  }
+
+  for (
+    let connectorIndex = 2;
+    connectorIndex <= connectorCount;
+    connectorIndex++
+  ) {
+    const multipleConnector = {
+      nextConnector: true,
+      value: `connector_${connectorIndex}`,
+    };
+
+    createBusinessProfile(
+      structuredClone(createBusinessProfileBody),
+      globalState,
+      multipleConnector
+    );
+
+    createMerchantConnectorAccount(
+      paymentType,
+      structuredClone(createMerchantConnectorAccountBody),
+      globalState,
+      paymentMethodsEnabled,
+      multipleConnector
+    );
+  }
+}
+
 export function updateBusinessProfile(
   updateBusinessProfileBody,
   is_connector_agnostic_enabled,

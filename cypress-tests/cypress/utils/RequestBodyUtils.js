@@ -75,6 +75,16 @@ export function validateEnv(baseUrl, keyIdType) {
   return prefix;
 }
 
+export function isLocalhost(baseUrl) {
+  if (!baseUrl) {
+    return false;
+  }
+
+  return ["localhost", "127.0.0.1", "host.docker.internal", "::1"].some(
+    (host) => baseUrl.includes(host)
+  );
+}
+
 /**
  * Generates a random email address for testing purposes.
  * @returns {string} A randomly generated email address (e.g., "alex.smith123@example.com").
@@ -340,45 +350,4 @@ export const isCI = () => {
  */
 export const getTimeoutMultiplier = () => {
   return isCI() ? 1.5 : 1;
-};
-
-/**
- * Detects if running against localhost environment
- * @param {string} baseUrl - The base URL to check
- * @returns {boolean} True if running against localhost, false otherwise
- */
-export const isLocalhost = (baseUrl) => {
-  if (!baseUrl) return false;
-  return baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1");
-};
-
-/**
- * Checks if vault is available for bank debit tests
- * Vault is required for ACH bank debit processing
- * @returns {boolean} True if vault is available, false otherwise
- */
-export const isVaultAvailable = () => {
-  // Check if vault service is available via environment variable
-  // Set CYPRESS_VAULT_AVAILABLE=true when vault is configured locally
-  return (
-    Cypress.env("VAULT_AVAILABLE") === true ||
-    Cypress.env("VAULT_URL") !== undefined
-  );
-};
-
-/**
- * Determines if bank debit tests should run on localhost
- * Tests should run if: NOT localhost OR (localhost AND vault available)
- * Tests should skip if: localhost AND vault NOT available
- * @param {string} baseUrl - The base URL to check
- * @returns {boolean} True if tests should be skipped, false otherwise
- */
-export const shouldSkipBankDebitOnLocalhost = (baseUrl) => {
-  // Always run on non-localhost environments
-  if (!isLocalhost(baseUrl)) {
-    return false;
-  }
-
-  // On localhost, only skip if vault is not available
-  return !isVaultAvailable();
 };

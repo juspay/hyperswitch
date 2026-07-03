@@ -9,6 +9,25 @@ import { isLocalhost } from "../../../utils/RequestBodyUtils";
 
 let globalState;
 
+function isVaultMarkedAvailable() {
+  const vaultAvailable = Cypress.env("VAULT_AVAILABLE");
+  return vaultAvailable === true || vaultAvailable === "true";
+}
+
+function skipIfLocalVaultUnavailable(testContext, testName) {
+  const baseUrl = globalState.get("baseUrl");
+
+  if (!isLocalhost(baseUrl) || isVaultMarkedAvailable()) {
+    return;
+  }
+
+  cy.task(
+    "cli_log",
+    `Skipping ${testName} on localhost. Set CYPRESS_VAULT_AVAILABLE=true when vault is available locally.`
+  );
+  testContext.skip();
+}
+
 describe("Bank Debit tests", () => {
   before("seed global state", function () {
     let skip = false;
@@ -102,31 +121,7 @@ describe("Bank Debit tests", () => {
 
   context("ACH Bank Debit Create and Confirm flow test", () => {
     before(function () {
-      const connectorId = globalState.get("connectorId");
-      const baseUrl = globalState.get("baseUrl");
-
-      // Vault is only required for Stripe ACH (microdeposit verification)
-      if (
-        ["stripe", "stripeconnect"].includes(connectorId) &&
-        isLocalhost(baseUrl) &&
-        !Cypress.env("VAULT_AVAILABLE")
-      ) {
-        const vaultUrl = Cypress.env("VAULT_URL") || "http://localhost:3001";
-        cy.task("checkVaultHealth", { vaultUrl }).then((result) => {
-          if (!result.healthy) {
-            cy.task(
-              "cli_log",
-              `Skipping ACH Bank Debit tests - vault not responding at ${vaultUrl}. Set CYPRESS_VAULT_AVAILABLE=true to skip this check.`
-            );
-            this.skip();
-          } else {
-            cy.task(
-              "cli_log",
-              `Vault is healthy at ${vaultUrl}, running ACH tests`
-            );
-          }
-        });
-      }
+      skipIfLocalVaultUnavailable(this, "ACH Bank Debit tests");
     });
 
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm ACH Bank Debit -> Retrieve Payment", () => {
@@ -423,30 +418,7 @@ describe("Bank Debit tests", () => {
 
   context("ACH Bank Debit Mandate flow test", () => {
     before(function () {
-      const connectorId = globalState.get("connectorId");
-      const baseUrl = globalState.get("baseUrl");
-
-      // Vault is only required for Stripe ACH (microdeposit verification)
-      if (
-        ["stripe", "stripeconnect"].includes(connectorId) &&
-        isLocalhost(baseUrl)
-      ) {
-        const vaultUrl = Cypress.env("VAULT_URL") || "http://localhost:3001";
-        cy.task("checkVaultHealth", { vaultUrl }).then((result) => {
-          if (!result.healthy) {
-            cy.task(
-              "cli_log",
-              `Skipping ACH Bank Debit Mandate tests - vault not responding at ${vaultUrl}`
-            );
-            this.skip();
-          } else {
-            cy.task(
-              "cli_log",
-              `Vault is healthy at ${vaultUrl}, running ACH mandate tests`
-            );
-          }
-        });
-      }
+      skipIfLocalVaultUnavailable(this, "ACH Bank Debit Mandate tests");
     });
 
     it("CIT mandate creation -> MIT mandate reuse for ACH", () => {

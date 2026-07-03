@@ -4823,12 +4823,21 @@ Cypress.Commands.add("verifyAchMicrodepositCallTest", (globalState) => {
 
     const apiKey = authDetails.connector_account_details.api_key;
 
+    const providerBaseUrl = microdepositConfig.providerBaseUrl.startsWith(
+      "http"
+    )
+      ? microdepositConfig.providerBaseUrl
+      : `https://${microdepositConfig.providerBaseUrl}`;
+
     cy.task("cli_log", `Fetching payment intent for microdeposit verification`);
 
-    cy.task("fetchPaymentIntent", {
-      authApiKey: apiKey,
-      paymentIntentId: connectorTransactionId,
-      providerBaseUrl: microdepositConfig.providerBaseUrl,
+    cy.request({
+      method: "GET",
+      url: `${providerBaseUrl}/v1/payment_intents/${connectorTransactionId}`,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+      failOnStatusCode: false,
     }).then((result) => {
       if (result.status !== 200) {
         cy.task("cli_log", `Failed to fetch payment intent: ${result.status}`);

@@ -58,13 +58,8 @@ const multiUseMandateData = {
 };
 
 const onlineCustomerAcceptance = {
+  ...customerAcceptance,
   acceptance_type: "online",
-  accepted_at: "2025-05-07T09:30:52.779Z",
-  online: {
-    ip_address: "103.23.45.1",
-    user_agent:
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:138.0) Gecko/20100101 Firefox/138.0",
-  },
 };
 
 const connectorCredential = (connectorIndex) => ({
