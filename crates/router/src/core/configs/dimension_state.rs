@@ -57,9 +57,11 @@ pub struct NoProfileId;
 pub struct HasProfileId;
 
 /// Marker for state WITHOUT transaction_type
+#[derive(Clone)]
 pub struct NoTransactionType;
 
 /// Marker for state WITH transaction_type
+#[derive(Clone)]
 pub struct HasTransactionType;
 
 /// Marker for state WITHOUT connector
@@ -87,9 +89,11 @@ pub struct NoWebhookEvent;
 pub struct HasWebhookEvent;
 
 /// Marker for state WITHOUT payment_method_type
+#[derive(Clone)]
 pub struct NoPaymentMethodType;
 
 /// Marker for state WITH payment_method_type
+#[derive(Clone)]
 pub struct HasPaymentMethodType;
 
 // Dimensional State with type parameters

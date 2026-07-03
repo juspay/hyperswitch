@@ -86,12 +86,12 @@ pub async fn sync_onboarding_status(
                         paypal_onboarding_data.payer_id.get_string_repr().to_owned(),
                     ),
                 };
-                let update_mca_data = Box::pin(paypal::update_mca(
+                let update_mca_data = paypal::update_mca(
                     &state,
                     user_from_token.merchant_id,
                     request.connector_id.to_owned(),
                     auth_details,
-                ))
+                )
                 .await?;
 
                 return Ok(ApplicationResponse::Json(api::OnboardingStatus::PayPal(

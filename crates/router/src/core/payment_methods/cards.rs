@@ -4031,7 +4031,7 @@ pub async fn build_merchant_enabled_pms_context(
             .get_pre_routing_disabled_pm_pmt(
                 state.store.as_ref(),
                 state.superposition_service.as_ref(),
-                customer.map(|c| &c.customer_id),
+                customer.map(|c|  c.get_id()),
             )
             .await;
 

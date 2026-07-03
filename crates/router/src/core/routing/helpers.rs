@@ -127,25 +127,27 @@ pub async fn get_merchant_default_config(
 }
 
 /// Merchant's already created config can be updated and this change will be reflected
-/// in DB as well for the particular updated config. Also writes to Superposition using
-/// the provided dimensions and state.
+/// in DB as well for the particular updated config
 pub async fn update_merchant_default_config(
+    db: &dyn StorageInterface,
+    merchant_id: &str,
     connectors: Vec<routing_types::RoutableConnectorChoice>,
-    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndTransactionType,
-    state: &SessionState,
+    transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<()> {
-    if let Err(e) = dimensions
-        .set_routing_default_config(
-            state.superposition_service.as_ref(),
-            &serde_json::to_value(&connectors).unwrap_or_default(),
-        )
+    let key = get_default_config_key(merchant_id, transaction_type);
+    let config_str = connectors
+        .encode_to_string_of_json()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to serialize merchant default routing config during update")?;
+
+    let config_update = configs::ConfigUpdate::Update {
+        config: Some(config_str),
+    };
+
+    db.update_config_by_key(&key, config_update)
         .await
-    {
-        router_env::logger::warn!(
-            error=?e,
-            "Failed to write routing_default_config to superposition"
-        );
-    }
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error updating the default routing config in DB")?;
 
     Ok(())
 }

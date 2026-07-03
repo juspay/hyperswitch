@@ -3986,7 +3986,7 @@ pub async fn clone_connector(
         None,
     );
 
-    Box::pin(admin::create_connector(
+    admin::create_connector(
         state,
         merchant_connector_create,
         platform.get_processor().clone(),

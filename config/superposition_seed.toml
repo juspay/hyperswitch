@@ -316,3 +316,9 @@ schema = { type = "boolean" }
 description = "Whether saving the wallet at the connector should be skipped per merchant and payment method type"
 change_reason = "Initial setup"
 
+[default-configs.connector_api_version]
+value = ""
+schema = { type = "string" }
+description = "Connector-specific API version to use, keyed by the connector dimension (e.g. sdk_api for braintree)"
+change_reason = "Initial setup"
+

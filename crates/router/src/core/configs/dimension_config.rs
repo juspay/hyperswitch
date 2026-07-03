@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use api_models::{routing as routing_types, webhooks::IncomingWebhookEvent};
+use api_models::webhooks::IncomingWebhookEvent;
 use common_enums;
 use common_utils::errors::CustomResult;
 use external_services::superposition;
@@ -153,13 +153,6 @@ macro_rules! config {
                     crate::core::configs::fetch_db_config_for_object_array::<[<$key:camel>], $output>(
                         storage, superposition_client, self, targeting_key
                     ).await
-                }
-            }
-
-            impl DatabaseBackedConfig for [<$key:camel>] {
-                const KEY: &'static str = stringify!([<$key:snake>]);
-                fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
-                    None
                 }
             }
         }
@@ -851,21 +844,6 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
 }
 
 config! {
-    superposition_key = ROUTING_DEFAULT_CONFIG,
-    output = Vec<routing_types::RoutableConnectorChoice>,
-    default = Vec::<routing_types::RoutableConnectorChoice>::new(),
-    object_array = true,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndTransactionType,
-    targeting_key = id_type::MerchantId
-}
-
-writable_config! {
-    superposition_key = ROUTING_DEFAULT_CONFIG,
-    input = serde_json::Value,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndTransactionType
-}
-
-config! {
     superposition_key = STEP_UP_ENABLED,
     output = bool,
     default = false,
@@ -951,6 +929,17 @@ config! {
     object = true,
     requires = dimension_state::DimensionsWithProcessorMerchantId,
     targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for PreRoutingDisabledPmPmt {
+    const KEY: &'static str = "pre_routing_disabled_pm_pmt";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Matches the existing key format: "pre_routing_disabled_pm_pmt_for_{merchant_id}"
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("pre_routing_disabled_pm_pmt_for_{}", id.get_string_repr()))
+    }
 }
 
 config! {
@@ -1056,5 +1045,24 @@ impl DatabaseBackedConfig for SkipSavingWalletAtConnector {
                 .ok()
             })
             .map(|payment_method_type| skip_payment_method_types.contains(&payment_method_type))
+    }
+}
+
+config! {
+    superposition_key = CONNECTOR_API_VERSION,
+    output = String,
+    default = String::new(),
+    requires = dimension_state::DimensionsWithConnector,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for ConnectorApiVersion {
+    const KEY: &'static str = "connector_api_version";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Matches the existing key format: "connector_api_version_{connector}"
+        dimensions
+            .get_connector()
+            .map(|connector| format!("connector_api_version_{connector}"))
     }
 }

@@ -371,8 +371,6 @@ pub mod superposition {
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
     /// Fingerprint secret configuration key
     pub const FINGERPRINT_SECRET: &str = "fingerprint_secret";
-    /// Routing default config key
-    pub const ROUTING_DEFAULT_CONFIG: &str = "routing_default_config";
     /// Poll config for external 3DS authentication key
     pub const POLL_CONFIG_EXTERNAL_THREE_DS: &str = "poll_config_external_three_ds";
     /// Outgoing webhook retry process tracker mapping key
@@ -452,6 +450,8 @@ pub mod superposition {
     pub const SKIP_SAVING_WALLET_AT_CONNECTOR: &str = "skip_saving_wallet_at_connector";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "save_wallet_decrypted_data";
+    /// Connector API version configuration key per connector
+    pub const CONNECTOR_API_VERSION: &str = "connector_api_version";
 }
 
 #[cfg(test)]

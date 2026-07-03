@@ -378,12 +378,11 @@ pub async fn construct_refund_router_data<'a, F>(
         .supported_connectors;
 
     let connector_api_version = if supported_connector.contains(&connector_enum) {
-        state
-            .store
-            .find_config_by_key(&format!("connector_api_version_{connector_enum}"))
-            .await
-            .map(|value| value.config)
-            .ok()
+        let version = dimension_state::Dimensions::new()
+            .with_connector(connector_enum)
+            .get_connector_api_version(state.store.as_ref(), &state.superposition_service, None)
+            .await;
+        (!version.is_empty()).then_some(version)
     } else {
         None
     };
@@ -569,12 +568,11 @@ pub async fn construct_refund_router_data<'a, F>(
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_id:?}"))?;
 
     let connector_api_version = if supported_connector.contains(&connector_enum) {
-        state
-            .store
-            .find_config_by_key(&format!("connector_api_version_{connector_id}"))
-            .await
-            .map(|value| value.config)
-            .ok()
+        let version = dimension_state::Dimensions::new()
+            .with_connector(connector_enum)
+            .get_connector_api_version(state.store.as_ref(), &state.superposition_service, None)
+            .await;
+        (!version.is_empty()).then_some(version)
     } else {
         None
     };

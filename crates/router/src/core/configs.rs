@@ -335,7 +335,14 @@ where
 
     let json_value = match superposition_client {
         Some(client) => {
-            fetch_db_config::<C>(storage, client, db_key.as_deref(), context, targeting_key).await
+            fetch_db_config::<C>(
+                storage,
+                client,
+                vec![db_key.as_deref()],
+                context,
+                targeting_key,
+            )
+            .await
         }
         None => C::default_value(),
     };

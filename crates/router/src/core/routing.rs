@@ -18,7 +18,7 @@ use api_models::{
 use async_trait::async_trait;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::AsyncExt;
-use common_utils::request::Method;
+use common_utils::{ext_traits::Encode, request::Method};
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -32,6 +32,7 @@ use helpers::{
     enable_decision_engine_dynamic_routing_setup, update_decision_engine_dynamic_routing_setup,
 };
 use hyperswitch_domain_models::{mandates, payment_address};
+use hyperswitch_masking::Secret;
 use payment_methods::helpers::StorageErrorExt;
 use rustc_hash::FxHashSet;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -1204,21 +1205,6 @@ pub async fn update_default_fallback_routing(
         )
         .await?;
 
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_profile_id(profile_id)
-        .with_transaction_type(enums::TransactionType::Payment);
-    if let Err(e) = dimensions
-        .set_routing_default_config(
-            state.superposition_service.as_ref(),
-            &serde_json::to_value(&updated_list_of_connectors).unwrap_or_default(),
-        )
-        .await
-    {
-        router_env::logger::warn!(error=?e, "Failed to write routing_default_config to superposition");
-    }
-
     metrics::ROUTING_UPDATE_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         updated_list_of_connectors,
@@ -1306,25 +1292,22 @@ pub async fn retrieve_default_routing_config(
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
-    let merchant_id = platform.get_processor().get_account().get_id();
-    let pid = profile_id.get_required_value("profile_id")?;
+    let id = profile_id
+        .map(|profile_id| profile_id.get_string_repr().to_owned())
+        .unwrap_or_else(|| {
+            processor
+                .get_account()
+                .get_id()
+                .get_string_repr()
+                .to_string()
+        });
 
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_profile_id(pid)
-        .with_transaction_type(*transaction_type);
-
-    let conn_choice = dimensions
-        .get_routing_default_config(
-            db,
-            Some(state.superposition_service.as_ref()),
-            Some(merchant_id),
-        )
-        .await;
-
-    metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
-    Ok(service_api::ApplicationResponse::Json(conn_choice))
+    helpers::get_merchant_default_config(db, &id, transaction_type)
+        .await
+        .map(|conn_choice| {
+            metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
+            service_api::ApplicationResponse::Json(conn_choice)
+        })
 }
 
 #[cfg(feature = "v2")]
@@ -1553,33 +1536,21 @@ pub async fn retrieve_default_routing_config_for_profiles(
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)
         .attach_printable("error retrieving all business profiles for merchant")?;
 
-    let merchant_id = platform.get_processor().get_account().get_id();
-    let processor_mid = platform.get_processor().get_processor_merchant_id();
-    let provider_mid = platform.get_provider().get_provider_merchant_id();
-
     let retrieve_config_futures = all_profiles
         .iter()
         .map(|prof| {
-            let dimensions = dimension_state::Dimensions::new()
-                .with_processor_merchant_id(processor_mid.clone())
-                .with_provider_merchant_id(provider_mid.clone())
-                .with_profile_id(prof.get_id().clone())
-                .with_transaction_type(*transaction_type);
-            let targeting_merchant_id = merchant_id.clone();
-            let superposition_service = state.superposition_service.clone();
-            async move {
-                dimensions
-                    .get_routing_default_config(
-                        db,
-                        Some(superposition_service.as_ref()),
-                        Some(&targeting_merchant_id),
-                    )
-                    .await
-            }
+            helpers::get_merchant_default_config(
+                db,
+                prof.get_id().get_string_repr(),
+                transaction_type,
+            )
         })
         .collect::<Vec<_>>();
 
-    let configs = futures::future::join_all(retrieve_config_futures).await;
+    let configs = futures::future::join_all(retrieve_config_futures)
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?;
 
     let default_configs = configs
         .into_iter()
@@ -1607,29 +1578,19 @@ pub async fn update_default_routing_config_for_profile(
 
     let db = state.store.as_ref();
 
-    let business_profile = core_utils::validate_and_get_business_profile(
+    let business_profile =
+        core_utils::validate_and_get_business_profile(db, &processor, Some(&profile_id))
+            .await?
+            .get_required_value("Profile")
+            .change_context(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            })?;
+    let default_config = helpers::get_merchant_default_config(
         db,
-        platform.get_processor(),
-        Some(&profile_id),
+        business_profile.get_id().get_string_repr(),
+        transaction_type,
     )
-    .await?
-    .get_required_value("Profile")
-    .change_context(errors::ApiErrorResponse::ProfileNotFound {
-        id: profile_id.get_string_repr().to_owned(),
-    })?;
-    let merchant_id = platform.get_processor().get_account().get_id();
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_profile_id(business_profile.get_id().clone())
-        .with_transaction_type(*transaction_type);
-    let default_config = dimensions
-        .get_routing_default_config(
-            db,
-            Some(state.superposition_service.as_ref()),
-            Some(merchant_id),
-        )
-        .await;
+    .await?;
 
     utils::when(default_config.len() != updated_config.len(), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -1666,7 +1627,32 @@ pub async fn update_default_routing_config_for_profile(
         })
     })?;
 
-    helpers::update_merchant_default_config(updated_config.clone(), &dimensions, &state).await?;
+    helpers::update_merchant_default_config(
+        db,
+        business_profile.get_id().get_string_repr(),
+        updated_config.clone(),
+        transaction_type,
+    )
+    .await?;
+
+    // Dual-write: also update business_profile.default_fallback_routing column
+    let default_fallback_routing = Secret::from(
+        updated_config
+            .encode_to_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode updated config to value")?,
+    );
+    let profile_update = domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
+        default_fallback_routing: Some(default_fallback_routing),
+    };
+    db.update_profile_by_profile_id(
+        processor.get_key_store(),
+        business_profile.clone(),
+        profile_update,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update default_fallback_routing in business profile")?;
 
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(

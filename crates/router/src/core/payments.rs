@@ -10776,29 +10776,14 @@ where
         payment_data.get_currency(),
     );
 
-    let fallback_config = {
-        let transaction_type = transaction_type_from_payments_dsl(&transaction_data);
-        let dimensions = Dimensions::new()
-            .with_processor_merchant_id(
-                crate::core::configs::dimension_state::ProcessorMerchantId::new(
-                    business_profile.merchant_id.clone(),
-                ),
-            )
-            .with_provider_merchant_id(
-                crate::core::configs::dimension_state::ProviderMerchantId::new(
-                    business_profile.merchant_id.clone(),
-                ),
-            )
-            .with_profile_id(business_profile.get_id().clone())
-            .with_transaction_type(transaction_type);
-        dimensions
-            .get_routing_default_config(
-                &*state.clone().store,
-                Some(state.superposition_service.as_ref()),
-                Some(&business_profile.merchant_id),
-            )
-            .await
-    };
+    let fallback_config = routing_helpers::get_merchant_default_config(
+        &*state.clone().store,
+        business_profile.get_id().get_string_repr(),
+        &transaction_type_from_payments_dsl(&transaction_data),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("euclid: failed to fetch fallback config")?;
 
     let connector = match routing::make_dsl_input(&transaction_data).inspect_err(|err| {
         logger::error!(

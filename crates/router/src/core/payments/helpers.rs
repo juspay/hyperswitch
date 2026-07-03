@@ -6953,24 +6953,14 @@ pub async fn get_apple_pay_retryable_connectors(
             }
         }
         #[cfg(feature = "v1")]
-        let fallback_connetors_list = {
-            let dimensions = dimension_state::Dimensions::new()
-                .with_processor_merchant_id(dimension_state::ProcessorMerchantId::new(
-                    business_profile.merchant_id.clone(),
-                ))
-                .with_provider_merchant_id(dimension_state::ProviderMerchantId::new(
-                    business_profile.merchant_id.clone(),
-                ))
-                .with_profile_id(business_profile.get_id().clone())
-                .with_transaction_type(api_enums::TransactionType::Payment);
-            dimensions
-                .get_routing_default_config(
-                    &*state.clone().store,
-                    Some(state.superposition_service.as_ref()),
-                    Some(&business_profile.merchant_id),
-                )
-                .await
-        };
+        let fallback_connetors_list = crate::core::routing::helpers::get_merchant_default_config(
+            &*state.clone().store,
+            profile_id.get_string_repr(),
+            &api_enums::TransactionType::Payment,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get merchant default fallback connectors config")?;
 
         let mut routing_connector_data_list = Vec::new();
 
