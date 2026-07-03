@@ -274,7 +274,12 @@ function createUcsConfigs(globalState, flow, type) {
 }
 
 function filterNullableCardMetadata(expectedCard, actualCard) {
-  const nullableFields = ["card_type", "card_network", "card_issuer", "card_issuing_country"];
+  const nullableFields = [
+    "card_type",
+    "card_network",
+    "card_issuer",
+    "card_issuing_country",
+  ];
   const filtered = { ...expectedCard };
   for (const field of nullableFields) {
     if (field in filtered && actualCard[field] === null) {
@@ -2871,7 +2876,10 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (key === "payment_method_data") {
                   if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(resData.body[key].card, response.body[key].card);
+                    const filteredCard = filterNullableCardMetadata(
+                      resData.body[key].card,
+                      response.body[key].card
+                    );
                     expect(response.body[key].card, [
                       key + ".card",
                     ]).to.deep.include(filteredCard);
@@ -2912,7 +2920,10 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (key === "payment_method_data") {
                   if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(resData.body[key].card, response.body[key].card);
+                    const filteredCard = filterNullableCardMetadata(
+                      resData.body[key].card,
+                      response.body[key].card
+                    );
                     expect(response.body[key].card, [
                       key + ".card",
                     ]).to.deep.include(filteredCard);
@@ -2982,7 +2993,10 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (key === "payment_method_data") {
                   if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(resData.body[key].card, response.body[key].card);
+                    const filteredCard = filterNullableCardMetadata(
+                      resData.body[key].card,
+                      response.body[key].card
+                    );
                     expect(response.body[key].card, [
                       key + ".card",
                     ]).to.deep.include(filteredCard);
@@ -3012,7 +3026,10 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (key === "payment_method_data") {
                   if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(resData.body[key].card, response.body[key].card);
+                    const filteredCard = filterNullableCardMetadata(
+                      resData.body[key].card,
+                      response.body[key].card
+                    );
                     expect(response.body[key].card, [
                       key + ".card",
                     ]).to.deep.include(filteredCard);
@@ -3685,7 +3702,10 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (key === "payment_method_data") {
                   if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(resData.body[key].card, response.body[key].card);
+                    const filteredCard = filterNullableCardMetadata(
+                      resData.body[key].card,
+                      response.body[key].card
+                    );
                     expect(response.body[key].card, [
                       key + ".card",
                     ]).to.deep.include(filteredCard);
@@ -3704,7 +3724,10 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (key === "payment_method_data") {
                   if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(resData.body[key].card, response.body[key].card);
+                    const filteredCard = filterNullableCardMetadata(
+                      resData.body[key].card,
+                      response.body[key].card
+                    );
                     expect(response.body[key].card, [
                       key + ".card",
                     ]).to.deep.include(filteredCard);
@@ -3756,7 +3779,10 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (key === "payment_method_data") {
                   if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(resData.body[key].card, response.body[key].card);
+                    const filteredCard = filterNullableCardMetadata(
+                      resData.body[key].card,
+                      response.body[key].card
+                    );
                     expect(response.body[key].card, [
                       key + ".card",
                     ]).to.deep.include(filteredCard);
@@ -3775,7 +3801,10 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (key === "payment_method_data") {
                   if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(resData.body[key].card, response.body[key].card);
+                    const filteredCard = filterNullableCardMetadata(
+                      resData.body[key].card,
+                      response.body[key].card
+                    );
                     expect(response.body[key].card, [
                       key + ".card",
                     ]).to.deep.include(filteredCard);
@@ -3909,7 +3938,10 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (key === "payment_method_data") {
                   if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(resData.body[key].card, response.body[key].card);
+                    const filteredCard = filterNullableCardMetadata(
+                      resData.body[key].card,
+                      response.body[key].card
+                    );
                     expect(response.body[key].card, [
                       key + ".card",
                     ]).to.deep.include(filteredCard);
@@ -3971,7 +4003,10 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (key === "payment_method_data") {
                   if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(resData.body[key].card, response.body[key].card);
+                    const filteredCard = filterNullableCardMetadata(
+                      resData.body[key].card,
+                      response.body[key].card
+                    );
                     expect(response.body[key].card, [
                       key + ".card",
                     ]).to.deep.include(filteredCard);
@@ -4665,7 +4700,10 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (key === "payment_method_data") {
                   if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(resData.body[key].card, response.body[key].card);
+                    const filteredCard = filterNullableCardMetadata(
+                      resData.body[key].card,
+                      response.body[key].card
+                    );
                     expect(response.body[key].card, [
                       key + ".card",
                     ]).to.deep.include(filteredCard);
@@ -4750,7 +4788,10 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (key === "payment_method_data") {
                   if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(resData.body[key].card, response.body[key].card);
+                    const filteredCard = filterNullableCardMetadata(
+                      resData.body[key].card,
+                      response.body[key].card
+                    );
                     expect(response.body[key].card, [
                       key + ".card",
                     ]).to.deep.include(filteredCard);
