@@ -1088,7 +1088,6 @@ mod tests {
     use super::*;
     use crate::types as kgraph_types;
 
-    #[allow(deprecated)]
     fn build_test_data() -> ConstraintGraph<dir::DirValue> {
         use api_models::{admin::*, payment_methods::*};
         let profile_id = common_utils::generate_profile_id_of_default_length();

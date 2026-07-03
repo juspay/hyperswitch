@@ -1000,7 +1000,6 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
     for api_models::admin::MerchantConnectorResponse
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    #[allow(deprecated)]
     fn foreign_try_from(item: domain::MerchantConnectorAccount) -> Result<Self, Self::Error> {
         let payment_methods_enabled = match item.payment_methods_enabled.clone() {
             Some(secret_val) => {

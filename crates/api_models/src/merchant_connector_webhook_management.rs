@@ -121,8 +121,7 @@ pub struct WebhookRegistrationError {
 pub struct ConnectorWebhookRegisterRequest {
     #[schema(value_type = Scope)]
     pub scope: Scope,
-    #[deprecated(note = "Use `scope` instead to specify the event type for registration.")]
-    #[schema(value_type = Option<ConnectorWebhookEventType>)]
+    #[schema(value_type = Option<ConnectorWebhookEventType>, deprecated)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub event_type: Option<common_enums::ConnectorWebhookEventType>,
     /// Internal marker set during deserialization when the caller used the deprecated
@@ -191,20 +190,15 @@ pub struct WebhookSecretErrorDetails {
 #[serde(deny_unknown_fields)]
 pub struct RegisterConnectorWebhookResponse {
     // Deprecated fields retained for backward compatibility.
-    #[schema(value_type = Option<ConnectorWebhookEventType>)]
-    #[deprecated(note = "Use `scope_type` and `results` instead.")]
+    #[schema(value_type = Option<ConnectorWebhookEventType>, deprecated)]
     pub event_type: Option<common_enums::ConnectorWebhookEventType>,
-    #[schema(value_type = Option<String>)]
-    #[deprecated(note = "Use `results` instead.")]
+    #[schema(value_type = Option<String>, deprecated)]
     pub connector_webhook_id: Option<String>,
-    #[schema(value_type = Option<WebhookRegistrationStatus>)]
-    #[deprecated(note = "Use `results` instead.")]
+    #[schema(value_type = Option<WebhookRegistrationStatus>, deprecated)]
     pub webhook_registration_status: Option<WebhookRegistrationStatus>,
-    #[schema(value_type = Option<String>)]
-    #[deprecated(note = "Use `results` instead.")]
+    #[schema(value_type = Option<String>, deprecated)]
     pub error_code: Option<String>,
-    #[schema(value_type = Option<String>)]
-    #[deprecated(note = "Use `results` instead.")]
+    #[schema(value_type = Option<String>, deprecated)]
     pub error_message: Option<String>,
     /// The type of scope used for this registration.
     pub scope_type: ScopeType,
@@ -240,8 +234,7 @@ pub enum ConnectorWebhookScope {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ConnectorWebhookResponse {
-    #[schema(value_type = Option<ConnectorWebhookEventType>)]
-    #[deprecated(note = "Use `scope` instead.")]
+    #[schema(value_type = Option<ConnectorWebhookEventType>, deprecated)]
     pub event_type: Option<common_enums::ConnectorWebhookEventType>,
     pub connector_webhook_id: String,
     pub scope: ConnectorWebhookScope,

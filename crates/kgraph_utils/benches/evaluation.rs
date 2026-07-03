@@ -17,7 +17,6 @@ use hyperswitch_constraint_graph::{CycleCheck, Memoization};
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue, types::CountryCurrencyFilter};
 
 #[cfg(feature = "v1")]
-#[allow(deprecated)]
 fn build_test_data(
     total_enabled: usize,
     total_pm_types: usize,

@@ -1632,8 +1632,7 @@ pub struct MerchantConnectorResponse {
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
 
     /// Details about the connector’s webhook configuration
-    #[schema(value_type = Option<WebhookSetupCapabilities>)]
-    #[deprecated(note = "Webhook setup capabilities are no longer returned in this response.")]
+    #[schema(value_type = Option<WebhookSetupCapabilities>, deprecated)]
     pub webhook_setup_capabilities:
         Option<common_types::connector_webhook_configuration::WebhookSetupCapabilities>,
 }
