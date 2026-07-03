@@ -25,8 +25,6 @@ compile_error!("Features \"fred\" and \"redis-rs\" are mutually exclusive — en
 pub mod constant;
 pub mod errors;
 pub(crate) mod metrics;
-#[cfg(any(feature = "fred", feature = "redis-rs"))]
-pub mod observability;
 pub mod types;
 
 #[cfg(feature = "fred")]
@@ -56,17 +54,6 @@ pub use module::redis_rs::{
 };
 
 pub use self::types::*;
-
-/// Wrap a Redis command body so it emits an `ExternalServiceCall` event on
-/// completion. Expands to `observability::observe($self, $cmd, async move
-/// $body).await`. Used in `module/redis_rs/commands.rs` on every public async
-/// command method.
-#[macro_export]
-macro_rules! observed {
-    ($self:expr, $cmd:expr, $body:block) => {
-        $crate::observability::observe($self, $cmd, async move $body).await
-    };
-}
 
 #[cfg(test)]
 mod test;

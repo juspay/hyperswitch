@@ -287,23 +287,22 @@ impl RedisConnectionPool {
         channel: &str,
         message: RedisValue,
     ) -> CustomResult<usize, crate::errors::RedisError> {
-        crate::observed!(self, "PUBLISH", {
-            self.publisher.publish(channel, message).await
-        })
+        // PUBLISH is request-triggered (cache invalidation on MCA/API-key
+        // update/revoke), so it is tracked as a per-request Redis roundtrip.
+        crate::metrics::track_redis_call(
+            self,
+            crate::metrics::RedisOperation::Publish,
+            self.publisher.publish(channel, message),
+        )
+        .await
     }
 
     pub async fn subscribe(&self, channel: &str) -> CustomResult<(), crate::errors::RedisError> {
-        // Emit only for the subscribe round trip. Delivered pub/sub messages
-        // are intentionally not emitted as Redis calls.
-        crate::observed!(self, "SUBSCRIBE", {
-            self.subscriber.subscribe(channel).await
-        })
+        self.subscriber.subscribe(channel).await
     }
 
     pub async fn unsubscribe(&self, channel: &str) -> CustomResult<(), crate::errors::RedisError> {
-        crate::observed!(self, "UNSUBSCRIBE", {
-            self.subscriber.unsubscribe(channel).await
-        })
+        self.subscriber.unsubscribe(channel).await
     }
 
     pub async fn on_error(&self, tx: tokio::sync::oneshot::Sender<()>) {
