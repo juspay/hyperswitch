@@ -2362,6 +2362,15 @@ Cypress.Commands.add(
       Response: resData,
     } = data || {};
 
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task(
+        "cli_log",
+        "TRIGGER_SKIP enabled, skipping createPaymentIntentTest"
+      );
+      return;
+    }
+
     if (
       !createPaymentBody ||
       typeof createPaymentBody !== "object" ||
@@ -2372,7 +2381,7 @@ Cypress.Commands.add(
       );
     }
 
-    const configInfo = execConfig(validateConfig(configs));
+    const configInfo = execConfig(validatedConfigs);
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
 
     const body = JSON.parse(JSON.stringify(createPaymentBody));
@@ -5213,15 +5222,20 @@ Cypress.Commands.add(
       return;
     }
 
-    handleRedirection(
-      "bank_redirect",
-      {
-        redirectionUrl: new URL(nextActionUrl),
-        expectedUrl: new URL(expectedRedirection),
-      },
-      connectorId,
-      paymentMethodType
-    );
+    const expectedUrl = new URL(expectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
+    // Wrap in cy.then() so that commands enqueued by handleRedirection
+    // (especially cy.origin() calls for PayJustNow) are chained inline
+    // and complete before subsequent test steps (Retrieve Payment, Refund).
+    cy.then(() => {
+      handleRedirection(
+        "bank_redirect",
+        { redirectionUrl, expectedUrl },
+        connectorId,
+        paymentMethodType
+      );
+    });
   }
 );
 
