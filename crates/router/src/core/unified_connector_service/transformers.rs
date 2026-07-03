@@ -1152,10 +1152,6 @@ impl
     }
 }
 
-// External-vault tuple builder: emits `card_proxy` from the re-fetched VGS alias so the RReq
-// (`/3ds/results`) routes through the UCS injector → VGS proxy (which presents the Netcetera mTLS
-// client cert). The RReq body is keyed by `threeDSServerTransID`; the alias is NOT substituted into
-// it (the VGS reveal filter has no matching card fields in the results request).
 impl
     transformers::ForeignTryFrom<(
         &RouterData<
@@ -1183,7 +1179,6 @@ impl
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
-        // Build `card_proxy` from the external-vault alias, NOT the Luhn card field.
         let payment_method =
             unified_connector_service::build_unified_connector_service_payment_method_for_external_proxy(
                 external_vault_pmd.clone(),
@@ -1339,16 +1334,6 @@ impl
     }
 }
 
-/// External-vault pre-authenticate request builder.
-///
-/// CRUX: a VGS alias cannot ride the normal `payment_method` field — the Luhn-typed
-/// `PaymentsPreAuthenticateData.payment_method_data` won't even construct from an alias.
-/// So we build the gRPC pre-auth request from the standard `RouterData<PreAuthenticate, ...>`
-/// envelope (currency, amount, address, customer, browser_info, ...) but OVERRIDE the
-/// `payment_method` with the gRPC `card_proxy` (`ProxyCardDetails`) field, emitted from the
-/// external-vault payment method data via `build_unified_connector_service_payment_method_for_external_proxy`.
-/// This mirrors the external-vault authorize transform and keeps the alias entirely off the
-/// Luhn path. The `router_data.request.payment_method_data` (a placeholder card) is ignored.
 impl
     transformers::ForeignTryFrom<(
         &RouterData<
@@ -1374,7 +1359,6 @@ impl
             router_data.request.currency.unwrap_or_default(),
         )?;
 
-        // Build `card_proxy` from the external-vault alias, NOT from the Luhn card field.
         let payment_method =
             unified_connector_service::build_unified_connector_service_payment_method_for_external_proxy(
                 external_vault_pmd.clone(),
@@ -1443,17 +1427,6 @@ impl
     }
 }
 
-/// External-vault authenticate (AReq) request builder.
-///
-/// CRUX: identical to the non-tuple `Authenticate` builder above, except the alias rides
-/// `card_proxy` (`ProxyCardDetails`) instead of the Luhn-typed `PaymentsAuthenticateData.payment_method_data`.
-/// We emit the gRPC `payment_method` from the external-vault payment method data via
-/// `build_unified_connector_service_payment_method_for_external_proxy` and keep every other field
-/// (currency, amount, address, customer, browser_info, `authentication_data`, ...) sourced from the
-/// `RouterData<Authenticate, ...>` envelope. The `authentication_data` carries the persisted pre-auth
-/// result (threeds_server_transaction_id, message_version, ds/acs trans ids, trans_status) so the
-/// connector can resume the 3DS handshake. This mirrors the external-vault pre-authenticate transform
-/// and keeps the alias entirely off the Luhn path.
 impl
     transformers::ForeignTryFrom<(
         &RouterData<
@@ -1479,7 +1452,6 @@ impl
             router_data.request.currency.unwrap_or_default(),
         )?;
 
-        // Build `card_proxy` from the external-vault alias, NOT from the Luhn card field.
         let payment_method =
             unified_connector_service::build_unified_connector_service_payment_method_for_external_proxy(
                 external_vault_pmd.clone(),
@@ -1493,7 +1465,6 @@ impl
             .transpose()?;
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
-        // Convert ucs_authentication_data (persisted pre-auth result) to gRPC format.
         let authentication_data = router_data
             .request
             .authentication_data

@@ -533,8 +533,6 @@ pub struct ExternalVaultCard {
     pub card_number: Secret<String>,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
-    // Optional: present on the SDK-driven confirm, absent on a 3DS-authenticated re-authorize
-    // (the CAVV replaces it) — mirrors the optional CVC on `CardToken` / `VaultCardToken`.
     pub card_cvc: Option<Secret<String>>,
     pub bin_number: Option<String>,
     pub last_four: Option<String>,

@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use common_enums;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payment_methods::VaultPaymentMethodData;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret, PeekInterface};
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -70,11 +70,6 @@ pub(crate) fn build_external_vault_payment_method_data(
                 .and_then(|wrapper| wrapper.vault_payment_method_token_data.as_ref())
             {
                 Some(VaultPaymentMethodData::VaultCardData(vault_card)) => {
-                    // Card expiry is carried on the vault tokens and is required. The CVC rides on
-                    // the request and is optional: the SDK-driven confirm supplies it, but the
-                    // webhook-driven 3DS-authenticated authorize has none (the CAVV replaces it), so
-                    // we forward `None` (the connector omits the field) rather than an empty string
-                    // that would fail downstream connector validation.
                     let card_exp_month = vault_card
                         .card_exp_month
                         .clone()
@@ -197,12 +192,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        // Mirror the standard confirm's source-based status gate. A `RequiresCustomerAction`
-        // intent may only be (re-)confirmed by the webhook / external-authenticator resume — after
-        // the external 3DS pre-auth emits a `ThreeDsInvoke` the intent sits in
-        // `RequiresCustomerAction`, and the challenge completion drives the pull=false authorize with
-        // `PaymentSource::ExternalAuthenticator`. A normal client confirm must NOT proceed on a
-        // `RequiresCustomerAction` intent (same as the standard confirm operation).
         if [
             Some(common_enums::PaymentSource::Webhook),
             Some(common_enums::PaymentSource::ExternalAuthenticator),
@@ -398,8 +387,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             whole_connector_response: None,
             is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
-            // Pass-through external 3DS: carry merchant-supplied CAVV/ECI (three_ds_data)
-            // so it reaches the PSP authorize through the external-vault proxy.
             external_authentication_data: request.three_ds_data.clone(),
             vault_session_details: None,
             external_vault_pmd,
@@ -724,19 +711,12 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             .get_global_id()
             .cloned()
             .get_required_value("id")?;
-        // Netcetera / EMVCo cardExpiryDate is YYMM (2-digit year). External vault stores the card
-        // and the `{{$card_exp_year}}` injector template later resolves to whatever was vaulted; a
-        // 4-digit year (as the web SDK / VGS supplies) then yields a 6-char YYYYMM and the 3DS AReq
-        // fails validation ("cardExpiryDate: string has wrong length. Expected 4 but got 6").
-        // Normalise to the last two digits before vaulting so the template resolves to YY. Vault
-        // template tokens (`{{...}}`) are left untouched.
-        {
-            use hyperswitch_masking::PeekInterface;
-            let year = vault_card.card_exp_year.peek().clone();
-            if !year.contains("{{") && year.len() > 2 {
-                vault_card.card_exp_year = Secret::new(year[year.len() - 2..].to_string());
-            }
+
+        let year = vault_card.card_exp_year.peek().clone();
+        if !year.contains("{{") && year.len() > 2 {
+            vault_card.card_exp_year = Secret::new(year[year.len() - 2..].to_string());
         }
+
         let payment_method = payment_data
             .payment_attempt
             .payment_method

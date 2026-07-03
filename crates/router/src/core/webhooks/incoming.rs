@@ -2025,18 +2025,6 @@ async fn external_authentication_incoming_webhook_flow(
                     ..Default::default()
                 };
                 let is_setup_mandate = payment_intent.is_setup_mandate();
-                // External-3DS over VGS external vault (real pull=false): the card is a VGS alias
-                // behind the stored `payment_token`, so drive the external-vault-proxy confirm
-                // operation — it re-fetches the alias from the token (via the saved-card
-                // `VaultCardTokenData` path) and authorizes with the now-vaulted CAVV. The standard
-                // `PaymentConfirm` used below needs a raw card and would error IR_04 for external
-                // vault. No CVC is sent (`None`): it's unused for the proxied 3DS-authenticated
-                // authorize — the CAVV replaces it — matching the post-authenticate resume path.
-                //
-                // TODO(external-vault setup-mandate): this `if` routes ALL external-vault payments
-                // through the authorize (ExternalVaultProxy) flow, so a setup-mandate (zero-auth)
-                // external-vault payment would be charged here instead of set up. When that flow is
-                // supported, split this into a nested `is_setup_mandate` branch.
                 let payments_response = if business_profile
                     .external_vault_details
                     .is_external_vault_enabled()

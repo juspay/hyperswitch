@@ -549,10 +549,6 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
-    /// Netcetera (external-3DS over VGS) needs no credential config: its mTLS client cert is
-    /// handled on the VGS outbound route and merchant fields ride `connector_feature_data`. UCS
-    /// ignores this header (the `x-auth: no-key` shortcut fires first); it exists only so the
-    /// connector is handled uniformly in the config match rather than via a special-case guard.
     Netcetera,
 }
 
@@ -1487,9 +1483,6 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Interpayments requires HeaderKey auth type")),
             },
-            // Netcetera is a no-key connector (mTLS on the VGS outbound route, merchant fields
-            // ride `connector_feature_data`), so it carries no credential config. UCS ignores this
-            // via the `x-auth: no-key` shortcut.
             Connector::Netcetera => Ok(ConnectorSpecificConfig::Netcetera),
             // --- Unsupported connectors ---
             _ => Err(

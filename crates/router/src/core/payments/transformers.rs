@@ -721,9 +721,6 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
             RequestIncrementalAuthorization::True
         ),
         metadata: payment_data.payment_intent.metadata.clone().expose_option(),
-        // TODO(external-3ds-over-vgs): v2 PaymentConfirmData does not yet carry
-        // authentication / external_authentication_data; wire CAVV/ECI through here
-        // once v2 payment 3DS-over-external-vault is supported (see v1 path above).
         authentication_data: None,
         customer_acceptance: None,
         split_payments: None,

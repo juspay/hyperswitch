@@ -2161,11 +2161,6 @@ pub enum PaymentAttemptUpdate {
         external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
         authentication_connector: Option<String>,
         authentication_id: Option<id_type::AuthenticationId>,
-        // External-3DS over VGS external vault halts the confirm before update_trackers runs, so it
-        // never persists payment_method/type the way a normal confirm does. Carry them here so the
-        // challenge-halt persist can set them, keeping the attempt consistent (e.g. so a PSync in
-        // the SDK's post-challenge redirect flow does not fail "Missing required param:
-        // payment_method"). `None` for every other AuthenticationUpdate caller leaves them unchanged.
         payment_method: Option<storage_enums::PaymentMethod>,
         payment_method_type: Option<storage_enums::PaymentMethodType>,
         updated_by: String,

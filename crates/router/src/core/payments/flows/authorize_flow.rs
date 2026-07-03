@@ -1679,15 +1679,6 @@ pub async fn call_unified_connector_service_pre_authenticate(
     .change_context(interface_errors::ConnectorError::ResponseHandlingFailed)
 }
 
-/// External-vault variant of [`call_unified_connector_service_pre_authenticate`].
-///
-/// Identical UCS pre-authenticate invocation, with two differences required for the
-/// external-vault (VGS) proxy path:
-///   1. The gRPC request is built with `card_proxy` from `external_vault_pmd` (NOT the Luhn
-///      `payment_method_data` on `PaymentsPreAuthenticateData`), via the tuple
-///      `ForeignTryFrom` added in `unified_connector_service/transformers.rs`.
-///   2. The `x-external-vault-metadata` header carries the VGS vault config, instead of the
-///      hardcoded `.external_vault_proxy_metadata(None)` of the standard path.
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn call_unified_connector_service_pre_authenticate_for_external_proxy(
@@ -1727,10 +1718,6 @@ pub async fn call_unified_connector_service_pre_authenticate_for_external_proxy(
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct external-vault Payment Pre Authenticate Request")?;
 
-    // Forward the authentication connector (e.g. netcetera) MCA metadata as
-    // `connector_feature_data` so UCS can substitute the per-merchant endpoint prefix and
-    // populate the AReq merchant fields. Extracted before the MCA is consumed by the auth
-    // metadata builder below.
     payment_pre_authenticate_request.connector_feature_data =
         unified_connector_service::build_connector_feature_data_from_auth_mca(
             &merchant_connector_account,
@@ -1826,20 +1813,6 @@ pub async fn call_unified_connector_service_pre_authenticate_for_external_proxy(
     Ok(updated_router_data)
 }
 
-/// External-vault variant of the UCS Authenticate (AReq) leg.
-///
-/// Mirrors [`call_unified_connector_service_pre_authenticate_for_external_proxy`] for the
-/// `/3ds/authentication` AReq leg of the external-vault (VGS) proxy path:
-///   1. The gRPC `PaymentMethodAuthenticationServiceAuthenticateRequest` is built with `card_proxy`
-///      from `external_vault_pmd` (NOT the Luhn `payment_method_data`) via the tuple
-///      `ForeignTryFrom` added in `unified_connector_service/transformers.rs`.
-///   2. The `x-external-vault-metadata` header carries the VGS vault config.
-///
-/// The response is handled by
-/// `handle_unified_connector_service_response_for_payment_authenticate`; the resulting
-/// `PaymentsResponseData::TransactionResponse` carries the AReq result (`authentication_data` —
-/// trans_status / acs_trans_id / cavv / eci — and `redirection_data` carrying the ACS challenge
-/// form) which the `/3ds/authentication` core persists onto the authentication record + attempt.
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn call_unified_connector_service_authenticate_for_external_proxy(
@@ -1879,9 +1852,6 @@ pub async fn call_unified_connector_service_authenticate_for_external_proxy(
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct external-vault Payment Authenticate Request")?;
 
-    // Forward the authentication connector (e.g. netcetera) MCA metadata as
-    // `connector_feature_data` (endpoint prefix + AReq merchant fields) before the MCA is
-    // consumed by the auth metadata builder below.
     payment_authenticate_request.connector_feature_data =
         unified_connector_service::build_connector_feature_data_from_auth_mca(
             &merchant_connector_account,
@@ -1971,21 +1941,6 @@ pub async fn call_unified_connector_service_authenticate_for_external_proxy(
     Ok(updated_router_data)
 }
 
-/// External-vault variant of the UCS Post-Authenticate (RReq) leg (Phase 4b-2b).
-///
-/// This is the post-authenticate that resumes the challenge once the cardholder has completed it and
-/// the SDK re-confirms the payment. Unlike the pre-authenticate / authenticate legs, the RReq is keyed
-/// by `threeDSServerTransID` (carried on the persisted authentication record via
-/// `PaymentsPostAuthenticateData`), NOT by the card — so it does NOT need `card_proxy`. We therefore
-/// reuse the existing non-tuple `PaymentMethodAuthenticationServicePostAuthenticateRequest` builder
-/// with `payment_method_data: None` (no alias on the request). The `x-external-vault-metadata` header
-/// is still attached for consistency with the other external-vault UCS legs.
-///
-/// The response is handled by
-/// `handle_unified_connector_service_response_for_payment_post_authenticate`; the resulting
-/// `PaymentsResponseData::TransactionResponse` carries the RReq result (`authentication_data` —
-/// trans_status / eci / cavv) which the proxy confirm core persists onto the authentication record and
-/// forwards (CAVV/ECI) to the PSP authorize.
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn call_unified_connector_service_post_authenticate_for_external_proxy(
@@ -2016,12 +1971,7 @@ pub async fn call_unified_connector_service_post_authenticate_for_external_proxy
         .clone()
         .ok_or(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to fetch Unified Connector Service client")?;
-
-    // The RReq body is keyed by `threeDSServerTransID` (not the card), but it must still traverse the
-    // VGS proxy so Netcetera's mTLS-only 3DS server accepts the connection — the UCS injector only
-    // proxies requests that carry a `card_proxy`. So emit the re-fetched alias as `card_proxy` via the
-    // tuple builder; the reveal filter won't match the card-less RReq body, so nothing is substituted,
-    // but the request goes through VGS with the client certificate.
+    
     let mut payment_post_authenticate_request =
         payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateRequest::foreign_try_from(
             (router_data, external_vault_pmd),
@@ -2029,9 +1979,6 @@ pub async fn call_unified_connector_service_post_authenticate_for_external_proxy
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct external-vault Payment Post Authenticate Request")?;
 
-    // Forward the authentication connector (e.g. netcetera) MCA metadata as
-    // `connector_feature_data` (endpoint prefix + AReq merchant fields) before the MCA is
-    // consumed by the auth metadata builder below.
     payment_post_authenticate_request.connector_feature_data =
         unified_connector_service::build_connector_feature_data_from_auth_mca(
             &merchant_connector_account,
