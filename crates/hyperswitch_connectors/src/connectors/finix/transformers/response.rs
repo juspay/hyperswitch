@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use common_enums::Currency;
 use common_utils::types::MinorUnit;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use time::PrimitiveDateTime;
@@ -23,11 +22,10 @@ pub struct FinixPaymentsResponse {
     pub messages: Option<Vec<String>>,
     pub failure_message: Option<String>,
     pub transfer: Option<String>,
-    pub tags: FinixTags,
+    pub tags: Option<Secret<serde_json::Value>>,
     #[serde(rename = "type")]
     pub payment_type: Option<FinixPaymentType>,
-    // pub trace_id: String,
-    pub three_d_secure: Option<FinixThreeDSecure>,
+    pub three_d_secure: Option<Secret<serde_json::Value>>,
     pub address_verification: Option<String>,
     pub network_details: Option<FinixNetworkDetails>,
 }
@@ -63,26 +61,26 @@ pub struct FinixIdentityResponse {
     pub id: String,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
-    pub application: Option<String>,
-    pub entity: Option<HashMap<String, serde_json::Value>>,
-    pub tags: Option<FinixTags>,
+    pub application: Option<Secret<String>>,
+    pub entity: Option<Secret<serde_json::Value>>,
+    pub tags: Option<Secret<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct FinixInstrumentResponse {
     pub id: String,
-    pub created_at: String,
-    pub updated_at: String,
-    pub application: String,
-    pub created_via: Option<String>,
-    pub identity: Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+    pub application: Option<Secret<String>>,
+    pub created_via: Option<Secret<String>>,
+    pub identity: Option<Secret<String>>,
     #[serde(rename = "type")]
-    pub instrument_type: FinixPaymentInstrumentType,
-    pub tags: Option<FinixTags>,
-    pub card_type: Option<FinixCardType>,
+    pub instrument_type: Option<Secret<String>>,
+    pub tags: Option<Secret<serde_json::Value>>,
+    pub card_type: Option<Secret<String>>,
     pub card_brand: Option<String>,
     pub fingerprint: Option<String>,
-    pub address: Option<FinixAddress>,
+    pub address: Option<Secret<serde_json::Value>>,
     pub address_verification: Option<String>,
     pub disabled_code: Option<String>,
     pub disabled_message: Option<String>,
@@ -120,6 +118,8 @@ pub enum FinixDisputeState {
     PENDING,
     LOST,
     WON,
+    #[serde(other)]
+    Unknown,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 

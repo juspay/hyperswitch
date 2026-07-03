@@ -1112,6 +1112,8 @@ pub enum CheckoutPaymentStatus {
     Refunded,
     Canceled,
     Expired,
+    #[serde(other)]
+    Unknown,
 }
 
 impl TryFrom<CheckoutWebhookEventType> for CheckoutPaymentStatus {
@@ -1173,6 +1175,10 @@ fn get_attempt_status_cap(
         CheckoutPaymentStatus::Pending => AttemptStatus::AuthenticationPending,
         CheckoutPaymentStatus::RetryScheduled => AttemptStatus::Pending,
         CheckoutPaymentStatus::Voided => AttemptStatus::Voided,
+        CheckoutPaymentStatus::Unknown => {
+            router_env::logger::warn!("Unknown CheckoutPaymentStatus received in get_attempt_status_cap, preserving existing state");
+            AttemptStatus::AuthenticationPending
+        }
     }
 }
 
@@ -1200,6 +1206,10 @@ fn get_attempt_status_intent(
         CheckoutPaymentStatus::Pending => AttemptStatus::AuthenticationPending,
         CheckoutPaymentStatus::RetryScheduled => AttemptStatus::Pending,
         CheckoutPaymentStatus::Voided => AttemptStatus::Voided,
+        CheckoutPaymentStatus::Unknown => {
+            router_env::logger::warn!("Unknown CheckoutPaymentStatus received in get_attempt_status_intent, preserving existing state");
+            AttemptStatus::AuthenticationPending
+        }
     }
 }
 
@@ -1229,6 +1239,10 @@ fn get_attempt_status_bal(item: (CheckoutPaymentStatus, Option<Balances>)) -> At
             AttemptStatus::Pending
         }
         CheckoutPaymentStatus::Voided => AttemptStatus::Voided,
+        CheckoutPaymentStatus::Unknown => {
+            router_env::logger::warn!("Unknown CheckoutPaymentStatus received in get_attempt_status_bal, preserving existing state");
+            AttemptStatus::AuthenticationPending
+        }
     }
 }
 
@@ -1878,6 +1892,8 @@ pub enum ActionType {
     Return,
     #[serde(rename = "Card Verification")]
     CardVerification,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -1953,6 +1969,8 @@ impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
 pub enum CheckoutRedirectResponseStatus {
     Success,
     Failure,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
@@ -1999,6 +2017,10 @@ impl From<CheckoutRedirectResponseStatus> for AttemptStatus {
         match item {
             CheckoutRedirectResponseStatus::Success => Self::AuthenticationSuccessful,
             CheckoutRedirectResponseStatus::Failure => Self::Failure,
+            CheckoutRedirectResponseStatus::Unknown => {
+                router_env::logger::warn!("Unknown CheckoutRedirectResponseStatus received");
+                Self::Failure
+            }
         }
     }
 }
@@ -2125,6 +2147,32 @@ pub enum CheckoutDisputeTransactionType {
     DisputeArbitrationWon,
     DisputeWon,
     DisputeLost,
+    #[serde(other)]
+    Unknown,
+}
+
+impl From<CheckoutDisputeTransactionType> for api_models::enums::DisputeStage {
+    fn from(code: CheckoutDisputeTransactionType) -> Self {
+        match code {
+            CheckoutDisputeTransactionType::DisputeArbitrationLost
+            | CheckoutDisputeTransactionType::DisputeArbitrationWon => Self::PreArbitration,
+            CheckoutDisputeTransactionType::DisputeReceived
+            | CheckoutDisputeTransactionType::DisputeExpired
+            | CheckoutDisputeTransactionType::DisputeAccepted
+            | CheckoutDisputeTransactionType::DisputeCanceled
+            | CheckoutDisputeTransactionType::DisputeEvidenceSubmitted
+            | CheckoutDisputeTransactionType::DisputeEvidenceAcknowledgedByScheme
+            | CheckoutDisputeTransactionType::DisputeEvidenceRequired
+            | CheckoutDisputeTransactionType::DisputeWon
+            | CheckoutDisputeTransactionType::DisputeLost => Self::Dispute,
+            CheckoutDisputeTransactionType::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown CheckoutDisputeTransactionType received, defaulting to Dispute"
+                );
+                Self::Dispute
+            }
+        }
+    }
 }
 
 impl From<CheckoutWebhookEventType> for api_models::webhooks::IncomingWebhookEvent {
