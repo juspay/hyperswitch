@@ -1583,7 +1583,7 @@ function bankRedirectRedirection(
       expect(
         url.includes("/confirm-card/") ||
           url.includes("/3dsecure-acs") ||
-          url.includes("test.oppwa.com"),
+          new URL(url).hostname === "test.oppwa.com",
         "post-PIN URL to be /confirm-card/, /3dsecure-acs, or test.oppwa.com"
       ).to.be.true;
     });
