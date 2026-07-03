@@ -2419,9 +2419,15 @@ where
     D: OperationSessionGetters<F>,
 {
     logger::debug!("payment_intent.surcharge_applicable = true");
+    let payment_method_type_option = payment_data.get_payment_attempt().payment_method_type;
     let raw_card_key = payment_data
         .get_payment_method_data()
-        .and_then(helpers::get_key_params_for_surcharge_details)
+        .and_then(|payment_method_data| {
+            helpers::get_key_params_for_surcharge_details(
+                payment_method_data,
+                payment_method_type_option,
+            )
+        })
         .map(|(payment_method, payment_method_type, card_network)| {
             types::SurchargeKey::PaymentMethodData(
                 payment_method,
@@ -5133,7 +5139,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 let key_manager_state = &(state).into();
                 let authentication = state
                     .store
-                    .find_authentication_by_merchant_id_authentication_id(
+                    .find_authentication_by_processor_merchant_id_authentication_id(
                         platform.get_processor().get_account().get_id(),
                         &authentication_id,
                         platform.get_processor().get_key_store(),
@@ -12643,9 +12649,9 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .store
                 .find_customer_by_customer_id_merchant_id(
                     customer_id,
-                    platform.get_processor().get_account().get_id(),
-                    platform.get_processor().get_key_store(),
-                    storage_scheme,
+                    platform.get_provider().get_account().get_id(),
+                    platform.get_provider().get_key_store(),
+                    platform.get_provider().get_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -12857,7 +12863,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             }
         } else {
             let authentication = db
-                .find_authentication_by_merchant_id_authentication_id(
+                .find_authentication_by_processor_merchant_id_authentication_id(
                     processor_merchant_id,
                     &payment_attempt
                         .authentication_id
