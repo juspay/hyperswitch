@@ -3614,7 +3614,8 @@ where
         .external_three_ds_authentication_attempted
         .unwrap_or(false);
     if separate_three_ds_authentication_attempted {
-        if let Some(authentication_id) = payment_data.get_payment_attempt().authentication_id.clone()
+        if let Some(authentication_id) =
+            payment_data.get_payment_attempt().authentication_id.clone()
         {
             return Some(
                 PaymentExternalAuthenticationFlowForExternalProxy::PostAuthenticationFlow {
