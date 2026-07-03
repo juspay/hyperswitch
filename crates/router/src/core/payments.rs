@@ -3054,12 +3054,11 @@ where
             .await?;
 
             let pre_auth_decision =
-                call_unified_connector_service_pre_authenticate_if_eligible_for_external_vault_proxy_v1(
+                call_external_three_ds_authentication_if_eligible_for_external_proxy(
                     state,
                     &platform,
                     &mut payment_data,
                     &connector,
-                    merchant_connector_account.clone(),
                     external_vault_merchant_connector_account.clone(),
                     &router_data,
                     &business_profile,
@@ -3144,12 +3143,11 @@ where
             .await?;
 
             let pre_auth_decision =
-                call_unified_connector_service_pre_authenticate_if_eligible_for_external_vault_proxy_v1(
+                call_external_three_ds_authentication_if_eligible_for_external_proxy(
                     state,
                     &platform,
                     &mut payment_data,
                     &connector,
-                    merchant_connector_account.clone(),
                     external_vault_merchant_connector_account.clone(),
                     &router_data,
                     &business_profile,
@@ -3586,53 +3584,49 @@ async fn resolve_external_vault_authentication_connector(
     Ok((auth_connector_enum, auth_merchant_connector_account))
 }
 
+/// External-vault-proxy analogue of `helpers::PaymentExternalAuthenticationFlow`. Variants carry no
+/// data (the alias lives on `payment_data.external_vault_pmd`); `None` = not eligible, continue to
+/// the PSP authorize.
 #[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
-pub async fn call_unified_connector_service_pre_authenticate_if_eligible_for_external_vault_proxy_v1<
-    F,
-    FData,
-    D,
->(
-    state: &SessionState,
-    platform: &domain::Platform,
-    payment_data: &mut D,
+enum PaymentExternalAuthenticationFlowForExternalProxy {
+    PreAuthenticationFlow,
+    PostAuthenticationFlow {
+        authentication_id: id_type::AuthenticationId,
+    },
+}
+
+/// Decide the external-vault-proxy 3DS step. Mirrors
+/// `helpers::get_payment_external_authentication_flow_during_confirm`, but keyed off the vaulted
+/// `external_vault_pmd` (a VGS alias) instead of extracting a real `Card`.
+#[cfg(feature = "v1")]
+fn get_payment_external_authentication_flow_during_confirm_for_external_proxy<F, D>(
+    payment_data: &D,
     connector: &api::ConnectorData,
-    merchant_connector_account: helpers::MerchantConnectorAccountType,
-    external_vault_merchant_connector_account: helpers::MerchantConnectorAccountType,
-    router_data: &RouterData<F, FData, router_types::PaymentsResponseData>,
-    business_profile: &domain::Profile,
     mandate_type: Option<mandates::MandateTransactionType>,
-    call_connector_action: CallConnectorAction,
-    header_payload: HeaderPayload,
-) -> RouterResult<ExternalVaultProxyPreAuthDecision>
+) -> Option<PaymentExternalAuthenticationFlowForExternalProxy>
 where
-    F: Send + Clone + Sync,
-    FData: Send + Sync + Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: OperationSessionGetters<F>,
 {
+    // POST resume: a prior confirm already attempted the separate authentication. Requires BOTH the
+    // attempted flag AND a persisted authentication_id (attempted-but-no-id falls through to PRE).
     let separate_three_ds_authentication_attempted = payment_data
         .get_payment_attempt()
         .external_three_ds_authentication_attempted
         .unwrap_or(false);
     if separate_three_ds_authentication_attempted {
-        if let Some(authentication_id) =
-            payment_data.get_payment_attempt().authentication_id.clone()
+        if let Some(authentication_id) = payment_data.get_payment_attempt().authentication_id.clone()
         {
-            return resume_external_vault_post_authenticate_v1(
-                state,
-                platform,
-                payment_data,
-                merchant_connector_account,
-                external_vault_merchant_connector_account,
-                router_data,
-                business_profile,
-                authentication_id,
-                call_connector_action,
-                header_payload,
-            )
-            .await;
+            return Some(
+                PaymentExternalAuthenticationFlowForExternalProxy::PostAuthenticationFlow {
+                    authentication_id,
+                },
+            );
         }
     }
+
+    // PRE eligibility: the vaulted PMD must be present, and separate authentication must be
+    // requested + 3DS + connector-supported + not a recurring mandate.
+    payment_data.get_external_vault_pmd()?;
 
     let is_authentication_type_3ds = payment_data.get_payment_attempt().authentication_type
         == Some(common_enums::AuthenticationType::ThreeDs);
@@ -3646,18 +3640,101 @@ where
     let is_recurring_mandate =
         mandate_type == Some(mandates::MandateTransactionType::RecurringMandateTransaction);
 
-    let external_vault_pmd = match payment_data.get_external_vault_pmd().cloned() {
-        Some(pmd) => pmd,
-        None => return Ok(ExternalVaultProxyPreAuthDecision::ContinueToAuthorize),
-    };
-
-    if !(separate_authentication_requested
+    (separate_authentication_requested
         && is_authentication_type_3ds
         && connector_supports_separate_authn
         && !is_recurring_mandate)
-    {
-        return Ok(ExternalVaultProxyPreAuthDecision::ContinueToAuthorize);
+        .then_some(PaymentExternalAuthenticationFlowForExternalProxy::PreAuthenticationFlow)
+}
+
+/// Dispatch the external-vault-proxy 3DS step (pre-authenticate vs post-authenticate resume), the
+/// same shape as the inline confirm's `call_external_three_ds_authentication_if_eligible`:
+/// `get_payment_external_authentication_flow_during_confirm_for_external_proxy` picks the step and
+/// this routes to the matching `perform_*_for_external_proxy`.
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn call_external_three_ds_authentication_if_eligible_for_external_proxy<F, FData, D>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_data: &mut D,
+    connector: &api::ConnectorData,
+    external_vault_merchant_connector_account: helpers::MerchantConnectorAccountType,
+    router_data: &RouterData<F, FData, router_types::PaymentsResponseData>,
+    business_profile: &domain::Profile,
+    mandate_type: Option<mandates::MandateTransactionType>,
+    call_connector_action: CallConnectorAction,
+    header_payload: HeaderPayload,
+) -> RouterResult<ExternalVaultProxyPreAuthDecision>
+where
+    F: Send + Clone + Sync,
+    FData: Send + Sync + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    match get_payment_external_authentication_flow_during_confirm_for_external_proxy(
+        payment_data,
+        connector,
+        mandate_type,
+    ) {
+        None => Ok(ExternalVaultProxyPreAuthDecision::ContinueToAuthorize),
+        Some(PaymentExternalAuthenticationFlowForExternalProxy::PostAuthenticationFlow {
+            authentication_id,
+        }) => {
+            perform_post_authentication_for_external_proxy(
+                state,
+                platform,
+                payment_data,
+                external_vault_merchant_connector_account,
+                router_data,
+                business_profile,
+                authentication_id,
+                call_connector_action,
+                header_payload,
+            )
+            .await
+        }
+        Some(PaymentExternalAuthenticationFlowForExternalProxy::PreAuthenticationFlow) => {
+            perform_pre_authentication_for_external_proxy(
+                state,
+                platform,
+                payment_data,
+                external_vault_merchant_connector_account,
+                router_data,
+                business_profile,
+                call_connector_action,
+                header_payload,
+            )
+            .await
+        }
     }
+}
+
+/// External-vault-proxy 3DS pre-authenticate (versioning + AReq dispatch over the Unified Connector
+/// Service). Corresponds to `authentication::perform_pre_authentication`, but drives UCS with the
+/// vaulted `ProxyCard` alias instead of a real `Card`.
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn perform_pre_authentication_for_external_proxy<F, FData, D>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_data: &mut D,
+    external_vault_merchant_connector_account: helpers::MerchantConnectorAccountType,
+    router_data: &RouterData<F, FData, router_types::PaymentsResponseData>,
+    business_profile: &domain::Profile,
+    call_connector_action: CallConnectorAction,
+    header_payload: HeaderPayload,
+) -> RouterResult<ExternalVaultProxyPreAuthDecision>
+where
+    F: Send + Clone + Sync,
+    FData: Send + Sync + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let external_vault_pmd = payment_data
+        .get_external_vault_pmd()
+        .cloned()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "external_vault_pmd missing in pre-authentication (guaranteed present by eligibility)",
+        )?;
     let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
         platform.get_processor(),
@@ -4150,11 +4227,10 @@ where
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-async fn resume_external_vault_post_authenticate_v1<F, FData, D>(
+async fn perform_post_authentication_for_external_proxy<F, FData, D>(
     state: &SessionState,
     platform: &domain::Platform,
     payment_data: &mut D,
-    _merchant_connector_account: helpers::MerchantConnectorAccountType,
     external_vault_merchant_connector_account: helpers::MerchantConnectorAccountType,
     router_data: &RouterData<F, FData, router_types::PaymentsResponseData>,
     business_profile: &domain::Profile,
@@ -4190,13 +4266,7 @@ where
             "Error while fetching external vault authentication record for post-authenticate resume",
         )?;
 
-    // Frictionless short-circuit: if the AReq fully authenticated (trans_status Y → Success), the
-    // cavv was vaulted (encrypted) keyed by authentication_id during the `/3ds/authentication` leg;
-    // authorize directly with it instead of a post-authenticate/results call (Netcetera rejects a
-    // results call for a non-challenge transaction).
     if authentication.authentication_status == common_enums::AuthenticationStatus::Success {
-        // Resolve the cavv from the `cavv` column, then the temp-locker vault (primary source — both
-        // the frictionless AReq leg and the completed challenge vault it encrypted by authentication_id).
         let mut frictionless_cavv = authentication.cavv.clone();
         if frictionless_cavv.is_none() {
             frictionless_cavv = vault::get_tokenized_data(
@@ -4263,8 +4333,6 @@ where
         capture_method: payment_data.get_payment_attempt().capture_method,
         browser_info,
         connector_transaction_id: authentication.threeds_server_transaction_id.clone(),
-        // Server-side resume has no ACS callback; synthesize `redirect_response.params` from the
-        // persisted 3DS server transaction id so the RReq's `threeDSServerTransID` is not null.
         redirect_response: authentication
             .threeds_server_transaction_id
             .clone()
@@ -4468,11 +4536,6 @@ where
     Ok(ExternalVaultProxyPreAuthDecision::ContinueToAuthorize)
 }
 
-/// Fail an external-vault authentication (declined / cancelled challenge): mark the authentication
-/// record `Failed` and transition the payment to terminal `Failed` (attempt -> Failure with
-/// `EXTERNAL_AUTHENTICATION_FAILURE`, intent -> Failed), mirroring normal payments. Returns
-/// `HaltWithAuthenticationFailure` so the caller routes the failed payment_data to the response
-/// builder; erroring would leave it stuck at `RequiresCustomerAction`.
 #[cfg(feature = "v1")]
 async fn fail_external_vault_post_authenticate<F, D>(
     state: &SessionState,
@@ -4514,9 +4577,6 @@ where
             "Failed to update external vault authentication record on post-authenticate failure",
         )?;
 
-    // 2. Transition the PAYMENT to a terminal failed state (attempt -> Failure, intent -> Failed)
-    //    with the EXTERNAL_AUTHENTICATION_FAILURE reason, so it is not left stuck at
-    //    RequiresCustomerAction and the response builder emits a `failed` payment.
     let error_reason =
         error_message.unwrap_or_else(|| "external authentication failure".to_string());
     let attempt_update = storage::PaymentAttemptUpdate::RejectUpdate {
@@ -14270,8 +14330,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         "authenticate",
     )?;
 
-    // The customer is owned by the provider (platform) merchant, so look it up under the provider,
-    // not the processor (connected).
     let optional_customer = match &payment_intent.customer_id {
         Some(customer_id) => Some(
             state
@@ -14498,7 +14556,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             ),
             authentication_connector: response.authentication_connector.map(|c| c.to_string()),
             authentication_id: Some(response.authentication_id.clone()),
-            // Left unchanged; None skips the column.
             payment_method: None,
             payment_method_type: None,
             updated_by: storage_scheme.to_string(),
@@ -14543,8 +14600,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching authentication record")?;
-        // This legacy path only runs for non-external-vault payments, for which
-        // `payment_method_details` was populated above.
         let payment_method_details = payment_method_details
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
