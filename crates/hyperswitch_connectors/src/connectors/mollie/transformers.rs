@@ -748,16 +748,16 @@ fn get_address_details(
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MolliePaymentsResponse {
-    pub resource: String,
+    pub resource: Option<Secret<String>>,
     pub id: String,
-    pub amount: Amount,
-    pub description: Option<String>,
-    pub metadata: Option<MollieMetadata>,
+    pub amount: Option<Secret<serde_json::Value>>,
+    pub description: Option<Secret<String>>,
+    pub metadata: Option<Secret<serde_json::Value>>,
     pub status: MolliePaymentStatus,
-    pub is_cancelable: Option<bool>,
-    pub sequence_type: Option<SequenceType>,
-    pub redirect_url: Option<String>,
-    pub webhook_url: Option<String>,
+    pub is_cancelable: Option<Secret<String>>,
+    pub sequence_type: Option<Secret<String>>,
+    pub redirect_url: Option<Secret<String>>,
+    pub webhook_url: Option<Secret<String>>,
     #[serde(rename = "_links")]
     pub links: Links,
     pub mandate_id: Option<Secret<String>>,
@@ -804,16 +804,16 @@ impl From<MolliePaymentStatus> for enums::AttemptStatus {
 pub struct Link {
     href: Url,
     #[serde(rename = "type")]
-    type_: String,
+    type_: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Links {
     #[serde(rename = "self")]
-    self_: Option<Link>,
+    self_: Option<Secret<serde_json::Value>>,
     checkout: Option<Link>,
-    dashboard: Option<Link>,
-    documentation: Option<Link>,
+    dashboard: Option<Secret<serde_json::Value>>,
+    documentation: Option<Secret<serde_json::Value>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1011,14 +1011,14 @@ impl<F> TryFrom<&MollieRouterData<&types::RefundsRouterData<F>>> for MollieRefun
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
-    resource: String,
+    resource: Option<Secret<String>>,
     id: String,
-    amount: Amount,
-    settlement_id: Option<String>,
-    settlement_amount: Option<Amount>,
+    amount: Option<Secret<serde_json::Value>>,
+    settlement_id: Option<Secret<String>>,
+    settlement_amount: Option<Secret<serde_json::Value>>,
     status: MollieRefundStatus,
-    description: Option<String>,
-    metadata: Option<MollieMetadata>,
+    description: Option<Secret<String>>,
+    metadata: Option<Secret<serde_json::Value>>,
     payment_id: String,
     #[serde(rename = "_links")]
     links: Links,
