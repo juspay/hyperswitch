@@ -5056,14 +5056,18 @@ Cypress.Commands.add("ListMcaByMid", (globalState) => {
 
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
-      globalState.set("profileId", response.body[0].profile_id);
-      globalState.set("stripeMcaId", response.body[0].merchant_connector_id);
-      globalState.set("adyenMcaId", response.body[1].merchant_connector_id);
-      if (response.body[3]) {
-        globalState.set(
-          "bluesnapMcaId",
-          response.body[3].merchant_connector_id
-        );
+
+      if (Array.isArray(response.body) && response.body.length > 0) {
+        response.body.forEach((connector) => {
+          const connectorName = connector.connector_name;
+          if (connectorName) {
+            globalState.set(
+              `${connectorName}McaId`,
+              connector.merchant_connector_id
+            );
+          }
+        });
+        globalState.set("profileId", response.body[0].profile_id);
       }
     });
   });
@@ -5074,13 +5078,14 @@ Cypress.Commands.add(
   (routingBody, data, type, routing_data, globalState) => {
     const { Request: reqData, Response: resData } = data || {};
 
+    const body = JSON.parse(JSON.stringify(routingBody));
+
     for (const key in reqData) {
-      routingBody[key] = reqData[key];
+      body[key] = reqData[key];
     }
-    // set profile id from env
-    routingBody.profile_id = globalState.get("profileId");
-    routingBody.algorithm.type = type;
-    routingBody.algorithm.data = routing_data;
+    body.profile_id = globalState.get("profileId");
+    body.algorithm.type = type;
+    body.algorithm.data = routing_data;
 
     cy.request({
       method: "POST",
@@ -5090,7 +5095,7 @@ Cypress.Commands.add(
         "Content-Type": "application/json",
       },
       failOnStatusCode: false,
-      body: routingBody,
+      body: body,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
@@ -5112,8 +5117,12 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
-  const { Response: resData } = data || {};
+  const { Request: reqData, Response: resData } = data || {};
   const routing_config_id = globalState.get("routingConfigId");
+  const body = {};
+  if (reqData && reqData.transaction_type) {
+    body.transaction_type = reqData.transaction_type;
+  }
 
   cy.request({
     method: "POST",
@@ -5122,7 +5131,7 @@ Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
       "api-key": globalState.get("apiKey"),
       "Content-Type": "application/json",
     },
-    body: {},
+    body: body,
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);

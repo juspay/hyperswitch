@@ -283,17 +283,74 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("payment-routing-test-1", () => {
-      globalState.set("connectorId", "stripe");
-      globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
-      const data =
-        utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
-      cy.createConfirmPaymentTest(
-        fixtures.createConfirmPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
+      // Bug C fix: dynamically detect which connector the router chose
+      // instead of assuming stripe. 50/50 split is probabilistic.
+      const baseUrl = globalState.get("baseUrl");
+      const apiKey = globalState.get("apiKey");
+      const customerId = globalState.get("customerId");
+      const profileId = globalState.get("profileId");
+
+      cy.request({
+        method: "POST",
+        url: `${baseUrl}/payments`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        failOnStatusCode: false,
+        body: {
+          amount: 6000,
+          currency: "USD",
+          confirm: true,
+          authentication_type: "no_three_ds",
+          capture_method: "automatic",
+          profile_id: profileId,
+          customer_id: customerId,
+          payment_method: "card",
+          payment_method_type: "debit",
+          payment_method_data: {
+            card: {
+              card_number: "4242424242424242",
+              card_exp_month: "01",
+              card_exp_year: "50",
+              card_holder_name: "Test User",
+              card_cvc: "123",
+            },
+          },
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransisco",
+              state: "CA",
+              zip: "94122",
+              country: "US",
+            },
+          },
+          email: "guest@example.com",
+          return_url: "https://example.com",
+          browser_info: {
+            ip_address: "129.0.0.1",
+            user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            accept_header: "text/html",
+            language: "en-US",
+          },
+        },
+      }).then((response) => {
+        expect(response.status).to.eq(200);
+        const actualConnector = response.body.connector;
+        expect(actualConnector).to.be.oneOf(["stripe", "adyen"]);
+
+        globalState.set("connectorId", actualConnector);
+        if (actualConnector === "stripe") {
+          globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
+        } else {
+          globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
+        }
+        globalState.set("paymentID", response.body.payment_id);
+        globalState.set("paymentAmount", response.body.amount);
+      });
     });
 
     it("retrieve-payment-call-test-1", () => {
@@ -333,6 +390,17 @@ describe("Volume Based Routing Test", () => {
               card_exp_year: "50",
               card_holder_name: "Test User",
               card_cvc: "123",
+            },
+          },
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransisco",
+              state: "CA",
+              zip: "94122",
+              country: "US",
             },
           },
           email: "guest@example.com",
