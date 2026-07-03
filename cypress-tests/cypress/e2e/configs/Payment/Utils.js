@@ -565,8 +565,8 @@ export const CONNECTOR_LISTS = {
       "paypal",
     ],
     MIFINITY_WALLET: ["mifinity"],
-    ALIPAY_WALLET: ["multisafepay"],
-    WECHATPAY_WALLET: ["multisafepay"],
+    ALIPAY_WALLET: ["stripe", "multisafepay"],
+    WECHATPAY_WALLET: ["stripe", "multisafepay"],
     MBWAY_WALLET: ["multisafepay"],
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
@@ -620,6 +620,9 @@ export const CONNECTOR_LISTS = {
     GIFT_CARD: ["adyen"],
     VOUCHER: ["adyen", "dlocal"],
     RELAY_OPERATIONS: ["bankofamerica"],
+    AMAZONPAY_WALLET: ["stripe"],
+    CASHAPP_WALLET: ["stripe"],
+    REVOLUTPAY_WALLET: ["stripe"],
     PAY_LATER: [
       "klarna",
       "adyen",
@@ -680,6 +683,7 @@ export const CONNECTOR_LISTS = {
     ],
     POLL_CONFIG: ["stripe"],
     FRM: ["stripe"],
+    PAYOUT_PRIORITY: ["adyenplatform"],
     DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
     // Add more inclusion lists

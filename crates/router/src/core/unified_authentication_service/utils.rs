@@ -444,7 +444,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
 
     state
         .store
-        .update_authentication_by_merchant_id_authentication_id(
+        .update_authentication_by_processor_merchant_id_authentication_id(
             authentication,
             authentication_update,
             merchant_key_store,
