@@ -160,11 +160,6 @@ impl ConnectorCommon for Adyen {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        // TEMP: hardcode a plain-string body to exercise the non-JSON fallback path
-        let res = Response {
-            response: bytes::Bytes::from_static(b""),
-            ..res
-        };
         if res.response.is_empty() {
             Ok(ErrorResponse {
                 status_code: res.status_code,
