@@ -10633,56 +10633,53 @@ Cypress.Commands.add(
 
 // Base command: DELETE a superposition context.
 // `context` must match the dimension context used when the override was created.
-Cypress.Commands.add(
-  "deleteSuperpositionContext",
-  (globalState, context) => {
-    const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
-    const superpositionSecret = globalState.get("superpositionSecret");
-    const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
-    const workspaceId =
-      globalState.get("superpositionWorkspaceId") || "hyperswitch";
+Cypress.Commands.add("deleteSuperpositionContext", (globalState, context) => {
+  const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
+  const superpositionSecret = globalState.get("superpositionSecret");
+  const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
+  const workspaceId =
+    globalState.get("superpositionWorkspaceId") || "hyperswitch";
 
-    if (!superpositionBaseUrl || !superpositionSecret) {
-      cy.task(
-        "cli_log",
-        "Superposition credentials not set — skipping context delete"
-      );
-      return;
-    }
-
-    cy.request({
-      method: "DELETE",
-      url: `${superpositionBaseUrl}/context`,
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-        "x-org-id": orgId,
-        "x-workspace": workspaceId,
-        "X-Superposition-Secret": superpositionSecret,
-        "Content-Type": "application/json",
-      },
-      body: { context },
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        if (response.status === 200) {
-          cy.task(
-            "cli_log",
-            `Superposition context deleted: ${JSON.stringify(context)}`
-          );
-        } else {
-          cy.task(
-            "cli_log",
-            `Superposition context delete returned ${response.status} (may not exist)`
-          );
-        }
-      });
-    });
-    // Polling interval is 10 s in CI and 15 s in all other envs
-    cy.wait(15000);
+  if (!superpositionBaseUrl || !superpositionSecret) {
+    cy.task(
+      "cli_log",
+      "Superposition credentials not set — skipping context delete"
+    );
+    return;
   }
-);
+
+  cy.request({
+    method: "DELETE",
+    url: `${superpositionBaseUrl}/context`,
+    headers: {
+      "User-Agent": "Mozilla/5.0",
+      "x-org-id": orgId,
+      "x-workspace": workspaceId,
+      "X-Superposition-Secret": superpositionSecret,
+      "Content-Type": "application/json",
+    },
+    body: { context },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        cy.task(
+          "cli_log",
+          `Superposition context deleted: ${JSON.stringify(context)}`
+        );
+      } else {
+        cy.task(
+          "cli_log",
+          `Superposition context delete returned ${response.status} (may not exist)`
+        );
+      }
+    });
+  });
+  // Polling interval is 10 s in CI and 15 s in all other envs
+  cy.wait(15000);
+});
 
 // Set an arbitrary superposition config.
 // `context` should match the dimensions required by the target config (see dimension_config.rs).
@@ -10691,7 +10688,12 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "setSuperpositionConfig",
   (globalState, overrideKey, overrideValue, context) => {
-    cy.createSuperpositionConfig(globalState, overrideKey, overrideValue, context);
+    cy.createSuperpositionConfig(
+      globalState,
+      overrideKey,
+      overrideValue,
+      context
+    );
   }
 );
 
