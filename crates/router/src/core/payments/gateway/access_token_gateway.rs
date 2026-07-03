@@ -162,24 +162,15 @@ where
             header_payload,
             unified_connector_service_execution_mode,
             |mut router_data, create_access_token_request, grpc_headers| async move {
-                let response = if is_payout {
-                    client
-                        .create_access_token_for_payouts(
-                            create_access_token_request,
-                            connector_auth_metadata,
-                            grpc_headers,
-                        )
-                        .await
-                } else {
-                    client
-                        .create_access_token(
-                            create_access_token_request,
-                            connector_auth_metadata,
-                            grpc_headers,
-                        )
-                        .await
-                }
-                .attach_printable("Failed to create access token")?;
+                let response = client
+                    .create_access_token(
+                        create_access_token_request,
+                        connector_auth_metadata,
+                        grpc_headers,
+                        is_payout,
+                    )
+                    .await
+                    .attach_printable("Failed to create access token")?;
 
                 let create_access_token_response = response.into_inner();
 
