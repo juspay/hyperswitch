@@ -11,6 +11,3 @@ run_all.sh
 
 # Cypress Dashboard build
 **/dist
-
-# Local redirect-proxy body recordings (not committed — stored in CAPTURE_DIR in CI)
-cypress/fixtures/proxy-bodies/
