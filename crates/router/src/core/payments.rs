@@ -3340,27 +3340,22 @@ where
                 .attach_printable("external vault is not enabled for this business profile")
         })?;
 
-    let profile_id = payment_data
-        .get_payment_intent()
-        .profile_id
-        .as_ref()
-        .get_required_value("profile_id")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("profile_id is not set in payment_intent")?
-        .clone();
-
-    // Vault connectors live on the provider (platform) merchant, so look up the vault MCA under the
-    // provider, not the processor (connected).
-    let vault_owner = platform.get_provider_as_processor();
-    let external_vault_merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        &vault_owner,
-        None,
-        &profile_id,
-        &connector.connector_name.to_string(),
-        Some(&external_vault_mca_id),
-    )
-    .await?;
+    let external_vault_merchant_connector_account =
+        helpers::MerchantConnectorAccountType::DbVal(Box::new(
+            state
+                .store
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    platform.get_provider().get_account().get_id(),
+                    &external_vault_mca_id,
+                    platform.get_provider().get_key_store(),
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: external_vault_mca_id.get_string_repr().to_string(),
+                    },
+                )?,
+        ));
 
     let router_data = payment_data
         .construct_router_data(
@@ -3567,7 +3562,7 @@ async fn resolve_external_vault_authentication_connector(
                 .to_string(),
         })
         .attach_printable(
-            "No authentication connector configured for external vault 3DS auth legs",
+            "No authentication connector configured for external vault 3DS auth step",
         )?;
 
     let auth_connector_enum =
@@ -13864,16 +13859,22 @@ async fn perform_external_vault_authentication_v1(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("external vault is not enabled for this business profile")?;
     // Vault connectors live on the provider (platform) merchant, not the processor (connected).
-    let vault_owner = platform.get_provider_as_processor();
-    let external_vault_merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        &vault_owner,
-        None,
-        profile_id,
-        external_vault_mca_id.get_string_repr(),
-        Some(&external_vault_mca_id),
-    )
-    .await?;
+    let external_vault_merchant_connector_account =
+        helpers::MerchantConnectorAccountType::DbVal(Box::new(
+            state
+                .store
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    platform.get_provider().get_account().get_id(),
+                    &external_vault_mca_id,
+                    platform.get_provider().get_key_store(),
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: external_vault_mca_id.get_string_repr().to_string(),
+                    },
+                )?,
+        ));
 
     let psp_connector_name = payment_attempt
         .connector
@@ -13995,17 +13996,12 @@ async fn perform_external_vault_authentication_v1(
         business_profile.get_id().clone(),
     );
 
-    // AReq `notification_url` (browser CRes return) — derived from the payment via
-    // `create_authorize_url` (the `three_ds_authorize_url` endpoint), like normal payments. The UCS
-    // sources both MerchantData `notification_url` and the top-level `three_ds_requestor_url` from it.
     let netcetera_notification_url = Some(helpers::create_authorize_url(
         &state.base_url,
         payment_attempt,
         &psp_connector_name,
     ));
 
-    // Acquirer data — resolved from the PSP (checkout) MCA metadata the way normal payments do,
-    // NOT the netcetera MCA. Injected into connector_feature_data below.
     let netcetera_acquirer_metadata =
         psp_merchant_connector_account
             .get_metadata()

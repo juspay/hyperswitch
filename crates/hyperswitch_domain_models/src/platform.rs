@@ -216,13 +216,6 @@ impl Platform {
         &self.processor
     }
 
-    pub fn get_provider_as_processor(&self) -> Processor {
-        Processor::new(
-            self.provider.get_account().clone(),
-            self.provider.get_key_store().clone(),
-        )
-    }
-
     /// Returns a reference to the initiator.
     /// Returns None if the initiator is not known or not applicable.
     pub fn get_initiator(&self) -> Option<&Initiator> {
