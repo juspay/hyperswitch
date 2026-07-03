@@ -4020,7 +4020,7 @@ where
 /// When the UCS pre-auth indicates a challenge is required (no usable CAVV yet), this:
 ///   1. Persists an `authentication` record to the DB (create via
 ///      `authentication_core::utils::create_new_authentication` → `insert_authentication`, then update
-///      with the pre-auth result via `update_authentication_by_merchant_id_authentication_id` with
+///      with the pre-auth result via `update_authentication_by_processor_merchant_id_authentication_id` with
 ///      a `PreAuthenticationUpdate`). The record carries `is_separate_authn_required() == true`
 ///      (`maximum_supported_version` major == 2), `cavv == None`, `authentication_status` Pending,
 ///      the connector, threeds_server_transaction_id, message_version, etc.
@@ -4169,7 +4169,7 @@ where
 
     let authentication = state
         .store
-        .update_authentication_by_merchant_id_authentication_id(
+        .update_authentication_by_processor_merchant_id_authentication_id(
             authentication,
             authentication_update,
             key_store,
@@ -4380,7 +4380,7 @@ where
     // ---- 1. Load the persisted (pre-auth + AReq) authentication record ------------------------
     let authentication = state
         .store
-        .find_authentication_by_merchant_id_authentication_id(
+        .find_authentication_by_processor_merchant_id_authentication_id(
             processor_merchant_id,
             &authentication_id,
             key_store,
@@ -4676,7 +4676,7 @@ where
     };
     let mut authentication = state
         .store
-        .update_authentication_by_merchant_id_authentication_id(
+        .update_authentication_by_processor_merchant_id_authentication_id(
             authentication,
             authentication_update,
             key_store,
@@ -4732,7 +4732,7 @@ async fn fail_external_vault_post_authenticate(
     };
     state
         .store
-        .update_authentication_by_merchant_id_authentication_id(
+        .update_authentication_by_processor_merchant_id_authentication_id(
             authentication,
             authentication_update,
             key_store,
@@ -6458,11 +6458,69 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         // confirm/resume (frictionless), so the SDK's post-challenge `three_ds_authorize_url` call
         // only reports status here — a plain PSync — matching normal-payments pull=false+Challenge
         // behaviour (pending before the webhook lands, succeeded after) instead of erroring.
-        let should_authorize_via_redirect = !is_external_vault_payment
-            && (is_pull_mechanism_enabled
-                || payment_external_authentication_type
-                    != Some(common_enums::DecoupledAuthenticationType::Challenge));
-        let response = if should_authorize_via_redirect {
+        let authorize_completes_on_this_call = is_pull_mechanism_enabled
+            || payment_external_authentication_type
+                != Some(common_enums::DecoupledAuthenticationType::Challenge);
+        // External-3DS over VGS external vault authorizes via the external-vault-proxy confirm (the
+        // `is_external_vault_payment` branch below), not the standard `PaymentConfirm` here (no VGS
+        // proxy -> IR_04). So `should_authorize_via_redirect` gates only the non-external-vault path.
+        let should_authorize_via_redirect =
+            !is_external_vault_payment && authorize_completes_on_this_call;
+        let response = if is_external_vault_payment && authorize_completes_on_this_call {
+            // Frictionless external-vault: the SDK's `three_ds_authorize_url` must COMPLETE the
+            // payment via the external-vault-proxy confirm; a bare PSync leaves it stuck at
+            // RequiresCustomerAction. (Challenge is authorized by the pull=false RRes webhook, so it
+            // falls through to the status-only PSync else-branch.)
+            let payment_token = payment_attempt
+                .payment_token
+                .clone()
+                .get_required_value("payment_token")
+                .attach_printable(
+                    "payment_token missing on attempt for external vault 3DS authorize",
+                )?;
+            let external_vault_req = api::PaymentsRequest {
+                payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
+                    payment_intent.payment_id.clone(),
+                )),
+                merchant_id: req.merchant_id.clone(),
+                payment_token: Some(payment_token),
+                payment_method: Some(common_enums::PaymentMethod::Card),
+                // From the attempt: the resolved PM may not surface it for a connected PM (IR_04).
+                payment_method_type: payment_attempt.payment_method_type,
+                payment_method_data: Some(api_models::payments::PaymentMethodDataRequest {
+                    payment_method_data: Some(
+                        api_models::payments::PaymentMethodData::VaultCardTokenData(
+                            api_models::payments::VaultCardToken {
+                                card_holder_name: None,
+                                card_cvc: None,
+                            },
+                        ),
+                    ),
+                    billing: None,
+                }),
+                ..Default::default()
+            };
+            Box::pin(external_vault_proxy_for_payments_core::<
+                api::ExternalVaultProxy,
+                api::PaymentsResponse,
+                _,
+                _,
+                _,
+                PaymentData<api::ExternalVaultProxy>,
+            >(
+                state.clone(),
+                req_state,
+                platform.clone(),
+                payment_intent.profile_id.clone(),
+                PaymentExternalVaultProxyConfirm,
+                external_vault_req,
+                services::api::AuthFlow::Merchant,
+                CallConnectorAction::Trigger,
+                HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                None,
+            ))
+            .await?
+        } else if should_authorize_via_redirect {
             let payment_confirm_req = api::PaymentsRequest {
                 payment_id: Some(req.resource_id.clone()),
                 merchant_id: req.merchant_id.clone(),
@@ -14071,7 +14129,7 @@ async fn perform_external_vault_authentication_v1(
         )?;
     let authentication = state
         .store
-        .find_authentication_by_merchant_id_authentication_id(
+        .find_authentication_by_processor_merchant_id_authentication_id(
             processor_merchant_id,
             &authentication_id,
             key_store,
@@ -14314,7 +14372,7 @@ async fn perform_external_vault_authentication_v1(
     };
     let authentication = state
         .store
-        .update_authentication_by_merchant_id_authentication_id(
+        .update_authentication_by_processor_merchant_id_authentication_id(
             authentication,
             authentication_update,
             key_store,
