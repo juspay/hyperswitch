@@ -2032,7 +2032,10 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
         }
 
         match (item.object_id.clone(), item.event_id.clone()) {
-            (Some(object_id), None) => Ok(Self::ObjectIdFilter { object_id }),
+            (Some(object_id), None) => Ok(Self::ObjectIdFilter {
+                object_id,
+                recipient: item.recipient,
+            }),
 
             (None, Some(event_id)) => Ok(Self::EventIdFilter { event_id }),
 
@@ -2044,6 +2047,7 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
                 event_classes: item.event_classes,
                 event_types: item.event_types,
                 is_delivered: item.is_delivered,
+                recipient: item.recipient,
             }),
 
             (Some(_), Some(_)) => Err(report!(errors::ApiErrorResponse::PreconditionFailed {

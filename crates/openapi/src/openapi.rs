@@ -900,6 +900,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::webhooks::OutgoingWebhookContent,
         api_models::enums::EventClass,
         api_models::enums::EventType,
+        api_models::enums::EventRecipient,
         api_models::enums::DecoupledAuthenticationType,
         api_models::enums::Tokenization,
         api_models::enums::AuthenticationStatus,
