@@ -464,10 +464,31 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = router_data
-            .request
-            .payment_method_data
-            .clone()
+        // On a redirect completion the persisted payment_method_data is empty for
+        // no-data payment methods (e.g. the Skrill wallet or the paysafecard gift
+        // card), yet UCS still requires the payment_method oneof to settle the
+        // payment handle. Reconstruct it from the payment_method_type so
+        // CompleteAuthorize carries the concrete method.
+        let payment_method_data = router_data.request.payment_method_data.clone().or_else(|| {
+            use hyperswitch_domain_models::payment_method_data as pmd;
+            match router_data.request.payment_method_type {
+                Some(common_enums::PaymentMethodType::Skrill) => Some(pmd::PaymentMethodData::Wallet(
+                    pmd::WalletData::Skrill(Box::new(pmd::SkrillData {})),
+                )),
+                Some(common_enums::PaymentMethodType::Interac) => Some(
+                    pmd::PaymentMethodData::BankRedirect(pmd::BankRedirectData::Interac {
+                        country: None,
+                        email: None,
+                    }),
+                ),
+                Some(common_enums::PaymentMethodType::PaySafeCard) => Some(
+                    pmd::PaymentMethodData::GiftCard(Box::new(pmd::GiftCardData::PaySafeCard {})),
+                ),
+                _ => None,
+            }
+        });
+
+        let payment_method = payment_method_data
             .map(|payment_method_data| {
                 unified_connector_service::build_unified_connector_service_payment_method(
                     payment_method_data,
@@ -609,7 +630,17 @@ impl
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
             order_details: vec![],
-            connector_feature_data: None,
+            // Forward the connector metadata stored at Authorize (which holds the
+            // Paysafe paymentHandleToken) so CompleteAuthorize can settle the handle.
+            // Mirrors the PSync request builder.
+            connector_feature_data: router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                .map(|s| s.into()),
             enable_partial_authorization: None,
             payment_channel: None,
             billing_descriptor: None,
@@ -3454,6 +3485,7 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::RevolutPay => Ok(Self::RevolutPay),
             common_enums::PaymentMethodType::NetworkToken => Ok(Self::NetworkToken),
             common_enums::PaymentMethodType::OpenBanking => Ok(Self::OpenBanking),
+            common_enums::PaymentMethodType::Skrill => Ok(Self::Skrill),
             _ => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Payment Method Type not yet supported".to_string(),

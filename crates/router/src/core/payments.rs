@@ -5403,7 +5403,19 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    if is_operation_confirm(operation)
+    // The wallet predecrypt must run whenever this call will reach the connector:
+    // the standalone Confirm operation, and equally a one-shot PaymentCreate with
+    // confirm=true (which otherwise ships the still-encrypted wallet token to the
+    // connector tokenization step).
+    let is_confirm_operation = is_operation_confirm(operation)
+        || matches!(
+            (
+                format!("{operation:?}").as_str(),
+                payment_data.get_payment_attempt().confirm,
+            ),
+            ("PaymentCreate", true)
+        );
+    if is_confirm_operation
         && payment_data.get_payment_attempt().payment_method
             == Some(storage_enums::PaymentMethod::Wallet)
         && payment_data.get_payment_method_data().is_some()
