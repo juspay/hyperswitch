@@ -5169,20 +5169,6 @@ Cypress.Commands.add(
       return;
     }
 
-    if (isMockServer()) {
-      // Consume one cy.request slot so the step counter stays aligned with
-      // how cassettes were recorded (threeDsRedirection always issues one
-      // request before browser navigation).
-      if (Cypress.env("PROXY_ADMIN_URL")) {
-        cy.request({
-          url: nextActionUrl,
-          failOnStatusCode: false,
-          followRedirect: false,
-        });
-      }
-      return;
-    }
-
     handleRedirection(
       "three_ds",
       {
