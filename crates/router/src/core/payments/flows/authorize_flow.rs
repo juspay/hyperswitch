@@ -1721,7 +1721,6 @@ pub async fn call_unified_connector_service_pre_authenticate_for_external_proxy(
     payment_pre_authenticate_request.connector_feature_data =
         unified_connector_service::build_connector_feature_data_from_auth_mca(
             &merchant_connector_account,
-            // versioning leg carries neither the challenge preference, the AReq URLs, nor acquirer
             None,
             None,
             None,
@@ -1834,14 +1833,8 @@ pub async fn call_unified_connector_service_authenticate_for_external_proxy(
     external_vault_merchant_connector_account: helpers::MerchantConnectorAccountType,
     processor: &domain::Processor,
     unified_connector_service_execution_mode: enums::ExecutionMode,
-    // Resolved per-payment challenge preference (payment intent -> business profile default),
-    // forwarded to UCS via connector_feature_data so the AReq matches normal-payment behaviour.
     force_3ds_challenge: Option<bool>,
-    // System-constructed AReq `notification_url` (browser CRes return = `three_ds_authorize_url`),
-    // injected into connector_feature_data so it is derived from the payment rather than MCA metadata.
     notification_url: Option<String>,
-    // Acquirer data resolved from the PSP MCA / profile acquirer config (like normal payments),
-    // injected into connector_feature_data so it is not carried on the netcetera MCA.
     acquirer_metadata: Option<serde_json::Value>,
 ) -> errors::CustomResult<
     types::RouterData<
@@ -1866,9 +1859,6 @@ pub async fn call_unified_connector_service_authenticate_for_external_proxy(
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct external-vault Payment Authenticate Request")?;
 
-    // System-construct the pull=false RRes push target the same way normal payments do
-    // (`create_webhook_url` -> `{base_url}/webhooks/{merchant}/{mca}`) and inject it as the AReq's
-    // `results_response_notification_url` via `connector_feature_data`.
     let results_response_notification_url = merchant_connector_account.get_mca_id().map(|mca_id| {
         helpers::create_webhook_url(
             &state.base_url,
@@ -2011,7 +2001,6 @@ pub async fn call_unified_connector_service_post_authenticate_for_external_proxy
     payment_post_authenticate_request.connector_feature_data =
         unified_connector_service::build_connector_feature_data_from_auth_mca(
             &merchant_connector_account,
-            // results/RReq leg carries neither the challenge preference, the AReq URLs, nor acquirer
             None,
             None,
             None,

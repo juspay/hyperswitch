@@ -192,11 +192,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        // NOTE: `RequiresCustomerAction` is intentionally NOT in the not-allowed list. After the
-        // external 3DS pre-auth emits a `ThreeDsInvoke`, the intent sits in `RequiresCustomerAction`,
-        // and this operation is the resume handler that authorizes out of it — the frictionless SDK
-        // re-confirm AND the challenge webhook (pull=false, `PaymentSource::ExternalAuthenticator`)
-        // both proceed from `RequiresCustomerAction`. Only terminal / in-flight states are rejected.
         helpers::validate_payment_status_against_not_allowed_statuses(
             payment_intent.status,
             &[
@@ -275,19 +270,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             ..CustomerDetails::default()
         };
 
-        // The external vault proxy flow is non-PCI. Derive the external vault payment method data:
-        //  - `VaultDataCard`: inline vault card data carried directly on the confirm request.
-        //  - `VaultCardTokenData`: a saved card referenced by `payment_token`; its vault tokens
-        //    were retrieved from the modular PM service in `fetch_payment_method` (available here
-        //    as `payment_method_wrapper.vault_payment_method_token_data`). We combine those tokens
-        //    with the CVC / card holder name supplied on the request.
         let external_vault_pmd =
             build_external_vault_payment_method_data(request, payment_method_wrapper.as_ref())?;
 
-        // `payment_method` / `payment_method_type` are optional on the confirm request but required
-        // for the external vault proxy flow so the routing engine can match connectors. When the
-        // request omits them, fall back to the stored payment method fetched from the modular PM
-        // service (`payment_method_wrapper`).
         let payment_method = request
             .payment_method
             .or_else(|| {
@@ -308,10 +293,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
         payment_attempt.payment_method = Some(payment_method);
         payment_attempt.payment_method_type = Some(payment_method_subtype);
 
-        // Persist the confirm request's browser_info onto the attempt so the external 3DS AReq
-        // leg (`/3ds/authentication`) can forward `browserInformation` to the authentication
-        // connector. A browser-channel AReq without it is rejected (e.g. Netcetera:
-        // "browserInformation: data element is required but does not exist").
         if payment_attempt.browser_info.is_none() {
             payment_attempt.browser_info = request.browser_info.clone();
         }
@@ -651,15 +632,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         business_profile: &domain::Profile,
         feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()> {
-        // Create the proxy-card payment method when the customer accepted saving it, OR when external
-        // 3DS authentication was requested. The external-3DS multi-leg flow (confirm ->
-        // /3ds/authentication AReq -> authorize) re-fetches the VGS alias server-side from the
-        // attempt's `payment_token` across requests (the SDK does not re-send the alias); that alias
-        // token is minted from this PM's `payment_method_id` at the challenge halt
-        // (`...pre_authenticate...` -> alias_payment_token). Without a PM here `payment_method_id` is
-        // None, no token is minted, and the AReq resume fails HE_02. This mirrors normal payments,
-        // which tokenize for external auth regardless of save-card
-        // (`tokenize_in_router_when_confirm_false_or_external_authentication`).
         let is_external_three_ds_requested = payment_data
             .payment_intent
             .request_external_three_ds_authentication
@@ -670,12 +642,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             );
             return Ok(());
         }
-        // A repeat payment that reuses a saved card (the `VaultCardTokenData` / `payment_token`
-        // flow) already had its existing payment method resolved into `payment_method_info` during
-        // `get_trackers`. Creating again here would insert a duplicate `payment_methods` record for
-        // the same card on every off-session repeat, so reuse the existing one — just record its id
-        // on the attempt. The PM was fetched from the modular service (already `version: V2`), so the
-        // post-payment update still takes the modular acknowledgement path, not the legacy save path.
         if let Some(existing_pm_id) = payment_data
             .payment_method_info
             .as_ref()
@@ -687,11 +653,8 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             payment_data.set_payment_method_id_in_attempt(Some(existing_pm_id));
             return Ok(());
         }
-        // Gate on modular-eligibility to match `fetch_payment_method` (the read side): the proxy PM
-        // lives in the modular service, so an ineligible org must skip create too.
         match feature_config.is_payment_method_modular_allowed {
             true => {
-                // Only create for ExternalVaultCard (proxy card flow)
                 let mut vault_card = match payment_data.external_vault_pmd.clone() {
                     Some(
                         hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
@@ -707,14 +670,10 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                         return Ok(());
                     }
                 };
-                // Normalise card_exp_year to 2 digits (YY): Netcetera's cardExpiryDate is YYMM, so a
-                // stored 4-digit year yields a 6-char value the AReq rejects. Template tokens untouched.
                 let year = vault_card.card_exp_year.peek().clone();
                 if !year.contains("{{") && year.len() > 2 {
                     vault_card.card_exp_year = Secret::new(year[year.len() - 2..].to_string());
                 }
-                // The proxy PM lives under the provider; use the provider customer's global id
-                // (the modular service is keyed by GlobalCustomerId).
                 let global_customer_id = customer
                     .ok_or(errors::ApiErrorResponse::CustomerNotFound)?
                     .get_global_id()
@@ -726,9 +685,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                     .unwrap_or(common_enums::PaymentMethod::Card);
                 let payment_method_type = payment_data.payment_attempt.payment_method_type;
 
-                // For the hyperswitch vault, the request `card_number` is a temporary token — exchange
-                // it for the permanent PM id via the vault MCA's credentials. Other vaults store the
-                // token as-is.
                 if business_profile
                     .external_vault_details
                     .is_hyperswitch_vault()
@@ -738,7 +694,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                         .get_vault_connector_id()
                         .get_required_value("external vault connector id")?;
 
-                    // Vault connectors live on the provider (platform) merchant, not the processor.
                     let vault_mca = state
                         .store
                         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -800,8 +755,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                         router_env::logger::info!(
                             "Proxy card payment method created in modular service successfully"
                         );
-                        // Mark V2 so the post-payment path acknowledges the modular PM (new -> active);
-                        // otherwise it defaults to V1 and takes the legacy save path.
                         pm_info.version = common_enums::ApiVersion::V2;
                         payment_data
                             .set_payment_method_id_in_attempt(Some(pm_info.get_id().clone()));

@@ -892,9 +892,6 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
             Some(RequestIncrementalAuthorization::True)
         ),
         metadata: payment_data.payment_intent.metadata.clone(),
-        // Forward 3DS authentication proof (CAVV/ECI) to the PSP authorize on the
-        // external-vault proxy path: orchestrated auth record first, then merchant
-        // pass-through (three_ds_data) as fallback. Mirrors the standard authorize path.
         authentication_data: payment_data
             .authentication
             .as_ref()
