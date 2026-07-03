@@ -1,7 +1,7 @@
 mod transformers;
 use api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest as ApiConnectorWebhookRegisterRequest;
 use common_utils::id_type;
-use error_stack::ResultExt;
+use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccountUpdate,
     router_request_types::{
@@ -210,13 +210,18 @@ pub async fn register_connector_webhook(
     )
     .await?;
 
+    let scope = req.scope.as_ref().ok_or_else(|| {
+        Report::new(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("webhook registration scope is missing after request deserialization")
+    })?;
+
     let registration_plan = connector_data
         .connector
-        .get_webhook_registration_plan(&req.scope, &state.conf.connectors)
+        .get_webhook_registration_plan(scope, &state.conf.connectors)
         .to_webhook_configuration_failed_response()?;
 
-    let scope_type = configure_connector_webhook_flow::determine_scope_type(&req.scope);
-    let requested = configure_connector_webhook_flow::extract_requested_identifiers(&req.scope);
+    let scope_type = configure_connector_webhook_flow::determine_scope_type(scope);
+    let requested = configure_connector_webhook_flow::extract_requested_identifiers(scope);
 
     let mut results = Vec::new();
     let mut registration_entries = Vec::new();

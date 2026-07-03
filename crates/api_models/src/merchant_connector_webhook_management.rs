@@ -119,8 +119,8 @@ pub struct WebhookRegistrationError {
 /// Register a webhook at the connector
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ConnectorWebhookRegisterRequest {
-    #[schema(value_type = Scope)]
-    pub scope: Scope,
+    #[schema(value_type = Option<Scope>)]
+    pub scope: Option<Scope>,
     #[schema(value_type = Option<ConnectorWebhookEventType>, deprecated)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub event_type: Option<common_enums::ConnectorWebhookEventType>,
@@ -170,7 +170,7 @@ impl<'de> Deserialize<'de> for ConnectorWebhookRegisterRequest {
         };
 
         Ok(Self {
-            scope,
+            scope: Some(scope),
             event_type: raw.event_type,
             is_legacy_request,
         })
@@ -237,5 +237,6 @@ pub struct ConnectorWebhookResponse {
     #[schema(value_type = Option<ConnectorWebhookEventType>, deprecated)]
     pub event_type: Option<common_enums::ConnectorWebhookEventType>,
     pub connector_webhook_id: String,
-    pub scope: ConnectorWebhookScope,
+    #[schema(value_type = Option<ConnectorWebhookScope>)]
+    pub scope: Option<ConnectorWebhookScope>,
 }

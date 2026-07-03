@@ -326,9 +326,14 @@ pub async fn validate_webhook_registration_request(
         }
     );
 
+    let scope = webhook_register_request.scope.as_ref().ok_or_else(|| {
+        Report::new(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("webhook registration scope is missing after request deserialization")
+    })?;
+
     let plan = connector_data
         .connector
-        .get_webhook_registration_plan(&webhook_register_request.scope, connectors)
+        .get_webhook_registration_plan(scope, connectors)
         .to_webhook_configuration_failed_response()?;
 
     if plan.is_empty() {
@@ -516,7 +521,7 @@ pub fn get_connector_webhook_list_response(
 
             api_models::merchant_connector_webhook_management::ConnectorWebhookResponse {
                 connector_webhook_id,
-                scope,
+                scope: Some(scope),
                 event_type,
             }
         })
