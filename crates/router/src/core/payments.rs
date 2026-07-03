@@ -5139,7 +5139,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 let key_manager_state = &(state).into();
                 let authentication = state
                     .store
-                    .find_authentication_by_merchant_id_authentication_id(
+                    .find_authentication_by_processor_merchant_id_authentication_id(
                         platform.get_processor().get_account().get_id(),
                         &authentication_id,
                         platform.get_processor().get_key_store(),
@@ -12649,9 +12649,9 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .store
                 .find_customer_by_customer_id_merchant_id(
                     customer_id,
-                    platform.get_processor().get_account().get_id(),
-                    platform.get_processor().get_key_store(),
-                    storage_scheme,
+                    platform.get_provider().get_account().get_id(),
+                    platform.get_provider().get_key_store(),
+                    platform.get_provider().get_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -12863,7 +12863,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             }
         } else {
             let authentication = db
-                .find_authentication_by_merchant_id_authentication_id(
+                .find_authentication_by_processor_merchant_id_authentication_id(
                     processor_merchant_id,
                     &payment_attempt
                         .authentication_id
