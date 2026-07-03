@@ -10578,21 +10578,22 @@ Cypress.Commands.add("retrieveNonExistentPayoutTest", (globalState) => {
 // Superposition Config Commands
 // ============================================
 
+// Base command: PUT a superposition context override.
+// `context` is a plain object whose keys match the superposition dimension names
+// required by the target config (see dimension_config.rs for each config's dimensions).
 Cypress.Commands.add(
-  "setSuperpositionConfig",
-  (globalState, overrideKey, overrideValue, profileId) => {
+  "createSuperpositionConfig",
+  (globalState, overrideKey, overrideValue, context) => {
     const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
     const superpositionSecret = globalState.get("superpositionSecret");
-    const superpositionApiKey = globalState.get("superpositionApiKey");
-    const resolvedProfileId = profileId || globalState.get("profileId");
     const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
     const workspaceId =
       globalState.get("superpositionWorkspaceId") || "hyperswitch";
 
-    if (!superpositionBaseUrl || !superpositionSecret || !superpositionApiKey) {
+    if (!superpositionBaseUrl || !superpositionSecret) {
       cy.task(
         "cli_log",
-        "Superposition credentials not set (SUPERPOSITION_BASE_URL, SUPERPOSITION_SECRET, SUPERPOSITION_API_KEY) — skipping config set"
+        "Superposition credentials not set (SUPERPOSITION_BASE_URL, SUPERPOSITION_SECRET) — skipping config set"
       );
       return;
     }
@@ -10606,11 +10607,10 @@ Cypress.Commands.add(
         "x-workspace": workspaceId,
         "X-Superposition-Secret": superpositionSecret,
         "Content-Type": "application/json",
-        "api-key": superpositionApiKey,
       },
       body: {
         override: { [overrideKey]: overrideValue },
-        context: { profile_id: resolvedProfileId },
+        context,
         description: "test config",
         change_reason: "automated test",
       },
@@ -10622,137 +10622,30 @@ Cypress.Commands.add(
         expect(response.status, "superposition_config_status").to.equal(200);
         cy.task(
           "cli_log",
-          `Superposition config set: ${overrideKey}=${overrideValue} for profile_id=${resolvedProfileId}`
+          `Superposition config set: ${overrideKey}=${overrideValue}, context=${JSON.stringify(context)}`
         );
       });
     });
-    // Wait for the backend's superposition polling cache to refresh (polling_interval=2s in dev)
-    cy.wait(3500);
+    // Polling interval is 10 s in CI and 15 s in all other envs
+    cy.wait(15000);
   }
 );
 
-Cypress.Commands.add("deleteSuperpositionConfig", (globalState, profileId) => {
-  const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
-  const superpositionSecret = globalState.get("superpositionSecret");
-  const superpositionApiKey = globalState.get("superpositionApiKey");
-  const resolvedProfileId = profileId || globalState.get("profileId");
-  const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
-  const workspaceId =
-    globalState.get("superpositionWorkspaceId") || "hyperswitch";
-
-  if (!superpositionBaseUrl || !superpositionSecret || !superpositionApiKey) {
-    cy.task(
-      "cli_log",
-      "Superposition credentials not set — skipping config delete"
-    );
-    return;
-  }
-
-  cy.request({
-    method: "DELETE",
-    url: `${superpositionBaseUrl}/context`,
-    headers: {
-      "User-Agent": "Mozilla/5.0",
-      "x-org-id": orgId,
-      "x-workspace": workspaceId,
-      "X-Superposition-Secret": superpositionSecret,
-      "Content-Type": "application/json",
-      "api-key": superpositionApiKey,
-    },
-    body: {
-      context: { profile_id: resolvedProfileId },
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-
-    cy.wrap(response).then(() => {
-      if (response.status === 200) {
-        cy.task(
-          "cli_log",
-          `Superposition config deleted for profile_id=${resolvedProfileId}`
-        );
-      } else {
-        cy.task(
-          "cli_log",
-          `Superposition config delete returned status ${response.status} (may not exist)`
-        );
-      }
-    });
-  });
-});
-
+// Base command: DELETE a superposition context.
+// `context` must match the dimension context used when the override was created.
 Cypress.Commands.add(
-  "setExtendedCardBinConfig",
-  (globalState, value, profileId) => {
+  "deleteSuperpositionContext",
+  (globalState, context) => {
     const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
     const superpositionSecret = globalState.get("superpositionSecret");
-    const superpositionApiKey = globalState.get("superpositionApiKey");
-    const resolvedProfileId = profileId || globalState.get("profileId");
     const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
     const workspaceId =
       globalState.get("superpositionWorkspaceId") || "hyperswitch";
 
-    if (!superpositionBaseUrl || !superpositionSecret || !superpositionApiKey) {
+    if (!superpositionBaseUrl || !superpositionSecret) {
       cy.task(
         "cli_log",
-        "Superposition credentials not set — skipping extended card bin config"
-      );
-      return;
-    }
-
-    cy.request({
-      method: "PUT",
-      url: `${superpositionBaseUrl}/context`,
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-        "x-org-id": orgId,
-        "x-workspace": workspaceId,
-        "X-Superposition-Secret": superpositionSecret,
-        "Content-Type": "application/json",
-        "api-key": superpositionApiKey,
-      },
-      body: {
-        override: { enable_extended_card_bin: value },
-        context: { profile_id: resolvedProfileId },
-        description: "test config",
-        change_reason: "automated test",
-      },
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        expect(
-          response.status,
-          "superposition set extended_card_bin status"
-        ).to.equal(200);
-        cy.task(
-          "cli_log",
-          `Extended card bin config set: enable_extended_card_bin=${value} for profile_id=${resolvedProfileId}`
-        );
-      });
-    });
-    // Wait for the backend's superposition polling cache to refresh (polling_interval=2s in dev)
-    cy.wait(3500);
-  }
-);
-
-Cypress.Commands.add(
-  "deleteExtendedCardBinConfig",
-  (globalState, profileId) => {
-    const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
-    const superpositionSecret = globalState.get("superpositionSecret");
-    const superpositionApiKey = globalState.get("superpositionApiKey");
-    const resolvedProfileId = profileId || globalState.get("profileId");
-    const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
-    const workspaceId =
-      globalState.get("superpositionWorkspaceId") || "hyperswitch";
-
-    if (!superpositionBaseUrl || !superpositionSecret || !superpositionApiKey) {
-      cy.task(
-        "cli_log",
-        "Superposition credentials not set — skipping extended card bin config delete"
+        "Superposition credentials not set — skipping context delete"
       );
       return;
     }
@@ -10766,11 +10659,8 @@ Cypress.Commands.add(
         "x-workspace": workspaceId,
         "X-Superposition-Secret": superpositionSecret,
         "Content-Type": "application/json",
-        "api-key": superpositionApiKey,
       },
-      body: {
-        context: { profile_id: resolvedProfileId },
-      },
+      body: { context },
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
@@ -10779,17 +10669,66 @@ Cypress.Commands.add(
         if (response.status === 200) {
           cy.task(
             "cli_log",
-            `Extended card bin config deleted for profile_id=${resolvedProfileId}`
+            `Superposition context deleted: ${JSON.stringify(context)}`
           );
         } else {
           cy.task(
             "cli_log",
-            `Extended card bin config delete returned ${response.status} (may not exist)`
+            `Superposition context delete returned ${response.status} (may not exist)`
           );
         }
       });
     });
-    // Wait for the backend's superposition polling cache to refresh (polling_interval=2s in dev)
-    cy.wait(3500);
+    // Polling interval is 10 s in CI and 15 s in all other envs
+    cy.wait(15000);
+  }
+);
+
+// Set an arbitrary superposition config.
+// `context` should match the dimensions required by the target config (see dimension_config.rs).
+// Example for requires_cvv (DimensionsWithProcessorAndProviderMerchantId):
+//   { provider_merchant_id: merchantId, processor_merchant_id: merchantId }
+Cypress.Commands.add(
+  "setSuperpositionConfig",
+  (globalState, overrideKey, overrideValue, context) => {
+    cy.createSuperpositionConfig(globalState, overrideKey, overrideValue, context);
+  }
+);
+
+// Delete a superposition config context.
+// `context` must match the dimensions used when the override was created.
+Cypress.Commands.add("deleteSuperpositionConfig", (globalState, context) => {
+  cy.deleteSuperpositionContext(globalState, context);
+});
+
+// Set enable_extended_card_bin for a profile.
+// Uses DimensionsWithProcessorAndProviderMerchantIdAndProfileId (see dimension_config.rs).
+Cypress.Commands.add(
+  "setExtendedCardBinConfig",
+  (globalState, value, profileId) => {
+    const context = {
+      provider_merchant_id: globalState.get("merchantId"),
+      processor_merchant_id: globalState.get("merchantId"),
+      profile_id: profileId || globalState.get("profileId"),
+    };
+    cy.createSuperpositionConfig(
+      globalState,
+      "enable_extended_card_bin",
+      value,
+      context
+    );
+  }
+);
+
+// Delete the enable_extended_card_bin superposition context for a profile.
+Cypress.Commands.add(
+  "deleteExtendedCardBinConfig",
+  (globalState, profileId) => {
+    const context = {
+      provider_merchant_id: globalState.get("merchantId"),
+      processor_merchant_id: globalState.get("merchantId"),
+      profile_id: profileId || globalState.get("profileId"),
+    };
+    cy.deleteSuperpositionContext(globalState, context);
   }
 );

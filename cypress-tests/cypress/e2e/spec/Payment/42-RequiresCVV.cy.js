@@ -26,7 +26,10 @@ describe("Superposition Config Tests (Extended Card BIN and Requires CVV)", () =
 
   after("cleanup configs + flush global state", () => {
     cy.deleteExtendedCardBinConfig(globalState);
-    cy.deleteSuperpositionConfig(globalState);
+    cy.deleteSuperpositionConfig(globalState, {
+      provider_merchant_id: globalState.get("merchantId"),
+      processor_merchant_id: globalState.get("merchantId"),
+    });
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -246,7 +249,10 @@ describe("Superposition Config Tests (Extended Card BIN and Requires CVV)", () =
       });
 
       it("Set requires_cvv=true via superposition", () => {
-        cy.setSuperpositionConfig(globalState, "requires_cvv", true);
+        cy.setSuperpositionConfig(globalState, "requires_cvv", true, {
+          provider_merchant_id: globalState.get("merchantId"),
+          processor_merchant_id: globalState.get("merchantId"),
+        });
       });
 
       it("Create Payment Intent", () => {
@@ -339,7 +345,10 @@ describe("Superposition Config Tests (Extended Card BIN and Requires CVV)", () =
       });
 
       it("Set requires_cvv=false via superposition", () => {
-        cy.setSuperpositionConfig(globalState, "requires_cvv", false);
+        cy.setSuperpositionConfig(globalState, "requires_cvv", false, {
+          provider_merchant_id: globalState.get("merchantId"),
+          processor_merchant_id: globalState.get("merchantId"),
+        });
       });
 
       it("Create Payment Intent (off_session)", () => {
@@ -405,6 +414,67 @@ describe("Superposition Config Tests (Extended Card BIN and Requires CVV)", () =
           "card_pm"
         ]["RequiresCVVFalseSavedCardWithoutCVV"];
         cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
+      });
+    }
+  );
+
+  context(
+    "Delete requires_cvv config, verify default behavior reverts to true",
+    () => {
+      let shouldContinue = true;
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      it("Delete requires_cvv config via superposition", () => {
+        cy.deleteSuperpositionConfig(globalState, {
+          provider_merchant_id: globalState.get("merchantId"),
+          processor_merchant_id: globalState.get("merchantId"),
+        });
+      });
+
+      it("Create Customer", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
+      it("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["RequiresCVVPaymentIntent"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      it("Payment Methods Call", () => {
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      it("Confirm — save card on_session with CVV", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["RequiresCVVOnSession"];
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      it("List Customer PM — verify requires_cvv reverts to default (true)", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["RequiresCVVListPMOnSession"];
+        cy.listCustomerPMByClientSecret(globalState, data);
       });
     }
   );
