@@ -10,7 +10,7 @@ let globalState;
 const connectorId = process.env.CYPRESS_CONNECTOR || "service";
 const screenshotsFolderName = `screenshots/${connectorId}`;
 const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
-const retries = process.env.CYPRESS_MOCK_SERVER === "true" ? 0 : 2;
+const retries = process.env.CYPRESS_MOCK_SERVER === "true" ? 0 : 0;
 
 // Get timeout multiplier from shared utility
 const timeoutMultiplier = getTimeoutMultiplier();
@@ -26,6 +26,18 @@ export default defineConfig({
         },
         getGlobalState: () => {
           return globalState || {};
+        },
+        // Read a file and return its parsed JSON, or null if the file doesn't
+        // exist. Used by the MITM proxy replay path to load saved redirect
+        // bodies without timing out when no body was captured (e.g. connectors
+        // that don't use a browser form POST to redirect/complete).
+        readFileOrNull: (filePath) => {
+          if (!fs.existsSync(filePath)) return null;
+          try {
+            return JSON.parse(fs.readFileSync(filePath, "utf8"));
+          } catch {
+            return null;
+          }
         },
         cli_log: (message) => {
           // eslint-disable-next-line no-console

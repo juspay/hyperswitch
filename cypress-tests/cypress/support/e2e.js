@@ -24,6 +24,7 @@ Cypress.on("uncaught:exception", (err, runnable) => {
 // (the proxy's cassette match key on replay).
 const IS_PROXY_ENABLED = String(Cypress.env("IS_PROXY_ENABLED")) === "true";
 const PROXY_ADMIN_URL = Cypress.env("PROXY_ADMIN_URL");
+const REDIRECT_PROXY_ADMIN_URL = Cypress.env("REDIRECT_PROXY_ADMIN_URL");
 const PROXY_ADMIN_TIMEOUT_MS = 2000;
 const REQUEST_ID_HEADER = "X-Request-ID";
 const STEP_COUNTER_DIGITS = 3;
@@ -81,7 +82,11 @@ function normalizeRequestArgs(args) {
 
 // Proxy-admin calls are control traffic and must not consume a step slot.
 function isProxyAdminUrl(url) {
-  return Boolean(url) && url.startsWith(PROXY_ADMIN_URL);
+  if (!url) return false;
+  if (PROXY_ADMIN_URL && url.startsWith(PROXY_ADMIN_URL)) return true;
+  if (REDIRECT_PROXY_ADMIN_URL && url.startsWith(REDIRECT_PROXY_ADMIN_URL))
+    return true;
+  return false;
 }
 
 function buildRequestId() {
@@ -115,6 +120,11 @@ function notifyProxyTestEnded() {
 }
 
 if (IS_PROXY_ENABLED) {
+  // Expose step counter utilities so commands.js can reserve the RID for
+  // browser-driven redirect/complete POSTs before the browser navigates.
+  Cypress._getStepCounter = () => stepCounter;
+  Cypress._buildRequestId = buildRequestId;
+
   beforeEach(() => {
     const { titlePath } = Cypress.currentTest;
     const title = titlePath.join(" > ");
@@ -123,9 +133,22 @@ if (IS_PROXY_ENABLED) {
 
     testIdHash = computeTestIdHash(connector, spec, title);
     stepCounter = 0;
+    Cypress.env("currentTestIdHash", testIdHash);
+    cy.resetRedirectReadCount(testIdHash);
 
     if (PROXY_ADMIN_URL) {
       notifyProxyTestStarted(titlePath, spec, connector);
+    }
+
+    // Notify redirect proxy so it clears any stale reserved RID for this test.
+    if (REDIRECT_PROXY_ADMIN_URL) {
+      cy.request({
+        method: "POST",
+        url: `${REDIRECT_PROXY_ADMIN_URL}/test/start`,
+        body: { testIdHash },
+        failOnStatusCode: false,
+        timeout: PROXY_ADMIN_TIMEOUT_MS,
+      });
     }
   });
 

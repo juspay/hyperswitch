@@ -454,6 +454,7 @@ export const CONNECTOR_LISTS = {
       "jpmorgan",
       "loonio",
       "nexinets",
+      "nmi",
       "noon",
       "novalnet",
       "payload",
