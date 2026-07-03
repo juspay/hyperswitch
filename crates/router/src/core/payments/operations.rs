@@ -350,12 +350,14 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
     #[cfg(feature = "v1")]
+    #[allow(clippy::too_many_arguments)]
     async fn create_payment_method(
         &self,
         _state: &SessionState,
         _request: &R,
         _platform: &domain::Platform,
         _payment_data: &mut D,
+        _customer: Option<&domain::Customer>,
         _business_profile: &domain::Profile,
         _feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()> {
@@ -646,6 +648,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _platform: &domain::Platform,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -682,6 +685,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
         _request_payment_method_data: Option<&domain::PaymentMethodData>,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,

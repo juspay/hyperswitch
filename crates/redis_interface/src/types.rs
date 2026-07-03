@@ -194,9 +194,13 @@ impl DelReply {
     }
 }
 
+/// Reply from SADD command
 #[derive(Debug, Eq, PartialEq)]
 pub enum SaddReply {
-    KeySet,
+    /// Returned when atleast 1 value was inserted to Set
+    /// i64 value represent the total number of values that were inserted.
+    KeySet(i64),
+    /// Returned when no value was inserted to the Set
     KeyNotSet,
 }
 

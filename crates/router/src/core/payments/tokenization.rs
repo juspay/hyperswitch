@@ -35,6 +35,7 @@ use crate::core::payment_methods::{
 use crate::{
     consts,
     core::{
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate,
         payment_methods::{self, cards::PmCards, network_tokenization},
@@ -172,6 +173,7 @@ pub async fn save_payment_method<FData>(
     payment_method_info: Option<domain::PaymentMethod>,
     payment_method_token: Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
     customer_details: Option<api_models::customers::CustomerDocumentDetails>,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -863,9 +865,17 @@ where
                         }
                     },
                     None => {
-                        let wallet_decrypt_preference = WalletDecryptedToken::foreign_from(
+                        let should_save_walled_decrypted_token = dimensions
+                            .get_save_wallet_decrypted_data(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                Some(&customer_id),
+                            )
+                            .await;
+                        let wallet_decrypt_preference = WalletDecryptedToken::foreign_from((
                             save_payment_method_data.payment_method_token.as_ref(),
-                        );
+                            should_save_walled_decrypted_token,
+                        ));
 
                         let check_for_customer_pm = payment_method_type
                             .map(|payment_method_type_value| {
@@ -1310,13 +1320,17 @@ pub async fn save_in_locker_internal(
             Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
                 bank_debit_create_data,
             )),
-        ) => Box::pin(PmCards { state, provider }.add_bank_debit_to_locker(
-            payment_method_request,
-            bank_debit_create_data,
-            provider.get_key_store(),
-            &customer_id,
-            customer_obj.get_global_customer_id().clone(),
-        ))
+        ) => Box::pin(
+            PmCards { state, provider }.add_bank_debit_to_locker(
+                payment_method_request,
+                bank_debit_create_data,
+                provider.get_key_store(),
+                &customer_id,
+                customer_obj
+                    .get_global_id()
+                    .map(|id| id.get_string_repr().to_owned()),
+            ),
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Bank Debit Failed"),
@@ -1324,13 +1338,17 @@ pub async fn save_in_locker_internal(
             None,
             None,
             Some(api_models::payment_methods::PaymentMethodCreateData::Wallet(wallet_create_data)),
-        ) => Box::pin(PmCards { state, provider }.add_wallet_to_locker(
-            payment_method_request,
-            wallet_create_data,
-            provider.get_key_store(),
-            &customer_id,
-            customer_obj.get_global_customer_id().clone(),
-        ))
+        ) => Box::pin(
+            PmCards { state, provider }.add_wallet_to_locker(
+                payment_method_request,
+                wallet_create_data,
+                provider.get_key_store(),
+                &customer_id,
+                customer_obj
+                    .get_global_id()
+                    .map(|id| id.get_string_repr().to_owned()),
+            ),
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Wallet Failed"),

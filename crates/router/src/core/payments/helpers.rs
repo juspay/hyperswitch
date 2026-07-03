@@ -69,7 +69,8 @@ use rand::Rng;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, logger, tracing};
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_with::{serde_as, VecSkipError};
 use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
@@ -2192,7 +2193,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         document_details,
                         initiator.and_then(|initiator| initiator.to_created_by()),
                         initiator.and_then(|initiator| initiator.to_created_by()),
-                        customers::generate_global_customer_id(&state.conf.cell_information.id),
+                        id_type::GlobalCustomerId::generate(&state.conf.cell_information.id),
                     );
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_store, storage_scheme)
@@ -2264,7 +2265,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     .attach_printable("Unable to encrypt customer details")?,
                 );
 
-                payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
+                payment_data.payment_intent.customer_id = Some(customer.get_id().clone());
 
                 Some(customer)
             }
@@ -2503,6 +2504,16 @@ pub struct RolloutConfig {
     pub execution_mode: ExecutionMode,
 }
 
+#[serde_as]
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct WebhookRolloutConfig {
+    #[serde(flatten)]
+    pub rollout_configs: RolloutConfig,
+    #[serde_as(as = "VecSkipError<_>")]
+    #[serde(default)]
+    pub webhook_flows: Vec<api::WebhookFlow>,
+}
+
 impl Default for RolloutConfig {
     fn default() -> Self {
         Self {
@@ -2532,6 +2543,12 @@ impl Default for RolloutExecutionResult {
             execution_mode: ExecutionMode::NotApplicable,
         }
     }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct WebhookRolloutExecutionResult {
+    pub rollout_execution_result: RolloutExecutionResult,
+    pub webhook_flows: Vec<api::WebhookFlow>,
 }
 
 /// Validates a proxy URL, filtering out invalid ones and logging warnings
@@ -2626,24 +2643,39 @@ impl From<RolloutConfig> for RolloutExecutionResult {
     }
 }
 
-pub async fn should_execute_based_on_rollout(
+impl From<WebhookRolloutConfig> for WebhookRolloutExecutionResult {
+    fn from(config: WebhookRolloutConfig) -> Self {
+        let webhook_flows = config.webhook_flows;
+        let rollout_execution_result = RolloutExecutionResult::from(config.rollout_configs);
+        Self {
+            rollout_execution_result,
+            webhook_flows,
+        }
+    }
+}
+
+pub async fn should_execute_based_on_rollout<C, R>(
     state: &SessionState,
     config_key: &str,
-) -> RouterResult<RolloutExecutionResult> {
+) -> RouterResult<R>
+where
+    C: DeserializeOwned,
+    R: From<C> + Default,
+{
     let db = state.store.as_ref();
 
     match db.find_config_by_key(config_key).await {
         Ok(rollout_config) => {
             // Parse as JSON - log error if it fails but don't propagate
-            Ok(serde_json::from_str::<RolloutConfig>(&rollout_config.config)
-                .map(RolloutExecutionResult::from)
+            Ok(serde_json::from_str::<C>(&rollout_config.config)
+                .map(R::from)
                 .map_err(|err| {
                     logger::error!(
                         error = ?err,
                         config = %rollout_config.config,
                         "Failed to parse rollout config as JSON. Defaulting to not execute and setting should_execute to false."
                     );
-                    RolloutExecutionResult::default()
+                    R::default()
                 })
                 .unwrap_or_default())
         }
@@ -2664,7 +2696,7 @@ pub async fn should_execute_based_on_rollout(
                     );
                 }
             }
-            Ok(RolloutExecutionResult::default())
+            Ok(R::default())
         }
     }
 }
@@ -2758,7 +2790,7 @@ pub fn determine_standard_vault_action(
                 Some(mandates::MandateReferenceId::ConnectorMandateId(_)) | None => {
                     VaultFetchAction::NoFetchAction
                 }
-                Some(mandates::MandateReferenceId::CardWithLimitedData) => {
+                Some(mandates::MandateReferenceId::CardWithLimitedData(_)) => {
                     VaultFetchAction::NoFetchAction
                 }
             },
@@ -3733,6 +3765,19 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
         }
         _ => Ok((None, None)),
     }?;
+
+    // For stateless redirect pay-later PMs (e.g. Affirm BNPL), the redirect-completion
+    // request carries no payment_method_data and there is no stored card/token, so the
+    // match above resolves to None. Reconstruct the PaymentMethodData from the persisted
+    // payment_method_type so downstream flows (e.g. UCS CompleteAuthorize) still receive a
+    // payment_method and can run the transaction-create leg with the checkout_token.
+    let payment_method =
+        payment_method.or_else(|| match payment_data.payment_attempt.payment_method_type {
+            Some(storage_enums::PaymentMethodType::Affirm) => Some(
+                domain::PaymentMethodData::PayLater(domain::PayLaterData::AffirmRedirect {}),
+            ),
+            _ => None,
+        });
 
     Ok((operation, payment_method, pm_id))
 }
@@ -8745,6 +8790,10 @@ pub fn get_redis_key_for_extended_card_info(
         merchant_id.get_string_repr(),
         payment_id.get_string_repr()
     )
+}
+
+pub fn get_external_surcharge_redis_key(payment_id: &id_type::PaymentId) -> String {
+    format!("{}_external_surcharge", payment_id.get_string_repr())
 }
 
 pub fn check_integrity_based_on_flow<T, Request>(
