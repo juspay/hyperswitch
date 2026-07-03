@@ -537,13 +537,21 @@ impl PaymentIntent {
         show_installments: bool,
         extra: PaymentMethodListIntentDataInput,
         business_profile: &crate::business_profile::Profile,
+        customer: Option<&crate::customer::Customer>,
     ) -> CustomResult<PaymentMethodListIntentData, errors::api_error_response::ApiErrorResponse>
     {
         let request_ext_3ds = self.get_request_external_three_ds_authentication();
         let is_guest = self.is_guest_customer();
         let is_tax = business_profile.get_is_tax_calculation_enabled(&self);
 
-        let billing: Option<Address> = self
+        // Populating the email directly, for the cases where we have customer details stored in
+        // Payment Intent
+        let customer_details_from_pi = self
+            .get_intent_customer_details()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse customer_details")?;
+
+        let mut billing: Option<Address> = self
             .billing_details
             .map(|b| b.deserialize_inner_value(|value| value.parse_value("Address")))
             .transpose()
@@ -558,6 +566,46 @@ impl PaymentIntent {
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse shipping address")?
             .map(|enc| enc.into_inner());
+
+        if let Some(billing_address) = billing.as_mut() {
+            billing_address.email = billing_address.email.clone().or_else(|| {
+                customer_details_from_pi
+                    .as_ref()
+                    .and_then(|customer_details| customer_details.email.clone())
+                    .or_else(|| {
+                        customer.and_then(|cust| {
+                            cust.email
+                                .as_ref()
+                                .map(|email| pii::Email::from(email.clone()))
+                        })
+                    })
+            });
+        } else {
+            billing = Some(Address {
+                email: customer_details_from_pi
+                    .as_ref()
+                    .and_then(|customer_details| customer_details.email.clone())
+                    .or_else(|| {
+                        customer.and_then(|cust| {
+                            cust.email
+                                .as_ref()
+                                .map(|email| pii::Email::from(email.clone()))
+                        })
+                    }),
+                ..Default::default()
+            });
+        }
+
+        let email = customer_details_from_pi
+            .as_ref()
+            .and_then(|customer_details| customer_details.email.clone())
+            .or_else(|| {
+                customer.and_then(|cust| {
+                    cust.email
+                        .as_ref()
+                        .map(|email| pii::Email::from(email.clone()))
+                })
+            });
 
         let installment_options = match show_installments {
             false => None,
@@ -597,6 +645,7 @@ impl PaymentIntent {
             setup_future_usage: self.setup_future_usage,
             billing,
             shipping,
+            email,
             metadata: self.metadata.map(Secret::new),
             order_details: self.order_details,
             created: Some(self.created_at),

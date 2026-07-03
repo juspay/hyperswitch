@@ -72,6 +72,15 @@ const billingAddress = {
   },
 };
 
+const paypalMandateCustomerAcceptance = {
+  acceptance_type: "online",
+  accepted_at: "2026-06-29T12:00:00Z",
+  online: {
+    ip_address: "192.168.1.1",
+    user_agent: "Mozilla/5.0",
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -913,6 +922,35 @@ export const connectorDetails = {
           },
         },
       }),
+    PaypalRedirectMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        billing: billingAddress,
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        setup_future_usage: "off_session",
+        mandate_data: {
+          customer_acceptance: paypalMandateCustomerAcceptance,
+          mandate_type: {
+            single_use: {
+              amount: 6000,
+              currency: "EUR",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
   },
   webhook: {
     TransactionIdConfig: {
