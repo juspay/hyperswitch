@@ -404,6 +404,19 @@ export function createMerchantConnectorAccount(
   }
 }
 
+function getMultipleConnectorCredentialValues(globalState) {
+  const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
+
+  if (!multipleConnectors?.status || multipleConnectors.count <= 1) {
+    return [];
+  }
+
+  return Array.from(
+    { length: multipleConnectors.count - 1 },
+    (_, index) => `connector_${index + 2}`
+  );
+}
+
 export function createBusinessProfilesAndMerchantConnectorAccounts(
   paymentType,
   createMerchantConnectorAccountBody,
@@ -411,27 +424,21 @@ export function createBusinessProfilesAndMerchantConnectorAccounts(
   globalState,
   paymentMethodsEnabled
 ) {
-  const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
-  const connectorCount = multipleConnectors?.status
-    ? multipleConnectors.count
-    : 0;
+  const connectorCredentialValues =
+    getMultipleConnectorCredentialValues(globalState);
 
-  if (connectorCount <= 1) {
+  if (connectorCredentialValues.length === 0) {
     cy.task(
       "cli_log",
-      "Skipping additional connector account setup; no multiple connector credentials configured."
+      "Skipping multiple connector account setup; no multiple connector credentials configured."
     );
     return;
   }
 
-  for (
-    let connectorIndex = 2;
-    connectorIndex <= connectorCount;
-    connectorIndex++
-  ) {
+  connectorCredentialValues.forEach((connectorCredentialValue) => {
     const multipleConnector = {
       nextConnector: true,
-      value: `connector_${connectorIndex}`,
+      value: connectorCredentialValue,
     };
 
     createBusinessProfile(
@@ -447,7 +454,7 @@ export function createBusinessProfilesAndMerchantConnectorAccounts(
       paymentMethodsEnabled,
       multipleConnector
     );
-  }
+  });
 }
 
 export function updateBusinessProfile(

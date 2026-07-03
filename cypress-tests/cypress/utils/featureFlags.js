@@ -1,5 +1,10 @@
 /* eslint-disable no-console */
-const config_fields = ["CONNECTOR_CREDENTIAL", "DELAY", "TRIGGER_SKIP"];
+const config_fields = [
+  "CONNECTOR_CREDENTIAL",
+  "DELAY",
+  "TRIGGER_SKIP",
+  "LOCAL_VAULT_REQUIRED",
+];
 
 const DEFAULT_CONNECTOR = "connector_1";
 const CONNECTOR_CREDENTIAL_PATTERN = /^connector_([1-9]\d*)$/;
@@ -75,6 +80,7 @@ function validateConfigValue(key, value) {
         break;
 
       case "TRIGGER_SKIP":
+      case "LOCAL_VAULT_REQUIRED":
       case "DELAY.STATUS":
         if (!validateType(value, "boolean")) return false;
         break;

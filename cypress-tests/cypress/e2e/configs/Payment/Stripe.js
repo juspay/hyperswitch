@@ -1559,6 +1559,9 @@ export const connectorDetails = {
       },
     },
     Ach: {
+      Configs: {
+        LOCAL_VAULT_REQUIRED: true,
+      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "ach",
@@ -1635,6 +1638,7 @@ export const connectorDetails = {
     MandateSingleUseAch: {
       Configs: {
         CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Ach"),
+        LOCAL_VAULT_REQUIRED: true,
       },
       Request: {
         amount: 6540,

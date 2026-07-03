@@ -18,7 +18,7 @@ describe("Connector Account Create flow test", () => {
   it("Create merchant connector account", () => {
     cy.createConnectorCallTest(
       "payment_processor",
-      structuredClone(fixtures.createConnectorBody),
+      fixtures.createConnectorBody,
       payment_methods_enabled,
       globalState
     );

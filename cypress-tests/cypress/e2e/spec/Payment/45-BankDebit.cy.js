@@ -14,16 +14,22 @@ function isVaultMarkedAvailable() {
   return vaultAvailable === true || vaultAvailable === "true";
 }
 
-function skipIfLocalVaultUnavailable(testContext, testName) {
+function skipIfLocalVaultUnavailable(testContext, testName, data) {
+  const connectorId = globalState.get("connectorId");
   const baseUrl = globalState.get("baseUrl");
+  const localVaultRequired = data?.Configs?.LOCAL_VAULT_REQUIRED === true;
 
-  if (!isLocalhost(baseUrl) || isVaultMarkedAvailable()) {
+  if (
+    !localVaultRequired ||
+    !isLocalhost(baseUrl) ||
+    isVaultMarkedAvailable()
+  ) {
     return;
   }
 
   cy.task(
     "cli_log",
-    `Skipping ${testName} on localhost. Set CYPRESS_VAULT_AVAILABLE=true when vault is available locally.`
+    `Skipping ${testName} for ${connectorId} on localhost. Set CYPRESS_VAULT_AVAILABLE=true when vault is available locally.`
   );
   testContext.skip();
 }
@@ -121,7 +127,10 @@ describe("Bank Debit tests", () => {
 
   context("ACH Bank Debit Create and Confirm flow test", () => {
     before(function () {
-      skipIfLocalVaultUnavailable(this, "ACH Bank Debit tests");
+      const achData = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_debit_pm"
+      ]["Ach"];
+      skipIfLocalVaultUnavailable(this, "ACH Bank Debit tests", achData);
     });
 
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm ACH Bank Debit -> Retrieve Payment", () => {
@@ -418,7 +427,14 @@ describe("Bank Debit tests", () => {
 
   context("ACH Bank Debit Mandate flow test", () => {
     before(function () {
-      skipIfLocalVaultUnavailable(this, "ACH Bank Debit Mandate tests");
+      const mandateData = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_debit_pm"
+      ]["MandateSingleUseAch"];
+      skipIfLocalVaultUnavailable(
+        this,
+        "ACH Bank Debit Mandate tests",
+        mandateData
+      );
     });
 
     it("CIT mandate creation -> MIT mandate reuse for ACH", () => {
