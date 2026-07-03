@@ -1,5 +1,3 @@
-/* eslint-disable cypress/unsafe-to-chain-command */
-
 /**
  * MITM proxy helpers for record/replay of 3DS and bank-redirect flows.
  *
