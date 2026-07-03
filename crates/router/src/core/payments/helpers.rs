@@ -3054,11 +3054,21 @@ pub async fn resolve_provider_profile(
         }
         #[cfg(feature = "v2")]
         {
-            Err(
-                report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                    "Platform-connected provider profile resolution is not supported in v2",
-                ),
-            )
+            // v2 MerchantAccount has no `default_profile`; resolve the provider's single business
+            // profile (which holds provider-level config, e.g. external vault) by listing its profiles.
+            let profiles = state
+                .store
+                .list_profile_by_merchant_id(
+                    provider.get_key_store(),
+                    provider.get_account().get_id(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to list provider merchant business profiles")?;
+            profiles.into_iter().next().ok_or_else(|| {
+                report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Provider merchant has no business profile configured")
+            })
         }
     }
 }
