@@ -570,6 +570,79 @@ function replayRedirectBody(saved, paymentId, merchantId, notificationUrl) {
   }
 }
 
+function replayJsConnectorRedirect(
+  jsConnector,
+  saved,
+  paymentId,
+  merchantId,
+  globalState
+) {
+  const hyperswitchUrl =
+    Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
+  if (saved && saved.__redirect_method === "GET" && saved.__redirect_segment) {
+    const url = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`;
+    const qs = new URLSearchParams(saved.__query || {}).toString();
+    cy.request({
+      method: "GET",
+      url: qs ? `${url}?${qs}` : url,
+      failOnStatusCode: false,
+      followRedirect: false,
+    });
+  } else {
+    const returnUrl = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${jsConnector.path}/${globalState.get("connectorId")}`;
+    const params = jsConnector.params(globalState);
+    const hasValues = Object.values(params).every(
+      (v) => v !== undefined && v !== null
+    );
+    if (hasValues) {
+      const qs = new URLSearchParams(params).toString();
+      cy.request({
+        method: "GET",
+        url: `${returnUrl}?${qs}`,
+        failOnStatusCode: false,
+        followRedirect: false,
+      });
+    } else {
+      cy.then(() => {
+        if (Cypress._buildRequestId) Cypress._buildRequestId();
+      });
+    }
+  }
+}
+
+function replayRedirectInMockServer(
+  connectorId,
+  globalState,
+  redirectBodyFile,
+  notificationUrl,
+  { preRequest } = {}
+) {
+  const paymentId = globalState.get("paymentID");
+  const merchantId = globalState.get("merchantId");
+  const jsConnector = JS_IFRAME_CONNECTORS[connectorId];
+
+  if (preRequest) {
+    preRequest();
+  }
+
+  if (jsConnector) {
+    cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
+      replayJsConnectorRedirect(
+        jsConnector,
+        saved,
+        paymentId,
+        merchantId,
+        globalState
+      );
+    });
+    return;
+  }
+
+  cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
+    replayRedirectBody(saved, paymentId, merchantId, notificationUrl);
+  });
+}
+
 function resolveAlgorithm(signatureAlgorithm) {
   expect(
     signatureAlgorithm,
@@ -5251,9 +5324,9 @@ Cypress.Commands.add(
     }
 
     if (isProxyEnabled && isMockServer()) {
+      const baseUrl = globalState.get("baseUrl");
       const paymentId = globalState.get("paymentID");
       const merchantId = globalState.get("merchantId");
-      const baseUrl = globalState.get("baseUrl");
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
       const seq = nextRedirectSeq(testIdHash);
       const redirectBodyFile = getRedirectBodyFile(
@@ -5262,58 +5335,21 @@ Cypress.Commands.add(
         seq
       );
       const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
-      const jsConnector = JS_IFRAME_CONNECTORS[connectorId];
 
-      cy.request({
-        url: nextActionUrl,
-        failOnStatusCode: false,
-        followRedirect: false,
-      });
-
-      if (jsConnector) {
-        const hyperswitchUrl =
-          Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
-        cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
-          if (
-            saved &&
-            saved.__redirect_method === "GET" &&
-            saved.__redirect_segment
-          ) {
-            const url = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`;
-            const qs = new URLSearchParams(saved.__query || {}).toString();
+      replayRedirectInMockServer(
+        connectorId,
+        globalState,
+        redirectBodyFile,
+        notificationUrl,
+        {
+          preRequest: () =>
             cy.request({
-              method: "GET",
-              url: qs ? `${url}?${qs}` : url,
+              url: nextActionUrl,
               failOnStatusCode: false,
               followRedirect: false,
-            });
-          } else {
-            const returnUrl = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${jsConnector.path}/${connectorId}`;
-            const params = jsConnector.params(globalState);
-            const hasValues = Object.values(params).every(
-              (v) => v !== undefined && v !== null
-            );
-            if (hasValues) {
-              const qs = new URLSearchParams(params).toString();
-              cy.request({
-                method: "GET",
-                url: `${returnUrl}?${qs}`,
-                failOnStatusCode: false,
-                followRedirect: false,
-              });
-            } else {
-              cy.then(() => {
-                if (Cypress._buildRequestId) Cypress._buildRequestId();
-              });
-            }
-          }
-        });
-        return;
-      }
-
-      cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
-        replayRedirectBody(saved, paymentId, merchantId, notificationUrl);
-      });
+            }),
+        }
+      );
       return;
     }
 
@@ -5382,9 +5418,9 @@ Cypress.Commands.add(
     }
 
     if (isProxyEnabled && isMockServer()) {
+      const baseUrl = globalState.get("baseUrl");
       const paymentId = globalState.get("paymentID");
       const merchantId = globalState.get("merchantId");
-      const baseUrl = globalState.get("baseUrl");
       const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
       const seq = nextRedirectSeq(testIdHash);
       const redirectBodyFile = getRedirectBodyFile(
@@ -5393,52 +5429,13 @@ Cypress.Commands.add(
         seq
       );
       const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
-      const jsConnector = JS_IFRAME_CONNECTORS[connectorId];
 
-      if (jsConnector) {
-        const hyperswitchUrl =
-          Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
-        cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
-          if (
-            saved &&
-            saved.__redirect_method === "GET" &&
-            saved.__redirect_segment
-          ) {
-            const url = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`;
-            const qs = new URLSearchParams(saved.__query || {}).toString();
-            cy.request({
-              method: "GET",
-              url: qs ? `${url}?${qs}` : url,
-              failOnStatusCode: false,
-              followRedirect: false,
-            });
-          } else {
-            const returnUrl = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${jsConnector.path}/${connectorId}`;
-            const params = jsConnector.params(globalState);
-            const hasValues = Object.values(params).every(
-              (v) => v !== undefined && v !== null
-            );
-            if (hasValues) {
-              const qs = new URLSearchParams(params).toString();
-              cy.request({
-                method: "GET",
-                url: `${returnUrl}?${qs}`,
-                failOnStatusCode: false,
-                followRedirect: false,
-              });
-            } else {
-              cy.then(() => {
-                if (Cypress._buildRequestId) Cypress._buildRequestId();
-              });
-            }
-          }
-        });
-        return;
-      }
-
-      cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
-        replayRedirectBody(saved, paymentId, merchantId, notificationUrl);
-      });
+      replayRedirectInMockServer(
+        connectorId,
+        globalState,
+        redirectBodyFile,
+        notificationUrl
+      );
       return;
     }
 
