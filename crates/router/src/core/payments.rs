@@ -11707,8 +11707,7 @@ where
             }
         }
         _ => {
-            helpers::override_setup_future_usage_to_on_session(state.store.as_ref(), payment_data)
-                .await?;
+            helpers::override_setup_future_usage_to_on_session(state, payment_data).await?;
 
             let first_choice = connectors
                 .first()

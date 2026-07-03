@@ -881,18 +881,62 @@ impl DatabaseBackedConfig for StepUpEnabled {
             .get_processor_merchant_id()
             .map(|id| format!("step_up_enabled_{}", id.get_string_repr()))
     }
+
+    /// The legacy DB value at `step_up_enabled_{merchant}` is a JSON array of the connectors
+    /// for which step-up is enabled (e.g. `["stripe","adyen"]`), not a bool. Convert it to a
+    /// bool by checking whether the `connector` from the resolved context is present in that
+    /// list, preserving the pre-migration `connectors_enabled.contains(&connector)` behaviour.
+    fn parse_db_config(config_str: &str, context: Option<&ConfigContext>) -> Option<Self::Output>
+    where
+        Self::Output: super::ConfigType,
+    {
+        let enabled_connectors: Vec<common_enums::connector_enums::Connector> =
+            serde_json::from_str(config_str)
+                .inspect_err(|err| {
+                    router_env::logger::error!(
+                        ?err,
+                        "Failed to parse step_up_enabled connector list from db config"
+                    )
+                })
+                .ok()?;
+
+        context
+            .and_then(|ctx| ctx.get("connector"))
+            .and_then(|connector_str| {
+                serde_json::from_value::<common_enums::connector_enums::Connector>(
+                    serde_json::Value::String(connector_str.to_string()),
+                )
+                .inspect_err(|err| {
+                    router_env::logger::error!(
+                        ?err,
+                        connector = %connector_str,
+                        "Failed to parse connector from context"
+                    )
+                })
+                .ok()
+            })
+            .map(|connector| enabled_connectors.contains(&connector))
+    }
 }
 
 config! {
     superposition_key = AUTHENTICATION_SERVICE_ELIGIBLE,
     output = bool,
-    default = true,
+    // Pre-migration behaviour: when neither the org- nor merchant-level DB config exists,
+    // the merchant is treated as NOT eligible. Keep the last-resort default as `false`.
+    default = false,
     requires = dimension_state::DimensionsWithProcessorMerchantIdAndOrgId,
     targeting_key = id_type::MerchantId
 }
 
 impl DatabaseBackedConfig for AuthenticationServiceEligible {
     const KEY: &'static str = "authentication_service_eligible";
+    // NOTE: The pre-migration logic resolved this in two levels - it first checked the
+    // org-level key `authentication_service_eligible_{org_id}` (which, if present, was final)
+    // and only fell back to the merchant-level key `authentication_service_eligible_{merchant_id}`
+    // when the org-level key was absent. The single-key DB fallback below reproduces the
+    // org-level precedence; the merchant-level-only case must be backfilled into Superposition
+    // (or the org-level config) rather than relying on this fallback.
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
             .get_organization_id()
@@ -957,5 +1001,60 @@ impl DatabaseBackedConfig for SaveWalletDecryptedData {
         dimensions
             .get_processor_merchant_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = SKIP_SAVING_WALLET_AT_CONNECTOR,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndPaymentMethodType,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for SkipSavingWalletAtConnector {
+    const KEY: &'static str = "skip_saving_wallet_at_connector";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("skip_saving_wallet_at_connector_{}", id.get_string_repr()))
+    }
+
+    /// The legacy DB value at `skip_saving_wallet_at_connector_{merchant}` is a JSON array of
+    /// the payment method types for which saving the wallet at the connector should be skipped
+    /// (e.g. `["apple_pay","google_pay"]`), not a bool. Convert it to a bool by checking whether
+    /// the `payment_method_type` from the resolved context is present in that list, preserving the
+    /// pre-migration `skip_saving_wallet_at_connector.contains(&payment_method_type)` behaviour.
+    fn parse_db_config(config_str: &str, context: Option<&ConfigContext>) -> Option<Self::Output>
+    where
+        Self::Output: super::ConfigType,
+    {
+        let skip_payment_method_types: Vec<common_enums::PaymentMethodType> =
+            serde_json::from_str(config_str)
+                .inspect_err(|err| {
+                    router_env::logger::error!(
+                        ?err,
+                        "Failed to parse skip_saving_wallet_at_connector list from db config"
+                    )
+                })
+                .ok()?;
+
+        context
+            .and_then(|ctx| ctx.get("payment_method_type"))
+            .and_then(|pmt_str| {
+                serde_json::from_value::<common_enums::PaymentMethodType>(
+                    serde_json::Value::String(pmt_str.to_string()),
+                )
+                .inspect_err(|err| {
+                    router_env::logger::error!(
+                        ?err,
+                        payment_method_type = %pmt_str,
+                        "Failed to parse payment_method_type from context"
+                    )
+                })
+                .ok()
+            })
+            .map(|payment_method_type| skip_payment_method_types.contains(&payment_method_type))
     }
 }

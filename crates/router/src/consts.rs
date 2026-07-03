@@ -448,6 +448,8 @@ pub mod superposition {
     pub const BLOCKLIST_GUARD: &str = "blocklist_guard";
     /// UCS enabled configuration key
     pub const UCS_ENABLED: &str = "ucs_enabled";
+    /// Skip saving wallet at connector configuration key per merchant and payment method type
+    pub const SKIP_SAVING_WALLET_AT_CONNECTOR: &str = "skip_saving_wallet_at_connector";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "save_wallet_decrypted_data";
 }

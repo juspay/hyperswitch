@@ -150,11 +150,6 @@ impl MerchantId {
         format!("poll_{}_{unique_id}", self.get_string_repr())
     }
 
-    /// get_skip_saving_wallet_at_connector_key
-    pub fn get_skip_saving_wallet_at_connector_key(&self) -> String {
-        format!("skip_saving_wallet_at_connector_{}", self.get_string_repr())
-    }
-
     /// get_payment_config_routing_id
     pub fn get_payment_config_routing_id(&self) -> String {
         format!("payment_config_id_{}", self.get_string_repr())
