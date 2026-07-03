@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.01.0-hotfix2
+
+### Bug Fixes
+
+- **router:** Fix null recipient filtering and prevent unconfigured delivery ([#13148](https://github.com/juspay/hyperswitch/pull/13148)) ([`03d5095`](https://github.com/juspay/hyperswitch/commit/03d50954a8343b325075fdd7ca574dcc6f8d62d0))
+
+**Full Changelog:** [`2026.07.01.0-hotfix1...2026.07.01.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.07.01.0-hotfix1...2026.07.01.0-hotfix2)
+
+- - -
+
 ## 2026.07.01.0-hotfix1
 
 ### Features
