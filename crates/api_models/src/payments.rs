@@ -11221,6 +11221,9 @@ pub struct PaymentsManualUpdateRequest {
     pub connector_transaction_id: Option<String>,
     /// The amount that can be captured on the payment.
     pub amount_capturable: Option<MinorUnit>,
+    /// Whether to update amount_captured using amount_to_capture from the attempt.
+    /// When true, amount_captured will be set to amount_to_capture
+    pub update_amount_captured: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -11244,6 +11247,8 @@ pub struct PaymentsManualUpdateResponse {
     pub connector_transaction_id: Option<String>,
     /// The amount that can be captured on the payment.
     pub amount_capturable: Option<MinorUnit>,
+    /// The amount that has been captured on the payment.
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, SmithyModel)]
