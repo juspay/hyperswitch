@@ -520,9 +520,7 @@ function nextRedirectSeq(testIdHash) {
 
 function getRedirectBodyFile(connectorId, testIdHash, seq) {
   const captureDir = Cypress.env("CAPTURE_DIR");
-  return captureDir
-    ? `${captureDir}/${connectorId}/Payment/redirect-bodies/${testIdHash}-${seq}-redirect-body.json`
-    : `cypress/fixtures/proxy-bodies/${testIdHash}-${seq}-redirect-body.json`;
+  return `${captureDir}/${connectorId}/Payment/redirect-bodies/${testIdHash}-${seq}-redirect-body.json`;
 }
 
 function reserveRedirectRid(adminUrl, testIdHash, paymentId, stepOffset) {

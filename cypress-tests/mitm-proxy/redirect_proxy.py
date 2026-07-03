@@ -17,10 +17,6 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-FIXTURES_DIR = os.environ.get(
-    "REDIRECT_BODY_DIR",
-    os.path.normpath(os.path.join(SCRIPT_DIR, "..", "cypress", "fixtures", "proxy-bodies")),
-)
 CAPTURE_DIR = os.environ.get(
     "CAPTURE_DIR",
     os.path.normpath(os.path.join(SCRIPT_DIR, "captures")),
@@ -146,11 +142,6 @@ def _save_redirect(
         seq = str(_redirect_count[test_id_hash]).zfill(3)
 
     filename = f"{test_id_hash}-{seq}-redirect-body.json"
-
-    os.makedirs(FIXTURES_DIR, exist_ok=True)
-    fixture_path = os.path.join(FIXTURES_DIR, filename)
-    _write_json(fixture_path, data)
-    print(f"[redirect-proxy] body saved → {fixture_path}")
 
     _write_to_captures(data, filename)
 
@@ -280,7 +271,7 @@ class AdminHandler(BaseHTTPRequestHandler):
             with _lock:
                 self._json(200, {
                     "reserved": dict(_reserved),
-                    "fixtures_dir": FIXTURES_DIR,
+                    "capture_dir": CAPTURE_DIR,
                     "upstream": f"{UPSTREAM_HOST}:{UPSTREAM_PORT}",
                 })
         else:
@@ -299,11 +290,10 @@ def _start_admin() -> None:
 
 
 def main() -> None:
-    os.makedirs(FIXTURES_DIR, exist_ok=True)
     _start_admin()
     proxy = HTTPServer(("0.0.0.0", LISTEN_PORT), ProxyHandler)
     print(f"[redirect-proxy] proxy  http://0.0.0.0:{LISTEN_PORT} → http://{UPSTREAM_HOST}:{UPSTREAM_PORT}")
-    print(f"[redirect-proxy] bodies {FIXTURES_DIR}")
+    print(f"[redirect-proxy] bodies {CAPTURE_DIR}")
     proxy.serve_forever()
 
 
