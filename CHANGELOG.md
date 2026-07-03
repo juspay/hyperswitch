@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.01.0-hotfix3
+
+### Features
+
+- **payment_methods:** Surface customer email in client PML intent_data ([#13162](https://github.com/juspay/hyperswitch/pull/13162)) ([`a6b92e2`](https://github.com/juspay/hyperswitch/commit/a6b92e2a1d08cbed7624c24fa4e319b62e2427a6))
+
+### Bug Fixes
+
+- Add adyen management url for prod ([#13149](https://github.com/juspay/hyperswitch/pull/13149)) ([`8ccf379`](https://github.com/juspay/hyperswitch/commit/8ccf37918cca25ca1588434900545c1e0294db68))
+
+**Full Changelog:** [`2026.07.01.0-hotfix2...2026.07.01.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.07.01.0-hotfix2...2026.07.01.0-hotfix3)
+
+- - -
+
 ## 2026.07.01.0-hotfix2
 
 ### Bug Fixes
