@@ -1971,7 +1971,7 @@ pub async fn call_unified_connector_service_post_authenticate_for_external_proxy
         .clone()
         .ok_or(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to fetch Unified Connector Service client")?;
-    
+
     let mut payment_post_authenticate_request =
         payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateRequest::foreign_try_from(
             (router_data, external_vault_pmd),

@@ -3695,7 +3695,7 @@ where
             pre_authenticate_request_data,
             Err(router_types::ErrorResponse::default()),
         );
-    
+
     pre_authenticate_router_data.connector = connector_enum.to_string();
 
     let lineage_ids = grpc_client::LineageIds::new(
@@ -4257,7 +4257,7 @@ where
         metadata: None,
         complete_authorize_url: None,
     };
-    
+
     let (auth_connector_enum, auth_merchant_connector_account) =
         resolve_external_vault_authentication_connector(state, processor, business_profile).await?;
 
@@ -4267,7 +4267,7 @@ where
             post_authenticate_request_data,
             Err(router_types::ErrorResponse::default()),
         );
-    
+
     post_authenticate_router_data.connector = auth_connector_enum.to_string();
 
     let lineage_ids = grpc_client::LineageIds::new(
@@ -4388,7 +4388,7 @@ where
         .as_ref()
         .and_then(|data| data.eci.clone())
         .or_else(|| authentication.eci.clone());
-    
+
     let cavv = post_auth_authentication_data
         .as_ref()
         .and_then(|data| data.cavv.as_ref().map(|cavv| cavv.peek().clone()))
@@ -6113,7 +6113,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .clone()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing profile_id in payment_intent")?;
-        
+
         let business_profile = state
             .store
             .find_business_profile_by_profile_id(
@@ -6180,7 +6180,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     })?;
                 authentication.authentication_type
             };
-        
+
         let authorize_completes_on_this_call = is_pull_mechanism_enabled
             || payment_external_authentication_type
                 != Some(common_enums::DecoupledAuthenticationType::Challenge);
@@ -13874,7 +13874,6 @@ async fn perform_external_vault_authentication_v1(
         payment_intent.payment_id.clone(),
     )?;
 
-    
     let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
         processor,
@@ -13894,7 +13893,6 @@ async fn perform_external_vault_authentication_v1(
             )?,
     };
 
-    
     let (auth_connector_enum, auth_merchant_connector_account) =
         resolve_external_vault_authentication_connector(state, processor, business_profile).await?;
 
@@ -14186,7 +14184,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
-        
+
     let is_external_vault_payment = business_profile
         .external_vault_details
         .is_external_vault_enabled()

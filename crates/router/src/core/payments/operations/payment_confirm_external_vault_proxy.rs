@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use common_enums;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payment_methods::VaultPaymentMethodData;
-use hyperswitch_masking::{ExposeInterface, Secret, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
