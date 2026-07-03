@@ -1884,14 +1884,13 @@ pub async fn call_unified_connector_service_authenticate_for_external_proxy(
     // RRes back to this router without the merchant having to configure the webhook URL in MCA
     // metadata — matching how the built-in (non-vault) netcetera connector sources it from the
     // constructed `request.webhook_url`.
-    let results_response_notification_url =
-        merchant_connector_account.get_mca_id().map(|mca_id| {
-            helpers::create_webhook_url(
-                &state.base_url,
-                processor.get_account().get_id(),
-                mca_id.get_string_repr(),
-            )
-        });
+    let results_response_notification_url = merchant_connector_account.get_mca_id().map(|mca_id| {
+        helpers::create_webhook_url(
+            &state.base_url,
+            processor.get_account().get_id(),
+            mca_id.get_string_repr(),
+        )
+    });
 
     // Forward the authentication connector (e.g. netcetera) MCA metadata as
     // `connector_feature_data` (endpoint prefix + AReq merchant fields) before the MCA is
@@ -2041,10 +2040,9 @@ pub async fn call_unified_connector_service_post_authenticate_for_external_proxy
     // tuple builder; the reveal filter won't match the card-less RReq body, so nothing is substituted,
     // but the request goes through VGS with the client certificate.
     let mut payment_post_authenticate_request =
-        payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateRequest::foreign_try_from((
-            router_data,
-            external_vault_pmd,
-        ))
+        payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateRequest::foreign_try_from(
+            (router_data, external_vault_pmd),
+        )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct external-vault Payment Post Authenticate Request")?;
 
