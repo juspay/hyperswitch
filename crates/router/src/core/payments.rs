@@ -14006,21 +14006,22 @@ async fn perform_external_vault_authentication_v1(
 
     // Acquirer data — resolved from the PSP (checkout) MCA metadata the way normal payments do,
     // NOT the netcetera MCA. Injected into connector_feature_data below.
-    let netcetera_acquirer_metadata = psp_merchant_connector_account
-        .get_metadata()
-        .and_then(|metadata| {
-            let value = metadata.expose();
-            let obj = value.as_object()?;
-            let acquirer: serde_json::Map<String, serde_json::Value> = [
-                "acquirer_bin",
-                "acquirer_merchant_id",
-                "acquirer_country_code",
-            ]
-            .into_iter()
-            .filter_map(|key| obj.get(key).map(|val| (key.to_string(), val.clone())))
-            .collect();
-            (!acquirer.is_empty()).then_some(serde_json::Value::Object(acquirer))
-        });
+    let netcetera_acquirer_metadata =
+        psp_merchant_connector_account
+            .get_metadata()
+            .and_then(|metadata| {
+                let value = metadata.expose();
+                let obj = value.as_object()?;
+                let acquirer: serde_json::Map<String, serde_json::Value> = [
+                    "acquirer_bin",
+                    "acquirer_merchant_id",
+                    "acquirer_country_code",
+                ]
+                .into_iter()
+                .filter_map(|key| obj.get(key).map(|val| (key.to_string(), val.clone())))
+                .collect();
+                (!acquirer.is_empty()).then_some(serde_json::Value::Object(acquirer))
+            });
 
     let authenticate_router_data =
         flows::authorize_flow::call_unified_connector_service_authenticate_for_external_proxy(

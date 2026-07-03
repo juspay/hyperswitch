@@ -1869,14 +1869,13 @@ pub async fn call_unified_connector_service_authenticate_for_external_proxy(
     // System-construct the pull=false RRes push target the same way normal payments do
     // (`create_webhook_url` -> `{base_url}/webhooks/{merchant}/{mca}`) and inject it as the AReq's
     // `results_response_notification_url` via `connector_feature_data`.
-    let results_response_notification_url =
-        merchant_connector_account.get_mca_id().map(|mca_id| {
-            helpers::create_webhook_url(
-                &state.base_url,
-                processor.get_account().get_id(),
-                mca_id.get_string_repr(),
-            )
-        });
+    let results_response_notification_url = merchant_connector_account.get_mca_id().map(|mca_id| {
+        helpers::create_webhook_url(
+            &state.base_url,
+            processor.get_account().get_id(),
+            mca_id.get_string_repr(),
+        )
+    });
 
     payment_authenticate_request.connector_feature_data =
         unified_connector_service::build_connector_feature_data_from_auth_mca(
