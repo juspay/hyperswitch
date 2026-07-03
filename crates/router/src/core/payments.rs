@@ -3349,9 +3349,12 @@ where
         .attach_printable("profile_id is not set in payment_intent")?
         .clone();
 
+    // Vault connectors live on the provider (platform) merchant, so look up the vault MCA under the
+    // provider, not the processor (connected).
+    let vault_owner = platform.get_provider_as_processor();
     let external_vault_merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor(),
+        &vault_owner,
         None,
         &profile_id,
         &connector.connector_name.to_string(),
@@ -3709,7 +3712,8 @@ where
             pre_authenticate_request_data,
             Err(router_types::ErrorResponse::default()),
         );
-
+    // router_data.connector must be the AUTH connector (the auth metadata builder reads it), not the
+    // payment connector carried over from router_data.
     pre_authenticate_router_data.connector = connector_enum.to_string();
 
     let lineage_ids = grpc_client::LineageIds::new(
@@ -4264,6 +4268,8 @@ where
         capture_method: payment_data.get_payment_attempt().capture_method,
         browser_info,
         connector_transaction_id: authentication.threeds_server_transaction_id.clone(),
+        // Server-side resume has no ACS callback; synthesize `redirect_response.params` from the
+        // persisted 3DS server transaction id so the RReq's `threeDSServerTransID` is not null.
         redirect_response: authentication
             .threeds_server_transaction_id
             .clone()
@@ -4286,7 +4292,7 @@ where
             post_authenticate_request_data,
             Err(router_types::ErrorResponse::default()),
         );
-
+    // Point router_data.connector at the auth connector so X-Connector-Config targets it.
     post_authenticate_router_data.connector = auth_connector_enum.to_string();
 
     let lineage_ids = grpc_client::LineageIds::new(
@@ -6283,6 +6289,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 merchant_id: req.merchant_id.clone(),
                 payment_token: Some(payment_token),
                 payment_method: Some(common_enums::PaymentMethod::Card),
+                // From the attempt: the resolved PM may not surface it for a connected PM (IR_04).
                 payment_method_type: payment_attempt.payment_method_type,
                 payment_method_data: Some(api_models::payments::PaymentMethodDataRequest {
                     payment_method_data: Some(
@@ -13856,9 +13863,11 @@ async fn perform_external_vault_authentication_v1(
         .get_vault_connector_id()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("external vault is not enabled for this business profile")?;
+    // Vault connectors live on the provider (platform) merchant, not the processor (connected).
+    let vault_owner = platform.get_provider_as_processor();
     let external_vault_merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        processor,
+        &vault_owner,
         None,
         profile_id,
         external_vault_mca_id.get_string_repr(),
@@ -13901,6 +13910,8 @@ async fn perform_external_vault_authentication_v1(
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error while fetching external vault authentication record")?;
 
+    // Build the Authenticate (AReq) router data with the persisted pre-auth result; authentication_data
+    // carries the negotiated 3DS handshake fields so the connector can resume.
     let ucs_authentication_data =
         hyperswitch_domain_models::router_request_types::UcsAuthenticationData {
             eci: authentication.eci.clone(),
@@ -14170,7 +14181,9 @@ async fn perform_external_vault_authentication_v1(
             key_store.key.get_inner(),
         )
         .await
-        .attach_printable("Failed to vault frictionless cavv for external vault 3DS authenticate")?;
+        .attach_printable(
+            "Failed to vault frictionless cavv for external vault 3DS authenticate",
+        )?;
     }
 
     let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
@@ -14260,6 +14273,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         "authenticate",
     )?;
 
+    // The customer is owned by the provider (platform) merchant, so look it up under the provider,
+    // not the processor (connected).
     let optional_customer = match &payment_intent.customer_id {
         Some(customer_id) => Some(
             state

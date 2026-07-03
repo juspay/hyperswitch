@@ -2055,6 +2055,8 @@ async fn external_authentication_incoming_webhook_flow(
                         merchant_id: Some(merchant_id.clone()),
                         payment_token: Some(payment_token),
                         payment_method: Some(common_enums::PaymentMethod::Card),
+                        // From the attempt: the resolved PM may not surface it for a connected PM (IR_04).
+                        payment_method_type: payment_attempt.payment_method_type,
                         payment_method_data: Some(api_models::payments::PaymentMethodDataRequest {
                             payment_method_data: Some(
                                 api_models::payments::PaymentMethodData::VaultCardTokenData(

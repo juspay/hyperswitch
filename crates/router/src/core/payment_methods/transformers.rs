@@ -2110,6 +2110,7 @@ pub async fn create_proxy_card_payment_method_in_modular_service(
     customer_id: id_type::GlobalCustomerId,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     // Proxy flow: the card comes from `proxy_card_data`, so `payment_method_data` is None.
+    // Proxy cards must be Persistent — the modular service rejects volatile proxy cards (IR_29).
     let payment_method_request = CreatePaymentMethodV1Request {
         merchant_id: provider_merchant_id.clone(),
         payment_method,

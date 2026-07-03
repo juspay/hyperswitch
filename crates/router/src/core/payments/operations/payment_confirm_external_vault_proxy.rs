@@ -649,7 +649,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         payment_data: &mut PaymentData<F>,
         customer: Option<&domain::Customer>,
         business_profile: &domain::Profile,
-        _feature_config: &core_utils::FeatureConfig,
+        feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()> {
         // Create the proxy-card payment method when the customer accepted saving it, OR when external
         // 3DS authentication was requested. The external-3DS multi-leg flow (confirm ->
@@ -687,69 +687,73 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             payment_data.set_payment_method_id_in_attempt(Some(existing_pm_id));
             return Ok(());
         }
-        // Only create for ExternalVaultCard (proxy card flow)
-        let mut vault_card = match payment_data.external_vault_pmd.clone() {
-            Some(
-                hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
-                    card,
-                ),
-            ) => *card,
-            Some(other) => {
-                router_env::logger::info!(?other, "Skipping PM creation: external_vault_pmd is not a Card variant");
-                return Ok(());
-            }
-            None => {
-                router_env::logger::info!("Skipping PM creation: external_vault_pmd is None");
-                return Ok(());
-            }
-        };
-        let global_customer_id = customer
-            .ok_or(errors::ApiErrorResponse::CustomerNotFound)?
-            .get_global_id()
-            .cloned()
-            .get_required_value("id")?;
+        // Gate on modular-eligibility to match `fetch_payment_method` (the read side): the proxy PM
+        // lives in the modular service, so an ineligible org must skip create too.
+        match feature_config.is_payment_method_modular_allowed {
+            true => {
+                // Only create for ExternalVaultCard (proxy card flow)
+                let mut vault_card = match payment_data.external_vault_pmd.clone() {
+                    Some(
+                        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+                            card,
+                        ),
+                    ) => *card,
+                    Some(other) => {
+                        router_env::logger::info!(?other, "Skipping PM creation: external_vault_pmd is not a Card variant");
+                        return Ok(());
+                    }
+                    None => {
+                        router_env::logger::info!("Skipping PM creation: external_vault_pmd is None");
+                        return Ok(());
+                    }
+                };
+                // Normalise card_exp_year to 2 digits (YY): Netcetera's cardExpiryDate is YYMM, so a
+                // stored 4-digit year yields a 6-char value the AReq rejects. Template tokens untouched.
+                let year = vault_card.card_exp_year.peek().clone();
+                if !year.contains("{{") && year.len() > 2 {
+                    vault_card.card_exp_year = Secret::new(year[year.len() - 2..].to_string());
+                }
+                // The proxy PM lives under the provider; use the provider customer's global id
+                // (the modular service is keyed by GlobalCustomerId).
+                let global_customer_id = customer
+                    .ok_or(errors::ApiErrorResponse::CustomerNotFound)?
+                    .get_global_id()
+                    .cloned()
+                    .get_required_value("id")?;
+                let payment_method = payment_data
+                    .payment_attempt
+                    .payment_method
+                    .unwrap_or(common_enums::PaymentMethod::Card);
+                let payment_method_type = payment_data.payment_attempt.payment_method_type;
 
-        let year = vault_card.card_exp_year.peek().clone();
-        if !year.contains("{{") && year.len() > 2 {
-            vault_card.card_exp_year = Secret::new(year[year.len() - 2..].to_string());
-        }
+                // For the hyperswitch vault, the request `card_number` is a temporary token — exchange
+                // it for the permanent PM id via the vault MCA's credentials. Other vaults store the
+                // token as-is.
+                if business_profile
+                    .external_vault_details
+                    .is_hyperswitch_vault()
+                {
+                    let vault_connector_id = business_profile
+                        .external_vault_details
+                        .get_vault_connector_id()
+                        .get_required_value("external vault connector id")?;
 
-        let payment_method = payment_data
-            .payment_attempt
-            .payment_method
-            .unwrap_or(common_enums::PaymentMethod::Card);
-        let payment_method_type = payment_data.payment_attempt.payment_method_type;
+                    // Vault connectors live on the provider (platform) merchant, not the processor.
+                    let vault_mca = state
+                        .store
+                        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                            platform.get_provider().get_account().get_id(),
+                            &vault_connector_id,
+                            platform.get_provider().get_key_store(),
+                        )
+                        .await
+                        .to_not_found_response(
+                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                id: vault_connector_id.get_string_repr().to_string(),
+                            },
+                        )?;
 
-        // When the external vault is the hyperswitch vault, the `card_number` carried on the request
-        // is a *temporary* vault token. Exchange it for the permanent payment method id (served by
-        // the external SaaS PM service) and persist that as the token in the PM entry. The external
-        // service is a separate deployment, so authenticate with the external vault connector
-        // account's credentials (api-key + profile id) fetched from the profile's vault MCA. For any
-        // other vault, the request token is stored as-is.
-        if business_profile
-            .external_vault_details
-            .is_hyperswitch_vault()
-        {
-            let vault_connector_id = business_profile
-                .external_vault_details
-                .get_vault_connector_id()
-                .get_required_value("external vault connector id")?;
-
-            let vault_mca = state
-                .store
-                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    platform.get_processor().get_account().get_id(),
-                    &vault_connector_id,
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: vault_connector_id.get_string_repr().to_string(),
-                    },
-                )?;
-
-            let (api_key, vault_profile_id) = match vault_mca
+                    let (api_key, vault_profile_id) = match vault_mca
                 .get_connector_account_details()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse external vault connector auth")?
@@ -767,49 +771,55 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                 )),
             }?;
 
-            let temporary_token = vault_card.card_number.clone().expose();
-            let permanent_pm_id = pm_transformers::get_permanent_pm_id_from_temporary_token(
-                state,
-                api_key,
-                vault_profile_id,
-                temporary_token,
-            )
-            .await?;
-            vault_card.card_number = Secret::new(permanent_pm_id);
-        }
+                    let temporary_token = vault_card.card_number.clone().expose();
+                    let permanent_pm_id =
+                        pm_transformers::get_permanent_pm_id_from_temporary_token(
+                            state,
+                            api_key,
+                            vault_profile_id,
+                            temporary_token,
+                        )
+                        .await?;
+                    vault_card.card_number = Secret::new(permanent_pm_id);
+                }
 
-        match pm_transformers::create_proxy_card_payment_method_in_modular_service(
-            state,
-            platform.get_provider().get_account().get_id(),
-            platform.get_processor().get_account().get_id(),
-            business_profile.get_id(),
-            payment_method,
-            payment_method_type,
-            vault_card,
-            payment_data.address.get_payment_method_billing().cloned(),
-            global_customer_id,
-        )
-        .await
-        {
-            Ok(mut pm_info) => {
-                router_env::logger::info!(
-                    "Proxy card payment method created in modular service successfully"
-                );
-                // The payment method is created in the modular (V2) payment method service.
-                // Mark it as such so the post-payment acknowledgement path
-                // (`handle_pm_and_mandate_post_update` -> `should_use_modular_pm_path`) is taken
-                // and the modular PM status is acknowledged (new -> active). Without this the PM
-                // defaults to `version: V1`, the gate falls back to the legacy `save_pm_and_mandate`
-                // path, and the acknowledgement call is never made.
-                pm_info.version = common_enums::ApiVersion::V2;
-                payment_data.set_payment_method_id_in_attempt(Some(pm_info.get_id().clone()));
-                payment_data.set_payment_method_info(Some(pm_info));
+                match pm_transformers::create_proxy_card_payment_method_in_modular_service(
+                    state,
+                    platform.get_provider().get_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
+                    business_profile.get_id(),
+                    payment_method,
+                    payment_method_type,
+                    vault_card,
+                    payment_data.address.get_payment_method_billing().cloned(),
+                    global_customer_id,
+                )
+                .await
+                {
+                    Ok(mut pm_info) => {
+                        router_env::logger::info!(
+                            "Proxy card payment method created in modular service successfully"
+                        );
+                        // Mark V2 so the post-payment path acknowledges the modular PM (new -> active);
+                        // otherwise it defaults to V1 and takes the legacy save path.
+                        pm_info.version = common_enums::ApiVersion::V2;
+                        payment_data
+                            .set_payment_method_id_in_attempt(Some(pm_info.get_id().clone()));
+                        payment_data.set_payment_method_info(Some(pm_info));
+                    }
+                    Err(err) => {
+                        router_env::logger::error!(error=?err, "Failed to create proxy card PM in modular service for external vault proxy");
+                    }
+                }
+                Ok(())
             }
-            Err(err) => {
-                router_env::logger::error!(error=?err, "Failed to create proxy card PM in modular service for external vault proxy");
+            false => {
+                router_env::logger::info!(
+                    "Organization is not eligible for PM Modular Service; skipping external vault proxy PM creation."
+                );
+                Ok(())
             }
         }
-        Ok(())
     }
 
     #[instrument(skip_all)]
