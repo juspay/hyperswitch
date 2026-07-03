@@ -1977,19 +1977,26 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
             let name = address.get_optional_full_name()?;
             let (document_type, document_number) = customer_document.clone();
             let line1 = address.line1.clone()?;
-            let line2 = address
-                .line2
-                .clone()
-                .unwrap_or_else(|| Secret::new(String::new()));
+            let line2 = address.line2.clone();
             let city = address.city.clone()?;
             let state = address.state.clone()?;
             let zip = address.zip.clone()?;
+            let address = Some(Secret::new(
+                [
+                    Some(line1.peek().as_str()),
+                    line2.as_ref().map(|l| l.peek().as_str()),
+                ]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<&str>>()
+                .join(" "),
+            ));
             Some(Payer {
                 name,
                 document_type,
                 document_number,
-                address: Some(Secret::new(format!("{} {}", line1.peek(), line2.peek()))),
-                neighborhood: Some(line1),
+                address,
+                neighborhood: line2,
                 city: Some(Secret::new(city)),
                 state: Some(state),
                 zip_code: Some(zip),
