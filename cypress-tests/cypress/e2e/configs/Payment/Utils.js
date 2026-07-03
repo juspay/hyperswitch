@@ -228,6 +228,7 @@ export function handleMultipleConnectors(keys) {
     MULTIPLE_CONNECTORS: {
       status: true,
       count: keys.length,
+      connectorCredentials: keys,
     },
   };
 }
@@ -404,19 +405,6 @@ export function createMerchantConnectorAccount(
   }
 }
 
-function getMultipleConnectorCredentialValues(globalState) {
-  const connectorCount = globalState.get("MULTIPLE_CONNECTORS")?.count || 0;
-  const firstAdditionalConnectorIndex = 2;
-  const getConnectorCredentialValue = (connectorIndex) =>
-    `connector_${connectorIndex}`;
-
-  return Array.from(
-    { length: connectorCount - firstAdditionalConnectorIndex + 1 },
-    (_, index) =>
-      getConnectorCredentialValue(index + firstAdditionalConnectorIndex)
-  );
-}
-
 export function createBusinessProfilesAndMerchantConnectorAccounts(
   paymentType,
   createMerchantConnectorAccountBody,
@@ -424,10 +412,14 @@ export function createBusinessProfilesAndMerchantConnectorAccounts(
   globalState,
   paymentMethodsEnabled
 ) {
-  const connectorCredentialValues =
-    getMultipleConnectorCredentialValues(globalState);
+  const additionalConnectorCredentials =
+    globalState
+      .get("MULTIPLE_CONNECTORS")
+      ?.connectorCredentials?.filter(
+        (connectorCredential) => connectorCredential !== "connector_1"
+      ) || [];
 
-  if (connectorCredentialValues.length === 0) {
+  if (additionalConnectorCredentials.length === 0) {
     cy.task(
       "cli_log",
       "Skipping multiple connector account setup; no multiple connector credentials configured."
@@ -435,7 +427,7 @@ export function createBusinessProfilesAndMerchantConnectorAccounts(
     return;
   }
 
-  connectorCredentialValues.forEach((connectorCredentialValue) => {
+  additionalConnectorCredentials.forEach((connectorCredentialValue) => {
     const multipleConnector = {
       nextConnector: true,
       value: connectorCredentialValue,
