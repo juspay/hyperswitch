@@ -1522,7 +1522,7 @@ pub struct PaymentsRequest {
 
     /// Indicates whether the `payment_id` was provided by the merchant
     /// This value is inferred internally based on the request
-    #[serde(skip_deserializing, skip_serializing)]
+    #[serde(skip_deserializing)]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub is_payment_id_from_merchant: bool,
 
