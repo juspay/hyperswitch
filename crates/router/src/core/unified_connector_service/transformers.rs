@@ -472,9 +472,11 @@ impl
         let payment_method_data = router_data.request.payment_method_data.clone().or_else(|| {
             use hyperswitch_domain_models::payment_method_data as pmd;
             match router_data.request.payment_method_type {
-                Some(common_enums::PaymentMethodType::Skrill) => Some(pmd::PaymentMethodData::Wallet(
-                    pmd::WalletData::Skrill(Box::new(pmd::SkrillData {})),
-                )),
+                Some(common_enums::PaymentMethodType::Skrill) => {
+                    Some(pmd::PaymentMethodData::Wallet(pmd::WalletData::Skrill(
+                        Box::new(pmd::SkrillData {}),
+                    )))
+                }
                 Some(common_enums::PaymentMethodType::Interac) => Some(
                     pmd::PaymentMethodData::BankRedirect(pmd::BankRedirectData::Interac {
                         country: None,
