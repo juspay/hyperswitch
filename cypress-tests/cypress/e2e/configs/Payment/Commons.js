@@ -207,6 +207,38 @@ export const fullNameRequiredField = {
 
 export const billingRequiredField = {};
 
+// Bank debit specific billing addresses - derived from standardBillingAddress
+export const sepaBillingAddress = {
+  address: {
+    ...standardBillingAddress.address,
+    city: "Amsterdam",
+    state: "North Holland",
+    zip: "1012",
+    country: "NL",
+  },
+  email: "test@example.com",
+};
+
+export const achBillingAddress = {
+  address: {
+    ...standardBillingAddress.address,
+    city: "San Francisco",
+    state: "California",
+  },
+  email: "test@example.com",
+};
+
+export const bacsBillingAddress = {
+  address: {
+    ...standardBillingAddress.address,
+    city: "London",
+    state: "England",
+    zip: "SW1A 1AA",
+    country: "GB",
+  },
+  email: "test@example.com",
+};
+
 export const payment_methods_enabled = [
   {
     payment_method: "bank_redirect",
@@ -1450,18 +1482,56 @@ export const connectorDetails = {
         },
       },
     }),
-    BankdebitMIT: {
+    get MandateSingleUseSepa() {
+      return this.Sepa;
+    },
+    get MandateSingleUseBecs() {
+      return this.Becs;
+    },
+    get MandateSingleUseAch() {
+      return this.Ach;
+    },
+    get MandateSingleUseBacs() {
+      return this.Bacs;
+    },
+    MITAutoCaptureSepa: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "EUR",
+      },
+    }),
+    MITAutoCaptureBecs: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "AUD",
+      },
+    }),
+    MITAutoCaptureAch: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "USD",
+      },
+    }),
+    MITAutoCaptureBacs: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "GBP",
+      },
+    }),
+    BankdebitMIT: getCustomExchange({
       Request: {
         currency: "EUR",
         off_session: true,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
+    }),
     SepaMandate: getCustomExchange({
       Request: {
         payment_method: "bank_debit",

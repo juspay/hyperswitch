@@ -160,32 +160,62 @@ impl ConnectorCommon for Adyen {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: adyen::AdyenErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let response: Result<
+                adyen::AdyenErrorResponse,
+                error_stack::Report<common_utils::errors::ParsingError>,
+            > = res.response.parse_struct("ErrorResponse");
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+            match response {
+                Ok(response) => {
+                    event_builder.map(|i| i.set_error_response_body(&response));
+                    router_env::logger::info!(connector_response=?response);
 
-        let message = response
-            .message
-            .or(response.title)
-            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
+                    let message = response
+                        .message
+                        .or(response.title)
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: message.clone(),
-            reason: Some(message),
-            attempt_status: None,
-            connector_transaction_id: response.psp_reference,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+                    Ok(ErrorResponse {
+                        status_code: res.status_code,
+                        code: response.error_code,
+                        message: message.clone(),
+                        reason: Some(message),
+                        attempt_status: None,
+                        connector_transaction_id: response.psp_reference,
+                        connector_response_reference_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    })
+                }
+                Err(error_msg) => {
+                    event_builder.map(|event| {
+                        event.set_error(serde_json::json!({
+                            "error": res.response.escape_ascii().to_string(),
+                            "status_code": res.status_code,
+                        }))
+                    });
+                    router_env::logger::error!(deserialization_error =? error_msg);
+                    crate::utils::handle_json_response_deserialization_failure(res, "adyen")
+                }
+            }
+        }
     }
 }
 
