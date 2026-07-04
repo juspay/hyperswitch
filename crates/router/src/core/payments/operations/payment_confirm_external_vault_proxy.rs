@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use api_models::{enums::FrmSuggestion, payments::PaymentsRequest};
 use async_trait::async_trait;
 use common_enums;
+use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payment_methods::VaultPaymentMethodData;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -305,6 +306,28 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
 
         let payment_method_info = payment_method_wrapper.map(|w| w.payment_method);
 
+        let customer_acceptance = request.customer_acceptance.clone().or(payment_attempt
+            .customer_acceptance
+            .clone()
+            .map(|customer_acceptance| {
+                customer_acceptance
+                    .expose()
+                    .parse_value("CustomerAcceptance")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while deserializing customer_acceptance")
+            })
+            .transpose()?);
+
+        payment_attempt.customer_acceptance = request
+            .customer_acceptance
+            .clone()
+            .map(|customer_acceptance| customer_acceptance.encode_to_value())
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while encoding customer_acceptance to value")?
+            .map(Secret::new)
+            .or(payment_attempt.customer_acceptance);
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -313,7 +336,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
-            customer_acceptance: request.customer_acceptance.clone(),
+            customer_acceptance,
             token: request.payment_token.clone(),
             address: PaymentAddress::new(
                 shipping_address.as_ref().map(From::from),
@@ -498,9 +521,14 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                         client_source: None,
                         client_version: None,
                         customer_acceptance: payment_data
-                            .payment_attempt
                             .customer_acceptance
-                            .clone(),
+                            .as_ref()
+                            .map(|customer_acceptance| customer_acceptance.encode_to_value())
+                            .transpose()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed while encoding customer_acceptance to value")?
+                            .map(Secret::new)
+                            .or_else(|| payment_data.payment_attempt.customer_acceptance.clone()),
                         net_amount:
                             hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
                                 payment_data.payment_attempt.net_amount.get_order_amount(),

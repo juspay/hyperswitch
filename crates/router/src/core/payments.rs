@@ -3646,6 +3646,7 @@ fn build_external_vault_pre_authenticate_router_data<F, FData, D>(
     payment_data: &D,
     router_data: &RouterData<F, FData, router_types::PaymentsResponseData>,
     connector_enum: common_enums::connector_enums::Connector,
+    webhook_url: Option<String>,
 ) -> RouterData<
     api::PreAuthenticate,
     router_types::PaymentsPreAuthenticateData,
@@ -3665,13 +3666,13 @@ where
         capture_method: payment_data.get_payment_attempt().capture_method,
         currency: Some(payment_data.get_currency()),
         payment_method_type: payment_data.get_payment_attempt().payment_method_type,
-        router_return_url: None,
+        router_return_url: payment_data.get_payment_intent().return_url.clone(),
         complete_authorize_url: None,
         browser_info: None,
         enrolled_for_3ds: true,
         customer_name: None,
         metadata: None,
-        webhook_url: None,
+        webhook_url,
     };
     let mut pre_authenticate_router_data =
         helpers::router_data_type_conversion::<_, api::PreAuthenticate, _, _, _, _>(
@@ -3736,10 +3737,19 @@ where
         )
         .await?;
 
+    let auth_webhook_url = auth_merchant_connector_account.get_mca_id().map(|mca_id| {
+        helpers::create_webhook_url(
+            &state.base_url,
+            &business_profile.merchant_id,
+            mca_id.get_string_repr(),
+        )
+    });
+
     let pre_authenticate_router_data = build_external_vault_pre_authenticate_router_data(
         payment_data,
         router_data,
         connector_enum,
+        auth_webhook_url,
     );
 
     let lineage_ids = grpc_client::LineageIds::new(
@@ -6139,9 +6149,18 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             || payment_external_authentication_type
                 != Some(common_enums::DecoupledAuthenticationType::Challenge);
 
-        let should_authorize_via_redirect =
-            !is_external_vault_payment && authorization_completes_in_this_call;
+        router_env::logger::info!(
+            is_external_vault_payment,
+            is_pull_mechanism_enabled,
+            ?payment_external_authentication_type,
+            authorization_completes_in_this_call,
+            "external 3DS authentication completion: selecting authorize path"
+        );
+
         let response = if is_external_vault_payment && authorization_completes_in_this_call {
+            router_env::logger::info!(
+                "external 3DS authentication completion: branch=external_vault_proxy_authorize"
+            );
             let payment_token = payment_attempt
                 .payment_token
                 .clone()
@@ -6191,7 +6210,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 None,
             ))
             .await?
-        } else if should_authorize_via_redirect {
+        } else if authorization_completes_in_this_call {
             let payment_confirm_req = api::PaymentsRequest {
                 payment_id: Some(req.resource_id.clone()),
                 merchant_id: req.merchant_id.clone(),
@@ -6213,6 +6232,9 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             };
             let is_setup_mandate = payment_intent.is_setup_mandate();
             if is_setup_mandate {
+                router_env::logger::info!(
+                    "external 3DS authentication completion: branch=redirect_authorize (setup_mandate)"
+                );
                 Box::pin(payments_core::<
                     api::SetupMandate,
                     api::PaymentsResponse,
@@ -6236,6 +6258,9 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 ))
                 .await?
             } else {
+                router_env::logger::info!(
+                    "external 3DS authentication completion: branch=redirect_authorize (authorize)"
+                );
                 Box::pin(payments_core::<
                     api::Authorize,
                     api::PaymentsResponse,
@@ -6260,6 +6285,9 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 .await?
             }
         } else {
+            router_env::logger::info!(
+                "external 3DS authentication completion: branch=status_sync_only (challenge pull=false, RRes webhook authorizes)"
+            );
             let payment_sync_req = api::PaymentsRetrieveRequest {
                 resource_id: req.resource_id,
                 merchant_id: req.merchant_id,

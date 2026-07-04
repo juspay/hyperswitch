@@ -5591,6 +5591,22 @@ impl RawPaymentMethodFetchAccess {
                 if should_skip_vault_fetch {
                     logger::debug!("Skipping raw payment method fetch for wallet or bank redirect payment method");
                     Ok(None)
+                } else if payment_method.locker_id.is_none()
+                    && payment_method.external_vault_token_data.is_some()
+                {
+                    let proxy_card_data = payment_method
+                        .external_vault_token_data
+                        .clone()
+                        .map(|enc| enc.into_inner());
+                    Ok(proxy_card_data.map(|external_vault_token_data| {
+                        payment_methods::RawPaymentMethodData::ProxyCard(
+                            payment_methods::RawProxyCardDataResponse {
+                                card_number: external_vault_token_data.tokenized_card_number,
+                                card_exp_year: None,
+                                card_exp_month: None,
+                            },
+                        )
+                    }))
                 } else {
                     let vault_data = Box::pin(vault::retrieve_payment_method_data_from_storage(
                         state,
