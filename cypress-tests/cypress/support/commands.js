@@ -30,13 +30,12 @@ import getConnectorDetails, {
   extractIntegerAtEnd,
   getOriginalConnectorName,
   getValueByKey,
-  injectHelcimTestCard,
   setNormalizedValue,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
-import { handleRedirection } from "./redirectionHandler";
+import { handleRedirection, MICRODEPOSIT_CONFIG } from "./redirectionHandler";
 
 // In MITM replay mode (MOCK_SERVER=true) there is no live browser redirection
 // to drive. Cypress.env may return a boolean or a string, hence String().
@@ -2361,6 +2360,15 @@ Cypress.Commands.add(
       Response: resData,
     } = data || {};
 
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task(
+        "cli_log",
+        "TRIGGER_SKIP enabled, skipping createPaymentIntentTest"
+      );
+      return;
+    }
+
     if (
       !createPaymentBody ||
       typeof createPaymentBody !== "object" ||
@@ -2371,7 +2379,7 @@ Cypress.Commands.add(
       );
     }
 
-    const configInfo = execConfig(validateConfig(configs));
+    const configInfo = execConfig(validatedConfigs);
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
 
     const body = JSON.parse(JSON.stringify(createPaymentBody));
@@ -2743,8 +2751,6 @@ Cypress.Commands.add(
     if (reqData?.split_payments && isStripeConnect(globalState)) {
       confirmBody.split_payments = reqData.split_payments;
     }
-
-    injectHelcimTestCard(confirmBody, globalState);
 
     const headers = {
       "Content-Type": "application/json",
@@ -3534,8 +3540,6 @@ Cypress.Commands.add(
     if (reqData?.split_payments && isStripeConnect(globalState)) {
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
-
-    injectHelcimTestCard(createConfirmPaymentBody, globalState);
 
     const headers = {
       "Content-Type": "application/json",
@@ -4496,6 +4500,13 @@ Cypress.Commands.add(
             globalState.set("mandateId", response.body.mandate_id);
           }
 
+          if (response.body.connector_transaction_id) {
+            globalState.set(
+              "connectorTransactionId",
+              response.body.connector_transaction_id
+            );
+          }
+
           if (response.body.capture_method === "automatic") {
             expect(response.body).to.have.property("mandate_id");
             if (response.body.authentication_type === "three_ds") {
@@ -4702,7 +4713,7 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.status === 200) {
           globalState.set("paymentID", response.body.payment_id);
-          if (response.body.payment_method_data !== null) {
+          if (response.body.payment_method_data) {
             expect(response.body.payment_method_data, "payment_method_data").to
               .not.be.empty;
           }
@@ -4783,6 +4794,87 @@ Cypress.Commands.add(
     });
   }
 );
+
+// Generic microdeposit verification for bank debit mandates
+Cypress.Commands.add("verifyAchMicrodepositCallTest", (globalState) => {
+  const connectorTransactionId = globalState.get("connectorTransactionId");
+  const connectorId = globalState.get("connectorId");
+  const connectorAuthFilePath = globalState.get("connectorAuthFilePath");
+
+  if (!connectorTransactionId) {
+    cy.task(
+      "cli_log",
+      "No connector_transaction_id found, skipping microdeposit verification"
+    );
+    return;
+  }
+
+  // Read auth file to get provider credentials using the shared getValueByKey helper
+  cy.readFile(connectorAuthFilePath).then((jsonContent) => {
+    const { authDetails } = getValueByKey(
+      JSON.stringify(jsonContent),
+      connectorId
+    );
+    const microdepositConfig = MICRODEPOSIT_CONFIG[connectorId];
+
+    if (!microdepositConfig) {
+      cy.task(
+        "cli_log",
+        `No microdeposit config for connector: ${connectorId}, skipping verification`
+      );
+      return;
+    }
+
+    if (!authDetails?.connector_account_details?.api_key) {
+      cy.task(
+        "cli_log",
+        "Provider credentials not found, skipping verification"
+      );
+      return;
+    }
+
+    const apiKey = authDetails.connector_account_details.api_key;
+
+    const providerBaseUrl = microdepositConfig.providerBaseUrl.startsWith(
+      "http"
+    )
+      ? microdepositConfig.providerBaseUrl
+      : `https://${microdepositConfig.providerBaseUrl}`;
+
+    cy.task("cli_log", `Fetching payment intent for microdeposit verification`);
+
+    cy.request({
+      method: "GET",
+      url: `${providerBaseUrl}/v1/payment_intents/${connectorTransactionId}`,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+      failOnStatusCode: false,
+    }).then((result) => {
+      if (result.status !== 200) {
+        cy.task("cli_log", `Failed to fetch payment intent: ${result.status}`);
+        return;
+      }
+
+      const hostedVerificationUrl =
+        result.body.next_action?.verify_with_microdeposits
+          ?.hosted_verification_url;
+
+      if (!hostedVerificationUrl) {
+        cy.task("cli_log", "No verification required or already verified");
+        return;
+      }
+
+      cy.task("cli_log", `Verifying microdeposit at: ${hostedVerificationUrl}`);
+      cy.handleMicrodepositVerification({
+        hostedUrl: hostedVerificationUrl,
+        origin: microdepositConfig.origin,
+        inputSelector: microdepositConfig.inputSelector,
+        verificationCode: microdepositConfig.verificationCode,
+      });
+    });
+  });
+});
 
 Cypress.Commands.add(
   "mitUsingPMId",
@@ -5198,12 +5290,17 @@ Cypress.Commands.add(
     // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
     // trying to handle that specific case results in stripe 3ds tests to fail
     if (!(connectorId == "adyen" && paymentMethodType == "sofort")) {
-      handleRedirection(
-        "bank_redirect",
-        { redirectionUrl, expectedUrl },
-        connectorId,
-        paymentMethodType
-      );
+      // Wrap in cy.then() so that commands enqueued by handleRedirection
+      // (especially cy.origin() calls for PayJustNow) are chained inline
+      // and complete before subsequent test steps (Retrieve Payment, Refund).
+      cy.then(() => {
+        handleRedirection(
+          "bank_redirect",
+          { redirectionUrl, expectedUrl },
+          connectorId,
+          paymentMethodType
+        );
+      });
     }
   }
 );
