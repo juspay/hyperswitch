@@ -187,6 +187,7 @@ pub fn make_dsl_input_for_payouts(
             .map(api_enums::Country::from_alpha2),
         business_label: payout_data.payout_attempt.business_label.clone(),
         setup_future_usage: None,
+        surcharge_amount: None,
     };
     let payment_method = dsl_inputs::PaymentMethodInput {
         payment_method: payout_data
@@ -326,6 +327,7 @@ pub fn make_dsl_input(
             .map(api_enums::Country::from_alpha2),
         business_label: None,
         setup_future_usage: Some(payments_dsl_input.payment_intent.setup_future_usage),
+        surcharge_amount: None,
     };
 
     let metadata = payments_dsl_input
@@ -651,6 +653,11 @@ pub fn make_dsl_input(
                 .map(api_enums::Country::from_alpha2),
             business_label: payments_dsl_input.payment_intent.business_label.clone(),
             setup_future_usage: payments_dsl_input.payment_intent.setup_future_usage,
+            surcharge_amount: payments_dsl_input
+                .payment_attempt
+                .external_surcharge_details
+                .as_ref()
+                .map(|details| details.external_surcharge_amount),
         };
 
     let metadata = payments_dsl_input
@@ -2495,6 +2502,7 @@ pub async fn perform_session_flow_routing<'a>(
         // business_label not available in payment_intent anymore
         business_label: None,
         setup_future_usage: Some(session_input.payment_intent.setup_future_usage),
+        surcharge_amount: None,
     };
 
     let metadata = session_input
@@ -2657,6 +2665,7 @@ pub async fn perform_session_flow_routing(
             .map(storage_enums::Country::from_alpha2),
         business_label: session_input.payment_intent.business_label.clone(),
         setup_future_usage: session_input.payment_intent.setup_future_usage,
+        surcharge_amount: None,
     };
 
     let metadata = session_input
@@ -2998,6 +3007,7 @@ pub fn make_dsl_input_for_surcharge(
             .map(api_enums::Country::from_alpha2),
         business_label: payment_intent.business_label.clone(),
         setup_future_usage: payment_intent.setup_future_usage,
+        surcharge_amount: None,
     };
 
     let metadata = payment_intent

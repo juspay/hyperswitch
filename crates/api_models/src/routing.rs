@@ -410,6 +410,7 @@ impl EuclidDirFilter for ConnectorSelection {
         DirKeyKind::CryptoType,
         DirKeyKind::MetaData,
         DirKeyKind::PaymentAmount,
+        DirKeyKind::SurchargeAmount,
         DirKeyKind::PaymentCurrency,
         DirKeyKind::AuthenticationType,
         DirKeyKind::MandateAcceptanceType,
