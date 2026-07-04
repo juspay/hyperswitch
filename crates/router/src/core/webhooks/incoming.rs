@@ -2016,8 +2016,7 @@ async fn external_authentication_incoming_webhook_flow(
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-                let processor_merchant_id =
-                    platform.get_processor().get_account().get_id().clone();
+                let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
                 let payment_confirm_req = api::PaymentsRequest {
                     payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
                         payment_intent.payment_id.clone(),
@@ -2026,9 +2025,12 @@ async fn external_authentication_incoming_webhook_flow(
                     ..Default::default()
                 };
                 let is_setup_mandate = payment_intent.is_setup_mandate();
-                let provider_business_profile =
-                    payments::helpers::resolve_provider_profile(&state, &platform, &business_profile)
-                        .await?;
+                let provider_business_profile = payments::helpers::resolve_provider_profile(
+                    &state,
+                    &platform,
+                    &business_profile,
+                )
+                .await?;
                 let payments_response = if provider_business_profile
                     .external_vault_details
                     .is_external_vault_enabled()

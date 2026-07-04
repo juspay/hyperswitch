@@ -3582,7 +3582,6 @@ where
     }
 }
 
-
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn call_external_three_ds_authentication_if_eligible_for_external_proxy<F, FData, D>(
@@ -3735,8 +3734,11 @@ where
         )
         .await?;
 
-    let pre_authenticate_router_data =
-        build_external_vault_pre_authenticate_router_data(payment_data, router_data, connector_enum);
+    let pre_authenticate_router_data = build_external_vault_pre_authenticate_router_data(
+        payment_data,
+        router_data,
+        connector_enum,
+    );
 
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
@@ -4197,7 +4199,6 @@ where
         },
     };
 
-    
     let mut updated_attempt = payment_data.get_payment_attempt().clone();
     updated_attempt.status = common_enums::AttemptStatus::AuthenticationPending;
     updated_attempt.payment_token = alias_payment_token.clone();

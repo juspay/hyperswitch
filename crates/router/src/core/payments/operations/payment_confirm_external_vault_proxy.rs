@@ -273,7 +273,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
 
         let external_vault_pmd = match resolved_external_vault_pmd {
             Some(external_vault_pmd) => Some(external_vault_pmd),
-            None => build_external_vault_payment_method_data(request, payment_method_wrapper.as_ref())?,
+            None => {
+                build_external_vault_payment_method_data(request, payment_method_wrapper.as_ref())?
+            }
         };
 
         let payment_method = request
@@ -417,8 +419,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?
         } else {
             let connector = payment_data.payment_attempt.connector.clone();
-            let merchant_connector_id =
-                payment_data.payment_attempt.merchant_connector_id.clone();
+            let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
             let payment_method = payment_data.payment_attempt.payment_method;
             let authentication_type = payment_data.payment_attempt.authentication_type;
             let connector_request_reference_id = payment_data
@@ -443,11 +444,20 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                     payment_data
                         .payment_attempt
                         .external_threeds_authentication_type,
-                    payment_data.payment_attempt.authentication_connector.clone(),
+                    payment_data
+                        .payment_attempt
+                        .authentication_connector
+                        .clone(),
                     payment_data.payment_attempt.authentication_id.clone(),
                 )
             } else {
-                (storage_enums::AttemptStatus::Pending, None, None, None, None)
+                (
+                    storage_enums::AttemptStatus::Pending,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
             };
 
             state
@@ -466,10 +476,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                         payment_method_data: None,
                         payment_method_type: payment_data.payment_attempt.payment_method_type,
                         payment_experience: payment_data.payment_attempt.payment_experience,
-                        business_sub_label: payment_data
-                            .payment_attempt
-                            .business_sub_label
-                            .clone(),
+                        business_sub_label: payment_data.payment_attempt.business_sub_label.clone(),
                         straight_through_algorithm: payment_data
                             .payment_attempt
                             .straight_through_algorithm
@@ -487,10 +494,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                             .payment_method_billing_address_id
                             .clone(),
                         fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
-                        payment_method_id: payment_data
-                            .payment_attempt
-                            .payment_method_id
-                            .clone(),
+                        payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
                         client_source: None,
                         client_version: None,
                         customer_acceptance: payment_data
@@ -517,10 +521,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                             .connector_mandate_detail
                             .clone(),
                         card_discovery: None,
-                        routing_approach: payment_data
-                            .payment_attempt
-                            .routing_approach
-                            .clone(),
+                        routing_approach: payment_data.payment_attempt.routing_approach.clone(),
                         connector_request_reference_id,
                         network_transaction_id: payment_data
                             .payment_attempt
@@ -754,10 +755,11 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         }
         if payment_data.customer_acceptance.is_some() {
             match feature_config.is_payment_method_modular_allowed {
-            true => {
-                let provider_business_profile =
-                    helpers::resolve_provider_profile(state, platform, business_profile).await?;
-                let mut vault_card = match payment_data.external_vault_pmd.clone() {
+                true => {
+                    let provider_business_profile =
+                        helpers::resolve_provider_profile(state, platform, business_profile)
+                            .await?;
+                    let mut vault_card = match payment_data.external_vault_pmd.clone() {
                     Some(
                         hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
                             card,
@@ -772,45 +774,45 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                         return Ok(());
                     }
                 };
-                let year = vault_card.card_exp_year.peek().clone();
-                if !year.contains("{{") && year.len() > 2 {
-                    vault_card.card_exp_year = Secret::new(year[year.len() - 2..].to_string());
-                }
-                let global_customer_id = customer
-                    .ok_or(errors::ApiErrorResponse::CustomerNotFound)?
-                    .get_global_id()
-                    .cloned()
-                    .get_required_value("id")?;
-                let payment_method = payment_data
-                    .payment_attempt
-                    .payment_method
-                    .unwrap_or(common_enums::PaymentMethod::Card);
-                let payment_method_type = payment_data.payment_attempt.payment_method_type;
+                    let year = vault_card.card_exp_year.peek().clone();
+                    if !year.contains("{{") && year.len() > 2 {
+                        vault_card.card_exp_year = Secret::new(year[year.len() - 2..].to_string());
+                    }
+                    let global_customer_id = customer
+                        .ok_or(errors::ApiErrorResponse::CustomerNotFound)?
+                        .get_global_id()
+                        .cloned()
+                        .get_required_value("id")?;
+                    let payment_method = payment_data
+                        .payment_attempt
+                        .payment_method
+                        .unwrap_or(common_enums::PaymentMethod::Card);
+                    let payment_method_type = payment_data.payment_attempt.payment_method_type;
 
-                if provider_business_profile
-                    .external_vault_details
-                    .is_hyperswitch_vault()
-                {
-                    let vault_connector_id = provider_business_profile
+                    if provider_business_profile
                         .external_vault_details
-                        .get_vault_connector_id()
-                        .get_required_value("external vault connector id")?;
+                        .is_hyperswitch_vault()
+                    {
+                        let vault_connector_id = provider_business_profile
+                            .external_vault_details
+                            .get_vault_connector_id()
+                            .get_required_value("external vault connector id")?;
 
-                    let vault_mca = state
-                        .store
-                        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            platform.get_provider().get_account().get_id(),
-                            &vault_connector_id,
-                            platform.get_provider().get_key_store(),
-                        )
-                        .await
-                        .to_not_found_response(
-                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                id: vault_connector_id.get_string_repr().to_string(),
-                            },
-                        )?;
+                        let vault_mca = state
+                            .store
+                            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                                platform.get_provider().get_account().get_id(),
+                                &vault_connector_id,
+                                platform.get_provider().get_key_store(),
+                            )
+                            .await
+                            .to_not_found_response(
+                                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                    id: vault_connector_id.get_string_repr().to_string(),
+                                },
+                            )?;
 
-                    let (api_key, vault_profile_id) = match vault_mca
+                        let (api_key, vault_profile_id) = match vault_mca
                 .get_connector_account_details()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse external vault connector auth")?
@@ -828,53 +830,53 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                 )),
             }?;
 
-                    let temporary_token = vault_card.card_number.clone().expose();
-                    let permanent_pm_id =
-                        pm_transformers::get_permanent_pm_id_from_temporary_token(
-                            state,
-                            api_key,
-                            vault_profile_id,
-                            temporary_token,
-                        )
-                        .await?;
-                    vault_card.card_number = Secret::new(permanent_pm_id);
-                }
+                        let temporary_token = vault_card.card_number.clone().expose();
+                        let permanent_pm_id =
+                            pm_transformers::get_permanent_pm_id_from_temporary_token(
+                                state,
+                                api_key,
+                                vault_profile_id,
+                                temporary_token,
+                            )
+                            .await?;
+                        vault_card.card_number = Secret::new(permanent_pm_id);
+                    }
 
-                match pm_transformers::create_proxy_card_payment_method_in_modular_service(
-                    state,
-                    platform.get_provider().get_account().get_id(),
-                    platform.get_processor().get_account().get_id(),
-                    business_profile.get_id(),
-                    payment_method,
-                    payment_method_type,
-                    vault_card,
-                    payment_data.address.get_payment_method_billing().cloned(),
-                    global_customer_id,
-                )
-                .await
-                {
-                    Ok(mut pm_info) => {
-                        router_env::logger::info!(
-                            "Proxy card payment method created in modular service successfully"
-                        );
-                        pm_info.version = common_enums::ApiVersion::V2;
-                        payment_data
-                            .set_payment_method_id_in_attempt(Some(pm_info.get_id().clone()));
-                        payment_data.set_payment_method_info(Some(pm_info));
+                    match pm_transformers::create_proxy_card_payment_method_in_modular_service(
+                        state,
+                        platform.get_provider().get_account().get_id(),
+                        platform.get_processor().get_account().get_id(),
+                        business_profile.get_id(),
+                        payment_method,
+                        payment_method_type,
+                        vault_card,
+                        payment_data.address.get_payment_method_billing().cloned(),
+                        global_customer_id,
+                    )
+                    .await
+                    {
+                        Ok(mut pm_info) => {
+                            router_env::logger::info!(
+                                "Proxy card payment method created in modular service successfully"
+                            );
+                            pm_info.version = common_enums::ApiVersion::V2;
+                            payment_data
+                                .set_payment_method_id_in_attempt(Some(pm_info.get_id().clone()));
+                            payment_data.set_payment_method_info(Some(pm_info));
+                        }
+                        Err(err) => {
+                            router_env::logger::error!(error=?err, "Failed to create proxy card PM in modular service for external vault proxy");
+                        }
                     }
-                    Err(err) => {
-                        router_env::logger::error!(error=?err, "Failed to create proxy card PM in modular service for external vault proxy");
-                    }
+                    Ok(())
                 }
-                Ok(())
-            }
-            false => {
-                router_env::logger::info!(
+                false => {
+                    router_env::logger::info!(
                     "Organization is not eligible for PM Modular Service; skipping external vault proxy PM creation."
                 );
-                Ok(())
+                    Ok(())
+                }
             }
-        }
         } else {
             let mut vault_card = match payment_data.external_vault_pmd.clone() {
                 Some(
