@@ -277,6 +277,7 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         dir::DirValue::AuthenticationType(at) => EuclidValue::AuthenticationType(at),
         dir::DirValue::CaptureMethod(cm) => EuclidValue::CaptureMethod(cm),
         dir::DirValue::PaymentAmount(pa) => EuclidValue::PaymentAmount(pa),
+        dir::DirValue::SurchargeAmount(sa) => EuclidValue::SurchargeAmount(sa),
         dir::DirValue::PaymentCurrency(pc) => EuclidValue::PaymentCurrency(pc),
         dir::DirValue::BusinessCountry(buc) => EuclidValue::BusinessCountry(buc),
         dir::DirValue::BillingCountry(bic) => EuclidValue::BillingCountry(bic),
