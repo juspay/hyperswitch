@@ -175,6 +175,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsRequest, PaymentData<F>>> {
         let db = &*state.store;
         let payment_method_wrapper = payment_method_fetch_data.payment_method_with_raw_data;
+        let resolved_external_vault_pmd = payment_method_fetch_data.external_vault_pmd;
         let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
@@ -270,8 +271,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             ..CustomerDetails::default()
         };
 
-        let external_vault_pmd =
-            build_external_vault_payment_method_data(request, payment_method_wrapper.as_ref())?;
+        let external_vault_pmd = match resolved_external_vault_pmd {
+            Some(external_vault_pmd) => Some(external_vault_pmd),
+            None => build_external_vault_payment_method_data(request, payment_method_wrapper.as_ref())?,
+        };
 
         let payment_method = request
             .payment_method
@@ -393,99 +396,181 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
         let storage_scheme = processor.get_account().storage_scheme;
         let key_store = processor.get_key_store();
 
-        let connector = payment_data.payment_attempt.connector.clone();
-        let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
+        let updated_payment_attempt = if payment_data.payment_attempt.status
+            == storage_enums::AttemptStatus::Failure
+        {
+            state
+                .store
+                .update_payment_attempt_with_attempt_id(
+                    payment_data.payment_attempt.clone(),
+                    storage::PaymentAttemptUpdate::RejectUpdate {
+                        status: storage_enums::AttemptStatus::Failure,
+                        error_code: Some(payment_data.payment_attempt.error_code.clone()),
+                        error_message: Some(payment_data.payment_attempt.error_message.clone()),
+                        updated_by: storage_scheme.to_string(),
+                    },
+                    storage_scheme,
+                    key_store,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?
+        } else {
+            let connector = payment_data.payment_attempt.connector.clone();
+            let merchant_connector_id =
+                payment_data.payment_attempt.merchant_connector_id.clone();
+            let payment_method = payment_data.payment_attempt.payment_method;
+            let authentication_type = payment_data.payment_attempt.authentication_type;
+            let connector_request_reference_id = payment_data
+                .payment_attempt
+                .connector_request_reference_id
+                .clone();
 
-        let payment_method = payment_data.payment_attempt.payment_method;
-        let authentication_type = payment_data.payment_attempt.authentication_type;
-        let connector_request_reference_id = payment_data
-            .payment_attempt
-            .connector_request_reference_id
-            .clone();
+            let (
+                status,
+                external_three_ds_authentication_attempted,
+                external_threeds_authentication_type,
+                authentication_connector,
+                authentication_id,
+            ) = if payment_data.payment_attempt.status
+                == storage_enums::AttemptStatus::AuthenticationPending
+            {
+                (
+                    storage_enums::AttemptStatus::AuthenticationPending,
+                    payment_data
+                        .payment_attempt
+                        .external_three_ds_authentication_attempted,
+                    payment_data
+                        .payment_attempt
+                        .external_threeds_authentication_type,
+                    payment_data.payment_attempt.authentication_connector.clone(),
+                    payment_data.payment_attempt.authentication_id.clone(),
+                )
+            } else {
+                (storage_enums::AttemptStatus::Pending, None, None, None, None)
+            };
 
-        let updated_payment_attempt = state
-            .store
-            .update_payment_attempt_with_attempt_id(
-                payment_data.payment_attempt.clone(),
-                storage::PaymentAttemptUpdate::ConfirmUpdate {
-                    currency: payment_data.currency,
-                    status: storage_enums::AttemptStatus::Pending,
-                    payment_method,
-                    authentication_type,
-                    capture_method: payment_data.payment_attempt.capture_method,
-                    browser_info: payment_data.payment_attempt.browser_info.clone(),
-                    connector,
-                    payment_token: payment_data.token.clone(),
-                    payment_method_data: None,
-                    payment_method_type: payment_data.payment_attempt.payment_method_type,
-                    payment_experience: payment_data.payment_attempt.payment_experience,
-                    business_sub_label: payment_data.payment_attempt.business_sub_label.clone(),
-                    straight_through_algorithm: payment_data
-                        .payment_attempt
-                        .straight_through_algorithm
-                        .clone(),
-                    error_code: None,
-                    error_message: None,
-                    updated_by: storage_scheme.to_string(),
-                    merchant_connector_id,
-                    external_three_ds_authentication_attempted: None,
-                    external_threeds_authentication_type: None,
-                    authentication_connector: None,
-                    authentication_id: None,
-                    payment_method_billing_address_id: payment_data
-                        .payment_attempt
-                        .payment_method_billing_address_id
-                        .clone(),
-                    fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
-                    payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
-                    client_source: None,
-                    client_version: None,
-                    customer_acceptance: payment_data.payment_attempt.customer_acceptance.clone(),
-                    net_amount:
-                        hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
-                            payment_data.payment_attempt.net_amount.get_order_amount(),
-                            payment_data.payment_intent.shipping_cost,
-                            payment_data
-                                .payment_attempt
-                                .net_amount
-                                .get_order_tax_amount(),
-                            None,
-                            None,
-                            payment_data
-                                .payment_attempt
-                                .net_amount
-                                .get_installment_interest(),
-                        ),
-                    connector_mandate_detail: payment_data
-                        .payment_attempt
-                        .connector_mandate_detail
-                        .clone(),
-                    card_discovery: None,
-                    routing_approach: payment_data.payment_attempt.routing_approach.clone(),
-                    connector_request_reference_id,
-                    network_transaction_id: payment_data
-                        .payment_attempt
-                        .network_transaction_id
-                        .clone(),
-                    is_stored_credential: payment_data.payment_attempt.is_stored_credential,
-                    request_extended_authorization: payment_data
-                        .payment_attempt
-                        .request_extended_authorization,
-                    tokenization: payment_data.payment_attempt.get_tokenization_strategy(),
-                    installment_data: None,
-                    network_transaction_link_id: None,
-                    external_surcharge_details: payment_data
-                        .payment_attempt
-                        .external_surcharge_details
-                        .clone(),
-                },
-                storage_scheme,
-                key_store,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            state
+                .store
+                .update_payment_attempt_with_attempt_id(
+                    payment_data.payment_attempt.clone(),
+                    storage::PaymentAttemptUpdate::ConfirmUpdate {
+                        currency: payment_data.currency,
+                        status,
+                        payment_method,
+                        authentication_type,
+                        capture_method: payment_data.payment_attempt.capture_method,
+                        browser_info: payment_data.payment_attempt.browser_info.clone(),
+                        connector,
+                        payment_token: payment_data.token.clone(),
+                        payment_method_data: None,
+                        payment_method_type: payment_data.payment_attempt.payment_method_type,
+                        payment_experience: payment_data.payment_attempt.payment_experience,
+                        business_sub_label: payment_data
+                            .payment_attempt
+                            .business_sub_label
+                            .clone(),
+                        straight_through_algorithm: payment_data
+                            .payment_attempt
+                            .straight_through_algorithm
+                            .clone(),
+                        error_code: None,
+                        error_message: None,
+                        updated_by: storage_scheme.to_string(),
+                        merchant_connector_id,
+                        external_three_ds_authentication_attempted,
+                        external_threeds_authentication_type,
+                        authentication_connector,
+                        authentication_id,
+                        payment_method_billing_address_id: payment_data
+                            .payment_attempt
+                            .payment_method_billing_address_id
+                            .clone(),
+                        fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
+                        payment_method_id: payment_data
+                            .payment_attempt
+                            .payment_method_id
+                            .clone(),
+                        client_source: None,
+                        client_version: None,
+                        customer_acceptance: payment_data
+                            .payment_attempt
+                            .customer_acceptance
+                            .clone(),
+                        net_amount:
+                            hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
+                                payment_data.payment_attempt.net_amount.get_order_amount(),
+                                payment_data.payment_intent.shipping_cost,
+                                payment_data
+                                    .payment_attempt
+                                    .net_amount
+                                    .get_order_tax_amount(),
+                                None,
+                                None,
+                                payment_data
+                                    .payment_attempt
+                                    .net_amount
+                                    .get_installment_interest(),
+                            ),
+                        connector_mandate_detail: payment_data
+                            .payment_attempt
+                            .connector_mandate_detail
+                            .clone(),
+                        card_discovery: None,
+                        routing_approach: payment_data
+                            .payment_attempt
+                            .routing_approach
+                            .clone(),
+                        connector_request_reference_id,
+                        network_transaction_id: payment_data
+                            .payment_attempt
+                            .network_transaction_id
+                            .clone(),
+                        is_stored_credential: payment_data.payment_attempt.is_stored_credential,
+                        request_extended_authorization: payment_data
+                            .payment_attempt
+                            .request_extended_authorization,
+                        tokenization: payment_data.payment_attempt.get_tokenization_strategy(),
+                        installment_data: None,
+                        network_transaction_link_id: None,
+                        external_surcharge_details: payment_data
+                            .payment_attempt
+                            .external_surcharge_details
+                            .clone(),
+                    },
+                    storage_scheme,
+                    key_store,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?
+        };
 
         payment_data.payment_attempt = updated_payment_attempt;
+
+        let halt_intent_status = match payment_data.payment_attempt.status {
+            storage_enums::AttemptStatus::AuthenticationPending => {
+                Some(storage_enums::IntentStatus::RequiresCustomerAction)
+            }
+            storage_enums::AttemptStatus::Failure => Some(storage_enums::IntentStatus::Failed),
+            _ => None,
+        };
+        if let Some(intent_status) = halt_intent_status {
+            let updated_payment_intent = state
+                .store
+                .update_payment_intent(
+                    payment_data.payment_intent.clone(),
+                    storage::PaymentIntentUpdate::PGStatusUpdate {
+                        status: intent_status,
+                        incremental_authorization_allowed: None,
+                        updated_by: storage_scheme.to_string(),
+                        feature_metadata: None,
+                    },
+                    key_store,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            payment_data.payment_intent = updated_payment_intent;
+        }
 
         Ok((Box::new(*self), payment_data))
     }
@@ -553,10 +638,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         // A fetch is only needed for the saved-card token flow, and only when the org is eligible
         // for the modular PM service. Every other case has nothing to fetch up front.
         let fetch_data = match card_token {
-            Some(card_token) if feature_config.is_payment_method_modular_allowed => {
-                // 1. Resolve the payment_token to the actual stored payment_method_id via Redis.
-                //    This uses the same key construction as the regular Confirm flow's
-                //    fetch_payment_method (`pm_token_{token}_{payment_method}_hyperswitch`).
+            Some(card_token) => {
                 let payment_token = req
                     .payment_token
                     .clone()
@@ -567,51 +649,67 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                     helpers::retrieve_payment_token_data(state, payment_token, req.payment_method)
                         .await?;
 
-                let payment_method_id = match token_data {
-                    storage::PaymentTokenData::Permanent(card_token_data)
-                    | storage::PaymentTokenData::PermanentCard(card_token_data) => {
-                        card_token_data.payment_method_id
+                match token_data {
+                    storage::PaymentTokenData::TemporaryGeneric(generic) => {
+                        let mut external_vault_pmd =
+                            crate::core::payments::read_external_vault_alias_from_temp_locker(
+                                state,
+                                &generic.token,
+                                platform.get_processor().get_key_store(),
+                            )
+                            .await?;
+                        if let hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(card) =
+                            &mut external_vault_pmd
+                        {
+                            card.card_cvc = card_token.card_cvc;
+                            card.card_holder_name = card_token.card_holder_name;
+                        }
+                        PaymentMethodFetchData::from_external_vault_alias(external_vault_pmd)
                     }
-                    _ => None,
+                    storage::PaymentTokenData::Permanent(card_token_data)
+                    | storage::PaymentTokenData::PermanentCard(card_token_data)
+                        if feature_config.is_payment_method_modular_allowed =>
+                    {
+                        let payment_method_id = card_token_data
+                            .payment_method_id
+                            .get_required_value("payment_method_id")
+                            .attach_printable(
+                                "could not resolve a payment_method_id from the payment_token",
+                            )?;
+
+                        let profile_id = platform
+                            .get_processor()
+                            .get_account()
+                            .get_default_profile()
+                            .clone()
+                            .get_required_value("profile_id")
+                            .attach_printable(
+                                "profile_id is required to fetch external vault tokens from the modular service",
+                            )?;
+
+                        let payment_method_with_raw_data =
+                            pm_transformers::fetch_payment_method_from_modular_service(
+                                state,
+                                platform,
+                                &profile_id,
+                                &payment_method_id,
+                                Some(card_token),
+                                false,
+                            )
+                            .await
+                            .attach_printable(
+                                "Failed to fetch external vault token data from the modular PM service",
+                            )?;
+
+                        PaymentMethodFetchData::from_modular(payment_method_with_raw_data)
+                    }
+                    _ => {
+                        router_env::logger::info!(
+                            "Organization is not eligible for PM Modular Service; skipping external vault token fetch."
+                        );
+                        PaymentMethodFetchData::default()
+                    }
                 }
-                .get_required_value("payment_method_id")
-                .attach_printable("could not resolve a payment_method_id from the payment_token")?;
-
-                // 2. Retrieve the external vault tokens for that payment method from the modular PM
-                //    service.
-                let profile_id = platform
-                    .get_processor()
-                    .get_account()
-                    .get_default_profile()
-                    .clone()
-                    .get_required_value("profile_id")
-                    .attach_printable(
-                        "profile_id is required to fetch external vault tokens from the modular service",
-                    )?;
-
-                let payment_method_with_raw_data =
-                    pm_transformers::fetch_payment_method_from_modular_service(
-                        state,
-                        platform,
-                        &profile_id,
-                        &payment_method_id,
-                        Some(card_token),
-                        // External vault proxy cards are not in the internal vault; requesting raw
-                        // detail fails. The external vault token reference is returned without it.
-                        false,
-                    )
-                    .await
-                    .attach_printable(
-                        "Failed to fetch external vault token data from the modular PM service",
-                    )?;
-
-                PaymentMethodFetchData::from_modular(payment_method_with_raw_data)
-            }
-            Some(_) => {
-                router_env::logger::info!(
-                    "Organization is not eligible for PM Modular Service; skipping external vault token fetch."
-                );
-                PaymentMethodFetchData::default()
             }
             // Not a token flow — nothing to fetch up front.
             None => PaymentMethodFetchData::default(),
@@ -653,7 +751,8 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             payment_data.set_payment_method_id_in_attempt(Some(existing_pm_id));
             return Ok(());
         }
-        match feature_config.is_payment_method_modular_allowed {
+        if payment_data.customer_acceptance.is_some() {
+            match feature_config.is_payment_method_modular_allowed {
             true => {
                 let mut vault_card = match payment_data.external_vault_pmd.clone() {
                     Some(
@@ -772,6 +871,47 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                 );
                 Ok(())
             }
+        }
+        } else {
+            let mut vault_card = match payment_data.external_vault_pmd.clone() {
+                Some(
+                    hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+                        card,
+                    ),
+                ) => *card,
+                Some(other) => {
+                    router_env::logger::info!(?other, "Skipping temp-locker tokenization: external_vault_pmd is not a Card variant");
+                    return Ok(());
+                }
+                None => {
+                    router_env::logger::info!("Skipping temp-locker tokenization: external_vault_pmd is None");
+                    return Ok(());
+                }
+            };
+            let year = vault_card.card_exp_year.peek().clone();
+            if !year.contains("{{") && year.len() > 2 {
+                vault_card.card_exp_year = Secret::new(year[year.len() - 2..].to_string());
+            }
+            vault_card.card_cvc = None;
+            let payment_method = payment_data
+                .payment_attempt
+                .payment_method
+                .unwrap_or(common_enums::PaymentMethod::Card);
+            let external_vault_pmd =
+                hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+                    Box::new(vault_card),
+                );
+            let token = crate::core::payments::tokenize_external_vault_alias_for_external_proxy(
+                state,
+                &external_vault_pmd,
+                payment_method,
+                business_profile,
+                platform.get_processor().get_key_store(),
+            )
+            .await?;
+            payment_data.payment_attempt.payment_token = Some(token.clone());
+            payment_data.set_token(token);
+            Ok(())
         }
     }
 

@@ -68,6 +68,8 @@ pub struct PaymentMethodFetchData {
     pub payment_method_info: Option<domain::PaymentMethod>,
     pub payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
     pub token_data: Option<storage::PaymentTokenData>,
+    pub external_vault_pmd:
+        Option<hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData>,
 }
 
 #[cfg(feature = "v1")]
@@ -77,6 +79,7 @@ impl PaymentMethodFetchData {
             payment_method_info: Some(payment_method_with_raw_data.payment_method.clone()),
             payment_method_with_raw_data: Some(payment_method_with_raw_data),
             token_data: None,
+            external_vault_pmd: None,
         }
     }
 
@@ -88,6 +91,16 @@ impl PaymentMethodFetchData {
             payment_method_info: Some(payment_method_info),
             payment_method_with_raw_data: None,
             token_data,
+            external_vault_pmd: None,
+        }
+    }
+
+    pub fn from_external_vault_alias(
+        external_vault_pmd: hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+    ) -> Self {
+        Self {
+            external_vault_pmd: Some(external_vault_pmd),
+            ..Default::default()
         }
     }
 }

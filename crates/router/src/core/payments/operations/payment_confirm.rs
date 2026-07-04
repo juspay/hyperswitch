@@ -94,6 +94,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_method_info: prefetched_payment_method_info,
             payment_method_with_raw_data,
             token_data: prefetched_token_data,
+            external_vault_pmd: _,
         } = payment_method_fetch_data;
         let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
@@ -1355,6 +1356,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_method_info: None,
                     payment_method_with_raw_data: None,
                     token_data,
+                    external_vault_pmd: None,
                 },
             }
         };
