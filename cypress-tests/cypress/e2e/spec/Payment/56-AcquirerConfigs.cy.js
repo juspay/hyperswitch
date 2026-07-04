@@ -14,6 +14,10 @@ describe("Acquirer-specific configurations", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  after("cleanup business profile", () => {
+    cy.deleteBusinessProfileTest(globalState);
+  });
+
   context(
     "Create, Update, and Verify Visa Acquirer Config (is_default=true)",
     () => {
@@ -62,8 +66,8 @@ describe("Acquirer-specific configurations", () => {
             ];
           expect(configs).to.be.an("array");
           expect(configs[0].network).to.equal("Visa");
-          expect(configs[0].acquirer_bin).to.equal("987654");
-          expect(configs[0].acquirer_country_code).to.equal("840");
+          expect(configs[0].acquirer_bin).to.equal("987654"); // acquirer_bin '987654' matches acquirerConfigUpdate fixture (intentional test data)
+          expect(configs[0].acquirer_country_code).to.equal("840"); // acquirer_country_code '840' = ISO 3166-1 numeric code for USA (API converts alpha-2 'US' to numeric '840' — see API_TRACE Steps 7/8/10)
         });
       });
     }
@@ -80,7 +84,7 @@ describe("Acquirer-specific configurations", () => {
 
     it("Update with non-existent profile_acquirer_id → 404 HE_02", () => {
       const body = {
-        ...fixtures.businessProfile.acquirerConfigErrorNonExistentAcquirer,
+        ...fixtures.businessProfile.acquirerConfigErrorUpdateNonExistentId,
       };
       cy.updateAcquirerConfigTest(
         body,
@@ -105,7 +109,11 @@ describe("Acquirer-specific configurations", () => {
       const shouldContinue = true;
 
       beforeEach(function () {
-        if (!shouldContinue || !globalState.get("profileId")) {
+        if (
+          !shouldContinue ||
+          !globalState.get("profileId") ||
+          !globalState.get("profileAcquirerId")
+        ) {
           this.skip();
         }
       });
@@ -149,12 +157,6 @@ describe("Acquirer-specific configurations", () => {
         ...fixtures.businessProfile.acquirerConfigErrorNonExistentProfile,
       };
       cy.createAcquirerConfigTest(body, globalState, 404);
-    });
-  });
-
-  context("Cleanup", () => {
-    it("Delete Business Profile", () => {
-      cy.deleteBusinessProfileTest(globalState);
     });
   });
 });

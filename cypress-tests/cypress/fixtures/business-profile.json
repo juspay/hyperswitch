@@ -49,7 +49,7 @@
     "acquirer_bin": "999999"
   },
 
-  "acquirerConfigErrorNonExistentAcquirer": {
+  "acquirerConfigErrorUpdateNonExistentId": {
     "network": "Visa",
     "acquirer_bin": "111111"
   },
