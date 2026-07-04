@@ -345,7 +345,14 @@ where
 
             payments_response_operation
                 .to_post_update_tracker()?
-                .save_pm_and_mandate(state, &router_data, &platform, &mut payment_data, profile)
+                .save_pm_and_mandate(
+                    state,
+                    &router_data,
+                    &platform,
+                    &mut payment_data,
+                    profile,
+                    &dimensions,
+                )
                 .await?;
 
             let payment_data = payments_response_operation
@@ -449,7 +456,14 @@ where
 
             payments_response_operation
                 .to_post_update_tracker()?
-                .save_pm_and_mandate(state, &router_data, &platform, &mut payment_data, profile)
+                .save_pm_and_mandate(
+                    state,
+                    &router_data,
+                    &platform,
+                    &mut payment_data,
+                    profile,
+                    &dimensions,
+                )
                 .await?;
 
             let payment_data = payments_response_operation
@@ -719,18 +733,6 @@ where
         &payment_data.get_payment_intent().clone(),
     )?;
 
-    operation
-        .to_domain()?
-        .create_payment_method(
-            state,
-            &req,
-            platform,
-            &mut payment_data,
-            &business_profile,
-            &feature_config,
-        )
-        .await?;
-
     let (operation, customer) = operation
         .to_domain()?
         // get_customer_details
@@ -746,6 +748,19 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
+
+    operation
+        .to_domain()?
+        .create_payment_method(
+            state,
+            &req,
+            platform,
+            &mut payment_data,
+            customer.as_ref(),
+            &business_profile,
+            &feature_config,
+        )
+        .await?;
 
     let connector_customer_map = customer
         .as_ref()
@@ -781,6 +796,9 @@ where
         .to_domain()?
         .apply_three_ds_authentication_strategy(state, &mut payment_data, &business_profile)
         .await;
+
+    // Must run before choose_connector so the routing DSL sees `surcharge_amount`.
+    preload_external_surcharge_for_routing(state, &business_profile, &mut payment_data).await?;
 
     let connector = choose_connector(
         &operation,
@@ -1104,6 +1122,7 @@ where
                         &business_profile,
                         req.get_payment_method_data(),
                         &feature_config,
+                        &dimensions.without_profile_id(),
                     )
                     .await?;
 
@@ -1327,6 +1346,7 @@ where
                         &business_profile,
                         req.get_payment_method_data(),
                         &feature_config,
+                        &dimensions.without_profile_id(),
                     )
                     .await?;
 
@@ -2256,6 +2276,50 @@ where
     todo!()
 }
 
+// Reads the external surcharge cached by /eligibility from Redis into the payment attempt
+// so routing DSL can condition on `surcharge_amount`. Runs only for external-surcharge CIT.
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn preload_external_surcharge_for_routing<F, D>(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    payment_data: &mut D,
+) -> RouterResult<()>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
+{
+    let is_external_cit = payment_data
+        .get_payment_intent()
+        .get_surcharge_mode(business_profile)
+        == Some(domain_payments::SurchargeMode::External)
+        && payment_data.get_payment_intent().off_session != Some(true)
+        && payment_data
+            .get_payment_attempt()
+            .external_surcharge_details
+            .is_none();
+
+    if is_external_cit {
+        match resolve_external_surcharge(state, payment_data).await {
+            Some(external_surcharge_details) => {
+                let external_surcharge_details = common_types::payments::ExternalSurchargeDetails {
+                    external_surcharge_id: external_surcharge_details.external_surcharge_id,
+                    external_surcharge_amount: external_surcharge_details.surcharge_amount,
+                    sale_notified: false,
+                };
+                let mut attempt = payment_data.get_payment_attempt().clone();
+                attempt.net_amount.set_external_surcharge_amount(Some(
+                    external_surcharge_details.external_surcharge_amount,
+                ));
+                attempt.external_surcharge_details = Some(external_surcharge_details);
+                payment_data.set_payment_attempt(attempt);
+            }
+            None => logger::debug!("external surcharge not found in redis at pre-routing preload"),
+        }
+    }
+    Ok(())
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn populate_surcharge_details<F, D>(
@@ -2271,6 +2335,17 @@ where
     let surcharge_mode = payment_data
         .get_payment_intent()
         .get_surcharge_mode(business_profile);
+
+    // If a pre-routing preload already populated external surcharge for CIT, skip
+    // the external branch here to avoid duplicate Redis reads / writes.
+    if surcharge_mode == Some(domain_payments::SurchargeMode::External)
+        && payment_data
+            .get_payment_attempt()
+            .external_surcharge_details
+            .is_some()
+    {
+        return Ok(());
+    }
 
     if surcharge_mode == Some(domain_payments::SurchargeMode::Internal) {
         if let Some(attempt_surcharge) = payment_data.get_payment_attempt().get_surcharge_details()
@@ -2402,9 +2477,15 @@ where
     D: OperationSessionGetters<F>,
 {
     logger::debug!("payment_intent.surcharge_applicable = true");
+    let payment_method_type_option = payment_data.get_payment_attempt().payment_method_type;
     let raw_card_key = payment_data
         .get_payment_method_data()
-        .and_then(helpers::get_key_params_for_surcharge_details)
+        .and_then(|payment_method_data| {
+            helpers::get_key_params_for_surcharge_details(
+                payment_method_data,
+                payment_method_type_option,
+            )
+        })
         .map(|(payment_method, payment_method_type, card_network)| {
             types::SurchargeKey::PaymentMethodData(
                 payment_method,
@@ -2685,6 +2766,7 @@ async fn handle_pm_and_mandate_post_update<F, R, Op, D>(
     business_profile: &domain::Profile,
     request_payment_method_data: Option<api_models::payments::PaymentMethodData>,
     feature_config: &core_utils::FeatureConfig,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
     F: Clone + Send + Sync,
@@ -2716,6 +2798,7 @@ where
                 payment_data,
                 business_profile,
                 domain_payment_method_data.as_ref(),
+                dimensions,
             )
             .await?;
     } else {
@@ -2725,7 +2808,14 @@ where
         );
         operation
             .to_post_update_tracker()?
-            .save_pm_and_mandate(state, router_data, platform, payment_data, business_profile)
+            .save_pm_and_mandate(
+                state,
+                router_data,
+                platform,
+                payment_data,
+                business_profile,
+                dimensions,
+            )
             .await?;
     }
 
@@ -2973,7 +3063,7 @@ where
 
     let locale = header_payload.locale.clone();
 
-    let (operation, _customer) = operation
+    let (operation, customer) = operation
         .to_domain()?
         .get_or_create_customer_details(
             state,
@@ -2995,6 +3085,7 @@ where
             &req,
             &platform,
             &mut payment_data,
+            customer.as_ref(),
             &business_profile,
             &feature_config,
         )
@@ -3139,6 +3230,7 @@ where
         &business_profile,
         req.get_payment_method_data(),
         &feature_config,
+        &dimensions.without_profile_id(),
     )
     .await?;
 
@@ -5105,7 +5197,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 let key_manager_state = &(state).into();
                 let authentication = state
                     .store
-                    .find_authentication_by_merchant_id_authentication_id(
+                    .find_authentication_by_processor_merchant_id_authentication_id(
                         platform.get_processor().get_account().get_id(),
                         &authentication_id,
                         platform.get_processor().get_key_store(),
@@ -9046,7 +9138,10 @@ async fn decide_payment_method_tokenize_action(
         payment_intent_data.split_payments,
         Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
     ) {
-        Ok(TokenizationAction::TokenizeInConnector)
+        match pm_parent_token {
+            None => Ok(TokenizationAction::TokenizeInConnector),
+            Some(_) => Ok(TokenizationAction::TokenizeInConnectorAndRouter),
+        }
     } else {
         match pm_parent_token {
             None => Ok(if is_connector_tokenization_enabled {
@@ -9151,7 +9246,7 @@ where
         .map(|mandate_reference| match mandate_reference {
             mandates::MandateReferenceId::ConnectorMandateId(_) => true,
             mandates::MandateReferenceId::NetworkMandateId(_)
-            | mandates::MandateReferenceId::CardWithLimitedData
+            | mandates::MandateReferenceId::CardWithLimitedData(_)
             | mandates::MandateReferenceId::NetworkTokenWithNTI(_) => false,
         })
         .unwrap_or(false);
@@ -12612,9 +12707,9 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .store
                 .find_customer_by_customer_id_merchant_id(
                     customer_id,
-                    platform.get_processor().get_account().get_id(),
-                    platform.get_processor().get_key_store(),
-                    storage_scheme,
+                    platform.get_provider().get_account().get_id(),
+                    platform.get_provider().get_key_store(),
+                    platform.get_provider().get_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -12826,7 +12921,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             }
         } else {
             let authentication = db
-                .find_authentication_by_merchant_id_authentication_id(
+                .find_authentication_by_processor_merchant_id_authentication_id(
                     processor_merchant_id,
                     &payment_attempt
                         .authentication_id

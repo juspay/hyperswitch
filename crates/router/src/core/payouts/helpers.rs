@@ -25,7 +25,6 @@ use crate::{
     consts,
     core::{
         configs::dimension_state,
-        customers,
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::{
             cards,
@@ -1017,7 +1016,7 @@ pub(super) async fn get_or_create_customer_details(
                     platform
                         .get_initiator()
                         .and_then(|initiator| initiator.to_created_by()), // Same as created_by on creation
-                    customers::generate_global_customer_id(&state.conf.cell_information.id),
+                    id_type::GlobalCustomerId::generate(&state.conf.cell_information.id),
                 );
 
                 Ok(Some(
@@ -1428,7 +1427,7 @@ pub async fn update_payouts_and_payout_attempt(
         payout_data
             .customer_details
             .as_ref()
-            .map(|customer| customer.customer_id.clone())
+            .map(|customer| customer.get_id().clone())
     } else {
         payout_data.payouts.customer_id.clone()
     };

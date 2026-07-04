@@ -7,7 +7,6 @@ mod card_issuer;
 mod client_secret;
 mod client_session;
 mod customer;
-#[cfg(feature = "v2")]
 mod global_id;
 mod invoice;
 mod merchant;
@@ -39,12 +38,10 @@ use thiserror::Error;
 
 #[cfg(feature = "v2")]
 pub use self::global_id::{
-    customer::GlobalCustomerId,
     payment::{GlobalAttemptGroupId, GlobalAttemptId, GlobalPaymentId},
     payment_methods::{GlobalPaymentMethodId, GlobalPaymentMethodSessionId},
     refunds::GlobalRefundId,
     token::GlobalTokenId,
-    CellId,
 };
 pub use self::{
     api_key::ApiKeyId,
@@ -53,6 +50,7 @@ pub use self::{
     client_secret::ClientSecretId,
     client_session::ClientSessionId,
     customer::CustomerId,
+    global_id::{customer::GlobalCustomerId, CellId},
     invoice::InvoiceId,
     merchant::MerchantId,
     merchant_connector_account::MerchantConnectorAccountId,
@@ -189,7 +187,6 @@ impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> LengthId<MAX_LENGTH, MIN_LENGTH
         Self(alphanumeric_id)
     }
 
-    #[cfg(feature = "v2")]
     /// Create a new LengthId from aplhanumeric id
     pub(crate) fn from_alphanumeric_id(
         alphanumeric_id: AlphaNumericId,

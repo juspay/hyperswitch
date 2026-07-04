@@ -493,6 +493,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .get_feature_metadata_as_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error converting feature_metadata to Value")?
+            .map(hyperswitch_masking::Secret::new)
             .or(payment_intent.feature_metadata);
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
@@ -1034,7 +1035,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .payment_intent
                         .customer_id
                         .as_ref()
-                        .is_some_and(|existing_id| existing_id != &cust.customer_id)
+                        .is_some_and(|existing_id| existing_id != cust.get_id())
                         .then_some(errors::StorageError::ValueNotFound(
                             "Customer id mismatch between payment intent and request".to_string(),
                         ))
@@ -1089,7 +1090,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             state
                 .store
                 .update_customer_by_customer_id_merchant_id(
-                    customer.customer_id.to_owned(),
+                    customer.get_id().to_owned(),
                     customer.merchant_id.to_owned(),
                     customer,
                     updated_customer,
@@ -1110,6 +1111,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         req: &api::PaymentsRequest,
         platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
+        customer: Option<&domain::Customer>,
         business_profile: &domain::Profile,
         feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()> {
@@ -1160,6 +1162,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                                         field_name: "payment_method_data",
                                     })?;
+                                let customer =
+                                    customer.ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
+                                let global_customer_id =
+                                    customer.get_global_id().cloned().get_required_value("id")?;
 
                                 match pm_transformers::create_payment_method_in_modular_service(
                                     state,
@@ -1173,11 +1179,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                         .address
                                         .get_request_payment_method_billing()
                                         .cloned(),
-                                    payment_data
-                                        .payment_intent
-                                        .customer_id
-                                        .clone()
-                                        .get_required_value("customer_id")?,
+                                    global_customer_id,
                                     business_profile.is_network_tokenization_enabled,
                                 )
                                 .await
@@ -1243,16 +1245,20 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             if let Some(payment_method_ref) = self.get_payment_method_reference(req) {
                 let payment_method_ref_to_use = match req.payment_token.as_deref() {
                     Some(payment_token) if payment_token == payment_method_ref => {
-                        let token_data = helpers::retrieve_payment_token_data(
+                        // Best-effort: resolve the token to its stored payment_method_id. A
+                        // self-hosted vault token minted by the modular PM service is not present in
+                        // the legacy redis token store (different key), so a miss/error here is not
+                        // fatal — fall back to using the reference as-is and let the modular fetch
+                        // resolve it, instead of failing the payment with "token invalid or expired".
+                        match helpers::retrieve_payment_token_data(
                             state,
                             payment_method_ref.to_string(),
                             req.payment_method,
                         )
-                        .await?;
-
-                        match token_data {
-                            storage::PaymentTokenData::Permanent(card_token_data)
-                            | storage::PaymentTokenData::PermanentCard(card_token_data) => {
+                        .await
+                        {
+                            Ok(storage::PaymentTokenData::Permanent(card_token_data))
+                            | Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => {
                                 card_token_data
                                     .payment_method_id
                                     .as_deref()
@@ -1491,6 +1497,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 let authentication_store = Box::pin(authentication::perform_pre_authentication(
                     state,
                     processor,
+                    payment_data.payment_attempt.merchant_id.clone(),
                     *card,
                     token,
                     business_profile,
@@ -2359,6 +2366,23 @@ impl PaymentConfirm {
             Some(domain::PaymentMethodData::CardToken(token)) => Some(token),
             _ => None,
         };
+        // Self-hosted (default) vault repeat-customer flow: the saved card is referenced by the
+        // top-level `payment_token`, while the freshly-tokenized CVC arrives as `card_cvc_token`
+        // (minted by the modular PM service and stored in redis keyed by that token). Resolve it to
+        // the raw CVC here so the modular fetch below receives a usable card. `take()` consumes the
+        // token so it is not carried any further.
+        if let Some(token) = card_token_data.as_mut() {
+            if let Some(card_cvc_token) = token.card_cvc_token.take() {
+                let resolved_cvc =
+                    crate::core::payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
+                        state,
+                        card_cvc_token.peek(),
+                        platform.get_provider().get_key_store(),
+                    )
+                    .await?;
+                token.card_cvc = Some(resolved_cvc);
+            }
+        }
         if let Some(card_cvc) = req.card_cvc.clone() {
             if let Some(card_token_data) = card_token_data.as_mut() {
                 card_token_data.card_cvc = Some(card_cvc);
@@ -2366,6 +2390,7 @@ impl PaymentConfirm {
                 card_token_data = Some(domain::CardToken {
                     card_holder_name: None,
                     card_cvc: Some(card_cvc),
+                    card_cvc_token: None,
                 });
             }
         }
@@ -2847,11 +2872,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .is_iframe_redirection_enabled,
                         is_confirm_operation: true, // Indicates that this is a confirm operation
                         payment_channel: payment_data.payment_intent.payment_channel,
-                        feature_metadata: payment_data
-                            .payment_intent
-                            .feature_metadata
-                            .clone()
-                            .map(hyperswitch_masking::Secret::new),
+                        feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
                         tax_status: payment_data.payment_intent.tax_status,
                         discount_amount: payment_data.payment_intent.discount_amount,
                         order_date: payment_data.payment_intent.order_date,
