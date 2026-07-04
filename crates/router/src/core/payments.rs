@@ -3376,6 +3376,8 @@ where
         },
     )?;
 
+    if payment_data.get_payment_attempt().status
+        == common_enums::AttemptStatus::AuthenticationPending
     {
         let mut authorize_attempt = payment_data.get_payment_attempt().clone();
         authorize_attempt.status = common_enums::AttemptStatus::Pending;
@@ -3771,40 +3773,14 @@ where
         Err(_) => return Ok(ExternalVaultProxyPreAuthDecision::HaltForSdkChallenge),
     };
 
-    let is_frictionless_success = ucs_authentication_data.as_ref().is_some_and(|data| {
-        data.cavv.is_some()
-            && matches!(
-                data.trans_status,
-                Some(common_enums::TransactionStatus::Success)
-                    | Some(common_enums::TransactionStatus::NotVerified)
-            )
-    });
-
-    if !is_frictionless_success {
-        return persist_external_vault_pre_auth_challenge_and_prepare_sdk_invoke(
-            state,
-            platform,
-            payment_data,
-            business_profile,
-            ucs_authentication_data,
-        )
-        .await;
-    }
-
-    let ucs_authentication_data = ucs_authentication_data
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("frictionless-success guarantees authentication_data is present")?;
-
-    let authentication_store = build_external_vault_pre_auth_authentication_store(
-        platform.get_processor(),
-        business_profile,
+    persist_external_vault_pre_auth_and_prepare_sdk_invoke(
+        state,
+        platform,
         payment_data,
-        &connector_enum,
+        business_profile,
         ucs_authentication_data,
-    );
-    payment_data.set_authentication(Some(authentication_store));
-
-    Ok(ExternalVaultProxyPreAuthDecision::ContinueToAuthorize)
+    )
+    .await
 }
 
 #[cfg(feature = "v1")]
@@ -3891,19 +3867,18 @@ async fn resolve_external_vault_alias_from_payment_token(
                 .payment_method_id
                 .get_required_value("payment_method_id")
                 .attach_printable("could not resolve a payment_method_id from the payment_token")?;
-            let pm_with_raw =
-                crate::core::payment_methods::transformers::fetch_payment_method_from_modular_service(
-                    state,
-                    platform,
-                    business_profile.get_id(),
-                    &payment_method_id,
-                    None,
-                    false,
-                )
-                .await
-                .attach_printable(
-                    "Failed to re-fetch external vault token data from the modular service",
-                )?;
+            let pm_with_raw = pm_transformers::fetch_payment_method_from_modular_service(
+                state,
+                platform,
+                business_profile.get_id(),
+                &payment_method_id,
+                None,
+                false,
+            )
+            .await
+            .attach_printable(
+                "Failed to re-fetch external vault token data from the modular service",
+            )?;
             let vault_card = match pm_with_raw.vault_payment_method_token_data {
                 Some(
                     hyperswitch_domain_models::payment_methods::VaultPaymentMethodData::VaultCardData(
@@ -3941,111 +3916,7 @@ async fn resolve_external_vault_alias_from_payment_token(
 }
 
 #[cfg(feature = "v1")]
-fn build_external_vault_pre_auth_authentication_store<F, D>(
-    processor: &domain::Processor,
-    business_profile: &domain::Profile,
-    payment_data: &D,
-    connector_enum: &common_enums::connector_enums::Connector,
-    ucs_authentication_data: hyperswitch_domain_models::router_request_types::UcsAuthenticationData,
-) -> hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore
-where
-    D: OperationSessionGetters<F>,
-{
-    let now = common_utils::date_time::now();
-    let authentication = hyperswitch_domain_models::authentication::Authentication {
-        authentication_id: id_type::AuthenticationId::generate_authentication_id(
-            consts::AUTHENTICATION_ID_PREFIX,
-        ),
-        merchant_id: business_profile.merchant_id.clone(),
-        authentication_connector: Some(connector_enum.to_string()),
-        connector_authentication_id: ucs_authentication_data.transaction_id.clone(),
-        authentication_data: None,
-        payment_method_id: String::new(),
-        authentication_type: None,
-        authentication_status: common_enums::AuthenticationStatus::Success,
-        authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Used,
-        created_at: now,
-        modified_at: now,
-        error_message: None,
-        error_code: None,
-        connector_metadata: None,
-        maximum_supported_version: None,
-        threeds_server_transaction_id: ucs_authentication_data
-            .threeds_server_transaction_id
-            .clone(),
-        cavv: ucs_authentication_data
-            .cavv
-            .as_ref()
-            .map(|cavv| cavv.peek().clone()),
-        authentication_flow_type: None,
-        message_version: ucs_authentication_data.message_version.clone(),
-        eci: ucs_authentication_data.eci.clone(),
-        trans_status: ucs_authentication_data.trans_status.clone(),
-        acquirer_bin: None,
-        acquirer_merchant_id: None,
-        three_ds_method_data: None,
-        three_ds_method_url: None,
-        acs_url: None,
-        challenge_request: None,
-        acs_reference_number: None,
-        acs_trans_id: ucs_authentication_data.acs_trans_id.clone(),
-        acs_signed_content: None,
-        profile_id: business_profile.get_id().clone(),
-        payment_id: Some(payment_data.get_payment_attempt().payment_id.clone()),
-        merchant_connector_id: None,
-        ds_trans_id: ucs_authentication_data.ds_trans_id.clone(),
-        directory_server_id: None,
-        acquirer_country_code: None,
-        organization_id: payment_data.get_payment_attempt().organization_id.clone(),
-        mcc: None,
-        currency: Some(payment_data.get_currency()),
-        billing_country: None,
-        shipping_country: None,
-        issuer_country: None,
-        earliest_supported_version: None,
-        latest_supported_version: None,
-        platform: None,
-        device_type: None,
-        device_brand: None,
-        device_os: None,
-        device_display: None,
-        browser_name: None,
-        browser_version: None,
-        issuer_id: None,
-        scheme_name: None,
-        exemption_requested: None,
-        exemption_accepted: None,
-        service_details: None,
-        authentication_client_secret: None,
-        force_3ds_challenge: None,
-        psd2_sca_exemption_type: None,
-        return_url: None,
-        billing_address: None,
-        shipping_address: None,
-        browser_info: None,
-        email: None,
-        profile_acquirer_id: None,
-        challenge_code: None,
-        challenge_cancel: None,
-        challenge_code_reason: None,
-        message_extension: None,
-        challenge_request_key: None,
-        customer_details: None,
-        amount: Some(payment_data.get_payment_attempt().get_total_amount()),
-        merchant_country_code: None,
-        processor_merchant_id: Some(processor.get_account().get_id().clone()),
-        created_by: None,
-        updated_by: Some(processor.get_account().storage_scheme.to_string()),
-    };
-
-    hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-        cavv: ucs_authentication_data.cavv,
-        authentication,
-    }
-}
-
-#[cfg(feature = "v1")]
-async fn persist_external_vault_pre_auth_challenge_and_prepare_sdk_invoke<F, D>(
+async fn persist_external_vault_pre_auth_and_prepare_sdk_invoke<F, D>(
     state: &SessionState,
     platform: &domain::Platform,
     payment_data: &mut D,

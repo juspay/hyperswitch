@@ -1503,7 +1503,7 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Interpayments requires HeaderKey auth type")),
             },
-            Connector::Netcetera => Ok(ConnectorSpecificConfig::Netcetera),
+            Connector::Netcetera => Ok(Self::Netcetera),
             // --- Unsupported connectors ---
             _ => Err(
                 error_stack::report!(errors::ApiErrorResponse::InternalServerError)

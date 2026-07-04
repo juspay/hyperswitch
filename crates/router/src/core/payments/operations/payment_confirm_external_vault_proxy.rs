@@ -407,7 +407,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                 .update_payment_attempt_with_attempt_id(
                     payment_data.payment_attempt.clone(),
                     storage::PaymentAttemptUpdate::RejectUpdate {
-                        status: storage_enums::AttemptStatus::Failure,
+                        status: payment_data.payment_attempt.status,
                         error_code: Some(payment_data.payment_attempt.error_code.clone()),
                         error_message: Some(payment_data.payment_attempt.error_message.clone()),
                         updated_by: storage_scheme.to_string(),
@@ -437,7 +437,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                 == storage_enums::AttemptStatus::AuthenticationPending
             {
                 (
-                    storage_enums::AttemptStatus::AuthenticationPending,
+                    payment_data.payment_attempt.status,
                     payment_data
                         .payment_attempt
                         .external_three_ds_authentication_attempted,
@@ -548,14 +548,14 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
 
         payment_data.payment_attempt = updated_payment_attempt;
 
-        let halt_intent_status = match payment_data.payment_attempt.status {
+        let intent_status_optional = match payment_data.payment_attempt.status {
             storage_enums::AttemptStatus::AuthenticationPending => {
                 Some(storage_enums::IntentStatus::RequiresCustomerAction)
             }
             storage_enums::AttemptStatus::Failure => Some(storage_enums::IntentStatus::Failed),
             _ => None,
         };
-        if let Some(intent_status) = halt_intent_status {
+        if let Some(intent_status) = intent_status_optional {
             let updated_payment_intent = state
                 .store
                 .update_payment_intent(
