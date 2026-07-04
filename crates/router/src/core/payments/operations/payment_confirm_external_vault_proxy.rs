@@ -296,9 +296,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
         payment_attempt.payment_method = Some(payment_method);
         payment_attempt.payment_method_type = Some(payment_method_subtype);
 
-        if payment_attempt.browser_info.is_none() {
-            payment_attempt.browser_info = request.browser_info.clone();
-        }
+        payment_attempt.browser_info = payment_attempt
+            .browser_info
+            .take()
+            .or_else(|| request.browser_info.clone());
 
         let payment_method_info = payment_method_wrapper.map(|w| w.payment_method);
 
@@ -754,6 +755,8 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         if payment_data.customer_acceptance.is_some() {
             match feature_config.is_payment_method_modular_allowed {
             true => {
+                let provider_business_profile =
+                    helpers::resolve_provider_profile(state, platform, business_profile).await?;
                 let mut vault_card = match payment_data.external_vault_pmd.clone() {
                     Some(
                         hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
@@ -784,11 +787,11 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                     .unwrap_or(common_enums::PaymentMethod::Card);
                 let payment_method_type = payment_data.payment_attempt.payment_method_type;
 
-                if business_profile
+                if provider_business_profile
                     .external_vault_details
                     .is_hyperswitch_vault()
                 {
-                    let vault_connector_id = business_profile
+                    let vault_connector_id = provider_business_profile
                         .external_vault_details
                         .get_vault_connector_id()
                         .get_required_value("external vault connector id")?;

@@ -1834,7 +1834,7 @@ pub async fn call_unified_connector_service_authenticate_for_external_proxy(
     processor: &domain::Processor,
     unified_connector_service_execution_mode: enums::ExecutionMode,
     force_3ds_challenge: Option<bool>,
-    notification_url: Option<String>,
+    notification_url: Option<common_utils::types::Url>,
     acquirer_metadata: Option<serde_json::Value>,
 ) -> errors::CustomResult<
     types::RouterData<

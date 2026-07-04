@@ -2016,16 +2016,20 @@ async fn external_authentication_incoming_webhook_flow(
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-                let merchant_id = platform.get_processor().get_account().get_id().clone();
+                let processor_merchant_id =
+                    platform.get_processor().get_account().get_id().clone();
                 let payment_confirm_req = api::PaymentsRequest {
                     payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
                         payment_intent.payment_id.clone(),
                     )),
-                    merchant_id: Some(merchant_id.clone()),
+                    merchant_id: Some(processor_merchant_id.clone()),
                     ..Default::default()
                 };
                 let is_setup_mandate = payment_intent.is_setup_mandate();
-                let payments_response = if business_profile
+                let provider_business_profile =
+                    payments::helpers::resolve_provider_profile(&state, &platform, &business_profile)
+                        .await?;
+                let payments_response = if provider_business_profile
                     .external_vault_details
                     .is_external_vault_enabled()
                 {
@@ -2034,7 +2038,7 @@ async fn external_authentication_incoming_webhook_flow(
                         .store
                         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                             &payment_intent.payment_id,
-                            &merchant_id,
+                            &processor_merchant_id,
                             &attempt_id,
                             platform.get_processor().get_account().storage_scheme,
                             platform.get_processor().get_key_store(),
@@ -2052,7 +2056,7 @@ async fn external_authentication_incoming_webhook_flow(
                         payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
                             payment_intent.payment_id.clone(),
                         )),
-                        merchant_id: Some(merchant_id.clone()),
+                        merchant_id: Some(processor_merchant_id.clone()),
                         payment_token: Some(payment_token),
                         payment_method: Some(common_enums::PaymentMethod::Card),
                         payment_method_type: payment_attempt.payment_method_type,

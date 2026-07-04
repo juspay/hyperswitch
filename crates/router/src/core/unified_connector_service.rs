@@ -1761,7 +1761,7 @@ pub fn build_connector_feature_data_from_auth_mca(
     merchant_connector_account: &MerchantConnectorAccountType,
     force_3ds_challenge: Option<bool>,
     results_response_notification_url: Option<String>,
-    notification_url: Option<String>,
+    notification_url: Option<common_utils::types::Url>,
     acquirer_metadata: Option<serde_json::Value>,
 ) -> CustomResult<Option<Secret<String>>, UnifiedConnectorServiceError> {
     merchant_connector_account
@@ -1784,7 +1784,7 @@ pub fn build_connector_feature_data_from_auth_mca(
                 if let Some(url) = notification_url {
                     obj.insert(
                         "notification_url".to_string(),
-                        serde_json::Value::String(url),
+                        serde_json::Value::String(url.get_string_repr().to_string()),
                     );
                 }
                 if let Some(serde_json::Value::Object(acquirer)) = acquirer_metadata {
