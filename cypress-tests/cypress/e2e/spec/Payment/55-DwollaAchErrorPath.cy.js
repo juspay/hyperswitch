@@ -113,20 +113,26 @@ describe("ACH Bank Debit Error Path tests", () => {
     });
   });
 
-  context("ACH Bank Debit with connector_customer_id in body (negative case)", () => {
-    it("Create+Confirm Payment with connector_customer_id (expect IR_06 unknown field)", () => {
-      cy.step("Create+Confirm ACH Bank Debit with connector_customer_id", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "bank_debit_pm"
-        ]["AchWithConnectorCustomerId"];
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
+  context(
+    "ACH Bank Debit with connector_customer_id in body (negative case)",
+    () => {
+      it("Create+Confirm Payment with connector_customer_id (expect IR_06 unknown field)", () => {
+        cy.step(
+          "Create+Confirm ACH Bank Debit with connector_customer_id",
+          () => {
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "bank_debit_pm"
+            ]["AchWithConnectorCustomerId"];
+            cy.createConfirmPaymentTest(
+              fixtures.createConfirmPaymentBody,
+              data,
+              "no_three_ds",
+              "automatic",
+              globalState
+            );
+          }
         );
       });
-    });
-  });
+    }
+  );
 });
