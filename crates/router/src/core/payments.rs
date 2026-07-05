@@ -6062,8 +6062,44 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 platform.get_processor().get_account().storage_scheme,
                 platform.get_processor().get_key_store(),
             )
-            .await
+                        .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        // Post-challenge authorize arrives via MerchantIdAuth, which builds platform with
+        // provider == processor == connected merchant. If this connected merchant belongs to a
+        // platform org, the external-vault config (and VGS MCA) lives on the platform merchant's
+        // profile. Reconstruct platform with provider = platform merchant so that
+        // resolve_provider_profile and the downstream vault MCA lookup both work correctly.
+        let platform = if platform.get_provider().get_account().get_id()
+            == platform.get_processor().get_account().get_id()
+        {
+            match services::authentication::get_platform_account_and_key_store(
+                state,
+                platform.get_processor().get_account(),
+            )
+            .await
+            {
+                Ok((platform_account, platform_key_store)) => {
+                    router_env::logger::info!(
+                        provider_merchant_id = %platform_account.get_id().get_string_repr(),
+                        processor_merchant_id = %platform.get_processor().get_account().get_id().get_string_repr(),
+                        "post_3ds_authorize: rebuilding platform with platform merchant as provider"
+                    );
+                    domain::Platform::new(
+                        platform_account,
+                        platform_key_store,
+                        platform.get_processor().get_account().clone(),
+                        platform.get_processor().get_key_store().clone(),
+                        platform.get_initiator().cloned(),
+                    )
+                }
+                // Not a connected merchant under a platform org — keep platform unchanged.
+                Err(_) => platform,
+            }
+        } else {
+            platform
+        };
+
         let authentication_id = payment_attempt
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
