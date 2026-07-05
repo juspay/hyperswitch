@@ -6062,7 +6062,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 platform.get_processor().get_account().storage_scheme,
                 platform.get_processor().get_key_store(),
             )
-                        .await
+            .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         // Post-challenge authorize arrives via MerchantIdAuth, which builds platform with
