@@ -2701,6 +2701,43 @@ pub struct CardToken {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub card_cvc: Option<Secret<String>>,
+
+    /// Token referencing a CVC vaulted in the hyperswitch (self-hosted) vault. Used by the
+    /// self-hosted default-vault repeat-customer flow, where the card is referenced by the
+    /// top-level `payment_token` and the freshly-tokenized CVC arrives as this token; the server
+    /// resolves it to the raw CVC. Not used by the external vault proxy flow.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub card_cvc_token: Option<Secret<String>>,
+}
+
+/// Card token data carried by the external vault proxy `vault_card_token_data` variant. Its
+/// `card_cvc` is a vault token detokenized on the wire by the external vault (e.g. VGS). Kept as a
+/// distinct type from [`CardToken`] so the self-hosted `card_cvc_token` field does not leak into
+/// the proxy contract.
+#[derive(
+    Eq,
+    PartialEq,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    ToSchema,
+    Default,
+    SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct VaultCardToken {
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The CVC number for the card (a vault token for the external vault proxy flow)
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub card_cvc: Option<Secret<String>>,
 }
 
 #[derive(
@@ -3498,14 +3535,16 @@ pub enum PaymentMethodData {
     NetworkToken(NetworkTokenData),
     /// Vault card data used for external vault proxy payments.
     /// When this variant is used, the payment will be routed through the external vault proxy flow.
-    #[schema(title = "ProxyCard")]
+    #[schema(title = "VaultDataCard")]
+    #[serde(rename = "vault_data_card", alias = "vault_card")]
     ProxyCard(Box<ProxyCardData>),
     /// Vault card token data used for external vault proxy payments with an already-saved card.
     /// The top-level `payment_token` resolves to a stored payment method whose external vault
     /// tokens are retrieved from the modular PM service; this variant carries the CVC / card
     /// holder name to combine with those tokens. Routed through the external vault proxy flow.
     #[schema(title = "VaultCardTokenData")]
-    VaultCardTokenData(CardToken),
+    #[serde(rename = "vault_card_token_data", alias = "vault_card_token")]
+    VaultCardTokenData(VaultCardToken),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -3720,6 +3759,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
             Self::PixEmv { .. } => api_enums::PaymentMethodType::PixEmv,
+            Self::PixQr { .. } => api_enums::PaymentMethodType::PixQr,
             Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
             Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
@@ -4767,6 +4807,8 @@ pub enum BankTransferData {
     #[smithy(nested_value_type)]
     PixEmv {},
     #[smithy(nested_value_type)]
+    PixQr {},
+    #[smithy(nested_value_type)]
     PixAutomaticoQr {},
     #[smithy(nested_value_type)]
     PixAutomaticoPush {
@@ -4905,6 +4947,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
             Self::LocalBankTransfer { .. }
             | Self::Pix { .. }
             | Self::PixEmv {}
+            | Self::PixQr {}
             | Self::PixAutomaticoPush { .. }
             | Self::PixAutomaticoQr {}
             | Self::Pse {}
@@ -8932,6 +8975,8 @@ pub struct PaymentListResponseV2 {
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentListFilterConstraints {
+    /// Search text for scoped OpenSearch payment list search
+    pub query: Option<String>,
     /// The identifier for payment
     pub payment_id: Option<id_type::PaymentId>,
     /// The identifier for business profile
@@ -8967,6 +9012,24 @@ pub struct PaymentListFilterConstraints {
     pub order: Order,
     /// The List of all the card networks to filter payments list
     pub card_network: Option<Vec<enums::CardNetwork>>,
+    /// The card last four digits to filter payments list
+    pub card_last_4: Option<Vec<String>>,
+    /// The active attempt ids to filter payments list
+    pub active_attempt_id: Option<Vec<String>>,
+    /// The card issuers to filter payments list
+    pub card_issuer: Option<Vec<String>>,
+    /// The routing approaches to filter payments list
+    pub routing_approach: Option<Vec<api_enums::RoutingApproach>>,
+    /// The refund statuses to filter sessionized payments list
+    pub refunds_status: Option<Vec<String>>,
+    /// The dispute statuses to filter sessionized payments list
+    pub dispute_status: Option<Vec<String>>,
+    /// The client sources to filter payments list
+    pub client_source: Option<Vec<String>>,
+    /// The client versions to filter payments list
+    pub client_version: Option<Vec<String>>,
+    /// Whether the payment succeeded on the first attempt. `true` maps to attempt_count = 1, `false` maps to attempt_count > 1.
+    pub first_attempt: Option<Vec<bool>>,
     /// The identifier for merchant order reference id
     pub merchant_order_reference_id: Option<String>,
     /// Indicates the method by which a card is discovered during a payment
@@ -8984,6 +9047,15 @@ impl PaymentListFilterConstraints {
             && self.authentication_type.is_none()
             && self.merchant_connector_id.is_none()
             && self.card_network.is_none()
+            && self.card_last_4.is_none()
+            && self.active_attempt_id.is_none()
+            && self.card_issuer.is_none()
+            && self.routing_approach.is_none()
+            && self.refunds_status.is_none()
+            && self.dispute_status.is_none()
+            && self.client_source.is_none()
+            && self.client_version.is_none()
+            && self.first_attempt.is_none()
             && self.card_discovery.is_none()
     }
 }
@@ -10002,7 +10074,27 @@ pub enum ApplePayCombinedMetadata {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PeachpaymentsData {
     /// A numeric reference number supplied by the system retaining the original source information and used to assist in locating that information or a copy thereof.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub rrn: Option<String>,
+    /// Indicates the card-on-file transaction classification to use for Peach Payments when recurring_details.card_with_limited_data is supplied.
+    #[schema(value_type = Option<PeachpaymentsCardOnFileTransactionType>)]
+    #[smithy(value_type = "Option<PeachpaymentsCardOnFileTransactionType>")]
+    pub card_on_file_transaction_type: Option<PeachpaymentsCardOnFileTransactionType>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PeachpaymentsCardOnFileTransactionType {
+    /// One-off card payment without CVV.
+    OneOff,
+    /// Card without CVV where the customer is present — telephone sales where the customer reads the card, hospitality pre-auth, etc.
+    CustomerInitiatedTransaction,
+    /// Card without CVV where the customer is not present — backoffice recurring setup, merchant loading credentials on behalf of the customer.
+    MerchantInitiatedMandate,
+    /// Merchant-initiated charge where the merchant holds the card credentials.
+    MerchantInitiatedTransaction,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -10209,6 +10301,62 @@ pub struct HyperswitchVaultSessionDetails {
     /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
     #[schema(value_type = String)]
     pub sdk_authorization: Secret<String>,
+}
+
+/// V1-facing vault details for the session-tokens response, serialized as a tagged
+/// `{ "vault_type": ..., "vault_data": { ... } }` object. Exactly one variant is returned:
+/// external vault details when configured, otherwise the internal Hyperswitch vault session.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(tag = "vault_type", content = "vault_data", rename_all = "snake_case")]
+pub enum VaultDetailsResponse {
+    /// Internal/default Hyperswitch vault session
+    Hyperswitch(HyperswitchVaultData),
+    /// External VGS vault session
+    Vgs(VgsVaultData),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct HyperswitchVaultData {
+    /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
+    #[schema(value_type = String)]
+    pub sdk_authorization: Secret<String>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct VgsVaultData {
+    /// The identifier of the external vault
+    #[schema(value_type = String)]
+    pub vault_id: Secret<String>,
+    /// The environment for the external vault initiation
+    pub environment: String,
+}
+
+#[cfg(feature = "v1")]
+impl From<VaultDetails> for Option<VaultDetailsResponse> {
+    fn from(details: VaultDetails) -> Self {
+        match details.external_vault_details {
+            // An external vault is configured: surface it as-is (VGS or Hyperswitch Vault).
+            Some(VaultSessionDetails::Vgs(vgs)) => Some(VaultDetailsResponse::Vgs(VgsVaultData {
+                vault_id: vgs.external_vault_id,
+                environment: vgs.sdk_env,
+            })),
+            Some(VaultSessionDetails::HyperswitchVault(hs)) => {
+                Some(VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
+                    sdk_authorization: hs.sdk_authorization,
+                }))
+            }
+            // No external vault configured (the SaaS default): fall back to the internal
+            // Hyperswitch vault SDK authorization.
+            None => details.internal_vault.map(|internal| {
+                VaultDetailsResponse::Hyperswitch(HyperswitchVaultData {
+                    sdk_authorization: Secret::new(internal.sdk_authorization),
+                })
+            }),
+        }
+    }
 }
 
 #[derive(
@@ -10939,8 +11087,8 @@ pub struct PaymentsSessionResponse {
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
-    /// Vault details containing internal vault (SDK auth) and external vault info
-    pub vault_details: Option<VaultDetails>,
+    /// Vault details for the session, returned as a tagged `{ vault_type, vault_data }` object
+    pub vault_details: Option<VaultDetailsResponse>,
 }
 
 #[cfg(feature = "v2")]
@@ -11724,7 +11872,7 @@ pub struct BoletoAdditionalDetails {
     pub due_date: Option<PrimitiveDateTime>,
     /// It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
     /// Deprecated since it has been moved to connector_metadata
-    #[schema(value_type = Option<BoletoDocumentKind>, example="commercial_invoice", deprecated)]
+    #[schema(value_type = Option<BoletoDocumentKind>, example="commercial_invoice")]
     pub document_kind: Option<common_enums::BoletoDocumentKind>,
     /// This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
     /// Deprecated since it has been moved to connector_metadata
@@ -11741,6 +11889,25 @@ pub struct BoletoAdditionalDetails {
         })
     )]
     pub pix_key: Option<enums::PixKey>,
+    /// Rules for applying discounts
+    #[schema(value_type = Option<SantanderPaymentDiscountRules>)]
+    #[serde(default)]
+    pub discount_rules: Option<SantanderPaymentDiscountRules>,
+    /// Rules for late payments (Interest and Fines)
+    #[schema(value_type = Option<PenaltyRules>)]
+    #[serde(default)]
+    pub penalties: Option<PenaltyRules>,
+    /// Legal or administrative actions for non-payment (Protest/Write-off)
+    #[schema(value_type = Option<CollectionActions>)]
+    #[serde(default)]
+    pub collection_actions: Option<CollectionActions>,
+    /// Constraints on how the payment can be made (Partial payments/Limits)
+    #[schema(value_type = Option<BoletoPaymentTypeConstraints>)]
+    #[serde(default)]
+    pub payment_constraints: Option<BoletoPaymentTypeConstraints>,
+    #[schema(value_type = Option<BeneficiaryDetails>)]
+    #[serde(default)]
+    pub beneficiary: Option<BeneficiaryDetails>,
 }
 
 impl BoletoAdditionalDetails {
@@ -11751,6 +11918,11 @@ impl BoletoAdditionalDetails {
             payment_type: self.payment_type.or(other.payment_type),
             covenant_code: self.covenant_code.or(other.covenant_code),
             pix_key: self.pix_key.or(other.pix_key),
+            discount_rules: self.discount_rules.or(other.discount_rules),
+            penalties: self.penalties.or(other.penalties),
+            collection_actions: self.collection_actions.or(other.collection_actions),
+            payment_constraints: self.payment_constraints.or(other.payment_constraints),
+            beneficiary: self.beneficiary.or(other.beneficiary),
         }
     }
 

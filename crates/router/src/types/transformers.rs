@@ -400,6 +400,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PixAutomaticoQr
             | api_enums::PaymentMethodType::PixKey
             | api_enums::PaymentMethodType::PixEmv
+            | api_enums::PaymentMethodType::PixQr
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex
             | api_enums::PaymentMethodType::PaySafeCard
@@ -1384,6 +1385,7 @@ impl ForeignFrom<&api_models::payouts::Wallet> for api_enums::PaymentMethodType 
             api_models::payouts::Wallet::Paypal(_) => Self::Paypal,
             api_models::payouts::Wallet::Venmo(_) => Self::Venmo,
             api_models::payouts::Wallet::ApplePayDecrypt(_) => Self::ApplePay,
+            api_models::payouts::Wallet::GooglePayDecrypt(_) => Self::GooglePay,
         }
     }
 }
@@ -1984,7 +1986,7 @@ impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
 impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
     fn foreign_from(customer: &domain::Customer) -> Self {
         Self {
-            id: Some(customer.customer_id.clone()),
+            id: Some(customer.get_id().clone()),
             name: customer
                 .name
                 .as_ref()
@@ -2030,7 +2032,10 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
         }
 
         match (item.object_id.clone(), item.event_id.clone()) {
-            (Some(object_id), None) => Ok(Self::ObjectIdFilter { object_id }),
+            (Some(object_id), None) => Ok(Self::ObjectIdFilter {
+                object_id,
+                recipient: item.recipient,
+            }),
 
             (None, Some(event_id)) => Ok(Self::EventIdFilter { event_id }),
 
@@ -2042,6 +2047,7 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
                 event_classes: item.event_classes,
                 event_types: item.event_types,
                 is_delivered: item.is_delivered,
+                recipient: item.recipient,
             }),
 
             (Some(_), Some(_)) => Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -2248,6 +2254,14 @@ impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
             },
             customer_id_blocking_threshold: item.customer_id_blocking_threshold,
             card_testing_guard_expiry: item.card_testing_guard_expiry,
+            is_guest_ip_blocking_enabled: match item.guest_ip_blocking_status {
+                Some(api_models::admin::CardTestingGuardStatus::Enabled) => true,
+                Some(api_models::admin::CardTestingGuardStatus::Disabled) => false,
+                None => common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_STATUS,
+            },
+            guest_ip_blocking_threshold: item
+                .guest_ip_blocking_threshold
+                .unwrap_or(common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_THRESHOLD),
         }
     }
 }
@@ -2273,6 +2287,11 @@ impl ForeignFrom<diesel_models::business_profile::CardTestingGuardConfig>
             },
             customer_id_blocking_threshold: item.customer_id_blocking_threshold,
             card_testing_guard_expiry: item.card_testing_guard_expiry,
+            guest_ip_blocking_status: Some(match item.is_guest_ip_blocking_enabled {
+                true => api_models::admin::CardTestingGuardStatus::Enabled,
+                false => api_models::admin::CardTestingGuardStatus::Disabled,
+            }),
+            guest_ip_blocking_threshold: Some(item.guest_ip_blocking_threshold),
         }
     }
 }

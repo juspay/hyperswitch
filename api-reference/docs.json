@@ -75,6 +75,7 @@
                     "pages": [
                       "v2/customers/customers--create-v1",
                       "v2/customers/customers--retrieve-v1",
+                      "v1/customers/customers--retrieve-by-merchant-reference-id",
                       "v2/customers/customers--update-v1",
                       "v2/customers/customers--delete-v1",
                       "v2/customers/customers--list-v1"
@@ -110,7 +111,17 @@
                     "group": "Disputes",
                     "pages": [
                       "v1/disputes/disputes--retrieve",
-                      "v1/disputes/disputes--list"
+                      "v1/disputes/disputes--list",
+                      "v1/disputes/disputes--list-profiles",
+                      "v1/disputes/disputes--accept",
+                      "v1/disputes/disputes--submit-evidence",
+                      "v1/disputes/disputes--attach-evidence",
+                      "v1/disputes/disputes--retrieve-evidence",
+                      "v1/disputes/disputes--delete-evidence",
+                      "v1/disputes/disputes--get-aggregate",
+                      "v1/disputes/disputes--get-aggregate-profiles",
+                      "v1/disputes/disputes--get-filters",
+                      "v1/disputes/disputes--get-filters-profiles"
                     ]
                   },
                   {
@@ -393,6 +404,7 @@
                     "pages": [
                       "v2/customers/customers--create",
                       "v2/customers/customers--retrieve",
+                      "v2/customers/customers--retrieve-by-merchant-reference-id",
                       "v2/customers/customers--update",
                       "v2/customers/customers--delete",
                       "v2/customers/customers--list"

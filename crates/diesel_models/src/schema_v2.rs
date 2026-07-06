@@ -181,6 +181,8 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        #[max_length = 32]
+        updated_by -> Nullable<Varchar>,
     }
 }
 
@@ -620,6 +622,8 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 64]
         initiator_merchant_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        recipient -> Nullable<Varchar>,
     }
 }
 
@@ -1156,6 +1160,8 @@ diesel::table! {
         network_transaction_link_id -> Nullable<Varchar>,
         #[max_length = 255]
         sender_payment_instrument_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        external_threeds_authentication_type -> Nullable<Varchar>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,

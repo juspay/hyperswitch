@@ -150,7 +150,6 @@ pub struct PaymentsAuthorizeData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
-    pub rrn: Option<String>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub installment_details: Option<common_types::payments::InstallmentData>,
     // Contains the connector specific metadata coming from payments request
@@ -1363,6 +1362,7 @@ pub struct ExternalSurchargeDetails {
     pub tax_amount: Option<MinorUnit>,
     pub payment_method: common_enums::PaymentMethod,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub external_surcharge_id: String,
 }
 
 impl ExternalSurchargeDetails {
@@ -1925,6 +1925,7 @@ pub struct SetupMandateRequestData {
     pub authentication_data: Option<AuthenticationData>,
     pub connector_intent_metadata: Option<ConnectorMetadata>,
     pub merchant_order_reference_id: Option<String>,
+    pub mit_category: Option<common_enums::MitCategory>,
 }
 
 #[derive(Debug, Clone)]
@@ -1975,7 +1976,7 @@ impl PushNotificationRequestData {
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None => None,
             })
     }
@@ -2003,7 +2004,7 @@ impl GenerateQrRequestData {
                 }
                 Some(mandates::MandateReferenceId::NetworkMandateId(_))
                 | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None => None,
             })
     }

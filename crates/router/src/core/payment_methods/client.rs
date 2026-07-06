@@ -4,7 +4,11 @@
 ///   - merchant-enabled payment methods (filtered via Euclid constraint graph + session flow routing)
 ///   - customer saved payment methods (fetched from DB via `CustomerPaymentMethodsFetcher` trait)
 ///
-/// Auth: `SdkAuthorizationAuth` only (Authorization: base64(publishable_key:client_secret))
+/// Auth:
+///   - `SdkAuthorizationAuth` via Authorization header.
+///   - `PublishableKeyAuth` via `api-key: pk_...` and `client_secret` query param.
+///
+/// Merchant secret-key auth is not supported for this client endpoint.
 use api_models::payment_methods::{
     ClientPaymentMethodsListResponse, CustomerPaymentMethod, CustomerPaymentMethodDataForClient,
     CustomerPaymentMethodForClient, PaymentMethodListIntentDataInput,
@@ -44,7 +48,7 @@ pub trait CustomerPaymentMethodsFetcher: Send + Sync {
         state: &routes::SessionState,
         platform: &domain::Platform,
         payment_intent: Option<&storage::PaymentIntent>,
-        customer_id: &id_type::CustomerId,
+        customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>>;
 }
@@ -78,14 +82,14 @@ impl CustomerPaymentMethodsFetcher for DbCustomerPaymentMethodsFetcher {
         state: &routes::SessionState,
         platform: &domain::Platform,
         payment_intent: Option<&storage::PaymentIntent>,
-        customer_id: &id_type::CustomerId,
+        customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
         let customer_payment_methods_response = Box::pin(cards::list_customer_payment_method(
             state,
             platform.clone(),
             payment_intent.cloned(),
-            customer_id,
+            customer.get_id(),
             None, // limit
             dimensions,
         ))
@@ -164,16 +168,20 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
         state: &routes::SessionState,
         platform: &domain::Platform,
         _payment_intent: Option<&storage::PaymentIntent>,
-        customer_id: &id_type::CustomerId,
+        customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
         let merchant_id = platform.get_processor().get_account().get_id().clone();
+        let id = customer
+            .get_global_id()
+            .cloned()
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField { field_name: "id" })?;
 
         let items = list_customer_payment_methods_from_modular_service(
             state,
             &merchant_id,
             &self.profile_id,
-            customer_id.clone(),
+            id,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -183,7 +191,7 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
             .get_requires_cvv(
                 state.store.as_ref(),
                 state.superposition_service.as_ref(),
-                Some(customer_id),
+                Some(customer.get_id()),
             )
             .await;
 
@@ -195,7 +203,7 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 &merchant_id,
                 true,
-                platform.get_provider().get_key_store(),
+                platform.get_processor().get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -463,68 +471,73 @@ async fn fetch_customer_payment_methods(
     platform: &domain::Platform,
     payment_intent_context: &PaymentIntentContext,
 ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
-    let customer_id = match payment_intent_context.payment_intent.customer_id.as_ref() {
-        Some(customer_id) => customer_id,
-        None => return Ok(vec![]),
-    };
+    match (
+        payment_intent_context.payment_intent.customer_id.as_ref(),
+        payment_intent_context.customer.as_ref(),
+    ) {
+        (None, _) => Ok(vec![]),
+        (Some(_), None) => Err(errors::ApiErrorResponse::CustomerNotFound.into()),
+        (Some(_), Some(customer)) => {
+            let dimensions = dimension_state::Dimensions::new()
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+            let feature_config =
+                crate::core::utils::get_feature_config(state, platform, &dimensions).await;
 
-    let feature_config = crate::core::utils::get_feature_config(state, platform, &dimensions).await;
+            if feature_config.is_payment_method_modular_allowed {
+                logger::info!("Fetching customer payment methods from modular service");
 
-    if feature_config.is_payment_method_modular_allowed {
-        logger::info!("Fetching customer payment methods from modular service");
+                let profile_id = payment_intent_context
+                    .payment_intent
+                    .profile_id
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("'profile_id' not set in payment intent")?;
 
-        let profile_id = payment_intent_context
-            .payment_intent
-            .profile_id
-            .clone()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("'profile_id' not set in payment intent")?;
+                let intent_fulfillment_time = payment_intent_context
+                    .business_profile
+                    .get_order_fulfillment_time()
+                    .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
-        let intent_fulfillment_time = payment_intent_context
-            .business_profile
-            .get_order_fulfillment_time()
-            .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
+                let off_session_payment_flag = payment_intent_context
+                    .payment_intent
+                    .setup_future_usage
+                    .map(|future_usage| future_usage == common_enums::FutureUsage::OffSession)
+                    .unwrap_or(false);
 
-        let off_session_payment_flag = payment_intent_context
-            .payment_intent
-            .setup_future_usage
-            .map(|future_usage| future_usage == common_enums::FutureUsage::OffSession)
-            .unwrap_or(false);
+                let is_connector_agnostic_mit_enabled = payment_intent_context
+                    .business_profile
+                    .is_connector_agnostic_mit_enabled
+                    .unwrap_or(false);
 
-        let is_connector_agnostic_mit_enabled = payment_intent_context
-            .business_profile
-            .is_connector_agnostic_mit_enabled
-            .unwrap_or(false);
-
-        ModularCustomerPaymentMethodsFetcher {
-            profile_id,
-            intent_fulfillment_time,
-            off_session_payment_flag,
-            is_connector_agnostic_mit_enabled,
+                ModularCustomerPaymentMethodsFetcher {
+                    profile_id,
+                    intent_fulfillment_time,
+                    off_session_payment_flag,
+                    is_connector_agnostic_mit_enabled,
+                }
+                .fetch(
+                    state,
+                    platform,
+                    Some(&payment_intent_context.payment_intent),
+                    customer,
+                    &dimensions,
+                )
+                .await
+            } else {
+                logger::info!("Fetching customer payment methods from DB");
+                DbCustomerPaymentMethodsFetcher
+                    .fetch(
+                        state,
+                        platform,
+                        Some(&payment_intent_context.payment_intent),
+                        customer,
+                        &dimensions,
+                    )
+                    .await
+            }
         }
-        .fetch(
-            state,
-            platform,
-            Some(&payment_intent_context.payment_intent),
-            customer_id,
-            &dimensions,
-        )
-        .await
-    } else {
-        logger::info!("Fetching customer payment methods from DB");
-        DbCustomerPaymentMethodsFetcher
-            .fetch(
-                state,
-                platform,
-                Some(&payment_intent_context.payment_intent),
-                customer_id,
-                &dimensions,
-            )
-            .await
     }
 }
 
@@ -537,10 +550,18 @@ pub async fn list_payment_methods_client(
     state: routes::SessionState,
     platform: domain::Platform,
     payment_id: id_type::PaymentId,
+    client_secret: Option<String>,
 ) -> errors::RouterResponse<ClientPaymentMethodsListResponse> {
     // 1. Load payment intent + related context
     let payment_intent_context =
         load_payment_intent_context(&state, &platform, &payment_id).await?;
+
+    if let Some(client_secret) = client_secret.as_ref() {
+        helpers::authenticate_client_secret(
+            Some(client_secret),
+            &payment_intent_context.payment_intent,
+        )?;
+    }
 
     // 2. Fetch enabled payment methods (Gate 1 + Gate 2 + consolidation)
     let EnabledPmsResult {
@@ -593,6 +614,7 @@ pub async fn list_payment_methods_client(
             connector_supports_installments,
             intent_data_input,
             &payment_intent_context.business_profile,
+            payment_intent_context.customer.as_ref(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to build intent_data")?;

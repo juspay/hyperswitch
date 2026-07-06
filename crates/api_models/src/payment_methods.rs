@@ -6,7 +6,9 @@ use std::{
 };
 
 use cards::CardNumber;
-use common_types::payments::{BillingFrequency, InstallmentInterestRate};
+use common_types::payments::{
+    ApplePayPredecryptData, BillingFrequency, GPayPredecryptData, InstallmentInterestRate,
+};
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableName;
 use common_utils::{
@@ -693,6 +695,41 @@ pub enum WalletDetail {
         #[schema(value_type = String)]
         expiry_year: hyperswitch_masking::Secret<String>,
     },
+    GooglePayDecryptedData {
+        /// The application primary account number (PAN) associated with the card
+        #[schema(value_type = String, example = "4242424242424242")]
+        application_primary_account_number: CardNumber,
+
+        /// The card's expiry month
+        #[schema(value_type = String)]
+        expiry_month: hyperswitch_masking::Secret<String>,
+
+        /// The card's expiry year
+        #[schema(value_type = String)]
+        expiry_year: hyperswitch_masking::Secret<String>,
+    },
+}
+
+#[cfg(feature = "v1")]
+impl From<ApplePayPredecryptData> for WalletDetail {
+    fn from(data: ApplePayPredecryptData) -> Self {
+        Self::ApplePayDecryptedData {
+            application_primary_account_number: data.application_primary_account_number,
+            expiry_month: data.application_expiration_month,
+            expiry_year: data.application_expiration_year,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<GPayPredecryptData> for WalletDetail {
+    fn from(data: GPayPredecryptData) -> Self {
+        Self::GooglePayDecryptedData {
+            application_primary_account_number: data.application_primary_account_number,
+            expiry_month: data.card_exp_month,
+            expiry_year: data.card_exp_year,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -2854,6 +2891,10 @@ pub struct PaymentMethodListIntentData {
     #[schema(value_type = Option<Address>)]
     pub shipping: Option<payments::Address>,
 
+    /// The email associated with the payment
+    #[schema(value_type = Option<String>)]
+    pub email: Option<pii::Email>,
+
     /// Additional metadata
     #[schema(value_type = Option<Object>)]
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -3697,6 +3738,15 @@ pub struct PaymentMethodId {
     pub payment_method_id: String,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ModularPaymentMethodMigrationRecord {
+    pub merchant_id: id_type::MerchantId,
+    #[serde(flatten)]
+    pub payment_method_id: PaymentMethodId,
+    #[serde(skip_deserializing, default)]
+    pub line_number: Option<i64>,
+}
+
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct DefaultPaymentMethod {
@@ -3982,6 +4032,28 @@ pub struct PaymentMethodMigrationResponse {
 }
 
 #[derive(Debug, Default, serde::Serialize)]
+pub struct ModularPaymentMethodMigrationResponse {
+    pub total_rows: usize,
+    pub successful_count: usize,
+    pub failed_count: usize,
+    pub results: Vec<ModularPaymentMethodMigrationRowResult>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ModularPaymentMethodMigrationRowResult {
+    pub row_number: usize,
+    pub merchant_id: Option<id_type::MerchantId>,
+    pub payment_method_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub old_fingerprint_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_fingerprint_id: Option<String>,
+    pub migration_status: MigrationStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub enum MigrationStatus {
     Success,
     #[default]

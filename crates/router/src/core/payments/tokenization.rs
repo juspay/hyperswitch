@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ::payment_methods::controller::PaymentMethodsController;
-use common_enums::{ConnectorMandateStatus, PaymentMethod};
+use common_enums::{ConnectorMandateStatus, PaymentMethod, WalletDecryptedToken};
 use common_types::{self, callback_mapper::CallbackMapperData};
 use common_utils::{
     crypto::Encryptable,
@@ -21,6 +21,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     mandates::ConnectorMandateReferenceId,
     payment_method_data::{get_applepay_wallet_info, get_googlepay_wallet_info},
+    transformers::ForeignFrom as _,
 };
 use hyperswitch_interfaces::api::gateway;
 use hyperswitch_masking::{ExposeInterface, Secret};
@@ -34,6 +35,7 @@ use crate::core::payment_methods::{
 use crate::{
     consts,
     core::{
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate,
         payment_methods::{self, cards::PmCards, network_tokenization},
@@ -97,13 +99,16 @@ async fn save_in_locker(
     domain::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
-    match &business_profile.external_vault_details {
+    let external_vault_profile =
+        helpers::resolve_provider_profile(state, platform, business_profile).await?;
+
+    match &external_vault_profile.external_vault_details {
         domain::ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) => {
             logger::info!("External vault is enabled, using vault_payment_method_external_v1");
 
             Box::pin(save_in_locker_external(
                 state,
-                platform.get_processor(),
+                platform.get_provider(),
                 payment_method_request,
                 card_detail,
                 external_vault_details,
@@ -168,6 +173,7 @@ pub async fn save_payment_method<FData>(
     payment_method_info: Option<domain::PaymentMethod>,
     payment_method_token: Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
     customer_details: Option<api_models::customers::CustomerDocumentDetails>,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -291,7 +297,6 @@ where
                         &customer_id.clone(),
                         billing_name,
                         payment_method_billing_address,
-                        save_payment_method_data.payment_method_token.clone(),
                     )
                     .await?;
                 let payment_methods_data =
@@ -433,7 +438,7 @@ where
                     .async_map(|customer_details| {
                         create_encrypted_data(
                             &key_manager_state,
-                            platform.get_processor().get_key_store(),
+                            platform.get_provider().get_key_store(),
                             customer_details,
                             common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                         )
@@ -445,7 +450,9 @@ where
 
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
-                let (external_vault_details, vault_type) = match &business_profile.external_vault_details{
+                let external_vault_profile =
+                    helpers::resolve_provider_profile(state, platform, business_profile).await?;
+                let (external_vault_details, vault_type) = match &external_vault_profile.external_vault_details{
                     hyperswitch_domain_models::business_profile::ExternalVaultDetails::ExternalVaultEnabled(external_vault_connector_details) => {
                         (Some(external_vault_connector_details), Some(common_enums::VaultType::External))
                     },
@@ -858,18 +865,28 @@ where
                         }
                     },
                     None => {
-                        let customer_saved_pm_option = if payment_method_type
+                        let should_save_walled_decrypted_token = dimensions
+                            .get_save_wallet_decrypted_data(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                Some(&customer_id),
+                            )
+                            .await;
+                        let wallet_decrypt_preference = WalletDecryptedToken::foreign_from((
+                            save_payment_method_data.payment_method_token.as_ref(),
+                            should_save_walled_decrypted_token,
+                        ));
+
+                        let check_for_customer_pm = payment_method_type
                             .map(|payment_method_type_value| {
                                 payment_method_type_value
                                     .should_check_for_customer_saved_payment_method_type(
-                                        save_payment_method_data
-                                            .payment_method_token
-                                            .as_ref()
-                                            .is_some_and(|pmt| pmt.is_apple_pay_decrypt()),
+                                        wallet_decrypt_preference,
                                     )
                             })
-                            .unwrap_or(false)
-                        {
+                            .unwrap_or(false);
+
+                        let customer_saved_pm_option = if check_for_customer_pm {
                             match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
@@ -925,7 +942,7 @@ where
                             locker_id = resp.payment_method.and_then(|pm| {
                                 if pm == PaymentMethod::Card
                                     || pm == PaymentMethod::BankDebit
-                                    || pm == PaymentMethod::Wallet
+                                    || (pm == PaymentMethod::Wallet && !check_for_customer_pm)
                                 {
                                     Some(resp.payment_method_id)
                                 } else {
@@ -1262,11 +1279,24 @@ pub async fn save_in_locker_internal(
     domain::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
+    let db = &state.store;
     payment_method_request.validate()?;
     let customer_id = payment_method_request
         .customer_id
         .clone()
         .get_required_value("customer_id")?;
+
+    let customer_obj = db
+        .find_customer_by_customer_id_merchant_id(
+            &customer_id,
+            provider.get_account().get_id(),
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Customer not found in db")?;
+
     match (
         payment_method_request.card.clone(),
         card_detail,
@@ -1290,12 +1320,17 @@ pub async fn save_in_locker_internal(
             Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
                 bank_debit_create_data,
             )),
-        ) => Box::pin(PmCards { state, provider }.add_bank_debit_to_locker(
-            payment_method_request,
-            bank_debit_create_data,
-            provider.get_key_store(),
-            &customer_id,
-        ))
+        ) => Box::pin(
+            PmCards { state, provider }.add_bank_debit_to_locker(
+                payment_method_request,
+                bank_debit_create_data,
+                provider.get_key_store(),
+                &customer_id,
+                customer_obj
+                    .get_global_id()
+                    .map(|id| id.get_string_repr().to_owned()),
+            ),
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Bank Debit Failed"),
@@ -1303,12 +1338,17 @@ pub async fn save_in_locker_internal(
             None,
             None,
             Some(api_models::payment_methods::PaymentMethodCreateData::Wallet(wallet_create_data)),
-        ) => Box::pin(PmCards { state, provider }.add_wallet_to_locker(
-            payment_method_request,
-            wallet_create_data,
-            provider.get_key_store(),
-            &customer_id,
-        ))
+        ) => Box::pin(
+            PmCards { state, provider }.add_wallet_to_locker(
+                payment_method_request,
+                wallet_create_data,
+                provider.get_key_store(),
+                &customer_id,
+                customer_obj
+                    .get_global_id()
+                    .map(|id| id.get_string_repr().to_owned()),
+            ),
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Wallet Failed"),
@@ -1341,7 +1381,7 @@ pub async fn save_in_locker_internal(
 #[cfg(feature = "v1")]
 pub async fn save_in_locker_external(
     state: &SessionState,
-    processor: &domain::Processor,
+    provider: &domain::Provider,
     payment_method_request: api::PaymentMethodCreate,
     card_detail: Option<api::CardDetail>,
     external_vault_connector_details: &ExternalVaultConnectorDetails,
@@ -1367,9 +1407,9 @@ pub async fn save_in_locker_external(
         let merchant_connector_account_details = state
             .store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                processor.get_account().get_id(),
+                provider.get_account().get_id(),
                 &external_vault_mca_id,
-                processor.get_key_store(),
+                provider.get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -1380,7 +1420,7 @@ pub async fn save_in_locker_external(
         let vault_response = Box::pin(vault_payment_method_external_v1(
             state,
             &payment_method_custom_vaulting_data,
-            processor.get_account(),
+            provider.get_account(),
             merchant_connector_account_details,
             None,
         ))
@@ -1390,7 +1430,7 @@ pub async fn save_in_locker_external(
         let card_detail = CardDetailFromLocker::from(card);
 
         let pm_resp = domain::PaymentMethodResponse {
-            merchant_id: processor.get_account().get_id().to_owned(),
+            merchant_id: provider.get_account().get_id().to_owned(),
             customer_id: Some(customer_id),
             payment_method_id,
             payment_method: payment_method_request.payment_method,
@@ -1413,7 +1453,7 @@ pub async fn save_in_locker_external(
         //Similar implementation is done for save in locker internal
         let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
         let payment_method_response = domain::PaymentMethodResponse {
-            merchant_id: processor.get_account().get_id().to_owned(),
+            merchant_id: provider.get_account().get_id().to_owned(),
             customer_id: Some(customer_id),
             payment_method_id: pm_id,
             payment_method: payment_method_request.payment_method,
@@ -2126,7 +2166,6 @@ async fn generate_network_token_and_update_payment_method(
                 &customer_id.clone(),
                 billing_name,
                 payment_method_billing_address,
-                None,
             )
             .await?;
 
