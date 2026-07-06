@@ -797,8 +797,15 @@ where
         .apply_three_ds_authentication_strategy(state, &mut payment_data, &business_profile)
         .await;
 
-    // Must run before choose_connector so the routing DSL sees `surcharge_amount`.
-    preload_external_surcharge_for_routing(state, &business_profile, &mut payment_data).await?;
+    // Must run before choose_connector so the routing DSL sees `surcharge_amount`
+    // (CIT: from Redis; MIT: computed inline via UCS).
+    preload_external_surcharge_for_routing(
+        state,
+        platform.get_processor(),
+        &business_profile,
+        &mut payment_data,
+    )
+    .await?;
 
     let connector = choose_connector(
         &operation,
@@ -2276,12 +2283,14 @@ where
     todo!()
 }
 
-// Reads the external surcharge cached by /eligibility from Redis into the payment attempt
-// so routing DSL can condition on `surcharge_amount`. Runs only for external-surcharge CIT.
+// Populates payment_attempt.external_surcharge_details before choose_connector so the routing
+// DSL can condition on `surcharge_amount`. CIT reads from Redis (cached by /eligibility);
+// MIT computes inline via UCS.
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn preload_external_surcharge_for_routing<F, D>(
     state: &SessionState,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut D,
 ) -> RouterResult<()>
@@ -2289,32 +2298,39 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
 {
-    let is_external_cit = payment_data
+    let is_external = payment_data
         .get_payment_intent()
         .get_surcharge_mode(business_profile)
         == Some(domain_payments::SurchargeMode::External)
-        && payment_data.get_payment_intent().off_session != Some(true)
         && payment_data
             .get_payment_attempt()
             .external_surcharge_details
             .is_none();
 
-    if is_external_cit {
-        match resolve_external_surcharge(state, payment_data).await {
-            Some(external_surcharge_details) => {
-                let external_surcharge_details = common_types::payments::ExternalSurchargeDetails {
-                    external_surcharge_id: external_surcharge_details.external_surcharge_id,
-                    external_surcharge_amount: external_surcharge_details.surcharge_amount,
+    if is_external {
+        let is_mit = payment_data.get_payment_intent().off_session == Some(true);
+
+        let external_surcharge_details = if is_mit {
+            compute_mit_external_surcharge(state, processor, business_profile, payment_data).await
+        } else {
+            resolve_external_surcharge(state, payment_data)
+                .await
+                .map(|cached| common_types::payments::ExternalSurchargeDetails {
+                    external_surcharge_id: cached.external_surcharge_id,
+                    external_surcharge_amount: cached.surcharge_amount,
                     sale_notified: false,
-                };
-                let mut attempt = payment_data.get_payment_attempt().clone();
-                attempt.net_amount.set_external_surcharge_amount(Some(
-                    external_surcharge_details.external_surcharge_amount,
-                ));
-                attempt.external_surcharge_details = Some(external_surcharge_details);
-                payment_data.set_payment_attempt(attempt);
-            }
-            None => logger::debug!("external surcharge not found in redis at pre-routing preload"),
+                })
+        };
+
+        if let Some(external_surcharge_details) = external_surcharge_details {
+            let mut attempt = payment_data.get_payment_attempt().clone();
+            attempt.net_amount.set_external_surcharge_amount(Some(
+                external_surcharge_details.external_surcharge_amount,
+            ));
+            attempt.external_surcharge_details = Some(external_surcharge_details);
+            payment_data.set_payment_attempt(attempt);
+        } else if !is_mit {
+            logger::debug!("external surcharge not found in redis at pre-routing preload");
         }
     }
     Ok(())
@@ -2324,7 +2340,6 @@ where
 #[instrument(skip_all)]
 pub async fn populate_surcharge_details<F, D>(
     state: &SessionState,
-    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut D,
 ) -> RouterResult<()>
@@ -2371,20 +2386,14 @@ where
             payment_data.set_surcharge_details(surcharge_details);
         }
         Some(domain_payments::SurchargeMode::External) => {
-            // MIT off-session computes inline; CIT reads what /eligibility cached in Redis.
-            let external_surcharge_details =
-                if payment_data.get_payment_intent().off_session == Some(true) {
-                    compute_mit_external_surcharge(state, processor, business_profile, payment_data)
-                        .await
-                } else {
-                    resolve_external_surcharge(state, payment_data)
-                        .await
-                        .map(|cached| common_types::payments::ExternalSurchargeDetails {
-                            external_surcharge_id: cached.external_surcharge_id,
-                            external_surcharge_amount: cached.surcharge_amount,
-                            sale_notified: false,
-                        })
-                };
+            // CIT-only fallback: MIT is handled entirely by preload_external_surcharge_for_routing.
+            let external_surcharge_details = resolve_external_surcharge(state, payment_data)
+                .await
+                .map(|cached| common_types::payments::ExternalSurchargeDetails {
+                    external_surcharge_id: cached.external_surcharge_id,
+                    external_surcharge_amount: cached.surcharge_amount,
+                    sale_notified: false,
+                });
             let mut attempt = payment_data.get_payment_attempt().clone();
             attempt.net_amount.set_external_surcharge_amount(
                 external_surcharge_details
@@ -6031,14 +6040,8 @@ where
         )
         .await?;
 
-    // Unified external-surcharge population for CIT and MIT.
-    populate_surcharge_details(
-        state,
-        platform.get_processor(),
-        business_profile,
-        payment_data,
-    )
-    .await?;
+    // CIT external-surcharge fallback (MIT is handled by preload_external_surcharge_for_routing).
+    populate_surcharge_details(state, business_profile, payment_data).await?;
 
     let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
         state,
