@@ -9,10 +9,38 @@ import * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 // PayJustNow redirect-dependent tests are skipped because the PayJustNow sandbox
-// returns 403 Forbidden on confirm-payment when redirect URLs contain localhost.
-// This is an environment limitation — the sandbox requires a public HTTPS return URL
-// (e.g. ngrok tunnel). When the environment is fixed, remove the this.skip() calls
-// in the three "PayJustNow PayLater" context before-hooks to re-enable the tests.
+// returns 403 Forbidden on confirm-payment when the server's return_url is a
+// localhost HTTP URL.
+//
+// Tracking issue: PAYA-1 — "Add PayJustNow PayLater connector"
+//
+// Root cause:
+//   The PayJustNow sandbox validates the return_url passed in the confirm request.
+//   When the Hyperswitch server runs locally (base_url = http://localhost:8080),
+//   the return_url is http://localhost:8080/payments/completion, which the sandbox
+//   rejects with 403 Forbidden. The sandbox requires a publicly accessible HTTPS URL.
+//
+// Expected URL format:
+//   https://<subdomain>.ngrok-free.app/payments/completion
+//   (or any public HTTPS endpoint that forwards to the local server on port 8080)
+//
+// Infrastructure fix plan:
+//   1. Start an ngrok tunnel (or similar) targeting localhost:8080:
+//        ngrok http 8080
+//   2. Update development.toml [multitenancy.tenants.public] base_url to the
+//      ngrok HTTPS URL so the server constructs a public return_url.
+//   3. Restart the Hyperswitch server.
+//   4. Remove the this.skip() calls in the three "PayJustNow PayLater" context
+//      before-hooks below to re-enable the tests.
+//
+// Sandbox env details:
+//   - Connector: payjustnow (BodyKey auth: api_key = merchant_account_id,
+//     key1 = signing_key)
+//   - Currency: ZAR, Country: ZA
+//   - Redirect flow: confirm → PayJustNow checkout page →
+//     enter email customer@payjustnow.co.za + password "password" →
+//     click "Complete Payment" → redirect back to return_url
+//
 // The test code is preserved below for easy re-enablement.
 
 describe("PayLater tests", () => {
@@ -904,7 +932,8 @@ describe("PayLater tests", () => {
   context("PayJustNow PayLater - Create and Confirm flow test", () => {
     before("skip PayJustNow redirect-dependent tests", function () {
       // Skipped: PayJustNow sandbox returns 403 on confirm with localhost redirect URLs.
-      // Requires ngrok or public HTTPS URL. Re-enable when environment is fixed.
+      // Tracking issue: PAYA-1. See top-of-file comment for full details
+      // (expected HTTPS URL format, infrastructure fix plan, sandbox env details).
       this.skip();
     });
 
@@ -985,7 +1014,8 @@ describe("PayLater tests", () => {
   context("PayJustNow PayLater - Full Refund flow test", () => {
     before("skip PayJustNow redirect-dependent tests", function () {
       // Skipped: PayJustNow sandbox returns 403 on confirm with localhost redirect URLs.
-      // Requires ngrok or public HTTPS URL. Re-enable when environment is fixed.
+      // Tracking issue: PAYA-1. See top-of-file comment for full details
+      // (expected HTTPS URL format, infrastructure fix plan, sandbox env details).
       this.skip();
     });
 
@@ -1094,7 +1124,8 @@ describe("PayLater tests", () => {
   context("PayJustNow PayLater - Partial Refund flow test", () => {
     before("skip PayJustNow redirect-dependent tests", function () {
       // Skipped: PayJustNow sandbox returns 403 on confirm with localhost redirect URLs.
-      // Requires ngrok or public HTTPS URL. Re-enable when environment is fixed.
+      // Tracking issue: PAYA-1. See top-of-file comment for full details
+      // (expected HTTPS URL format, infrastructure fix plan, sandbox env details).
       this.skip();
     });
 
