@@ -1185,7 +1185,17 @@ impl PaymentUpdate {
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
-        let intent_status = payment_data.payment_intent.status;
+        let intent_status = match (
+            payment_data.payment_intent.status,
+            payment_data.payment_method_data.as_ref(),
+            payment_data.token.as_ref(),
+        ) {
+            (storage_enums::IntentStatus::RequiresPaymentMethod, Some(_), _)
+            | (storage_enums::IntentStatus::RequiresPaymentMethod, _, Some(_)) => {
+                storage_enums::IntentStatus::RequiresConfirmation
+            }
+            (status, _, _) => status,
+        };
 
         let (shipping_address, billing_address) = (
             payment_data.payment_intent.shipping_address_id.clone(),

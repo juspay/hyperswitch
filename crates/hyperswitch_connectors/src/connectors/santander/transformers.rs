@@ -45,18 +45,17 @@ use crate::{
             JourneyData, Periodicidade, RecurrenceActivation, RecurrenceCalendar, RecurrenceDebtor,
             RecurrenceLink, RecurrenceValue, RetryPolicy, SantanderAccountType,
             SantanderAuthRequest, SantanderAuthType, SantanderBoletoCancelOperation,
-            SantanderBoletoCancelRequest, SantanderBoletoPaymentRequest,
-            SantanderBoletoUpdateRequest, SantanderDebtor, SantanderDiscountType,
-            SantanderGrantType, SantanderMetadataObject, SantanderPaymentRequest,
-            SantanderPaymentsCancelRequest, SantanderPixAutomaticCalendarRequest,
-            SantanderPixAutomaticDestinationRequest, SantanderPixAutomaticSolicitationRequest,
-            SantanderPixAutomaticoCobrCalendario, SantanderPixAutomaticoCobrRequest,
-            SantanderPixAutomaticoCobrValor, SantanderPixAutomaticoRecebedor,
-            SantanderPixCancelRequest, SantanderPixDueDateCalendarRequest,
-            SantanderPixImmediateCalendarRequest, SantanderPixQRPaymentRequest,
-            SantanderPixRequestCalendar, SantanderPostProcessingStepRequest, SantanderProtestType,
-            SantanderRefundRequest, SantanderRouterData, SantanderSetupMandateRequest,
-            SantanderValue, SantanderValueType,
+            SantanderBoletoCancelRequest, SantanderBoletoPaymentRequest, SantanderDebtor,
+            SantanderDiscountType, SantanderGrantType, SantanderMetadataObject,
+            SantanderPaymentRequest, SantanderPaymentsCancelRequest,
+            SantanderPixAutomaticCalendarRequest, SantanderPixAutomaticDestinationRequest,
+            SantanderPixAutomaticSolicitationRequest, SantanderPixAutomaticoCobrCalendario,
+            SantanderPixAutomaticoCobrRequest, SantanderPixAutomaticoCobrValor,
+            SantanderPixAutomaticoRecebedor, SantanderPixCancelRequest,
+            SantanderPixDueDateCalendarRequest, SantanderPixImmediateCalendarRequest,
+            SantanderPixQRPaymentRequest, SantanderPixRequestCalendar,
+            SantanderPostProcessingStepRequest, SantanderProtestType, SantanderRefundRequest,
+            SantanderRouterData, SantanderSetupMandateRequest, SantanderValue, SantanderValueType,
         },
         responses::{
             Beneficiary, Key, Payer, RecurrenceStatus, SanatanderAccessTokenResponse,
@@ -266,31 +265,6 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for SantanderMetadata
                 config: "metadata",
             })?;
         Ok(metadata)
-    }
-}
-
-impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoUpdateRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PaymentsUpdatePostConfirmRouterData) -> Result<Self, Self::Error> {
-        let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
-
-        let boleto_mca_metadata = santander_mca_metadata
-            .boleto
-            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
-
-        let due_date = Some(format_as_date_only(
-            item.request
-                .feature_metadata
-                .clone()
-                .and_then(|data| data.boleto_additional_details)
-                .and_then(|boleto_details| boleto_details.due_date),
-        )?);
-
-        Ok(Self {
-            covenant_code: boleto_mca_metadata.covenant_code,
-            bank_number: item.connector_request_reference_id.clone(),
-            due_date,
-        })
     }
 }
 
