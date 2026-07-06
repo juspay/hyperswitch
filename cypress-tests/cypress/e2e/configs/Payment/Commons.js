@@ -4497,16 +4497,14 @@ export const connectorDetails = {
       },
       Response: blockedPaymentErrorBodyForBinUnavailable,
     }),
-    Surcharge: getCustomExchange({
+    SurchargeDSL: getCustomExchange({
       Request: {
         currency: "USD",
-        surcharge_details: {
-          surcharge_amount: 500,
-          tax_amount: 50,
-        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
       },
     }),
-    SurchargeConfirm: getCustomExchange({
+    SurchargeDSLConfirm: getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_data: {
