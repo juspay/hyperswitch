@@ -923,22 +923,21 @@ impl
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
             currency_code: item.router_data.request.currency,
-            payment: match item.router_data.request.payment_method_data {
+            payment: Some(match item.router_data.request.payment_method_data {
                 PaymentMethodData::Card(ref ccard) => {
-                    Some(PaymentDetails::CreditCard(CreditCardDetails {
+                    PaymentDetails::CreditCard(CreditCardDetails {
                         card_number: (*ccard.card_number).clone(),
                         expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
                         card_code: None,
-                    }))
+                    })
                 }
                 PaymentMethodData::CardDetailsForNetworkTransactionId(ref card_details) => {
-                    Some(PaymentDetails::CreditCard(CreditCardDetails {
+                    PaymentDetails::CreditCard(CreditCardDetails {
                         card_number: (*card_details.card_number).clone(),
                         expiration_date: card_details.get_expiry_date_as_yyyymm("-"),
                         card_code: None,
-                    }))
+                    })
                 }
-                PaymentMethodData::MandatePayment => None,
                 PaymentMethodData::CardRedirect(_)
                 | PaymentMethodData::Wallet(_)
                 | PaymentMethodData::PayLater(_)
@@ -946,6 +945,7 @@ impl
                 | PaymentMethodData::BankDebit(_)
                 | PaymentMethodData::BankTransfer(_)
                 | PaymentMethodData::Crypto(_)
+                | PaymentMethodData::MandatePayment
                 | PaymentMethodData::Reward
                 | PaymentMethodData::RealTimePayment(_)
                 | PaymentMethodData::MobilePayment(_)
@@ -964,7 +964,7 @@ impl
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                     ))?
                 }
-            },
+            }),
             profile: None,
             order: Order {
                 invoice_number: match &item.router_data.request.merchant_order_reference_id {
