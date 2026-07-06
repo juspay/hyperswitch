@@ -43,6 +43,7 @@ use hyperswitch_domain_models::{
         PaymentIntent,
     },
 };
+#[cfg(feature = "v2")]
 use redis_interface::HsetnxReply;
 #[cfg(feature = "olap")]
 use router_env::logger;
@@ -50,6 +51,8 @@ use router_env::{instrument, tracing};
 
 #[cfg(feature = "olap")]
 use crate::connection;
+#[cfg(feature = "v1")]
+use crate::kv_router_store::InsertResourceParams;
 use crate::{
     diesel_error_to_data_error,
     errors::{RedisErrorExt, StorageError},
@@ -92,47 +95,35 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             }
 
             MerchantStorageScheme::RedisKv => {
-                let key_str = key.to_string();
+                let conn = pg_connection_write(self).await?;
                 let new_payment_intent = payment_intent
-                    .clone()
                     .construct_new()
                     .await
                     .change_context(StorageError::EncryptionError)?;
-
-                let diesel_payment_intent = payment_intent
-                    .clone()
-                    .convert()
-                    .await
-                    .change_context(StorageError::EncryptionError)?;
+                let diesel_payment_intent = new_payment_intent.clone().into();
 
                 let mut query_gen_conn = pg_connection_write(self).await?;
                 let drainer_query = new_payment_intent
+                    .clone()
                     .generate_drainer_insert_query(&mut query_gen_conn)
                     .await
                     .change_context(StorageError::KVError)
                     .attach_printable("Failed to generate payment intent insert query")?;
 
-                match Box::pin(kv_wrapper::<DieselPaymentIntent, _, _>(
-                    self,
-                    KvOperation::<DieselPaymentIntent>::HSetNx(
-                        &field,
-                        &diesel_payment_intent,
+                Box::pin(self.insert_resource(
+                    merchant_key_store,
+                    storage_scheme,
+                    new_payment_intent.insert(&conn),
+                    diesel_payment_intent,
+                    InsertResourceParams {
                         drainer_query,
-                    ),
-                    key,
+                        reverse_lookups: vec![],
+                        key,
+                        identifier: field,
+                        resource_type: "payment_intent",
+                    },
                 ))
                 .await
-                .map_err(|err| err.to_redis_failed_response(&key_str))?
-                .try_into_hsetnx()
-                {
-                    Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
-                        entity: "payment_intent",
-                        key: Some(key_str),
-                    }
-                    .into()),
-                    Ok(HsetnxReply::KeySet) => Ok(payment_intent),
-                    Err(error) => Err(error.change_context(StorageError::KVError)),
-                }
             }
         }
     }
