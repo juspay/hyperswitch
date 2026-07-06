@@ -426,6 +426,10 @@ diesel::table! {
         date_created -> Timestamp,
         last_updated -> Nullable<Timestamp>,
         last_updated_provider -> Nullable<Text>,
+        funding_source -> Nullable<Text>,
+        pan_or_token -> Nullable<Text>,
+        virtual_card -> Nullable<Bool>,
+        gambling_blocked -> Nullable<Bool>,
     }
 }
 
