@@ -181,28 +181,29 @@ export const connectorDetails = {
         name: "surcharge_config_rate",
         merchant_surcharge_configs: {},
         algorithm: {
-          type: "rate",
-          rate: 2.5,
           defaultSelection: {
-            surcharge_type: "rate",
-            rate: 2.5,
+            surcharge_details: {
+              surcharge: { type: "rate", value: { percentage: 2.5 } },
+            },
           },
           rules: [],
+          metadata: {},
         },
       },
       Response: {
         status: 200,
         body: {
           name: "surcharge_config_rate",
-          merchant_surcharge_configs: {},
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
           algorithm: {
-            type: "rate",
-            rate: 2.5,
             defaultSelection: {
-              surcharge_type: "rate",
-              rate: 2.5,
+              surcharge_details: {
+                surcharge: { type: "rate", value: { percentage: 2.5 } },
+                tax_on_surcharge: null,
+              },
             },
             rules: [],
+            metadata: {},
           },
         },
       },
@@ -213,15 +214,16 @@ export const connectorDetails = {
         status: 200,
         body: {
           name: "surcharge_config_rate",
-          merchant_surcharge_configs: {},
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
           algorithm: {
-            type: "rate",
-            rate: 2.5,
             defaultSelection: {
-              surcharge_type: "rate",
-              rate: 2.5,
+              surcharge_details: {
+                surcharge: { type: "rate", value: { percentage: 2.5 } },
+                tax_on_surcharge: null,
+              },
             },
             rules: [],
+            metadata: {},
           },
         },
       },
@@ -232,15 +234,16 @@ export const connectorDetails = {
         status: 200,
         body: {
           name: "surcharge_config_rate",
-          merchant_surcharge_configs: {},
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
           algorithm: {
-            type: "rate",
-            rate: 2.5,
             defaultSelection: {
-              surcharge_type: "rate",
-              rate: 2.5,
+              surcharge_details: {
+                surcharge: { type: "rate", value: { percentage: 2.5 } },
+                tax_on_surcharge: null,
+              },
             },
             rules: [],
+            metadata: {},
           },
         },
       },
