@@ -4,6 +4,31 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.06.0
+
+### Features
+
+- **analytics:** Surface connector-event dimensions + ucs_api_events read API ([#12899](https://github.com/juspay/hyperswitch/pull/12899)) ([`c2b8d14`](https://github.com/juspay/hyperswitch/commit/c2b8d14d161387f332a2b7bac6c27c8c94a34fd0))
+- **core:** Support for surcharge_amount based routing ([#13140](https://github.com/juspay/hyperswitch/pull/13140)) ([`6cab32f`](https://github.com/juspay/hyperswitch/commit/6cab32ff7c09e701baf4520f736cbbe29389dbdf))
+
+### Bug Fixes
+
+- **connector:**
+  - [Adyen] handle empty webhook requests ([#13155](https://github.com/juspay/hyperswitch/pull/13155)) ([`f9cc035`](https://github.com/juspay/hyperswitch/commit/f9cc035b3fa948b86abce0c4cc768a96f8902de6))
+  - [Adyen] Handle non-JSON error responses gracefully ([#13161](https://github.com/juspay/hyperswitch/pull/13161)) ([`dce48cd`](https://github.com/juspay/hyperswitch/commit/dce48cdf8ce29ac71c6a78e621a6da3cb5dd8450))
+- **payments:** Handle reward surcharge lookup ([#13120](https://github.com/juspay/hyperswitch/pull/13120)) ([`e3875de`](https://github.com/juspay/hyperswitch/commit/e3875de47d4e734508f93daca1f1204f187e3948))
+- Add adyen management url for prod ([#13144](https://github.com/juspay/hyperswitch/pull/13144)) ([`0dd6608`](https://github.com/juspay/hyperswitch/commit/0dd6608802f1b88561a56dabba414a794f22d268))
+
+### Testing
+
+- **cypress:**
+  - Add PayJustNow PayLater coverage for payjustnow ([#12243](https://github.com/juspay/hyperswitch/pull/12243)) ([`057bb05`](https://github.com/juspay/hyperswitch/commit/057bb054f2f29b239a4887ecfdc306f018102b32))
+  - Add bank debit coverage for stripe ([#12377](https://github.com/juspay/hyperswitch/pull/12377)) ([`db02b4f`](https://github.com/juspay/hyperswitch/commit/db02b4f06a5307a0b7e6f2c73cc20b4e3c5b798d))
+
+**Full Changelog:** [`2026.07.03.0...2026.07.06.0`](https://github.com/juspay/hyperswitch/compare/2026.07.03.0...2026.07.06.0)
+
+- - -
+
 ## 2026.07.03.0
 
 ### Features
