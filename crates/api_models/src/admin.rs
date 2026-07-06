@@ -3530,7 +3530,15 @@ impl BusinessPaymentLinkConfig {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    PartialEq,
+    ToSchema,
+    router_derive::ValidateXSSOrSQLi,
+)]
 pub struct PaymentLinkConfigRequest {
     /// custom theme for the payment link
     #[schema(value_type = Option<String>, max_length = 255, example = "#4E6ADD")]
@@ -3604,34 +3612,8 @@ pub struct PaymentLinkConfigRequest {
 
 impl PaymentLinkConfigRequest {
     pub fn validate(&self) -> Result<(), String> {
-        if let Some(ref seller_name) = self.seller_name {
-            if common_utils::validation::contains_potential_xss_or_sqli(seller_name) {
-                return Err("seller_name contains potential XSS or SQLi attack vectors".to_string());
-            }
-        }
-        if let Some(ref button_text) = self.payment_button_text {
-            if common_utils::validation::contains_potential_xss_or_sqli(button_text) {
-                return Err(
-                    "payment_button_text contains potential XSS or SQLi attack vectors".to_string(),
-                );
-            }
-        }
-        if let Some(ref card_terms) = self.custom_message_for_card_terms {
-            if common_utils::validation::contains_potential_xss_or_sqli(card_terms) {
-                return Err(
-                    "custom_message_for_card_terms contains potential XSS or SQLi attack vectors"
-                        .to_string(),
-                );
-            }
-        }
-        if let Some(ref header_text) = self.payment_form_header_text {
-            if common_utils::validation::contains_potential_xss_or_sqli(header_text) {
-                return Err(
-                    "payment_form_header_text contains potential XSS or SQLi attack vectors"
-                        .to_string(),
-                );
-            }
-        }
+        self.validate_xss_or_sqli()?;
+
         if let Some(custom_message) = self.custom_message_for_payment_method_types.as_ref() {
             custom_message.validate().map_err(|e| e.to_string())?;
         }
