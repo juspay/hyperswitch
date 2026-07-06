@@ -606,7 +606,6 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "trustpay",
     ],
-    IMPLICIT_CUSTOMER_UPDATE: ["bankofamerica"],
     CARD_TESTING_GUARD: ["bankofamerica"],
     CLEAR_PAN_RETRY: ["bankofamerica"],
     L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],

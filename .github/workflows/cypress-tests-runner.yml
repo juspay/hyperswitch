@@ -375,7 +375,6 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
           # Apply seeded Superposition config quickly in CI (default is 300s).
           ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
-          ROUTER__IMPLICIT_CUSTOMER_UPDATE: "true"
           SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
         run: |
           # Start the server in the background
@@ -401,6 +400,9 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
+          CYPRESS_SUPERPOSITION_URL: "http://localhost:8081"
+          CYPRESS_SUPERPOSITION_WORKSPACE_ID: "dev"
+          CYPRESS_SUPERPOSITION_ORG_ID: "localorg"
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: "${{ matrix.batch.connectors }}"
           PLATFORM_CONNECTORS: "${{ matrix.batch.platform_connectors }}"

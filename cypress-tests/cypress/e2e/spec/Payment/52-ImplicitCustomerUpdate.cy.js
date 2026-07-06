@@ -5,7 +5,36 @@ import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
+const SUPERPOSITION_URL =
+  Cypress.env("SUPERPOSITION_URL") || "http://localhost:8081";
+const SUPERPOSITION_WORKSPACE_ID =
+  Cypress.env("SUPERPOSITION_WORKSPACE_ID") || "dev";
+const SUPERPOSITION_ORG_ID = Cypress.env("SUPERPOSITION_ORG_ID") || "localorg";
+// Router polls Superposition for config changes (ROUTER__SUPERPOSITION__POLLING_INTERVAL,
+// 10s in CI); give it time to pick up the toggle before/after this spec's tests run.
+const SUPERPOSITION_POLL_WAIT_MS = 12000;
+
+function setImplicitCustomerUpdate(value) {
+  return cy.request({
+    method: "PUT",
+    url: `${SUPERPOSITION_URL}/default-config/implicit_customer_update`,
+    headers: {
+      "x-org-id": SUPERPOSITION_ORG_ID,
+      "x-workspace": SUPERPOSITION_WORKSPACE_ID,
+    },
+    body: {
+      value,
+      change_reason: `cypress: set implicit_customer_update=${value} for ImplicitCustomerUpdate spec`,
+    },
+  });
+}
+
 describe("Card - Implicit Customer Update flow test", () => {
+  before("enable implicit_customer_update in Superposition", () => {
+    setImplicitCustomerUpdate(true);
+    cy.wait(SUPERPOSITION_POLL_WAIT_MS);
+  });
+
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
@@ -16,6 +45,11 @@ describe("Card - Implicit Customer Update flow test", () => {
     if (globalState && globalState.data) {
       cy.task("setGlobalState", globalState.data);
     }
+  });
+
+  after("restore implicit_customer_update to false in Superposition", () => {
+    setImplicitCustomerUpdate(false);
+    cy.wait(SUPERPOSITION_POLL_WAIT_MS);
   });
 
   context(
