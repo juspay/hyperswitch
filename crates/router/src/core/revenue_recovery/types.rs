@@ -1538,7 +1538,7 @@ pub fn construct_invoice_record_back_router_data(
         flow: PhantomData::<router_flow_types::InvoiceRecordBack>,
         tenant_id: state.tenant.tenant_id.clone(),
         resource_common_data: flow_common_types::InvoiceRecordBackData {
-            connector_meta_data: None,
+            connector_meta_data: billing_mca.metadata.clone(),
         },
         connector_auth_type: auth_type,
         request: revenue_recovery_request::InvoiceRecordBackRequest {
