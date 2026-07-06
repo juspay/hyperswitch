@@ -837,6 +837,7 @@ export const connectorDetails = {
     },
     SurchargeDSL: {
       Request: {
+        amount: 10000,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -864,6 +865,11 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           connector: "authorizedotnet",
+          surcharge_details: {
+            surcharge_amount: 250,
+            tax_amount: 0,
+          },
+          net_amount: 10250,
         },
       },
     },
