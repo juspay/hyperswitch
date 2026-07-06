@@ -490,6 +490,7 @@ export const CONNECTOR_LISTS = {
       "billwerk",
       "bluesnap",
       "braintree",
+      "calida",
       "cashtocode",
       "facilitapay",
       "fiserv",
@@ -500,6 +501,7 @@ export const CONNECTOR_LISTS = {
       "jpmorgan",
       "loonio",
       "nexinets",
+      "nmi",
       "noon",
       "novalnet",
       "payload",
@@ -514,6 +516,7 @@ export const CONNECTOR_LISTS = {
     ],
     MANDATE_ID_TEST: [
       "airwallex",
+      "calida",
       "payload",
       "gigadat",
       "loonio",
