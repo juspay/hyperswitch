@@ -86,6 +86,10 @@ pub async fn update_card_info(
             country_code: card_info_request.country_code,
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: card_info_request.last_updated_provider,
+            funding_source: card_info_request.funding_source,
+            pan_or_token: card_info_request.pan_or_token,
+            virtual_card: card_info_request.virtual_card,
+            gambling_blocked: card_info_request.gambling_blocked,
         },
     )
     .await
@@ -217,6 +221,10 @@ impl<'a> CardInfoMigrateExecutor<'a> {
                 country_code: self.record.country_code.clone(),
                 last_updated: Some(common_utils::date_time::now()),
                 last_updated_provider: self.record.last_updated_provider.clone(),
+                funding_source: self.record.funding_source.clone(),
+                pan_or_token: self.record.pan_or_token.clone(),
+                virtual_card: self.record.virtual_card,
+                gambling_blocked: self.record.gambling_blocked,
             },
         )
         .await
@@ -296,6 +304,10 @@ impl CardInfoBuilder<CardInfoResponse> {
                 card_type: card_info.card_type,
                 card_sub_type: card_info.card_subtype,
                 card_issuing_country: card_info.card_issuing_country,
+                funding_source: card_info.funding_source,
+                pan_or_token: card_info.pan_or_token,
+                virtual_card: card_info.virtual_card,
+                gambling_blocked: card_info.gambling_blocked,
             },
             None => cards_info_api_types::CardInfoMigrateResponseRecord {
                 card_iin: None,
@@ -304,6 +316,10 @@ impl CardInfoBuilder<CardInfoResponse> {
                 card_type: None,
                 card_sub_type: None,
                 card_issuing_country: None,
+                funding_source: None,
+                pan_or_token: None,
+                virtual_card: None,
+                gambling_blocked: None,
             },
         }
     }

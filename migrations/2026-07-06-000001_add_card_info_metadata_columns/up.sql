@@ -1,0 +1,5 @@
+ALTER TABLE cards_info
+ADD COLUMN IF NOT EXISTS funding_source TEXT,
+ADD COLUMN IF NOT EXISTS pan_or_token TEXT,
+ADD COLUMN IF NOT EXISTS virtual_card BOOLEAN,
+ADD COLUMN IF NOT EXISTS gambling_blocked BOOLEAN;

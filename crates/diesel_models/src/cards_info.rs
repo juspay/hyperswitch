@@ -27,6 +27,10 @@ pub struct CardInfo {
     pub date_created: PrimitiveDateTime,
     pub last_updated: Option<PrimitiveDateTime>,
     pub last_updated_provider: Option<String>,
+    pub funding_source: Option<String>,
+    pub pan_or_token: Option<String>,
+    pub virtual_card: Option<bool>,
+    pub gambling_blocked: Option<bool>,
 }
 
 #[derive(
@@ -44,4 +48,8 @@ pub struct UpdateCardInfo {
     pub country_code: Option<String>,
     pub last_updated: Option<PrimitiveDateTime>,
     pub last_updated_provider: Option<String>,
+    pub funding_source: Option<String>,
+    pub pan_or_token: Option<String>,
+    pub virtual_card: Option<bool>,
+    pub gambling_blocked: Option<bool>,
 }

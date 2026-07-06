@@ -31,6 +31,14 @@ pub struct CardInfoResponse {
     pub card_sub_type: Option<String>,
     #[schema(example = "INDIA")]
     pub card_issuing_country: Option<String>,
+    #[schema(example = "CREDIT")]
+    pub funding_source: Option<String>,
+    #[schema(example = "PAN")]
+    pub pan_or_token: Option<String>,
+    #[schema(example = false)]
+    pub virtual_card: Option<bool>,
+    #[schema(example = false)]
+    pub gambling_blocked: Option<bool>,
 }
 
 #[derive(serde::Serialize, Debug, ToSchema)]
@@ -41,6 +49,10 @@ pub struct CardInfoMigrateResponseRecord {
     pub card_type: Option<String>,
     pub card_sub_type: Option<String>,
     pub card_issuing_country: Option<String>,
+    pub funding_source: Option<String>,
+    pub pan_or_token: Option<String>,
+    pub virtual_card: Option<bool>,
+    pub gambling_blocked: Option<bool>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -55,6 +67,10 @@ pub struct CardInfoCreateRequest {
     pub bank_code: Option<String>,
     pub country_code: Option<String>,
     pub last_updated_provider: Option<String>,
+    pub funding_source: Option<String>,
+    pub pan_or_token: Option<String>,
+    pub virtual_card: Option<bool>,
+    pub gambling_blocked: Option<bool>,
 }
 
 impl ApiEventMetric for CardInfoCreateRequest {}
@@ -71,6 +87,10 @@ pub struct CardInfoUpdateRequest {
     pub bank_code: Option<String>,
     pub country_code: Option<String>,
     pub last_updated_provider: Option<String>,
+    pub funding_source: Option<String>,
+    pub pan_or_token: Option<String>,
+    pub virtual_card: Option<bool>,
+    pub gambling_blocked: Option<bool>,
     pub line_number: Option<i64>,
 }
 
@@ -91,6 +111,10 @@ pub struct CardInfoMigrationResponse {
     pub card_type: Option<String>,
     pub card_sub_type: Option<String>,
     pub card_issuing_country: Option<String>,
+    pub funding_source: Option<String>,
+    pub pan_or_token: Option<String>,
+    pub virtual_card: Option<bool>,
+    pub gambling_blocked: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub migration_error: Option<String>,
     pub migration_status: CardInfoMigrationStatus,
@@ -113,6 +137,10 @@ impl From<CardInfoMigrationResponseType> for CardInfoMigrationResponse {
                 card_type: res.card_type,
                 card_sub_type: res.card_sub_type,
                 card_issuing_country: res.card_issuing_country,
+                funding_source: res.funding_source,
+                pan_or_token: res.pan_or_token,
+                virtual_card: res.virtual_card,
+                gambling_blocked: res.gambling_blocked,
                 migration_status: CardInfoMigrationStatus::Success,
                 migration_error: None,
             },
