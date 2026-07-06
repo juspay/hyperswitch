@@ -3659,7 +3659,15 @@ pub struct PaymentLinkBackgroundImageConfig {
     pub size: Option<api_enums::ElementSize>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
+#[derive(
+    Clone,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    ToSchema,
+    router_derive::ValidateXSSOrSQLi,
+)]
 pub struct PaymentLinkConfig {
     /// custom theme for the payment link
     pub theme: String,

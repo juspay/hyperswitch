@@ -492,8 +492,11 @@ pub fn get_js_script(payment_details: &PaymentLinkData) -> RouterResult<String> 
 pub fn get_payment_link_css_script(
     payment_link_config: &PaymentLinkConfig,
 ) -> RouterResult<String> {
-    payment_link::get_css_script(payment_link_config)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+    payment_link::get_css_script(payment_link_config).map_err(|err| {
+        error_stack::report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: err.to_string(),
+        })
+    })
 }
 
 pub fn get_meta_tags_html(payment_details: &api_models::payments::PaymentLinkDetails) -> String {
@@ -754,6 +757,13 @@ pub fn get_payment_link_config_based_on_priority(
             color_icon_card_cvc_error,
             show_merchant_name,
         };
+
+    payment_link_config.validate_xss_or_sqli().map_err(|err| {
+        error_stack::report!(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "payment_link_config",
+        })
+        .attach_printable(err)
+    })?;
 
     Ok((payment_link_config, domain_name))
 }
