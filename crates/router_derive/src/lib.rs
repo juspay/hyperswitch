@@ -765,7 +765,44 @@ pub fn derive_to_encryption_attr(input: proc_macro::TokenStream) -> proc_macro::
         .into()
 }
 
-/// Derives validation functionality for structs with string-based fields that have
+/// Attribute macro that generates `apply_changeset` on the annotated struct.
+///
+/// Place `#[apply_changeset(target = TargetType)]` on an update struct.
+/// The macro re-emits the struct unchanged and generates:
+///
+/// ```ignore
+/// impl UpdateStruct {
+///     pub fn apply_changeset(self, mut target: TargetType) -> TargetType { ... }
+/// }
+/// ```
+///
+/// For every field:
+/// - `Option<T>` fields use a helper trait that writes `Some(v)` into the target
+///   field when the update value is `Some`, leaving it untouched on `None`.
+/// - Non-`Option` fields are directly assigned (`target.field = self.field`).
+///
+/// # Example
+///
+/// ```ignore
+/// use router_derive::apply_changeset;
+///
+/// #[apply_changeset(target = PaymentAttempt)]
+/// struct PaymentAttemptUpdateInternal {
+///     status: Option<AttemptStatus>,
+///     amount: Option<MinorUnit>,
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn apply_changeset(
+    args: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let args = proc_macro2::TokenStream::from(args);
+    let input = proc_macro2::TokenStream::from(input);
+    macros::apply_changeset_attribute(args, input)
+        .unwrap_or_else(|error| error.to_compile_error())
+        .into()
+}
 /// schema attributes specifying constraints like minimum and maximum lengths.
 ///
 /// This macro generates a `validate()` method that checks if string based fields
@@ -790,10 +827,10 @@ pub fn derive_to_encryption_attr(input: proc_macro::TokenStream) -> proc_macro::
 /// pub struct PaymentRequest {
 ///     #[schema(min_length = 10, max_length = 255)]
 ///     pub description: String,
-///     
+///
 ///     #[schema(example = "https://example.com/return", max_length = 255)]
 ///     pub return_url: Option<Url>,
-///     
+///
 ///     // Field without constraints
 ///     pub amount: u64,
 /// }

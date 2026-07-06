@@ -800,7 +800,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .await?
                 .inspect(|cust| {
-                    payment_data.payment_intent.customer_id = Some(cust.customer_id.clone());
+                    payment_data.payment_intent.customer_id = Some(cust.get_id().clone());
                 });
                 let op: PaymentCreateOperation<'a, F> = Box::new(self);
                 Ok((op, customer))
@@ -1939,7 +1939,7 @@ impl PaymentCreate {
             connector_id: None,
             allowed_payment_method_types,
             connector_metadata,
-            feature_metadata,
+            feature_metadata: feature_metadata.map(Secret::new),
             attempt_count: 1,
             profile_id: Some(profile_id),
             merchant_decision: None,

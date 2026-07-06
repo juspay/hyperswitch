@@ -57,7 +57,11 @@ pub struct UnifiedConnectorServiceClientConfig {
     pub base_url: Url,
 
     /// Contains the connection timeout duration in seconds
-    pub connection_timeout: u64,
+    pub connection_timeout: UcsConnectionTimeoutInSeconds,
+
+    /// Per-RPC timeout (seconds) for calls to the unified connector service.
+    #[serde(default)]
+    pub request_timeout: UcsRequestTimeoutInSeconds,
 
     /// Set of external services/connectors available for the unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
@@ -66,6 +70,34 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Set of connectors for which psync is disabled in unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
+}
+
+/// Connection timeout for the Unified Connector Service in seconds.
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+pub struct UcsConnectionTimeoutInSeconds(u64);
+
+impl UcsConnectionTimeoutInSeconds {
+    /// Return the timeout as a [`Duration`].
+    pub fn as_duration(self) -> Duration {
+        Duration::from_secs(self.0)
+    }
+}
+
+/// Per-RPC request timeout for the Unified Connector Service in seconds.
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+pub struct UcsRequestTimeoutInSeconds(u64);
+
+impl Default for UcsRequestTimeoutInSeconds {
+    fn default() -> Self {
+        Self(consts::DEFAULT_UCS_REQUEST_TIMEOUT_SECS)
+    }
+}
+
+impl UcsRequestTimeoutInSeconds {
+    /// Return the timeout as a [`Duration`].
+    pub fn as_duration(self) -> Duration {
+        Duration::from_secs(self.0)
+    }
 }
 
 /// Contains the Connector Auth Type and related authentication data.
@@ -149,17 +181,14 @@ pub struct HyperswitchVaultMetadata {
     pub vault_auth_data: VaultConnectorAuth,
 }
 
-/// Builds a gRPC client with timeout handling
+/// Builds a gRPC client. `$connection_timeout` bounds connect; `$request_timeout` bounds each RPC.
 #[macro_export]
 macro_rules! build_grpc_client {
-    ($client:ty, $name:expr, $uri:expr, $timeout:expr) => {{
-        match timeout(
-            Duration::from_secs($timeout),
-            <$client>::connect($uri.clone()),
-        )
-        .await
-        {
-            Ok(Ok(client)) => client,
+    ($client:ty, $name:expr, $uri:expr, $connection_timeout:expr, $request_timeout:expr) => {{
+        let endpoint = tonic::transport::Channel::builder($uri.clone())
+            .timeout($request_timeout.as_duration());
+        match timeout($connection_timeout.as_duration(), endpoint.connect()).await {
+            Ok(Ok(channel)) => <$client>::new(channel),
             Ok(Err(err)) => {
                 router_env::logger::error!(
                     "Failed to connect to Unified Connector Service for {}: {:?}",
@@ -206,7 +235,8 @@ impl UnifiedConnectorServiceClient {
                     }
                 };
 
-                let timeout = unified_connector_service_client_config.connection_timeout;
+                let connection_timeout = unified_connector_service_client_config.connection_timeout;
+                let request_timeout = unified_connector_service_client_config.request_timeout;
 
                 let payment_service_client = build_grpc_client!(
                     payments_grpc::payment_service_client::PaymentServiceClient<
@@ -214,7 +244,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "payment_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let refund_service_client = build_grpc_client!(
@@ -223,7 +254,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "refund_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let event_service_client = build_grpc_client!(
@@ -232,7 +264,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "event_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let recurring_payment_service_client = build_grpc_client!(
@@ -241,7 +274,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "recurring_payment_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let dispute_service_client = build_grpc_client!(
@@ -250,7 +284,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "dispute_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let payment_method_service_client = build_grpc_client!(
@@ -259,7 +294,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "payment_method_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let customer_service_client = build_grpc_client!(
@@ -268,21 +304,24 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "customer_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let merchant_authentication_service_client = build_grpc_client!(
                     payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<tonic::transport::Channel>,
                     "merchant_authentication_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let payment_method_authentication_service_client = build_grpc_client!(
                     payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
                     "payment_method_authentication_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let payout_service_client = build_grpc_client!(
@@ -291,7 +330,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "payout_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let surcharge_service_client = build_grpc_client!(
@@ -300,7 +340,8 @@ impl UnifiedConnectorServiceClient {
                     >,
                     "surcharge_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 logger::info!("Successfully connected to Unified Connector Service");
@@ -813,24 +854,26 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.recurring_payment_service_client
-            .clone()
-            .charge(request)
-            .await
-            .map_err(|error| {
-                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
-                    &error,
-                    &connector_name,
-                ))
-            })
-            .inspect_err(|error| {
-                logger::error!(
-                    grpc_error=?error,
-                    method="recurring_payment_charge",
-                    connector_name=?connector_name,
-                    "UCS recurring payment charge gRPC call failed"
-                )
-            })
+        Box::pin(
+            self.recurring_payment_service_client
+                .clone()
+                .charge(request),
+        )
+        .await
+        .map_err(|error| {
+            error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                &error,
+                &connector_name,
+            ))
+        })
+        .inspect_err(|error| {
+            logger::error!(
+                grpc_error=?error,
+                method="recurring_payment_charge",
+                connector_name=?connector_name,
+                "UCS recurring payment charge gRPC call failed"
+            )
+        })
     }
 
     /// Performs Payment Cancel/Void
@@ -1344,6 +1387,41 @@ impl UnifiedConnectorServiceClient {
                 )
             })
     }
+
+    /// Performs notify connector via the Event Service
+    pub async fn notify_connector(
+        &self,
+        notify_connector_request: payments_grpc::NotifyConnectorRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+        event_type: payments_grpc::NotifyEventType,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::NotifyConnectorResponse>>
+    {
+        let mut request = tonic::Request::new(notify_connector_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata = build_unified_connector_service_grpc_headers_for_notify_connector(
+            connector_auth_metadata,
+            grpc_headers,
+            event_type,
+        )?;
+
+        *request.metadata_mut() = metadata;
+
+        self.event_service_client
+            .clone()
+            .notify_connector(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::NotifyConnectorFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="notify_connector",
+                    connector_name=?connector_name,
+                    "UCS notify_connector gRPC call failed"
+                )
+            })
+    }
 }
 
 /// Build the gRPC Headers for Unified Connector Service Request
@@ -1552,6 +1630,52 @@ pub fn build_unified_connector_service_grpc_headers_for_surcharge(
         consts::UCS_HEADER_SURCHARGE_CONNECTOR,
         surcharge_connector_value,
     );
+
+    Ok(metadata)
+}
+
+/// Build gRPC headers for UCS notify requests.
+/// Build gRPC headers for UCS notify requests.
+/// Same as [`build_unified_connector_service_grpc_headers`] but uses
+/// `x-surcharge-connector` for surcharge events and `x-connector` for other events.
+pub fn build_unified_connector_service_grpc_headers_for_notify_connector(
+    meta: ConnectorAuthMetadata,
+    grpc_headers: GrpcHeadersUcs,
+    event_type: payments_grpc::NotifyEventType,
+) -> Result<MetadataMap, UnifiedConnectorServiceError> {
+    let mut metadata = build_unified_connector_service_grpc_headers(meta.clone(), grpc_headers)?;
+
+    // Remove the default connector header
+    metadata.remove(consts::UCS_HEADER_CONNECTOR);
+
+    // Choose header based on event type
+    let is_surcharge_event = matches!(
+        event_type,
+        payments_grpc::NotifyEventType::SurchargePaymentSucceeded
+            | payments_grpc::NotifyEventType::SurchargeRefundSucceeded
+    );
+
+    let connector_name = meta.connector_name.clone();
+    let connector_value = connector_name
+        .parse::<MetadataValue<_>>()
+        .map_err(|error| {
+            logger::error!(?error);
+            if is_surcharge_event {
+                UnifiedConnectorServiceError::HeaderInjectionFailed(
+                    consts::UCS_HEADER_SURCHARGE_CONNECTOR.to_string(),
+                )
+            } else {
+                UnifiedConnectorServiceError::HeaderInjectionFailed(
+                    consts::UCS_HEADER_CONNECTOR.to_string(),
+                )
+            }
+        })?;
+
+    if is_surcharge_event {
+        metadata.append(consts::UCS_HEADER_SURCHARGE_CONNECTOR, connector_value);
+    } else {
+        metadata.append(consts::UCS_HEADER_CONNECTOR, connector_value);
+    }
 
     Ok(metadata)
 }
