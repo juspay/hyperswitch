@@ -59,6 +59,7 @@ import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
+import { connectorDetails as placetopayConnectorDetails } from "./Placetopay.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
@@ -139,6 +140,7 @@ const connectorDetails = {
   payload: payloadConnectorDetails,
   paypal: paypalConnectorDetails,
   paysafe: paysafeConnectorDetails,
+  placetopay: placetopayConnectorDetails,
   payu: payuConnectorDetails,
   peachpayments: peachpaymentsConnectorDetails,
   powertranz: powertranzConnectorDetails,
