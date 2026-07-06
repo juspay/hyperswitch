@@ -57,6 +57,7 @@ import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as nuveiConnectorDetails } from "./Nuvei.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
+import { connectorDetails as payjustnowConnectorDetails } from "./Payjustnow.js";
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
@@ -137,6 +138,7 @@ const connectorDetails = {
   novalnet: novalnetConnectorDetails,
   nuvei: nuveiConnectorDetails,
   paybox: payboxConnectorDetails,
+  payjustnow: payjustnowConnectorDetails,
   payload: payloadConnectorDetails,
   paypal: paypalConnectorDetails,
   paysafe: paysafeConnectorDetails,
@@ -230,6 +232,7 @@ export function handleMultipleConnectors(keys) {
     MULTIPLE_CONNECTORS: {
       status: true,
       count: keys.length,
+      connectorCredentials: keys,
     },
   };
 }
@@ -406,6 +409,49 @@ export function createMerchantConnectorAccount(
   }
 }
 
+export function createBusinessProfilesAndMerchantConnectorAccounts(
+  paymentType,
+  createMerchantConnectorAccountBody,
+  createBusinessProfileBody,
+  globalState,
+  paymentMethodsEnabled
+) {
+  const connectorCount = globalState.get("MULTIPLE_CONNECTORS")?.count || 0;
+
+  if (connectorCount <= 1) {
+    cy.task(
+      "cli_log",
+      "Skipping multiple connector account setup; no multiple connector credentials configured."
+    );
+    return;
+  }
+
+  for (
+    let connectorIndex = 2;
+    connectorIndex <= connectorCount;
+    connectorIndex++
+  ) {
+    const multipleConnector = {
+      nextConnector: true,
+      value: `connector_${connectorIndex}`,
+    };
+
+    createBusinessProfile(
+      structuredClone(createBusinessProfileBody),
+      globalState,
+      multipleConnector
+    );
+
+    createMerchantConnectorAccount(
+      paymentType,
+      structuredClone(createMerchantConnectorAccountBody),
+      globalState,
+      paymentMethodsEnabled,
+      multipleConnector
+    );
+  }
+}
+
 export function updateBusinessProfile(
   updateBusinessProfileBody,
   is_connector_agnostic_enabled,
@@ -552,7 +598,14 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stripe",
     ],
-    BANK_DEBIT: ["adyen", "novalnet", "payload", "wellsfargo", "stax"], // payload verified as working
+    BANK_DEBIT: [
+      "adyen",
+      "novalnet",
+      "payload",
+      "stax",
+      "stripe",
+      "wellsfargo",
+    ], // payload verified as working
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen"],
     BLUECODE_WALLET: ["calida"],
@@ -631,9 +684,11 @@ export const CONNECTOR_LISTS = {
       "airwallex",
       "mollie",
       "affirm",
+      "payjustnow",
     ],
     AFFIRM: ["stripe"],
     ATOME: ["adyen"],
+    PAYJUSTNOW: ["payjustnow"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
