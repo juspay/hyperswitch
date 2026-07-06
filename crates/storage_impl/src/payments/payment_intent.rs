@@ -100,7 +100,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .construct_new()
                     .await
                     .change_context(StorageError::EncryptionError)?;
-                let diesel_payment_intent = new_payment_intent.clone().into();
+                let diesel_payment_intent = DieselPaymentIntent::from(new_payment_intent.clone());
 
                 let mut query_gen_conn = pg_connection_write(self).await?;
                 let drainer_query = new_payment_intent
