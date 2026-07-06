@@ -4497,6 +4497,26 @@ export const connectorDetails = {
       },
       Response: blockedPaymentErrorBodyForBinUnavailable,
     }),
+    Surcharge: getCustomExchange({
+      Request: {
+        currency: "USD",
+        surcharge_details: {
+          surcharge_amount: 500,
+          tax_amount: 50,
+        },
+      },
+    }),
+    SurchargeConfirm: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
   },
   gift_card_pm: {
     GivexGiftCard: getCustomExchange({

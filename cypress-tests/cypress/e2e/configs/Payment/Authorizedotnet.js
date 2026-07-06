@@ -835,6 +835,73 @@ export const connectorDetails = {
         },
       },
     },
+    Surcharge: {
+      Configs: { TRIGGER_SKIP: true },
+      Request: {
+        currency: "USD",
+        surcharge_details: {
+          surcharge_amount: 500,
+          tax_amount: 50,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          surcharge_details: {
+            surcharge_amount: 500,
+            tax_amount: 50,
+          },
+          net_amount: 6550,
+        },
+      },
+    },
+    SurchargeConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        email: generateRandomEmail(),
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          surcharge_details: {
+            surcharge_amount: 500,
+            tax_amount: 50,
+          },
+          net_amount: 6550,
+          amount_received: 6550,
+        },
+      },
+    },
+    SurchargeOneStep: {
+      Request: {
+        surcharge_details: {
+          surcharge_amount: 500,
+          tax_amount: 50,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          surcharge_details: {
+            surcharge_amount: 500,
+            tax_amount: 50,
+          },
+          net_amount: 6550,
+          amount_received: 6550,
+        },
+      },
+    },
   },
   webhook: {
     TransactionIdConfig: {

@@ -738,6 +738,7 @@ export const CONNECTOR_LISTS = {
     PAYOUT_PRIORITY: ["adyenplatform"],
     DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
+    SURCHARGE: ["authorizedotnet"],
     // Add more inclusion lists
   },
 };
