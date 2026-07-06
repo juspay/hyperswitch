@@ -4612,26 +4612,38 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
                     );
                     None
                 }
-                _ => match data.parse_value::<api_models::payments::AdditionalPaymentData>(
-                    "AdditionalPaymentData",
-                ) {
-                    Ok(additional_payment_data) => {
-                        Some(api_models::payments::PaymentMethodDataResponseWithBilling {
-                            payment_method_data: Some(api::PaymentMethodDataResponse::from(
-                                additional_payment_data,
-                            )),
-                            billing: None,
-                        })
+                serde_json::Value::Object(_) => {
+                    match data.parse_value::<api_models::payments::AdditionalPaymentData>(
+                        "AdditionalPaymentData",
+                    ) {
+                        Ok(additional_payment_data) => {
+                            Some(api_models::payments::PaymentMethodDataResponseWithBilling {
+                                payment_method_data: Some(api::PaymentMethodDataResponse::from(
+                                    additional_payment_data,
+                                )),
+                                billing: None,
+                            })
+                        }
+                        Err(e) => {
+                            router_env::logger::error!(
+                                payment_attempt_id = ?pa.attempt_id,
+                                error = ?e,
+                                "Failed to parse 'AdditionalPaymentData' from payment method data"
+                            );
+                            None
+                        }
                     }
-                    Err(e) => {
-                        router_env::logger::error!(
-                            payment_attempt_id = ?pa.attempt_id,
-                            error = ?e,
-                            "Failed to parse 'AdditionalPaymentData' from payment method data"
-                        );
-                        None
-                    }
-                },
+                }
+                serde_json::Value::Bool(_)
+                | serde_json::Value::Number(_)
+                | serde_json::Value::String(_)
+                | serde_json::Value::Array(_) => {
+                    router_env::logger::debug!(
+                        payment_attempt_id = ?pa.attempt_id,
+                        "Skipping non-object payment method data for AdditionalPaymentData parsing"
+                    );
+                    None
+                }
             });
         Self {
             connector_response_metadata: pa.get_connector_response_metadata_from_attempt_metadata(),
