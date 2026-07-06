@@ -1,7 +1,10 @@
 use std::{fmt::Debug, sync::Arc};
 
 use common_enums::enums::MerchantStorageScheme;
-use common_utils::{fallback_reverse_lookup_not_found, types::keymanager::KeyManagerState};
+use common_utils::{
+    fallback_reverse_lookup_not_found,
+    types::keymanager::{self, KeyManagerState},
+};
 use diesel_models::{errors::DatabaseError, kv};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -231,6 +234,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
         find_resource_db_fut: R,
         find_by: FindResourceBy<'_>,
+        key_manager_identifier: Option<keymanager::Identifier>,
     ) -> error_stack::Result<D, errors::StorageError>
     where
         D: DomainType,
@@ -282,13 +286,16 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                 }
             }
         };
+        let key_manager_identifier =
+            key_manager_identifier.unwrap_or_else(|| key_store.merchant_id.clone().into());
+
         res()
             .await?
             .convert(
                 self.get_keymanager_state()
                     .attach_printable("Missing KeyManagerState")?,
                 key_store.key.get_inner(),
-                key_store.merchant_id.clone().into(),
+                key_manager_identifier,
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -452,6 +459,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             drainer_query,
             operation,
         }: UpdateResourceParams<'_>,
+        key_manager_identifier: Option<keymanager::Identifier>,
     ) -> error_stack::Result<D, errors::StorageError>
     where
         D: Debug + Sync + Conversion,
@@ -497,7 +505,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             self.get_keymanager_state()
                 .attach_printable("Missing KeyManagerState")?,
             key_store.key.get_inner(),
-            key_store.merchant_id.clone().into(),
+            key_manager_identifier.unwrap_or_else(|| key_store.merchant_id.clone().into()),
         )
         .await
         .change_context(errors::StorageError::DecryptionError)

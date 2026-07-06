@@ -1168,6 +1168,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 drainer_query,
                 operation: Op::Update(key.clone(), &field, Some(updated_by.as_str())),
             },
+            None,
         ))
         .await
     }
@@ -1417,6 +1418,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 profile_id.get_string_repr(),
                 connector_transaction_id,
             )),
+            None,
         )
         .await
     }
@@ -1678,6 +1680,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             storage_scheme,
             DieselPaymentAttempt::find_by_id(&conn, attempt_id),
             FindResourceBy::LookupId(label::get_global_id_label(attempt_id)),
+            None,
         )
         .await
     }

@@ -52,6 +52,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             storage_scheme,
             PaymentMethod::find_by_payment_method_id(&conn, payment_method_id),
             FindResourceBy::LookupId(format!("payment_method_{payment_method_id}")),
+            None,
         )
         .await
     }
@@ -73,6 +74,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
                 "payment_method_{}",
                 payment_method_id.get_string_repr()
             )),
+            None,
         )
         .await
     }
@@ -90,6 +92,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             storage_scheme,
             PaymentMethod::find_by_locker_id(&conn, locker_id),
             FindResourceBy::LookupId(format!("payment_method_locker_{locker_id}")),
+            None,
         )
         .await
     }
@@ -258,6 +261,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
                         payment_method.clone().updated_by.as_deref(),
                     ),
                 },
+                None,
             ),
         )
         .await
