@@ -61,12 +61,7 @@ describe("Surcharge payment flow test", () => {
           "card_pm"
         ]["SurchargeConfirm"];
 
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          data,
-          true,
-          globalState
-        );
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
@@ -75,10 +70,7 @@ describe("Surcharge payment flow test", () => {
 
       cy.step("Retrieve Payment with surcharge", () => {
         if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Retrieve Payment with surcharge"
-          );
+          cy.task("cli_log", "Skipping step: Retrieve Payment with surcharge");
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
