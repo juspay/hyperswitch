@@ -63,6 +63,12 @@ pub struct AdyenMetadata {
 }
 
 #[derive(Debug, serde::Deserialize)]
+pub struct JpmorganMetadata {
+    company_name: Secret<String>,
+    product_name: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
 pub struct TruelayerMetadata {
     merchant_account_id: Option<Secret<String>>,
     account_holder_name: Option<Secret<String>>,
@@ -462,6 +468,10 @@ pub enum ConnectorSpecificConfig {
     Jpmorgan {
         client_id: Secret<String>,
         client_secret: Secret<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        company_name: Option<Secret<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        product_name: Option<Secret<String>>,
     },
     /// Peachpayments connector configuration
     Peachpayments {
@@ -841,10 +851,20 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Hipay requires BodyKey auth type")),
             },
             Connector::Jpmorgan => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Jpmorgan {
-                    client_id: api_key.clone(),
-                    client_secret: key1.clone(),
-                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let jpm_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<JpmorganMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Jpmorgan metadata format"))
+                        })
+                        .transpose()?;
+                    Ok(Self::Jpmorgan {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        company_name: jpm_meta.as_ref().map(|m| m.company_name.clone()),
+                        product_name: jpm_meta.as_ref().map(|m| m.product_name.clone()),
+                    })
+                }
                 _ => Err(err("Jpmorgan requires BodyKey auth type")),
             },
             Connector::Loonio => match auth {
