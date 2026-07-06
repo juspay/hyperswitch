@@ -1,5 +1,5 @@
 const ach_bank_debit_data = {
-  account_number: "123456789",
+  account_number: "000123456789",
   routing_number: "110000000",
   bank_account_holder_name: "Test User",
   bank_type: "checking",
@@ -35,6 +35,12 @@ const ir04_error = {
   type: "invalid_request",
   message: "Missing required param: connector_customer_id",
   code: "IR_04",
+};
+
+const ir06_error = {
+  error_type: "invalid_request",
+  message: "Json deserialize error: unknown field `connector_customer_id`",
+  code: "IR_06",
 };
 
 export const connectorDetails = {
@@ -113,12 +119,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            error_type: "invalid_request",
-            message:
-              "Json deserialize error: unknown field `connector_customer_id`",
-            code: "IR_06",
-          },
+          error: ir06_error,
         },
       },
     },
