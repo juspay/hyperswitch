@@ -1,6 +1,6 @@
 const ach_bank_debit_data = {
-  account_number: "000123456789",
-  routing_number: "110000000",
+  account_number: "1111222233334444",
+  routing_number: "011000015",
   bank_account_holder_name: "Test User",
   bank_type: "checking",
   bank_holder_type: "personal",
