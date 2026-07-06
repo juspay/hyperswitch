@@ -39,6 +39,7 @@ export const connectorDetails = {
     PaymentIntent: {
       Request: {
         currency: "COP",
+        description: "placetopay test",
       },
       Response: {
         status: 200,
@@ -54,7 +55,8 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "COP",
-        customer_acceptance: null,
+        browser_info: browserInfo,
+        customer_acceptance: simplifiedCustomerAcceptance,
         setup_future_usage: "on_session",
       },
       Response: {
