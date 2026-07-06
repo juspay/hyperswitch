@@ -2477,10 +2477,13 @@ Cypress.Commands.add(
             "setup_future_usage"
           ).to.equal(response.body.setup_future_usage);
           // If 'shipping_cost' is not included in the request, the 'amount' in 'body' should match the 'amount_capturable' in the response.
+          // For surcharge payments, amount_capturable is 0 at payment intent creation time; the config Response.body handles surcharge-specific assertions.
           if (typeof body?.shipping_cost === "undefined") {
-            expect(body.amount, "amount_capturable").to.equal(
-              response.body.amount_capturable
-            );
+            if (typeof body?.surcharge_details === "undefined") {
+              expect(body.amount, "amount_capturable").to.equal(
+                response.body.amount_capturable
+              );
+            }
           } else {
             expect(
               body.amount + body.shipping_cost,
