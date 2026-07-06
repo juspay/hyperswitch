@@ -47,7 +47,7 @@ impl super::RedisConnectionPool {
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::SetKey,
             self.pool.set(
                 key.tenant_aware_key(self),
@@ -71,7 +71,7 @@ impl super::RedisConnectionPool {
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::SetKeyWithoutModifyingTtl,
             self.pool.set(
                 key.tenant_aware_key(self),
@@ -103,7 +103,7 @@ impl super::RedisConnectionPool {
             .attach_printable("Failed to convert key-value pairs to fred::types::RedisMap")?;
 
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::SetMultipleKeysIfNotExist,
             self.pool.msetnx(map),
         )
@@ -176,7 +176,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::SerializeAndSetKeyWithExpiry,
             self.pool.set(
                 key.tenant_aware_key(self),
@@ -196,7 +196,7 @@ impl super::RedisConnectionPool {
         V: FromRedis + Unpin + Send + 'static,
     {
         match track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::GetKey,
             self.pool.get(key.tenant_aware_key(self)),
         )
@@ -213,7 +213,7 @@ impl super::RedisConnectionPool {
                 #[cfg(feature = "multitenancy_fallback")]
                 {
                     track_redis_call(
-                        self,
+                        self.event_emitter.as_ref(),
                         RedisOperation::GetKey,
                         self.pool.get(key.tenant_unaware_key(self)),
                     )
@@ -239,7 +239,7 @@ impl super::RedisConnectionPool {
         let tenant_aware_keys: Vec<String> =
             keys.iter().map(|key| key.tenant_aware_key(self)).collect();
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::GetMultipleKeys,
             self.pool.mget(tenant_aware_keys),
         )
@@ -263,7 +263,7 @@ impl super::RedisConnectionPool {
 
         let futures = tenant_aware_keys.iter().map(|redis_key| {
             track_redis_call(
-                self,
+                self.event_emitter.as_ref(),
                 RedisOperation::GetKey,
                 self.pool.get::<Option<V>, _>(redis_key),
             )
@@ -334,7 +334,7 @@ impl super::RedisConnectionPool {
         V: Into<MultipleKeys> + Unpin + Send + 'static,
     {
         match track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::Exists,
             self.pool.exists(key.tenant_aware_key(self)),
         )
@@ -351,7 +351,7 @@ impl super::RedisConnectionPool {
                 #[cfg(feature = "multitenancy_fallback")]
                 {
                     track_redis_call(
-                        self,
+                        self.event_emitter.as_ref(),
                         RedisOperation::Exists,
                         self.pool.exists(key.tenant_unaware_key(self)),
                     )
@@ -414,7 +414,7 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_key(&self, key: &RedisKey) -> CustomResult<DelReply, errors::RedisError> {
         match track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::DeleteKey,
             self.pool.del(key.tenant_aware_key(self)),
         )
@@ -431,7 +431,7 @@ impl super::RedisConnectionPool {
                 #[cfg(feature = "multitenancy_fallback")]
                 {
                     track_redis_call(
-                        self,
+                        self.event_emitter.as_ref(),
                         RedisOperation::DeleteKey,
                         self.pool.del(key.tenant_unaware_key(self)),
                     )
@@ -468,7 +468,7 @@ impl super::RedisConnectionPool {
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::SetKeyWithExpiry,
             self.pool.set(
                 key.tenant_aware_key(self),
@@ -494,7 +494,7 @@ impl super::RedisConnectionPool {
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::SetKeyIfNotExistsWithExpiry,
             self.pool.set(
                 key.tenant_aware_key(self),
@@ -517,7 +517,7 @@ impl super::RedisConnectionPool {
         seconds: i64,
     ) -> CustomResult<(), errors::RedisError> {
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::SetExpiry,
             self.pool.expire(key.tenant_aware_key(self), seconds),
         )
@@ -532,7 +532,7 @@ impl super::RedisConnectionPool {
         timestamp: i64,
     ) -> CustomResult<(), errors::RedisError> {
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::SetExpireAt,
             self.pool.expire_at(key.tenant_aware_key(self), timestamp),
         )
@@ -543,7 +543,7 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_ttl(&self, key: &RedisKey) -> CustomResult<i64, errors::RedisError> {
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::GetTtl,
             self.pool.ttl(key.tenant_aware_key(self)),
         )
@@ -572,7 +572,7 @@ impl super::RedisConnectionPool {
             .attach_printable("Failed to convert field pairs to fred::types::RedisMap")?;
 
         let output: Result<(), _> = track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::SetHashFields,
             self.pool.hset(key.tenant_aware_key(self), map),
         )
@@ -582,7 +582,7 @@ impl super::RedisConnectionPool {
         output
             .async_and_then(|_| async {
                 track_redis_call(
-                    self,
+                    self.event_emitter.as_ref(),
                     RedisOperation::SetExpiry,
                     self.pool.expire::<(), _>(
                         key.tenant_aware_key(self),
@@ -608,7 +608,7 @@ impl super::RedisConnectionPool {
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         let output: Result<HsetnxReply, _> = track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::SetHashFieldIfNotExist,
             self.pool.hsetnx(key.tenant_aware_key(self), field, value),
         )
@@ -618,7 +618,7 @@ impl super::RedisConnectionPool {
         output
             .async_and_then(|inner| async {
                 track_redis_call(
-                    self,
+                    self.event_emitter.as_ref(),
                     RedisOperation::SetExpiry,
                     self.pool.expire::<(), _>(
                         key.tenant_aware_key(self),
@@ -684,7 +684,7 @@ impl super::RedisConnectionPool {
         for (field, increment) in fields_to_increment {
             values_after_increment.push(
                 track_redis_call(
-                    self,
+                    self.event_emitter.as_ref(),
                     RedisOperation::IncrementFieldsInHash,
                     self.pool
                         .hincrby(key.tenant_aware_key(self), field.to_string(), *increment),
@@ -706,10 +706,11 @@ impl super::RedisConnectionPool {
     ) -> CustomResult<Vec<String>, errors::RedisError> {
         use futures::StreamExt;
 
-        Ok(track_redis_call_streaming(self,
-                RedisOperation::Hscan,
-                self.pool
-                    .next()
+        Ok(track_redis_call_streaming(
+            self.event_emitter.as_ref(),
+            RedisOperation::Hscan,
+            self.pool
+                .next()
                     .hscan::<&str, &str>(&key.tenant_aware_key(self), pattern, count)
                     .filter_map(|value| async move {
                         match value {
@@ -725,11 +726,11 @@ impl super::RedisConnectionPool {
                                 None
                             }
                         }
-                    })
-                    .flatten()
-                    .collect::<Vec<_>>(),
-            )
-            .await)
+                })
+                .flatten()
+                .collect::<Vec<_>>(),
+        )
+        .await)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -743,10 +744,11 @@ impl super::RedisConnectionPool {
 
         let fred_scan_type = scan_type.map(fred::types::ScanType::from);
 
-        Ok(track_redis_call_streaming(self,
-                RedisOperation::Scan,
-                self.pool
-                    .next()
+        Ok(track_redis_call_streaming(
+            self.event_emitter.as_ref(),
+            RedisOperation::Scan,
+            self.pool
+                .next()
                     .scan(pattern.tenant_aware_key(self), count, fred_scan_type)
                     .filter_map(|value| async move {
                         match value {
@@ -761,11 +763,11 @@ impl super::RedisConnectionPool {
                                 None
                             }
                         }
-                    })
-                    .flatten()
-                    .collect::<Vec<_>>(),
-            )
-            .await)
+                })
+                .flatten()
+                .collect::<Vec<_>>(),
+        )
+        .await)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -798,7 +800,7 @@ impl super::RedisConnectionPool {
         V: FromRedis + Unpin + Send + 'static,
     {
         match track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::GetHashField,
             self.pool.hget(key.tenant_aware_key(self), field),
         )
@@ -810,7 +812,7 @@ impl super::RedisConnectionPool {
                 #[cfg(feature = "multitenancy_fallback")]
                 {
                     track_redis_call(
-                        self,
+                        self.event_emitter.as_ref(),
                         RedisOperation::GetHashField,
                         self.pool.hget(key.tenant_unaware_key(self), field),
                     )
@@ -832,7 +834,7 @@ impl super::RedisConnectionPool {
         V: FromRedis + Unpin + Send + 'static,
     {
         match track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::GetHashFields,
             self.pool.hgetall(key.tenant_aware_key(self)),
         )
@@ -844,7 +846,7 @@ impl super::RedisConnectionPool {
                 #[cfg(feature = "multitenancy_fallback")]
                 {
                     track_redis_call(
-                        self,
+                        self.event_emitter.as_ref(),
                         RedisOperation::GetHashFields,
                         self.pool.hgetall(key.tenant_unaware_key(self)),
                     )
@@ -892,7 +894,7 @@ impl super::RedisConnectionPool {
         V::Error: Into<fred::error::RedisError> + Send,
     {
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::Sadd,
             self.pool.sadd(key.tenant_aware_key(self), members),
         )
@@ -923,7 +925,7 @@ impl super::RedisConnectionPool {
             )?;
 
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::StreamAppendEntry,
             self.pool.xadd(
                 stream.tenant_aware_key(self),
@@ -945,7 +947,7 @@ impl super::RedisConnectionPool {
     ) -> CustomResult<usize, errors::RedisError> {
         let fred_ids: MultipleStrings = ids.into();
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::StreamDeleteEntries,
             self.pool.xdel(stream.tenant_aware_key(self), fred_ids),
         )
@@ -963,7 +965,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::StreamTrimFailed)
             .attach_printable("Failed to convert StreamTrimConfig to fred::types::XCap")?;
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::StreamTrimEntries,
             self.pool.xtrim(stream.tenant_aware_key(self), xcap),
         )
@@ -980,7 +982,7 @@ impl super::RedisConnectionPool {
     ) -> CustomResult<usize, errors::RedisError> {
         let fred_ids: MultipleIDs = ids.into();
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::StreamAcknowledgeEntries,
             self.pool
                 .xack(stream.tenant_aware_key(self), group, fred_ids),
@@ -995,7 +997,7 @@ impl super::RedisConnectionPool {
         stream: &RedisKey,
     ) -> CustomResult<usize, errors::RedisError> {
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::StreamGetLength,
             self.pool.xlen(stream.tenant_aware_key(self)),
         )
@@ -1018,7 +1020,7 @@ impl super::RedisConnectionPool {
         let strms = self.get_keys_with_prefix(streams);
         let ids: MultipleIDs = ids.into();
         let reply: XReadResponse<String, String, String, String> = track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::StreamReadEntries,
             self.pool.xread_map(
                 Some(read_count.unwrap_or(self.config.default_stream_read_count)),
@@ -1075,7 +1077,7 @@ impl super::RedisConnectionPool {
         let reply: XReadResponse<String, String, String, Option<String>> = match group {
             Some((group_name, consumer_name)) => {
                 track_redis_call(
-                    self,
+                    self.event_emitter.as_ref(),
                     RedisOperation::StreamReadGroup,
                     self.pool.xreadgroup_map(
                         group_name,
@@ -1091,7 +1093,7 @@ impl super::RedisConnectionPool {
             }
             None => {
                 track_redis_call(
-                    self,
+                    self.event_emitter.as_ref(),
                     RedisOperation::StreamReadWithOptions,
                     self.pool.xread_map(count, block, strms, ids),
                 )
@@ -1145,7 +1147,7 @@ impl super::RedisConnectionPool {
         V::Error: Into<fred::error::RedisError> + Send,
     {
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::AppendElementsToList,
             self.pool.rpush(key.tenant_aware_key(self), elements),
         )
@@ -1161,7 +1163,7 @@ impl super::RedisConnectionPool {
         stop: i64,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::GetListElements,
             self.pool.lrange(key.tenant_aware_key(self), start, stop),
         )
@@ -1172,7 +1174,7 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_list_length(&self, key: &RedisKey) -> CustomResult<usize, errors::RedisError> {
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::GetListLength,
             self.pool.llen(key.tenant_aware_key(self)),
         )
@@ -1187,7 +1189,7 @@ impl super::RedisConnectionPool {
         count: Option<usize>,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::LpopListElements,
             self.pool.lpop(key.tenant_aware_key(self), count),
         )
@@ -1213,7 +1215,7 @@ impl super::RedisConnectionPool {
         }
 
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::ConsumerGroupCreate,
             self.pool
                 .xgroup_create(stream.tenant_aware_key(self), group, id, true),
@@ -1229,7 +1231,7 @@ impl super::RedisConnectionPool {
         group: &str,
     ) -> CustomResult<crate::types::ConsumerGroupDestroyReply, errors::RedisError> {
         let reply: crate::types::ConsumerGroupDestroyReply = track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::ConsumerGroupDestroy,
             self.pool
                 .xgroup_destroy(stream.tenant_aware_key(self), group),
@@ -1248,7 +1250,7 @@ impl super::RedisConnectionPool {
         consumer: &str,
     ) -> CustomResult<usize, errors::RedisError> {
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::ConsumerGroupDeleteConsumer,
             self.pool
                 .xgroup_delconsumer(stream.tenant_aware_key(self), group, consumer),
@@ -1266,7 +1268,7 @@ impl super::RedisConnectionPool {
     ) -> CustomResult<String, errors::RedisError> {
         let id_str = id.to_stream_id();
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::ConsumerGroupSetLastId,
             self.pool
                 .xgroup_setid::<(), _, _, _>(stream.tenant_aware_key(self), group, &id_str),
@@ -1290,7 +1292,7 @@ impl super::RedisConnectionPool {
     {
         let fred_ids: MultipleIDs = ids.into();
         track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::ConsumerGroupSetMessageOwner,
             self.pool.xclaim(
                 stream.tenant_aware_key(self),
@@ -1322,7 +1324,7 @@ impl super::RedisConnectionPool {
         T: serde::de::DeserializeOwned + FromRedis,
     {
         let val: T = track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::EvaluateRedisScript,
             self.pool.eval(lua_script, key, values),
         )
@@ -1397,7 +1399,7 @@ impl super::RedisConnectionPool {
 
         // Execute transaction
         let mut results: Vec<RedisValue> = track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             RedisOperation::SetKeyIfNotExistsAndGetValue,
             trx.exec(true),
         )

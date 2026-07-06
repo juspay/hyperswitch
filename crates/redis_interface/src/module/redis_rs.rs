@@ -518,7 +518,7 @@ impl RedisConnectionPool {
         // PUBLISH is request-triggered (cache invalidation on MCA/API-key
         // update/revoke), so it is tracked as a per-request Redis roundtrip.
         crate::metrics::track_redis_call(
-            self,
+            self.event_emitter.as_ref(),
             crate::metrics::RedisOperation::Publish,
             self.publisher.publish(channel, message),
         )

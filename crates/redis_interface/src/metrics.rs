@@ -11,12 +11,10 @@
 //! each produce one event per real roundtrip with correct wall-clock latency,
 //! instead of a single event whose latency sums or hides the constituent calls.
 
-use common_utils::external_service::ExternalServiceCall;
+use common_utils::external_service::{ExternalServiceCall, ExternalServiceEventEmitter};
 #[cfg(feature = "metrics")]
 use router_env::{global_meter, histogram_metric_f64};
 use time::OffsetDateTime;
-
-use crate::RedisConnectionPool;
 
 #[cfg(feature = "metrics")]
 global_meter!(GLOBAL_METER, "REDIS");
@@ -98,7 +96,7 @@ impl<T, E> RedisCallOutcome for Result<T, E> {
 /// path.
 #[inline]
 fn record_roundtrip(
-    pool: &RedisConnectionPool,
+    event_emitter: &dyn ExternalServiceEventEmitter,
     operation: &RedisOperation,
     success: bool,
     time_elapsed: std::time::Duration,
@@ -115,19 +113,18 @@ fn record_roundtrip(
         REDIS_CALL_TIME.record(time_elapsed.as_secs_f64(), attributes);
     }
 
-    if pool.event_emitter.is_enabled() {
+    if event_emitter.is_enabled() {
         if let Some(request_id) = router_env::request_context::try_get() {
-            pool.event_emitter
-                .emit_external_service_call(ExternalServiceCall {
-                    service_name: "redis".to_string(),
-                    endpoint: format!("{operation:?}"),
-                    method: "Redis".to_string(),
-                    request_id,
-                    status_code: if success { 200 } else { 500 },
-                    success,
-                    latency_ms: time_elapsed.as_millis(),
-                    created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos(),
-                });
+            event_emitter.emit_external_service_call(ExternalServiceCall {
+                service_name: "redis".to_string(),
+                endpoint: format!("{operation:?}"),
+                method: "Redis".to_string(),
+                request_id,
+                status_code: if success { 200 } else { 500 },
+                success,
+                latency_ms: time_elapsed.as_millis(),
+                created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos(),
+            });
         }
     }
 }
@@ -137,7 +134,7 @@ fn record_roundtrip(
 /// derived from the future's `Result` output.
 #[inline]
 pub(crate) async fn track_redis_call<Fut, U>(
-    pool: &RedisConnectionPool,
+    event_emitter: &dyn ExternalServiceEventEmitter,
     operation: RedisOperation,
     future: Fut,
 ) -> U
@@ -149,7 +146,7 @@ where
     let output = future.await;
     let time_elapsed = start.elapsed();
 
-    record_roundtrip(pool, &operation, output.succeeded(), time_elapsed);
+    record_roundtrip(event_emitter, &operation, output.succeeded(), time_elapsed);
 
     output
 }
@@ -165,7 +162,7 @@ where
 #[cfg(feature = "fred")]
 #[inline]
 pub(crate) async fn track_redis_call_streaming<Fut, U>(
-    pool: &RedisConnectionPool,
+    event_emitter: &dyn ExternalServiceEventEmitter,
     operation: RedisOperation,
     future: Fut,
 ) -> U
@@ -176,7 +173,7 @@ where
     let output = future.await;
     let time_elapsed = start.elapsed();
 
-    record_roundtrip(pool, &operation, true, time_elapsed);
+    record_roundtrip(event_emitter, &operation, true, time_elapsed);
 
     output
 }
