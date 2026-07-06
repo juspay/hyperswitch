@@ -452,6 +452,9 @@ pub mod superposition {
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "save_wallet_decrypted_data";
     /// Connector API version configuration key per connector
     pub const CONNECTOR_API_VERSION: &str = "connector_api_version";
+    /// Whether payment update via client auth is enabled, per merchant
+    pub const PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH: &str =
+        "payment_update_enabled_for_client_auth";
 }
 
 #[cfg(test)]

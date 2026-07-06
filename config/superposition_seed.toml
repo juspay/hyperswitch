@@ -322,3 +322,9 @@ schema = { type = "string" }
 description = "Connector-specific API version to use, keyed by the connector dimension (e.g. sdk_api for braintree)"
 change_reason = "Initial setup"
 
+[default-configs.payment_update_enabled_for_client_auth]
+value = false
+schema = { type = "boolean" }
+description = "Whether payment update via client auth is enabled for the merchant"
+change_reason = "Initial setup"
+

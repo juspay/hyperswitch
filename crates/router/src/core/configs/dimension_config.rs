@@ -1066,3 +1066,25 @@ impl DatabaseBackedConfig for ConnectorApiVersion {
             .map(|connector| format!("connector_api_version_{connector}"))
     }
 }
+
+config! {
+    superposition_key = PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for PaymentUpdateEnabledForClientAuth {
+    const KEY: &'static str = "payment_update_enabled_for_client_auth";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Matches the existing key format: "payment_update_enabled_for_client_auth_{merchant_id}"
+        dimensions.get_processor_merchant_id().map(|id| {
+            format!(
+                "payment_update_enabled_for_client_auth_{}",
+                id.get_string_repr()
+            )
+        })
+    }
+}

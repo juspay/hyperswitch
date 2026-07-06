@@ -9240,17 +9240,17 @@ async fn get_payment_update_enabled_for_client_auth(
     merchant_id: &id_type::MerchantId,
     state: &SessionState,
 ) -> bool {
-    let key = merchant_id.get_payment_update_enabled_for_client_auth_key();
-    let db = &*state.store;
-    let update_enabled = db.find_config_by_key(key.as_str()).await;
+    let dimensions = dimension_state::Dimensions::new().with_processor_merchant_id(
+        dimension_state::ProcessorMerchantId::new(merchant_id.clone()),
+    );
 
-    match update_enabled {
-        Ok(conf) => conf.config.to_lowercase() == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
+    dimensions
+        .get_payment_update_enabled_for_client_auth(
+            state.store.as_ref(),
+            &state.superposition_service,
+            None,
+        )
+        .await
 }
 
 pub async fn allow_payment_update_enabled_for_client_auth(

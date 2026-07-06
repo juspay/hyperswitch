@@ -202,14 +202,6 @@ impl MerchantId {
     pub fn get_authentication_service_eligible_key(&self) -> String {
         format!("authentication_service_eligible_{}", self.get_string_repr())
     }
-    /// allow payment update via client auth default should be false
-    pub fn get_payment_update_enabled_for_client_auth_key(&self) -> String {
-        format!(
-            "payment_update_enabled_for_client_auth_{}",
-            self.get_string_repr()
-        )
-    }
-
     /// Get should perform eligibility check key for payment
     pub fn get_should_perform_eligibility_check_key(&self) -> String {
         format!("should_perform_eligibility_{}", self.get_string_repr())
