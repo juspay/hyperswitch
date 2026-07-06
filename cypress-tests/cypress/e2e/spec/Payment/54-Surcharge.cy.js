@@ -82,23 +82,20 @@ describe("Surcharge via Decision Manager", () => {
         }
       });
 
-      cy.step(
-        "Retrieve Payment and verify DSL surcharge was applied",
-        () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Retrieve Payment and verify DSL surcharge was applied"
-            );
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["SurchargeDSLConfirm"];
-
-          cy.retrievePaymentCallTest({ globalState, data });
+      cy.step("Retrieve Payment and verify DSL surcharge was applied", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment and verify DSL surcharge was applied"
+          );
+          return;
         }
-      );
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SurchargeDSLConfirm"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
     });
   });
 });
