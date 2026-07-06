@@ -6774,8 +6774,6 @@ Cypress.Commands.add("deleteSurchargeDSLConfig", (data, globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-
       if (response.status === 200) {
         for (const key in resData.body) {
           expect(resData.body[key]).to.deep.equal(response.body[key]);

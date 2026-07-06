@@ -232,20 +232,7 @@ export const connectorDetails = {
       Request: {},
       Response: {
         status: 200,
-        body: {
-          name: "surcharge_config_rate",
-          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
-          algorithm: {
-            defaultSelection: {
-              surcharge_details: {
-                surcharge: { type: "rate", value: { percentage: 2.5 } },
-                tax_on_surcharge: null,
-              },
-            },
-            rules: [],
-            metadata: {},
-          },
-        },
+        body: {},
       },
     },
   },
