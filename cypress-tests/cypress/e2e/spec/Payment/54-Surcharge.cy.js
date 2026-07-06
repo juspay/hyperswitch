@@ -46,7 +46,7 @@ describe("Surcharge via Decision Manager", () => {
 
   context("Surcharge via DSL Decision Manager", () => {
     it("Create Payment Intent -> List Payment Methods -> Confirm (verify surcharge_details) -> Retrieve", () => {
-      let shouldContinue = true;
+      let continueSteps = true;
 
       cy.step("Create Payment Intent (no explicit surcharge_details)", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -62,12 +62,12 @@ describe("Surcharge via Decision Manager", () => {
         );
 
         if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
+          continueSteps = false;
         }
       });
 
       cy.step("List Payment Methods and verify surcharge info per card", () => {
-        if (!shouldContinue) {
+        if (!continueSteps) {
           cy.task("cli_log", "Skipping step: List Payment Methods");
           return;
         }
@@ -77,7 +77,7 @@ describe("Surcharge via Decision Manager", () => {
       cy.step(
         "Confirm Payment and verify surcharge_details in response",
         () => {
-          if (!shouldContinue) {
+          if (!continueSteps) {
             cy.task("cli_log", "Skipping step: Confirm Payment");
             return;
           }
@@ -88,13 +88,13 @@ describe("Surcharge via Decision Manager", () => {
           cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
           if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
+            continueSteps = false;
           }
         }
       );
 
       cy.step("Retrieve Payment and verify DSL surcharge was applied", () => {
-        if (!shouldContinue) {
+        if (!continueSteps) {
           cy.task(
             "cli_log",
             "Skipping step: Retrieve Payment and verify DSL surcharge was applied"
