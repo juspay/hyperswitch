@@ -29,12 +29,18 @@ pub fn from_new_derive_inner(input: DeriveInput) -> syn::Result<TokenStream> {
         }
     };
 
-    let field_assignments = fields.iter().map(|field| {
-        let field_name = field.ident.as_ref().expect("named fields only");
-        quote! {
-            #field_name: new.#field_name
-        }
-    });
+    let field_assignments = fields
+        .iter()
+        .map(|field| {
+            let field_name = field.ident.as_ref().ok_or_else(|| {
+                syn::Error::new_spanned(field, "FromNew only supports named fields")
+            })?;
+
+            Ok(quote! {
+                #field_name: new.#field_name
+            })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
 
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
