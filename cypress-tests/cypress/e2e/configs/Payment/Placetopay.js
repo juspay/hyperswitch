@@ -1,5 +1,5 @@
 const successfulNo3DSCardDetails = {
-  card_number: "4111111111111111",
+  card_number: "4110760000000081",
   card_exp_month: "12",
   card_exp_year: "2030",
   card_holder_name: "Test User",
@@ -38,7 +38,7 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        currency: "USD",
+        currency: "COP",
       },
       Response: {
         status: 200,
@@ -48,11 +48,21 @@ export const connectorDetails = {
       },
     },
     No3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "COP",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
       },
-      Request: notImplementedConfirmRequest,
-      Response: notImplementedResponse,
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
     },
     Refund: {
       Request: {
@@ -135,7 +145,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
-        currency: "USD",
+        currency: "COP",
         shipping_cost: 50,
       },
       Response: {
