@@ -40,6 +40,22 @@ const manualCaptureConfirmRequest = {
   payment_method_data: {
     card: successfulNo3DSCardDetails,
   },
+  currency: "COP",
+  browser_info: browserInfo,
+  customer_acceptance: simplifiedCustomerAcceptance,
+  setup_future_usage: "on_session",
+  billing: {
+    address: {
+      line1: "Calle 93B No 17-25",
+      city: "Bogota",
+      state: "Bogota",
+      zip: "110111",
+      country: "CO",
+      first_name: "Test",
+      last_name: "User",
+    },
+    email: "test@placetopay.com",
+  },
 };
 
 export const connectorDetails = {
@@ -135,12 +151,48 @@ export const connectorDetails = {
         },
       },
     },
-    No3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
+    manualPaymentRefund: {
+      Request: {
+        amount: 6000,
       },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      ResponseCustom: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    manualPaymentPartialRefund: {
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      ResponseCustom: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    No3DSManualCapture: {
       Request: manualCaptureConfirmRequest,
-      Response: notImplementedResponse,
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
     },
     "3DSAutoCapture": {
       Configs: {
@@ -157,11 +209,26 @@ export const connectorDetails = {
       Response: notImplementedResponse,
     },
     Capture: {
-      Configs: {
-        TRIGGER_SKIP: true,
+      Request: {
+        amount_to_capture: 6000,
       },
-      Request: notImplementedConfirmRequest,
-      Response: notImplementedResponse,
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PartialCapture: {
+      Request: {
+        amount_to_capture: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "partially_captured",
+        },
+      },
     },
     PaymentIntentWithShippingCost: {
       Configs: {
