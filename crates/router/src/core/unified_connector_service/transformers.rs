@@ -841,6 +841,7 @@ impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
         Self {
             connector_mandate_id: value.get_connector_mandate_id(),
             payment_method_id: value.get_payment_method_id(),
+            mandate_metadata: None,
             connector_mandate_request_reference_id: value
                 .get_connector_mandate_request_reference_id(),
         }
@@ -876,6 +877,7 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
         Some(payments_grpc::ConnectorMandateReferenceId {
             connector_mandate_id,
             payment_method_id,
+            mandate_metadata: None,
             connector_mandate_request_reference_id,
         })
     }
@@ -2026,6 +2028,7 @@ impl
                                     connector_mandate_id: connector_mandate_id
                                         .get_connector_mandate_id(),
                                     payment_method_id: connector_mandate_id.get_payment_method_id(),
+                                    mandate_metadata: None,
                                     connector_mandate_request_reference_id: connector_mandate_id
                                         .get_connector_mandate_request_reference_id(),
                                 },
