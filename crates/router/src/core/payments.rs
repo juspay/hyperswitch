@@ -13120,6 +13120,7 @@ pub async fn payments_manual_update(
         error_reason,
         connector_transaction_id,
         amount_capturable,
+        update_amount_captured,
     } = req;
     let key_store = state
         .store
@@ -13174,6 +13175,47 @@ pub async fn payments_manual_update(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
 
+    let calculated_amount_captured = if update_amount_captured == Some(true) {
+        if amount_capturable.is_some() {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "amount_capturable cannot be provided when update_amount_captured is true"
+                    .to_string(),
+            }
+            .into());
+        }
+
+        if let Some(status) = attempt_status {
+            utils::when(
+                !matches!(
+                    status,
+                    enums::AttemptStatus::Charged
+                        | enums::AttemptStatus::PartialCharged
+                        | enums::AttemptStatus::PartialChargedAndChargeable
+                        | enums::AttemptStatus::Voided
+                        | enums::AttemptStatus::VoidedPostCharge
+                ),
+                || {
+                    Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "update_amount_captured can only be used for terminal statuses with captured funds: Charged, PartialCharged, PartialChargedAndChargeable, Voided, VoidedPostCharge".to_string(),
+                    })
+                },
+            )?;
+        }
+        if let Some(existing_captured) = payment_intent.amount_captured {
+            if existing_captured > MinorUnit::zero() {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Cannot update amount_captured: payment intent already has amount_captured > 0".to_string(),
+                }.into());
+            }
+        }
+        let new_captured_amount = payment_attempt
+            .amount_to_capture
+            .unwrap_or(payment_attempt.net_amount.get_total_amount());
+        Some(new_captured_amount)
+    } else {
+        None
+    };
+
     let option_gsm = if let Some(((code, message), connector_name)) = error_code
         .as_ref()
         .zip(error_message.as_ref())
@@ -13219,24 +13261,29 @@ pub async fn payments_manual_update(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while updating the payment_attempt")?;
     // If the payment_attempt is active attempt for an intent, update the intent status
-    if payment_intent.active_attempt.get_id() == payment_attempt.attempt_id {
-        let intent_status = enums::IntentStatus::foreign_from(updated_payment_attempt.status);
-        let payment_intent_update = storage::PaymentIntentUpdate::ManualUpdate {
-            status: Some(intent_status),
-            updated_by: merchant_account.storage_scheme.to_string(),
+    let updated_amount_captured =
+        if payment_intent.active_attempt.get_id() == payment_attempt.attempt_id {
+            let intent_status = enums::IntentStatus::foreign_from(updated_payment_attempt.status);
+            let payment_intent_update = storage::PaymentIntentUpdate::ManualUpdate {
+                status: Some(intent_status),
+                updated_by: merchant_account.storage_scheme.to_string(),
+                amount_captured: calculated_amount_captured,
+            };
+            state
+                .store
+                .update_payment_intent(
+                    payment_intent,
+                    payment_intent_update,
+                    &key_store,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+                .attach_printable("Error while updating payment_intent")?
+                .amount_captured
+        } else {
+            None
         };
-        state
-            .store
-            .update_payment_intent(
-                payment_intent,
-                payment_intent_update,
-                &key_store,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            .attach_printable("Error while updating payment_intent")?;
-    }
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsManualUpdateResponse {
             payment_id: updated_payment_attempt.payment_id,
@@ -13248,6 +13295,7 @@ pub async fn payments_manual_update(
             error_reason: updated_payment_attempt.error_reason,
             connector_transaction_id: updated_payment_attempt.connector_transaction_id,
             amount_capturable: Some(updated_payment_attempt.amount_capturable),
+            amount_captured: updated_amount_captured,
         },
     ))
 }
@@ -13354,6 +13402,7 @@ pub async fn payments_manual_status_update(
     let intent_update = storage::PaymentIntentUpdate::ManualUpdate {
         status: Some(intent_status),
         updated_by: merchant_account.storage_scheme.to_string(),
+        amount_captured: None,
     };
 
     state
