@@ -11,11 +11,12 @@ pub struct Database {
     pub host: String,
     pub port: u16,
     pub dbname: String,
-    pub pool_size: u32,
+    pub max_pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: QueueStrategy,
-    pub min_idle: Option<u32>,
-    pub max_lifetime: Option<u64>,
+    pub min_idle_pool_size: u32,
+    pub max_lifetime: u64,
+    pub idle_timeout: u64,
 }
 
 impl DbConnectionParams for Database {
@@ -61,11 +62,12 @@ impl Default for Database {
             host: "localhost".into(),
             port: 5432,
             dbname: String::new(),
-            pool_size: 5,
+            max_pool_size: 5,
             connection_timeout: 10,
             queue_strategy: QueueStrategy::default(),
-            min_idle: None,
-            max_lifetime: None,
+            min_idle_pool_size: 2,
+            max_lifetime: 1800,
+            idle_timeout: 300,
         }
     }
 }
