@@ -209,6 +209,9 @@ export const connectorDetails = {
       Response: notImplementedResponse,
     },
     Capture: {
+      Configs: {
+        skipBillingAssertion: true,
+      },
       Request: {
         amount_to_capture: 6000,
       },
@@ -220,6 +223,9 @@ export const connectorDetails = {
       },
     },
     PartialCapture: {
+      Configs: {
+        skipBillingAssertion: true,
+      },
       Request: {
         amount_to_capture: 2000,
       },
