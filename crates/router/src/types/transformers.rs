@@ -2059,13 +2059,16 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
 }
 
 #[cfg(feature = "olap")]
-impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemResponse {
+impl TryFrom<domain::EventWithDeliverySuccessSource>
+    for api_models::webhook_events::EventListItemResponse
+{
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
+    fn try_from(value: domain::EventWithDeliverySuccessSource) -> Result<Self, Self::Error> {
         use crate::utils::OptionExt;
 
-        let is_delivery_successful = item.resolve_delivery_success();
+        let item = value.event;
+        let is_delivery_successful = item.resolve_delivery_success(value.source);
 
         // We only allow retrieving events with merchant_id, business_profile_id
         // and initial_attempt_id populated.
@@ -2099,17 +2102,20 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
 }
 
 #[cfg(feature = "olap")]
-impl TryFrom<domain::Event> for api_models::webhook_events::EventRetrieveResponse {
+impl TryFrom<domain::EventWithDeliverySuccessSource>
+    for api_models::webhook_events::EventRetrieveResponse
+{
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
+    fn try_from(value: domain::EventWithDeliverySuccessSource) -> Result<Self, Self::Error> {
         use crate::utils::OptionExt;
+
+        let item = value.event.clone();
 
         // We only allow retrieving events with all required fields in `EventListItemResponse`, and
         // `request` and `response` populated.
         // We cannot retrieve events with only some of these fields populated.
-        let event_information =
-            api_models::webhook_events::EventListItemResponse::try_from(item.clone())?;
+        let event_information = api_models::webhook_events::EventListItemResponse::try_from(value)?;
 
         let request = item
             .request

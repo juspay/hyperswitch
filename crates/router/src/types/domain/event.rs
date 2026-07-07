@@ -83,17 +83,26 @@ pub struct Event {
     pub recipient: Option<EventRecipient>,
 }
 
+/// The API that is asking for this event's delivery-success value.
+#[derive(Clone, Copy, Debug)]
+pub enum DeliverySuccessSource {
+    ListInitialEvents,
+    ListDeliveryAttempts,
+}
+
+/// Pairs an event with the API context needed to resolve its delivery-success value — see
+/// `DeliverySuccessSource`.
+pub struct EventWithDeliverySuccessSource {
+    pub event: Event,
+    pub source: DeliverySuccessSource,
+}
+
 impl Event {
-    /// Resolves the correct delivery-success source for this event's delivery attempt:
-    /// `Some(ManualRetry)` -> `is_webhook_notified`
-    /// anything else (`InitialAttempt`, `AutomaticRetry`, or `None`) -> `is_overall_delivery_successful`
-    pub fn resolve_delivery_success(&self) -> Option<bool> {
-        match self.delivery_attempt {
-            Some(WebhookDeliveryAttempt::ManualRetry) => Some(self.is_webhook_notified),
-            Some(
-                WebhookDeliveryAttempt::InitialAttempt | WebhookDeliveryAttempt::AutomaticRetry,
-            )
-            | None => self.is_overall_delivery_successful,
+    /// Resolves the correct delivery-success value for the given API context.
+    pub fn resolve_delivery_success(&self, source: DeliverySuccessSource) -> Option<bool> {
+        match source {
+            DeliverySuccessSource::ListInitialEvents => self.is_overall_delivery_successful,
+            DeliverySuccessSource::ListDeliveryAttempts => Some(self.is_webhook_notified),
         }
     }
 }
