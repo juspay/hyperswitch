@@ -32,6 +32,12 @@ describe("Subscription Management tests", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  after("cleanup billing connector", () => {
+    cy.deleteBillingConnectorTest(globalState).then(() => {
+      cy.task("setGlobalState", globalState.data);
+    });
+  });
+
   context("Prerequisites", () => {
     const prereqContinue = true;
 
@@ -73,8 +79,8 @@ describe("Subscription Management tests", () => {
     });
   });
 
-  context("Create Subscription", () => {
-    it("create-subscription-happy-path-test", function () {
+  context("Create Subscription - Known Limitation", () => {
+    it("create-subscription-known-limitation-test", function () {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "subscription_pm"
       ]["Create"];
@@ -191,24 +197,24 @@ describe("Subscription Management tests", () => {
     });
   });
 
-  context("Reactivate Subscription", () => {
-    it("reactivate-subscription-test", function () {
+  context("Resume Subscription", () => {
+    it("resume-subscription-test", function () {
       if (!shouldContinue) {
         this.skip();
       }
 
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "subscription_pm"
-      ]["Reactivate"];
+      ]["Resume"];
 
-      cy.reactivateSubscriptionTest(data, globalState);
+      cy.resumeSubscriptionTest(data, globalState);
 
       if (shouldContinue) {
         shouldContinue = utils.should_continue_further(data);
       }
     });
 
-    it("verify-reactivated-subscription-test", function () {
+    it("verify-resumed-subscription-test", function () {
       if (!shouldContinue) {
         this.skip();
       }

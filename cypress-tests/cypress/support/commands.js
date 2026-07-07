@@ -1925,6 +1925,38 @@ Cypress.Commands.add("deleteFrmConnector", (globalState) => {
   });
 });
 
+Cypress.Commands.add("deleteBillingConnectorTest", (globalState) => {
+  const billingConnectorId = globalState.get("billingProcessorConnectorId");
+
+  if (!billingConnectorId) {
+    cy.task("cli_log", "No billingProcessorConnectorId found, skipping delete");
+    return;
+  }
+
+  const merchantId = globalState.get("merchantId");
+  const baseUrl = globalState.get("baseUrl");
+  const adminApiKey = globalState.get("adminApiKey");
+
+  cy.request({
+    method: "DELETE",
+    url: `${baseUrl}/account/${merchantId}/connectors/${billingConnectorId}`,
+    headers: {
+      Accept: "application/json",
+      "api-key": adminApiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    cy.task(
+      "cli_log",
+      "Billing connector delete status: " + response.status
+    );
+    if (response.status === 200) {
+      globalState.set("billingProcessorConnectorId", null);
+    }
+  });
+});
+
 Cypress.Commands.add(
   "connectorUpdateCall",
   (connectorType, updateConnectorBody, globalState) => {
@@ -10967,6 +10999,21 @@ Cypress.Commands.add(
         globalState.get("paymentMethodId");
     }
 
+    // Hard-fail if prerequisites were not set — prevents empty-string leaks
+    if (!subscriptionBody.customer_id) {
+      throw new Error(
+        "customerId missing from globalState - prerequisites failed"
+      );
+    }
+    if (
+      subscriptionBody.payment_details &&
+      !subscriptionBody.payment_details.payment_method_id
+    ) {
+      throw new Error(
+        "payment_method_id missing from globalState - prerequisites failed"
+      );
+    }
+
     const headers = {
       "Content-Type": "application/json",
       "api-key": apiKey,
@@ -11231,7 +11278,7 @@ Cypress.Commands.add("cancelSubscriptionTest", (data, globalState) => {
   });
 });
 
-Cypress.Commands.add("reactivateSubscriptionTest", (data, globalState) => {
+Cypress.Commands.add("resumeSubscriptionTest", (data, globalState) => {
   const { Configs: configs = {} } = data;
   execConfig(validateConfig(configs));
 

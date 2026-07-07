@@ -73,6 +73,9 @@ const bankDebitCredentialIndex = {
   Bacs: 3,
 };
 
+const stripeTestPriceId =
+  Cypress.env("STRIPE_TEST_PRICE_ID") || "price_12345";
+
 const bankDebitConnectorCredential = (paymentMethodType) =>
   connectorCredential(
     bankDebitCredentialIndex[paymentMethodType] ?? bankDebitCredentialIndex.Sepa
@@ -2004,32 +2007,32 @@ export const connectorDetails = {
   subscription_pm: {
     // These configs define the request/response expectations for subscription tests.
     // customer_id is dynamically populated by the createSubscriptionTest command from globalState.
+    // TODO: Remove TRIGGER_SKIP once STRIPE_TEST_PRICE_ID env var is set with a
+    // valid Stripe test price. The skip is a known limitation — Create returns
+    // 500 when the price ID does not exist in the Stripe account. The Response
+    // below is pre-configured for 200 success so removing TRIGGER_SKIP is the
+    // only change needed once a valid price ID is available.
     Create: getCustomExchange({
       TRIGGER_SKIP: true,
       Request: {
         customer_id: "", // Populated from globalState.get("customerId") in createSubscriptionTest
-        item_price_id: "price_12345",
+        item_price_id: stripeTestPriceId,
         payment_details: {
           return_url: "https://example.com/subscription/return",
           payment_method_id: "", // Empty string — standard codebase pattern. Populated at runtime from globalState.get("paymentMethodId") by createSubscriptionTest command (commands.js line 10684). Do NOT hardcode a value here.
         },
       },
       Response: {
-        status: 500,
+        status: 200,
         body: {
-          error: {
-            type: "connector",
-            message: "HE_00: Something went wrong",
-            code: "CE_00",
-            connector: "stripebilling",
-          },
+          status: "active",
         },
       },
     }),
     CreateInvalidCustomer: getCustomExchange({
       Request: {
         customer_id: "cust_invalid_nonexistent", // Intentionally invalid for negative test case
-        item_price_id: "price_12345",
+        item_price_id: stripeTestPriceId,
         payment_details: {
           return_url: "https://example.com/subscription/return",
           payment_method_id: "",
@@ -2081,8 +2084,8 @@ export const connectorDetails = {
     }),
     Update: getCustomExchange({
       Request: {
-        plan_id: "price_12345",
-        item_price_id: "price_12345",
+        plan_id: stripeTestPriceId,
+        item_price_id: stripeTestPriceId,
       },
       Response: {
         status: 200,
@@ -2102,7 +2105,7 @@ export const connectorDetails = {
         },
       },
     }),
-    Reactivate: getCustomExchange({
+    Resume: getCustomExchange({
       Request: {},
       Response: {
         status: 200,
