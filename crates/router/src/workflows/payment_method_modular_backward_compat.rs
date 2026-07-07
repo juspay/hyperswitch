@@ -33,7 +33,7 @@ use crate::{
 struct BackwardCompatUpdates {
     payment_method: Option<common_enums::PaymentMethod>,
     payment_method_type: Option<common_enums::PaymentMethodType>,
-    connector_mandate_details: Option<serde_json::Value>,
+    connector_mandate_details: Option<diesel_models::payment_method::ConnectorMandateCompatDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -41,6 +41,24 @@ struct BackwardCompatUpdates {
     payment_method: Option<common_enums::PaymentMethod>,
     payment_method_type: Option<common_enums::PaymentMethodType>,
     connector_mandate_details: Option<diesel_models::payment_method::CommonMandateReference>,
+}
+
+#[cfg(feature = "v1")]
+impl BackwardCompatUpdates {
+    fn connector_mandate_details_for_update(&self) -> Option<serde_json::Value> {
+        self.connector_mandate_details
+            .clone()
+            .and_then(|connector_mandate_details| connector_mandate_details.into_value())
+    }
+}
+
+#[cfg(feature = "v2")]
+impl BackwardCompatUpdates {
+    fn connector_mandate_details_for_update(
+        &self,
+    ) -> Option<diesel_models::payment_method::CommonMandateReference> {
+        self.connector_mandate_details.clone()
+    }
 }
 
 struct BackwardCompatWorkflowBuilder<S: BackwardCompatState> {
@@ -77,7 +95,6 @@ impl BackwardCompatTransitionTo<BackwardPaymentMethodLoaded> for BackwardContext
 impl BackwardCompatTransitionTo<BackwardDbCompatPrepared> for BackwardPaymentMethodLoaded {}
 impl BackwardCompatTransitionTo<BackwardLockerCompatApplied> for BackwardDbCompatPrepared {}
 
-#[allow(clippy::expect_used)]
 impl<S: BackwardCompatState> BackwardCompatWorkflowBuilder<S> {
     fn transition<T: BackwardCompatState>(self) -> BackwardCompatWorkflowBuilder<T>
     where
@@ -94,34 +111,48 @@ impl<S: BackwardCompatState> BackwardCompatWorkflowBuilder<S> {
         }
     }
 
-    fn tracking_data(&self) -> &PaymentMethodModularCompatTrackingData {
+    fn tracking_data(&self) -> errors::RouterResult<&PaymentMethodModularCompatTrackingData> {
         self.tracking_data
             .as_ref()
-            .expect("tracking data must be loaded in backward compatibility workflow")
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("tracking data must be loaded in backward compatibility workflow")
     }
 
-    fn merchant_id(&self) -> &id_type::MerchantId {
+    fn merchant_id(&self) -> errors::RouterResult<&id_type::MerchantId> {
         self.merchant_id
             .as_ref()
-            .expect("merchant id must be loaded in backward compatibility workflow")
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("merchant id must be loaded in backward compatibility workflow")
     }
 
-    fn key_store(&self) -> &domain::MerchantKeyStore {
+    fn key_store(&self) -> errors::RouterResult<&domain::MerchantKeyStore> {
         self.key_store
             .as_ref()
-            .expect("merchant key store must be loaded in backward compatibility workflow")
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "merchant key store must be loaded in backward compatibility workflow",
+            )
     }
 
-    fn merchant_account(&self) -> &domain::MerchantAccount {
+    fn merchant_account(&self) -> errors::RouterResult<&domain::MerchantAccount> {
         self.merchant_account
             .as_ref()
-            .expect("merchant account must be loaded in backward compatibility workflow")
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("merchant account must be loaded in backward compatibility workflow")
     }
 
-    fn payment_method(&self) -> &domain::PaymentMethod {
+    fn payment_method(&self) -> errors::RouterResult<&domain::PaymentMethod> {
         self.payment_method
             .as_ref()
-            .expect("payment method must be loaded in backward compatibility workflow")
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("payment method must be loaded in backward compatibility workflow")
+    }
+
+    fn updates(&self) -> errors::RouterResult<&BackwardCompatUpdates> {
+        self.updates
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("updates must be prepared in backward compatibility workflow")
     }
 }
 
@@ -171,27 +202,31 @@ impl BackwardCompatWorkflowBuilder<BackwardContextLoaded> {
 }
 
 impl BackwardCompatWorkflowBuilder<BackwardPaymentMethodLoaded> {
-    fn should_skip(&self) -> bool {
-        self.payment_method().version == common_enums::ApiVersion::V1
+    fn should_skip(&self) -> errors::RouterResult<bool> {
+        Ok(self.payment_method()?.version == common_enums::ApiVersion::V1)
     }
 
-    fn prepare_db_compat(mut self) -> BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
+    fn prepare_db_compat(
+        mut self,
+    ) -> errors::RouterResult<BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared>> {
+        let payment_method = self.payment_method()?;
         let updates = BackwardCompatUpdates {
-            payment_method: self.payment_method().get_payment_method_type(),
-            payment_method_type: self.payment_method().get_payment_method_subtype(),
-            connector_mandate_details: Self::connector_mandate_details(self.payment_method()),
+            payment_method: payment_method.get_payment_method_type(),
+            payment_method_type: payment_method.get_payment_method_subtype(),
+            connector_mandate_details: Self::connector_mandate_details(payment_method),
         };
         self.updates = Some(updates);
-        self.transition()
+        Ok(self.transition())
     }
 
     #[cfg(feature = "v1")]
     fn connector_mandate_details(
         payment_method: &domain::PaymentMethod,
-    ) -> Option<serde_json::Value> {
-        diesel_models::payment_method::CommonMandateReference::add_v1_connector_mandate_fields(
+    ) -> Option<diesel_models::payment_method::ConnectorMandateCompatDetails> {
+        diesel_models::payment_method::CommonMandateReference::parse_connector_mandate_compat_details(
             payment_method.connector_mandate_details.clone(),
         )
+        .map(diesel_models::payment_method::CommonMandateReference::add_v1_connector_mandate_fields)
     }
 
     #[cfg(feature = "v2")]
@@ -219,11 +254,11 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
         Self::backfill_legacy_locker_card(
             state,
             db,
-            self.key_store(),
-            self.merchant_id(),
-            self.payment_method(),
-            self.merchant_account().storage_scheme,
-            self.tracking_data(),
+            self.key_store()?,
+            self.merchant_id()?,
+            self.payment_method()?,
+            self.merchant_account()?.storage_scheme,
+            self.tracking_data()?,
             process_id,
         )
         .await?;
@@ -242,18 +277,18 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
         errors::ProcessTrackerError,
     > {
         let platform = domain::Platform::new(
-            self.merchant_account().clone(),
-            self.key_store().clone(),
-            self.merchant_account().clone(),
-            self.key_store().clone(),
+            self.merchant_account()?.clone(),
+            self.key_store()?.clone(),
+            self.merchant_account()?.clone(),
+            self.key_store()?.clone(),
             None,
         );
 
         Box::pin(Self::backfill_legacy_locker_card(
             state,
             &platform,
-            self.payment_method(),
-            self.tracking_data(),
+            self.payment_method()?,
+            self.tracking_data()?,
             process_id,
         ))
         .await?;
@@ -262,41 +297,28 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
     }
 }
 
-#[allow(clippy::expect_used)]
 impl BackwardCompatWorkflowBuilder<BackwardLockerCompatApplied> {
     async fn mark_complete(
         self,
         db: &dyn StorageInterface,
     ) -> Result<domain::PaymentMethod, errors::ProcessTrackerError> {
-        let Self {
-            tracking_data,
-            key_store,
-            merchant_account,
-            payment_method,
-            updates,
-            ..
-        } = self;
-        let tracking_data =
-            tracking_data.expect("tracking data must be loaded in backward compatibility workflow");
-        let key_store = key_store
-            .expect("merchant key store must be loaded in backward compatibility workflow");
-        let merchant_account = merchant_account
-            .expect("merchant account must be loaded in backward compatibility workflow");
-        let payment_method = payment_method
-            .expect("payment method must be loaded in backward compatibility workflow");
-        let updates = updates.expect("updates must be prepared in backward compatibility workflow");
+        let tracking_data = self.tracking_data()?;
+        let key_store = self.key_store()?;
+        let merchant_account = self.merchant_account()?;
+        let payment_method = self.payment_method()?;
+        let updates = self.updates()?;
 
         let pm_update = storage::PaymentMethodUpdate::PopulateLegacyCompatFields {
             payment_method: updates.payment_method,
             payment_method_type: updates.payment_method_type,
-            connector_mandate_details: updates.connector_mandate_details,
-            last_modified_by: tracking_data.last_modified_by,
+            connector_mandate_details: updates.connector_mandate_details_for_update(),
+            last_modified_by: tracking_data.last_modified_by.clone(),
         };
 
         Ok(db
             .update_payment_method(
-                &key_store,
-                payment_method,
+                key_store,
+                payment_method.clone(),
                 pm_update,
                 merchant_account.storage_scheme,
                 // Backward compat completion update must not recursively enqueue compat again.
@@ -791,7 +813,7 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
 ) -> Result<(), errors::ProcessTrackerError> {
     let db = &*state.store;
     let workflow = BackwardCompatWorkflowBuilder::new().load_tracking_data(tracking_data);
-    let merchant_id = workflow.merchant_id().clone();
+    let merchant_id = workflow.merchant_id()?.clone();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
@@ -806,20 +828,20 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
     let workflow = workflow.load_context(key_store, merchant_account);
 
     #[cfg(feature = "v1")]
-    let payment_method_id = workflow.tracking_data().payment_method_id.as_str();
+    let payment_method_id = workflow.tracking_data()?.payment_method_id.as_str();
     #[cfg(feature = "v2")]
     let payment_method_id = id_type::GlobalPaymentMethodId::generate_from_string(
-        workflow.tracking_data().payment_method_id.clone(),
+        workflow.tracking_data()?.payment_method_id.clone(),
     );
 
     let payment_method = db
         .find_payment_method(
-            workflow.key_store(),
+            workflow.key_store()?,
             #[cfg(feature = "v1")]
             payment_method_id,
             #[cfg(feature = "v2")]
             &payment_method_id,
-            workflow.merchant_account().storage_scheme,
+            workflow.merchant_account()?.storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -828,15 +850,15 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
         )?;
     let workflow = workflow.load_payment_method(payment_method);
 
-    if workflow.should_skip() {
+    if workflow.should_skip()? {
         logger::info!(
             process_id=%process_id,
-            payment_method_id=%workflow.tracking_data().payment_method_id,
+            payment_method_id=%workflow.tracking_data()?.payment_method_id,
             "Skipping modular backward compatibility backfill because legacy PM is not forward compatible"
         );
     } else {
         workflow
-            .prepare_db_compat()
+            .prepare_db_compat()?
             .apply_locker_compat(state, db, process_id)
             .await?
             .mark_complete(db)

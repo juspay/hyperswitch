@@ -10440,6 +10440,24 @@ pub enum ConnectorTokenStatus {
     Inactive,
 }
 
+impl From<ConnectorMandateStatus> for ConnectorTokenStatus {
+    fn from(status: ConnectorMandateStatus) -> Self {
+        match status {
+            ConnectorMandateStatus::Active => Self::Active,
+            ConnectorMandateStatus::Inactive => Self::Inactive,
+        }
+    }
+}
+
+impl From<ConnectorTokenStatus> for ConnectorMandateStatus {
+    fn from(status: ConnectorTokenStatus) -> Self {
+        match status {
+            ConnectorTokenStatus::Active => Self::Active,
+            ConnectorTokenStatus::Inactive => Self::Inactive,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
