@@ -3554,6 +3554,7 @@ impl ConnectorSpecifications for Adyen {
                 matches!(&request_data.payment_method_data, Some(payment_method_data::PaymentMethodData::GiftCard(giftcard_data)) if giftcard_data.is_givex())
             }
             api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
