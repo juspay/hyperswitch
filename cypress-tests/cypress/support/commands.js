@@ -36,12 +36,16 @@ import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import { handleRedirection, MICRODEPOSIT_CONFIG } from "./redirectionHandler";
-
-// In MITM replay mode (MOCK_SERVER=true) there is no live browser redirection
-// to drive. Cypress.env may return a boolean or a string, hence String().
-function isMockServer() {
-  return String(Cypress.env("MOCK_SERVER")) === "true";
-}
+import {
+  isMockServer,
+  isRecordMode,
+  isReplayMode,
+  mockRecord3ds,
+  mockRecordBankRedirect,
+  mockReplay3ds,
+  mockReplayBankRedirect,
+  resetMitmRedirectSeq,
+} from "./mitmProxy";
 
 // Returns true (after logging a consistent skip line) when a redirection
 // command should bail out early because we're in replay mode.
@@ -5233,9 +5237,9 @@ Cypress.Commands.add(
   "handleRedirection",
   (globalState, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
-    // Cassettes recorded from a non-3DS scenario won't carry a
-    // next_action URL; fall back to example.com so replay can still
-    // burn the step-counter slot and reach later assertions.
+    // Cassettes recorded from a non-3DS scenario won't carry a next_action
+    // URL; fall back to example.com so replay can still burn the step-counter
+    // slot and reach later assertions.
     let nextActionUrl = globalState.get("nextActionUrl");
     if (!nextActionUrl) {
       cy.task(
@@ -5245,29 +5249,27 @@ Cypress.Commands.add(
       nextActionUrl = "https://example.com";
     }
 
-    if (isMockServer()) {
-      // In MITM replay mode the ThreeDS browser flow is skipped.  Consume one
-      // cy.request slot so the Cypress step counter stays aligned with how the
-      // cassettes were recorded (threeDsRedirection() always issues one request
-      // before starting browser navigation).  The force_sync Retrieve that
-      // follows will call Stripe PSync, receive "requires_capture" from the
-      // cassette, and HS transitions the payment state automatically.
-      if (Cypress.env("PROXY_ADMIN_URL")) {
-        cy.request({
-          url: nextActionUrl,
-          failOnStatusCode: false,
-          followRedirect: false,
-        });
-      }
+    if (isRecordMode()) {
+      mockRecord3ds(
+        globalState,
+        nextActionUrl,
+        expectedRedirection,
+        handleRedirection
+      );
       return;
     }
 
-    const expectedUrl = new URL(expectedRedirection);
-    const redirectionUrl = new URL(nextActionUrl);
+    if (isReplayMode()) {
+      mockReplay3ds(globalState, connectorId, nextActionUrl);
+      return;
+    }
 
     handleRedirection(
       "three_ds",
-      { redirectionUrl, expectedUrl },
+      {
+        redirectionUrl: new URL(nextActionUrl),
+        expectedUrl: new URL(expectedRedirection),
+      },
       connectorId,
       globalState.get("paymentMethodType")
     );
@@ -5280,6 +5282,28 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
+    // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
+    // trying to handle that specific case results in stripe 3ds tests to fail
+    if (connectorId === "adyen" && paymentMethodType === "sofort") {
+      return;
+    }
+
+    if (isRecordMode()) {
+      mockRecordBankRedirect(
+        globalState,
+        nextActionUrl,
+        expectedRedirection,
+        paymentMethodType,
+        handleRedirection
+      );
+      return;
+    }
+
+    if (isReplayMode()) {
+      mockReplayBankRedirect(globalState, connectorId);
+      return;
+    }
+
     if (skipRedirectionInMockServer("handleBankRedirectRedirection")) {
       return;
     }
@@ -5287,21 +5311,17 @@ Cypress.Commands.add(
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
-    // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
-    // trying to handle that specific case results in stripe 3ds tests to fail
-    if (!(connectorId == "adyen" && paymentMethodType == "sofort")) {
-      // Wrap in cy.then() so that commands enqueued by handleRedirection
-      // (especially cy.origin() calls for PayJustNow) are chained inline
-      // and complete before subsequent test steps (Retrieve Payment, Refund).
-      cy.then(() => {
-        handleRedirection(
-          "bank_redirect",
-          { redirectionUrl, expectedUrl },
-          connectorId,
-          paymentMethodType
-        );
-      });
-    }
+    // Wrap in cy.then() so that commands enqueued by handleRedirection
+    // (especially cy.origin() calls for PayJustNow) are chained inline
+    // and complete before subsequent test steps (Retrieve Payment, Refund).
+    cy.then(() => {
+      handleRedirection(
+        "bank_redirect",
+        { redirectionUrl, expectedUrl },
+        connectorId,
+        paymentMethodType
+      );
+    });
   }
 );
 
@@ -10717,4 +10737,8 @@ Cypress.Commands.add("retrieveNonExistentPayoutTest", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
     expect(response.status).to.equal(404);
   });
+});
+
+Cypress.Commands.add("resetRedirectReadCount", (testIdHash) => {
+  resetMitmRedirectSeq(testIdHash);
 });
