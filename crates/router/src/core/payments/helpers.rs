@@ -3777,11 +3777,11 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
             Some(storage_enums::PaymentMethodType::Affirm) => Some(
                 domain::PaymentMethodData::PayLater(domain::PayLaterData::AffirmRedirect {}),
             ),
-            Some(storage_enums::PaymentMethodType::Skrill) => Some(
-                domain::PaymentMethodData::Wallet(domain::WalletData::Skrill(Box::new(
-                    domain::SkrillData {},
-                ))),
-            ),
+            Some(storage_enums::PaymentMethodType::Skrill) => {
+                Some(domain::PaymentMethodData::Wallet(
+                    domain::WalletData::Skrill(Box::new(domain::SkrillData {})),
+                ))
+            }
             Some(storage_enums::PaymentMethodType::Interac) => Some(
                 domain::PaymentMethodData::BankRedirect(domain::BankRedirectData::Interac {
                     country: None,
