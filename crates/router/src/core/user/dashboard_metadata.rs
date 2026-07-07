@@ -15,7 +15,10 @@ use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::{app::ReqState, SessionState},
     services::{authentication::UserFromToken, ApplicationResponse},
-    types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
+    types::{
+        domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
+        transformers::ForeignFrom,
+    },
     utils::user::{self as user_utils, dashboard_metadata as utils},
 };
 #[cfg(feature = "email")]
@@ -250,9 +253,16 @@ fn into_response(
                     .map(|v| api::SavedViewResponse {
                         view_id: v.view_id,
                         view_name: v.view_name,
-                        data: api::SavedViewFilters::V1(api::SavedViewFiltersV1::PaymentViews(
-                            v.filters,
-                        )),
+                        data: match v.version {
+                            types::SavedViewVersion::V1 => {
+                                api::SavedViewFilters::V1(api::SavedViewFiltersV1::PaymentViews(
+                                    api::PaymentListFilterConstraintsV1::foreign_from(v.filters),
+                                ))
+                            }
+                            types::SavedViewVersion::V2 => api::SavedViewFilters::V2(
+                                api::SavedViewFiltersV2::PaymentViews(v.filters),
+                            ),
+                        },
                         created_at: v.created_at.to_string(),
                         updated_at: v.updated_at.to_string(),
                     })

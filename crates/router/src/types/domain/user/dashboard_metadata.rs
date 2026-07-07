@@ -74,11 +74,35 @@ pub struct ProductionAgreementValue {
 }
 
 #[cfg(feature = "v1")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SavedViewVersion {
+    V1,
+    V2,
+}
+
+#[cfg(feature = "v1")]
+impl Default for SavedViewVersion {
+    fn default() -> Self {
+        Self::V1
+    }
+}
+
+#[cfg(feature = "v1")]
+impl SavedViewVersion {
+    fn is_v1(&self) -> bool {
+        matches!(self, Self::V1)
+    }
+}
+
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct SavedViewV1 {
+pub struct SavedView {
     pub view_id: String,
     pub view_name: String,
-    pub filters: api::PaymentListFilterConstraintsV1,
+    #[serde(default, skip_serializing_if = "SavedViewVersion::is_v1")]
+    pub version: SavedViewVersion,
+    pub filters: api::PaymentListFilterConstraintsV2,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -86,5 +110,5 @@ pub struct SavedViewV1 {
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaymentViewsValue {
-    pub views: Vec<SavedViewV1>,
+    pub views: Vec<SavedView>,
 }

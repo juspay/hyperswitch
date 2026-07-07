@@ -212,6 +212,14 @@ pub enum SavedViewFiltersV1 {
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "entity", content = "filters")]
+#[serde(rename_all = "snake_case")]
+pub enum SavedViewFiltersV2 {
+    PaymentViews(PaymentListFilterConstraintsV2),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PaymentListFilterConstraintsV1 {
     pub query: Option<String>,
     pub payment_id: Option<id_type::PaymentId>,
@@ -248,10 +256,14 @@ pub struct PaymentListFilterConstraintsV1 {
 }
 
 #[cfg(feature = "v1")]
+pub type PaymentListFilterConstraintsV2 = payments::PaymentListFilterConstraints;
+
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "version", rename_all = "snake_case")]
 pub enum SavedViewFilters {
     V1(SavedViewFiltersV1),
+    V2(SavedViewFiltersV2),
 }
 
 #[cfg(feature = "v1")]
