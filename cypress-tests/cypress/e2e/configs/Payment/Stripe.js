@@ -73,8 +73,7 @@ const bankDebitCredentialIndex = {
   Bacs: 3,
 };
 
-const stripeTestPriceId =
-  Cypress.env("STRIPE_TEST_PRICE_ID") || "price_12345";
+const stripeTestPriceId = Cypress.env("STRIPE_TEST_PRICE_ID") || "price_12345";
 
 const bankDebitConnectorCredential = (paymentMethodType) =>
   connectorCredential(

@@ -1908,7 +1908,6 @@ Cypress.Commands.add("deleteFrmConnector", (globalState) => {
     );
   });
 });
-
 Cypress.Commands.add("deleteBillingConnectorTest", (globalState) => {
   const billingConnectorId = globalState.get("billingProcessorConnectorId");
 
@@ -1931,12 +1930,12 @@ Cypress.Commands.add("deleteBillingConnectorTest", (globalState) => {
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
-    cy.task(
-      "cli_log",
-      "Billing connector delete status: " + response.status
-    );
+    cy.task("cli_log", "Billing connector delete status: " + response.status);
     if (response.status === 200) {
-
+      globalState.set("billingProcessorConnectorId", null);
+    }
+  });
+});
 
 Cypress.Commands.add(
   "connectorUpdateCall",
@@ -10857,8 +10856,6 @@ Cypress.Commands.add("resetRedirectReadCount", (testIdHash) => {
   resetMitmRedirectSeq(testIdHash);
 });
 
-);
-
 // Subscription Management Commands
 // ============================================
 
@@ -10947,110 +10944,6 @@ Cypress.Commands.add(
     });
   }
 );
-
-Cypress.Commands.add("initiatePayoutLinkTest", (data, globalState) => {
-  const payoutLinkUrl = globalState.get("payoutLinkUrl");
-
-  if (!payoutLinkUrl) {
-    cy.task("cli_log", "Skipping: No payout link URL available");
-    return;
-  }
-
-  const redirectionUrl = new URL(payoutLinkUrl);
-  handleRedirection("payout_link_init", { redirectionUrl }, null, null, {});
-});
-
-Cypress.Commands.add(
-  "handlePayoutLinkBankRedirection",
-  (globalState, bankData, expectedOutcome = "success") => {
-    const payoutLinkUrl = globalState.get("payoutLinkUrl");
-
-    if (!payoutLinkUrl) {
-      cy.task("cli_log", "Skipping: No payout link URL available");
-      return;
-    }
-
-    const connectorId = globalState.get("connectorId") || "stripe";
-    const redirectionUrl = new URL(payoutLinkUrl);
-    const expectedUrl = new URL("https://example.com/return");
-
-    handleRedirection(
-      "payout_link",
-      { redirectionUrl, expectedUrl },
-      connectorId,
-      null,
-      { bankData, expectedOutcome, payoutLinkType: "bank" }
-    );
-  }
-);
-
-/**
- * Resets the business profile's payout_link_config to null.
- * Used in before/after hooks to ensure a clean state between test contexts.
- *
- * @param {Object} globalState - The global state object
- */
-Cypress.Commands.add("resetBusinessProfilePayoutLinkConfig", (globalState) => {
-  const profileId =
-    globalState.get("profileId") || globalState.get("defaultProfileId");
-  cy.request({
-    method: "POST",
-    url: `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/business_profile/${profileId}`,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    },
-    body: {
-      payout_link_config: null,
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    expect(response.status).to.equal(200);
-  });
-});
-
-/**
- * Lists payouts and validates the response structure.
- *
- * @param {Object} globalState - The global state object
- */
-Cypress.Commands.add("listPayoutsTest", (globalState) => {
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("baseUrl")}/payouts/list?limit=10`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-    expect(response.status).to.equal(200);
-    expect(response.body).to.have.property("data");
-    expect(response.body.data).to.be.an("array");
-  });
-});
-
-/**
- * Retrieves a non-existent payout and verifies a 404 response.
- *
- * @param {Object} globalState - The global state object
- */
-Cypress.Commands.add("retrieveNonExistentPayoutTest", (globalState) => {
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("baseUrl")}/payouts/non_existent_payout_12345`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-    expect(response.status).to.equal(404);
-  });
-});
 
 Cypress.Commands.add("retrieveSubscriptionTest", (data, globalState) => {
   const { Configs: configs = {} } = data;
