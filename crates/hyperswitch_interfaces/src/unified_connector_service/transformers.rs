@@ -970,6 +970,12 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                 )
                 .into(),
             ),
+            Some(payments_grpc::redirect_form::FormType::HostedIframe(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Hosted iframe form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
             Some(payments_grpc::redirect_form::FormType::Braintree(braintree)) => {
                 Ok(Self::Braintree {
                     client_token: braintree.client_token,
