@@ -187,7 +187,7 @@ export const connectorDetails = {
     },
     No3DSManualCapture: {
       Configs: {
-        skipBillingAssertion: true,
+        TRIGGER_SKIP: true,
       },
       Request: manualCaptureConfirmRequest,
       Response: {
@@ -212,9 +212,6 @@ export const connectorDetails = {
       Response: notImplementedResponse,
     },
     Capture: {
-      Configs: {
-        skipBillingAssertion: true,
-      },
       Request: {
         amount_to_capture: 6000,
       },
@@ -226,9 +223,6 @@ export const connectorDetails = {
       },
     },
     PartialCapture: {
-      Configs: {
-        skipBillingAssertion: true,
-      },
       Request: {
         amount_to_capture: 2000,
       },
