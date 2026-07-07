@@ -1325,6 +1325,11 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
             order_tax_amount: None,
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsDetails::foreign_from),
         })
     }
 }
@@ -3192,147 +3197,6 @@ impl transformers::ForeignTryFrom<common_enums::Currency> for payments_grpc::Cur
             )
             .into()
         })
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::PaymentChargeType>
-    for common_enums::PaymentChargeType
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        charge_type: payments_grpc::PaymentChargeType,
-    ) -> Result<Self, Self::Error> {
-        match charge_type {
-            payments_grpc::PaymentChargeType::StripeDirect => {
-                Ok(Self::Stripe(common_enums::StripeChargeType::Direct))
-            }
-            payments_grpc::PaymentChargeType::StripeDestination => {
-                Ok(Self::Stripe(common_enums::StripeChargeType::Destination))
-            }
-            payments_grpc::PaymentChargeType::Unspecified => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::ParsingFailed,
-            )
-            .attach_printable("Received unspecified PaymentChargeType from gRPC")),
-        }
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::AdyenSplitType> for common_enums::AdyenSplitType {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(split_type: payments_grpc::AdyenSplitType) -> Result<Self, Self::Error> {
-        match split_type {
-            payments_grpc::AdyenSplitType::Unspecified => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::ParsingFailed,
-            )
-            .attach_printable("Received unspecified AdyenSplitType from gRPC")),
-            payments_grpc::AdyenSplitType::BalanceAccount => Ok(Self::BalanceAccount),
-            payments_grpc::AdyenSplitType::AcquiringFees => Ok(Self::AcquiringFees),
-            payments_grpc::AdyenSplitType::PaymentFee => Ok(Self::PaymentFee),
-            payments_grpc::AdyenSplitType::AdyenFees => Ok(Self::AdyenFees),
-            payments_grpc::AdyenSplitType::AdyenCommission => Ok(Self::AdyenCommission),
-            payments_grpc::AdyenSplitType::AdyenMarkup => Ok(Self::AdyenMarkup),
-            payments_grpc::AdyenSplitType::Interchange => Ok(Self::Interchange),
-            payments_grpc::AdyenSplitType::SchemeFee => Ok(Self::SchemeFee),
-            payments_grpc::AdyenSplitType::Commission => Ok(Self::Commission),
-            payments_grpc::AdyenSplitType::TopUp => Ok(Self::TopUp),
-            payments_grpc::AdyenSplitType::Vat => Ok(Self::Vat),
-        }
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::AdyenSplitItem>
-    for common_types::domain::AdyenSplitItem
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(item: payments_grpc::AdyenSplitItem) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.map(MinorUnit::new),
-            split_type: common_enums::AdyenSplitType::foreign_try_from(
-                payments_grpc::AdyenSplitType::try_from(item.split_type).map_err(|_| {
-                    error_stack::Report::new(UnifiedConnectorServiceError::ParsingFailed)
-                        .attach_printable(format!(
-                            "Invalid AdyenSplitType value: {}",
-                            item.split_type
-                        ))
-                })?,
-            )?,
-            account: item.account,
-            reference: item.reference,
-            description: item.description,
-        })
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::AdyenSplitData>
-    for common_types::domain::AdyenSplitData
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(data: payments_grpc::AdyenSplitData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            store: data.store,
-            split_items: data
-                .split_items
-                .into_iter()
-                .map(common_types::domain::AdyenSplitItem::foreign_try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-        })
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::StripeSplitResponseData>
-    for common_types::payments::StripeChargeResponseData
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        stripe: payments_grpc::StripeSplitResponseData,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            charge_id: stripe.charge_id,
-            charge_type: common_enums::PaymentChargeType::foreign_try_from(
-                payments_grpc::PaymentChargeType::try_from(stripe.charge_type).map_err(|_| {
-                    error_stack::Report::new(UnifiedConnectorServiceError::ParsingFailed)
-                        .attach_printable(format!(
-                            "Invalid PaymentChargeType value: {:?}",
-                            stripe.charge_type
-                        ))
-                })?,
-            )?,
-            application_fees: stripe.application_fees.map(MinorUnit::new),
-            transfer_account_id: stripe.transfer_account_id,
-            on_behalf_of: stripe.on_behalf_of,
-        })
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::ConnectorSplitResponseData>
-    for common_types::payments::ConnectorChargeResponseData
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        split_data: payments_grpc::ConnectorSplitResponseData,
-    ) -> Result<Self, Self::Error> {
-        match split_data.split_response_type {
-            Some(payments_grpc::connector_split_response_data::SplitResponseType::StripeSplitResponse(stripe)) => {
-                Ok(Self::StripeSplitPayment(
-                    common_types::payments::StripeChargeResponseData::foreign_try_from(stripe)?,
-                ))
-            }
-            Some(payments_grpc::connector_split_response_data::SplitResponseType::AdyenSplitResponse(adyen)) => {
-                Ok(Self::AdyenSplitPayment(
-                    common_types::domain::AdyenSplitData::foreign_try_from(adyen)?,
-                ))
-            }
-            None => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::ParsingFailed,
-            )
-            .attach_printable("ConnectorSplitResponseData has no split_response_type")),
-        }
     }
 }
 
@@ -6497,6 +6361,11 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsDetails::foreign_from),
         })
     }
 }
@@ -6540,6 +6409,7 @@ impl
             metadata: None,
             state,
             test_mode: router_data.test_mode,
+            split_payments: None,
         })
     }
 }

@@ -4,6 +4,71 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.07.0
+
+### Features
+
+- **connector:** [Authorizedotnet] add network transaction id support ([#13156](https://github.com/juspay/hyperswitch/pull/13156)) ([`2223f40`](https://github.com/juspay/hyperswitch/commit/2223f40068ea208b58e817ef687293d366ed7bf5))
+- **cypress:** Add MITM proxy record/replay for connector tests ([#12852](https://github.com/juspay/hyperswitch/pull/12852)) ([`c0ce9fb`](https://github.com/juspay/hyperswitch/commit/c0ce9fbf944eb737f599a02840593876f41d8fa5))
+
+**Full Changelog:** [`2026.07.06.0...2026.07.07.0`](https://github.com/juspay/hyperswitch/compare/2026.07.06.0...2026.07.07.0)
+
+- - -
+
+## 2026.07.06.0
+
+### Features
+
+- **analytics:** Surface connector-event dimensions + ucs_api_events read API ([#12899](https://github.com/juspay/hyperswitch/pull/12899)) ([`c2b8d14`](https://github.com/juspay/hyperswitch/commit/c2b8d14d161387f332a2b7bac6c27c8c94a34fd0))
+- **core:** Support for surcharge_amount based routing ([#13140](https://github.com/juspay/hyperswitch/pull/13140)) ([`6cab32f`](https://github.com/juspay/hyperswitch/commit/6cab32ff7c09e701baf4520f736cbbe29389dbdf))
+
+### Bug Fixes
+
+- **connector:**
+  - [Adyen] handle empty webhook requests ([#13155](https://github.com/juspay/hyperswitch/pull/13155)) ([`f9cc035`](https://github.com/juspay/hyperswitch/commit/f9cc035b3fa948b86abce0c4cc768a96f8902de6))
+  - [Adyen] Handle non-JSON error responses gracefully ([#13161](https://github.com/juspay/hyperswitch/pull/13161)) ([`dce48cd`](https://github.com/juspay/hyperswitch/commit/dce48cdf8ce29ac71c6a78e621a6da3cb5dd8450))
+- **payments:** Handle reward surcharge lookup ([#13120](https://github.com/juspay/hyperswitch/pull/13120)) ([`e3875de`](https://github.com/juspay/hyperswitch/commit/e3875de47d4e734508f93daca1f1204f187e3948))
+- Add adyen management url for prod ([#13144](https://github.com/juspay/hyperswitch/pull/13144)) ([`0dd6608`](https://github.com/juspay/hyperswitch/commit/0dd6608802f1b88561a56dabba414a794f22d268))
+
+### Testing
+
+- **cypress:**
+  - Add PayJustNow PayLater coverage for payjustnow ([#12243](https://github.com/juspay/hyperswitch/pull/12243)) ([`057bb05`](https://github.com/juspay/hyperswitch/commit/057bb054f2f29b239a4887ecfdc306f018102b32))
+  - Add bank debit coverage for stripe ([#12377](https://github.com/juspay/hyperswitch/pull/12377)) ([`db02b4f`](https://github.com/juspay/hyperswitch/commit/db02b4f06a5307a0b7e6f2c73cc20b4e3c5b798d))
+
+**Full Changelog:** [`2026.07.03.0...2026.07.06.0`](https://github.com/juspay/hyperswitch/compare/2026.07.03.0...2026.07.06.0)
+
+- - -
+
+## 2026.07.03.0
+
+### Features
+
+- **core:**
+  - Support external authentication for platform merchants ([#13126](https://github.com/juspay/hyperswitch/pull/13126)) ([`230b2b4`](https://github.com/juspay/hyperswitch/commit/230b2b4a251d6d190fe5dbf5f65cd839f786a1c4))
+  - Added Split payment request field in capture and void UCS request ([#13133](https://github.com/juspay/hyperswitch/pull/13133)) ([`ca5c054`](https://github.com/juspay/hyperswitch/commit/ca5c054fc8dcdbe9d7e8826ec6aac78ca630e3f0))
+- **core/connector:** [Peachpayments] Add card_on_file_transaction_type to PeachPayments Metadata ([#13130](https://github.com/juspay/hyperswitch/pull/13130)) ([`6e2423b`](https://github.com/juspay/hyperswitch/commit/6e2423b32a011b3297bc3be24e375de546668c77))
+- **customers:** Use domain type for customer ID ([#12735](https://github.com/juspay/hyperswitch/pull/12735)) ([`aa2beff`](https://github.com/juspay/hyperswitch/commit/aa2beff1e15dc7958d12292485eeb8b26326e6c6))
+- **payment_methods:** Surface customer email in client PML intent_data ([#13146](https://github.com/juspay/hyperswitch/pull/13146)) ([`838dbcf`](https://github.com/juspay/hyperswitch/commit/838dbcf528134f28fdaeeeb2cd28ebc49149e7ad))
+- **router:** [affirm] UCS support — config header, CompleteAuthorize payment_method, auto-capture ([#13049](https://github.com/juspay/hyperswitch/pull/13049)) ([`de95008`](https://github.com/juspay/hyperswitch/commit/de95008a6fcccc01d08be019bbf2bbbd1706a130))
+- **superposition:** Add backend apis to support dashboard's superposition embeddable UI ([#12203](https://github.com/juspay/hyperswitch/pull/12203)) ([`cb6312c`](https://github.com/juspay/hyperswitch/commit/cb6312c25b57bc392baa2b7d3e062190b97c2b02))
+- Support advanced payment list search filters ([#13087](https://github.com/juspay/hyperswitch/pull/13087)) ([`1272858`](https://github.com/juspay/hyperswitch/commit/12728589970f14524f2a9795765e44ec46d605e7))
+
+### Bug Fixes
+
+- **grpc_client:** Apply per-RPC timeout to unified connector service calls ([#12850](https://github.com/juspay/hyperswitch/pull/12850)) ([`1e81199`](https://github.com/juspay/hyperswitch/commit/1e8119941d6bb7bde86e71969cfa1a129f875d62))
+- **router:** Outgoing Webhooks ([#13141](https://github.com/juspay/hyperswitch/pull/13141)) ([`23e9d9f`](https://github.com/juspay/hyperswitch/commit/23e9d9f46aac37aabb24deffbaf58bb0d32511ef))
+
+### Testing
+
+- **cypress:**
+  - Add Stripe wallet tests for AliPay, AmazonPay, Cashapp, RevolutPay, WeChatPay ([#12572](https://github.com/juspay/hyperswitch/pull/12572)) ([`dbfa943`](https://github.com/juspay/hyperswitch/commit/dbfa943e7892f1f53ce078fbaea47cbdc4a591ad))
+  - Add payout priority coverage for adyenplatform ([#12468](https://github.com/juspay/hyperswitch/pull/12468)) ([`d756c17`](https://github.com/juspay/hyperswitch/commit/d756c177ef5c67d7739ae817c987ddba9d473305))
+
+**Full Changelog:** [`2026.07.02.1...2026.07.03.0`](https://github.com/juspay/hyperswitch/compare/2026.07.02.1...2026.07.03.0)
+
+- - -
+
 ## 2026.07.02.1
 
 ### Bug Fixes

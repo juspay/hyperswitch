@@ -3766,19 +3766,22 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
         _ => Ok((None, None)),
     }?;
 
-    // Stateless redirect payment methods (Skrill wallet, Interac e-Transfer,
-    // paysafecard gift card) carry no payment_method_data and vault no token, so the
-    // match above resolves to None on the redirect-completion leg. Reconstruct the
-    // empty-shell PaymentMethodData from the persisted payment_method_type so
-    // downstream router_data (e.g. CompleteAuthorizeData) — and thus every connector —
-    // can settle the payment handle instead of receiving an empty payment_method.
+    // Stateless redirect payment methods (Affirm BNPL, Skrill wallet, Interac
+    // e-Transfer, paysafecard gift card) carry no payment_method_data and vault no
+    // token, so the match above resolves to None on the redirect-completion leg.
+    // Reconstruct the empty-shell PaymentMethodData from the persisted
+    // payment_method_type so downstream router_data (e.g. UCS CompleteAuthorize) — and
+    // thus every connector — receives a payment_method and can settle the handle.
     let payment_method =
         payment_method.or_else(|| match payment_data.payment_attempt.payment_method_type {
-            Some(storage_enums::PaymentMethodType::Skrill) => {
-                Some(domain::PaymentMethodData::Wallet(
-                    domain::WalletData::Skrill(Box::new(domain::SkrillData {})),
-                ))
-            }
+            Some(storage_enums::PaymentMethodType::Affirm) => Some(
+                domain::PaymentMethodData::PayLater(domain::PayLaterData::AffirmRedirect {}),
+            ),
+            Some(storage_enums::PaymentMethodType::Skrill) => Some(
+                domain::PaymentMethodData::Wallet(domain::WalletData::Skrill(Box::new(
+                    domain::SkrillData {},
+                ))),
+            ),
             Some(storage_enums::PaymentMethodType::Interac) => Some(
                 domain::PaymentMethodData::BankRedirect(domain::BankRedirectData::Interac {
                     country: None,
@@ -7802,6 +7805,7 @@ pub struct JwsBody {
 
 pub fn get_key_params_for_surcharge_details(
     payment_method_data: &domain::PaymentMethodData,
+    payment_method_type_option: Option<common_enums::PaymentMethodType>,
 ) -> Option<(
     common_enums::PaymentMethod,
     common_enums::PaymentMethodType,
@@ -7868,7 +7872,15 @@ pub fn get_key_params_for_surcharge_details(
             None,
         )),
         domain::PaymentMethodData::MandatePayment => None,
-        domain::PaymentMethodData::Reward => None,
+        domain::PaymentMethodData::Reward => {
+            payment_method_type_option.map(|payment_method_type| {
+                (
+                    common_enums::PaymentMethod::Reward,
+                    payment_method_type,
+                    None,
+                )
+            })
+        }
         domain::PaymentMethodData::RealTimePayment(real_time_payment) => Some((
             common_enums::PaymentMethod::RealTimePayment,
             real_time_payment.get_payment_method_type(),

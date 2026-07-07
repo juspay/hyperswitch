@@ -154,6 +154,11 @@ pub struct PeachpaymentsMetadata {
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
+    /// Affirm connector configuration (public/private API key pair, HTTP Basic auth)
+    Affirm {
+        public_key: Secret<String>,
+        private_key: Secret<String>,
+    },
     /// Adyen connector configuration
     Adyen {
         api_key: Secret<String>,
@@ -1029,6 +1034,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     account_number: key1.clone(),
                 }),
                 _ => Err(err("Bamboraapac requires SignatureKey auth type")),
+            },
+            Connector::Affirm => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Affirm {
+                    public_key: api_key.clone(),
+                    private_key: key1.clone(),
+                }),
+                _ => Err(err("Affirm requires BodyKey auth type")),
             },
             Connector::Barclaycard => match auth {
                 ConnectorAuthType::SignatureKey {

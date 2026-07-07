@@ -931,6 +931,13 @@ impl
                         card_code: None,
                     })
                 }
+                PaymentMethodData::CardDetailsForNetworkTransactionId(ref card_details) => {
+                    PaymentDetails::CreditCard(CreditCardDetails {
+                        card_number: (*card_details.card_number).clone(),
+                        expiration_date: card_details.get_expiry_date_as_yyyymm("-"),
+                        card_code: None,
+                    })
+                }
                 PaymentMethodData::CardRedirect(_)
                 | PaymentMethodData::Wallet(_)
                 | PaymentMethodData::PayLater(_)
@@ -948,7 +955,6 @@ impl
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
                 | PaymentMethodData::NetworkToken(_)
-                | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::CardWithOptionalCVC(_)
                 | PaymentMethodData::CardWithNetworkTokenDetails(_)
                 | PaymentMethodData::CardWithLimitedDetails(_)
