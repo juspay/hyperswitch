@@ -5,15 +5,16 @@ import * as routingUtils from "../../configs/Routing/Utils";
 
 let globalState;
 
-describe("Surcharge via Decision Manager", () => {
+describe("Surcharge payment flow test", () => {
   let shouldContinue = true;
 
   before("seed state + setup surcharge DSL", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
       if (
-        !utils.CONNECTOR_LISTS.INCLUDE.SURCHARGE.includes(
-          globalState.get("connectorId")
+        utils.shouldIncludeConnector(
+          globalState.get("connectorId"),
+          utils.CONNECTOR_LISTS.INCLUDE.SURCHARGE
         )
       ) {
         shouldContinue = false;
@@ -44,11 +45,11 @@ describe("Surcharge via Decision Manager", () => {
     }
   });
 
-  context("Surcharge via DSL Decision Manager", () => {
-    it("Create Payment Intent -> List Payment Methods -> Confirm (verify surcharge_details) -> Retrieve", () => {
+  context("Surcharge payment flow test Create and confirm", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment -> Retrieve Payment", () => {
       let continueSteps = true;
 
-      cy.step("Create Payment Intent (no explicit surcharge_details)", () => {
+      cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SurchargeDSL"];
@@ -66,39 +67,33 @@ describe("Surcharge via Decision Manager", () => {
         }
       });
 
-      cy.step("List Payment Methods and verify surcharge info per card", () => {
+      cy.step("Payment Methods Call", () => {
         if (!continueSteps) {
-          cy.task("cli_log", "Skipping step: List Payment Methods");
+          cy.task("cli_log", "Skipping step: Payment Methods Call");
           return;
         }
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step(
-        "Confirm Payment and verify surcharge_details in response",
-        () => {
-          if (!continueSteps) {
-            cy.task("cli_log", "Skipping step: Confirm Payment");
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["SurchargeDSLConfirm"];
-
-          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-
-          if (!utils.should_continue_further(data)) {
-            continueSteps = false;
-          }
-        }
-      );
-
-      cy.step("Retrieve Payment and verify DSL surcharge was applied", () => {
+      cy.step("Confirm Payment", () => {
         if (!continueSteps) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Retrieve Payment and verify DSL surcharge was applied"
-          );
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SurchargeDSLConfirm"];
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+        if (!utils.should_continue_further(data)) {
+          continueSteps = false;
+        }
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!continueSteps) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
