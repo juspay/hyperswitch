@@ -186,6 +186,9 @@ export const connectorDetails = {
       },
     },
     No3DSManualCapture: {
+      Configs: {
+        skipBillingAssertion: true,
+      },
       Request: manualCaptureConfirmRequest,
       Response: {
         status: 200,
