@@ -2339,8 +2339,11 @@ where
             ));
             attempt.external_surcharge_details = Some(external_surcharge_details);
             payment_data.set_payment_attempt(attempt);
-        } else if !is_mit {
-            logger::debug!("external surcharge not found in redis at pre-routing preload");
+        } else {
+            logger::debug!(
+                is_mit,
+                "external surcharge not populated at pre-routing preload; routing DSL will see 0"
+            );
         }
     }
     Ok(())
