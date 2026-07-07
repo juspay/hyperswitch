@@ -969,6 +969,9 @@ impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
             payment_method_id: value.get_payment_method_id(),
             connector_mandate_request_reference_id: value
                 .get_connector_mandate_request_reference_id(),
+            mandate_metadata: value.get_mandate_metadata().map(|mandate_metadata| {
+                Secret::new(serde_json::to_string(&mandate_metadata.expose()).unwrap_or_default())
+            }),
         }
     }
 }
@@ -1003,6 +1006,15 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
             connector_mandate_id,
             payment_method_id,
             connector_mandate_request_reference_id,
+            mandate_metadata: structured
+                .and_then(|connector_mandate_reference_id| {
+                    connector_mandate_reference_id.get_mandate_metadata()
+                })
+                .map(|mandate_metadata| {
+                    Secret::new(
+                        serde_json::to_string(&mandate_metadata.expose()).unwrap_or_default(),
+                    )
+                }),
         })
     }
 }
@@ -1180,6 +1192,7 @@ impl
                 .transpose()?,
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
+            webhook_url: None,
         })
     }
 }
@@ -1364,6 +1377,7 @@ impl
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
+            merchant_transaction_id: None,
         })
     }
 }
@@ -2160,6 +2174,14 @@ impl
                                     payment_method_id: connector_mandate_id.get_payment_method_id(),
                                     connector_mandate_request_reference_id: connector_mandate_id
                                         .get_connector_mandate_request_reference_id(),
+                                    mandate_metadata: connector_mandate_id
+                                        .get_mandate_metadata()
+                                        .map(|mandate_metadata| {
+                                            Secret::new(
+                                                serde_json::to_string(&mandate_metadata.expose())
+                                                    .unwrap_or_default(),
+                                            )
+                                        }),
                                 },
                             ),
                         ),
@@ -2169,7 +2191,14 @@ impl
                     Some(payments_grpc::MandateReference {
                         mandate_id_type: Some(
                             payments_grpc::mandate_reference::MandateIdType::NetworkMandateId(
-                                network_mandate_id.network_transaction_id.clone(),
+                                payments_grpc::NetworkMandateId {
+                                    network_transaction_id: network_mandate_id
+                                        .network_transaction_id
+                                        .clone(),
+                                    transaction_link_id: network_mandate_id
+                                        .transaction_link_id
+                                        .clone(),
+                                },
                             ),
                         ),
                     })
@@ -2190,6 +2219,9 @@ impl
                                         .token_exp_year
                                         .clone()
                                         .map(|exp| exp.expose().into()),
+                                    transaction_link_id: network_token_with_nti
+                                        .transaction_link_id
+                                        .clone(),
                                 },
                             ),
                         ),
@@ -2792,7 +2824,7 @@ impl
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(redirection_data),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
@@ -2899,7 +2931,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: None,
                     network_txn_link_id: None,
@@ -3093,7 +3125,7 @@ impl
                             .map(RedirectForm::foreign_try_from)
                             .transpose()?,
                     ),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id,
                     network_txn_link_id: None,
@@ -3209,7 +3241,7 @@ impl
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: None,
@@ -5895,6 +5927,14 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                                 dt.assume_utc().unix_timestamp()
                                             },
                                         ),
+                                        initial_billing_amount: None,
+                                        external_subscription_id: None,
+                                        billing_cycle: None,
+                                        description: None,
+                                        next_billing_date: None,
+                                        // Hyperswitch setup-mandate requests do not carry mandate status.
+                                        mandate_status: payments_grpc::MandateStatus::Unspecified
+                                            .into(),
                                     },
                                 ),
                             ),
@@ -5931,6 +5971,14 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                                     dt.assume_utc().unix_timestamp()
                                                 },
                                             ),
+                                            initial_billing_amount: None,
+                                            external_subscription_id: None,
+                                            billing_cycle: None,
+                                            description: None,
+                                            next_billing_date: None,
+                                            // Hyperswitch setup-mandate requests do not carry mandate status.
+                                            mandate_status:
+                                                payments_grpc::MandateStatus::Unspecified.into(),
                                         },
                                     ),
                                 )
@@ -6645,7 +6693,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: None,
                     network_txn_link_id: None,
