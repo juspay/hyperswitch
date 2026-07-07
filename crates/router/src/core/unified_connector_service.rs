@@ -48,7 +48,7 @@ use crate::{
             helpers::{
                 is_ucs_enabled, should_execute_based_on_rollout,
                 should_execute_based_on_rollout_with_precedence, MerchantConnectorAccountType,
-                ProxyOverride,
+                ProxyOverride, WebhookRolloutConfig, WebhookRolloutExecutionResult,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -703,8 +703,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
     processor: &Processor,
     connector_name: &str,
-    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
-) -> RouterResult<ExecutionPath> {
+) -> RouterResult<(ExecutionPath, Vec<api_models::webhooks::WebhookFlow>)> {
     // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
 
@@ -717,15 +716,11 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     // Check UCS availability using idiomatic helper
     let ucs_availability = check_ucs_availability(state).await;
 
-    let connector_key = merchant_connector_id
-        .map(|id| id.get_string_repr().to_owned())
-        .unwrap_or_else(|| connector_name.to_string());
-
     let rollout_key = format!(
         "{}_{}_{}_{}",
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
         merchant_id,
-        connector_key,
+        connector_name,
         flow_name
     );
 
@@ -736,7 +731,11 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
     let previous_gateway = None;
 
-    let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
+    let rollout_result = should_execute_based_on_rollout::<
+        WebhookRolloutConfig,
+        WebhookRolloutExecutionResult,
+    >(state, &rollout_key)
+    .await?;
 
     // Use the same decision logic as payments, with no call_connector_action to consider
     let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
@@ -747,7 +746,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         decide_execution_path(
             connector_integration_type,
             previous_gateway,
-            rollout_result.execution_mode,
+            rollout_result.rollout_execution_result.execution_mode,
         )?
     };
 
@@ -757,10 +756,10 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         execution_path,
         merchant_id,
         connector_name,
-        flow_name
+        flow_name,
     );
 
-    Ok(execution_path)
+    Ok((execution_path, rollout_result.webhook_flows))
 }
 
 pub fn build_unified_connector_service_payment_method(
@@ -2781,24 +2780,23 @@ where
         }
     };
 
-    // Emit the Hyperswitch -> UCS connector event (shared with the other wrapper); it lands in
-    // connector_events with `destination = unified_connector_service`, `execution_mode` primary
-    // or shadow.
-    emit_ucs_connector_event(
-        state,
-        std::any::type_name::<T>(),
-        connector_name,
-        payment_id,
-        merchant_id,
-        refund_id,
-        dispute_id,
-        payout_id,
-        grpc_request_body,
-        status_code,
-        response_body,
-        external_latency,
-        execution_mode,
-    );
+    if let ExecutionMode::Primary = execution_mode {
+        emit_ucs_connector_event(
+            state,
+            std::any::type_name::<T>(),
+            connector_name,
+            payment_id,
+            merchant_id,
+            refund_id,
+            dispute_id,
+            payout_id,
+            grpc_request_body,
+            status_code,
+            response_body,
+            external_latency,
+            execution_mode,
+        );
+    }
 
     // Set external latency on router data
     router_result.map(|mut router_data| {
@@ -2913,24 +2911,23 @@ where
         }
     };
 
-    // Emit the Hyperswitch -> UCS connector event (shared with the other wrapper); it lands in
-    // connector_events with `destination = unified_connector_service`, `execution_mode` primary
-    // or shadow.
-    emit_ucs_connector_event(
-        state,
-        std::any::type_name::<T>(),
-        connector_name,
-        payment_id,
-        merchant_id,
-        refund_id,
-        dispute_id,
-        payout_id,
-        grpc_request_body,
-        status_code,
-        response_body,
-        external_latency,
-        execution_mode,
-    );
+    if let ExecutionMode::Primary = execution_mode {
+        emit_ucs_connector_event(
+            state,
+            std::any::type_name::<T>(),
+            connector_name,
+            payment_id,
+            merchant_id,
+            refund_id,
+            dispute_id,
+            payout_id,
+            grpc_request_body,
+            status_code,
+            response_body,
+            external_latency,
+            execution_mode,
+        );
+    }
 
     // Set external latency on router data
     router_result.map(|mut router_data| {
@@ -3113,13 +3110,14 @@ pub async fn call_unified_connector_service_for_refund_execute(
                             reason: reason.clone(),
                             status_code,
                             attempt_status: None,
-                            connector_transaction_id: None,
+                            connector_transaction_id: inner.connector_transaction_id.clone(),
                             connector_response_reference_id: None,
                             network_decline_code: network_decline_code.clone(),
                             network_advice_code: network_advice_code.clone(),
                             network_error_message: network_error_message.clone(),
                             connector_metadata: None,
                         });
+                        router_data.connector_http_status_code = Some(status_code);
                         return Ok((router_data, (), payments_grpc::RefundResponse::default()));
                     }
                     let api_error = report.current_context().switch();
@@ -3248,13 +3246,14 @@ pub async fn call_unified_connector_service_for_refund_sync(
                             reason: reason.clone(),
                             status_code,
                             attempt_status: None,
-                            connector_transaction_id: None,
+                            connector_transaction_id: inner.connector_transaction_id.clone(),
                             connector_response_reference_id: None,
                             network_decline_code: network_decline_code.clone(),
                             network_advice_code: network_advice_code.clone(),
                             network_error_message: network_error_message.clone(),
                             connector_metadata: None,
                         });
+                        router_data.connector_http_status_code = Some(status_code);
                         return Ok((router_data, (), payments_grpc::RefundResponse::default()));
                     }
                     let api_error = report.current_context().switch();

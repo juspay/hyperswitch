@@ -243,6 +243,7 @@ async fn insert_event_and_spawn_webhook_delivery(
                 "merchant webhook URL \
                  could not be obtained; skipping outgoing webhooks for event"
             );
+            return Ok(());
         }
     };
 

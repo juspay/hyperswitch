@@ -124,10 +124,10 @@ where
                         if let UnifiedConnectorServiceError::ConnectorError(inner) =
                             report.current_context()
                         {
-                            let (code, message, status_code, reason,
+                            let (code, message, status_code, reason, connector_transaction_id,
                                  network_decline_code, network_advice_code, network_error_message,
                                  connector) = (
-                                &inner.code, &inner.message, inner.status_code, &inner.reason,
+                                &inner.code, &inner.message, inner.status_code, &inner.reason, &inner.connector_transaction_id,
                                 &inner.network_decline_code, &inner.network_advice_code,
                                 &inner.network_error_message, &inner.connector,
                             );
@@ -145,7 +145,7 @@ where
                                     reason: reason.clone(),
                                     status_code,
                                     attempt_status: None,
-                                    connector_transaction_id: None,
+                                    connector_transaction_id: connector_transaction_id.clone(),
                                     connector_response_reference_id: None,
                                     network_decline_code: network_decline_code.clone(),
                                     network_advice_code: network_advice_code.clone(),
@@ -153,6 +153,7 @@ where
                                     connector_metadata: None,
                                 },
                             );
+                            router_data.connector_http_status_code = Some(status_code);
                             return Ok((
                                 router_data,
                                 (),

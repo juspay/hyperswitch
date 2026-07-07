@@ -120,6 +120,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CreateConfigKey => Self::Configs,
             Flow::CustomersCreate
             | Flow::CustomersRetrieve
+            | Flow::CustomersRetrieveByReferenceId
             | Flow::CustomersUpdate
             | Flow::CustomersDelete
             | Flow::CustomersGetMandates
@@ -131,6 +132,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
             Flow::PaymentMethodsCreate
             | Flow::PaymentMethodsMigrate
+            | Flow::ModularPaymentMethodsMigrate
             | Flow::PaymentMethodsBatchUpdate
             | Flow::PaymentMethodsBatchRetrieve
             | Flow::PaymentMethodsList
@@ -331,7 +333,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetEmbeddedToken
             | Flow::GetUserDetailsInternal
             | Flow::ListUsersInternal
-            | Flow::ListMembersForEntity => Self::User,
+            | Flow::ListMembersForEntity
+            | Flow::LaunchSage => Self::User,
 
             Flow::GetDataFromHyperswitchAiFlow | Flow::ListAllChatInteractions => Self::AiWorkflow,
 
@@ -391,7 +394,13 @@ impl From<Flow> for ApiIdentifier {
             | Flow::NetworkTokenEligibilityCheck => Self::GenericTokenization,
 
             Flow::RecoveryDataBackfill | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
-            Flow::GetSuperpositionSdkConfig => Self::Superposition,
+            Flow::GetSuperpositionSdkConfig
+            | Flow::SuperpositionListContexts
+            | Flow::SuperpositionListDefaultConfigs
+            | Flow::SuperpositionListDimensions
+            | Flow::SuperpositionCreateContext
+            | Flow::SuperpositionResolveDetailedConfig
+            | Flow::SuperpositionListAuditLogs => Self::Superposition,
             Flow::MerchantConnectorWebhookRegister
             | Flow::MerchantConnectorWebhookList
             | Flow::MerchantConnectorWebhookGenerateSecret => {
