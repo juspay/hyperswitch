@@ -42,6 +42,9 @@ export const connectorDetails = {
         },
       }),
     Payjustnowinstore: getCustomExchange({
+      Configs: {
+        skipPaymentMethodStatusAssertion: true,
+      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "payjustnow",

@@ -1138,16 +1138,19 @@ describe("PayLater tests", () => {
   });
 
   context("PayJustNow In-Store PayLater - Create and Confirm flow test", () => {
-    before("skip if connector does not support PayJustNow In-Store", function () {
-      if (
-        shouldIncludeConnector(
-          globalState.get("connectorId"),
-          CONNECTOR_LISTS.INCLUDE.PAYJUSTNOWINSTORE
-        )
-      ) {
-        this.skip();
+    before(
+      "skip if connector does not support PayJustNow In-Store",
+      function () {
+        if (
+          shouldIncludeConnector(
+            globalState.get("connectorId"),
+            CONNECTOR_LISTS.INCLUDE.PAYJUSTNOWINSTORE
+          )
+        ) {
+          this.skip();
+        }
       }
-    });
+    );
 
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm PayLater Payment -> Handle Bank Redirect Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
@@ -1224,16 +1227,19 @@ describe("PayLater tests", () => {
   });
 
   context("PayJustNow In-Store PayLater - Full Refund flow test", () => {
-    before("skip if connector does not support PayJustNow In-Store", function () {
-      if (
-        shouldIncludeConnector(
-          globalState.get("connectorId"),
-          CONNECTOR_LISTS.INCLUDE.PAYJUSTNOWINSTORE
-        )
-      ) {
-        this.skip();
+    before(
+      "skip if connector does not support PayJustNow In-Store",
+      function () {
+        if (
+          shouldIncludeConnector(
+            globalState.get("connectorId"),
+            CONNECTOR_LISTS.INCLUDE.PAYJUSTNOWINSTORE
+          )
+        ) {
+          this.skip();
+        }
       }
-    });
+    );
 
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm PayLater Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Refund Payment -> Sync Refund", () => {
       let shouldContinue = true;
@@ -1338,16 +1344,19 @@ describe("PayLater tests", () => {
   });
 
   context("PayJustNow In-Store PayLater - Partial Refund flow test", () => {
-    before("skip if connector does not support PayJustNow In-Store", function () {
-      if (
-        shouldIncludeConnector(
-          globalState.get("connectorId"),
-          CONNECTOR_LISTS.INCLUDE.PAYJUSTNOWINSTORE
-        )
-      ) {
-        this.skip();
+    before(
+      "skip if connector does not support PayJustNow In-Store",
+      function () {
+        if (
+          shouldIncludeConnector(
+            globalState.get("connectorId"),
+            CONNECTOR_LISTS.INCLUDE.PAYJUSTNOWINSTORE
+          )
+        ) {
+          this.skip();
+        }
       }
-    });
+    );
 
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm PayLater Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Partial Refund Payment -> Sync Refund", () => {
       let shouldContinue = true;
