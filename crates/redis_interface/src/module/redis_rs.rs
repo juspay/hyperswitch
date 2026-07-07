@@ -525,14 +525,6 @@ impl RedisConnectionPool {
         .await
     }
 
-    pub async fn subscribe(&self, channel: &str) -> CustomResult<(), crate::errors::RedisError> {
-        self.subscriber.subscribe(channel).await
-    }
-
-    pub async fn unsubscribe(&self, channel: &str) -> CustomResult<(), crate::errors::RedisError> {
-        self.subscriber.unsubscribe(channel).await
-    }
-
     /// Monitor for connection errors.
     /// When Redis is unreachable for longer than `max_failure_threshold_seconds` seconds,
     /// signals via the oneshot sender and marks redis as unavailable.

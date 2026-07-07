@@ -580,17 +580,8 @@ impl super::RedisConnectionPool {
         .change_context(errors::RedisError::SetHashFailed);
         // setting expiry for the key
         output
-            .async_and_then(|_| async {
-                track_redis_call(
-                    self.event_emitter.as_ref(),
-                    RedisOperation::SetExpiry,
-                    self.pool.expire::<(), _>(
-                        key.tenant_aware_key(self),
-                        ttl.unwrap_or(self.config.default_hash_ttl.into()),
-                    ),
-                )
-                .await
-                .change_context(errors::RedisError::SetExpiryFailed)
+            .async_and_then(|_| {
+                self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl.into()))
             })
             .await
     }
@@ -617,16 +608,8 @@ impl super::RedisConnectionPool {
 
         output
             .async_and_then(|inner| async {
-                track_redis_call(
-                    self.event_emitter.as_ref(),
-                    RedisOperation::SetExpiry,
-                    self.pool.expire::<(), _>(
-                        key.tenant_aware_key(self),
-                        ttl.unwrap_or(self.config.default_hash_ttl).into(),
-                    ),
-                )
-                .await
-                .change_context(errors::RedisError::SetExpiryFailed)?;
+                self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl).into())
+                    .await?;
                 Ok(inner)
             })
             .await

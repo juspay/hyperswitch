@@ -587,17 +587,9 @@ impl super::RedisConnectionPool {
         .await
         .change_context(errors::RedisError::SetHashFailed)?;
 
-        // setting expiry for the key — reuse the same connection
-        track_redis_call(
-            self.event_emitter.as_ref(),
-            RedisOperation::SetHashFields,
-            conn.expire::<_, ()>(
-                key.tenant_aware_key(self),
-                ttl.unwrap_or(self.config.default_hash_ttl.into()),
-            ),
-        )
-        .await
-        .change_context(errors::RedisError::SetExpiryFailed)
+        // setting expiry for the key
+        self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl.into()))
+            .await
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -622,16 +614,8 @@ impl super::RedisConnectionPool {
 
         // Only set expiry if the field was actually set
         if matches!(result, HsetnxReply::KeySet) {
-            track_redis_call(
-                self.event_emitter.as_ref(),
-                RedisOperation::SetExpiry,
-                conn.expire::<_, ()>(
-                    key.tenant_aware_key(self),
-                    ttl.unwrap_or(self.config.default_hash_ttl).into(),
-                ),
-            )
-            .await
-            .change_context(errors::RedisError::SetExpiryFailed)?;
+            self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl).into())
+                .await?;
         }
 
         Ok(result)

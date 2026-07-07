@@ -297,14 +297,6 @@ impl RedisConnectionPool {
         .await
     }
 
-    pub async fn subscribe(&self, channel: &str) -> CustomResult<(), crate::errors::RedisError> {
-        self.subscriber.subscribe(channel).await
-    }
-
-    pub async fn unsubscribe(&self, channel: &str) -> CustomResult<(), crate::errors::RedisError> {
-        self.subscriber.unsubscribe(channel).await
-    }
-
     pub async fn on_error(&self, tx: tokio::sync::oneshot::Sender<()>) {
         use futures::StreamExt;
         use tokio_stream::wrappers::BroadcastStream;

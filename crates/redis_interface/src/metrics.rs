@@ -94,22 +94,30 @@ impl RedisCallOutcome for Vec<String> {
     }
 }
 
-/// Records the OTel latency metric and emits one `ExternalServiceCall` event
-/// for a completed Redis roundtrip.
+/// Times a single Redis roundtrip, records its latency metric, and emits one
+/// `ExternalServiceCall` event reflecting this exact roundtrip.
 ///
 /// `request_id` is read from the `router_env::request_context` task-local. When
-/// absent (background work — drainer, scheduler, un-rescoped spawn) no event is
+/// absent (background work, drainer, scheduler, un-rescoped spawn) no event is
 /// emitted: the correlator joins on `request_id` and cannot place request-less
 /// rows. The `is_enabled()` guard skips the request-id lookup and event
-/// construction entirely when emission is disabled — Redis is the hottest call
-/// path.
+/// construction entirely when emission is disabled, since Redis is the hottest
+/// call path.
 #[inline]
-fn record_roundtrip(
+pub(crate) async fn track_redis_call<Fut, U>(
     event_emitter: &dyn ExternalServiceEventEmitter,
-    operation: &RedisOperation,
-    success: bool,
-    time_elapsed: std::time::Duration,
-) {
+    operation: RedisOperation,
+    future: Fut,
+) -> U
+where
+    Fut: std::future::Future<Output = U>,
+    U: RedisCallOutcome,
+{
+    let start = std::time::Instant::now();
+    let output = future.await;
+    let time_elapsed = start.elapsed();
+    let success = output.succeeded();
+
     tracing::debug!(
         redis_operation = ?operation,
         execution_time = ?time_elapsed,
@@ -136,26 +144,6 @@ fn record_roundtrip(
             });
         }
     }
-}
-
-/// Times a single Redis roundtrip, records its latency metric, and emits one
-/// `ExternalServiceCall` event reflecting this exact roundtrip. `success` is
-/// derived from the future's `Result` output.
-#[inline]
-pub(crate) async fn track_redis_call<Fut, U>(
-    event_emitter: &dyn ExternalServiceEventEmitter,
-    operation: RedisOperation,
-    future: Fut,
-) -> U
-where
-    Fut: std::future::Future<Output = U>,
-    U: RedisCallOutcome,
-{
-    let start = std::time::Instant::now();
-    let output = future.await;
-    let time_elapsed = start.elapsed();
-
-    record_roundtrip(event_emitter, &operation, output.succeeded(), time_elapsed);
 
     output
 }
