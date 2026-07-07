@@ -7,47 +7,51 @@ use crate::macros::helpers as macro_helpers;
 enum FieldType {
     String,
     OptionString,
+    VecString,
+    OptionVecString,
+    HashSetString,
+    OptionHashSetString,
     Other,
 }
 
 fn get_field_type(ty: &syn::Type) -> FieldType {
-    if let syn::Type::Path(type_path) = ty {
-        if let Some(segment) = type_path.path.segments.last() {
-            let ident = &segment.ident;
-            if ident == "String" {
-                return FieldType::String;
-            }
-            if ident == "Option" {
-                if let syn::PathArguments::AngleBracketed(generic_args) = &segment.arguments {
-                    if let Some(syn::GenericArgument::Type(syn::Type::Path(inner_path))) =
-                        generic_args.args.first()
-                    {
-                        if let Some(inner_segment) = inner_path.path.segments.last() {
-                            if inner_segment.ident == "String" {
-                                return FieldType::OptionString;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    let type_str = quote!(#ty).to_string().replace(" ", "");
+
+    if type_str == "String" || type_str.ends_with("::String") {
+        FieldType::String
+    } else if type_str == "Option<String>" || type_str.ends_with("::Option<String>") {
+        FieldType::OptionString
+    } else if type_str == "Vec<String>" || type_str.ends_with("::Vec<String>") {
+        FieldType::VecString
+    } else if type_str == "Option<Vec<String>>" || type_str.ends_with("::Option<Vec<String>>") {
+        FieldType::OptionVecString
+    } else if type_str == "HashSet<String>" || type_str.ends_with("::HashSet<String>") {
+        FieldType::HashSetString
+    } else if type_str == "Option<HashSet<String>>"
+        || type_str.ends_with("::Option<HashSet<String>>")
+    {
+        FieldType::OptionHashSetString
+    } else {
+        FieldType::Other
     }
-    FieldType::Other
 }
 
 fn is_xss_clean_skip(field: &syn::Field) -> bool {
-    for attr in &field.attrs {
+    field.attrs.iter().any(|attr| {
         if attr.path().is_ident("xss_clean") {
             if let syn::Meta::List(ref meta_list) = attr.meta {
                 if let Ok(ident) = meta_list.parse_args::<syn::Ident>() {
-                    if ident == "skip" {
-                        return true;
-                    }
+                    ident == "skip"
+                } else {
+                    false
                 }
+            } else {
+                false
             }
+        } else {
+            false
         }
-    }
-    false
+    })
 }
 
 pub fn validate_xss_or_sqli_derive(input: syn::DeriveInput) -> syn::Result<TokenStream> {
@@ -62,29 +66,103 @@ pub fn validate_xss_or_sqli_derive(input: syn::DeriveInput) -> syn::Result<Token
         .filter_map(|field| {
             let field_name = field.ident.as_ref()?;
             if is_xss_clean_skip(field) {
-                return None;
-            }
-
-            match get_field_type(&field.ty) {
-                FieldType::String => Some(quote! {
-                    if ::common_utils::validation::contains_potential_xss_or_sqli(&self.#field_name) {
-                        return Err(format!(
-                            "{} contains potential XSS or SQLi attack vectors",
-                            stringify!(#field_name)
-                        ));
-                    }
-                }),
-                FieldType::OptionString => Some(quote! {
-                    if let Some(ref val) = self.#field_name {
-                        if ::common_utils::validation::contains_potential_xss_or_sqli(val) {
-                            return Err(format!(
-                                "{} contains potential XSS or SQLi attack vectors",
-                                stringify!(#field_name)
-                            ));
-                        }
-                    }
-                }),
-                FieldType::Other => None,
+                None
+            } else {
+                match get_field_type(&field.ty) {
+                    FieldType::String => Some(quote! {
+                        .and_then(|_| {
+                            if ::common_utils::validation::contains_potential_xss_or_sqli(&self.#field_name) {
+                                Err(format!(
+                                    "{} contains potential XSS or SQLi attack vectors",
+                                    stringify!(#field_name)
+                                ))
+                            } else {
+                                Ok(())
+                            }
+                        })
+                    }),
+                    FieldType::OptionString => Some(quote! {
+                        .and_then(|_| {
+                            if let Some(ref val) = self.#field_name {
+                                if ::common_utils::validation::contains_potential_xss_or_sqli(val) {
+                                    Err(format!(
+                                        "{} contains potential XSS or SQLi attack vectors",
+                                        stringify!(#field_name)
+                                    ))
+                                } else {
+                                    Ok(())
+                                }
+                            } else {
+                                Ok(())
+                            }
+                        })
+                    }),
+                    FieldType::VecString => Some(quote! {
+                        .and_then(|_| {
+                            self.#field_name.iter().try_for_each(|val| {
+                                if ::common_utils::validation::contains_potential_xss_or_sqli(val) {
+                                    Err(format!(
+                                        "{} element contains potential XSS or SQLi attack vectors",
+                                        stringify!(#field_name)
+                                    ))
+                                } else {
+                                    Ok(())
+                                }
+                            })
+                        })
+                    }),
+                    FieldType::OptionVecString => Some(quote! {
+                        .and_then(|_| {
+                            if let Some(ref vec) = self.#field_name {
+                                vec.iter().try_for_each(|val| {
+                                    if ::common_utils::validation::contains_potential_xss_or_sqli(val) {
+                                        Err(format!(
+                                            "{} element contains potential XSS or SQLi attack vectors",
+                                            stringify!(#field_name)
+                                        ))
+                                    } else {
+                                        Ok(())
+                                    }
+                                })
+                            } else {
+                                Ok(())
+                            }
+                        })
+                    }),
+                    FieldType::HashSetString => Some(quote! {
+                        .and_then(|_| {
+                            self.#field_name.iter().try_for_each(|val| {
+                                if ::common_utils::validation::contains_potential_xss_or_sqli(val) {
+                                    Err(format!(
+                                        "{} element contains potential XSS or SQLi attack vectors",
+                                        stringify!(#field_name)
+                                    ))
+                                } else {
+                                    Ok(())
+                                }
+                            })
+                        })
+                    }),
+                    FieldType::OptionHashSetString => Some(quote! {
+                        .and_then(|_| {
+                            if let Some(ref set) = self.#field_name {
+                                set.iter().try_for_each(|val| {
+                                    if ::common_utils::validation::contains_potential_xss_or_sqli(val) {
+                                        Err(format!(
+                                            "{} element contains potential XSS or SQLi attack vectors",
+                                            stringify!(#field_name)
+                                        ))
+                                    } else {
+                                        Ok(())
+                                    }
+                                })
+                            } else {
+                                Ok(())
+                            }
+                        })
+                    }),
+                    FieldType::Other => None,
+                }
             }
         })
         .collect::<Vec<_>>();
@@ -93,8 +171,8 @@ pub fn validate_xss_or_sqli_derive(input: syn::DeriveInput) -> syn::Result<Token
         #[automatically_derived]
         impl #impl_generics #name #ty_generics #where_clause {
             pub fn validate_xss_or_sqli(&self) -> Result<(), String> {
-                #(#validation_checks)*
                 Ok(())
+                    #(#validation_checks)*
             }
         }
     })

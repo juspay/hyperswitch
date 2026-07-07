@@ -48,41 +48,37 @@ fn get_color_scheme_css(payment_link_config: &PaymentLinkConfig) -> String {
 fn sanitize_color(value: &str) -> Option<String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
-        return None;
-    }
-
-    // 1. Hex Color: # followed by 3, 4, 6, or 8 hex digits
-    if let Some(hex) = trimmed.strip_prefix('#') {
+        None
+    } else if let Some(hex) = trimmed.strip_prefix('#') {
         if (hex.len() == 3 || hex.len() == 4 || hex.len() == 6 || hex.len() == 8)
             && hex.chars().all(|c| c.is_ascii_hexdigit())
         {
-            return Some(trimmed.to_string());
+            Some(trimmed.to_string())
+        } else {
+            None
         }
-        return None;
+    } else if (trimmed.starts_with("rgb(")
+        || trimmed.starts_with("rgba(")
+        || trimmed.starts_with("hsl(")
+        || trimmed.starts_with("hsla("))
+        && trimmed.ends_with(')')
+    {
+        trimmed.find('(').and_then(|start_idx| {
+            let inner = &trimmed[start_idx + 1..trimmed.len() - 1];
+            if inner
+                .chars()
+                .all(|c| c.is_ascii_digit() || c == ',' || c == '.' || c == '%' || c == ' ')
+            {
+                Some(trimmed.to_string())
+            } else {
+                None
+            }
+        })
+    } else if trimmed.chars().all(|c| c.is_ascii_alphabetic() || c == '-') {
+        Some(trimmed.to_string())
+    } else {
+        None
     }
-
-    // 2. rgb / rgba / hsl / hsla colors
-    let is_rgb = trimmed.starts_with("rgb(") || trimmed.starts_with("rgba(");
-    let is_hsl = trimmed.starts_with("hsl(") || trimmed.starts_with("hsla(");
-    if (is_rgb || is_hsl) && trimmed.ends_with(')') {
-        let start_idx = trimmed.find('(')?;
-        let inner = &trimmed[start_idx + 1..trimmed.len() - 1];
-        // Only allow safe characters inside: digits, commas, periods, percentages, and spaces
-        if inner
-            .chars()
-            .all(|c| c.is_ascii_digit() || c == ',' || c == '.' || c == '%' || c == ' ')
-        {
-            return Some(trimmed.to_string());
-        }
-        return None;
-    }
-
-    // 3. Named CSS color (only allow letters and dashes)
-    if trimmed.chars().all(|c| c.is_ascii_alphabetic() || c == '-') {
-        return Some(trimmed.to_string());
-    }
-
-    None
 }
 
 fn is_safe_css_token(s: &str) -> bool {
@@ -102,66 +98,73 @@ fn generate_dynamic_css(
     rules: &HashMap<String, HashMap<String, String>>,
 ) -> Result<String, PaymentLinkError> {
     if rules.is_empty() {
-        return Ok(String::new());
+        Ok(String::new())
+    } else {
+        let mut css_string = String::new();
+        css_string.push_str("/* Dynamically Injected UI Rules */\n");
+
+        rules
+            .iter()
+            .try_for_each(|(selector, styles_map)| {
+                let selector = selector.trim();
+                if selector.is_empty() {
+                    Err(PaymentLinkError::InvalidCssSelector(
+                        "CSS selector cannot be empty.".to_string(),
+                    ))
+                    .attach_printable("Empty CSS selector found in payment_link_ui_rules")
+                } else if !is_safe_css_token(selector) {
+                    Err(PaymentLinkError::InvalidCssSelector(format!(
+                        "Unsafe CSS selector: {}",
+                        selector
+                    )))
+                    .attach_printable("Unsafe CSS selector found in payment_link_ui_rules")
+                } else {
+                    css_string.push_str(selector);
+                    css_string.push_str(" {\n");
+
+                    let inner_res =
+                        styles_map
+                            .iter()
+                            .try_for_each(|(prop_camel_case, css_value)| {
+                                let css_property = camel_to_kebab(prop_camel_case);
+
+                                // Property names allowlisted to lowercase ascii and dash
+                                if !css_property
+                                    .chars()
+                                    .all(|c| c.is_ascii_lowercase() || c == '-')
+                                {
+                                    Err(PaymentLinkError::InvalidCssProperty(format!(
+                                        "Unsafe CSS property: {}",
+                                        css_property
+                                    )))
+                                    .attach_printable(
+                                        "Unsafe CSS property found in payment_link_ui_rules",
+                                    )
+                                } else if !is_safe_css_token(css_value) {
+                                    Err(PaymentLinkError::InvalidCssValue(format!(
+                                        "Unsafe CSS value: {}",
+                                        css_value
+                                    )))
+                                    .attach_printable(
+                                        "Unsafe CSS value found in payment_link_ui_rules",
+                                    )
+                                } else {
+                                    css_string.push_str("  ");
+                                    css_string.push_str(&css_property);
+                                    css_string.push_str(": ");
+                                    css_string.push_str(css_value);
+                                    css_string.push_str(";\n");
+                                    Ok(())
+                                }
+                            });
+
+                    inner_res.map(|_| {
+                        css_string.push_str("}\n");
+                    })
+                }
+            })
+            .map(|_| css_string)
     }
-
-    let mut css_string = String::new();
-    css_string.push_str("/* Dynamically Injected UI Rules */\n");
-
-    for (selector, styles_map) in rules {
-        let selector = selector.trim();
-        if selector.is_empty() {
-            return Err(PaymentLinkError::InvalidCssSelector(
-                "CSS selector cannot be empty.".to_string(),
-            ))
-            .attach_printable("Empty CSS selector found in payment_link_ui_rules")?;
-        }
-
-        // Validate CSS selector
-        if !is_safe_css_token(selector) {
-            return Err(PaymentLinkError::InvalidCssSelector(format!(
-                "Unsafe CSS selector: {}",
-                selector
-            )))
-            .attach_printable("Unsafe CSS selector found in payment_link_ui_rules")?;
-        }
-
-        css_string.push_str(selector);
-        css_string.push_str(" {\n");
-
-        for (prop_camel_case, css_value) in styles_map {
-            let css_property = camel_to_kebab(prop_camel_case);
-
-            // Property names allowlisted to lowercase ascii and dash
-            if !css_property
-                .chars()
-                .all(|c| c.is_ascii_lowercase() || c == '-')
-            {
-                return Err(PaymentLinkError::InvalidCssProperty(format!(
-                    "Unsafe CSS property: {}",
-                    css_property
-                )))
-                .attach_printable("Unsafe CSS property found in payment_link_ui_rules")?;
-            }
-
-            // Validate CSS value
-            if !is_safe_css_token(css_value) {
-                return Err(PaymentLinkError::InvalidCssValue(format!(
-                    "Unsafe CSS value: {}",
-                    css_value
-                )))
-                .attach_printable("Unsafe CSS value found in payment_link_ui_rules")?;
-            }
-
-            css_string.push_str("  ");
-            css_string.push_str(&css_property);
-            css_string.push_str(": ");
-            css_string.push_str(css_value);
-            css_string.push_str(";\n");
-        }
-        css_string.push_str("}\n");
-    }
-    Ok(css_string)
 }
 
 fn camel_to_kebab(s: &str) -> String {
