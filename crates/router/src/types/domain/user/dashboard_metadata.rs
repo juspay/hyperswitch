@@ -74,23 +74,17 @@ pub struct ProductionAgreementValue {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SavedViewVersion {
+    #[default]
     V1,
     V2,
 }
 
 #[cfg(feature = "v1")]
-impl Default for SavedViewVersion {
-    fn default() -> Self {
-        Self::V1
-    }
-}
-
-#[cfg(feature = "v1")]
 impl SavedViewVersion {
-    fn is_v1(&self) -> bool {
+    fn is_v1(self) -> bool {
         matches!(self, Self::V1)
     }
 }
