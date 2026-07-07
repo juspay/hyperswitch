@@ -266,7 +266,7 @@ impl ConnectorIntegration<PreAuthentication, PreAuthNRequestData, Authentication
 
     fn get_url(
         &self,
-        req: &PreAuthNRouterData,
+        _req: &PreAuthNRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
         Ok(format!("{}/3ds/versioning", self.base_url(connectors)))
@@ -357,7 +357,7 @@ impl
 
     fn get_url(
         &self,
-        req: &ConnectorAuthenticationRouterData,
+        _req: &ConnectorAuthenticationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
         Ok(format!("{}/3ds/authentication", self.base_url(connectors)))
