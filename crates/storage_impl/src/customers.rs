@@ -257,7 +257,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                         merchant_reference_id: merchant_reference_id.get_string_repr(),
                     },
                 ),
-                None,
             )
             .await?;
 
@@ -293,7 +292,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                         customer_id,
                     },
                 ),
-                None,
             )
             .await?;
 
@@ -470,7 +468,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                         id: id.get_string_repr(),
                     },
                 ),
-                None,
             )
             .await?;
 
@@ -502,7 +499,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                         id: id.get_string_repr(),
                     },
                 ),
-                None,
             )
             .await?;
 

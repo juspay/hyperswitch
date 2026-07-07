@@ -390,7 +390,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     payment_id,
                 },
             ),
-            Some(processor_merchant_id.to_owned().into()),
         )
         .await
     }
