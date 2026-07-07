@@ -5767,7 +5767,9 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                         ),
                                         initial_billing_amount: None,
                                         external_subscription_id: None,
-                                        mandate_status: payments_grpc::MandateStatus::Unspecified as i32,
+                                        mandate_status: i32::from(
+                                            payments_grpc::MandateStatus::Unspecified,
+                                        ),
                                         next_billing_date: None,
                                         billing_cycle: None,
                                         description: None,
@@ -5809,7 +5811,9 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                             ),
                                             initial_billing_amount: None,
                                             external_subscription_id: None,
-                                            mandate_status: payments_grpc::MandateStatus::Unspecified as i32,
+                                            mandate_status: i32::from(
+                                                payments_grpc::MandateStatus::Unspecified,
+                                            ),
                                             next_billing_date: None,
                                             billing_cycle: None,
                                             description: None,
