@@ -1879,6 +1879,31 @@ export const connectorDetails = {
         },
       },
     }),
+    Payjustnowinstore: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "payjustnow",
+        payment_method_data: {
+          pay_later: {
+            payjustnow_redirect: {},
+          },
+        },
+        billing: {
+          email: "customer@payjustnow.co.za",
+          address: {
+            line1: "123 Main Street",
+            line2: "",
+            line3: "",
+            city: "Johannesburg",
+            state: "Gauteng",
+            zip: "2001",
+            country: "ZA",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+        },
+      },
+    }),
     SyncRefundScheduled: getCustomExchange({}),
     AfterpayClearpay: getCustomExchange({
       Request: {
