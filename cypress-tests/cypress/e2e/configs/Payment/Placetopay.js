@@ -34,6 +34,14 @@ const notImplementedConfirmRequest = {
   },
 };
 
+const manualCaptureConfirmRequest = {
+  payment_method: "card",
+  payment_method_type: "credit",
+  payment_method_data: {
+    card: successfulNo3DSCardDetails,
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -51,6 +59,7 @@ export const connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -130,7 +139,7 @@ export const connectorDetails = {
       Configs: {
         TRIGGER_SKIP: true,
       },
-      Request: notImplementedConfirmRequest,
+      Request: manualCaptureConfirmRequest,
       Response: notImplementedResponse,
     },
     "3DSAutoCapture": {
