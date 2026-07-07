@@ -58,7 +58,18 @@ export const connectorDetails = {
         browser_info: browserInfo,
         customer_acceptance: simplifiedCustomerAcceptance,
         setup_future_usage: "on_session",
-        billing: null,
+        billing: {
+          address: {
+            line1: "Calle 93B No 17-25",
+            city: "Bogota",
+            state: "Bogota",
+            zip: "110111",
+            country: "CO",
+            first_name: "Test",
+            last_name: "User",
+          },
+          email: "test@placetopay.com",
+        },
       },
       Response: {
         status: 200,
