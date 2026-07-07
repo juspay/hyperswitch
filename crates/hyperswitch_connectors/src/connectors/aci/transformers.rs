@@ -2156,12 +2156,16 @@ pub struct AciResponseStandingInstruction {
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciErrorResponse {
+    /// ACI transaction id. Present on gateway/acquirer declines returned with a
+    /// non-2xx status; absent on early request-validation errors.
+    pub(super) id: Option<String>,
     ndc: String,
     timestamp: String,
     build_number: String,
     pub(super) result: ResultCode,
     /// Acquirer / connector response details. Carries the Mastercard
-    /// MerchantAdviceCode on declines surfaced through the error path.
+    /// MerchantAdviceCode and the acquirer response code on declines surfaced
+    /// through the error path.
     pub(super) result_details: Option<AciResponseResultDetails>,
 }
 
@@ -2331,6 +2335,48 @@ fn parse_connector_tx_ids(details: &AciResponseResultDetails) -> AciParsedConnec
             auth_code: direct_auth,
             original_transaction_id: get(&t1, 5),
         },
+    }
+}
+
+/// The acquirer's own response code (ISO-8583 P-39), surfaced by ACI as
+/// `resultDetails.AcquirerResponse` (also documented as `Acquirer.Response.Code`
+/// / `ResponseCode`). On a decline this is the raw network/acquirer decline
+/// code, so it maps to `ErrorResponse.network_decline_code`.
+pub(super) fn aci_network_decline_code(details: &AciResponseResultDetails) -> Option<String> {
+    details.acquirer_response.clone()
+}
+
+/// Package the parsed acquirer transaction identifiers and raw acquirer
+/// response into a `connector_metadata` payload. Used on both the decline
+/// (2xx result-code) and HTTP-error paths so the ConnectorTxID mappings are
+/// retained on failures, not just successes.
+pub(super) fn build_error_connector_metadata(
+    details: &AciResponseResultDetails,
+) -> Option<Secret<serde_json::Value>> {
+    let parsed = parse_connector_tx_ids(details);
+    let mut map = serde_json::Map::new();
+    let mut insert = |key: &str, value: Option<String>| {
+        if let Some(value) = value {
+            map.insert(key.to_string(), serde_json::Value::String(value));
+        }
+    };
+    insert("acquirerResponse", details.acquirer_response.clone());
+    insert("rrn", parsed.rrn);
+    insert("stan", parsed.stan);
+    insert("networkTransactionId", parsed.citi);
+    insert("authCode", parsed.auth_code);
+    insert("originalTransactionId", parsed.original_transaction_id);
+    insert("merchantAdviceCode", details.merchant_advice_code.clone());
+    insert("schemeTransactionId", details.scheme_transaction_id.clone());
+    insert(
+        "paymentAccountReference",
+        details.payment_account_reference.clone(),
+    );
+
+    if map.is_empty() {
+        None
+    } else {
+        Some(Secret::new(serde_json::Value::Object(map)))
     }
 }
 
@@ -2524,6 +2570,12 @@ where
         };
 
         let response = if status == enums::AttemptStatus::Failure {
+            // Retain the acquirer response code and parsed connector TX IDs on
+            // the decline surface (network_decline_code + connector_metadata),
+            // mirroring what the success path exposes via connector_response.
+            let result_details = item.response.result_details.as_ref();
+            let network_decline_code = result_details.and_then(aci_network_decline_code);
+            let error_metadata = result_details.and_then(build_error_connector_metadata);
             Err(ErrorResponse {
                 code: item.response.result.code.clone(),
                 message: item.response.result.description.clone(),
@@ -2531,11 +2583,15 @@ where
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id.clone()),
-                connector_response_reference_id: Some(item.response.id.clone()),
-                network_decline_code: None,
+                // Prefer the acquirer RRN as the human-facing reference, falling
+                // back to the ACI transaction id (consistent with the success path).
+                connector_response_reference_id: rrn
+                    .clone()
+                    .or_else(|| Some(item.response.id.clone())),
+                network_decline_code,
                 network_advice_code,
                 network_error_message: None,
-                connector_metadata: None,
+                connector_metadata: error_metadata,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -3598,5 +3654,93 @@ mod frm_tests {
             map_aci_risk_status(PENDING_CODES[0], None),
             FraudCheckStatus::ManualReview
         );
+    }
+}
+
+#[cfg(test)]
+mod connector_tx_id_tests {
+    use super::{
+        aci_network_decline_code, build_error_connector_metadata, parse_connector_tx_ids,
+        AciResponseResultDetails, PeekInterface,
+    };
+
+    fn nedbank_details() -> AciResponseResultDetails {
+        AciResponseResultDetails {
+            clearing_institute_name: Some("Nedbank".to_string()),
+            // TxID2 = STAN|RRN
+            connector_tx_id2: Some("123456|987654321012".to_string()),
+            // TxID3 = AuthCode|RespCode|InitDate|InitTime|CITI|MerchantId
+            connector_tx_id3: Some("A1B2C3|00|0707|101500|NEDCITI0001|MID900".to_string()),
+            acquirer_response: Some("00".to_string()),
+            ..Default::default()
+        }
+    }
+
+    fn absa_details() -> AciResponseResultDetails {
+        AciResponseResultDetails {
+            // No clearing name — exercise the PIM shape heuristic.
+            connector_tx_id1: Some("SEQ|F|OWNER|PIMDATA|OH|ORIG-ABSA-1".to_string()),
+            // TxID2 = InvoiceId|ActionCode(P-39)|ApprovalCode(P-38)
+            connector_tx_id2: Some("INV0001|05|APPROVAL9".to_string()),
+            // TxID3 = STAN|Token17|Token20(scheme trace)
+            connector_tx_id3: Some("445566|T17VAL|TRACE20VAL".to_string()),
+            scheme_transaction_id: Some("ABSASCHEME01".to_string()),
+            acquirer_response: Some("05".to_string()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn nedbank_layout_parses_rrn_stan_citi_and_auth() {
+        let parsed = parse_connector_tx_ids(&nedbank_details());
+        assert_eq!(parsed.rrn.as_deref(), Some("987654321012"));
+        assert_eq!(parsed.stan.as_deref(), Some("123456"));
+        assert_eq!(parsed.citi.as_deref(), Some("NEDCITI0001"));
+        // Direct AuthCode/ApprovalCode absent → falls back to TxID3[0].
+        assert_eq!(parsed.auth_code.as_deref(), Some("A1B2C3"));
+    }
+
+    #[test]
+    fn absa_layout_uses_scheme_trace_for_citi_and_p38_for_auth() {
+        let parsed = parse_connector_tx_ids(&absa_details());
+        // ABSA does not expose RRN in the composites.
+        assert_eq!(parsed.rrn, None);
+        // STAN is TxID3[0].
+        assert_eq!(parsed.stan.as_deref(), Some("445566"));
+        // CITI is the scheme trace id (SchemeTransactionId), not TxID3[2].
+        assert_eq!(parsed.citi.as_deref(), Some("ABSASCHEME01"));
+        // Auth code is the P-38 approval code at TxID2[2].
+        assert_eq!(parsed.auth_code.as_deref(), Some("APPROVAL9"));
+        // Original transaction id is TxID1[5].
+        assert_eq!(parsed.original_transaction_id.as_deref(), Some("ORIG-ABSA-1"));
+    }
+
+    #[test]
+    fn network_decline_code_is_the_acquirer_response() {
+        assert_eq!(
+            aci_network_decline_code(&absa_details()).as_deref(),
+            Some("05")
+        );
+        assert_eq!(
+            aci_network_decline_code(&AciResponseResultDetails::default()),
+            None
+        );
+    }
+
+    #[test]
+    fn error_metadata_retains_acquirer_response_and_parsed_ids() {
+        let meta = build_error_connector_metadata(&nedbank_details())
+            .expect("metadata should be populated when result details are present");
+        let value = meta.peek();
+        assert_eq!(value["acquirerResponse"], "00");
+        assert_eq!(value["rrn"], "987654321012");
+        assert_eq!(value["stan"], "123456");
+        assert_eq!(value["networkTransactionId"], "NEDCITI0001");
+        assert_eq!(value["authCode"], "A1B2C3");
+    }
+
+    #[test]
+    fn error_metadata_is_none_when_nothing_to_report() {
+        assert!(build_error_connector_metadata(&AciResponseResultDetails::default()).is_none());
     }
 }

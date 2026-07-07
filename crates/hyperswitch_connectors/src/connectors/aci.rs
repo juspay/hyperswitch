@@ -134,6 +134,20 @@ impl ConnectorCommon for Aci {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        // Surface the acquirer response code and parsed connector TX IDs on the
+        // HTTP-error decline path too, not just on the 2xx result-code path.
+        let network_decline_code = response
+            .result_details
+            .as_ref()
+            .and_then(aci::aci_network_decline_code);
+        let network_advice_code = response
+            .result_details
+            .as_ref()
+            .and_then(|details| details.merchant_advice_code.clone());
+        let connector_metadata = response
+            .result_details
+            .as_ref()
+            .and_then(aci::build_error_connector_metadata);
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.result.code,
@@ -151,14 +165,12 @@ impl ConnectorCommon for Aci {
                     .join("; ")
             }),
             attempt_status: None,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: response
-                .result_details
-                .and_then(|details| details.merchant_advice_code),
-            network_decline_code: None,
+            connector_transaction_id: response.id.clone(),
+            connector_response_reference_id: response.id,
+            network_advice_code,
+            network_decline_code,
             network_error_message: None,
-            connector_metadata: None,
+            connector_metadata,
         })
     }
 }
