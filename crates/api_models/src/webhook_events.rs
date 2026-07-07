@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use common_enums::{EventClass, EventType, WebhookDeliveryAttempt};
+use common_enums::{EventClass, EventRecipient, EventType, WebhookDeliveryAttempt};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -41,6 +41,8 @@ pub struct EventListConstraints {
     pub event_types: Option<HashSet<EventType>>,
     /// Filter all events by `is_overall_delivery_successful` field of the event.
     pub is_delivered: Option<bool>,
+    /// Filter all events by the recipient of the webhook.
+    pub recipient: Option<EventRecipient>,
 }
 
 #[derive(Debug)]
@@ -53,9 +55,11 @@ pub enum EventListConstraintsInternal {
         event_classes: Option<HashSet<EventClass>>,
         event_types: Option<HashSet<EventType>>,
         is_delivered: Option<bool>,
+        recipient: Option<EventRecipient>,
     },
     ObjectIdFilter {
         object_id: String,
+        recipient: Option<EventRecipient>,
     },
     EventIdFilter {
         event_id: String,

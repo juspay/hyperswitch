@@ -324,7 +324,7 @@ pub async fn find_mca_from_authentication_id_type(
     let db = &*state.store;
     let authentication = match authentication_id_type {
         webhooks::AuthenticationIdType::AuthenticationId(authentication_id) => db
-            .find_authentication_by_merchant_id_authentication_id(
+            .find_authentication_by_processor_merchant_id_authentication_id(
                 platform.get_processor().get_account().get_id(),
                 &authentication_id,
                 platform.get_processor().get_key_store(),
@@ -334,7 +334,7 @@ pub async fn find_mca_from_authentication_id_type(
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?,
         webhooks::AuthenticationIdType::ConnectorAuthenticationId(connector_authentication_id) => {
-            db.find_authentication_by_merchant_id_connector_authentication_id(
+            db.find_authentication_by_processor_merchant_id_connector_authentication_id(
                 platform.get_processor().get_account().get_id().clone(),
                 connector_authentication_id,
                 platform.get_processor().get_key_store(),

@@ -1320,13 +1320,17 @@ pub async fn save_in_locker_internal(
             Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
                 bank_debit_create_data,
             )),
-        ) => Box::pin(PmCards { state, provider }.add_bank_debit_to_locker(
-            payment_method_request,
-            bank_debit_create_data,
-            provider.get_key_store(),
-            &customer_id,
-            customer_obj.get_global_customer_id().clone(),
-        ))
+        ) => Box::pin(
+            PmCards { state, provider }.add_bank_debit_to_locker(
+                payment_method_request,
+                bank_debit_create_data,
+                provider.get_key_store(),
+                &customer_id,
+                customer_obj
+                    .get_global_id()
+                    .map(|id| id.get_string_repr().to_owned()),
+            ),
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Bank Debit Failed"),
@@ -1334,13 +1338,17 @@ pub async fn save_in_locker_internal(
             None,
             None,
             Some(api_models::payment_methods::PaymentMethodCreateData::Wallet(wallet_create_data)),
-        ) => Box::pin(PmCards { state, provider }.add_wallet_to_locker(
-            payment_method_request,
-            wallet_create_data,
-            provider.get_key_store(),
-            &customer_id,
-            customer_obj.get_global_customer_id().clone(),
-        ))
+        ) => Box::pin(
+            PmCards { state, provider }.add_wallet_to_locker(
+                payment_method_request,
+                wallet_create_data,
+                provider.get_key_store(),
+                &customer_id,
+                customer_obj
+                    .get_global_id()
+                    .map(|id| id.get_string_repr().to_owned()),
+            ),
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Wallet Failed"),
