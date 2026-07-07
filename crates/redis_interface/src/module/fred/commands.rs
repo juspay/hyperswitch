@@ -24,7 +24,7 @@ use tracing::instrument;
 
 use crate::{
     errors,
-    metrics::{track_redis_call, track_redis_call_streaming, RedisOperation},
+    metrics::{track_redis_call, RedisOperation},
     types::{
         DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey, SaddReply, SetGetReply,
         SetnxReply, StreamEntries, StreamReadResult, StreamTrimConfig,
@@ -706,26 +706,26 @@ impl super::RedisConnectionPool {
     ) -> CustomResult<Vec<String>, errors::RedisError> {
         use futures::StreamExt;
 
-        Ok(track_redis_call_streaming(
+        Ok(track_redis_call(
             self.event_emitter.as_ref(),
             RedisOperation::Hscan,
             self.pool
                 .next()
-                    .hscan::<&str, &str>(&key.tenant_aware_key(self), pattern, count)
-                    .filter_map(|value| async move {
-                        match value {
-                            Ok(mut v) => {
-                                let v = v.take_results()?;
+                .hscan::<&str, &str>(&key.tenant_aware_key(self), pattern, count)
+                .filter_map(|value| async move {
+                    match value {
+                        Ok(mut v) => {
+                            let v = v.take_results()?;
 
-                                let v: Vec<String> =
-                                    v.values().filter_map(|val| val.as_string()).collect();
-                                Some(futures::stream::iter(v))
-                            }
-                            Err(err) => {
-                                tracing::error!(redis_err=?err, "Redis error while executing hscan command");
-                                None
-                            }
+                            let v: Vec<String> =
+                                v.values().filter_map(|val| val.as_string()).collect();
+                            Some(futures::stream::iter(v))
                         }
+                        Err(err) => {
+                            tracing::error!(redis_err=?err, "Redis error while executing hscan command");
+                            None
+                        }
+                    }
                 })
                 .flatten()
                 .collect::<Vec<_>>(),
@@ -744,25 +744,25 @@ impl super::RedisConnectionPool {
 
         let fred_scan_type = scan_type.map(fred::types::ScanType::from);
 
-        Ok(track_redis_call_streaming(
+        Ok(track_redis_call(
             self.event_emitter.as_ref(),
             RedisOperation::Scan,
             self.pool
                 .next()
-                    .scan(pattern.tenant_aware_key(self), count, fred_scan_type)
-                    .filter_map(|value| async move {
-                        match value {
-                            Ok(mut v) => {
-                                let v = v.take_results()?;
-                                let v: Vec<String> =
-                                    v.into_iter().filter_map(|val| val.into_string()).collect();
-                                Some(futures::stream::iter(v))
-                            }
-                            Err(err) => {
-                                tracing::error!(redis_err=?err, "Redis error while executing scan command");
-                                None
-                            }
+                .scan(pattern.tenant_aware_key(self), count, fred_scan_type)
+                .filter_map(|value| async move {
+                    match value {
+                        Ok(mut v) => {
+                            let v = v.take_results()?;
+                            let v: Vec<String> =
+                                v.into_iter().filter_map(|val| val.into_string()).collect();
+                            Some(futures::stream::iter(v))
                         }
+                        Err(err) => {
+                            tracing::error!(redis_err=?err, "Redis error while executing scan command");
+                            None
+                        }
+                    }
                 })
                 .flatten()
                 .collect::<Vec<_>>(),

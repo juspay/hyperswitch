@@ -72,9 +72,9 @@ pub(crate) enum RedisOperation {
 /// Extracts whether a completed Redis roundtrip succeeded, so the emitted
 /// `ExternalServiceCall` can carry `success`/`status_code`.
 ///
-/// Every `track_redis_call` call site passes a future whose output is a
-/// `Result` (the raw `RedisResult`/`FredResult`, or an already-`change_context`ed
-/// `CustomResult`), so the blanket impl below covers all of them.
+/// Most `track_redis_call` call sites pass a future whose output is a `Result`
+/// (the raw `RedisResult`/`FredResult`, or an already-`change_context`ed
+/// `CustomResult`), so the blanket impl below covers those.
 pub(crate) trait RedisCallOutcome {
     fn succeeded(&self) -> bool;
 }
@@ -82,6 +82,15 @@ pub(crate) trait RedisCallOutcome {
 impl<T, E> RedisCallOutcome for Result<T, E> {
     fn succeeded(&self) -> bool {
         self.is_ok()
+    }
+}
+
+/// Fred's streaming `SCAN`/`HSCAN` helpers collect successful pages into a
+/// `Vec<String>` after logging and dropping page-level errors. At this layer no
+/// error signal remains, so completion is treated as success for event emission.
+impl RedisCallOutcome for Vec<String> {
+    fn succeeded(&self) -> bool {
+        true
     }
 }
 
@@ -147,33 +156,6 @@ where
     let time_elapsed = start.elapsed();
 
     record_roundtrip(event_emitter, &operation, output.succeeded(), time_elapsed);
-
-    output
-}
-
-/// Variant for Redis futures whose output is a plain value rather than a
-/// `Result` — currently fred's streaming `SCAN`/`HSCAN`, which swallow
-/// per-page errors internally (logged and dropped) and always resolve to a
-/// collected `Vec`. The emitted event is always `success = true`, since there
-/// is no error signal left to inspect at this layer.
-///
-/// Only the fred backend collects scans this way; the `redis-rs` backend issues
-/// one `Result`-returning `track_redis_call` per cursor page instead.
-#[cfg(feature = "fred")]
-#[inline]
-pub(crate) async fn track_redis_call_streaming<Fut, U>(
-    event_emitter: &dyn ExternalServiceEventEmitter,
-    operation: RedisOperation,
-    future: Fut,
-) -> U
-where
-    Fut: std::future::Future<Output = U>,
-{
-    let start = std::time::Instant::now();
-    let output = future.await;
-    let time_elapsed = start.elapsed();
-
-    record_roundtrip(event_emitter, &operation, true, time_elapsed);
 
     output
 }
