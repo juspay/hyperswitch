@@ -7,15 +7,15 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{
             Authorize, Capture, PSync, PaymentMethodToken, PostCaptureVoidSync, PreAuthorizeVoid,
-            Session, SetupMandate, Void,
+            Session, SetupMandate, UpdatePostConfirm, Void,
         },
         refunds::{Execute, RSync},
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCancelPostCaptureSyncData, PaymentsCaptureData,
-        PaymentsPreAuthorizeCancelData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        SetupMandateRequestData,
+        PaymentsPreAuthorizeCancelData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsUpdatePostConfirmData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -101,6 +101,7 @@ impl api::PaymentAuthorize for TsysTransit {}
 impl api::PaymentSync for TsysTransit {}
 impl api::PaymentCapture for TsysTransit {}
 impl api::PaymentVoid for TsysTransit {}
+impl api::PaymentUpdate for TsysTransit {}
 impl api::PaymentPreAuthorizeVoid for TsysTransit {}
 impl api::PaymentPostCaptureVoidSync for TsysTransit {}
 impl api::Refund for TsysTransit {}
@@ -159,6 +160,14 @@ impl api::ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsRespons
 impl api::ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for TsysTransit {}
 impl api::ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for TsysTransit {}
 impl api::ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for TsysTransit {}
+impl
+    api::ConnectorIntegration<
+        UpdatePostConfirm,
+        PaymentsUpdatePostConfirmData,
+        PaymentsResponseData,
+    > for TsysTransit
+{
+}
 impl
     api::ConnectorIntegration<
         PreAuthorizeVoid,
