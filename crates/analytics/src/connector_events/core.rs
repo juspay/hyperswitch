@@ -2,13 +2,17 @@ use api_models::analytics::connector_events::ConnectorEventsRequest;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 
-use super::events::{get_connector_events, ConnectorEventsResult};
+use super::{
+    events::{get_connector_events, ConnectorEventsResult},
+    ConnectorEventSource,
+};
 use crate::{errors::AnalyticsResult, types::FiltersError, AnalyticsProvider};
 
 pub async fn connector_events_core(
     pool: &AnalyticsProvider,
     req: ConnectorEventsRequest,
     merchant_id: &common_utils::id_type::MerchantId,
+    source: ConnectorEventSource,
 ) -> AnalyticsResult<Vec<ConnectorEventsResult>> {
     let data = match pool {
         AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented(
@@ -18,7 +22,7 @@ pub async fn connector_events_core(
         AnalyticsProvider::Clickhouse(ckh_pool)
         | AnalyticsProvider::CombinedSqlx(_, ckh_pool)
         | AnalyticsProvider::CombinedCkh(_, ckh_pool) => {
-            get_connector_events(merchant_id, req, ckh_pool).await
+            get_connector_events(merchant_id, req, ckh_pool, source).await
         }
     }
     .switch()?;

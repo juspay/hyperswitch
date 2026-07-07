@@ -797,6 +797,9 @@ where
         .apply_three_ds_authentication_strategy(state, &mut payment_data, &business_profile)
         .await;
 
+    // Must run before choose_connector so the routing DSL sees `surcharge_amount`.
+    preload_external_surcharge_for_routing(state, &business_profile, &mut payment_data).await?;
+
     let connector = choose_connector(
         &operation,
         state,
@@ -1136,6 +1139,7 @@ where
                             routable_connectors,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             &business_profile,
+                            &dimensions.without_profile_id(),
                         )
                         .await?;
 
@@ -1360,6 +1364,7 @@ where
                             routable_connectors,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             &business_profile,
+                            &dimensions.without_profile_id(),
                         )
                         .await?;
 
@@ -1752,6 +1757,7 @@ where
             routable_connectors,
             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
             &business_profile,
+            &dimensions.without_profile_id(),
         )
         .await?;
 
@@ -2273,6 +2279,50 @@ where
     todo!()
 }
 
+// Reads the external surcharge cached by /eligibility from Redis into the payment attempt
+// so routing DSL can condition on `surcharge_amount`. Runs only for external-surcharge CIT.
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn preload_external_surcharge_for_routing<F, D>(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    payment_data: &mut D,
+) -> RouterResult<()>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
+{
+    let is_external_cit = payment_data
+        .get_payment_intent()
+        .get_surcharge_mode(business_profile)
+        == Some(domain_payments::SurchargeMode::External)
+        && payment_data.get_payment_intent().off_session != Some(true)
+        && payment_data
+            .get_payment_attempt()
+            .external_surcharge_details
+            .is_none();
+
+    if is_external_cit {
+        match resolve_external_surcharge(state, payment_data).await {
+            Some(external_surcharge_details) => {
+                let external_surcharge_details = common_types::payments::ExternalSurchargeDetails {
+                    external_surcharge_id: external_surcharge_details.external_surcharge_id,
+                    external_surcharge_amount: external_surcharge_details.surcharge_amount,
+                    sale_notified: false,
+                };
+                let mut attempt = payment_data.get_payment_attempt().clone();
+                attempt.net_amount.set_external_surcharge_amount(Some(
+                    external_surcharge_details.external_surcharge_amount,
+                ));
+                attempt.external_surcharge_details = Some(external_surcharge_details);
+                payment_data.set_payment_attempt(attempt);
+            }
+            None => logger::debug!("external surcharge not found in redis at pre-routing preload"),
+        }
+    }
+    Ok(())
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn populate_surcharge_details<F, D>(
@@ -2288,6 +2338,17 @@ where
     let surcharge_mode = payment_data
         .get_payment_intent()
         .get_surcharge_mode(business_profile);
+
+    // If a pre-routing preload already populated external surcharge for CIT, skip
+    // the external branch here to avoid duplicate Redis reads / writes.
+    if surcharge_mode == Some(domain_payments::SurchargeMode::External)
+        && payment_data
+            .get_payment_attempt()
+            .external_surcharge_details
+            .is_some()
+    {
+        return Ok(());
+    }
 
     if surcharge_mode == Some(domain_payments::SurchargeMode::Internal) {
         if let Some(attempt_surcharge) = payment_data.get_payment_attempt().get_surcharge_details()
@@ -2419,9 +2480,15 @@ where
     D: OperationSessionGetters<F>,
 {
     logger::debug!("payment_intent.surcharge_applicable = true");
+    let payment_method_type_option = payment_data.get_payment_attempt().payment_method_type;
     let raw_card_key = payment_data
         .get_payment_method_data()
-        .and_then(helpers::get_key_params_for_surcharge_details)
+        .and_then(|payment_method_data| {
+            helpers::get_key_params_for_surcharge_details(
+                payment_method_data,
+                payment_method_type_option,
+            )
+        })
         .map(|(payment_method, payment_method_type, card_network)| {
             types::SurchargeKey::PaymentMethodData(
                 payment_method,
@@ -3182,6 +3249,7 @@ where
             routable_connectors,
             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
             &business_profile,
+            &dimensions.without_profile_id(),
         )
         .await?;
 
@@ -3795,8 +3863,7 @@ pub async fn record_attempt_core(
             },
             CallConnectorAction::Trigger,
             HeaderPayload::default(),
-            None,
-        ))
+            None,))
         .await
         {
             Ok((data, _, _, _)) => data,
@@ -9473,6 +9540,22 @@ pub struct MandateConnectorDetails {
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
+/// Fields extracted from a payment-update request payload that are needed to
+/// compute the delta between the stored payment intent and the incoming update.
+#[derive(Clone, Debug)]
+pub struct PaymentDataUpdateRequestFields {
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub amount: Option<MinorUnit>,
+    pub connector_attempt_metadata: Option<serde_json::Value>,
+    pub connector_transaction_id: String,
+    pub description: Option<String>,
+    pub billing_descriptor: Option<common_payments_types::BillingDescriptor>,
+    pub billing_address: Option<api_models::payments::AddressDetails>,
+    pub metadata: Option<serde_json::Value>,
+    pub merchant_order_reference_id: Option<String>,
+    pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
+}
+
 #[derive(Clone)]
 pub struct PaymentData<F>
 where
@@ -9531,6 +9614,9 @@ where
     pub client_session_id: Option<id_type::ClientSessionId>,
     pub external_vault_pmd:
         Option<hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData>,
+    /// Fields from the update request payload used to compare against
+    /// the stored payment intent. Populated only for the payment-update flow.
+    pub update_request_fields: Option<PaymentDataUpdateRequestFields>,
 }
 
 #[cfg(feature = "v1")]
@@ -10008,6 +10094,12 @@ where
         "PaymentSessionUpdate" => true,
         "PaymentPostSessionTokens" => true,
         "PaymentUpdateMetadata" => true,
+        "PaymentUpdate" => {
+            matches!(
+                payment_data.get_payment_intent().status,
+                storage_enums::IntentStatus::RequiresCustomerAction
+            )
+        }
         "PaymentExtendAuthorization" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture
@@ -13028,6 +13120,7 @@ pub async fn payments_manual_update(
         error_reason,
         connector_transaction_id,
         amount_capturable,
+        update_amount_captured,
     } = req;
     let key_store = state
         .store
@@ -13082,6 +13175,47 @@ pub async fn payments_manual_update(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
 
+    let calculated_amount_captured = if update_amount_captured == Some(true) {
+        if amount_capturable.is_some() {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "amount_capturable cannot be provided when update_amount_captured is true"
+                    .to_string(),
+            }
+            .into());
+        }
+
+        if let Some(status) = attempt_status {
+            utils::when(
+                !matches!(
+                    status,
+                    enums::AttemptStatus::Charged
+                        | enums::AttemptStatus::PartialCharged
+                        | enums::AttemptStatus::PartialChargedAndChargeable
+                        | enums::AttemptStatus::Voided
+                        | enums::AttemptStatus::VoidedPostCharge
+                ),
+                || {
+                    Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "update_amount_captured can only be used for terminal statuses with captured funds: Charged, PartialCharged, PartialChargedAndChargeable, Voided, VoidedPostCharge".to_string(),
+                    })
+                },
+            )?;
+        }
+        if let Some(existing_captured) = payment_intent.amount_captured {
+            if existing_captured > MinorUnit::zero() {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Cannot update amount_captured: payment intent already has amount_captured > 0".to_string(),
+                }.into());
+            }
+        }
+        let new_captured_amount = payment_attempt
+            .amount_to_capture
+            .unwrap_or(payment_attempt.net_amount.get_total_amount());
+        Some(new_captured_amount)
+    } else {
+        None
+    };
+
     let option_gsm = if let Some(((code, message), connector_name)) = error_code
         .as_ref()
         .zip(error_message.as_ref())
@@ -13127,24 +13261,29 @@ pub async fn payments_manual_update(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while updating the payment_attempt")?;
     // If the payment_attempt is active attempt for an intent, update the intent status
-    if payment_intent.active_attempt.get_id() == payment_attempt.attempt_id {
-        let intent_status = enums::IntentStatus::foreign_from(updated_payment_attempt.status);
-        let payment_intent_update = storage::PaymentIntentUpdate::ManualUpdate {
-            status: Some(intent_status),
-            updated_by: merchant_account.storage_scheme.to_string(),
+    let updated_amount_captured =
+        if payment_intent.active_attempt.get_id() == payment_attempt.attempt_id {
+            let intent_status = enums::IntentStatus::foreign_from(updated_payment_attempt.status);
+            let payment_intent_update = storage::PaymentIntentUpdate::ManualUpdate {
+                status: Some(intent_status),
+                updated_by: merchant_account.storage_scheme.to_string(),
+                amount_captured: calculated_amount_captured,
+            };
+            state
+                .store
+                .update_payment_intent(
+                    payment_intent,
+                    payment_intent_update,
+                    &key_store,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+                .attach_printable("Error while updating payment_intent")?
+                .amount_captured
+        } else {
+            None
         };
-        state
-            .store
-            .update_payment_intent(
-                payment_intent,
-                payment_intent_update,
-                &key_store,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            .attach_printable("Error while updating payment_intent")?;
-    }
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsManualUpdateResponse {
             payment_id: updated_payment_attempt.payment_id,
@@ -13156,6 +13295,7 @@ pub async fn payments_manual_update(
             error_reason: updated_payment_attempt.error_reason,
             connector_transaction_id: updated_payment_attempt.connector_transaction_id,
             amount_capturable: Some(updated_payment_attempt.amount_capturable),
+            amount_captured: updated_amount_captured,
         },
     ))
 }
@@ -13262,6 +13402,7 @@ pub async fn payments_manual_status_update(
     let intent_update = storage::PaymentIntentUpdate::ManualUpdate {
         status: Some(intent_status),
         updated_by: merchant_account.storage_scheme.to_string(),
+        amount_captured: None,
     };
 
     state

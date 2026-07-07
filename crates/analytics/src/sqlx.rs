@@ -1467,6 +1467,12 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
                 .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?,
             Self::ConnectorPayoutEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ConnectorPayoutEvents table is not implemented for Sqlx"))?,
+            Self::PrismConnectorEvents => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("PrismConnectorEvents table is not implemented for Sqlx"))?,
+            Self::PrismConnectorPayoutEvents => Err(error_stack::report!(
+                ParsingError::UnknownError
+            )
+            .attach_printable("PrismConnectorPayoutEvents table is not implemented for Sqlx"))?,
             Self::ApiEventsAnalytics => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
             Self::ActivePaymentsAnalytics => Err(error_stack::report!(ParsingError::UnknownError)
