@@ -4594,6 +4594,51 @@ pub fn construct_connector_invoke_hidden_frame(
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
     fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
+        // Build `payment_method_data` by first parsing the stored column as
+        // `AdditionalPaymentData` and then converting via `PaymentMethodDataResponse::from`
+        let payment_method_data = pa
+            .check_and_get_payment_method_data_based_on_encryption_strategy()
+            .and_then(|data| match data {
+                serde_json::Value::Null => {
+                    router_env::logger::debug!(
+                        payment_attempt_id = ?pa.attempt_id,
+                        "No additional payment method data present for payment attempt"
+                    );
+                    None
+                }
+                serde_json::Value::Object(_) => {
+                    match data.parse_value::<api_models::payments::AdditionalPaymentData>(
+                        "AdditionalPaymentData",
+                    ) {
+                        Ok(additional_payment_data) => {
+                            Some(api_models::payments::PaymentMethodDataResponseWithBilling {
+                                payment_method_data: Some(api::PaymentMethodDataResponse::from(
+                                    additional_payment_data,
+                                )),
+                                billing: None,
+                            })
+                        }
+                        Err(e) => {
+                            router_env::logger::error!(
+                                payment_attempt_id = ?pa.attempt_id,
+                                error = ?e,
+                                "Failed to parse 'AdditionalPaymentData' from payment method data"
+                            );
+                            None
+                        }
+                    }
+                }
+                serde_json::Value::Bool(_)
+                | serde_json::Value::Number(_)
+                | serde_json::Value::String(_)
+                | serde_json::Value::Array(_) => {
+                    router_env::logger::debug!(
+                        payment_attempt_id = ?pa.attempt_id,
+                        "Skipping non-object payment method data for AdditionalPaymentData parsing"
+                    );
+                    None
+                }
+            });
         Self {
             connector_response_metadata: pa.get_connector_response_metadata_from_attempt_metadata(),
             payment_id: pi.payment_id,
@@ -4623,15 +4668,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             attempt_count: pi.attempt_count,
             profile_id: pi.profile_id,
             merchant_connector_id: pa.merchant_connector_id,
-            payment_method_data: pa.payment_method_data.and_then(|data| {
-                match data.parse_value("PaymentMethodDataResponseWithBilling") {
-                    Ok(parsed_data) => Some(parsed_data),
-                    Err(e) => {
-                        router_env::logger::error!("Failed to parse 'PaymentMethodDataResponseWithBilling' from payment method data. Error: {e:?}");
-                        None
-                    }
-                }
-            }),
+            payment_method_data,
             merchant_order_reference_id: pi.merchant_order_reference_id,
             customer: pi.customer_details.and_then(|customer_details|
                 match customer_details.into_inner().expose().parse_value::<CustomerData>("CustomerData"){

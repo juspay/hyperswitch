@@ -1246,7 +1246,25 @@ Cypress.Commands.add(
     createConnectorBody.connector_name =
       getOriginalConnectorName(connectorName);
     createConnectorBody.connector_label = connectorLabel;
-    createConnectorBody.payment_methods_enabled = paymentMethodsEnabled;
+
+    // For payment_vas (FRM) connectors, use frm_configs with payment_methods array inside
+    if (connectorType === "payment_vas") {
+      createConnectorBody.frm_configs = [
+        {
+          gateway: getOriginalConnectorName(globalState.get("connectorId")),
+          payment_methods: [
+            {
+              payment_method: "card",
+              flow: "pre",
+            },
+          ],
+        },
+      ];
+      delete createConnectorBody.payment_methods_enabled;
+    } else {
+      createConnectorBody.payment_methods_enabled = paymentMethodsEnabled;
+    }
+
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
@@ -1255,6 +1273,11 @@ Cypress.Commands.add(
           JSON.stringify(jsonContent),
           connectorName
         );
+        if (!authDetails) {
+          throw new Error(
+            `No credentials found for ${connectorName} in creds.json — skipping connector creation`
+          );
+        }
         createConnectorBody.connector_account_details =
           authDetails.connector_account_details;
         cy.request({
@@ -1820,6 +1843,69 @@ Cypress.Commands.add("connectorDeleteCall", (globalState) => {
       );
       expect(response.body.deleted).to.equal(true);
     });
+  });
+});
+
+Cypress.Commands.add("setFrmRoutingAlgorithm", (body, globalState) => {
+  const merchantId = globalState.get("merchantId");
+  const adminApiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  body.merchant_id = merchantId;
+
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/accounts/${merchantId}`,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "api-key": adminApiKey,
+    },
+    body: body,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.task(
+      "cli_log",
+      "Set frm_routing_algorithm status: " +
+        response.status +
+        " body: " +
+        JSON.stringify(response.body)
+    );
+    expect(
+      [200, 400],
+      "frm_routing_algorithm update should return 200 (success) or 400 (already set)"
+    ).to.include(response.status);
+  });
+});
+
+Cypress.Commands.add("deleteFrmConnector", (globalState) => {
+  const frmMcaId = globalState.get("frmConnectorId");
+
+  if (!frmMcaId) {
+    cy.task("cli_log", "No frmConnectorId found, skipping delete");
+    return;
+  }
+
+  const merchantId = globalState.get("merchantId");
+  const baseUrl = globalState.get("baseUrl");
+  const adminApiKey = globalState.get("adminApiKey");
+
+  cy.request({
+    method: "DELETE",
+    url: `${baseUrl}/account/${merchantId}/connectors/${frmMcaId}`,
+    headers: {
+      Accept: "application/json",
+      "api-key": adminApiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    cy.task(
+      "cli_log",
+      "FRM Signifyd connector delete status: " + response.status
+    );
   });
 });
 
