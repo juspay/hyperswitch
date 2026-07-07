@@ -217,9 +217,6 @@ where
                     router_data.response = router_data_response;
 
                     router_data.amount_captured = recurring_payment_charge_response.captured_amount;
-                    router_data.minor_amount_captured = recurring_payment_charge_response
-                        .captured_amount
-                        .map(MinorUnit::new);
                     if return_raw_connector_response.unwrap_or(false) {
                         router_data.raw_connector_response = recurring_payment_charge_response
                             .raw_connector_response
