@@ -2287,10 +2287,7 @@ where
 // (retry safety). Gates preload_external_surcharge_for_routing so both CIT and MIT share
 // one entry check.
 #[cfg(feature = "v1")]
-fn is_external_surcharge_pending<F, D>(
-    business_profile: &domain::Profile,
-    payment_data: &D,
-) -> bool
+fn is_external_surcharge_pending<F, D>(business_profile: &domain::Profile, payment_data: &D) -> bool
 where
     F: Send + Clone,
     D: OperationSessionGetters<F>,
@@ -2371,10 +2368,8 @@ where
     }
 
     if let Some(attempt_surcharge) = payment_data.get_payment_attempt().get_surcharge_details() {
-        let surcharge_details = types::SurchargeDetails::from((
-            &attempt_surcharge,
-            payment_data.get_payment_attempt(),
-        ));
+        let surcharge_details =
+            types::SurchargeDetails::from((&attempt_surcharge, payment_data.get_payment_attempt()));
         payment_data.set_surcharge_details(Some(surcharge_details));
         return Ok(());
     }
