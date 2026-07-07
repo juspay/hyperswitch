@@ -57,6 +57,27 @@ const multiUseMandateData = {
   },
 };
 
+const onlineCustomerAcceptance = {
+  ...customerAcceptance,
+  acceptance_type: "online",
+};
+
+const connectorCredential = (connectorIndex) => ({
+  value: `connector_${connectorIndex}`,
+});
+
+const bankDebitCredentialIndex = {
+  Sepa: 5,
+  Ach: 1,
+  Becs: 4,
+  Bacs: 3,
+};
+
+const bankDebitConnectorCredential = (paymentMethodType) =>
+  connectorCredential(
+    bankDebitCredentialIndex[paymentMethodType] ?? bankDebitCredentialIndex.Sepa
+  );
+
 const payment_method_data_3ds = {
   card: {
     last4: "3155",
@@ -1422,6 +1443,502 @@ export const connectorDetails = {
       },
     }),
   },
+  bank_debit_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
+      return {
+        Configs: {
+          CONNECTOR_CREDENTIAL: bankDebitConnectorCredential(paymentMethodType),
+          ...(paymentMethodType === "Bacs" ? { TRIGGER_SKIP: true } : {}),
+        },
+        Request: {
+          currency: currencyMap[paymentMethodType] || "USD",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Sepa: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Sepa"),
+      },
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "Account",
+            country: "FR",
+          },
+          email: "test@example.com",
+        },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 1000,
+              currency: "EUR",
+              start_date: "2025-04-21T00:00:00Z",
+              end_date: "2028-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    Becs: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Becs"),
+      },
+      Request: {
+        currency: "AUD",
+        payment_method: "bank_debit",
+        payment_method_type: "becs",
+        payment_method_data: {
+          bank_debit: {
+            becs_bank_debit: {
+              bsb_number: "000000",
+              account_number: "000123456",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "Account",
+            country: "AU",
+            line1: "123 Test St",
+            zip: "2000",
+          },
+          email: "test@example.com",
+        },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 1000,
+              currency: "AUD",
+              start_date: "2025-04-21T00:00:00Z",
+              end_date: "2028-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    Ach: {
+      Configs: {
+        LOCAL_VAULT_REQUIRED: true,
+      },
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "110000000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "US",
+            first_name: "Test",
+            last_name: "Account",
+          },
+          email: "test@example.com",
+        },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 6000,
+              currency: "USD",
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Bacs: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Bacs"),
+      },
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "bacs",
+        payment_method_data: {
+          bank_debit: {
+            bacs_bank_debit: {
+              account_number: "00012345",
+              sort_code: "108800",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1 Oxford Street",
+            city: "London",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "Test",
+            last_name: "Account",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateSingleUseAch: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Ach"),
+        LOCAL_VAULT_REQUIRED: true,
+      },
+      Request: {
+        amount: 6540,
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        currency: "USD",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "110000000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "USD",
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            country: "US",
+            first_name: "Test",
+            last_name: "Account",
+          },
+          email: "test@example.com",
+        },
+        payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    MandateSingleUseBacs: {
+      Configs: {
+        TRIGGER_SKIP: true,
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Bacs"),
+      },
+      Request: {
+        amount: 6540,
+        payment_method: "bank_debit",
+        payment_method_type: "bacs",
+        currency: "GBP",
+        payment_method_data: {
+          bank_debit: {
+            bacs_bank_debit: {
+              account_number: "00012345",
+              sort_code: "108800",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 1000,
+              currency: "GBP",
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            line1: "1 Oxford Street",
+            city: "London",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "Test",
+            last_name: "Account",
+          },
+          email: "test@example.com",
+        },
+        payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateSingleUseSepa: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Sepa"),
+      },
+      Request: {
+        amount: 6540,
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        currency: "EUR",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "EUR",
+              start_date: "2025-04-21T00:00:00Z",
+              end_date: "2028-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "Account",
+            country: "FR",
+          },
+          email: "test@example.com",
+        },
+        payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateSingleUseBecs: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Becs"),
+      },
+      Request: {
+        amount: 6540,
+        payment_method: "bank_debit",
+        payment_method_type: "becs",
+        currency: "AUD",
+        payment_method_data: {
+          bank_debit: {
+            becs_bank_debit: {
+              bsb_number: "000000",
+              account_number: "000123456",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "AUD",
+              start_date: "2025-04-21T00:00:00Z",
+              end_date: "2028-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "Account",
+            country: "AU",
+            line1: "123 Test St",
+            zip: "2000",
+          },
+          email: "test@example.com",
+        },
+        payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCaptureSepa: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Sepa"),
+      },
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "EUR",
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "Account",
+            country: "FR",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCaptureBecs: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Becs"),
+      },
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "AUD",
+        payment_method: "bank_debit",
+        payment_method_type: "becs",
+        payment_method_data: {
+          bank_debit: {
+            becs_bank_debit: {
+              bsb_number: "000000",
+              account_number: "000123456",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "Account",
+            country: "AU",
+            line1: "123 Test St",
+            zip: "2000",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCaptureAch: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Ach"),
+      },
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCaptureBacs: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: bankDebitConnectorCredential("Bacs"),
+      },
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "GBP",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+  },
   auth_service_eligibility: {
     // Storage flag does not affect authentication outcome — both enabled and
     // disabled flows produce the same 3DS challenge. Distinction is only
@@ -1482,6 +1999,377 @@ export const connectorDetails = {
       // Stripe refund webhooks use data.object.id as the connector refund reference
       path: "data.object.id",
       type: "string",
+    },
+  },
+  wallet_pm: {
+    PaymentIntent: (walletType, overrideCurrency) => {
+      const currencyMap = {
+        AliPay: "USD",
+        AmazonPay: "USD",
+        Cashapp: "USD",
+        RevolutPay: "EUR",
+        WeChatPay: "USD",
+      };
+      return {
+        Request: {
+          currency: overrideCurrency || currencyMap[walletType] || "USD",
+          amount: 1000,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    PaymentIntentMandate: (walletType, overrideCurrency) => {
+      const currencyMap = {
+        AmazonPay: "USD",
+        Cashapp: "USD",
+        RevolutPay: "EUR",
+      };
+      return {
+        Request: {
+          currency: overrideCurrency || currencyMap[walletType] || "USD",
+          amount: 1000,
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    AliPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "ali_pay",
+        payment_method_data: {
+          wallet: {
+            ali_pay_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            country: "CN",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    },
+    AmazonPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "amazon_pay",
+        payment_method_data: {
+          wallet: {
+            amazon_pay_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    },
+    AmazonPayMandate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "amazon_pay",
+        payment_method_data: {
+          wallet: {
+            amazon_pay_redirect: {},
+          },
+        },
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "offline",
+            accepted_at: "1963-05-03T04:07:52.723Z",
+            online: {
+              ip_address: "in sit",
+              user_agent: "amet irure esse sunt",
+            },
+          },
+          mandate_type: {
+            single_use: {
+              amount: 1000,
+              currency: "USD",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    },
+    Cashapp: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "cashapp",
+        payment_method_data: {
+          wallet: {
+            cashapp_qr: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    },
+    CashappMandate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "cashapp",
+        payment_method_data: {
+          wallet: {
+            cashapp_qr: {},
+          },
+        },
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "offline",
+            accepted_at: "1963-05-03T04:07:52.723Z",
+            online: {
+              ip_address: "in sit",
+              user_agent: "amet irure esse sunt",
+            },
+          },
+          mandate_type: {
+            single_use: {
+              amount: 1000,
+              currency: "USD",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    },
+    RevolutPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "revolut_pay",
+        payment_method_data: {
+          wallet: {
+            revolut_pay: {},
+          },
+        },
+        mandate_data: null,
+        setup_future_usage: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+        TRIGGER_SKIP: true,
+      },
+    },
+    RevolutPayMandate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "revolut_pay",
+        payment_method_data: {
+          wallet: {
+            revolut_pay: {},
+          },
+        },
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "offline",
+            accepted_at: "1963-05-03T04:07:52.723Z",
+            online: {
+              ip_address: "in sit",
+              user_agent: "amet irure esse sunt",
+            },
+          },
+          mandate_type: {
+            single_use: {
+              amount: 1000,
+              currency: "EUR",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+        TRIGGER_SKIP: true,
+      },
+    },
+    WeChatPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "we_chat_pay",
+        payment_method_data: {
+          wallet: {
+            we_chat_pay_qr: {},
+          },
+        },
+        mandate_data: null,
+        setup_future_usage: null,
+        billing: {
+          address: {
+            country: "CN",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    },
+    AliPayInvalidCurrency: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "ali_pay",
+        payment_method_data: {
+          wallet: {
+            ali_pay_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "AliPay is not available in the selected region/currency",
+        },
+      },
+    },
+    AmazonPayInvalidCurrency: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "amazon_pay",
+        payment_method_data: {
+          wallet: {
+            amazon_pay_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "AmazonPay is not available in the selected region/currency",
+        },
+      },
+    },
+    CashappInvalidCurrency: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "cashapp",
+        payment_method_data: {
+          wallet: {
+            cashapp_qr: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "Cashapp is not available in the selected region/currency",
+        },
+      },
+    },
+    RevolutPayInvalidCurrency: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "revolut_pay",
+        payment_method_data: {
+          wallet: {
+            revolut_pay: {},
+          },
+        },
+        mandate_data: null,
+        setup_future_usage: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "RevolutPay is not available in the selected region/currency",
+        },
+      },
+    },
+    WeChatPayInvalidCurrency: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "we_chat_pay",
+        payment_method_data: {
+          wallet: {
+            we_chat_pay_qr: {},
+          },
+        },
+        mandate_data: null,
+        setup_future_usage: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "WeChatPay is not available in the selected region/currency",
+        },
+      },
     },
   },
 };

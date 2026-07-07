@@ -49,6 +49,7 @@ fn get_program_data() -> (ast::Program<DummyOutput>, inputs::BackendInput) {
             billing_country: Some(enums::Country::France),
             business_label: None,
             setup_future_usage: None,
+            surcharge_amount: None,
         },
         payment_method: inputs::PaymentMethodInput {
             payment_method: Some(enums::PaymentMethod::PayLater),
