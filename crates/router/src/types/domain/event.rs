@@ -83,6 +83,21 @@ pub struct Event {
     pub recipient: Option<EventRecipient>,
 }
 
+impl Event {
+    /// Resolves the correct delivery-success source for this event's delivery attempt:
+    /// `Some(ManualRetry)` -> `is_webhook_notified`
+    /// anything else (`InitialAttempt`, `AutomaticRetry`, or `None`) -> `is_overall_delivery_successful`
+    pub fn resolve_delivery_success(&self) -> Option<bool> {
+        match self.delivery_attempt {
+            Some(WebhookDeliveryAttempt::ManualRetry) => Some(self.is_webhook_notified),
+            Some(
+                WebhookDeliveryAttempt::InitialAttempt | WebhookDeliveryAttempt::AutomaticRetry,
+            )
+            | None => self.is_overall_delivery_successful,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum EventUpdate {
     UpdateResponse {

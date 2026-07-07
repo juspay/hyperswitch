@@ -2065,6 +2065,8 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
     fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
         use crate::utils::OptionExt;
 
+        let is_delivery_successful = item.resolve_delivery_success();
+
         // We only allow retrieving events with merchant_id, business_profile_id
         // and initial_attempt_id populated.
         // We cannot retrieve events with only some of these fields populated.
@@ -2080,12 +2082,6 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
             .initial_attempt_id
             .get_required_value("initial_attempt_id")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let is_delivery_successful =
-            storage_enums::WebhookDeliveryAttempt::resolve_delivery_success(
-                item.delivery_attempt,
-                item.is_overall_delivery_successful,
-                item.is_webhook_notified,
-            );
 
         Ok(Self {
             event_id: item.event_id,
