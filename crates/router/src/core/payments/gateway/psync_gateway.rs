@@ -105,9 +105,15 @@ where
                 };
 
                 router_data.response = router_data_response;
-                router_data.amount_captured = payment_get_response.captured_amount;
-                router_data.minor_amount_captured =
-                    payment_get_response.captured_amount.map(MinorUnit::new);
+                // Only override `amount_captured` when UCS actually reports a captured
+                // amount on sync. Connectors that don't return an amount on psync (e.g.
+                // cybersource TSS) leave this `None`; the Direct psync path never
+                // overwrites the field, so clobbering the construct-time value (sourced
+                // from the payment intent) diverged the shadow router-data (#18021).
+                if let Some(captured_amount) = payment_get_response.captured_amount {
+                    router_data.amount_captured = Some(captured_amount);
+                    router_data.minor_amount_captured = Some(MinorUnit::new(captured_amount));
+                }
                 if return_raw_connector_response.unwrap_or(false) {
                     router_data.raw_connector_response = payment_get_response
                         .raw_connector_response
@@ -276,9 +282,17 @@ where
                         }
 
                         router_data.response = router_data_response;
-                        router_data.amount_captured = payment_get_response.captured_amount;
-                        router_data.minor_amount_captured =
-                            payment_get_response.captured_amount.map(MinorUnit::new);
+                        // Only override `amount_captured` when UCS actually reports a
+                        // captured amount on sync. Connectors that don't return an amount
+                        // on psync (e.g. cybersource TSS) leave this `None`; the Direct
+                        // psync path never overwrites the field, so clobbering the
+                        // construct-time value (sourced from the payment intent) diverged
+                        // the shadow router-data (#18021).
+                        if let Some(captured_amount) = payment_get_response.captured_amount {
+                            router_data.amount_captured = Some(captured_amount);
+                            router_data.minor_amount_captured =
+                                Some(MinorUnit::new(captured_amount));
+                        }
                         if return_raw_connector_response.unwrap_or(false) {
                             router_data.raw_connector_response = payment_get_response
                                 .raw_connector_response
