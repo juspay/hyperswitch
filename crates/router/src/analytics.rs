@@ -8,10 +8,16 @@ pub mod routes {
 
     use actix_web::{web, Responder, Scope};
     use analytics::{
-        api_event::api_events_core, connector_events::connector_events_core, enums::AuthInfo,
-        errors::AnalyticsError, lambda_utils::invoke_lambda, opensearch::OpenSearchError,
-        outgoing_webhook_event::outgoing_webhook_events_core, routing_events::routing_events_core,
-        sdk_events::sdk_events_core, AnalyticsFlow,
+        api_event::api_events_core,
+        connector_events::{connector_events_core, ConnectorEventSource},
+        enums::AuthInfo,
+        errors::AnalyticsError,
+        lambda_utils::invoke_lambda,
+        opensearch::OpenSearchError,
+        outgoing_webhook_event::outgoing_webhook_events_core,
+        routing_events::routing_events_core,
+        sdk_events::sdk_events_core,
+        AnalyticsFlow,
     };
     use api_models::analytics::{
         api_event::QueryType,
@@ -173,6 +179,10 @@ pub mod routes {
                         .service(
                             web::resource("connector_event_logs")
                                 .route(web::get().to(get_profile_connector_events)),
+                        )
+                        .service(
+                            web::resource("prism_connector_event_logs")
+                                .route(web::get().to(get_profile_prism_connector_events)),
                         )
                         .service(
                             web::resource("routing_event_logs")
@@ -431,6 +441,10 @@ pub mod routes {
                                 .service(
                                     web::resource("connector_event_logs")
                                         .route(web::get().to(get_profile_connector_events)),
+                                )
+                                .service(
+                                    web::resource("prism_connector_event_logs")
+                                        .route(web::get().to(get_profile_prism_connector_events)),
                                 )
                                 .service(
                                     web::resource("routing_event_logs")
@@ -3659,18 +3673,19 @@ pub mod routes {
         .await
     }
 
-    pub async fn get_profile_connector_events(
+    async fn connector_event_logs(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Query<api_models::analytics::connector_events::ConnectorEventsRequest>,
+        flow: AnalyticsFlow,
+        source: ConnectorEventSource,
     ) -> impl Responder {
-        let flow = AnalyticsFlow::GetConnectorEvents;
         Box::pin(api::server_wrap(
             flow,
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req, _| async move {
+            move |state, auth: AuthenticationData, req, _| async move {
                 #[cfg(feature = "v1")]
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 #[cfg(feature = "v2")]
@@ -3688,6 +3703,7 @@ pub mod routes {
                     &state.pool,
                     req,
                     auth.platform.get_processor().get_account().get_id(),
+                    source,
                 )
                 .await
                 .map(ApplicationResponse::Json)
@@ -3699,6 +3715,36 @@ pub mod routes {
             },
             api_locking::LockAction::NotApplicable,
         ))
+        .await
+    }
+
+    pub async fn get_profile_connector_events(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Query<api_models::analytics::connector_events::ConnectorEventsRequest>,
+    ) -> impl Responder {
+        connector_event_logs(
+            state,
+            req,
+            json_payload,
+            AnalyticsFlow::GetConnectorEvents,
+            ConnectorEventSource::Hyperswitch,
+        )
+        .await
+    }
+
+    pub async fn get_profile_prism_connector_events(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Query<api_models::analytics::connector_events::ConnectorEventsRequest>,
+    ) -> impl Responder {
+        connector_event_logs(
+            state,
+            req,
+            json_payload,
+            AnalyticsFlow::GetPrismConnectorEvents,
+            ConnectorEventSource::Prism,
+        )
         .await
     }
 
@@ -3775,7 +3821,7 @@ pub mod routes {
                         let search_req = GetSearchRequestWithIndex {
                             index: SearchIndex::SessionizerPaymentIntents,
                             search_req: GetSearchRequest {
-                                query: String::new(),
+                                query: constraints.query.unwrap_or_default(),
                                 filters: Some(filters),
                                 time_range: constraints.time_range,
                                 offset: constraints.offset.map(i64::from).unwrap_or(0),
@@ -3848,7 +3894,7 @@ pub mod routes {
                         let search_req = GetSearchRequestWithIndex {
                             index: SearchIndex::SessionizerPaymentIntents,
                             search_req: GetSearchRequest {
-                                query: String::new(),
+                                query: constraints.query.unwrap_or_default(),
                                 filters: Some(filters),
                                 time_range: constraints.time_range,
                                 offset: constraints.offset.map(i64::from).unwrap_or(0),

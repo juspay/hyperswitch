@@ -681,7 +681,7 @@ async fn insert_metadata(
         }
         #[cfg(feature = "v1")]
         types::MetaData::PaymentViews(operation) => {
-            utils::handle_saved_view_operations(state, user, metadata_key, operation).await
+            utils::handle_saved_view_operations(state, user, metadata_key, *operation).await
         }
     }
 }

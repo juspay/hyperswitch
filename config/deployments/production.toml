@@ -27,7 +27,7 @@ aci.base_url = "https://eu-prod.oppwa.com/"
 adyen.base_url = "https://{{merchant_endpoint_prefix}}-checkout-live.adyenpayments.com/checkout/"
 adyen.payout_base_url = "https://{{merchant_endpoint_prefix}}-pal-live.adyenpayments.com/"
 adyen.dispute_base_url = "https://{{merchant_endpoint_prefix}}-ca-live.adyen.com/"
-adyen.management_base_url = "https://management.adyen.com/"
+adyen.management_base_url = "https://management-live.adyen.com"
 adyenplatform.base_url = "https://balanceplatform-api-live.adyen.com/"
 affirm.base_url = "https://api.affirm.com/api"
 airwallex.base_url = "https://api.airwallex.com/"
@@ -298,7 +298,7 @@ card.debit = "adyen"
 adyen = "BRL,MXN,JPY"
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,checkout,cybersource,stripe,nuvei,worldpayvantiv,revolv3,peachpayments"
+connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,stripe,nuvei,worldpayvantiv,revolv3,peachpayments"
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
