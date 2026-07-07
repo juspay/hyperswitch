@@ -2080,6 +2080,12 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
             .initial_attempt_id
             .get_required_value("initial_attempt_id")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let is_delivery_successful =
+            storage_enums::WebhookDeliveryAttempt::resolve_delivery_success(
+                item.delivery_attempt,
+                item.is_overall_delivery_successful,
+                item.is_webhook_notified,
+            );
 
         Ok(Self {
             event_id: item.event_id,
@@ -2088,7 +2094,7 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
             object_id: item.primary_object_id,
             event_type: item.event_type,
             event_class: item.event_class,
-            is_delivery_successful: item.is_overall_delivery_successful,
+            is_delivery_successful,
             initial_attempt_id,
             processor_merchant_id: item.processor_merchant_id,
             created: item.created_at,

@@ -1962,6 +1962,24 @@ pub enum WebhookDeliveryAttempt {
     ManualRetry,
 }
 
+impl WebhookDeliveryAttempt {
+    /// Resolves the correct delivery-success source for an event's delivery attempt:
+    /// `Some(ManualRetry)` -> `is_webhook_notified`
+    /// anything else (`InitialAttempt`, `AutomaticRetry`) -> `is_overall_delivery_successful`
+    pub fn resolve_delivery_success(
+        delivery_attempt: Option<Self>,
+        is_overall_delivery_successful: Option<bool>,
+        is_webhook_notified: bool,
+    ) -> Option<bool> {
+        match delivery_attempt {
+            Some(Self::ManualRetry) => Some(is_webhook_notified),
+            Some(Self::InitialAttempt | Self::AutomaticRetry) | None => {
+                is_overall_delivery_successful
+            }
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
