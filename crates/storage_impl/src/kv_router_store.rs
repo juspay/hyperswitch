@@ -459,7 +459,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             drainer_query,
             operation,
         }: UpdateResourceParams<'_>,
-        key_manager_identifier: Option<keymanager::Identifier>,
     ) -> error_stack::Result<D, errors::StorageError>
     where
         D: Debug + Sync + Conversion,
@@ -505,7 +504,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             self.get_keymanager_state()
                 .attach_printable("Missing KeyManagerState")?,
             key_store.key.get_inner(),
-            key_manager_identifier.unwrap_or_else(|| key_store.merchant_id.clone().into()),
+            key_store.merchant_id.clone().into(),
         )
         .await
         .change_context(errors::StorageError::DecryptionError)

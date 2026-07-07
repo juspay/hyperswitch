@@ -261,7 +261,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
                         payment_method.clone().updated_by.as_deref(),
                     ),
                 },
-                None,
             ),
         )
         .await

@@ -1168,7 +1168,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 drainer_query,
                 operation: Op::Update(key.clone(), &field, Some(updated_by.as_str())),
             },
-            None,
         ))
         .await
     }

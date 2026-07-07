@@ -283,7 +283,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 drainer_query,
                 operation: Op::Update(key.clone(), &field, Some(updated_by.as_str())),
             },
-            Some(processor_merchant_id.clone().into()),
         ))
         .await
     }

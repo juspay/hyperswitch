@@ -142,7 +142,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                         merchant_reference_id: merchant_reference_id.get_string_repr(),
                     },
                 ),
-                None,
             )
             .await?;
 
@@ -228,7 +227,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                 drainer_query,
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
             },
-            None,
         )
         .await
     }
@@ -259,6 +257,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                         merchant_reference_id: merchant_reference_id.get_string_repr(),
                     },
                 ),
+                None,
             )
             .await?;
 
@@ -558,7 +557,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                 drainer_query,
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
             },
-            None,
         )
         .await
     }
