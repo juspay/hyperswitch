@@ -1238,6 +1238,7 @@ default_imp_for_update_post_confirm!(
     connectors::Forte,
     connectors::Getnet,
     connectors::Gigadat,
+    connectors::Givepayments,
     connectors::Helcim,
     connectors::HyperswitchVault,
     connectors::Hyperwallet,
