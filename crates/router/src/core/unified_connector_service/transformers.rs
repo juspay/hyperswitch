@@ -159,25 +159,25 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
         .and_then(|data| data.order_info.as_ref())
         .is_some_and(|order_info| !order_info.is_empty())
         .then_some(payments_grpc::OrderInfo {
-        order_date,
-        order_details,
-        merchant_order_reference_id,
-        discount_amount: discount_amount.map(|amount| amount.get_amount_as_i64()),
-        shipping_cost: shipping_cost.map(|amount| amount.get_amount_as_i64()),
-        duty_amount: duty_amount.map(|amount| amount.get_amount_as_i64()),
-    });
+            order_date,
+            order_details,
+            merchant_order_reference_id,
+            discount_amount: discount_amount.map(|amount| amount.get_amount_as_i64()),
+            shipping_cost: shipping_cost.map(|amount| amount.get_amount_as_i64()),
+            duty_amount: duty_amount.map(|amount| amount.get_amount_as_i64()),
+        });
 
     let tax_info = l2_l3_data
         .and_then(|data| data.tax_info.as_ref())
         .is_some_and(|tax_info| !tax_info.is_empty())
         .then_some(payments_grpc::TaxInfo {
-        tax_status: tax_status
-            .map(|tax_status| payments_grpc::TaxStatus::foreign_from(tax_status).into()),
-        customer_tax_registration_id,
-        merchant_tax_registration_id,
-        shipping_amount_tax: shipping_amount_tax.map(|amount| amount.get_amount_as_i64()),
-        order_tax_amount: order_tax_amount.map(|tax| tax.get_amount_as_i64()),
-    });
+            tax_status: tax_status
+                .map(|tax_status| payments_grpc::TaxStatus::foreign_from(tax_status).into()),
+            customer_tax_registration_id,
+            merchant_tax_registration_id,
+            shipping_amount_tax: shipping_amount_tax.map(|amount| amount.get_amount_as_i64()),
+            order_tax_amount: order_tax_amount.map(|tax| tax.get_amount_as_i64()),
+        });
 
     if order_info.is_none() && tax_info.is_none() {
         None
