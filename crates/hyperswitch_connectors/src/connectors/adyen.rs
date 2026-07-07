@@ -20,7 +20,9 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
         payments::{
             Authorize, Capture, ExtendAuthorization, PSync, PaymentMethodToken, PreProcessing,
             Session, SetupMandate, Void,
@@ -29,7 +31,9 @@ use hyperswitch_domain_models::{
         Accept, Defend, Evidence, GiftCardBalanceCheck, Retrieve, Upload,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
         GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
@@ -38,17 +42,20 @@ use hyperswitch_domain_models::{
         SyncRequestType, UploadFileRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         AcceptDisputeResponse, ConnectorInfo, DefendDisputeResponse,
         GiftCardBalanceCheckResponseData, PaymentMethodDetails, PaymentsResponseData,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, SupportedPaymentMethods,
         SupportedPaymentMethodsExt, UploadFileResponse,
     },
     types::{
-        ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsExtendAuthorizationRouterData,
-        PaymentsGiftCardBalanceCheckRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundsRouterData, SetupMandateRouterData,
+        ConnectorWebhookGenerateSecretRouterData, ConnectorWebhookRegisterRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundsRouterData,
+        SetupMandateRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -67,15 +74,16 @@ use hyperswitch_interfaces::{
         disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
         files::{FilePurpose, FileUpload, RetrieveFile, UploadFile},
         CaptureSyncMethod, ConnectorCommon, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation, WebhookRegister,
+        ConnectorValidation, GenerateConnectorWebhookSecret, WebhookGenerateSecret,
+        WebhookRegister,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        AcceptDisputeType, ConnectorWebhookRegisterType, DefendDisputeType,
-        ExtendedAuthorizationType, PaymentsAuthorizeType, PaymentsCaptureType,
+        AcceptDisputeType, ConnectorWebhookGenerateSecretType, ConnectorWebhookRegisterType,
+        DefendDisputeType, ExtendedAuthorizationType, PaymentsAuthorizeType, PaymentsCaptureType,
         PaymentsGiftCardBalanceCheckType, PaymentsPreProcessingType, PaymentsSyncType,
         PaymentsVoidType, RefundExecuteType, Response, SetupMandateType, SubmitEvidenceType,
     },
@@ -99,11 +107,17 @@ use crate::{
     },
     utils::{
         convert_amount, convert_payment_authorize_router_response,
-        convert_setup_mandate_router_data_to_authorize_router_data, is_mandate_supported,
-        ForeignTryFrom, PaymentMethodDataType,
+        convert_setup_mandate_router_data_to_authorize_router_data, ForeignTryFrom,
     },
 };
 const ADYEN_API_VERSION: &str = "v68";
+
+const ADYEN_IMAGE_MAX_SIZE: i32 = 10_000_000;
+const ADYEN_PDF_MAX_SIZE: i32 = 2_000_000;
+const ADYEN_PDF_FORMAT: &str = "application/pdf";
+const ADYEN_SUPPORTED_DISPUTE_EVIDENCE_FILE_TYPES: [&str; 4] =
+    ["image/jpeg", "image/jpg", "image/tiff", ADYEN_PDF_FORMAT];
+const ADYEN_IMAGE_FILE_TYPES: [&str; 3] = ["image/jpeg", "image/jpg", "image/tiff"];
 
 #[derive(Clone)]
 pub struct Adyen {
@@ -146,27 +160,62 @@ impl ConnectorCommon for Adyen {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: adyen::AdyenErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let response: Result<
+                adyen::AdyenErrorResponse,
+                error_stack::Report<common_utils::errors::ParsingError>,
+            > = res.response.parse_struct("ErrorResponse");
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+            match response {
+                Ok(response) => {
+                    event_builder.map(|i| i.set_error_response_body(&response));
+                    router_env::logger::info!(connector_response=?response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response.message.to_owned(),
-            reason: Some(response.message),
-            attempt_status: None,
-            connector_transaction_id: response.psp_reference,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+                    let message = response
+                        .message
+                        .or(response.title)
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
+
+                    Ok(ErrorResponse {
+                        status_code: res.status_code,
+                        code: response.error_code,
+                        message: message.clone(),
+                        reason: Some(message),
+                        attempt_status: None,
+                        connector_transaction_id: response.psp_reference,
+                        connector_response_reference_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    })
+                }
+                Err(error_msg) => {
+                    event_builder.map(|event| {
+                        event.set_error(serde_json::json!({
+                            "error": res.response.escape_ascii().to_string(),
+                            "status_code": res.status_code,
+                        }))
+                    });
+                    router_env::logger::error!(deserialization_error =? error_msg);
+                    crate::utils::handle_json_response_deserialization_failure(res, "adyen")
+                }
+            }
+        }
     }
 }
 
@@ -281,6 +330,9 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Oxxo
                 | PaymentMethodType::PaySafeCard
                 | PaymentMethodType::Pix
+                | PaymentMethodType::PixKey
+                | PaymentMethodType::PixEmv
+                | PaymentMethodType::PixQr
                 | PaymentMethodType::Swish
                 | PaymentMethodType::TouchNGo
                 | PaymentMethodType::Trustly
@@ -329,6 +381,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Przelewy24
                 | PaymentMethodType::Becs
                 | PaymentMethodType::Eft
+                | PaymentMethodType::EftDebitOrder
                 | PaymentMethodType::ClassicReward
                 | PaymentMethodType::Pse
                 | PaymentMethodType::LocalBankTransfer
@@ -376,34 +429,6 @@ impl ConnectorValidation for Adyen {
                 }
             },
         }
-    }
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        pm_data: payment_method_data::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::PaypalRedirect,
-            PaymentMethodDataType::MomoRedirect,
-            PaymentMethodDataType::KakaoPayRedirect,
-            PaymentMethodDataType::GoPayRedirect,
-            PaymentMethodDataType::GcashRedirect,
-            PaymentMethodDataType::DanaRedirect,
-            PaymentMethodDataType::TwintRedirect,
-            PaymentMethodDataType::VippsRedirect,
-            PaymentMethodDataType::KlarnaRedirect,
-            PaymentMethodDataType::Ideal,
-            PaymentMethodDataType::OpenBankingUk,
-            PaymentMethodDataType::Trustly,
-            PaymentMethodDataType::BancontactCard,
-            PaymentMethodDataType::AchBankDebit,
-            PaymentMethodDataType::SepaBankDebit,
-            PaymentMethodDataType::BecsBankDebit,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 
     fn validate_psync_reference_id(
@@ -742,7 +767,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ady
                 }),
             },
         };
-
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -1223,7 +1247,6 @@ impl
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::AdyenBalanceRequest::try_from(req)?;
-
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -2122,6 +2145,10 @@ impl IncomingWebhook for Adyen {
         request: &IncomingWebhookRequestDetails<'_>,
         _context: Option<&WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
+        if request.body.is_empty() {
+            return Ok(api_models::webhooks::IncomingWebhookEvent::EndpointVerification);
+        }
+
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?;
 
@@ -2340,6 +2367,7 @@ impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeRespons
             .response
             .parse_struct("AdyenDisputeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         RouterData::foreign_try_from((data, response))
             .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -2418,7 +2446,7 @@ impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeRespons
             .response
             .parse_struct("AdyenDisputeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        RouterData::foreign_try_from((data, response))
+        RouterData::foreign_try_from((data, res, response))
             .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -2523,28 +2551,24 @@ impl FileUpload for Adyen {
     ) -> CustomResult<(), errors::ConnectorError> {
         match purpose {
             FilePurpose::DisputeEvidence => {
-                let supported_file_types =
-                    ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
-                if !supported_file_types.contains(&file_type.to_string().as_str()) {
+                let file_type_str = file_type.to_string();
+                if !ADYEN_SUPPORTED_DISPUTE_EVIDENCE_FILE_TYPES.contains(&file_type_str.as_str()) {
                     Err(errors::ConnectorError::FileValidationFailed {
-                        reason: "file_type does not match JPEG, JPG, PNG, or PDF format".to_owned(),
+                        reason: "file_type does not match JPEG, JPG, TIFF, or PDF format"
+                            .to_owned(),
                     })?
                 }
-                //10 MB
-                if (file_type.to_string().as_str() == "image/jpeg"
-                    || file_type.to_string().as_str() == "image/jpg"
-                    || file_type.to_string().as_str() == "image/png")
-                    && file_size > 10000000
+                if ADYEN_IMAGE_FILE_TYPES.contains(&file_type_str.as_str())
+                    && file_size > ADYEN_IMAGE_MAX_SIZE
                 {
                     Err(errors::ConnectorError::FileValidationFailed {
                         reason: "file_size exceeded the max file size of 10MB for Image formats"
                             .to_owned(),
                     })?
                 }
-                //2 MB
-                if file_type.to_string().as_str() == "application/pdf" && file_size > 2000000 {
+                if file_type_str.as_str() == ADYEN_PDF_FORMAT && file_size > ADYEN_PDF_MAX_SIZE {
                     Err(errors::ConnectorError::FileValidationFailed {
-                        reason: "file_size exceeded the max file size of 2MB for PDF formats"
+                        reason: "file_size exceeded the max file size of 2MB for PDF format"
                             .to_owned(),
                     })?
                 }
@@ -2554,7 +2578,12 @@ impl FileUpload for Adyen {
     }
 }
 
-impl WebhookRegister for Adyen {}
+impl WebhookRegister for Adyen {
+    fn requires_webhook_secret_generation(&self) -> bool {
+        true
+    }
+}
+
 impl
     ConnectorIntegration<
         ConnectorWebhookRegister,
@@ -2629,6 +2658,95 @@ impl
         let response: adyen::AdyenWebhookRegisterResponse = res
             .response
             .parse_struct("AdyenWebhookRegisterResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl WebhookGenerateSecret for Adyen {}
+impl GenerateConnectorWebhookSecret for Adyen {}
+impl
+    ConnectorIntegration<
+        ConnectorWebhookGenerateSecret,
+        ConnectorWebhookGenerateSecretRequest,
+        ConnectorWebhookGenerateSecretResponse,
+    > for Adyen
+{
+    fn get_headers(
+        &self,
+        req: &ConnectorWebhookGenerateSecretRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            ConnectorWebhookGenerateSecretType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &ConnectorWebhookGenerateSecretRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = connectors.adyen.management_base_url.as_str();
+        let auth = adyen::AdyenAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let merchant_id = auth.merchant_account.expose();
+        let webhook_id = &req.request.connector_webhook_id;
+        Ok(format!(
+            "{endpoint}/v3/merchants/{merchant_id}/webhooks/{webhook_id}/generateHmac",
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &ConnectorWebhookGenerateSecretRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&ConnectorWebhookGenerateSecretType::get_url(
+                self, req, connectors,
+            )?)
+            .attach_default_headers()
+            .headers(ConnectorWebhookGenerateSecretType::get_headers(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &ConnectorWebhookGenerateSecretRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<ConnectorWebhookGenerateSecretRouterData, errors::ConnectorError> {
+        let response: adyen::AdyenGenerateHmacResponse = res
+            .response
+            .parse_struct("AdyenGenerateHmacResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         RouterData::try_from(ResponseRouterData {
             response,
@@ -3470,6 +3588,7 @@ impl ConnectorSpecifications for Adyen {
                 matches!(&request_data.payment_method_data, Some(payment_method_data::PaymentMethodData::GiftCard(giftcard_data)) if giftcard_data.is_givex())
             }
             api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

@@ -1,15 +1,14 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payments::MandateTransactionType};
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates::{self, MandateTransactionType};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
-#[cfg(feature = "pm_modular")]
-use crate::core::{payment_methods::transformers as pm_transformers, utils as core_utils};
 use crate::{
     core::{
         configs::dimension_state,
@@ -155,6 +154,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
@@ -232,11 +232,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
         request: &api::PaymentsRetrieveRequest,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
+        _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        #[cfg(feature = "pm_modular")] _payment_method_wrapper: Option<
-            operations::PaymentMethodWithRawData,
-        >,
+        _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
     > {
@@ -285,11 +285,6 @@ async fn get_tracker_for_sync<
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>>
 {
     let (payment_intent, mut payment_attempt, currency, amount);
-
-    #[cfg(feature = "pm_modular")]
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
         state,
@@ -404,7 +399,11 @@ async fn get_tracker_for_sync<
         })?;
 
     let disputes = db
-        .find_disputes_by_processor_merchant_id_payment_id(platform.get_processor().get_account().get_id(), &payment_id)
+        .find_disputes_by_processor_merchant_id_payment_id(
+            platform.get_processor().get_account().get_id(),
+            &payment_id,
+            platform.get_processor().get_account().storage_scheme,
+        )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
@@ -441,97 +440,55 @@ async fn get_tracker_for_sync<
 
     let profile_id = payment_intent
         .profile_id
-        .as_ref()
+        .clone()
         .get_required_value("profile_id")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("'profile_id' not set in payment intent")?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
-    let payment_method_info = if let Some(ref payment_method_id) =
-        payment_attempt.payment_method_id.clone()
-    {
-        #[cfg(feature = "pm_modular")]
-        if core_utils::get_feature_config(state, platform, &dimensions)
-            .await
-            .is_payment_method_modular_allowed
-        {
-            let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
-                state,
-                platform,
-                profile_id,
-                payment_method_id,
-                None,
-            )
-            .await
-            .attach_printable("Failed to fetch payment method from modular service in sync flow")?;
-            Some(pm_info.payment_method.0)
+    let payment_method_info =
+        if let Some(ref payment_method_id) = payment_attempt.payment_method_id.clone() {
+            match db
+                .find_payment_method(
+                    platform.get_provider().get_key_store(),
+                    payment_method_id,
+                    storage_scheme,
+                )
+                .await
+            {
+                Ok(payment_method_info) => Some(payment_method_info),
+                Err(error) => {
+                    if error.current_context().is_db_not_found() {
+                        logger::info!("Payment Method not found in db {:?}", error);
+                        None
+                    } else {
+                        Err(error)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Error retrieving payment method from db")?
+                    }
+                }
+            }
         } else {
-            match db
-                .find_payment_method(
-                    platform.get_provider().get_key_store(),
-                    payment_method_id,
-                    storage_scheme,
-                )
-                .await
-            {
-                Ok(payment_method) => Some(payment_method),
-                Err(error) => {
-                    if error.current_context().is_db_not_found() {
-                        logger::info!("Payment Method not found in db {:?}", error);
-                        None
-                    } else {
-                        Err(error)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Error retrieving payment method from db")?
-                    }
-                }
-            }
-        }
+            None
+        };
 
-        #[cfg(not(feature = "pm_modular"))]
-        {
-            match db
-                .find_payment_method(
-                    platform.get_provider().get_key_store(),
-                    payment_method_id,
-                    storage_scheme,
-                )
-                .await
-            {
-                Ok(payment_method) => Some(payment_method),
-                Err(error) => {
-                    if error.current_context().is_db_not_found() {
-                        logger::info!("Payment Method not found in db {:?}", error);
-                        None
-                    } else {
-                        Err(error)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Error retrieving payment method from db")?
-                    }
-                }
-            }
-        }
-    } else {
-        None
-    };
-
-    let merchant_id = payment_intent.merchant_id.clone();
     let key_manager_state = &(state).into();
 
     let authentication_store =
         if let Some(ref authentication_id) = payment_attempt.authentication_id {
             let authentication = db
-                .find_authentication_by_merchant_id_authentication_id(
-                    &merchant_id,
+                .find_authentication_by_processor_merchant_id_authentication_id(
+                    platform.get_processor().get_account().get_id(),
                     authentication_id,
                     platform.get_processor().get_key_store(),
                     key_manager_state,
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -567,7 +524,7 @@ async fn get_tracker_for_sync<
         mandate_id: payment_attempt
             .mandate_id
             .clone()
-            .map(|id| api_models::payments::MandateIds {
+            .map(|id| mandates::MandateIds {
                 mandate_id: Some(id),
                 mandate_reference_id: None,
             }),
@@ -623,6 +580,9 @@ async fn get_tracker_for_sync<
         is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
         external_authentication_data: None,
         client_session_id: None,
+        vault_session_details: None,
+        external_vault_pmd: None,
+        update_request_fields: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

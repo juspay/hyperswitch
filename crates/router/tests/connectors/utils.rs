@@ -482,6 +482,7 @@ pub trait ConnectorActions: Connector {
                 browser_info: None,
                 payout_connector_metadata: None,
                 additional_payout_method_data: None,
+                source_bank_data: None,
             },
             payment_info,
         )
@@ -570,6 +571,7 @@ pub trait ConnectorActions: Connector {
             authorized_amount: None,
             customer_document_details: None,
             feature_data: None,
+            sender_payment_instrument_id: None,
         }
     }
 
@@ -621,6 +623,7 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = Arc::new(app_state)
@@ -666,6 +669,7 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = Arc::new(app_state)
@@ -712,6 +716,7 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = Arc::new(app_state)
@@ -757,6 +762,7 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = Arc::new(app_state)
@@ -853,6 +859,7 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = Arc::new(app_state)
@@ -895,6 +902,7 @@ async fn call_connector<
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
     let state = Arc::new(app_state)
@@ -1023,7 +1031,6 @@ impl Default for PaymentAuthorizeType {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
-            rrn: None,
             feature_metadata: None,
             installment_details: None,
             connector_intent_metadata: None,
@@ -1204,6 +1211,7 @@ pub fn get_connector_metadata(
             mandate_reference: _,
             connector_metadata,
             network_txn_id: _,
+            network_txn_link_id: None,
             connector_response_reference_id: _,
             incremental_authorization_allowed: _,
             authentication_data: None,

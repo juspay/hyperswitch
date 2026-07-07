@@ -562,6 +562,15 @@ export const connectorDetails = {
         },
       },
     },
+    MITWithLimitedCardData: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,

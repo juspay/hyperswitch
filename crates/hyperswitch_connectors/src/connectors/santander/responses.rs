@@ -10,12 +10,19 @@ use crate::connectors::santander::requests;
 #[serde(rename_all = "camelCase")]
 pub struct Payer {
     pub name: Secret<String>,
-    pub document_type: SantanderDocumentKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_type: Option<SantanderDocumentKind>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub document_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub neighborhood: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub zip_code: Option<Secret<String>>,
 }
 
@@ -270,7 +277,7 @@ pub struct SantanderPixVoidResponse {
     // Debtor
     pub devedor: Option<requests::SantanderDebtor>,
     // Recipient
-    pub recebedor: Recipient,
+    pub recebedor: Option<Recipient>,
     // Status
     pub status: SantanderPaymentStatus,
     // Value
@@ -284,6 +291,8 @@ pub struct SantanderPixVoidResponse {
     // Additional Info
     pub info_adicionais: Option<Vec<SantanderAdditionalInfo>>,
     pub pix: Option<Vec<SantanderPix>>,
+    // Location (for void response)
+    pub location: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -312,6 +321,8 @@ pub struct ValueResponse {
     pub juros: Option<Interest>,
     // Discount details
     pub desconto: Option<DiscountResponse>,
+    // Modal of alteration (for void response)
+    pub modalidade_alteracao: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -533,11 +544,25 @@ pub struct SantanderTime {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SantanderPixAutomaticoErrorResponse {
+pub struct SantanderPixAutomaticoErrorItem {
     pub code: i32,
     pub message: String,
     pub level: String,
     pub description: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderPixAutomaticoErrorVariant1 {
+    pub errors: Vec<SantanderPixAutomaticoErrorItem>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SantanderPixAutomaticoErrorResponse {
+    // Pix Automatico API returns errors in an array format
+    PixAutomaticoVariant1(SantanderPixAutomaticoErrorVariant1),
+    // Pix Automatico API returns 401 Unauthorized when access token is expired (single object)
+    PixAutomaticoVariant2(SantanderPixAutomaticoErrorItem),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -545,7 +570,7 @@ pub struct SantanderPixAutomaticoErrorResponse {
 pub enum SantanderErrorResponse {
     PixQrCode(SantanderPixQRCodeErrorResponse),
     Boleto(SantanderBoletoErrorResponse),
-    // Pix Automatico API returns 401 Unauthorized when access token is expired
+    // Pix Automatico API error responses
     PixAutomatico(SantanderPixAutomaticoErrorResponse),
     Generic(SantanderGenericErrorResponse),
 }
@@ -786,7 +811,7 @@ pub struct QrDataUrlSantander {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum SantanderUpdateMetadataResponse {
+pub enum SantanderUpdateResponse {
     Pix(Box<SantanderPixQRCodePaymentsResponse>),
     Boleto(Box<SantanderUpdateBoletoResponse>),
 }

@@ -77,6 +77,7 @@ impl From<enums::BankDebitType> for global_enums::PaymentMethodType {
     fn from(value: enums::BankDebitType) -> Self {
         match value {
             enums::BankDebitType::Ach => Self::Ach,
+            enums::BankDebitType::EftDebitOrder => Self::EftDebitOrder,
             enums::BankDebitType::Sepa => Self::Sepa,
             enums::BankDebitType::SepaGuarenteedDebit => Self::SepaGuarenteedDebit,
             enums::BankDebitType::Bacs => Self::Bacs,
@@ -120,6 +121,9 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
         match value {
             enums::BankTransferType::Multibanco => Self::Multibanco,
             enums::BankTransferType::Pix => Self::Pix,
+            enums::BankTransferType::PixKey => Self::PixKey,
+            enums::BankTransferType::PixEmv => Self::PixEmv,
+            enums::BankTransferType::PixQr => Self::PixQr,
             enums::BankTransferType::PixAutomaticoPush => Self::PixAutomaticoPush,
             enums::BankTransferType::PixAutomaticoQr => Self::PixAutomaticoQr,
             enums::BankTransferType::Pse => Self::Pse,
@@ -273,6 +277,7 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         dir::DirValue::AuthenticationType(at) => EuclidValue::AuthenticationType(at),
         dir::DirValue::CaptureMethod(cm) => EuclidValue::CaptureMethod(cm),
         dir::DirValue::PaymentAmount(pa) => EuclidValue::PaymentAmount(pa),
+        dir::DirValue::SurchargeAmount(sa) => EuclidValue::SurchargeAmount(sa),
         dir::DirValue::PaymentCurrency(pc) => EuclidValue::PaymentCurrency(pc),
         dir::DirValue::BusinessCountry(buc) => EuclidValue::BusinessCountry(buc),
         dir::DirValue::BillingCountry(bic) => EuclidValue::BillingCountry(bic),

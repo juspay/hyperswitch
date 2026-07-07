@@ -196,10 +196,9 @@ impl super::settings::GenericLinkEnvConfig {
     }
 }
 
-#[cfg(feature = "v2")]
 impl super::settings::CellInformation {
     pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::{fp_utils::when, id_type};
+        use common_utils::fp_utils::when;
 
         when(self == &Self::default(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
@@ -344,5 +343,30 @@ impl super::settings::ChatSettings {
                 "hyperswitch ai host must be set if chat is enabled".into(),
             ))
         })
+    }
+}
+
+impl super::settings::SageSettings {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.enabled && self.base_url.trim().is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "sage.base_url must be set if sage.enabled is true".into(),
+            ))
+        })?;
+        when(self.enabled && self.mint_path.trim().is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "sage.mint_path must be set if sage.enabled is true".into(),
+            ))
+        })?;
+        when(
+            self.enabled && self.infra_key.peek().trim().is_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "sage.infra_key must be set if sage.enabled is true".into(),
+                ))
+            },
+        )
     }
 }

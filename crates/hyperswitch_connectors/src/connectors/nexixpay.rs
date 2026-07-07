@@ -1,5 +1,4 @@
 pub mod transformers;
-use std::collections::HashSet;
 
 use common_enums::enums;
 use common_utils::{
@@ -10,7 +9,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -59,7 +57,7 @@ use uuid::Uuid;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, PaymentMethodDataType, PaymentsAuthorizeRequestData, RefundsRequestData},
+    utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -232,17 +230,7 @@ impl ConnectorCommon for Nexixpay {
     }
 }
 
-impl ConnectorValidation for Nexixpay {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd: HashSet<PaymentMethodDataType> =
-            HashSet::from([PaymentMethodDataType::Card]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Nexixpay {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Nexixpay {}
 
@@ -1368,7 +1356,9 @@ impl ConnectorSpecifications for Nexixpay {
                 ..
             } => payment_method == Some(enums::PaymentMethod::Card) && auth_type.is_three_ds(),
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
+                false
+            }
         }
     }
 
@@ -1396,7 +1386,9 @@ impl ConnectorSpecifications for Nexixpay {
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
+                false
+            }
         }
     }
 }

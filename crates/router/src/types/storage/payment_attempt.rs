@@ -150,6 +150,7 @@ mod tests {
             StorageImpl::PostgresqlTest,
             tx,
             api_client,
+            env!("CARGO_PKG_NAME"),
         ))
         .await
     }
@@ -207,6 +208,7 @@ mod tests {
             unified_code: Default::default(),
             unified_message: Default::default(),
             external_three_ds_authentication_attempted: Default::default(),
+            external_threeds_authentication_type: Default::default(),
             authentication_connector: Default::default(),
             authentication_id: Default::default(),
             mandate_data: Default::default(),
@@ -229,6 +231,7 @@ mod tests {
             routing_approach: Default::default(),
             connector_request_reference_id: Default::default(),
             network_transaction_id: Default::default(),
+            network_transaction_link_id: Default::default(),
             network_details: Default::default(),
             is_stored_credential: None,
             authorized_amount: Default::default(),
@@ -244,6 +247,8 @@ mod tests {
             error_details: Default::default(),
             retry_type: Default::default(),
             installment_data: Default::default(),
+            external_surcharge_details: Default::default(),
+            sender_payment_instrument_id: Default::default(),
         };
 
         let store = state
@@ -327,6 +332,7 @@ mod tests {
             unified_code: Default::default(),
             unified_message: Default::default(),
             external_three_ds_authentication_attempted: Default::default(),
+            external_threeds_authentication_type: Default::default(),
             authentication_connector: Default::default(),
             authentication_id: Default::default(),
             mandate_data: Default::default(),
@@ -349,6 +355,7 @@ mod tests {
             routing_approach: Default::default(),
             connector_request_reference_id: Default::default(),
             network_transaction_id: Default::default(),
+            network_transaction_link_id: Default::default(),
             network_details: Default::default(),
             is_stored_credential: Default::default(),
             authorized_amount: Default::default(),
@@ -364,6 +371,8 @@ mod tests {
             error_details: Default::default(),
             retry_type: Default::default(),
             installment_data: Default::default(),
+            external_surcharge_details: Default::default(),
+            sender_payment_instrument_id: Default::default(),
         };
         let store = state
             .stores
@@ -461,6 +470,7 @@ mod tests {
             unified_code: Default::default(),
             unified_message: Default::default(),
             external_three_ds_authentication_attempted: Default::default(),
+            external_threeds_authentication_type: Default::default(),
             authentication_connector: Default::default(),
             authentication_id: Default::default(),
             mandate_data: Default::default(),
@@ -483,6 +493,7 @@ mod tests {
             routing_approach: Default::default(),
             connector_request_reference_id: Default::default(),
             network_transaction_id: Default::default(),
+            network_transaction_link_id: Default::default(),
             network_details: Default::default(),
             is_stored_credential: Default::default(),
             authorized_amount: Default::default(),
@@ -498,6 +509,8 @@ mod tests {
             error_details: Default::default(),
             retry_type: Default::default(),
             installment_data: Default::default(),
+            external_surcharge_details: Default::default(),
+            sender_payment_instrument_id: Default::default(),
         };
         let store = state
             .stores

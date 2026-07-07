@@ -13,6 +13,7 @@ pub mod errors;
 #[allow(missing_docs)] // Todo: add docs
 pub mod events;
 pub mod ext_traits;
+pub mod external_service;
 pub mod fp_utils;
 /// Used for hashing
 pub mod hashing;
@@ -361,6 +362,15 @@ pub fn merge_json_values(
     }
 }
 
+pub use ext_traits::ApplyOptionField;
+
+/// Module for tokenization-related functionality
+///
+/// This module provides types and functions for handling tokenized payment data,
+/// including response structures and token generation utilities.
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+pub mod tokenization;
+
 #[cfg(test)]
 mod nanoid_tests {
     use super::*;
@@ -387,10 +397,3 @@ mod nanoid_tests {
         assert!(ref_id.is_ok())
     }
 }
-
-/// Module for tokenization-related functionality
-///
-/// This module provides types and functions for handling tokenized payment data,
-/// including response structures and token generation utilities.
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-pub mod tokenization;

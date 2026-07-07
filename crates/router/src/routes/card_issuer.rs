@@ -51,6 +51,28 @@ pub async fn update_card_issuer(
     .await
 }
 
+#[instrument(skip_all, fields(flow = ?Flow::DeleteCardIssuer))]
+pub async fn delete_card_issuer(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::CardIssuerId>,
+) -> HttpResponse {
+    let flow = Flow::DeleteCardIssuer;
+    let payload = api_types::CardIssuerDeleteRequest {
+        id: path.into_inner(),
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, body, _| card_issuer::delete_card_issuer(state, body.id),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::ListCardIssuers))]
 pub async fn list_card_issuers(
     state: web::Data<AppState>,

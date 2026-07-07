@@ -1,13 +1,15 @@
 use actix_web::{web, HttpRequest, Responder};
+use common_enums::EntityType;
+use error_stack::ResultExt;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
-    core::{api_locking, webhooks::webhook_events},
+    core::{api_locking, errors, webhooks::webhook_events},
     routes::AppState,
     services::{
         api,
         authentication::{self as auth, UserFromToken},
-        authorization::permissions::Permission,
+        authorization::{permissions::Permission, roles::RoleInfo},
     },
     types::api::webhook_events::{
         EventListConstraints, EventListRequestInternal, WebhookDeliveryAttemptListRequestInternal,
@@ -49,7 +51,7 @@ pub async fn list_initial_webhook_delivery_attempts(
                 merchant_id,
                 required_permission: Permission::MerchantWebhookEventRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -77,23 +79,39 @@ pub async fn list_initial_webhook_delivery_attempts_with_jwtauth(
         state,
         &req,
         request_internal,
-        |state, auth: UserFromToken, mut request_internal, _| {
-            let merchant_id = auth.merchant_id;
-            let profile_id = auth.profile_id;
+        |state, auth: UserFromToken, request_internal, _| async move {
+            let role_info = RoleInfo::from_role_id_org_id_tenant_id(
+                &state,
+                &auth.role_id,
+                &auth.org_id,
+                auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch role info while listing webhook events")?;
 
-            request_internal.merchant_id = merchant_id;
-            request_internal.constraints.profile_id = Some(profile_id);
+            // Merchant-or-higher scopes search across all profiles in the merchant;
+            // profile-scoped users stay confined to their JWT's profile_id.
+            let request_internal = EventListRequestInternal {
+                merchant_id: auth.merchant_id,
+                constraints: EventListConstraints {
+                    profile_id: (role_info.get_entity_type() == EntityType::Profile)
+                        .then_some(auth.profile_id),
+                    ..request_internal.constraints
+                },
+            };
 
             webhook_events::list_initial_delivery_attempts(
                 state,
                 request_internal.merchant_id,
                 request_internal.constraints,
             )
+            .await
         },
         &auth::JWTAuth {
             permission: Permission::ProfileWebhookEventRead,
             allow_connected: true,
-            allow_platform: false,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -132,7 +150,7 @@ pub async fn list_webhook_delivery_attempts(
                 merchant_id,
                 required_permission: Permission::MerchantWebhookEventRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -174,7 +192,7 @@ pub async fn retry_webhook_delivery_attempt(
                 merchant_id,
                 required_permission: Permission::MerchantWebhookEventWrite,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             req.headers(),
         ),

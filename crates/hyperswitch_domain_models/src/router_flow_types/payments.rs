@@ -30,6 +30,12 @@ pub struct Void;
 pub struct PostCaptureVoid;
 
 #[derive(Debug, Clone)]
+pub struct PostCaptureVoidSync;
+
+#[derive(Debug, Clone)]
+pub struct PreAuthorizeVoid;
+
+#[derive(Debug, Clone)]
 pub struct Reject;
 
 #[derive(Debug, Clone)]
@@ -66,6 +72,15 @@ pub struct PostProcessing;
 pub struct CalculateTax;
 
 #[derive(Debug, Clone)]
+pub struct CalculateSurcharge;
+
+#[derive(Debug, Clone)]
+pub struct CompleteSurcharge;
+
+#[derive(Debug, Clone)]
+pub struct CompleteRefundSurchrge;
+
+#[derive(Debug, Clone)]
 pub struct SdkSessionUpdate;
 
 #[derive(Debug, Clone)]
@@ -100,3 +115,6 @@ pub struct GiftCardBalanceCheck;
 
 #[derive(Debug, Clone)]
 pub struct SettlementSplitCreate;
+
+#[derive(Debug, Clone)]
+pub struct UpdatePostConfirm;

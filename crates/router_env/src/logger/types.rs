@@ -96,6 +96,8 @@ pub enum Flow {
     MerchantConnectorWebhookRegister,
     /// Merchant Connector Webhook list flow.
     MerchantConnectorWebhookList,
+    /// Merchant Connector Webhook HMAC key generation flow.
+    MerchantConnectorWebhookGenerateSecret,
     /// ConfigKey create flow.
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
@@ -110,12 +112,16 @@ pub enum Flow {
     CustomersCreate,
     /// Customers retrieve flow.
     CustomersRetrieve,
+    /// Customers retrieve by reference id flow.
+    CustomersRetrieveByReferenceId,
     /// Customers update flow.
     CustomersUpdate,
     /// Customers delete flow.
     CustomersDelete,
     /// Customers get mandates flow.
     CustomersGetMandates,
+    /// Customers global id migration flow.
+    CustomersGlobalIdMigration,
     /// Create an Ephemeral Key.
     EphemeralKeyCreate,
     /// Delete an Ephemeral Key.
@@ -130,6 +136,8 @@ pub enum Flow {
     PaymentMethodsCreate,
     /// Payment methods migrate flow.
     PaymentMethodsMigrate,
+    /// Modular Payment methods migrate flow.
+    ModularPaymentMethodsMigrate,
     /// Payment methods batch update flow.
     PaymentMethodsBatchUpdate,
     /// Payment methods batch retrieve flow.
@@ -154,6 +162,8 @@ pub enum Flow {
     PaymentMethodCollectLink,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
+    /// Payment methods retrieve OLAP flow.
+    PaymentMethodsRetrieveOlap,
     /// Payment methods update flow.
     PaymentMethodsUpdate,
     /// Payment methods delete flow.
@@ -182,6 +192,8 @@ pub enum Flow {
     PaymentsCancel,
     /// Payments cancel post capture flow.
     PaymentsCancelPostCapture,
+    /// Payments cancel post capture sync flow.
+    PaymentsCancelPostCaptureSync,
     /// Payments approve flow.
     PaymentsApprove,
     /// Payments reject flow.
@@ -307,6 +319,8 @@ pub enum Flow {
     AddCardIssuer,
     /// Update a card issuer in the catalog
     UpdateCardIssuer,
+    /// Delete a card issuer from the catalog
+    DeleteCardIssuer,
     /// List card issuers from the catalog
     ListCardIssuers,
     /// Add record to blocklist
@@ -317,6 +331,12 @@ pub enum Flow {
     ListBlocklist,
     /// Toggle blocklist for merchant
     ToggleBlocklistGuard,
+    /// Bulk upload blocklist entries via CSV
+    BatchBlocklistUpload,
+    /// Get status of a batch blocklist upload job
+    GetBatchBlocklistJobStatus,
+    /// List batch blocklist upload jobs for a merchant
+    ListBatchBlocklistJobs,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Recovery incoming webhook receive
@@ -399,6 +419,8 @@ pub enum Flow {
     GetDataFromHyperswitchAiFlow,
     // List all chat interactions
     ListAllChatInteractions,
+    /// Mint a sage session for the dashboard user.
+    LaunchSage,
     /// User Sign Up
     UserSignUp,
     /// User Sign Up
@@ -561,6 +583,8 @@ pub enum Flow {
     ListOrgForUser,
     /// List Merchants for user in org
     ListMerchantsForUserInOrg,
+    /// Get merchant account details for the user (product_type, merchant_account_type)
+    GetUserMerchantDetails,
     /// List Profile for user in org and merchant
     ListProfileForUserInOrgAndMerchant,
     /// List Users in Org
@@ -613,6 +637,8 @@ pub enum Flow {
     RefundsManualUpdate,
     /// Manually update the payment details like status, error code, error message etc.
     PaymentsManualUpdate,
+    /// Manually update payment status from dashboard (Review → Succeeded/Failed)
+    PaymentsManualStatusUpdate,
     #[cfg(feature = "payouts")]
     /// Manually update the payout details like status, error code, error message etc.
     PayoutsManualUpdate,
@@ -633,6 +659,8 @@ pub enum Flow {
     Relay,
     /// Relay retrieve flow
     RelayRetrieve,
+    /// Relay unreferenced refund flow
+    RelayUnreferencedRefund,
     /// Card tokenization flow
     TokenizeCard,
     /// Card tokenization using payment method flow
@@ -717,7 +745,9 @@ pub enum Flow {
     RevenueRecoveryRedis,
     /// Payment Method balance check flow
     PaymentMethodBalanceCheck,
-    /// Payments Submit Eligibility flow
+    /// Payments Submit Eligibility Check flow
+    PaymentsSubmitCheckEligibility,
+    /// Payments Submit Eligibility flow (combined eligibility + external surcharge)
     PaymentsSubmitEligibility,
     /// Apply payment method data flow
     ApplyPaymentMethodData,
@@ -729,6 +759,18 @@ pub enum Flow {
     EmbeddedTokenInfo,
     /// Superposition SDK Config Get flow
     GetSuperpositionSdkConfig,
+    /// Superposition Proxy Get Context List flow
+    SuperpositionListContexts,
+    /// Superposition Proxy Get Default Configs List flow
+    SuperpositionListDefaultConfigs,
+    /// Superposition Proxy Get Dimensions List flow
+    SuperpositionListDimensions,
+    /// Superposition Proxy Create Context flow
+    SuperpositionCreateContext,
+    /// Superposition Proxy Resolve Detailed Config flow
+    SuperpositionResolveDetailedConfig,
+    /// Superposition Proxy List Audit Logs flow
+    SuperpositionListAuditLogs,
     // Get user details internal
     GetUserDetailsInternal,
     // List users internal

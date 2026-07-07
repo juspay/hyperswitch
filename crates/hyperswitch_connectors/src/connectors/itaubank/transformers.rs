@@ -113,6 +113,8 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
                     | BankTransferData::IndonesianBankTransfer { .. }
                     | BankTransferData::PixAutomaticoPush { .. }
                     | BankTransferData::PixAutomaticoQr {}
+                    | BankTransferData::PixEmv {}
+                    | BankTransferData::PixQr {}
                     | BankTransferData::LocalBankTransfer { .. } => {
                         Err(errors::ConnectorError::NotImplemented(
                             "Selected payment method through itaubank".to_string(),
@@ -298,6 +300,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ItaubankPaymentsResponse, T, PaymentsRe
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.txid),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -378,6 +381,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ItaubankPaymentsSyncResponse, T, Paymen
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.txid),
                 incremental_authorization_allowed: None,
                 authentication_data: None,

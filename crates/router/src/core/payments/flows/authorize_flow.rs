@@ -13,7 +13,7 @@ use hyperswitch_connectors::constants as connector_consts;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
-    payments as domain_payments, router_data,
+    mandates, payments as domain_payments, router_data,
     router_data_v2::{flow_common_types, PaymentFlowData},
     router_flow_types, router_request_types, router_response_types,
 };
@@ -914,18 +914,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         Some(diesel_models::enums::FutureUsage::OnSession);
                 };
 
-                if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
-                    &self.request,
-                ) {
-                    connector
-                        .connector
-                        .validate_mandate_payment(
-                            self.request.payment_method_type,
-                            self.request.payment_method_data.clone(),
-                        )
-                        .to_payment_failed_response()?;
-                };
-
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::Authorize,
                     types::PaymentsAuthorizeData,
@@ -1218,7 +1206,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_amount(&self) -> i64 {
         self.amount
     }
-    fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         self.mandate_id.as_ref()
     }
     fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData {
@@ -1227,13 +1215,11 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
-    fn get_setup_mandate_details(
-        &self,
-    ) -> Option<&hyperswitch_domain_models::mandates::MandateData> {
+    fn get_setup_mandate_details(&self) -> Option<&mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
 
-    fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
+    fn set_mandate_id(&mut self, new_mandate_id: Option<mandates::MandateIds>) {
         self.mandate_id = new_mandate_id;
     }
     fn get_customer_acceptance(&self) -> Option<common_payments_types::CustomerAcceptance> {
@@ -1387,7 +1373,8 @@ fn transform_redirection_response_for_pre_authenticate_flow(
 > {
     match (connector, &response_data) {
         (
-            enums::connector_enums::Connector::Cybersource,
+            enums::connector_enums::Connector::Cybersource
+            | enums::connector_enums::Connector::Barclaycard,
             router_response_types::RedirectForm::Form {
                 endpoint,
                 method: _,
@@ -1405,11 +1392,24 @@ fn transform_redirection_response_for_pre_authenticate_flow(
                     field_name: "reference_id",
                 },
             )?;
-            Ok(router_response_types::RedirectForm::CybersourceAuthSetup {
-                access_token,
-                ddc_url,
-                reference_id,
-            })
+
+            match connector {
+                enums::connector_enums::Connector::Barclaycard => {
+                    Ok(router_response_types::RedirectForm::BarclaycardAuthSetup {
+                        access_token,
+                        ddc_url,
+                        reference_id,
+                    })
+                }
+                enums::connector_enums::Connector::Cybersource => {
+                    Ok(router_response_types::RedirectForm::CybersourceAuthSetup {
+                        access_token,
+                        ddc_url,
+                        reference_id,
+                    })
+                }
+                _ => Ok(response_data),
+            }
         }
         _ => Ok(response_data),
     }
@@ -1423,13 +1423,15 @@ fn transform_response_for_pre_authenticate_flow(
 > {
     match (connector, response_data.clone()) {
         (
-            enums::connector_enums::Connector::Cybersource,
+            enums::connector_enums::Connector::Cybersource
+            | enums::connector_enums::Connector::Barclaycard,
             router_response_types::PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
                 mandate_reference,
                 connector_metadata,
                 network_txn_id,
+                network_txn_link_id: _,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
                 authentication_data,
@@ -1454,6 +1456,7 @@ fn transform_response_for_pre_authenticate_flow(
                     mandate_reference,
                     connector_metadata,
                     network_txn_id,
+                    network_txn_link_id: None,
                     connector_response_reference_id,
                     incremental_authorization_allowed,
                     authentication_data,
@@ -1484,6 +1487,7 @@ fn transform_response_for_pre_authenticate_flow(
                 mandate_reference,
                 connector_metadata: _,
                 network_txn_id,
+                network_txn_link_id,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
                 charges,
@@ -1546,6 +1550,7 @@ fn transform_response_for_pre_authenticate_flow(
                     mandate_reference,
                     connector_metadata,
                     network_txn_id,
+                    network_txn_link_id,
                     connector_response_reference_id,
                     incremental_authorization_allowed,
                     charges,
@@ -1600,7 +1605,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
     let connector_auth_metadata =
         unified_connector_service::build_unified_connector_service_auth_metadata(
             merchant_connector_account,
-            processor,
+            processor.get_account().get_id(),
             router_data.connector.clone(),
         )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)

@@ -129,22 +129,10 @@ pub struct SwitchProfileRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct CloneConnectorSource {
-    pub mca_id: id_type::MerchantConnectorAccountId,
-    pub merchant_id: id_type::MerchantId,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct CloneConnectorDestination {
-    pub connector_label: Option<String>,
-    pub profile_id: id_type::ProfileId,
-    pub merchant_id: id_type::MerchantId,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct CloneConnectorRequest {
-    pub source: CloneConnectorSource,
-    pub destination: CloneConnectorDestination,
+    pub source_mca_id: id_type::MerchantConnectorAccountId,
+    pub destination_profile_id: id_type::ProfileId,
+    pub connector_label: Option<String>,
 }
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
@@ -466,6 +454,12 @@ pub struct ListOrgsForUserResponse {
     pub org_id: id_type::OrganizationId,
     pub org_name: Option<String>,
     pub org_type: common_enums::OrganizationType,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct UserMerchantDetailsResponse {
+    pub product_type: Option<common_enums::MerchantProductType>,
+    pub merchant_account_type: common_enums::MerchantAccountType,
 }
 
 #[derive(Debug, serde::Serialize)]

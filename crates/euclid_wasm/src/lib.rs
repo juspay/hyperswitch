@@ -370,6 +370,7 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::CardDiscovery => dir_enums::CardDiscovery::VARIANTS,
 
         dir::DirKeyKind::PaymentAmount
+        | dir::DirKeyKind::SurchargeAmount
         | dir::DirKeyKind::Connector
         | dir::DirKeyKind::CardBin
         | dir::DirKeyKind::ExtendedCardBin
@@ -449,6 +450,14 @@ pub fn get_tax_processor_config(key: &str) -> JsResult {
     let key = api_model_enums::TaxConnectors::from_str(key)
         .map_err(|_| "Invalid key received".to_string())?;
     let res = connector::ConnectorConfig::get_tax_processor_config(key)?;
+    Ok(serde_wasm_bindgen::to_value(&res)?)
+}
+
+#[wasm_bindgen(js_name = getSurchargeProcessorConfig)]
+pub fn get_surcharge_processor_config(key: &str) -> JsResult {
+    let key = api_model_enums::SurchargeConnectors::from_str(key)
+        .map_err(|_| "Invalid key received".to_string())?;
+    let res = connector::ConnectorConfig::get_surcharge_processor_config(key)?;
     Ok(serde_wasm_bindgen::to_value(&res)?)
 }
 

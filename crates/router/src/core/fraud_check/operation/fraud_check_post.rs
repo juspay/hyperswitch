@@ -206,7 +206,13 @@ where
                 amount: router_data.request.amount,
                 order_details: router_data.request.order_details,
                 currency: router_data.request.currency,
+                gateway: router_data.request.gateway,
+                client_ip: router_data.request.client_ip,
+                customer_id: router_data.request.customer_id,
                 email: router_data.request.email,
+                phone: router_data.request.phone,
+                phone_country_code: router_data.request.phone_country_code,
+                payment_method_data: router_data.request.payment_method_data,
             }),
             response: FrmResponse::Sale(router_data.response),
         }))
@@ -274,6 +280,7 @@ where
                 None,
                 None,
                 HeaderPayload::default(),
+                None,
             ))
             .await?;
             logger::debug!("payment_id : {:?} has been cancelled since it has been found fraudulent by configured frm connector",payment_data.get_payment_attempt().payment_id);
@@ -330,6 +337,7 @@ where
                 None,
                 None,
                 HeaderPayload::default(),
+                None,
             ))
             .await?;
             logger::debug!("payment_id : {:?} has been captured since it has been found legit by configured frm connector",payment_data.get_payment_attempt().payment_id);
@@ -366,7 +374,13 @@ where
                 amount: router_data.request.amount,
                 order_details: router_data.request.order_details,
                 currency: router_data.request.currency,
+                gateway: router_data.request.gateway,
+                client_ip: router_data.request.client_ip,
+                customer_id: router_data.request.customer_id,
                 email: router_data.request.email,
+                phone: router_data.request.phone,
+                phone_country_code: router_data.request.phone_country_code,
+                payment_method_data: router_data.request.payment_method_data,
             }),
             response: FrmResponse::Sale(router_data.response),
         })

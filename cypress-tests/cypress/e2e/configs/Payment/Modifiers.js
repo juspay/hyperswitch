@@ -17,6 +17,7 @@ function normalize(input) {
     cybersource: "Cybersource",
     datatrans: "Datatrans",
     facilitapay: "Facilitapay",
+    helcim: "Helcim",
     noon: "Noon",
     paybox: "Paybox",
     paypal: "Paypal",
@@ -110,6 +111,69 @@ export const updateDefaultStatusCode = () => {
   return getUnsupportedExchange().Response;
 };
 
+export const getIframeRedirectionConfig = (opts = {}) => {
+  const {
+    cardDetails,
+    currency = "USD",
+    amount,
+    payment_method_type,
+    payment_method_data_3ds,
+    configs,
+  } = opts;
+
+  const iframeRedirection = {
+    Request: {
+      payment_method: "card",
+      payment_method_data: { card: cardDetails },
+      currency,
+      customer_acceptance: null,
+      setup_future_usage: "on_session",
+      is_iframe_redirection_enabled: true,
+    },
+    Response: {
+      status: 200,
+      body: {
+        status: "requires_customer_action",
+        setup_future_usage: "on_session",
+      },
+    },
+  };
+
+  if (amount !== undefined) {
+    iframeRedirection.Request.amount = amount;
+  }
+
+  if (payment_method_type) {
+    iframeRedirection.Request.payment_method_type = payment_method_type;
+  }
+
+  if (payment_method_data_3ds) {
+    iframeRedirection.Response.body.payment_method_data =
+      payment_method_data_3ds;
+  }
+
+  if (configs && Object.keys(configs).length > 0) {
+    iframeRedirection.Configs = configs;
+  }
+
+  return {
+    IframeRedirectionCreate: {
+      Request: {
+        amount: amount ?? 6000,
+        currency,
+        is_iframe_redirection_enabled: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    IframeRedirection: iframeRedirection,
+  };
+};
+
 // Currency map with logical grouping
 const CURRENCY_MAP = {
   // Polish payment methods
@@ -128,10 +192,48 @@ const CURRENCY_MAP = {
   Klarna: "EUR",
   Przelewy24: "EUR",
   Sofort: "EUR",
+  Trustly: "EUR",
+  BancontactCard: "EUR",
   OpenBankingUk: "GBP", // Great British Pound payment method
   OnlineBankingFpx: "MYR", // Malaysian payment methods
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
+  Payjustnow: "ZAR", // South African BNPL
+  Affirm: "USD", // US BNPL payment method
+  AliPay: "CNY", // Default ISO-4217 currency; MultiSafepay sandbox overrides to EUR (see Multisafepay.js::wallet_pm.PaymentIntent)
+  WeChatPay: "CNY", // Default ISO-4217 currency; MultiSafepay sandbox overrides to EUR (see Multisafepay.js::wallet_pm.PaymentIntent)
+  Paypal: "EUR",
+  MbWay: "EUR",
+  Mifinity: "EUR", // Mifinity wallet payment method
+  Alma: "EUR", // French pay_later
+  Atome: "SGD", // Singapore pay_later
+  Walley: "SEK", // Swedish pay_later
+
+  // Voucher payment methods
+  Boleto: "BRL",
+  Oxxo: "MXN",
+  Alfamart: "IDR",
+  Indomaret: "IDR",
+  SevenEleven: "JPY",
+  Lawson: "JPY",
+  MiniStop: "JPY",
+  FamilyMart: "JPY",
+  Seicomart: "JPY",
+  PayEasy: "JPY",
+  Skrill: "USD", // Skrill wallet payment method
+  PaySafeCard: "USD", // PaySafeCard gift card payment method
+
+  // Wallet redirect and mandate payment methods
+  PaypalRedirect: "USD",
+
+  // Wallet mandate payment methods
+  KakaoPay: "KRW",
+  Gcash: "PHP",
+  Momo: "VND",
+  Twint: "CHF",
+  Vipps: "NOK",
+  Dana: "IDR",
+  GoPay: "IDR",
 };
 
 export const getCurrency = (paymentMethodType) => {

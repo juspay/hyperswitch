@@ -237,6 +237,8 @@ pub enum DashboardMetadata {
     IsChangePasswordRequired,
     OnboardingSurvey,
     ReconStatus,
+    #[cfg(feature = "v1")]
+    PaymentViews,
 }
 
 #[derive(

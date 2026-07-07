@@ -489,9 +489,18 @@ dependencies = [
 
 [[package]]
 name = "arc-swap"
-version = "1.7.1"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69f7f8c3906b62b754cd5326047894316021dcfe5a194c8ea52bdd94934a3457"
+checksum = "a07d1f37ff60921c83bdfc7407723bdefe89b44b98a9b772f225c8f9d67141a6"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
+name = "arcstr"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03918c3dbd7701a85c6b9887732e2921175f26c350b4563841d0958c21d57e6d"
 
 [[package]]
 name = "argon2"
@@ -1394,6 +1403,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "backon"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cffb0e931875b666fc4fcb20fee52e9bbd1ef836fd9e9e04ec21555f9f85f7ef"
+dependencies = [
+ "fastrand",
+]
+
+[[package]]
 name = "base16ct"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1532,7 +1550,7 @@ dependencies = [
  "bitflags 2.9.0",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.11.0",
  "log 0.4.27",
  "prettyplease",
  "proc-macro2",
@@ -2100,6 +2118,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 
 [[package]]
+name = "combine"
+version = "4.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba5a308b75df32fe02788e748662718f03fde005016435c444eea572398219fd"
+dependencies = [
+ "bytes 1.10.1",
+ "futures-core",
+ "memchr",
+ "pin-project-lite",
+ "tokio 1.48.0",
+ "tokio-util",
+]
+
+[[package]]
 name = "common_enums"
 version = "0.1.0"
 dependencies = [
@@ -2232,7 +2264,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5#71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.02.1#a070ef74a8d36aeca23f8e90d4d8bb0cc4db77ca"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2919,6 +2951,7 @@ name = "diesel_models"
 version = "0.1.0"
 dependencies = [
  "async-bb8-diesel",
+ "base64 0.22.1",
  "common_enums",
  "common_types",
  "common_utils",
@@ -3344,6 +3377,7 @@ dependencies = [
  "aws-sdk-sesv2",
  "aws-sdk-sts",
  "aws-smithy-runtime",
+ "aws-smithy-runtime-api",
  "aws-smithy-types",
  "base64 0.22.1",
  "common_enums",
@@ -3371,6 +3405,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "superposition_provider",
+ "superposition_sdk",
  "superposition_types",
  "thiserror 1.0.69",
  "time 0.3.41",
@@ -3947,9 +3982,10 @@ checksum = "32619942b8be646939eaf3db0602b39f5229b74575b67efc897811ded1db4e57"
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5#71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.02.1#a070ef74a8d36aeca23f8e90d4d8bb0cc4db77ca"
 dependencies = [
  "axum 0.8.4",
+ "bytes 1.10.1",
  "error-stack 0.5.0",
  "g2h",
  "heck 0.5.0",
@@ -3957,7 +3993,7 @@ dependencies = [
  "hyperswitch_masking",
  "prost 0.14.3",
  "prost-build",
- "prost-types 0.13.5",
+ "prost-types 0.14.3",
  "serde",
  "tonic 0.14.5",
  "tonic-build",
@@ -4585,6 +4621,7 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_masking",
  "mime 0.3.17",
+ "prost 0.14.3",
  "reqwest 0.11.27",
  "router_env",
  "rust-grpc-client",
@@ -4594,6 +4631,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time 0.3.41",
  "tokio 1.48.0",
+ "tonic 0.14.5",
  "url 2.5.4",
 ]
 
@@ -5036,15 +5074,6 @@ name = "itertools"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
 dependencies = [
  "either",
 ]
@@ -6537,7 +6566,7 @@ dependencies = [
  "api_models",
  "common_utils",
  "error-stack 0.4.1",
- "getrandom 0.2.16",
+ "getrandom 0.3.3",
  "router_env",
  "serde",
  "serde_json",
@@ -7129,7 +7158,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "343d3bd7056eda839b03204e68deff7d1b13aba7af2b2fd16890697274262ee7"
 dependencies = [
  "heck 0.5.0",
- "itertools 0.13.0",
+ "itertools 0.11.0",
  "log 0.4.27",
  "multimap",
  "petgraph",
@@ -7150,7 +7179,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.13.0",
+ "itertools 0.11.0",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -7163,7 +7192,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27c6023962132f4b30eb4c172c91ce92d933da334c59c23cddee82358ddafb0b"
 dependencies = [
  "anyhow",
- "itertools 0.13.0",
+ "itertools 0.11.0",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -7612,6 +7641,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "redis"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f44e94c96d8870a387d88ce3de3fdd608cbfc0705f03cb343cdde91509d3e49a"
+dependencies = [
+ "arc-swap",
+ "arcstr",
+ "async-lock",
+ "backon",
+ "bytes 1.10.1",
+ "cfg-if 1.0.0",
+ "combine",
+ "crc16",
+ "futures-channel",
+ "futures-util",
+ "itoa",
+ "log 0.4.27",
+ "num-bigint",
+ "percent-encoding 2.3.1",
+ "pin-project-lite",
+ "rand 0.9.2",
+ "ryu",
+ "sha1_smol",
+ "socket2 0.6.1",
+ "tokio 1.48.0",
+ "tokio-util",
+ "url 2.5.4",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "redis-protocol"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7633,6 +7693,8 @@ dependencies = [
  "error-stack 0.4.1",
  "fred",
  "futures 0.3.31",
+ "redis",
+ "router_env",
  "serde",
  "thiserror 1.0.69",
  "tokio 1.48.0",
@@ -8019,6 +8081,7 @@ dependencies = [
  "storage_impl",
  "strum 0.26.3",
  "subscriptions",
+ "superposition_sdk",
  "tera",
  "test_utils",
  "thiserror 1.0.69",
@@ -8115,7 +8178,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5#71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.02.1#a070ef74a8d36aeca23f8e90d4d8bb0cc4db77ca"
 dependencies = [
  "grpc-api-types",
 ]
@@ -8887,6 +8950,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha1_smol"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbfa15b3dddfee50a0fff136974b3e1bde555604ba463834a7eb7deb6417705d"
+
+[[package]]
 name = "sha2"
 version = "0.10.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9519,9 +9588,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "superposition_core"
-version = "0.102.0"
+version = "0.114.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8408c05eaa6d5e4ab17769e8a008b7b6908d4cf12995649bad45bd9e4ccac66"
+checksum = "6b97214039991ceebacd02afa5fde5fa7de3c421145d3aad60c4000ab58c904e"
 dependencies = [
  "bigdecimal 0.3.1",
  "blake3",
@@ -9540,9 +9609,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_derives"
-version = "0.102.0"
+version = "0.114.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15ce4c755b62951f53d8ba1f686dfebe0a0fb22ea2e1abf437028b14130aabdb"
+checksum = "94ce01eca383050e056a97cb540bc866c17a4caa5e1690dacd39b2099f83294d"
 dependencies = [
  "proc-macro-crate 3.2.0",
  "quote",
@@ -9551,9 +9620,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_provider"
-version = "0.102.0"
+version = "0.114.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0bc4b0c15a02a10d89deb0d4bc9e382193c9d745ac3057feac89f5503f6096b"
+checksum = "aac9de6c9317dd04c25c6cdd3985d8cec7de60cf146ca478089a190803d82d46"
 dependencies = [
  "async-trait",
  "aws-smithy-types",
@@ -9576,9 +9645,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_sdk"
-version = "0.102.0"
+version = "0.114.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d53945cde9e454e8bdfe3560646c63556a25ec1242f28215a6fe709269de0126"
+checksum = "dff0c2b933ada9b3fb9e70b796de73d5374d13faa7e606aa10e5730c0fcbf3d0"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-http 0.62.1",
@@ -9594,9 +9663,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_types"
-version = "0.102.0"
+version = "0.114.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0751b1d31773b2dc67adaa208a270b5a5189b435f69f63f32f528878f8c33c72"
+checksum = "4e91fcc93ef75fee0a68c709b13219f9b90d7a4efa432f2e680969208a4b9fa0"
 dependencies = [
  "bigdecimal 0.3.1",
  "chrono",
@@ -10943,7 +11012,7 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5#71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.02.1#a070ef74a8d36aeca23f8e90d4d8bb0cc4db77ca"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
@@ -10959,7 +11028,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5#71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.02.1#a070ef74a8d36aeca23f8e90d4d8bb0cc4db77ca"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -10970,7 +11039,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5#71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.02.1#a070ef74a8d36aeca23f8e90d4d8bb0cc4db77ca"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -10982,6 +11051,7 @@ dependencies = [
  "hex",
  "http 1.3.1",
  "hyperswitch_masking",
+ "josekit",
  "md5",
  "multipart",
  "nanoid",
@@ -12315,6 +12385,12 @@ name = "xmlparser"
 version = "0.13.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "66fee0b777b0f5ac1c69bb06d361268faafa61cd4682ae064a171c16c433e9e4"
+
+[[package]]
+name = "xxhash-rust"
+version = "0.8.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fdd20c5420375476fbd4394763288da7eb0cc0b8c11deed431a91562af7335d3"
 
 [[package]]
 name = "yaml-rust2"

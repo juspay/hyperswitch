@@ -1,4 +1,4 @@
-use common_utils::{id_type, pii};
+use common_utils::{custom_serde, id_type, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
 #[cfg(feature = "v1")]
@@ -11,7 +11,9 @@ pub trait OrganizationBridge {
     fn set_organization_name(&mut self, organization_name: String);
 }
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
+#[derive(
+    Clone, Debug, Identifiable, Queryable, Selectable, serde::Serialize, serde::Deserialize,
+)]
 #[diesel(
     table_name = organization,
     primary_key(org_id),
@@ -22,7 +24,9 @@ pub struct Organization {
     org_name: Option<String>,
     pub organization_details: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    #[serde(with = "custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
+    #[serde(with = "custom_serde::iso8601")]
     pub modified_at: time::PrimitiveDateTime,
     #[allow(dead_code)]
     id: Option<id_type::OrganizationId>,
@@ -34,7 +38,9 @@ pub struct Organization {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
+#[derive(
+    Clone, Debug, Identifiable, Queryable, Selectable, serde::Serialize, serde::Deserialize,
+)]
 #[diesel(
     table_name = organization,
     primary_key(id),
@@ -43,7 +49,9 @@ pub struct Organization {
 pub struct Organization {
     pub organization_details: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    #[serde(with = "custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
+    #[serde(with = "custom_serde::iso8601")]
     pub modified_at: time::PrimitiveDateTime,
     id: id_type::OrganizationId,
     organization_name: Option<String>,

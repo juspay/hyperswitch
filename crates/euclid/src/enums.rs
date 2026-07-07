@@ -192,6 +192,7 @@ pub enum PayoutType {
 #[strum(serialize_all = "snake_case")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
 pub enum RoutableConnectors {
+    AbsaSanlam,
     Authipay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
@@ -284,6 +285,7 @@ pub enum RoutableConnectors {
     Iatapay,
     Imerchantsolutions,
     Inespay,
+    Interpayments,
     Itaubank,
     Jpmorgan,
     Klarna,
@@ -311,6 +313,7 @@ pub enum RoutableConnectors {
     Paysafe,
     Paystack,
     Paytm,
+    Payconex,
     Payu,
     Peachpayments,
     Payjustnow,
@@ -372,6 +375,7 @@ impl TryFrom<Connector> for RoutableConnectors {
 
     fn try_from(connector: Connector) -> Result<Self, Self::Error> {
         match connector {
+            Connector::AbsaSanlam => Ok(Self::AbsaSanlam),
             Connector::Authipay => Ok(Self::Authipay),
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             #[cfg(feature = "dummy_connector")]
@@ -443,6 +447,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Hyperpg => Ok(Self::Hyperpg),
             Connector::Iatapay => Ok(Self::Iatapay),
             Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
+            Connector::Interpayments => Ok(Self::Interpayments),
             Connector::Itaubank => Ok(Self::Itaubank),
             Connector::Jpmorgan => Ok(Self::Jpmorgan),
             Connector::Klarna => Ok(Self::Klarna),
@@ -511,6 +516,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Redsys => Ok(Self::Redsys),
             Connector::Revolv3 => Ok(Self::Revolv3),
             Connector::Paytm => Ok(Self::Paytm),
+            Connector::Payconex => Ok(Self::Payconex),
             Connector::Phonepe => Ok(Self::Phonepe),
             Connector::Payjustnow => Ok(Self::Payjustnow),
             Connector::Payjustnowinstore => Ok(Self::Payjustnowinstore),
@@ -533,6 +539,7 @@ impl TryFrom<Connector> for RoutableConnectors {
 impl From<RoutableConnectors> for Connector {
     fn from(routable_connector: RoutableConnectors) -> Self {
         match routable_connector {
+            RoutableConnectors::AbsaSanlam => Self::AbsaSanlam,
             RoutableConnectors::Authipay => Self::Authipay,
             RoutableConnectors::Adyenplatform => Self::Adyenplatform,
             #[cfg(feature = "dummy_connector")]
@@ -605,6 +612,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Hyperpg => Self::Hyperpg,
             RoutableConnectors::Iatapay => Self::Iatapay,
             RoutableConnectors::Imerchantsolutions => Self::Imerchantsolutions,
+            RoutableConnectors::Interpayments => Self::Interpayments,
             RoutableConnectors::Itaubank => Self::Itaubank,
             RoutableConnectors::Jpmorgan => Self::Jpmorgan,
             RoutableConnectors::Klarna => Self::Klarna,
@@ -673,6 +681,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Coingate => Self::Coingate,
             RoutableConnectors::Hipay => Self::Hipay,
             RoutableConnectors::Paytm => Self::Paytm,
+            RoutableConnectors::Payconex => Self::Payconex,
             RoutableConnectors::Phonepe => Self::Phonepe,
             RoutableConnectors::Payjustnow => Self::Payjustnow,
             RoutableConnectors::Payjustnowinstore => Self::Payjustnowinstore,

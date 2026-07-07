@@ -5,6 +5,8 @@ pub mod api_locking;
 pub mod apple_pay_certificates_migration;
 pub mod authentication;
 #[cfg(feature = "v1")]
+pub mod authentication_client;
+#[cfg(feature = "v1")]
 pub mod blocklist;
 pub mod cache;
 pub mod card_issuer;
@@ -30,8 +32,6 @@ pub mod files;
 pub mod fraud_check;
 pub mod gsm;
 pub mod health_check;
-#[cfg(feature = "v1")]
-pub mod locker_migration;
 pub mod mandate;
 pub mod merchant_connector_webhook_management;
 pub mod metrics;
@@ -63,6 +63,8 @@ pub mod revenue_recovery;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
 pub mod routing;
+pub mod superposition_proxy;
+#[cfg(feature = "v1")]
 pub mod superposition_sdk_config;
 pub mod surcharge_decision_config;
 pub mod three_ds_decision_rule;

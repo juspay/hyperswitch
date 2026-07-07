@@ -40,66 +40,128 @@ describe("Card - Billing Descriptor payment flow test", () => {
   });
 
   context("Card-NoThreeDS payment with billing descriptor", () => {
-    let shouldContinue = true;
+    it("Create Payment Intent -> Payment Methods -> Confirm Payment -> Retrieve Payment", () => {
+      let shouldContinue = true;
 
-    it("Create Payment Intent with billing descriptor", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["PaymentIntentWithBillingDescriptor"];
+      cy.step("Create Payment Intent with billing descriptor", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntentWithBillingDescriptor"];
 
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-      }
-    });
-
-    it("Payment Methods Call", () => {
-      if (!shouldContinue) {
-        cy.task("cli_log", "Skipping step: Payment Methods Call");
-        return;
-      }
-      cy.paymentMethodsCallTest(globalState);
-    });
-
-    it("Confirm Payment with billing descriptor", () => {
-      if (!shouldContinue) {
-        cy.task(
-          "cli_log",
-          "Skipping step: Confirm Payment with billing descriptor"
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
         );
-        return;
-      }
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["PaymentConfirmWithBillingDescriptor"];
 
-      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
 
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-      }
-    });
+      cy.step("Payment Methods Call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Payment Methods Call");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
 
-    it("Retrieve Payment with billing descriptor", () => {
-      if (!shouldContinue) {
-        cy.task(
-          "cli_log",
-          "Skipping step: Retrieve Payment with billing descriptor"
-        );
-        return;
-      }
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["PaymentConfirmWithBillingDescriptor"];
+      cy.step("Confirm Payment with billing descriptor", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentConfirmWithBillingDescriptor"];
 
-      cy.retrievePaymentCallTest({ globalState, data });
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment with billing descriptor", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentConfirmWithBillingDescriptor"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
     });
   });
+
+  context(
+    "Card-NoThreeDS payment with invalid billing descriptor (field length validation)",
+    () => {
+      it("Create Payment Intent -> Payment Methods -> Confirm Payment (expect error)", () => {
+        let shouldContinue = true;
+
+        cy.step(
+          "Create Payment Intent with invalid billing descriptor phone",
+          () => {
+            if (
+              shouldIncludeConnector(
+                connector,
+                CONNECTOR_LISTS.INCLUDE.BILLING_DESCRIPTOR_INVALID_PHONE
+              )
+            ) {
+              cy.log(
+                `Skipping: ${connector} does not support billing descriptor field length validation test`
+              );
+              shouldContinue = false;
+              return;
+            }
+
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["PaymentIntentWithBillingDescriptorInvalidPhone"];
+
+            cy.createPaymentIntentTest(
+              fixtures.createPaymentBody,
+              data,
+              "no_three_ds",
+              "automatic",
+              globalState
+            );
+
+            if (!utils.should_continue_further(data)) {
+              shouldContinue = false;
+            }
+          }
+        );
+
+        cy.step("Payment Methods Call", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Payment Methods Call");
+            return;
+          }
+          cy.paymentMethodsCallTest(globalState);
+        });
+
+        cy.step(
+          "Confirm Payment with invalid billing descriptor phone (expect error)",
+          () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: Confirm Payment");
+              return;
+            }
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["PaymentConfirmWithBillingDescriptorInvalidPhone"];
+
+            cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+          }
+        );
+      });
+    }
+  );
 });

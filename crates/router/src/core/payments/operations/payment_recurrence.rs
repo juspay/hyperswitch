@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, payments::GetAddressFromPaymentMethodData};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::{report, ResultExt};
@@ -18,7 +18,6 @@ use crate::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
-        payment_methods::transformers as pm_transformers,
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     routes::{app::ReqState, SessionState},
@@ -50,18 +49,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         request: &api::PaymentsRequest,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
+        _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        #[cfg(feature = "pm_modular")] payment_method_with_raw_data: Option<
-            pm_transformers::PaymentMethodWithRawData,
-        >,
+        payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
-        #[cfg(not(feature = "pm_modular"))]
-        let payment_method_with_raw_data: Option<
-            pm_transformers::PaymentMethodWithRawData,
-        > = None;
-
+        let operations::PaymentMethodFetchData {
+            payment_method_info: prefetched_payment_method_info,
+            payment_method_with_raw_data,
+            ..
+        } = payment_method_fetch_data;
         let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let (currency, amount);
@@ -182,6 +181,28 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .in_current_span(),
         );
 
+        let session_state = state.clone();
+        let m_payment_intent_billing_address_id = payment_intent.billing_address_id.clone();
+        let m_key_store = platform.get_processor().get_key_store().clone();
+        let m_payment_intent_payment_id = payment_intent.payment_id.clone();
+        let m_merchant_id = processor_merchant_id.clone();
+        let m_storage_scheme = platform.get_processor().get_account().storage_scheme;
+
+        let payment_method_billing_future = tokio::spawn(
+            async move {
+                helpers::get_address_by_id(
+                    &session_state,
+                    m_payment_intent_billing_address_id,
+                    &m_key_store,
+                    &m_payment_intent_payment_id,
+                    &m_merchant_id,
+                    m_storage_scheme,
+                )
+                .await
+            }
+            .in_current_span(),
+        );
+
         let mandate_type = m_helpers::get_mandate_type(
             request.mandate_data.clone(),
             request.off_session,
@@ -201,8 +222,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let payment_intent_customer_id = payment_intent.customer_id.clone();
 
-        let m_pm_wrapper = payment_method_with_raw_data.clone();
-        let mandate_dimensions = dimensions.clone();
+        let m_payment_method_info = prefetched_payment_method_info.or_else(|| {
+            payment_method_with_raw_data
+                .as_ref()
+                .map(|payment_method_wrapper| payment_method_wrapper.payment_method.clone())
+        });
         let mandate_details_fut = tokio::spawn(
             async move {
                 Box::pin(helpers::get_token_pm_type_mandate_details(
@@ -212,17 +236,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     &m_platform,
                     None,
                     payment_intent_customer_id.as_ref(),
-                    m_pm_wrapper.map(|pm| pm.payment_method.0),
-                    &mandate_dimensions,
+                    m_payment_method_info,
                 ))
                 .await
             }
             .in_current_span(),
         );
 
-        let (mandate_details, additional_pm_info) = tokio::try_join!(
+        let (mandate_details, additional_pm_info, payment_method_billing) = tokio::try_join!(
             utils::flatten_join_error(mandate_details_fut),
             utils::flatten_join_error(additional_pm_data_fut),
+            utils::flatten_join_error(payment_method_billing_future),
         )?;
 
         let setup_mandate = mandate_details.mandate_data.map(|mut sm| {
@@ -256,6 +280,63 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 }
             });
 
+        let shipping_address = helpers::get_address_by_id(
+            state,
+            payment_intent.shipping_address_id.clone(),
+            &platform.get_processor().get_key_store().clone(),
+            &payment_intent.payment_id.clone(),
+            &processor_merchant_id.clone(),
+            m_storage_scheme,
+        )
+        .await?;
+
+        let billing_address = helpers::get_address_by_id(
+            state,
+            payment_intent.billing_address_id.clone(),
+            &platform.get_processor().get_key_store().clone(),
+            &payment_intent.payment_id.clone(),
+            &processor_merchant_id.clone(),
+            m_storage_scheme,
+        )
+        .await?;
+
+        let address = PaymentAddress::new(
+            shipping_address.as_ref().map(From::from),
+            billing_address.as_ref().map(From::from),
+            payment_method_billing.as_ref().map(From::from),
+            business_profile.use_billing_as_payment_method_billing,
+        );
+
+        let payment_method_data_billing = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.as_ref())
+            .and_then(|payment_method_data_billing| {
+                payment_method_data_billing.get_billing_address()
+            })
+            .map(From::from);
+        let pm_pmd_billing = payment_method_with_raw_data.as_ref().and_then(|pm| {
+            pm.payment_method
+                .payment_method_billing_address
+                .clone()
+                .and_then(|decrypted_data| {
+                    let exposed = decrypted_data.into_inner().expose();
+                    match exposed.parse_value::<
+                        hyperswitch_domain_models::address::Address,
+                    >("payment method billing address") {
+                        Ok(address) => Some(address),
+                        Err(err) => {
+                            router_env::logger::error!(error = ?err, "Failed to parse payment method billing address");
+                            None
+                        }
+                    }
+                })
+        });
+
+        let pmd_address = payment_method_data_billing.or(pm_pmd_billing);
+
+        let unified_address = address.unify_with_payment_method_data_billing(pmd_address);
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -267,7 +348,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             setup_mandate,
             customer_acceptance,
             token: None,
-            address: PaymentAddress::new(None, None, None, None),
+            address: unified_address,
             token_data: None,
             confirm: request.confirm,
             payment_method_data,
@@ -305,6 +386,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
             external_authentication_data: None,
             client_session_id: None,
+            vault_session_details: None,
+            external_vault_pmd: None,
+            update_request_fields: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -350,7 +434,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .payment_intent
                         .customer_id
                         .as_ref()
-                        .is_some_and(|existing_id| existing_id != &cust.customer_id)
+                        .is_some_and(|existing_id| existing_id != cust.get_id())
                         .then_some(errors::StorageError::ValueNotFound(
                             "Customer id mismatch between payment intent and request".to_string(),
                         ))

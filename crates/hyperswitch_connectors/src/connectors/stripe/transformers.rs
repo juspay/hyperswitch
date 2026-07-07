@@ -16,6 +16,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::{
         self, BankRedirectData, Card, CardRedirectData, GiftCardData, GooglePayWalletData,
         PayLaterData, PaymentMethodData, VoucherData, WalletData,
@@ -888,6 +889,9 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Paypal
             | enums::PaymentMethodType::BhnCardNetwork
             | enums::PaymentMethodType::Pix
+            | enums::PaymentMethodType::PixKey
+            | enums::PaymentMethodType::PixEmv
+            | enums::PaymentMethodType::PixQr
             | enums::PaymentMethodType::PixAutomaticoPush
             | enums::PaymentMethodType::PixAutomaticoQr
             | enums::PaymentMethodType::UpiCollect
@@ -909,6 +913,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::DirectCarrierBilling
             | enums::PaymentMethodType::Efecty
             | enums::PaymentMethodType::Eft
+            | enums::PaymentMethodType::EftDebitOrder
             | enums::PaymentMethodType::Evoucher
             | enums::PaymentMethodType::GoPay
             | enums::PaymentMethodType::Gcash
@@ -1319,7 +1324,8 @@ impl TryFrom<&payment_method_data::BankDebitData> for StripePaymentMethodType {
             payment_method_data::BankDebitData::SepaBankDebit { .. } => Ok(Self::Sepa),
             payment_method_data::BankDebitData::BecsBankDebit { .. } => Ok(Self::Becs),
             payment_method_data::BankDebitData::BacsBankDebit { .. } => Ok(Self::Bacs),
-            payment_method_data::BankDebitData::SepaGuarenteedBankDebit { .. } => {
+            payment_method_data::BankDebitData::SepaGuarenteedBankDebit { .. }
+            | payment_method_data::BankDebitData::EftDebitOrder { .. } => {
                 Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),
                 ))
@@ -1532,6 +1538,8 @@ fn create_stripe_payment_method(
             ),
             payment_method_data::BankTransferData::PixAutomaticoPush { .. }
             | payment_method_data::BankTransferData::PixAutomaticoQr {}
+            | payment_method_data::BankTransferData::PixEmv {}
+            | payment_method_data::BankTransferData::PixQr {}
             | payment_method_data::BankTransferData::Pse {}
             | payment_method_data::BankTransferData::LocalBankTransfer { .. }
             | payment_method_data::BankTransferData::InstantBankTransfer {}
@@ -1986,7 +1994,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             .as_ref()
             .and_then(|mandate_id| mandate_id.mandate_reference_id.as_ref())
             .and_then(|reference_id| match reference_id {
-                payments::MandateReferenceId::ConnectorMandateId(mandate_data) => {
+                mandates::MandateReferenceId::ConnectorMandateId(mandate_data) => {
                     Some(mandate_data.get_mandate_metadata())
                 }
                 _ => None,
@@ -2086,19 +2094,21 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                 .clone()
                 .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
             {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => (
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => (
                     None,
                     connector_mandate_ids.get_connector_mandate_id(),
                     StripeBillingAddress::default(),
                     get_payment_method_type_for_saved_payment_method_payment(item)?,
                     None,
                 ),
-                Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
                     payment_method_options = Some(StripePaymentMethodOptions::Card {
                         mandate_options: None,
                         network_transaction_id: None,
                         mit_exemption: Some(MitExemption {
-                            network_transaction_id: Secret::new(network_transaction_id),
+                            network_transaction_id: Secret::new(
+                                network_transaction_id.network_transaction_id.clone(),
+                            ),
                         }),
                     });
 
@@ -2168,7 +2178,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         None,
                     )
                 }
-                Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) | None => {
+                Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) | None => {
                     let (payment_method_data, payment_method_type, billing_address) =
                         create_stripe_payment_method(
                             &item.request.payment_method_data,
@@ -2212,7 +2222,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         setup_future_usage,
                     )
                 }
-                Some(payments::MandateReferenceId::CardWithLimitedData) => {
+                Some(mandates::MandateReferenceId::CardWithLimitedData(_)) => {
                     Err(ConnectorError::NotSupported {
                         message: "Card Only MIT for payment method".to_string(),
                         connector: "Stripe",
@@ -2651,7 +2661,7 @@ pub fn get_stripe_compatible_connect_account_header(
         .as_ref()
         .and_then(|mandate_id| mandate_id.mandate_reference_id.as_ref())
         .and_then(|reference_id| match reference_id {
-            payments::MandateReferenceId::ConnectorMandateId(mandate_data) => {
+            mandates::MandateReferenceId::ConnectorMandateId(mandate_data) => {
                 mandate_data.get_mandate_metadata()
             }
             _ => None,
@@ -3324,6 +3334,7 @@ where
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata,
                 network_txn_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: item
                     .data
@@ -3655,6 +3666,7 @@ where
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata,
                 network_txn_id: network_transaction_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -3749,6 +3761,7 @@ where
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: network_transaction_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -4451,6 +4464,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -4794,6 +4808,8 @@ impl
                     ))
                 }
                 payment_method_data::BankTransferData::Pix { .. }
+                | payment_method_data::BankTransferData::PixEmv {}
+                | payment_method_data::BankTransferData::PixQr {}
                 | payment_method_data::BankTransferData::PixAutomaticoPush { .. }
                 | payment_method_data::BankTransferData::PixAutomaticoQr {}
                 | payment_method_data::BankTransferData::Pse {}

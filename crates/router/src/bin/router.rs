@@ -27,7 +27,13 @@ async fn main() -> ApplicationResult<()> {
     let _guard = router_env::setup(
         &conf.log,
         router_env::service_name!(),
-        [router_env::service_name!(), "actix_server"],
+        [
+            router_env::service_name!(),
+            "actix_server",
+            "open_feature",
+            "superposition_provider",
+            "superposition_sdk",
+        ],
     )
     .change_context(ApplicationError::ConfigurationError)?;
 
@@ -39,7 +45,7 @@ async fn main() -> ApplicationResult<()> {
     );
 
     #[allow(clippy::expect_used)]
-    let server = Box::pin(router::start_server(conf))
+    let server = Box::pin(router::start_server(conf, router_env::service_name!()))
         .await
         .expect("Failed to create the server");
     let _ = server.await;

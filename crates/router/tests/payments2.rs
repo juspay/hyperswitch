@@ -44,6 +44,7 @@ async fn payments_create_core() {
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
 
@@ -230,6 +231,7 @@ async fn payments_create_core() {
         whole_connector_response: None,
         payment_channel: None,
         network_transaction_id: None,
+        network_transaction_link_id: None,
         enable_partial_authorization: None,
         is_overcapture_enabled: None,
         enable_overcapture: None,
@@ -244,6 +246,8 @@ async fn payments_create_core() {
         installment_data: None,
         state_metadata: None,
         connector_response_metadata: None,
+        connector_customer_id: None,
+        sender_payment_instrument_id: None,
     };
 
     let expected_response =
@@ -267,6 +271,7 @@ async fn payments_create_core() {
         None,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None,
     ))
     .await
     .unwrap();
@@ -354,6 +359,7 @@ async fn payments_create_core_adyen_no_redirect() {
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
     let state = Arc::new(app_state)
@@ -555,6 +561,9 @@ async fn payments_create_core_adyen_no_redirect() {
             installment_data: None,
             state_metadata: None,
             connector_response_metadata: None,
+            network_transaction_link_id: None,
+            connector_customer_id: None,
+            sender_payment_instrument_id: None,
         },
         vec![],
     ));
@@ -577,6 +586,7 @@ async fn payments_create_core_adyen_no_redirect() {
         None,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None,
     ))
     .await
     .unwrap();

@@ -1831,6 +1831,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Fps => Self::RealTimePayment,
             PaymentMethodType::DuitNow => Self::RealTimePayment,
             PaymentMethodType::Eft => Self::BankRedirect,
+            PaymentMethodType::EftDebitOrder => Self::BankDebit,
             PaymentMethodType::Eps => Self::BankRedirect,
             PaymentMethodType::Evoucher => Self::Reward,
             PaymentMethodType::Giropay => Self::BankRedirect,
@@ -1864,6 +1865,8 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Paze => Self::Wallet,
             PaymentMethodType::PermataBankTransfer => Self::BankTransfer,
             PaymentMethodType::Pix => Self::BankTransfer,
+            PaymentMethodType::PixKey => Self::BankTransfer,
+            PaymentMethodType::PixEmv | PaymentMethodType::PixQr => Self::BankTransfer,
             PaymentMethodType::PixAutomaticoPush => Self::BankTransfer,
             PaymentMethodType::PixAutomaticoQr => Self::BankTransfer,
             PaymentMethodType::Pse => Self::BankTransfer,
@@ -2135,6 +2138,7 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::VoidedPostCharge => Self::CancelledPostCapture,
             AttemptStatus::Expired => Self::Expired,
             AttemptStatus::PartiallyAuthorized => Self::PartiallyAuthorizedAndRequiresCapture,
+            AttemptStatus::CaptureReview => Self::Review,
         }
     }
 }
@@ -2149,7 +2153,8 @@ impl From<IntentStatus> for Option<EventType> {
             }
             IntentStatus::RequiresMerchantAction
             | IntentStatus::RequiresCustomerAction
-            | IntentStatus::Conflicted => Some(EventType::ActionRequired),
+            | IntentStatus::Conflicted
+            | IntentStatus::Review => Some(EventType::ActionRequired),
             IntentStatus::Cancelled => Some(EventType::PaymentCancelled),
             IntentStatus::CancelledPostCapture => Some(EventType::PaymentCancelledPostCapture),
             IntentStatus::Expired => Some(EventType::PaymentExpired),

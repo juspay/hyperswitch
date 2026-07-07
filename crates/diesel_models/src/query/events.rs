@@ -1,11 +1,17 @@
 use std::collections::HashSet;
 
+use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
-    associations::HasTable, BoolExpressionMethods, ExpressionMethods, NullableExpressionMethods,
+    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
+    NullableExpressionMethods, QueryDsl,
 };
 use error_stack::ResultExt;
+use router_env::logger;
 
-use super::generics;
+use super::{
+    generics,
+    generics::db_metrics::{track_database_call, DatabaseOperation},
+};
 use crate::{
     errors::DatabaseError,
     events::{Event, EventNew, EventUpdateInternal},
@@ -20,6 +26,14 @@ impl EventNew {
 }
 
 impl Event {
+    pub async fn find_by_event_id(conn: &PgPooledConn, event_id: &str) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::event_id.eq(event_id.to_owned()),
+        )
+        .await
+    }
+
     pub async fn find_by_merchant_id_event_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -48,23 +62,53 @@ impl Event {
         .await
     }
 
+    pub async fn find_by_initiator_merchant_id_idempotent_event_id(
+        conn: &PgPooledConn,
+        initiator_merchant_id: &common_utils::id_type::MerchantId,
+        idempotent_event_id: &str,
+    ) -> StorageResult<Self> {
+        // Fallback on merchant_id for rows with NULL initiator_merchant_id to
+        // handle events created during staggered rollout by older code.
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::idempotent_event_id
+                .eq(idempotent_event_id.to_owned())
+                .and(
+                    dsl::initiator_merchant_id
+                        .eq(initiator_merchant_id.to_owned())
+                        .or(dsl::initiator_merchant_id
+                            .is_null()
+                            .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
+                ),
+        )
+        .await
+    }
+
     pub async fn list_initial_attempts_by_merchant_id_primary_object_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::event_id
-                .nullable()
-                .eq(dsl::initial_attempt_id) // Filter initial attempts only
-                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
-                .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
-            None,
-            None,
-            Some(dsl::created_at.desc()),
-        )
-        .await
+        let mut query = Self::table()
+            .filter(
+                dsl::event_id
+                    .nullable()
+                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                    .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                    .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
+            )
+            .order(dsl::created_at.desc())
+            .into_boxed();
+
+        query = Self::apply_event_recipient(query, event_recipient);
+
+        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+            .await
+            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+            .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn find_initial_attempt_by_merchant_id_initial_attempt_id(
@@ -98,15 +142,8 @@ impl Event {
         offset: Option<i64>,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
-        use async_bb8_diesel::AsyncRunQueryDsl;
-        use diesel::{debug_query, pg::Pg, QueryDsl};
-        use error_stack::ResultExt;
-        use router_env::logger;
-
-        use super::generics::db_metrics::{track_database_call, DatabaseOperation};
-        use crate::errors::DatabaseError;
-
         let mut query = Self::table()
             .filter(
                 dsl::event_id
@@ -125,6 +162,7 @@ impl Event {
             offset,
             event_types,
             is_delivered,
+            event_recipient,
         );
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
@@ -139,36 +177,181 @@ impl Event {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned())),
+        let mut query = Self::table()
+            .filter(
+                dsl::merchant_id
+                    .eq(merchant_id.to_owned())
+                    .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned())),
+            )
+            .order(dsl::created_at.desc())
+            .into_boxed();
+
+        query = Self::apply_event_recipient(query, event_recipient);
+
+        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+            .await
+            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+            .attach_printable("Error filtering events by constraints")
+    }
+
+    pub async fn list_initial_attempts_by_initiator_merchant_id_primary_object_id(
+        conn: &PgPooledConn,
+        initiator_merchant_id: &common_utils::id_type::MerchantId,
+        primary_object_id: &str,
+        profile_id: Option<common_utils::id_type::ProfileId>,
+        recipient: Option<common_enums::EventRecipient>,
+    ) -> StorageResult<Vec<Self>> {
+        // Fallback on merchant_id for rows with NULL initiator_merchant_id to
+        // handle events created during staggered rollout by older code. This
+        // fallback is correct for standard merchants where merchant_id equals
+        // the webhook recipient.
+        let mut query = Self::table()
+            .filter(
+                dsl::event_id
+                    .nullable()
+                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                    .and(
+                        dsl::initiator_merchant_id
+                            .eq(initiator_merchant_id.to_owned())
+                            .or(dsl::initiator_merchant_id
+                                .is_null()
+                                .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
+                    )
+                    .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
+            )
+            .order(dsl::created_at.desc())
+            .into_boxed();
+
+        query = Self::apply_event_recipient(query, recipient);
+
+        if let Some(profile_id) = profile_id {
+            query = query.filter(dsl::business_profile_id.eq(profile_id));
+        }
+
+        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+            .await
+            .change_context(DatabaseError::Others)
+            .attach_printable(
+                "Error filtering initial events by initiator merchant ID and primary object ID",
+            )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn list_initial_attempts_by_initiator_merchant_id_constraints(
+        conn: &PgPooledConn,
+        initiator_merchant_id: &common_utils::id_type::MerchantId,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
+    ) -> StorageResult<Vec<Self>> {
+        // Fallback on merchant_id for rows with NULL initiator_merchant_id to
+        // handle events created during staggered rollout by older code. This
+        // fallback is correct for standard merchants where merchant_id equals
+        // the webhook recipient.
+        let mut query = Self::table()
+            .filter(
+                dsl::event_id
+                    .nullable()
+                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                    .and(
+                        dsl::initiator_merchant_id
+                            .eq(initiator_merchant_id.to_owned())
+                            .or(dsl::initiator_merchant_id
+                                .is_null()
+                                .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
+                    ),
+            )
+            .order(dsl::created_at.desc())
+            .into_boxed();
+
+        query = Self::apply_filters(
+            query,
             None,
-            None,
-            Some(dsl::created_at.desc()),
-        )
-        .await
+            (dsl::created_at, created_after, created_before),
+            limit,
+            offset,
+            event_types,
+            is_delivered,
+            event_recipient,
+        );
+
+        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+            .await
+            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+            .attach_printable("Error filtering events by constraints")
+    }
+
+    pub async fn list_by_initiator_merchant_id_initial_attempt_id(
+        conn: &PgPooledConn,
+        initial_attempt_id: &str,
+        initiator_merchant_id: &common_utils::id_type::MerchantId,
+        event_recipient: Option<common_enums::EventRecipient>,
+    ) -> StorageResult<Vec<Self>> {
+        // Fallback on merchant_id for rows with NULL initiator_merchant_id to
+        // handle events created during staggered rollout by older code.
+
+        let mut query = Self::table()
+            .filter(
+                dsl::initial_attempt_id
+                    .eq(initial_attempt_id.to_owned())
+                    .and(
+                        dsl::initiator_merchant_id
+                            .eq(initiator_merchant_id.to_owned())
+                            .or(dsl::initiator_merchant_id
+                                .is_null()
+                                .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
+                    ),
+            )
+            .order(dsl::created_at.desc())
+            .into_boxed();
+
+        query = Self::apply_event_recipient(query, event_recipient);
+
+        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+            .await
+            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+            .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn list_initial_attempts_by_profile_id_primary_object_id(
         conn: &PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::event_id
-                .nullable()
-                .eq(dsl::initial_attempt_id) // Filter initial attempts only
-                .and(dsl::business_profile_id.eq(profile_id.to_owned()))
-                .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
-            None,
-            None,
-            Some(dsl::created_at.desc()),
-        )
-        .await
+        let mut query = Self::table()
+            .filter(
+                dsl::event_id
+                    .nullable()
+                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                    .and(dsl::business_profile_id.eq(profile_id.to_owned()))
+                    .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
+            )
+            .order(dsl::created_at.desc())
+            .into_boxed();
+
+        query = Self::apply_event_recipient(query, event_recipient);
+
+        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+            .await
+            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+            .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn find_initial_attempt_by_profile_id_initial_attempt_id(
@@ -202,15 +385,8 @@ impl Event {
         offset: Option<i64>,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
-        use async_bb8_diesel::AsyncRunQueryDsl;
-        use diesel::{debug_query, pg::Pg, QueryDsl};
-        use error_stack::ResultExt;
-        use router_env::logger;
-
-        use super::generics::db_metrics::{track_database_call, DatabaseOperation};
-        use crate::errors::DatabaseError;
-
         let mut query = Self::table()
             .filter(
                 dsl::event_id
@@ -229,6 +405,7 @@ impl Event {
             offset,
             event_types,
             is_delivered,
+            event_recipient,
         );
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
@@ -256,6 +433,20 @@ impl Event {
         .await
     }
 
+    pub async fn update_by_event_id(
+        conn: &PgPooledConn,
+        event_id: &str,
+        event: EventUpdateInternal,
+    ) -> StorageResult<Self> {
+        generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(conn, dsl::event_id.eq(event_id.to_owned()), event)
+        .await
+    }
+
     pub async fn update_by_merchant_id_event_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -277,6 +468,7 @@ impl Event {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn apply_filters<T>(
         mut query: T,
         profile_id: Option<common_utils::id_type::ProfileId>,
@@ -289,6 +481,7 @@ impl Event {
         offset: Option<i64>,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> T
     where
         T: diesel::query_dsl::methods::LimitDsl<Output = T>
@@ -311,6 +504,17 @@ impl Event {
         >,
         T: diesel::query_dsl::methods::FilterDsl<
             diesel::dsl::Eq<dsl::is_overall_delivery_successful, bool>,
+            Output = T,
+        >,
+        T: diesel::query_dsl::methods::FilterDsl<
+            diesel::dsl::Eq<dsl::recipient, String>,
+            Output = T,
+        >,
+        T: diesel::query_dsl::methods::FilterDsl<
+            diesel::dsl::Or<
+                diesel::dsl::Eq<dsl::recipient, String>,
+                diesel::dsl::IsNull<dsl::recipient>,
+            >,
             Output = T,
         >,
     {
@@ -338,9 +542,49 @@ impl Event {
             query = query.filter(dsl::is_overall_delivery_successful.eq(is_delivered));
         }
 
+        query = Self::apply_event_recipient(query, event_recipient);
+
         query
     }
 
+    fn apply_event_recipient<T>(
+        mut query: T,
+        event_recipient: Option<common_enums::EventRecipient>,
+    ) -> T
+    where
+        T: diesel::query_dsl::methods::FilterDsl<
+            diesel::dsl::Eq<dsl::recipient, String>,
+            Output = T,
+        >,
+        T: diesel::query_dsl::methods::FilterDsl<
+            diesel::dsl::Or<
+                diesel::dsl::Eq<dsl::recipient, String>,
+                diesel::dsl::IsNull<dsl::recipient>,
+            >,
+            Output = T,
+        >,
+    {
+        match event_recipient {
+            Some(common_enums::EventRecipient::Merchant) => {
+                query = query.filter(
+                    dsl::recipient
+                        .eq(common_enums::EventRecipient::Merchant.to_string())
+                        .or(
+                            dsl::recipient.is_null(), // Treat NULL recipient as Merchant for backward compatibility
+                        ),
+                );
+            }
+            Some(common_enums::EventRecipient::Connector) => {
+                query = query
+                    .filter(dsl::recipient.eq(common_enums::EventRecipient::Connector.to_string()));
+            }
+            None => {}
+        }
+
+        query
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub async fn count_initial_attempts_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -349,15 +593,8 @@ impl Event {
         created_before: time::PrimitiveDateTime,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<i64> {
-        use async_bb8_diesel::AsyncRunQueryDsl;
-        use diesel::{debug_query, pg::Pg, QueryDsl};
-        use error_stack::ResultExt;
-        use router_env::logger;
-
-        use super::generics::db_metrics::{track_database_call, DatabaseOperation};
-        use crate::errors::DatabaseError;
-
         let mut query = Self::table()
             .count()
             .filter(
@@ -376,6 +613,101 @@ impl Event {
             None,
             event_types,
             is_delivered,
+            event_recipient,
+        );
+
+        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        track_database_call::<Self, _, _>(
+            query.get_result_async::<i64>(conn),
+            DatabaseOperation::Count,
+        )
+        .await
+        .change_context(DatabaseError::Others)
+        .attach_printable("Error counting events by constraints")
+    }
+
+    pub async fn count_initial_attempts_by_profile_id_constraints(
+        conn: &PgPooledConn,
+        profile_id: &common_utils::id_type::ProfileId,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
+    ) -> StorageResult<i64> {
+        let mut query = Self::table()
+            .count()
+            .filter(
+                dsl::event_id
+                    .nullable()
+                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                    .and(dsl::business_profile_id.eq(profile_id.to_owned())),
+            )
+            .into_boxed();
+
+        query = Self::apply_filters(
+            query,
+            None,
+            (dsl::created_at, created_after, created_before),
+            None,
+            None,
+            event_types,
+            is_delivered,
+            event_recipient,
+        );
+
+        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        track_database_call::<Self, _, _>(
+            query.get_result_async::<i64>(conn),
+            DatabaseOperation::Count,
+        )
+        .await
+        .change_context(DatabaseError::Others)
+        .attach_printable("Error counting events by profile_id constraints")
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn count_initial_attempts_by_initiator_merchant_id_constraints(
+        conn: &PgPooledConn,
+        initiator_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: Option<common_utils::id_type::ProfileId>,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
+    ) -> StorageResult<i64> {
+        // Fallback on merchant_id for rows with NULL initiator_merchant_id to
+        // handle events created during staggered rollout by older code. This
+        // fallback is correct for standard merchants where merchant_id equals
+        // the webhook recipient.
+        let mut query = Self::table()
+            .count()
+            .filter(
+                dsl::event_id
+                    .nullable()
+                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                    .and(
+                        dsl::initiator_merchant_id
+                            .eq(initiator_merchant_id.to_owned())
+                            .or(dsl::initiator_merchant_id
+                                .is_null()
+                                .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
+                    ),
+            )
+            .into_boxed();
+
+        query = Self::apply_filters(
+            query,
+            profile_id,
+            (dsl::created_at, created_after, created_before),
+            None,
+            None,
+            event_types,
+            is_delivered,
+            event_recipient,
         );
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());

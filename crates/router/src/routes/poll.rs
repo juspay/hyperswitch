@@ -39,12 +39,12 @@ pub async fn retrieve_poll_status(
         match req.headers().get(actix_web::http::header::AUTHORIZATION) {
             // If Authorization header is present, use SdkAuthorizationAuth
             Some(_) => Box::new(auth::SdkAuthorizationAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             // If Authorization header is not present, use PublishableKeyAuth
             None => Box::new(auth::HeaderAuth(auth::PublishableKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             })),
         };
@@ -53,7 +53,9 @@ pub async fn retrieve_poll_status(
         state,
         &req,
         poll_id,
-        |state, auth, req, _| poll::retrieve_poll_status(state, req, auth.platform),
+        |state, auth, req, _| {
+            poll::retrieve_poll_status(state, req, auth.platform.get_processor().clone())
+        },
         &*auth,
         api_locking::LockAction::NotApplicable,
     ))

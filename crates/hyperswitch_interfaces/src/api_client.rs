@@ -156,18 +156,17 @@ where
     logger::debug!(connector_request=?connector_request);
     let mut router_data = req.clone();
     match call_connector_action {
-        common_enums::CallConnectorAction::HandleResponse(res) => {
+        common_enums::CallConnectorAction::HandleResponse{ resource_object, event_type: _ } => {
             let response = types::Response {
                 headers: None,
-                response: res.into(),
+                response: resource_object.into(),
                 status_code: 200,
             };
             connector_integration.handle_response(req, None, response)
         }
-        common_enums::CallConnectorAction::UCSConsumeResponse(_)
-        | common_enums::CallConnectorAction::UCSHandleResponse(_) => {
+        common_enums::CallConnectorAction::UCSConsumeResponse(_) => {
             Err(ConnectorError::ProcessingStepFailed(Some(
-                "CallConnectorAction UCSHandleResponse/UCSConsumeResponse used in Direct gateway system flow. These actions are only valid in UCS gateway system"
+                "CallConnectorAction UCSConsumeResponse used in Direct gateway system flow. This action is only valid in UCS gateway system"
                     .to_string()
                     .into(),
             ))
@@ -247,7 +246,7 @@ where
                         Some(request) => match request {
                             RequestContent::Json(i)
                             | RequestContent::FormUrlEncoded(i)
-                            | RequestContent::Xml(i) => i
+                            | RequestContent::Xml(i, _) => i
                                 .masked_serialize()
                                 .unwrap_or(json!({ "error": "failed to mask serialize"})),
                             RequestContent::FormData((_, i)) => i
@@ -306,6 +305,9 @@ where
                         req.dispute_id.clone(),
                         req.payout_id.clone(),
                         status_code,
+                        common_enums::EventDestination::Connector,
+                        // Direct connector call: a live call, never a shadow mirror.
+                        common_enums::EventExecutionMode::Primary,
                     );
 
                     match response {

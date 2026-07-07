@@ -5,7 +5,7 @@ use std::{
 
 use api_models::{
     payments::RedirectionResponse,
-    user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
+    user::{self as user_api, InviteMultipleUserResponse, NameIdUnit, UserMerchantDetailsResponse},
 };
 use common_enums::{connector_enums, EntityType, MerchantProductType, UserAuthType};
 use common_utils::{
@@ -22,7 +22,7 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::{env, logger};
+use router_env::{env, instrument, logger, tracing};
 use storage_impl::errors::StorageError;
 #[cfg(feature = "v1")]
 use subscriptions::RouterResponse;
@@ -57,6 +57,7 @@ use crate::{db::user_role::ListUserRolesByOrgIdPayload, types::transformers::For
 use crate::{services::email::types as email_types, utils::user as user_utils};
 
 pub mod dashboard_metadata;
+pub mod launch_sage;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
 pub mod theme;
@@ -425,6 +426,31 @@ pub async fn connect_account(
             .map(|e| e.change_context(UserErrors::InternalServerError))
             .unwrap_or(UserErrors::InternalServerError.into()))
     }
+}
+
+pub async fn get_user_merchant_details(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<UserMerchantDetailsResponse> {
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &user_from_token.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &key_store)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(UserMerchantDetailsResponse {
+        product_type: merchant_account.product_type,
+        merchant_account_type: merchant_account.merchant_account_type,
+    }))
 }
 
 pub async fn signout(
@@ -1829,13 +1855,13 @@ pub async fn create_org_merchant_for_user(
         default_product_type,
     )?;
 
-    admin::create_merchant_account(
+    Box::pin(admin::create_merchant_account(
         state.clone(),
         merchant_account_create_request,
         Some(auth::AuthenticationDataWithOrg {
             organization_id: org.get_organization_id(),
         }),
-    )
+    ))
     .await
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Error while creating a merchant")?;
@@ -3858,60 +3884,77 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
 }
 
 #[cfg(feature = "v1")]
+#[instrument(skip_all)]
 pub async fn clone_connector(
     state: SessionState,
+    user_from_token: auth::UserFromToken,
     request: user_api::CloneConnectorRequest,
 ) -> UserResponse<api_models::admin::MerchantConnectorResponse> {
     let Some(allowlist) = &state.conf.clone_connector_allowlist else {
         return Err(UserErrors::InvalidCloneConnectorOperation(
-            "Cloning is not allowed".to_string(),
+            "Connector cloning is not enabled".to_string(),
         )
         .into());
     };
 
     fp_utils::when(
-        allowlist
-            .merchant_ids
-            .contains(&request.source.merchant_id)
-            .not(),
+        user_from_token.profile_id == request.destination_profile_id,
         || {
             Err(UserErrors::InvalidCloneConnectorOperation(
-                "Cloning is not allowed from this merchant".to_string(),
+                "Source and destination profiles cannot be the same".to_string(),
             ))
         },
     )?;
 
-    let source_key_store = state
+    let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            &request.source.merchant_id,
+            &user_from_token.merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
         .await
         .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
-            "Source merchant account not found".to_string(),
+            "Merchant account not found".to_string(),
         ))?;
 
     let source_mca = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &request.source.merchant_id,
-            &request.source.mca_id,
-            &source_key_store,
+            &user_from_token.merchant_id,
+            &request.source_mca_id,
+            &key_store,
         )
         .await
         .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
             "Source merchant connector account not found".to_string(),
         ))?;
 
-    let source_mca_name = source_mca
+    fp_utils::when(source_mca.profile_id != user_from_token.profile_id, || {
+        Err(UserErrors::InvalidCloneConnectorOperation(
+            "Source connector does not belong to the current profile".to_string(),
+        ))
+    })?;
+
+    state
+        .store
+        .find_business_profile_by_merchant_id_profile_id(
+            &key_store,
+            &user_from_token.merchant_id,
+            &request.destination_profile_id,
+        )
+        .await
+        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
+            "Destination profile does not belong to the merchant".to_string(),
+        ))?;
+
+    let source_connector = source_mca
         .connector_name
         .parse::<connector_enums::Connector>()
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Invalid connector name received")?;
 
     fp_utils::when(
-        allowlist.connector_names.contains(&source_mca_name).not(),
+        allowlist.connector_names.contains(&source_connector).not(),
         || {
             Err(UserErrors::InvalidCloneConnectorOperation(
                 "Cloning is not allowed for this connector".to_string(),
@@ -3921,46 +3964,33 @@ pub async fn clone_connector(
 
     let merchant_connector_create = utils::user::build_cloned_connector_create_request(
         source_mca,
-        Some(request.destination.profile_id.clone()),
-        request.destination.connector_label,
+        request.destination_profile_id.clone(),
+        request.connector_label,
+        &allowlist.payment_method_types,
     )
     .await?;
 
-    let destination_key_store = state
+    let merchant_account = state
         .store
-        .get_merchant_key_store_by_merchant_id(
-            &request.destination.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &key_store)
         .await
         .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
-            "Destination merchant account not found".to_string(),
+            "Merchant account not found".to_string(),
         ))?;
 
-    let destination_merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(
-            &request.destination.merchant_id,
-            &destination_key_store,
-        )
-        .await
-        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
-            "Destination merchant account not found".to_string(),
-        ))?;
-
-    let destination_context = domain::Platform::new(
-        destination_merchant_account.clone(),
-        destination_key_store.clone(),
-        destination_merchant_account.clone(),
-        destination_key_store.clone(),
+    let platform = domain::Platform::new(
+        merchant_account.clone(),
+        key_store.clone(),
+        merchant_account.clone(),
+        key_store.clone(),
         None,
     );
 
     admin::create_connector(
         state,
         merchant_connector_create,
-        destination_context.get_processor().clone(),
-        Some(request.destination.profile_id),
+        platform.get_processor().clone(),
+        Some(request.destination_profile_id),
     )
     .await
     .map_err(|e| {

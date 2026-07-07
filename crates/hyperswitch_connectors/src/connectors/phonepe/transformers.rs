@@ -129,6 +129,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PhonepePaymentsResponse, T, PaymentsRes
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,

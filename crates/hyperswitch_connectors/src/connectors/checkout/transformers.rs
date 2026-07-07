@@ -261,6 +261,7 @@ pub enum PaymentSource {
     MandatePayment(MandateSource),
     GooglePayPredecrypt(Box<GooglePayPredecrypt>),
     DecryptedWalletToken(DecryptedWalletToken),
+    NetworkToken(Box<NetworkTokenSource>),
 }
 
 #[derive(Debug, Serialize)]
@@ -271,6 +272,22 @@ pub struct DecryptedWalletToken {
     token_type: String,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
+    pub billing_address: Option<CheckoutAddress>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct NetworkTokenSource {
+    #[serde(rename = "type")]
+    pub source_type: String,
+    pub token: cards::CardNumber,
+    pub expiry_month: Secret<String>,
+    pub expiry_year: Secret<String>,
+    pub token_type: String,
+    pub cryptogram: Option<Secret<String>>,
+    pub eci: Option<String>,
+    pub stored: Option<bool>,
+    pub store_for_future_use: Option<bool>,
     pub billing_address: Option<CheckoutAddress>,
 }
 
@@ -523,6 +540,23 @@ fn build_metadata(
     }
 
     Some(Secret::new(metadata_json))
+}
+
+/// Pad a 2-digit "YY" expiry year to 4-digit "20YY", pass-through if already 4-digit.
+///
+/// `CardData::get_expiry_year_4_digit` (in `crates/hyperswitch_connectors/src/utils.rs`)
+/// covers `Card`, `CardDetailsForNetworkTransactionId`, `DecryptedWalletTokenDetailsForNetworkTransactionId`,
+/// and `ApplePayDecrypt` — but not `NetworkTokenData` or
+/// `NetworkTokenDetailsForNetworkTransactionId`. The PaymentSource::NetworkToken
+/// paths below need the same YY → YYYY coercion, since Checkout's API expects
+/// a 4-digit `expiry_year`.
+fn pad_expiry_year_to_4_digit(year: Secret<String>) -> Secret<String> {
+    let raw = year.expose();
+    if raw.len() == 2 {
+        Secret::new(format!("20{raw}"))
+    } else {
+        Secret::new(raw)
+    }
 }
 
 fn is_metadata_empty(val: &Option<Secret<serde_json::Value>>) -> bool {
@@ -817,6 +851,90 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     p_type,
                     store_for_future_use,
                 ))
+            }
+            PaymentMethodData::NetworkToken(token_data) => {
+                let token_type = match token_data.card_network {
+                    Some(enums::CardNetwork::Visa) => Ok("vts".to_string()),
+                    Some(enums::CardNetwork::Mastercard) => Ok("mdes".to_string()),
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Network token for this card network".to_string(),
+                    )),
+                }?;
+
+                #[cfg(feature = "v1")]
+                let (token, expiry_month, expiry_year, cryptogram) = (
+                    token_data.token_number,
+                    token_data.token_exp_month,
+                    token_data.token_exp_year,
+                    token_data.token_cryptogram,
+                );
+                #[cfg(feature = "v2")]
+                let (token, expiry_month, expiry_year, cryptogram) = (
+                    token_data.network_token,
+                    token_data.network_token_exp_month,
+                    token_data.network_token_exp_year,
+                    token_data.cryptogram,
+                );
+
+                let payment_source = PaymentSource::NetworkToken(Box::new(NetworkTokenSource {
+                    source_type: "network_token".to_string(),
+                    token: cards::CardNumber::from(token),
+                    expiry_month,
+                    expiry_year: pad_expiry_year_to_4_digit(expiry_year),
+                    token_type,
+                    cryptogram,
+                    eci: token_data.eci,
+                    stored: None,
+                    store_for_future_use,
+                    billing_address: billing_details,
+                }));
+
+                Ok((
+                    payment_source,
+                    None,
+                    None,
+                    payment_type,
+                    store_for_future_use,
+                ))
+            }
+            PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(token_data) => {
+                let token_type = match token_data.card_network {
+                    Some(enums::CardNetwork::Visa) => Ok("vts".to_string()),
+                    Some(enums::CardNetwork::Mastercard) => Ok("mdes".to_string()),
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Network token for this card network".to_string(),
+                    )),
+                }?;
+
+                let previous_id = Some(
+                    item.router_data
+                        .request
+                        .get_optional_network_transaction_id()
+                        .ok_or_else(utils::missing_field_err("network_transaction_id"))
+                        .attach_printable("Checkout unable to find NTID for MIT")?,
+                );
+
+                let p_type = match item.router_data.request.mit_category {
+                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                    _ => CheckoutPaymentType::Unscheduled,
+                };
+
+                let payment_source = PaymentSource::NetworkToken(Box::new(NetworkTokenSource {
+                    source_type: "network_token".to_string(),
+                    token: cards::CardNumber::from(token_data.network_token),
+                    expiry_month: token_data.token_exp_month,
+                    expiry_year: pad_expiry_year_to_4_digit(token_data.token_exp_year),
+                    token_type,
+                    cryptogram: None,
+                    eci: token_data.eci,
+                    stored: Some(true),
+                    store_for_future_use: None,
+                    billing_address: billing_details,
+                }));
+
+                Ok((payment_source, previous_id, Some(true), p_type, None))
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
@@ -1154,6 +1272,8 @@ pub struct PaymentsResponse {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentProcessingDetails {
+    /// A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+    pub scheme_transaction_link_id: Option<String>,
     /// The Merchant Advice Code (MAC) provided by Mastercard, which contains additional information about the transaction.
     pub partner_merchant_advice_code: Option<String>,
     /// The original authorization response code sent by the scheme.
@@ -1260,6 +1380,10 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: Some(connector_meta),
             network_txn_id: item.response.scheme_id.clone(),
+            network_txn_link_id: item
+                .response
+                .processing
+                .and_then(|processing| processing.scheme_transaction_link_id),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -1376,6 +1500,10 @@ impl
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: Some(connector_meta),
             network_txn_id: item.response.scheme_id.clone(),
+            network_txn_link_id: item
+                .response
+                .processing
+                .and_then(|processing| processing.scheme_transaction_link_id),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -1457,6 +1585,10 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: None,
             network_txn_id: item.response.scheme_id.clone(),
+            network_txn_link_id: item
+                .response
+                .processing
+                .and_then(|processing| processing.scheme_transaction_link_id),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -1537,6 +1669,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentVoidResponse>> for Payments
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: item.response.scheme_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -1640,6 +1773,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: item.response.scheme_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
                 authentication_data: None,

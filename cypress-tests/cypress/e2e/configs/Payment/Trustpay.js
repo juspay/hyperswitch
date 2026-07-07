@@ -443,6 +443,23 @@ export const connectorDetails = {
         },
       },
     },
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -525,18 +542,15 @@ export const connectorDetails = {
       },
     },
     SessionToken: {
+      Request: {
+        wallets: ["apple_pay", "google_pay"],
+      },
       Response: {
         status: 200,
         body: {
           session_token: [
-            {
-              wallet_name: "apple_pay",
-              connector: "trustpay",
-            },
-            {
-              wallet_name: "google_pay",
-              connector: "trustpay",
-            },
+            { wallet_name: "apple_pay", connector: "trustpay" },
+            { wallet_name: "google_pay", connector: "trustpay" },
           ],
         },
       },
@@ -615,6 +629,64 @@ export const connectorDetails = {
           message:
             "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
           code: "IR_16",
+        },
+      },
+    },
+    PaymentIntentWithBillingDescriptor: {
+      Request: {
+        currency: "EUR",
+        amount: 6540,
+        authentication_type: "no_three_ds",
+        capture_method: "automatic",
+        billing_descriptor: {
+          statement_descriptor: "QA-BillingDesc",
+        },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        email: "test@example.com",
+        name: "John Doe",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulNo3DSCardDetails },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        browser_info: {
+          user_agent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          accept_header:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          language: "en-US",
+          color_depth: 24,
+          screen_height: 768,
+          screen_width: 1280,
+          time_zone: -330,
+          java_enabled: true,
+          java_script_enabled: true,
+          ip_address: "127.0.0.1",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
@@ -831,6 +903,84 @@ export const connectorDetails = {
       path: "PaymentInformation.References.MerchantReference",
       type: "string",
       source: "paymentAttemptID",
+    },
+  },
+  wallet_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    DelayedSessionToken: {
+      Request: {
+        wallets: ["apple_pay", "google_pay"],
+      },
+      Response: {
+        status: 200,
+        body: {
+          session_token: [
+            {
+              wallet_name: "apple_pay",
+              connector: "trustpay",
+              delayed_session_token: true,
+              sdk_next_action: {
+                next_action: "confirm",
+                should_block_confirm: null,
+              },
+            },
+            {
+              wallet_name: "google_pay",
+              connector: "trustpay",
+              delayed_session_token: true,
+              sdk_next_action: {
+                next_action: "confirm",
+                should_block_confirm: null,
+              },
+            },
+          ],
+        },
+      },
+    },
+    DelayedSessionTokenMissingClientSecret: {
+      Request: {
+        wallets: ["apple_pay", "google_pay"],
+        client_secret: null,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+            message: "Missing required param: client_secret",
+          },
+        },
+      },
+    },
+    DelayedSessionTokenInvalidPaymentId: {
+      Request: {
+        wallets: ["apple_pay", "google_pay"],
+        payment_id: "pay_nonexistent12345",
+        client_secret: "pay_nonexistent12345_secret_xyz",
+      },
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "HE_02",
+            message: "Payment does not exist in our records",
+          },
+        },
+      },
     },
   },
 };

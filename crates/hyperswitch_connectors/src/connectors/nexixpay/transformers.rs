@@ -12,6 +12,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -780,6 +781,7 @@ fn process_nexixpay_preprocessing_response(
             mandate_reference: Box::new(None),
             connector_metadata,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.operation.order_id),
             incremental_authorization_allowed: None,
             authentication_data,
@@ -976,7 +978,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                     }
                 }
             }
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+            Some(mandates::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
                 let contract_id = Secret::new(
                     mandate_data
                         .get_connector_mandate_request_reference_id()
@@ -991,9 +993,9 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                     },
                 )))
             }
-            Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
-            | Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
-            | Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
+            Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+            | Some(mandates::MandateReferenceId::NetworkMandateId(_))
+            | Some(mandates::MandateReferenceId::CardWithLimitedData(_)) => {
                 Err(errors::ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("nexixpay"),
                 )
@@ -1355,6 +1357,7 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                             mandate_reference,
                             connector_metadata,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(
                                 response_body.operation.order_id.clone(),
                             ),
@@ -1406,6 +1409,7 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                             mandate_reference: Box::new(None),
                             connector_metadata,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(
                                 mandate_response.operation.order_id.clone(),
                             ),
@@ -1479,6 +1483,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
                             mandate_reference,
                             connector_metadata,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(
                                 response_body.operation.order_id.clone(),
                             ),
@@ -1523,6 +1528,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
                             mandate_reference: Box::new(None),
                             connector_metadata,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(
                                 mandate_response.operation.order_id.clone(),
                             ),
@@ -1674,6 +1680,7 @@ impl<F>
                     mandate_reference,
                     connector_metadata,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.operation.order_id),
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -1865,6 +1872,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<NexixpayTransactionResponse>>
                     mandate_reference,
                     connector_metadata: item.data.request.connector_meta.clone(),
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.order_id.clone()),
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -1916,6 +1924,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<NexixpayOperationResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     item.data.request.connector_transaction_id.clone(),
                 ),
@@ -1973,6 +1982,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<NexixpayOperationResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     item.data.request.connector_transaction_id.clone(),
                 ),
@@ -2063,6 +2073,7 @@ impl
                     })),
                     connector_metadata,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.operation.order_id.clone()),
                     incremental_authorization_allowed: None,
                     authentication_data: None,

@@ -91,7 +91,11 @@ pub enum BankAdditionalData {
     Sepa(Box<SepaBankTransferAdditionalData>),
     /// Additional data for pix bank transfer payout method
     Pix(Box<PixBankTransferAdditionalData>),
+    /// Additional data for open banking payout method
+    OpenBanking(Box<OpenBankingAdditionalData>),
 }
+
+crate::impl_to_sql_from_sql_json!(BankAdditionalData);
 
 /// Masked payout method details for ach bank transfer payout method
 #[derive(
@@ -118,6 +122,10 @@ pub struct AchBankTransferAdditionalData {
     /// Bank city
     #[schema(value_type = Option<String>, example = "California")]
     pub bank_city: Option<String>,
+
+    /// Account holder name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 /// Masked payout method details for bacs bank transfer payout method
@@ -145,6 +153,10 @@ pub struct BacsBankTransferAdditionalData {
     /// Bank city
     #[schema(value_type = Option<String>, example = "California")]
     pub bank_city: Option<String>,
+
+    /// Account holder name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 /// Masked payout method details for sepa bank transfer payout method
@@ -172,6 +184,10 @@ pub struct SepaBankTransferAdditionalData {
     /// [8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches
     #[schema(value_type = Option<String>, example = "HSBCGB2LXXX")]
     pub bic: Option<MaskedBic>,
+
+    /// Account holder name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 /// Masked payout method details for pix bank transfer payout method
@@ -182,7 +198,11 @@ pub struct SepaBankTransferAdditionalData {
 pub struct PixBankTransferAdditionalData {
     /// Partially masked unique key for pix transfer
     #[schema(value_type = String, example = "a1f4102e ****** 6fa48899c1d1")]
-    pub pix_key: MaskedBankAccount,
+    pub pix_key: Option<MaskedBankAccount>,
+
+    /// Partially masked string formatted QR code for pix payout
+    #[schema(value_type = String, example = "0002**************************************************I63041D3D")]
+    pub emv: Option<MaskedBankAccount>,
 
     /// Partially masked CPF - CPF is a Brazilian tax identification number
     #[schema(value_type = Option<String>, example = "**** 124689")]
@@ -190,7 +210,7 @@ pub struct PixBankTransferAdditionalData {
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "**** 23456")]
-    pub bank_account_number: MaskedBankAccount,
+    pub bank_account_number: Option<MaskedBankAccount>,
 
     /// Bank name
     #[schema(value_type = Option<String>, example = "Deutsche Bank")]
@@ -199,6 +219,10 @@ pub struct PixBankTransferAdditionalData {
     /// Bank branch
     #[schema(value_type = Option<String>, example = "3707")]
     pub bank_branch: Option<String>,
+
+    /// ISPB code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.
+    #[schema(value_type = Option<String>, example = "60701190")]
+    pub ispb: Option<String>,
 }
 
 /// Masked payout method details for Trustly bank transfer payout method
@@ -230,6 +254,8 @@ pub struct TrustlyBankTransferAdditionalData {
 pub enum WalletAdditionalData {
     /// Additional data for Apple pay decrypt wallet payout method
     ApplePayDecrypt(Box<ApplePayDecryptAdditionalData>),
+    /// Additional data for Google pay decrypt wallet payout method
+    GooglePayDecrypt(Box<GooglePayDecryptAdditionalData>),
     /// Additional data for paypal wallet payout method
     Paypal(Box<PaypalAdditionalData>),
     /// Additional data for venmo wallet payout method
@@ -294,6 +320,25 @@ pub struct ApplePayDecryptAdditionalData {
     pub card_holder_name: Option<Secret<String>>,
 }
 
+/// Masked payout method details for Google pay decrypt wallet payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct GooglePayDecryptAdditionalData {
+    /// Card expiry month
+    #[schema(value_type = String, example = "01")]
+    pub card_exp_month: Secret<String>,
+
+    /// Card expiry year
+    #[schema(value_type = String, example = "2026")]
+    pub card_exp_year: Secret<String>,
+
+    /// Card holder name
+    #[schema(value_type = String, example = "John Doe")]
+    pub card_holder_name: Option<Secret<String>>,
+}
+
 /// Masked payout method details for wallet payout method
 #[derive(
     Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
@@ -332,6 +377,20 @@ pub struct OpenBankingUkAdditionalData {
     pub iban: Secret<String>,
 }
 
+/// Masked payout method details for OpenBanking bank transfer payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct OpenBankingAdditionalData {
+    /// Account holder name
+    #[schema(value_type = String, example = "John Doe")]
+    pub account_holder_name: Secret<String>,
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "DE89370400440532013000")]
+    pub iban: Secret<String>,
+}
+
 /// additional payout method details for passthrough payout method
 #[derive(
     Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
@@ -357,11 +416,13 @@ impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
                 BankAdditionalData::Sepa(_) => Self::SepaBankTransfer,
                 BankAdditionalData::Pix(_) => Self::Pix,
                 BankAdditionalData::Trustly(_) => Self::Trustly,
+                BankAdditionalData::OpenBanking(_) => Self::OpenBanking,
             },
             AdditionalPayoutMethodData::Wallet(wallet) => match **wallet {
                 WalletAdditionalData::ApplePayDecrypt(_) => Self::ApplePay,
                 WalletAdditionalData::Paypal(_) => Self::Paypal,
                 WalletAdditionalData::Venmo(_) => Self::Venmo,
+                WalletAdditionalData::GooglePayDecrypt(_) => Self::GooglePay,
             },
             AdditionalPayoutMethodData::BankRedirect(bank_redirect) => match **bank_redirect {
                 BankRedirectAdditionalData::Interac(_) => Self::Interac,

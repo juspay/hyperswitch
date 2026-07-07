@@ -7,7 +7,7 @@ use strum::Display;
 use time::PrimitiveDateTime;
 
 use super::*;
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FinixPaymentsResponse {
     pub id: String,
     pub created_at: Option<String>,
@@ -28,6 +28,14 @@ pub struct FinixPaymentsResponse {
     pub payment_type: Option<FinixPaymentType>,
     // pub trace_id: String,
     pub three_d_secure: Option<FinixThreeDSecure>,
+    pub address_verification: Option<String>,
+    pub network_details: Option<FinixNetworkDetails>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct FinixNetworkDetails {
+    pub brand: Option<String>,
+    pub authorization_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -66,6 +74,7 @@ pub struct FinixInstrumentResponse {
     pub created_at: String,
     pub updated_at: String,
     pub application: String,
+    pub created_via: Option<String>,
     pub identity: Option<String>,
     #[serde(rename = "type")]
     pub instrument_type: FinixPaymentInstrumentType,
@@ -74,9 +83,13 @@ pub struct FinixInstrumentResponse {
     pub card_brand: Option<String>,
     pub fingerprint: Option<String>,
     pub address: Option<FinixAddress>,
+    pub address_verification: Option<String>,
+    pub disabled_code: Option<String>,
+    pub disabled_message: Option<String>,
+    pub enabled: Option<bool>,
     pub name: Option<Secret<String>>,
     pub currency: Option<Currency>,
-    pub enabled: bool,
+    pub security_code_verification: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]

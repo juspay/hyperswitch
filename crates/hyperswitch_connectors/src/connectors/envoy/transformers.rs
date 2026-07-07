@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{CustomerDetails, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PayoutsResponseData, PayoutsRouterData, RefundsRouterData,
@@ -140,6 +140,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, EnvoyPaymentsResponse, T, PaymentsRespo
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -364,15 +365,7 @@ pub enum BankField {
 
 fn get_template_for_ach(
     bank: AchBankTransfer,
-    customer_details: Option<&CustomerDetails>,
 ) -> Result<Vec<TemplateRow>, error_stack::Report<errors::ConnectorError>> {
-    let customer_name = customer_details
-        .and_then(|c| c.name.clone())
-        .get_required_value("customer_name")
-        .change_context(errors::ConnectorError::MissingRequiredField {
-            field_name: "customer_name",
-        })?;
-
     Ok(vec![
         TemplateRow {
             id: BankField::BranchAddress,
@@ -380,7 +373,13 @@ fn get_template_for_ach(
         },
         TemplateRow {
             id: BankField::CustomerName,
-            value: Some(customer_name.clone()),
+            value: Some(
+                bank.account_holder_name
+                    .get_required_value("account_holder_name")
+                    .change_context(errors::ConnectorError::MissingRequiredField {
+                        field_name: "account_holder_name",
+                    })?,
+            ),
         },
         TemplateRow {
             id: BankField::BankName,
@@ -399,15 +398,7 @@ fn get_template_for_ach(
 
 fn get_template_for_bacs(
     bank: BacsBankTransfer,
-    customer_details: Option<&CustomerDetails>,
 ) -> Result<Vec<TemplateRow>, error_stack::Report<errors::ConnectorError>> {
-    let customer_name = customer_details
-        .and_then(|c| c.name.clone())
-        .get_required_value("customer_name")
-        .change_context(errors::ConnectorError::MissingRequiredField {
-            field_name: "customer_name",
-        })?;
-
     Ok(vec![
         TemplateRow {
             id: BankField::BranchAddress,
@@ -415,7 +406,13 @@ fn get_template_for_bacs(
         },
         TemplateRow {
             id: BankField::CustomerName,
-            value: Some(customer_name.clone()),
+            value: Some(
+                bank.account_holder_name
+                    .get_required_value("account_holder_name")
+                    .change_context(errors::ConnectorError::MissingRequiredField {
+                        field_name: "account_holder_name",
+                    })?,
+            ),
         },
         TemplateRow {
             id: BankField::BankName,
@@ -433,15 +430,7 @@ fn get_template_for_bacs(
 }
 fn get_template_for_sepa(
     bank: SepaBankTransfer,
-    customer_details: Option<&CustomerDetails>,
 ) -> Result<Vec<TemplateRow>, error_stack::Report<errors::ConnectorError>> {
-    let customer_name = customer_details
-        .and_then(|c| c.name.clone())
-        .get_required_value("customer_name")
-        .change_context(errors::ConnectorError::MissingRequiredField {
-            field_name: "customer_name",
-        })?;
-
     Ok(vec![
         TemplateRow {
             id: BankField::BranchAddress,
@@ -453,7 +442,13 @@ fn get_template_for_sepa(
         },
         TemplateRow {
             id: BankField::CustomerName,
-            value: Some(customer_name.clone()),
+            value: Some(
+                bank.account_holder_name
+                    .get_required_value("account_holder_name")
+                    .change_context(errors::ConnectorError::MissingRequiredField {
+                        field_name: "account_holder_name",
+                    })?,
+            ),
         },
         TemplateRow {
             id: BankField::BankName,
@@ -485,16 +480,17 @@ impl<F> TryFrom<&EnvoyRouterData<&PayoutsRouterData<F>>> for PayToBankAccountV3 
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &EnvoyRouterData<&PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let payout_data = &item.router_data.request;
-        let customer_details = item.router_data.request.customer_details.to_owned();
+        let customer_details = payout_data.customer_details.as_ref();
+
         let payment_template = match item.router_data.get_payout_method_data()? {
             PayoutMethodData::BankTransfer(payouts::BankTransfer::Ach(bank)) => PaymentTemplate {
-                rows: get_template_for_ach(bank, customer_details.as_ref())?,
+                rows: get_template_for_ach(bank)?,
             },
             PayoutMethodData::BankTransfer(payouts::BankTransfer::Sepa(bank)) => PaymentTemplate {
-                rows: get_template_for_sepa(bank, customer_details.as_ref())?,
+                rows: get_template_for_sepa(bank)?,
             },
             PayoutMethodData::BankTransfer(payouts::BankTransfer::Bacs(bank)) => PaymentTemplate {
-                rows: get_template_for_bacs(bank, customer_details.as_ref())?,
+                rows: get_template_for_bacs(bank)?,
             },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "payout creation is not supported".to_string(),

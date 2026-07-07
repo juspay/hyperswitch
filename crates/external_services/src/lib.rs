@@ -62,6 +62,9 @@ pub mod date_time {
 
 /// Crate specific constants
 pub mod consts {
+    /// Default per-RPC timeout (seconds) for unified connector service calls.
+    pub(crate) const DEFAULT_UCS_REQUEST_TIMEOUT_SECS: u64 = 35;
+
     /// General purpose base64 engine
     #[cfg(feature = "aws_kms")]
     pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
@@ -69,6 +72,12 @@ pub mod consts {
 
     /// Header key used to specify the connector name in UCS requests.
     pub(crate) const UCS_HEADER_CONNECTOR: &str = "x-connector";
+
+    /// Header key used to specify the payout connector name in UCS requests.
+    pub(crate) const UCS_HEADER_PAYOUT_CONNECTOR: &str = "x-payout-connector";
+
+    /// Header key used to specify the surcharge connector name in UCS requests.
+    pub(crate) const UCS_HEADER_SURCHARGE_CONNECTOR: &str = "x-surcharge-connector";
 
     /// Header key used to indicate the authentication type being used.
     pub(crate) const UCS_HEADER_AUTH_TYPE: &str = "x-auth";

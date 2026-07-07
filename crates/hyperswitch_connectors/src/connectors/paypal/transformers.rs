@@ -2,7 +2,10 @@
 use api_models::payouts::{PayoutMethodData, Wallet as WalletPayout};
 use api_models::{
     enums,
-    payments::{NextActionCall, PaypalSessionTokenResponse, SdkNextAction, SessionToken},
+    payments::{
+        NextActionCall, PaypalCaptureMethod, PaypalSessionTokenResponse, SdkNextAction,
+        SessionToken,
+    },
     webhooks::IncomingWebhookEvent,
 };
 use base64::Engine;
@@ -678,6 +681,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalSetupMandatesResponse, T, Payment
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(info_response.id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -1249,6 +1253,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::DuitNow
                     | enums::PaymentMethodType::Efecty
                     | enums::PaymentMethodType::Eft
+                    | enums::PaymentMethodType::EftDebitOrder
                     | enums::PaymentMethodType::Eps
                     | enums::PaymentMethodType::Bluecode
                     | enums::PaymentMethodType::Fps
@@ -1284,6 +1289,9 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::OpenBankingUk
                     | enums::PaymentMethodType::PayBright
                     | enums::PaymentMethodType::Pix
+                    | enums::PaymentMethodType::PixKey
+                    | enums::PaymentMethodType::PixEmv
+                    | enums::PaymentMethodType::PixQr
                     | enums::PaymentMethodType::PixAutomaticoPush
                     | enums::PaymentMethodType::PixAutomaticoQr
                     | enums::PaymentMethodType::PaySafeCard
@@ -1409,6 +1417,7 @@ impl TryFrom<&BankDebitData> for PaypalPaymentsRequest {
             | BankDebitData::SepaBankDebit { .. }
             | BankDebitData::BecsBankDebit { .. }
             | BankDebitData::BacsBankDebit { .. }
+            | BankDebitData::EftDebitOrder { .. }
             | BankDebitData::SepaGuarenteedBankDebit { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
@@ -1435,6 +1444,8 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::DanamonVaBankTransfer { .. }
             | BankTransferData::MandiriVaBankTransfer { .. }
             | BankTransferData::Pix { .. }
+            | BankTransferData::PixEmv {}
+            | BankTransferData::PixQr {}
             | BankTransferData::PixAutomaticoPush { .. }
             | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {}
@@ -1555,10 +1566,13 @@ impl
             session_token: credentials.get_client_id().clone().expose(),
             sdk_next_action: SdkNextAction {
                 next_action: NextActionCall::PostSessionTokens,
+                should_block_confirm: None,
             },
             client_token: None,
             data_user_id_token: response.id_token.clone().map(|id| id.expose()),
             transaction_info: None,
+            currency: Some(data.request.currency),
+            intent: data.request.capture_method.map(PaypalCaptureMethod::from),
         }));
         Ok(Self {
             response: Ok(PaymentsResponseData::SessionResponse { session_token }),
@@ -1825,6 +1839,7 @@ impl TryFrom<PaymentsExtendAuthorizationResponseRouterData<PaypalExtendedAuthRes
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -2040,6 +2055,7 @@ fn auth_success_response() -> PaymentsResponseData {
         mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         authentication_data: None,
@@ -2212,9 +2228,15 @@ pub enum AuthenticationStatus {
 pub struct PaypalOrdersResponse {
     id: String,
     intent: PaypalPaymentIntent,
-    status: PaypalOrderStatus,
+    // PayPal can omit the top-level order `status` in some Orders v2 responses (observed in PSync
+    // for an order whose only capture was `DECLINED`). This field is kept optional so the response
+    // still deserializes when it is absent. The attempt status is not derived from this field
+    // anyway: for orders it is taken from the capture/authorization status inside `purchase_units`
+    // (see `TryFrom<ResponseRouterData<F, PaypalOrdersResponse, ..>>`).
+    status: Option<PaypalOrderStatus>,
     purchase_units: Vec<PurchaseUnitItem>,
     payment_source: Option<PaymentSourceItemResponse>,
+    payer: Option<Payer>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2236,6 +2258,7 @@ pub struct PaypalRedirectResponse {
     purchase_units: Vec<RedirectPurchaseUnitItem>,
     links: Vec<PaypalLinks>,
     payment_source: Option<PaymentSourceItemResponse>,
+    payer: Option<Payer>,
 }
 
 // Note: Don't change order of deserialization of variant, priority is in descending order
@@ -2264,6 +2287,7 @@ pub struct PaypalPaymentsSyncResponse {
     amount: OrderAmount,
     invoice_id: Option<String>,
     supplementary_data: PaypalSupplementaryData,
+    payer: Option<Payer>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2400,6 +2424,9 @@ where
             _ => None,
         }
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        // Derive the attempt status from the capture/authorization status rather than the
+        // top-level order `status`, which PayPal may omit (e.g. a declined capture). For example a
+        // `DECLINED` capture maps to `AttemptStatus::Failure` and is handled by the branch below.
         let status = payment_collection_item.status.clone();
         let status = storage_enums::AttemptStatus::from(status);
 
@@ -2475,6 +2502,7 @@ where
                 })),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: purchase_units
                     .invoice_id
                     .clone()
@@ -2486,6 +2514,10 @@ where
                 authentication_data: None,
                 charges: None,
             }),
+            sender_payment_instrument_id: item
+                .response
+                .payer
+                .and_then(|payer| payer.payer_id.map(|payer_id| payer_id.expose())),
             ..item.data
         })
     }
@@ -2593,6 +2625,7 @@ impl<F, T>
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
                 ),
@@ -2600,6 +2633,10 @@ impl<F, T>
                 authentication_data: None,
                 charges: None,
             }),
+            sender_payment_instrument_id: item
+                .response
+                .payer
+                .and_then(|payer| payer.payer_id.map(|payer_id| payer_id.expose())),
             ..item.data
         })
     }
@@ -2647,6 +2684,7 @@ impl
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
                 ),
@@ -2701,6 +2739,7 @@ impl
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -2726,6 +2765,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaypalThreeDsSyncResponse>> for Paym
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -2767,6 +2807,7 @@ impl TryFrom<PaymentsResponseRouterData<PaypalThreeDsResponse>> for PaymentsAuth
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -2826,6 +2867,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsSyncResponse, T, Payments
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item
                     .response
                     .invoice_id
@@ -2835,6 +2877,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsSyncResponse, T, Payments
                 authentication_data: None,
                 charges: None,
             }),
+            sender_payment_instrument_id: item
+                .response
+                .payer
+                .and_then(|payer| payer.payer_id.map(|payer_id| payer_id.expose())),
             ..item.data
         })
     }
@@ -2972,6 +3018,10 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalPayoutI
                 }
                 WalletPayout::ApplePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
                     message: "ApplePayDecrypt PayoutMethodType is not supported".to_string(),
+                    connector: "Paypal",
+                })?,
+                WalletPayout::GooglePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
+                    message: "GooglePayDecrypt PayoutMethodType is not supported".to_string(),
                     connector: "Paypal",
                 })?,
             },
@@ -3165,6 +3215,12 @@ pub struct PaypalCaptureResponse {
     invoice_id: Option<String>,
     final_capture: bool,
     payment_source: Option<PaymentSourceItemResponse>,
+    payer: Option<Payer>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Payer {
+    payer_id: Option<Secret<String>>,
 }
 
 impl From<PaypalPaymentStatus> for storage_enums::AttemptStatus {
@@ -3216,7 +3272,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
             | storage_enums::AttemptStatus::Voided
             | storage_enums::AttemptStatus::VoidedPostCharge
             | storage_enums::AttemptStatus::Expired
-            | storage_enums::AttemptStatus::PartiallyAuthorized => 0,
+            | storage_enums::AttemptStatus::PartiallyAuthorized
+            | storage_enums::AttemptStatus::CaptureReview => 0,
             storage_enums::AttemptStatus::Charged
             | storage_enums::AttemptStatus::PartialCharged
             | storage_enums::AttemptStatus::PartialChargedAndChargeable
@@ -3241,6 +3298,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                     order_id: None,
                 })),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item
                     .response
                     .invoice_id
@@ -3287,6 +3345,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsCancelResponse, T, Paymen
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item
                     .response
                     .invoice_id
@@ -3593,6 +3652,7 @@ pub struct PaypalCardWebhooks {
     pub supplementary_data: PaypalSupplementaryData,
     pub amount: OrderAmount,
     pub invoice_id: Option<String>,
+    pub payer: Option<Payer>,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -3601,6 +3661,7 @@ pub struct PaypalRedirectsWebhooks {
     pub links: Vec<PaypalLinks>,
     pub id: String,
     pub intent: PaypalPaymentIntent,
+    pub payer: Option<Payer>,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -3770,6 +3831,7 @@ impl TryFrom<(PaypalCardWebhooks, PaypalWebhookEventType)> for PaypalPaymentsSyn
             amount: webhook_body.amount,
             supplementary_data: webhook_body.supplementary_data,
             invoice_id: webhook_body.invoice_id,
+            payer: webhook_body.payer,
         })
     }
 }
@@ -3782,9 +3844,10 @@ impl TryFrom<(PaypalRedirectsWebhooks, PaypalWebhookEventType)> for PaypalOrders
         Ok(Self {
             id: webhook_body.id,
             intent: webhook_body.intent,
-            status: PaypalOrderStatus::try_from(webhook_event)?,
+            status: Some(PaypalOrderStatus::try_from(webhook_event)?),
             purchase_units: webhook_body.purchase_units,
             payment_source: None,
+            payer: webhook_body.payer,
         })
     }
 }

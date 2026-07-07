@@ -2,6 +2,7 @@ use std::{collections::HashMap, marker::PhantomData};
 
 use api_models::customers::CustomerDocumentDetails;
 use cards::NetworkToken;
+use common_enums::WalletDecryptedToken;
 use common_types::{payments as common_payment_types, primitive_wrappers};
 use common_utils::{
     errors::IntegrityCheckError,
@@ -15,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     address::AddressDetails, payment_address::PaymentAddress, payment_method_data, payments,
-    router_response_types,
+    router_response_types, transformers::ForeignFrom,
 };
 #[cfg(feature = "v2")]
 use crate::{
@@ -125,6 +126,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub customer_document_details: Option<CustomerDocumentDetails>,
     // feature related data
     pub feature_data: Option<FeatureData>,
+    /// A connector-specific identifier representing the stored payment instrument
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -455,12 +458,37 @@ pub enum PaymentMethodToken {
     PazeDecrypt(Box<PazeDecryptedData>),
 }
 
+impl ForeignFrom<(Option<&PaymentMethodToken>, bool)> for WalletDecryptedToken {
+    fn foreign_from(
+        (from, should_save_walled_decrypted_token): (Option<&PaymentMethodToken>, bool),
+    ) -> Self {
+        if should_save_walled_decrypted_token {
+            match from {
+                Some(PaymentMethodToken::ApplePayDecrypt(_)) => Self::ApplePay,
+                Some(PaymentMethodToken::GooglePayDecrypt(_)) => Self::GooglePay,
+                Some(PaymentMethodToken::PazeDecrypt(_))
+                | Some(PaymentMethodToken::Token(_))
+                | None => Self::None,
+            }
+        } else {
+            Self::None
+        }
+    }
+}
 impl PaymentMethodToken {
     pub fn get_payment_method_token(&self) -> Option<Secret<String>> {
         match self {
             Self::Token(secret_token) => Some(secret_token.clone()),
             _ => None,
         }
+    }
+
+    pub fn is_apple_pay_decrypt(&self) -> bool {
+        matches!(self, Self::ApplePayDecrypt(_))
+    }
+
+    pub fn is_google_pay_decrypt(&self) -> bool {
+        matches!(self, Self::GooglePayDecrypt(_))
     }
 }
 
@@ -1184,7 +1212,8 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
+            | common_enums::IntentStatus::Review => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation
@@ -1229,9 +1258,11 @@ impl
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing => Some(MinorUnit::zero()),
+
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::RequiresConfirmation => None,
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::Review => None,
             // No amount has been captured yet
             common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
@@ -1430,7 +1461,8 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
+            | common_enums::IntentStatus::Review => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -1479,7 +1511,8 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
+            | common_enums::IntentStatus::Review => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -1768,7 +1801,8 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
+            | common_enums::IntentStatus::Review => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -1811,7 +1845,9 @@ impl
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing => Some(MinorUnit::zero()),
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::RequiresConfirmation => None,
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::Review => None,
+
             common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
                 Some(MinorUnit::zero())
@@ -2044,7 +2080,8 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
+            | common_enums::IntentStatus::Review => None,
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
             common_enums::IntentStatus::RequiresCapture
@@ -2076,7 +2113,8 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
+            | common_enums::IntentStatus::Review => None,
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
             common_enums::IntentStatus::RequiresCapture
@@ -2297,7 +2335,8 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
+            | common_enums::IntentStatus::Review => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -2338,7 +2377,8 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
+            | common_enums::IntentStatus::Review => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,

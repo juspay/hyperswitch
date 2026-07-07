@@ -1,6 +1,5 @@
 use api_models::{
-    payments as payment_types,
-    payments::{ApplePaySessionResponse, SessionToken},
+    payments::{self as payment_types, ApplePaySessionResponse, PaypalCaptureMethod, SessionToken},
     webhooks::IncomingWebhookEvent,
 };
 use common_enums::enums;
@@ -790,6 +789,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         )),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         authentication_data: None,
@@ -815,6 +815,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -847,6 +848,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: txn.legacy_id.clone(),
                         incremental_authorization_allowed: None,
                         authentication_data: None,
@@ -1008,6 +1010,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         )),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         authentication_data: None,
@@ -1033,6 +1036,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -1075,6 +1079,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         })),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         authentication_data: None,
@@ -1148,6 +1153,7 @@ impl<F>
                         )),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         authentication_data: None,
@@ -1220,6 +1226,7 @@ impl<F>
                         )),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         authentication_data: None,
@@ -1887,6 +1894,7 @@ impl
                                 delayed_session_token: false,
                                 sdk_next_action: api_models::payments::SdkNextAction {
                                     next_action: api_models::payments::NextActionCall::Confirm,
+                                    should_block_confirm: None,
                                 },
                                 connector_reference_id: None,
                                 connector_sdk_public_key: None,
@@ -1956,6 +1964,7 @@ impl
                                     connector: data.connector.clone(),
                                     sdk_next_action: payment_types::SdkNextAction {
                                         next_action: payment_types::NextActionCall::Confirm,
+                                        should_block_confirm: None,
                                     },
                                 },
                             ),
@@ -1977,6 +1986,7 @@ impl
                                 session_token: paypal_sdk_data.data.client_id,
                                 sdk_next_action: api_models::payments::SdkNextAction {
                                     next_action: api_models::payments::NextActionCall::Confirm,
+                                    should_block_confirm: None,
                                 },
                                 client_token: Some(
                                     res.data.create_client_token.client_token.clone().expose(),
@@ -1996,6 +2006,8 @@ impl
                                             )?,
                                     },
                                 ),
+                                currency: Some(data.request.currency),
+                                intent: data.request.capture_method.map(PaypalCaptureMethod::from),
                             },
                         ))
                     }
@@ -2112,6 +2124,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         authentication_data: None,
@@ -2318,6 +2331,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsRes
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         authentication_data: None,
@@ -2447,6 +2461,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResp
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         authentication_data: None,

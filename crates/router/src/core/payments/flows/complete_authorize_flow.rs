@@ -662,7 +662,7 @@ fn transform_redirection_response_for_authenticate_flow(
 > {
     match (connector, &response_data) {
         (
-            connector_enums::Connector::Cybersource,
+            connector_enums::Connector::Cybersource | connector_enums::Connector::Barclaycard,
             router_response_types::RedirectForm::Form {
                 endpoint,
                 method: _,
@@ -675,12 +675,21 @@ fn transform_redirection_response_for_authenticate_flow(
                 },
             )?;
             let step_up_url = form_fields.get("step_up_url").unwrap_or(endpoint).clone();
-            Ok(
-                router_response_types::RedirectForm::CybersourceConsumerAuth {
-                    access_token,
-                    step_up_url,
-                },
-            )
+            match connector {
+                connector_enums::Connector::Barclaycard => Ok(
+                    router_response_types::RedirectForm::BarclaycardConsumerAuth {
+                        access_token,
+                        step_up_url,
+                    },
+                ),
+                connector_enums::Connector::Cybersource => Ok(
+                    router_response_types::RedirectForm::CybersourceConsumerAuth {
+                        access_token,
+                        step_up_url,
+                    },
+                ),
+                _ => Ok(response_data),
+            }
         }
         _ => Ok(response_data),
     }
@@ -694,13 +703,14 @@ fn transform_response_for_authenticate_flow(
 > {
     match (connector, response_data.clone()) {
         (
-            connector_enums::Connector::Cybersource,
+            connector_enums::Connector::Cybersource | connector_enums::Connector::Barclaycard,
             router_response_types::PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
                 mandate_reference,
                 connector_metadata,
                 network_txn_id,
+                network_txn_link_id,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
                 authentication_data,
@@ -725,6 +735,7 @@ fn transform_response_for_authenticate_flow(
                     mandate_reference,
                     connector_metadata,
                     network_txn_id,
+                    network_txn_link_id,
                     connector_response_reference_id,
                     incremental_authorization_allowed,
                     authentication_data,
@@ -775,7 +786,7 @@ pub async fn call_unified_connector_service_authenticate(
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        processor,
+        processor.get_account().get_id(),
         router_data.connector.clone(),
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
@@ -888,7 +899,7 @@ pub async fn call_unified_connector_service_post_authenticate(
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        processor,
+        processor.get_account().get_id(),
         router_data.connector.clone(),
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)

@@ -39,6 +39,27 @@ pub async fn get_active_user_details(state: web::Data<AppState>, req: HttpReques
     .await
 }
 
+/// `POST /user/launch_sage` — mint a sage session for the Control Center
+/// user. Body is empty by design; identity is read from the verified
+/// `AuthToken`. Sage performs the authoritative merchant-access gate.
+#[cfg(feature = "olap")]
+pub async fn launch_sage(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
+    let flow = Flow::LaunchSage;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &http_req,
+        (),
+        |state, user: auth::UserFromToken, _, _| user_core::launch_sage::launch_sage(state, user),
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "email")]
 pub async fn user_signup_with_merchant_id(
     state: web::Data<AppState>,
@@ -1109,9 +1130,11 @@ pub async fn clone_connector(
         state.clone(),
         &req,
         json_payload.into_inner(),
-        |state, _: auth::UserFromToken, req, _| user_core::clone_connector(state, req),
+        |state, user_from_token: auth::UserFromToken, req, _| {
+            user_core::clone_connector(state, user_from_token, req)
+        },
         &auth::JWTAuth {
-            permission: Permission::MerchantInternalConnectorWrite,
+            permission: Permission::MerchantCloneConnectorWrite,
             allow_connected: true,
             allow_platform: true,
         },
@@ -1256,6 +1279,27 @@ pub async fn authorize_token(
         json_payload.into_inner(),
         |state, _: (), payload, _| user_core::authorize_token(state, payload),
         &auth::InternalMerchantIdProfileIdAuth(auth::NoAuth),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Retrieve merchant details for the user (product_type, merchant_account_type).
+pub async fn get_user_merchant_details(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::GetUserMerchantDetails;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| user_core::get_user_merchant_details(state, user),
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

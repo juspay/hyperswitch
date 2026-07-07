@@ -37,6 +37,7 @@ pub struct Mandate {
     pub updated_by: Option<String>,
     // This is the extended version of customer user agent that can store string upto 2048 characters unlike customer user agent that can store 255 characters at max
     pub customer_user_agent_extended: Option<String>,
+    pub network_transaction_link_id: Option<String>,
 }
 
 #[derive(
@@ -76,6 +77,7 @@ pub struct MandateNew {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub updated_by: Option<String>,
     pub customer_user_agent_extended: Option<String>,
+    pub network_transaction_link_id: Option<String>,
 }
 
 impl Mandate {
@@ -146,6 +148,7 @@ pub struct SingleUseMandate {
     serde::Deserialize,
 )]
 #[diesel(table_name = mandate)]
+#[router_derive::apply_changeset(target = Mandate)]
 pub struct MandateUpdateInternal {
     mandate_status: Option<storage_enums::MandateStatus>,
     amount_captured: Option<i64>,
@@ -199,31 +202,6 @@ impl From<MandateUpdate> for MandateUpdateInternal {
     }
 }
 
-impl MandateUpdateInternal {
-    pub fn apply_changeset(self, source: Mandate) -> Mandate {
-        let Self {
-            mandate_status,
-            amount_captured,
-            connector_mandate_ids,
-            connector_mandate_id,
-            payment_method_id,
-            original_payment_id,
-            updated_by,
-        } = self;
-
-        Mandate {
-            mandate_status: mandate_status.unwrap_or(source.mandate_status),
-            amount_captured: amount_captured.map_or(source.amount_captured, Some),
-            connector_mandate_ids: connector_mandate_ids.map_or(source.connector_mandate_ids, Some),
-            connector_mandate_id: connector_mandate_id.map_or(source.connector_mandate_id, Some),
-            payment_method_id: payment_method_id.unwrap_or(source.payment_method_id),
-            original_payment_id: original_payment_id.map_or(source.original_payment_id, Some),
-            updated_by: updated_by.map_or(source.updated_by, Some),
-            ..source
-        }
-    }
-}
-
 impl From<&MandateNew> for Mandate {
     fn from(mandate_new: &MandateNew) -> Self {
         Self {
@@ -255,6 +233,7 @@ impl From<&MandateNew> for Mandate {
             updated_by: mandate_new.updated_by.clone(),
             // Using customer_user_agent as a fallback
             customer_user_agent_extended: mandate_new.get_customer_user_agent_extended(),
+            network_transaction_link_id: mandate_new.network_transaction_link_id.clone(),
         }
     }
 }

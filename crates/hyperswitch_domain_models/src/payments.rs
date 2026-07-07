@@ -2,7 +2,7 @@
 use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
-use api_models::payments::{SessionToken, VaultSessionDetails};
+use api_models::payments::{SessionToken, VaultDetails, VaultSessionDetails};
 use api_models::{customers::CustomerDocumentDetails, payments::ConnectorMetadata};
 use common_types::primitive_wrappers;
 #[cfg(feature = "v1")]
@@ -40,7 +40,10 @@ pub mod split_payments;
 
 #[cfg(feature = "v1")]
 use api_models::{
-    payment_methods::{PaymentMethodListInstallmentOption, PaymentMethodListIntentData},
+    payment_methods::{
+        PaymentMethodListInstallmentOption, PaymentMethodListIntentData,
+        PaymentMethodListIntentDataInput,
+    },
     payments::Address,
 };
 use common_enums as storage_enums;
@@ -54,7 +57,7 @@ use self::{payment_attempt::PaymentAttempt, payment_intent::CustomerData};
 use crate::ext_traits::OptionExt;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, business_profile, customer, errors, merchant_connector_account,
+    address::Address, business_profile, customer, errors, mandates, merchant_connector_account,
     merchant_connector_account::MerchantConnectorAccountTypeDetails, payment_address,
     payment_method_data, payment_methods, platform, revenue_recovery, routing,
     ApiModelToDieselModelConvertor,
@@ -96,7 +99,7 @@ pub struct PaymentIntent {
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub allowed_payment_method_types: Option<Value>,
     pub connector_metadata: Option<Value>,
-    pub feature_metadata: Option<Value>,
+    pub feature_metadata: Option<pii::SecretSerdeValue>,
     pub attempt_count: i16,
     pub profile_id: Option<id_type::ProfileId>,
     pub payment_link_id: Option<String>,
@@ -150,6 +153,15 @@ pub struct PaymentIntent {
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SurchargeMode {
+    Internal,
+    External,
 }
 
 impl PaymentIntent {
@@ -161,6 +173,37 @@ impl PaymentIntent {
     #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &id_type::GlobalPaymentId {
         &self.id
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_surcharge_mode(
+        &self,
+        profile: &crate::business_profile::Profile,
+    ) -> Option<SurchargeMode> {
+        if self.surcharge_applicable.unwrap_or(false) {
+            Some(SurchargeMode::Internal)
+        } else if self.external_surcharge_applicable.unwrap_or(false)
+            || self.is_mit_with_external_surcharge_enabled(profile)
+        {
+            // External covers two paths: a CIT where /eligibility already cached the surcharge,
+            // and an MIT off-session payment that needs to compute it inline.
+            Some(SurchargeMode::External)
+        } else {
+            None
+        }
+    }
+
+    #[cfg(feature = "v1")]
+    fn is_mit_with_external_surcharge_enabled(
+        &self,
+        profile: &crate::business_profile::Profile,
+    ) -> bool {
+        self.off_session == Some(true)
+            && profile
+                .surcharge_connector_details
+                .as_ref()
+                .and_then(|details| details.surcharge_connector_id.as_ref())
+                .is_some()
     }
 
     #[cfg(feature = "v2")]
@@ -252,6 +295,22 @@ impl PaymentIntent {
         } else {
             None
         }
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn is_post_capture_void_pending(&self) -> bool {
+        self.state_metadata
+            .as_ref()
+            .map(|state_metadata| state_metadata.is_post_capture_void_pending())
+            .unwrap_or(false)
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn is_post_capture_void_applied(&self) -> bool {
+        self.state_metadata
+            .as_ref()
+            .map(|state_metadata| state_metadata.is_post_capture_void_successful())
+            .unwrap_or(false)
     }
 
     #[cfg(feature = "v2")]
@@ -476,9 +535,23 @@ impl PaymentIntent {
         self,
         net_amount: MinorUnit,
         show_installments: bool,
+        extra: PaymentMethodListIntentDataInput,
+        business_profile: &crate::business_profile::Profile,
+        customer: Option<&crate::customer::Customer>,
     ) -> CustomResult<PaymentMethodListIntentData, errors::api_error_response::ApiErrorResponse>
     {
-        let billing: Option<Address> = self
+        let request_ext_3ds = self.get_request_external_three_ds_authentication();
+        let is_guest = self.is_guest_customer();
+        let is_tax = business_profile.get_is_tax_calculation_enabled(&self);
+
+        // Populating the email directly, for the cases where we have customer details stored in
+        // Payment Intent
+        let customer_details_from_pi = self
+            .get_intent_customer_details()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse customer_details")?;
+
+        let mut billing: Option<Address> = self
             .billing_details
             .map(|b| b.deserialize_inner_value(|value| value.parse_value("Address")))
             .transpose()
@@ -493,6 +566,46 @@ impl PaymentIntent {
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse shipping address")?
             .map(|enc| enc.into_inner());
+
+        if let Some(billing_address) = billing.as_mut() {
+            billing_address.email = billing_address.email.clone().or_else(|| {
+                customer_details_from_pi
+                    .as_ref()
+                    .and_then(|customer_details| customer_details.email.clone())
+                    .or_else(|| {
+                        customer.and_then(|cust| {
+                            cust.email
+                                .as_ref()
+                                .map(|email| pii::Email::from(email.clone()))
+                        })
+                    })
+            });
+        } else {
+            billing = Some(Address {
+                email: customer_details_from_pi
+                    .as_ref()
+                    .and_then(|customer_details| customer_details.email.clone())
+                    .or_else(|| {
+                        customer.and_then(|cust| {
+                            cust.email
+                                .as_ref()
+                                .map(|email| pii::Email::from(email.clone()))
+                        })
+                    }),
+                ..Default::default()
+            });
+        }
+
+        let email = customer_details_from_pi
+            .as_ref()
+            .and_then(|customer_details| customer_details.email.clone())
+            .or_else(|| {
+                customer.and_then(|cust| {
+                    cust.email
+                        .as_ref()
+                        .map(|email| pii::Email::from(email.clone()))
+                })
+            });
 
         let installment_options = match show_installments {
             false => None,
@@ -532,6 +645,7 @@ impl PaymentIntent {
             setup_future_usage: self.setup_future_usage,
             billing,
             shipping,
+            email,
             metadata: self.metadata.map(Secret::new),
             order_details: self.order_details,
             created: Some(self.created_at),
@@ -540,6 +654,13 @@ impl PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             attempt_count: self.attempt_count,
             installment_options,
+            merchant_name: extra.merchant_name,
+            mandate_payment: extra.mandate_payment,
+            payment_type: extra.payment_type,
+            request_external_three_ds_authentication: Some(request_ext_3ds),
+            is_tax_calculation_enabled: Some(is_tax),
+            is_guest_customer: Some(is_guest),
+            capture_method: extra.capture_method,
         })
     }
 
@@ -547,6 +668,20 @@ impl PaymentIntent {
     pub fn is_setup_mandate(&self) -> bool {
         self.amount == MinorUnit::zero()
             && self.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+    }
+
+    #[cfg(feature = "v1")]
+    /// Returns whether external 3DS authentication was requested, defaulting to `false`.
+    pub fn get_request_external_three_ds_authentication(&self) -> bool {
+        self.request_external_three_ds_authentication
+            .unwrap_or(false)
+    }
+
+    #[cfg(feature = "v1")]
+    /// Returns `true` when there is no saved customer on this payment (guest checkout).
+    /// Default is `true` — no customer means guest.
+    pub fn is_guest_customer(&self) -> bool {
+        self.customer_id.is_none()
     }
 }
 
@@ -755,7 +890,7 @@ impl AmountDetails {
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToEncryption)]
 pub struct PaymentIntent {
     /// The global identifier for the payment intent. This is generated by the system.
-    /// The format of the global id is `{cell_id:5}_pay_{time_ordered_uuid:32}`.
+    /// The format of the global id is `{cell_id:2}_pay_{time_ordered_uuid:32}`.
     pub id: id_type::GlobalPaymentId,
     /// The identifier for the merchant. This is automatically derived from the api key used to create the payment.
     pub merchant_id: id_type::MerchantId,
@@ -802,6 +937,7 @@ pub struct PaymentIntent {
     pub attempt_count: i16,
     /// The profile id for the payment.
     pub profile_id: id_type::ProfileId,
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
     /// The payment link id for the payment. This is generated only if `enable_payment_link` is set to true.
     pub payment_link_id: Option<String>,
     /// This Denotes the action(approve or reject) taken by merchant in case of manual review.
@@ -869,6 +1005,9 @@ pub struct PaymentIntent {
     pub is_payment_id_from_merchant: Option<bool>,
     /// Denotes whether merchant requested for partial authorization to be enabled for this payment.
     pub enable_partial_authorization: primitive_wrappers::EnablePartialAuthorizationBool,
+    /// Denotes the surcharge strategy for this payment.
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -1076,6 +1215,9 @@ impl PaymentIntent {
             enable_partial_authorization: request
                 .enable_partial_authorization
                 .unwrap_or(false.into()),
+            profile_acquirer_id: None,
+            external_surcharge_strategy: None,
+            external_surcharge_applicable: None,
         })
     }
 
@@ -1200,7 +1342,8 @@ impl PaymentIntent {
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Conflicted => false,
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Review => false,
         }
     }
 }
@@ -1270,7 +1413,7 @@ where
     pub payment_intent: PaymentIntent,
     pub sessions_token: Vec<SessionToken>,
     pub client_secret: Option<Secret<String>>,
-    pub vault_session_details: Option<VaultSessionDetails>,
+    pub vault_session_details: Option<VaultDetails>,
     pub connector_customer_id: Option<String>,
 }
 
@@ -1296,7 +1439,7 @@ where
     pub payment_attempt: PaymentAttempt,
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
     pub payment_address: payment_address::PaymentAddress,
-    pub mandate_data: Option<api_models::payments::MandateIds>,
+    pub mandate_data: Option<mandates::MandateIds>,
     pub payment_method: Option<payment_methods::PaymentMethod>,
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
     pub external_vault_pmd: Option<payment_method_data::ExternalVaultPaymentMethodData>,
@@ -1545,6 +1688,9 @@ where
             pix_automatico_additional_details: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.pix_automatico_additional_details.clone()),
+            finix_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.finix_additional_details.clone()),
         }))
     }
 }

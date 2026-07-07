@@ -74,7 +74,6 @@ impl VerifyConnectorData {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
-            rrn: None,
             feature_metadata: None,
             installment_details: None,
             connector_intent_metadata: None,
@@ -149,6 +148,7 @@ impl VerifyConnectorData {
             authorized_amount: None,
             customer_document_details: None,
             feature_data: None,
+            sender_payment_instrument_id: None,
         }
     }
 }

@@ -129,7 +129,7 @@ impl NetworkTokenWebhookResponseExt for pm_types::PanMetadataUpdateBody {
         platform: &domain::Platform,
     ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
         let decrypted_data = self.decrypt_payment_method_data(payment_method)?;
-        handle_metadata_update(
+        Box::pin(handle_metadata_update(
             state,
             &self.card,
             payment_method
@@ -142,7 +142,7 @@ impl NetworkTokenWebhookResponseExt for pm_types::PanMetadataUpdateBody {
             platform,
             decrypted_data,
             true,
-        )
+        ))
         .await
     }
 }
@@ -180,7 +180,7 @@ impl NetworkTokenWebhookResponseExt for pm_types::NetworkTokenMetaDataUpdateBody
         platform: &domain::Platform,
     ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
         let decrypted_data = self.decrypt_payment_method_data(payment_method)?;
-        handle_metadata_update(
+        Box::pin(handle_metadata_update(
             state,
             &self.token,
             payment_method
@@ -193,7 +193,7 @@ impl NetworkTokenWebhookResponseExt for pm_types::NetworkTokenMetaDataUpdateBody
             platform,
             decrypted_data,
             true,
-        )
+        ))
         .await
     }
 }

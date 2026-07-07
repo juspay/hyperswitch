@@ -3,7 +3,7 @@ use common_enums;
 use common_types::payments as common_payments_types;
 use hyperswitch_connectors::constants as connector_consts;
 use hyperswitch_domain_models::{
-    payments as domain_payments, router_data,
+    mandates, payments as domain_payments, router_data,
     router_data_v2::{flow_common_types, PaymentFlowData},
     router_flow_types, router_request_types, router_response_types,
 };
@@ -112,7 +112,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: domain_payments::HeaderPayload,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
         gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
@@ -141,7 +141,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             &self,
             call_connector_action.clone(),
             connector_request,
-            None,
+            return_raw_connector_response,
             gateway_context,
         )
         .await
@@ -610,11 +610,11 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
         self.setup_future_usage
     }
 
-    fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         self.mandate_id.as_ref()
     }
 
-    fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
+    fn set_mandate_id(&mut self, new_mandate_id: Option<mandates::MandateIds>) {
         self.mandate_id = new_mandate_id;
     }
 
@@ -622,9 +622,7 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
         self.payment_method_data.clone()
     }
 
-    fn get_setup_mandate_details(
-        &self,
-    ) -> Option<&hyperswitch_domain_models::mandates::MandateData> {
+    fn get_setup_mandate_details(&self) -> Option<&mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
     fn get_customer_acceptance(&self) -> Option<common_payments_types::CustomerAcceptance> {

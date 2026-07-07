@@ -80,28 +80,55 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
 }
 
 #[cfg(feature = "v1")]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ConnectorCustomerAction<'a> {
+    CreateCustomer,
+    StoreGeneratedCustomerId(String),
+    UseExistingCustomer(Option<&'a str>),
+}
+
+#[cfg(feature = "v1")]
 pub fn should_call_connector_create_customer<'a>(
     connector: &api::ConnectorData,
     connector_customer_map: Option<&'a common_utils::pii::SecretSerdeValue>,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     connector_label: &str,
-) -> (bool, Option<&'a str>) {
+) -> ConnectorCustomerAction<'a> {
     // Check if create customer is required for the connector
+    let mca_string = payment_attempt
+        .merchant_connector_id
+        .clone()
+        .map(|mca_id| mca_id.get_string_repr().to_string())
+        .unwrap_or_else(|| connector_label.to_string());
 
     let connector_needs_customer = connector
         .connector
         .should_call_connector_customer(payment_attempt);
+
     let connector_customer_details = connector_customer_map
-        .and_then(|connector_customer_map| connector_customer_map.peek().get(connector_label))
+        .and_then(|connector_customer_map| connector_customer_map.peek().get(mca_string.as_str()))
         .and_then(|connector_customer| connector_customer.as_str());
 
-    if connector_needs_customer {
-        let should_call_connector = connector_customer_details.is_none();
-        (should_call_connector, connector_customer_details)
-    } else {
-        // Populates connector_customer_id if it is present after data migration
-        // For connector which does not have create connector customer flow
-        (false, connector_customer_details)
+    match connector_needs_customer {
+        hyperswitch_interfaces::api::ConnectorCustomerAction::CallConnectorCustomer => {
+            match connector_customer_details {
+                Some(existing_customer_id) => {
+                    ConnectorCustomerAction::UseExistingCustomer(Some(existing_customer_id))
+                }
+                None => ConnectorCustomerAction::CreateCustomer,
+            }
+        }
+        hyperswitch_interfaces::api::ConnectorCustomerAction::NoAction => {
+            ConnectorCustomerAction::UseExistingCustomer(connector_customer_details)
+        }
+        hyperswitch_interfaces::api::ConnectorCustomerAction::GeneratedCustomerId(customer_id) => {
+            match connector_customer_details {
+                Some(existing_customer_id) => {
+                    ConnectorCustomerAction::UseExistingCustomer(Some(existing_customer_id))
+                }
+                None => ConnectorCustomerAction::StoreGeneratedCustomerId(customer_id),
+            }
+        }
     }
 }
 
@@ -116,14 +143,15 @@ pub fn should_call_connector_create_customer<'a>(
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(_) => {
             let connector_needs_customer = connector.connector.should_call_connector_customer();
 
-            if connector_needs_customer {
-                let connector_customer_details = customer
-                    .as_ref()
-                    .and_then(|cust| cust.get_connector_customer_id(merchant_connector_account));
-                let should_call_connector = connector_customer_details.is_none();
-                (should_call_connector, connector_customer_details)
-            } else {
-                (false, None)
+            match connector_needs_customer {
+                hyperswitch_interfaces::api::ConnectorCustomerAction::CallConnectorCustomer => {
+                    let connector_customer_details = customer.as_ref().and_then(|cust| {
+                        cust.get_connector_customer_id(merchant_connector_account)
+                    });
+                    let should_call_connector = connector_customer_details.is_none();
+                    (should_call_connector, connector_customer_details)
+                }
+                _ => (false, None),
             }
         }
 

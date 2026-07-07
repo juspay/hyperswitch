@@ -1,6 +1,8 @@
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 use std::collections::HashMap;
 
+#[cfg(feature = "v1")]
+mod migrate;
 use ::payment_methods::{
     controller::PaymentMethodsController,
     core::{migration, migration::payment_methods::migrate_payment_method},
@@ -15,6 +17,8 @@ use hyperswitch_domain_models::{
     bulk_tokenization::CardNetworkTokenizeRequest, merchant_key_store::MerchantKeyStore,
     payment_methods::PaymentMethodCustomerMigrate, transformers::ForeignTryFrom,
 };
+#[cfg(feature = "v1")]
+pub use migrate::modular_migrate_payment_methods;
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
@@ -440,9 +444,12 @@ pub async fn migrate_payment_methods(
                 );
 
                 let mut mca_cache = HashMap::new();
+                // pass form-level mca id(s) so connector_customer_id is stored even when the
+                // CSV has no merchant_connector_id(s) column
                 let customers = Vec::<PaymentMethodCustomerMigrate>::foreign_try_from((
                     &req,
                     merchant_id.clone(),
+                    merchant_connector_ids.as_ref(),
                 ))
                 .map_err(|e| errors::ApiErrorResponse::InvalidRequestData {
                     message: e.to_string(),
@@ -817,7 +824,8 @@ pub async fn list_customer_payment_method_api_client(
         payload,
         |state, auth: auth::AuthenticationData, mut req, _| {
             Box::pin(async move {
-                validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                // TODO: Enable it back once combined PML API is provisioned
+                // validate_legacy_endpoint_access(&state, &auth.platform).await?;
                 if let Some(client_secret) = auth.client_secret {
                     req.client_secret = Some(client_secret);
                 }
@@ -909,6 +917,49 @@ pub async fn list_customer_payment_method_api(
             )
         },
         &*auth_type,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsRetrieveOlap))]
+pub async fn payment_method_retrieve_olap_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsRetrieveOlap;
+    let payload = web::Json(PaymentMethodId {
+        payment_method_id: path.into_inner(),
+    })
+    .into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, pm, _| {
+            payment_methods_routes::retrieve_payment_method_olap(
+                state,
+                pm,
+                auth.profile,
+                auth.platform,
+            )
+        },
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerRead,
+                allow_connected: true,
+                allow_platform: true,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1276,7 +1327,8 @@ pub async fn default_payment_method_set_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
-            validate_legacy_endpoint_access(&state, &auth.platform).await?;
+            // TODO: Enable it back once combined PML API is provisioned
+            // validate_legacy_endpoint_access(&state, &auth.platform).await?;
             cards::PmCards {
                 state: &state,
                 provider: auth.platform.get_provider(),
@@ -1290,6 +1342,52 @@ pub async fn default_payment_method_set_api(
             .await
         },
         &*auth_type,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::DefaultPaymentMethodsSet))]
+pub async fn default_payment_method_set_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<payment_methods::DefaultPaymentMethod>,
+) -> HttpResponse {
+    let flow = Flow::DefaultPaymentMethodsSet;
+    let payload = path.into_inner();
+    let customer_id = id_type::GlobalCustomerId::new_unchecked(payload.customer_id.clone());
+
+    let auth = auth::V2ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, default_payment_method, _| {
+            let customer_id = customer_id.clone();
+            let payment_method_id = id_type::GlobalPaymentMethodId::new_unchecked(
+                default_payment_method.payment_method_id.clone(),
+            );
+            async move {
+                cards::PmCards {
+                    state: &state,
+                    provider: auth.platform.get_provider(),
+                }
+                .set_default_payment_method(
+                    auth.platform.get_provider().get_account().get_id(),
+                    &customer_id,
+                    &payment_method_id,
+                    auth.platform.get_initiator(),
+                )
+                .await
+            }
+        },
+        &auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1575,24 +1673,34 @@ pub async fn payment_methods_session_create(
     let flow = Flow::PaymentMethodSessionCreate;
     let payload = json_payload.into_inner();
 
+    let api_auth = auth::V2ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
+    };
+    let (auth_type, _api_key_type) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| async move {
-            payment_methods_routes::payment_methods_session_create(
+            Box::pin(payment_methods_routes::payment_methods_session_create(
                 state,
                 auth.platform,
                 auth.profile,
                 request,
-            )
+            ))
             .await
         },
-        &auth::V2ApiKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: true,
-        },
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1978,4 +2086,63 @@ pub async fn payment_method_get_token_details_api(
         api_locking::LockAction::NotApplicable,
     ))
     .await
+}
+
+#[cfg(feature = "v1")]
+/// List payment methods for a Payment (client SDK endpoint)
+///
+/// Returns a unified response combining merchant-enabled payment methods and
+/// customer saved payment methods, filtered via Euclid constraint graph and
+/// session flow routing.
+///
+/// Supported client auth:
+/// - SDK auth via `Authorization`.
+/// - Publishable-key auth via `api-key: pk_...` and `client_secret` query param.
+///
+/// Merchant secret-key auth is intentionally not supported for this endpoint.
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
+pub async fn list_payment_methods_for_payments_client(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::PaymentId>,
+    query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsList;
+    let payment_id = path.into_inner();
+    let payload = query_payload.into_inner();
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
+    };
+
+    match auth::check_sdk_auth_or_client_secret_auth(req.headers(), &payload, api_auth) {
+        Ok((auth_type, _auth_flow)) => {
+            Box::pin(api::server_wrap(
+                flow,
+                state,
+                &req,
+                payload,
+                move |state, auth: auth::AuthenticationData, mut payload, _| {
+                    let payment_id = payment_id.clone();
+                    async move {
+                        if let Some(client_secret) = auth.client_secret {
+                            payload.client_secret = Some(client_secret);
+                        }
+
+                        Box::pin(payment_methods_routes::client::list_payment_methods_client(
+                            state,
+                            auth.platform,
+                            payment_id,
+                            payload.client_secret,
+                        ))
+                        .await
+                    }
+                },
+                &*auth_type,
+                api_locking::LockAction::NotApplicable,
+            ))
+            .await
+        }
+        Err(err) => api::log_and_return_error_response(err),
+    }
 }

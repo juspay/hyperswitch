@@ -3,8 +3,12 @@ use common_utils::id_type;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccountUpdate,
-    router_request_types::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
-    router_response_types::merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+    router_request_types::merchant_connector_webhook_management::{
+        ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+    },
+    router_response_types::merchant_connector_webhook_management::{
+        ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+    },
 };
 use transformers as configure_connector_webhook_flow;
 
@@ -19,7 +23,7 @@ use crate::{
         self,
         api::{self as service_api},
     },
-    types::api,
+    types::{api, domain},
 };
 
 #[cfg(feature = "v1")]
@@ -65,20 +69,20 @@ pub async fn register_connector_webhook(
     )
     .await?;
 
-    let connector_integration: services::BoxedConnectorWebhookConfigurationInterface<
+    let register_integration: services::BoxedConnectorWebhookConfigurationInterface<
         api::ConnectorWebhookRegister,
         ConnectorWebhookRegisterRequest,
         ConnectorWebhookRegisterResponse,
     > = connector_data.connector.get_connector_integration();
 
-    let router_data =
+    let register_router_data =
         configure_connector_webhook_flow::construct_webhook_register_router_data(&state, &mca, req)
             .await?;
 
-    let response = services::execute_connector_processing_step(
+    let register_router_data = services::execute_connector_processing_step(
         &state,
-        connector_integration,
-        &router_data,
+        register_integration,
+        &register_router_data,
         common_enums::CallConnectorAction::Trigger,
         None,
         None,
@@ -87,7 +91,7 @@ pub async fn register_connector_webhook(
     .to_webhook_configuration_failed_response()
     .attach_printable("Failed while calling register webhook connector api")?;
 
-    let register_webhook_response = response.response.as_ref().map_err(|err| {
+    let register_webhook_response = register_router_data.response.as_ref().map_err(|err| {
         errors::ApiErrorResponse::ExternalConnectorError {
             code: err.code.clone(),
             message: err.message.clone(),
@@ -97,22 +101,49 @@ pub async fn register_connector_webhook(
         }
     })?;
 
-    let connector_webhook_registration_details =
+    // Run the GenerateSecret flow only when the connector requires it (e.g. Adyen) AND the
+    // register step returned a connector_webhook_id to operate on. A failure here does not
+    // fail registration — register success is still surfaced and the secret-generation error
+    // is reported alongside it in the response.
+    let generate_secret_response = if let Some(connector_webhook_id) = connector_data
+        .connector
+        .requires_webhook_secret_generation()
+        .then(|| register_webhook_response.connector_webhook_id.clone())
+        .flatten()
+    {
+        Some(
+            generate_connector_webhook_secret(&state, &connector_data, &mca, connector_webhook_id)
+                .await?,
+        )
+    } else {
+        None
+    };
+
+    let generated_secret = generate_secret_response
+        .as_ref()
+        .and_then(|resp| resp.secret.clone());
+
+    let mca_update =
         configure_connector_webhook_flow::construct_connector_webhook_registration_details(
             register_webhook_response,
             &mca,
-            &router_data.request,
+            &register_router_data.request,
+            generated_secret,
         )?;
 
     let should_update_db = matches!(
-        connector_webhook_registration_details,
+        mca_update,
         MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
-            connector_webhook_registration_details: Some(_)
+            connector_webhook_registration_details: Some(_),
+            ..
+        } | MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+            connector_webhook_details: Some(_),
+            ..
         }
     );
 
     if should_update_db {
-        db.update_merchant_connector_account(mca.clone(), connector_webhook_registration_details.into(), &key_store)
+        db.update_merchant_connector_account(mca.clone(), mca_update.into(), &key_store)
             .await
             .change_context(
                 errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
@@ -130,10 +161,59 @@ pub async fn register_connector_webhook(
     let response =
         configure_connector_webhook_flow::construct_connector_webhook_registration_response(
             register_webhook_response,
-            &router_data.request,
+            &register_router_data.request,
+            generate_secret_response.as_ref(),
         )?;
 
     Ok(service_api::ApplicationResponse::Json(response))
+}
+
+/// Runs the GenerateSecret connector call. Returns the success payload or a synthesized failure
+/// payload when the connector call itself returned a non-network error. Callers MUST check
+/// [`requires_webhook_secret_generation`] and ensure a `connector_webhook_id` is available
+/// before invoking this.
+#[cfg(feature = "v1")]
+async fn generate_connector_webhook_secret(
+    state: &SessionState,
+    connector_data: &api::ConnectorData,
+    mca: &domain::MerchantConnectorAccount,
+    connector_webhook_id: String,
+) -> errors::RouterResult<ConnectorWebhookGenerateSecretResponse> {
+    let generate_secret_integration: services::BoxedConnectorWebhookConfigurationInterface<
+        api::ConnectorWebhookGenerateSecret,
+        ConnectorWebhookGenerateSecretRequest,
+        ConnectorWebhookGenerateSecretResponse,
+    > = connector_data.connector.get_connector_integration();
+
+    let generate_secret_router_data =
+        configure_connector_webhook_flow::construct_generate_secret_router_data(
+            state,
+            mca,
+            connector_webhook_id,
+        )
+        .await?;
+
+    let generate_secret_router_data = services::execute_connector_processing_step(
+        state,
+        generate_secret_integration,
+        &generate_secret_router_data,
+        common_enums::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await
+    .to_webhook_configuration_failed_response()
+    .attach_printable("Failed while calling generate secret connector api")?;
+
+    Ok(match generate_secret_router_data.response {
+        Ok(success) => success,
+        Err(err) => ConnectorWebhookGenerateSecretResponse {
+            secret: None,
+            status: common_enums::WebhookSecretGenerationStatus::Failure,
+            error_code: Some(err.code),
+            error_message: Some(err.message),
+        },
+    })
 }
 
 #[cfg(feature = "v1")]

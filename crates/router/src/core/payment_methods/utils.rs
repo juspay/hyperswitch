@@ -12,8 +12,11 @@ use common_utils::ext_traits::{OptionExt, StringExt};
 use error_stack::ResultExt;
 use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
+use hyperswitch_domain_models::platform::ProviderMerchantId;
 use hyperswitch_masking::ExposeInterface;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
+#[cfg(feature = "v1")]
+use router_env::logger;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 
 use crate::{configs::settings, core::configs::dimension_state, routes::SessionState};
@@ -825,25 +828,109 @@ pub async fn get_organization_eligibility_config_for_pm_modular_service(
         .await
 }
 
+pub async fn get_should_perform_sdk_vaulting(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithOrgId,
+) -> bool {
+    dimensions
+        .get_should_perform_sdk_vaulting(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await
+}
+
+pub async fn get_should_schedule_modular_forward_compat(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+) -> bool {
+    dimensions
+        .get_should_schedule_modular_forward_compat(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
+pub async fn get_should_schedule_modular_backward_compat(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+) -> bool {
+    dimensions
+        .get_should_schedule_modular_backward_compat(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
+pub async fn get_should_trigger_backwards_compatibility_inline(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+) -> bool {
+    dimensions
+        .get_should_trigger_backwards_compatibility_inline(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
+pub async fn get_should_trigger_fingerprint_migration(
+    state: &SessionState,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+    provider_merchant_id: ProviderMerchantId,
+) -> bool {
+    let dimensions =
+        dimension_state::Dimensions::new().with_provider_merchant_id(provider_merchant_id);
+
+    let should_trigger_fingerprint_migration = dimensions
+        .get_should_trigger_fingerprint_migration(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await;
+
+    logger::info!(
+        "should_trigger_fingerprint_migration in get_wallet_from_hs_locker: {}",
+        should_trigger_fingerprint_migration
+    );
+
+    should_trigger_fingerprint_migration
+}
+
 pub async fn get_sdk_next_action_for_payment_method_list(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
+    has_surcharge_processor: bool,
 ) -> api_models::payments::SdkNextAction {
-    let should_perform_eligibility_check = dimensions
+    let should_perform_eligibility = dimensions
         .get_should_perform_eligibility(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
             customer_id,
         )
         .await;
-    let next_action_call = if should_perform_eligibility_check {
-        api_models::payments::NextActionCall::EligibilityCheck
+
+    if should_perform_eligibility {
+        api_models::payments::SdkNextAction {
+            next_action: api_models::payments::NextActionCall::EligibilityCheck,
+            should_block_confirm: Some(has_surcharge_processor),
+        }
     } else {
-        api_models::payments::NextActionCall::Confirm
-    };
-    api_models::payments::SdkNextAction {
-        next_action: next_action_call,
+        api_models::payments::SdkNextAction {
+            next_action: api_models::payments::NextActionCall::Confirm,
+            should_block_confirm: Some(false),
+        }
     }
 }
 

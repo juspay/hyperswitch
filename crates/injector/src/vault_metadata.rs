@@ -297,19 +297,20 @@ mod tests {
     use std::collections::HashMap;
 
     use base64::Engine;
-    use common_utils::pii::SecretSerdeValue;
 
     use super::*;
-    use crate::types::{HttpMethod, InjectorRequest, TokenData, VaultConnectors};
+    use crate::types::HttpMethod;
 
     #[test]
     fn test_vault_metadata_processing() {
-        // Create test VGS metadata with base64 encoded certificate
+        // Create test VGS metadata with a PEM-format certificate
         let vgs_metadata = VgsMetadata {
             proxy_url: "https://vgs-proxy.example.com:8443"
                 .parse()
                 .expect("Valid test URL"),
-            certificate: Secret::new("cert".to_string()),
+            certificate: Secret::new(
+                "-----BEGIN CERTIFICATE-----\nMIIBtest\n-----END CERTIFICATE-----".to_string(),
+            ),
         };
 
         let metadata = ExternalVaultProxyMetadata::VgsMetadata(vgs_metadata);
@@ -334,31 +335,26 @@ mod tests {
             Secret::new(base64_metadata),
         );
 
-        // Test the amazing automatic processing with the unified API!
-        let injector_request = InjectorRequest::new(
-            "https://api.example.com/v1/payments".to_string(),
+        // Test vault metadata extraction directly on ConnectionConfig
+        let mut connection_config = ConnectionConfig::new(
+            Url::parse("https://api.example.com/v1/payments").unwrap(),
             HttpMethod::POST,
-            "amount={{$amount}}&currency={{$currency}}".to_string(),
-            TokenData {
-                vault_connector: VaultConnectors::VGS,
-                specific_token_data: SecretSerdeValue::new(serde_json::json!({
-                    "amount": "1000",
-                    "currency": "USD"
-                })),
-            },
-            Some(headers),
-            None, // No fallback proxy needed - vault metadata provides it
-            None, // No fallback client cert
-            None, // No fallback client key
-            None, // No fallback CA cert
+        );
+        connection_config.headers = headers;
+
+        // Extract and apply vault metadata
+        let result =
+            connection_config.extract_and_apply_vault_metadata(&connection_config.headers.clone());
+        assert!(
+            result.is_ok(),
+            "Vault metadata extraction should succeed: {result:?}"
         );
 
-        // Verify vault metadata was automatically applied!
-        assert!(injector_request.connection_config.proxy_url.is_some());
-        assert!(injector_request.connection_config.ca_cert.is_some());
+        // Verify vault metadata was applied to connection config
+        assert!(connection_config.proxy_url.is_some());
+        assert!(connection_config.ca_cert.is_some());
         assert_eq!(
-            injector_request
-                .connection_config
+            connection_config
                 .proxy_url
                 .as_ref()
                 .expect("Proxy URL should be set")
@@ -366,22 +362,6 @@ mod tests {
                 .expose(),
             "https://vgs-proxy.example.com:8443/"
         );
-
-        // Verify vault metadata header was removed from regular headers
-        assert!(!injector_request
-            .connection_config
-            .headers
-            .contains_key(EXTERNAL_VAULT_METADATA_HEADER));
-
-        // Verify other headers are preserved
-        assert!(injector_request
-            .connection_config
-            .headers
-            .contains_key("Content-Type"));
-        assert!(injector_request
-            .connection_config
-            .headers
-            .contains_key("Authorization"));
     }
 
     #[test]

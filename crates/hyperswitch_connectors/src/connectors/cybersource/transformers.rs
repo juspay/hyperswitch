@@ -1,4 +1,3 @@
-use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutMethodData;
 use base64::Engine;
@@ -20,6 +19,7 @@ use hyperswitch_domain_models::{
     types::PayoutsRouterData,
 };
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::{
         ApplePayWalletData, GooglePayWalletData, NetworkTokenData, PaymentMethodData,
         SamsungPayWalletData, WalletData,
@@ -117,11 +117,15 @@ pub struct CybersourceConnectorMetadataObject {
 impl TryFrom<&Option<pii::SecretSerdeValue>> for CybersourceConnectorMetadataObject {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
-        let metadata = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "metadata",
-            })?;
-        Ok(metadata)
+        // Cybersource metadata is optional (all fields are optional), so treat an absent
+        // metadata object as the default rather than a missing required field.
+        match meta_data {
+            Some(_) => utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                }),
+            None => Ok(Self::default()),
+        }
     }
 }
 
@@ -962,7 +966,7 @@ impl
                 .clone()
                 .and_then(|mandate_id| mandate_id.mandate_reference_id)
             {
-                Some(payments::MandateReferenceId::ConnectorMandateId(_)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(_)) => {
                     let original_amount = item
                         .router_data
                         .recurring_mandate_payment_data
@@ -1009,7 +1013,7 @@ impl
                         }),
                     )
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
                     let (original_amount, original_currency) = match network
                         .clone()
                         .map(|network| network.to_lowercase())
@@ -1070,14 +1074,16 @@ impl
                             merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                                 reason: Some("7".to_string()),
                                 original_authorized_amount,
-                                previous_transaction_id: Some(Secret::new(network_transaction_id)),
+                                previous_transaction_id: Some(Secret::new(
+                                    network_transaction_id.network_transaction_id.clone(),
+                                )),
                             }),
                             ignore_avs_result: connector_merchant_config.disable_avs,
                             ignore_cv_result: connector_merchant_config.disable_cvn,
                         }),
                     )
                 }
-                Some(payments::MandateReferenceId::NetworkTokenWithNTI(mandate_data)) => {
+                Some(mandates::MandateReferenceId::NetworkTokenWithNTI(mandate_data)) => {
                     let (original_amount, original_currency) = match network
                         .clone()
                         .map(|network| network.to_lowercase())
@@ -1147,7 +1153,7 @@ impl
                         }),
                     )
                 }
-                Some(payments::MandateReferenceId::CardWithLimitedData) | None => {
+                Some(mandates::MandateReferenceId::CardWithLimitedData(_)) | None => {
                     (None, None, None)
                 }
             }
@@ -3361,6 +3367,7 @@ fn get_payment_response(
                 network_txn_id: info_response.processor_information.as_ref().and_then(
                     |processor_information| processor_information.network_transaction_id.clone(),
                 ),
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     info_response
                         .client_reference_information
@@ -3446,6 +3453,7 @@ impl TryFrom<PaymentsResponseRouterData<CybersourceAuthSetupResponse>>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(
                         info_response
                             .client_reference_information
@@ -4132,6 +4140,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingRes
                                 "three_ds_data": three_ds_data
                             })),
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
                             authentication_data,
@@ -4362,6 +4371,7 @@ impl
                             processor_information.network_transaction_id.clone()
                         },
                     ),
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(
                         item.response
                             .client_reference_information
@@ -4476,6 +4486,7 @@ impl<F>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(
                         info_response
                             .client_reference_information
@@ -4615,6 +4626,7 @@ impl<F>
                                 "three_ds_data": three_ds_data
                             })),
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
                             authentication_data,
@@ -4751,6 +4763,7 @@ impl<F>
                                 "three_ds_data": three_ds_data
                             })),
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
                             authentication_data,
@@ -4844,6 +4857,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<CybersourceTransactionResponse>>
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: item
                                 .response
                                 .client_reference_information
@@ -4865,6 +4879,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<CybersourceTransactionResponse>>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     authentication_data: None,

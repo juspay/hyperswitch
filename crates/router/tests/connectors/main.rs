@@ -6,6 +6,7 @@
 )]
 use test_utils::connector_auth;
 
+mod absa_sanlam;
 mod aci;
 mod adyen;
 mod adyenplatform;
@@ -66,6 +67,7 @@ mod hyperwallet;
 mod iatapay;
 mod imerchantsolutions;
 mod inespay;
+mod interpayments;
 mod itaubank;
 mod jpmorgan;
 mod juspaythreedsserver;
@@ -89,6 +91,7 @@ mod nuvei;
 mod opayo;
 mod opennode;
 mod paybox;
+mod payconex;
 #[cfg(feature = "dummy_connector")]
 mod payeezy;
 mod payjustnow;

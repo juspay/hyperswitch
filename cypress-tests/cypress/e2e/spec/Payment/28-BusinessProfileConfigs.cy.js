@@ -376,4 +376,67 @@ describe("Config Tests", () => {
       });
     }
   );
+
+  // Connector-agnostic: webhook headers are Business Profile config, not connector-specific
+  context("Outgoing Webhook Custom HTTP Headers", () => {
+    const shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("Create Business Profile", () => {
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState,
+        "webhookProfile"
+      );
+    });
+
+    it("Update business profile with custom webhook headers and verify masked response", () => {
+      const webhookHeadersBody = {
+        outgoing_webhook_custom_http_headers: {
+          "X-Custom-Header": "long-custom-value-six-chars",
+          "X-Short": "secret",
+          "X-Tiny": "xy",
+        },
+      };
+      cy.updateBusinessProfileWebhookCustomHeadersTest(
+        webhookHeadersBody,
+        globalState,
+        "webhookProfile"
+      );
+    });
+
+    it("Update business profile with new custom webhook headers and verify updated masked response", () => {
+      const previousHeaderKeys = Object.keys(
+        globalState.get("lastResponseHeaders") ?? {}
+      );
+      const webhookHeadersBody = {
+        outgoing_webhook_custom_http_headers: {
+          "X-Updated-Header": "updated-secret-value-long",
+          "X-Another-Header": "another-long-value-string",
+        },
+      };
+      cy.updateBusinessProfileWebhookCustomHeadersTest(
+        webhookHeadersBody,
+        globalState,
+        "webhookProfile",
+        previousHeaderKeys
+      );
+    });
+
+    it("Clear custom webhook headers with empty object", () => {
+      const webhookHeadersBody = {
+        outgoing_webhook_custom_http_headers: {},
+      };
+      cy.updateBusinessProfileWebhookCustomHeadersTest(
+        webhookHeadersBody,
+        globalState,
+        "webhookProfile"
+      );
+    });
+  });
 });

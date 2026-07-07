@@ -7,7 +7,7 @@ use error_stack::{report, ResultExt};
 
 use super::generics;
 use crate::{
-    enums, errors,
+    enums, errors, kv,
     payouts::{Payouts, PayoutsNew, PayoutsUpdate, PayoutsUpdateInternal},
     query::generics::db_metrics,
     schema::{payout_attempt, payouts::dsl},
@@ -17,6 +17,13 @@ use crate::{
 impl PayoutsNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Payouts> {
         generics::generic_insert(conn, self).await
+    }
+
+    pub async fn generate_drainer_insert_query(
+        self,
+        conn: &mut PgPooledConn,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_insert_query(conn, self).await
     }
 }
 impl Payouts {
@@ -93,10 +100,12 @@ impl Payouts {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn get_total_count_of_payouts(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         active_payout_ids: &[common_utils::id_type::PayoutId],
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         connector: Option<Vec<String>>,
         currency: Option<Vec<enums::Currency>>,
         status: Option<Vec<enums::PayoutStatus>>,
@@ -121,6 +130,9 @@ impl Payouts {
         if let Some(payout_type) = payout_type {
             filter = filter.filter(dsl::payout_type.eq_any(payout_type));
         }
+        if let Some(profile_id_list) = profile_id_list {
+            filter = filter.filter(dsl::profile_id.eq_any(profile_id_list));
+        }
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
@@ -130,5 +142,23 @@ impl Payouts {
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error filtering count of payouts")
+    }
+}
+
+impl PayoutsUpdate {
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        payout_id: common_utils::id_type::PayoutId,
+        merchant_id: common_utils::id_type::MerchantId,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_with_predicate::<<Payouts as HasTable>::Table, _, _>(
+            conn,
+            dsl::payout_id
+                .eq(payout_id)
+                .and(dsl::merchant_id.eq(merchant_id)),
+            PayoutsUpdateInternal::from(self),
+        )
+        .await
     }
 }

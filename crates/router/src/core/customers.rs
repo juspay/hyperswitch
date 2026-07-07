@@ -47,6 +47,26 @@ use crate::{
 
 pub const REDACTED: &str = "Redacted";
 
+pub fn is_global_customer_id_format(input: &str) -> bool {
+    let mut parts = input.split('_');
+    match (parts.next(), parts.next(), parts.next(), parts.next()) {
+        (Some(cell_id), Some(entity), Some(uuid), None) => {
+            !cell_id.is_empty()
+                && cell_id
+                    .chars()
+                    .all(|character| character.is_ascii_lowercase() || character.is_ascii_digit())
+                && entity == "cus"
+                && uuid.len() == 32
+                && uuid::Uuid::parse_str(uuid).is_ok()
+        }
+        _ => false,
+    }
+}
+
+pub fn is_customer_id_in_global_format(customer_id: &id_type::CustomerId) -> bool {
+    is_global_customer_id_format(customer_id.get_string_repr())
+}
+
 #[instrument(skip(state))]
 pub async fn create_customer(
     state: SessionState,
@@ -235,35 +255,31 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             pii::SecretSerdeValue::new(serde_json::Value::Object(map))
         });
 
-        Ok(domain::Customer {
-            customer_id: merchant_reference_id
+        Ok(domain::Customer::new(
+            merchant_reference_id
                 .to_owned()
                 .ok_or(errors::CustomersErrorResponse::InternalServerError)?,
-            merchant_id: merchant_id.to_owned(),
-            name: encryptable_customer.name,
-            email: encryptable_customer.email.map(|email| {
+            merchant_id.to_owned(),
+            encryptable_customer.name,
+            encryptable_customer.email.map(|email| {
                 let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> = Encryptable::new(
                     email.clone().into_inner().switch_strategy(),
                     email.into_encrypted(),
                 );
                 encryptable
             }),
-            phone: encryptable_customer.phone,
-            description: self.description.clone(),
-            phone_country_code: self.phone_country_code.clone(),
-            metadata: self.metadata.clone(),
+            encryptable_customer.phone,
+            self.phone_country_code.clone(),
+            self.description.clone(),
+            self.metadata.clone(),
             connector_customer,
-            address_id: address_from_db.clone().map(|addr| addr.address_id),
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-            default_payment_method_id: None,
-            updated_by: None,
-            version: common_types::consts::API_VERSION,
-            tax_registration_id: encryptable_customer.tax_registration_id,
-            document_details: document_details_encrypted,
-            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
-            last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
-        })
+            address_from_db.clone().map(|addr| addr.address_id),
+            encryptable_customer.tax_registration_id,
+            document_details_encrypted,
+            initiator.and_then(|initiator| initiator.to_created_by()),
+            initiator.and_then(|initiator| initiator.to_created_by()),
+            id_type::GlobalCustomerId::generate(&state.conf.cell_information.id),
+        ))
     }
 
     fn generate_response<'a>(
@@ -614,6 +630,32 @@ pub async fn retrieve_customer(
     ))
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip(state))]
+pub async fn retrieve_customer_by_merchant_reference_id(
+    state: SessionState,
+    provider: domain::Provider,
+    merchant_reference_id: id_type::CustomerId,
+) -> errors::CustomerResponse<customers::CustomerResponse> {
+    let db = state.store.as_ref();
+
+    let response = db
+        .find_customer_by_merchant_reference_id_merchant_id(
+            &merchant_reference_id,
+            provider.get_account().get_id(),
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
+        )
+        .await
+        .switch()?;
+
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerResponse::try_from(response)
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert domain customer to CustomerResponse")?,
+    ))
+}
+
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
@@ -771,9 +813,11 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
         {
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
-                    delete_payment_method_by_record(db, state, platform, &profile, pm)
-                        .await
-                        .switch()?;
+                    Box::pin(delete_payment_method_by_record(
+                        db, state, platform, &profile, pm,
+                    ))
+                    .await
+                    .switch()?;
                 }
             }
             Err(error) => {
@@ -1218,7 +1262,7 @@ impl AddressStructForDbUpdate<'_> {
                             .attach_printable(format!(
                             "Failed while updating address: merchant_id: {:?}, customer_id: {:?}",
                             self.merchant_account.get_id(),
-                            self.domain_customer.customer_id
+                            self.domain_customer.get_id()
                         ))?,
                     )
                 }
@@ -1231,7 +1275,7 @@ impl AddressStructForDbUpdate<'_> {
                             self.state,
                             customer_address,
                             self.merchant_account.get_id(),
-                            &self.domain_customer.customer_id,
+                            self.domain_customer.get_id(),
                             self.key_store.key.get_inner().peek(),
                             self.merchant_account.storage_scheme,
                         )
@@ -1402,7 +1446,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
 
         let response = db
             .update_customer_by_customer_id_merchant_id(
-                domain_customer.customer_id.to_owned(),
+                domain_customer.get_id().to_owned(),
                 provider.get_account().get_id().to_owned(),
                 domain_customer.to_owned(),
                 storage::CustomerUpdate::Update {
@@ -1582,6 +1626,10 @@ pub async fn migrate_customers(
     platform: domain::Platform,
 ) -> errors::CustomerResponse<()> {
     for customer_migration in customers_migration {
+        #[cfg(feature = "v1")]
+        let customer_id = customer_migration.customer.customer_id.clone();
+        #[cfg(feature = "v1")]
+        let connector_customer_details = customer_migration.connector_customer_details.clone();
         match create_customer(
             state.clone(),
             platform.get_provider().clone(),
@@ -1593,10 +1641,135 @@ pub async fn migrate_customers(
         {
             Ok(_) => (),
             Err(e) => match e.current_context() {
-                errors::CustomersErrorResponse::CustomerAlreadyExists => (),
+                // Customer already exists in Hyperswitch: still merge the migrated
+                // connector_customer_id(s) into the existing customer's connector_customer.
+                errors::CustomersErrorResponse::CustomerAlreadyExists => {
+                    #[cfg(feature = "v1")]
+                    sync_connector_customer_for_migrated_customer(
+                        &state,
+                        &platform,
+                        customer_id,
+                        connector_customer_details,
+                    )
+                    .await?;
+                }
                 _ => return Err(e),
             },
         }
     }
     Ok(services::ApplicationResponse::Json(()))
+}
+
+/// Saves the connector's customer id (from the migration CSV) onto a customer that already
+/// exists in Hyperswitch.
+///
+/// Background, in plain terms:
+/// - Each customer row has a `connector_customer` field. Think of it as a small lookup table:
+///   "for connector account X, this customer is known as Y on that connector's side".
+/// - When the migration creates a brand-new customer, that field is filled in right away.
+/// - But when the customer was already in Hyperswitch, the create step is skipped — and so the
+///   connector customer id from the CSV would be thrown away. This function handles that case:
+///   it opens the existing customer and adds the id in.
+///
+/// We *add to* the lookup table, we don't wipe it: ids saved for other connector accounts stay,
+/// and if there was already an id for this connector account it gets replaced with the one from
+/// the CSV. If the CSV row had no connector customer id (or nothing to attach it to), we do
+/// nothing.
+#[cfg(feature = "v1")]
+async fn sync_connector_customer_for_migrated_customer(
+    state: &SessionState,
+    platform: &domain::Platform,
+    customer_id: Option<id_type::CustomerId>,
+    connector_customer_details: Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
+) -> errors::CustomResult<(), errors::CustomersErrorResponse> {
+    // If the CSV row didn't give us a customer id, or gave no connector customer ids to save,
+    // there's nothing to do.
+    let Some((customer_id, connector_customer_details)) = customer_id
+        .zip(connector_customer_details)
+        .filter(|(_, details)| !details.is_empty())
+    else {
+        return Ok(());
+    };
+
+    let db: &dyn StorageInterface = state.store.as_ref();
+    let provider = platform.get_provider();
+    let merchant_id = provider.get_account().get_id();
+    let storage_scheme = provider.get_account().storage_scheme;
+
+    // Load the customer that already exists, so we can add to its current list of connector
+    // customer ids instead of replacing it.
+    let existing_customer = db
+        .find_customer_by_customer_id_merchant_id(
+            &customer_id,
+            merchant_id,
+            provider.get_key_store(),
+            storage_scheme,
+        )
+        .await
+        .switch()?;
+
+    // Take the customer's current "connector account -> connector customer id" list (empty if
+    // it had none yet) and add/overwrite the entries coming from the migration row.
+    let mut connector_customer_map = existing_customer
+        .connector_customer
+        .as_ref()
+        .and_then(|connector_customer| connector_customer.peek().as_object().cloned())
+        .unwrap_or_default();
+    for details in &connector_customer_details {
+        connector_customer_map.insert(
+            details.merchant_connector_id.get_string_repr().to_string(),
+            details.connector_customer_id.clone().into(),
+        );
+    }
+
+    // Save the updated list back onto the customer. This only changes the `connector_customer`
+    // field (and the "last modified" bookkeeping) — the rest of the customer is untouched.
+    db.update_customer_by_customer_id_merchant_id(
+        customer_id,
+        merchant_id.clone(),
+        existing_customer,
+        storage::CustomerUpdate::ConnectorCustomer {
+            connector_customer: Some(pii::SecretSerdeValue::new(serde_json::Value::Object(
+                connector_customer_map,
+            ))),
+            last_modified_by: platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string()),
+        },
+        provider.get_key_store(),
+        storage_scheme,
+    )
+    .await
+    .switch()?;
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_customer_id_in_global_format() {
+        let test_cases = [
+            ("0asbjabjbd", false),
+            ("0a_cus_12345678123456781234567812345678", true),
+            ("abc12_cus_12345678123456781234567812345678", true),
+            ("1b_cus_12iufbeksjeb", false),
+            ("efbc2_cus_217846821", false),
+            ("0a_pm_12345678123456781234567812345678", false),
+        ];
+
+        for (customer_id_str, expected) in test_cases {
+            let customer_id =
+                id_type::CustomerId::wrap(customer_id_str.to_string()).expect("valid customer id");
+
+            assert_eq!(
+                is_customer_id_in_global_format(&customer_id),
+                expected,
+                "failed for customer_id={customer_id_str}",
+            );
+        }
+    }
 }

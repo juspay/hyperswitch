@@ -1,7 +1,7 @@
 use std::sync::atomic;
 
 use error_stack::ResultExt;
-use redis_interface::{errors as redis_errors, EventInterface, PubsubInterface, RedisValue};
+use redis_interface::{errors as redis_errors, RedisValue};
 use router_env::{logger, tracing::Instrument};
 
 use crate::redis::cache::{
@@ -28,13 +28,7 @@ pub trait PubSubInterface {
 impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
     #[inline]
     async fn subscribe(&self, channel: &str) -> error_stack::Result<(), redis_errors::RedisError> {
-        // Spawns a task that will automatically re-subscribe to any channels or channel patterns used by the client.
-        self.subscriber.manage_subscriptions();
-
-        self.subscriber
-            .subscribe::<_>(channel)
-            .await
-            .change_context(redis_errors::RedisError::SubscribeError)?;
+        self.subscriber.subscribe(channel).await?;
 
         // Spawn only one thread handling all the published messages to different channels
         if self
@@ -92,7 +86,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
 
             match channel_name.as_str() {
                 super::cache::IMC_INVALIDATION_CHANNEL => {
-                    let message = match CacheRedact::try_from(RedisValue::new(message.value))
+                    let message = match CacheRedact::try_from(message.value)
                         .change_context(redis_errors::RedisError::OnMessageError)
                     {
                         Ok(value) => value,

@@ -8,7 +8,7 @@ use std::{collections::HashMap, str::FromStr};
 use common_enums::{connector_enums::Connector, enums::Currency};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::Serialize;
 
 use crate::{
@@ -47,6 +47,14 @@ pub struct CybersourceMetadata {
 pub struct BraintreeMetadata {
     merchant_account_id: Secret<String>,
     merchant_config_currency: String,
+    #[serde(default)]
+    apple_pay_supported_networks: Vec<String>,
+    #[serde(default)]
+    apple_pay_merchant_capabilities: Vec<String>,
+    #[serde(default)]
+    gpay_allowed_auth_methods: Vec<String>,
+    #[serde(default)]
+    gpay_allowed_card_networks: Vec<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -109,6 +117,11 @@ pub struct PeachpaymentsMetadata {
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
+    /// Affirm connector configuration (public/private API key pair, HTTP Basic auth)
+    Affirm {
+        public_key: Secret<String>,
+        private_key: Secret<String>,
+    },
     /// Adyen connector configuration
     Adyen {
         api_key: Secret<String>,
@@ -122,6 +135,10 @@ pub enum ConnectorSpecificConfig {
         private_key: Secret<String>,
         merchant_account_id: Secret<String>,
         merchant_config_currency: Option<String>,
+        apple_pay_supported_networks: Vec<String>,
+        apple_pay_merchant_capabilities: Vec<String>,
+        gpay_allowed_auth_methods: Vec<String>,
+        gpay_allowed_card_networks: Vec<String>,
     },
     /// Cybersource connector configuration
     Cybersource {
@@ -150,6 +167,12 @@ pub enum ConnectorSpecificConfig {
     },
     /// Revolv3 connector configuration
     Revolv3 { api_key: Secret<String> },
+    /// Payconex connector configuration
+    Payconex {
+        api_key: Secret<String>,
+        account_id: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Fiservcommercehub connector configuration
     Fiservcommercehub {
         api_key: Secret<String>,
@@ -513,9 +536,24 @@ pub enum ConnectorSpecificConfig {
     Itaubank {
         client_id: Secret<String>,
         client_secret: Secret<String>,
+        certificates: Option<Secret<String>>,
+        private_key: Option<Secret<String>>,
     },
     /// Imerchantsolutions connector configuration
-    Imerchantsolutions { api_key: Secret<String> },
+    Imerchantsolutions {
+        api_key: Secret<String>,
+        merchant_id: Option<Secret<String>>,
+    },
+    /// AbsaSanlam connector configuration
+    AbsaSanlam {
+        api_key: Secret<String>,
+        merchant_id: String,
+    },
+    /// InterPayments surcharge connector configuration
+    Interpayments {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -615,6 +653,11 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                         private_key: api_secret.clone(),
                         merchant_account_id: braintree_meta.merchant_account_id,
                         merchant_config_currency: Some(braintree_meta.merchant_config_currency),
+                        apple_pay_supported_networks: braintree_meta.apple_pay_supported_networks,
+                        apple_pay_merchant_capabilities: braintree_meta
+                            .apple_pay_merchant_capabilities,
+                        gpay_allowed_auth_methods: braintree_meta.gpay_allowed_auth_methods,
+                        gpay_allowed_card_networks: braintree_meta.gpay_allowed_card_networks,
                     })
                 }
                 _ => Err(err("Braintree requires SignatureKey auth type")),
@@ -954,6 +997,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     account_number: key1.clone(),
                 }),
                 _ => Err(err("Bamboraapac requires SignatureKey auth type")),
+            },
+            Connector::Affirm => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Affirm {
+                    public_key: api_key.clone(),
+                    private_key: key1.clone(),
+                }),
+                _ => Err(err("Affirm requires BodyKey auth type")),
             },
             Connector::Barclaycard => match auth {
                 ConnectorAuthType::SignatureKey {
@@ -1323,8 +1373,8 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 } => Ok(Self::Finix {
                     finix_user_name: api_key.clone(),
                     finix_password: api_secret.clone(),
-                    merchant_identity_id: key1.clone(),
-                    merchant_id: key2.clone(),
+                    merchant_identity_id: key2.clone(),
+                    merchant_id: key1.clone(),
                 }),
                 _ => Err(err("Finix requires MultiAuthKey auth type")),
             },
@@ -1340,7 +1390,6 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Payload requires CurrencyAuthKey auth type")),
             },
-
             Connector::Worldpayvantiv => match auth {
                 ConnectorAuthType::SignatureKey {
                     api_key,
@@ -1365,7 +1414,6 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     "Worldpayvantiv requires SignatureKey or MultiAuthKey auth type",
                 )),
             },
-
             Connector::Payme => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payme {
                     seller_payme_id: api_key.clone(),
@@ -1393,22 +1441,59 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Trustly requires SignatureKey auth type")),
             },
-
             Connector::Itaubank => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
                     client_secret: api_key.clone(),
                     client_id: key1.clone(),
+                    certificates: None,
+                    private_key: None,
+                }),
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Itaubank {
+                    client_secret: api_key.clone(),
+                    client_id: key1.clone(),
+                    certificates: Some(api_secret.clone()),
+                    private_key: Some(key2.clone()),
                 }),
                 _ => Err(err("Itaubank requires BodyKey auth type")),
             },
-
             Connector::Imerchantsolutions => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Imerchantsolutions {
                     api_key: api_key.clone(),
+                    merchant_id: None,
+                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Imerchantsolutions {
+                    api_key: api_key.clone(),
+                    merchant_id: Some(key1.clone()),
                 }),
                 _ => Err(err("Imerchantsolutions requires HeaderKey auth type")),
             },
-
+            Connector::AbsaSanlam => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::AbsaSanlam {
+                    api_key: api_key.clone(),
+                    merchant_id: key1.peek().clone(),
+                }),
+                _ => Err(err("AbsaSanlam requires BodyKey auth type")),
+            },
+            Connector::Payconex => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {
+                    api_key: api_key.clone(),
+                    account_id: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("Payconex requires BodyKey auth type")),
+            },
+            Connector::Interpayments => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Interpayments {
+                    api_key: api_key.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("Interpayments requires HeaderKey auth type")),
+            },
             // --- Unsupported connectors ---
             _ => Err(
                 error_stack::report!(errors::ApiErrorResponse::InternalServerError)

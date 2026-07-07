@@ -1,6 +1,6 @@
+use hyperswitch_domain_models::mandates::{MandateIds, MandateReferenceId};
 pub mod request;
 pub mod response;
-use api_models::payments::{MandateIds, MandateReferenceId};
 use base64::Engine;
 use common_enums::{enums, Currency, PaymentChannel};
 use common_utils::{
@@ -262,6 +262,7 @@ pub fn get_worldpay_combined_psync_response(
             mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             authentication_data: None,
@@ -284,6 +285,7 @@ pub fn get_worldpay_combined_capture_response(
             mandate_reference: Box::new(mandate),
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             authentication_data: None,
@@ -304,6 +306,7 @@ pub fn get_worldpay_void_response(
             mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             authentication_data: None,
@@ -381,6 +384,7 @@ impl TryFrom<PaymentsResponseRouterData<WorldpaymodularPaymentsResponse>>
                 mandate_reference: Box::new(mandate),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,

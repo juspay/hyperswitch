@@ -40,8 +40,11 @@ impl ProviderMerchantId {
     pub fn inner(&self) -> &common_utils::id_type::MerchantId {
         &self.0
     }
-}
 
+    pub fn new(id: common_utils::id_type::MerchantId) -> Self {
+        Self(id)
+    }
+}
 /// Processor = The merchant account whose processor credentials are used
 /// to execute the operation.
 #[derive(Clone, Debug)]
@@ -78,6 +81,12 @@ pub struct ProcessorMerchantId(common_utils::id_type::MerchantId);
 impl ProcessorMerchantId {
     pub fn inner(&self) -> &common_utils::id_type::MerchantId {
         &self.0
+    }
+}
+
+impl From<common_utils::id_type::MerchantId> for ProcessorMerchantId {
+    fn from(id: common_utils::id_type::MerchantId) -> Self {
+        Self(id)
     }
 }
 
@@ -120,6 +129,31 @@ impl Initiator {
             }),
             Self::Admin => None,
         }
+    }
+
+    /// Returns the merchant_id of the entity that initiated the operation.
+    ///
+    /// Available for `Api` and `EmbeddedToken` initiators which carry a merchant_id.
+    /// Returns `None` for `Jwt` (user-based) and `Admin` initiators.
+    pub fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
+        match self {
+            Self::Api { merchant_id, .. } | Self::EmbeddedToken { merchant_id, .. } => {
+                Some(merchant_id)
+            }
+            Self::Jwt { .. } | Self::Admin => None,
+        }
+    }
+
+    /// Returns `true` if the initiator is a platform merchant
+    /// (i.e. the merchant account type is `Platform`).
+    pub fn is_platform(&self) -> bool {
+        matches!(
+            self,
+            Self::Api {
+                merchant_account_type: common_enums::MerchantAccountType::Platform,
+                ..
+            }
+        )
     }
 
     /// Computes the initiator context for API responses.

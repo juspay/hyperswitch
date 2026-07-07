@@ -57,7 +57,7 @@ use transformers as nmi;
 use crate::{
     types::ResponseRouterData,
     utils::{
-        self, convert_amount, get_header_key_value, PaymentsAuthorizeRequestData,
+        convert_amount, get_header_key_value, PaymentsAuthorizeRequestData,
         PaymentsSetupMandateRequestData,
     },
 };
@@ -157,19 +157,6 @@ impl ConnectorValidation for Nmi {
     ) -> CustomResult<(), ConnectorError> {
         // in case we dont have transaction id, we can make psync using attempt id
         Ok(())
-    }
-
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
-    ) -> CustomResult<(), ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            utils::PaymentMethodDataType::Card,
-            utils::PaymentMethodDataType::ApplePay,
-            utils::PaymentMethodDataType::GooglePay,
-        ]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -1207,7 +1194,9 @@ impl ConnectorSpecifications for Nmi {
                 auth_type,
                 request_data,
             } => auth_type.is_three_ds() && request_data.is_card(),
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
+                false
+            }
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

@@ -44,6 +44,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
         conf,
         redis_shutdown_signal_tx,
         api_client,
+        router_env::service_name!(),
     ))
     .await;
     // channel to shutdown scheduler gracefully
@@ -71,7 +72,13 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     let _guard = router_env::setup(
         &state.conf.log,
         &scheduler_flow_str,
-        [router_env::service_name!()],
+        [
+            router_env::service_name!(),
+            "actix_server",
+            "open_feature",
+            "superposition_provider",
+            "superposition_sdk",
+        ],
     );
 
     #[allow(clippy::expect_used)]
@@ -278,6 +285,9 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::PaymentsSyncWorkflow => {
                     Ok(Box::new(workflows::payment_sync::PaymentsSyncWorkflow))
                 }
+                storage::ProcessTrackerRunner::PaymentsPostCaptureVoidSyncWorkflow => Ok(Box::new(
+                    workflows::post_capture_void_sync::PaymentsPostCaptureVoidSyncWorkflow,
+                )),
                 storage::ProcessTrackerRunner::RefundWorkflowRouter => {
                     Ok(Box::new(workflows::refund_router::RefundWorkflowRouter))
                 }
@@ -330,11 +340,32 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::PaymentMethodStatusUpdateWorkflow => Ok(Box::new(
                     workflows::payment_method_status_update::PaymentMethodStatusUpdateWorkflow,
                 )),
+                storage::ProcessTrackerRunner::PaymentMethodModularForwardCompatWorkflow => Ok(Box::new(
+                    workflows::payment_method_modular_forward_compat::PaymentMethodModularForwardCompatWorkflow,
+                )),
+                storage::ProcessTrackerRunner::PaymentMethodModularBackwardCompatWorkflow => Ok(Box::new(
+                    workflows::payment_method_modular_backward_compat::PaymentMethodModularBackwardCompatWorkflow,
+                )),
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow => {
                     Ok(Box::new(workflows::revenue_recovery::ExecutePcrWorkflow))
                 }
                 storage::ProcessTrackerRunner::PayoutSyncWorkFlow => {
                     Ok(Box::new(workflows::payout_sync::PayoutSyncWorkFlow))
+                }
+                storage::ProcessTrackerRunner::BatchBlocklistUpload => {
+                    #[cfg(feature = "v1")]
+                    {
+                        Ok(Box::new(
+                            workflows::batch_blocklist_upload::BatchBlocklistUploadWorkflow,
+                        ))
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run batch blocklist upload workflow when v1 feature is disabled",
+                            )
+                    }
                 }
             }
         };
