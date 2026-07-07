@@ -5859,6 +5859,19 @@ pub async fn list_customer_payment_method(
 }
 
 #[cfg(feature = "v1")]
+fn normalize_card_expiry_year_to_four_digits(
+    mut card: api::CardDetailFromLocker,
+) -> api::CardDetailFromLocker {
+    if let Some(expiry_year) = card.expiry_year.as_ref() {
+        let year = expiry_year.peek();
+        if year.len() == 2 && year.bytes().all(|byte| byte.is_ascii_digit()) {
+            card.expiry_year = Some(Secret::new(format!("20{year}")));
+        }
+    }
+    card
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn get_pm_list_context(
     state: &routes::SessionState,
@@ -5879,7 +5892,8 @@ pub async fn get_pm_list_context(
                 Some(cards.get_card_details_from_locker(pm).await?)
             } else {
                 cards.get_card_details_with_locker_fallback(pm).await?
-            };
+            }
+            .map(normalize_card_expiry_year_to_four_digits);
 
             card_details.as_ref().map(|card| PaymentMethodListContext {
                 card_details: Some(card.clone()),
