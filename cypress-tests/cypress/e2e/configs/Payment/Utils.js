@@ -13,8 +13,8 @@ import { connectorDetails as bamboraConnectorDetails } from "./Bambora.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as barclaycardConnectorDetails } from "./Barclaycard.js";
-import { connectorDetails as bitpayConnectorDetails } from "./Bitpay.js";
 import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
+import { connectorDetails as bitpayConnectorDetails } from "./Bitpay.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
 import { connectorDetails as calidaConnectorDetails } from "./Calida.js";
@@ -46,6 +46,7 @@ import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
 import { connectorDetails as klarnaConnectorDetails } from "./Klarna.js";
 import { connectorDetails as loonioConnectorDetails } from "./Loonio.js";
+import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
 import { connectorDetails as mollieConnectorDetails } from "./Mollie.js";
 import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
 import { connectorDetails as multisafepayConnectorDetails } from "./Multisafepay.js";
@@ -82,7 +83,6 @@ import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayva
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
-import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
@@ -484,7 +484,6 @@ export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
     CONNECTOR_AGNOSTIC_NTID: [
-      "authorizedotnet",
       "bamboraapac",
       "bankofamerica",
       "billwerk",

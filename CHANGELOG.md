@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.07.0
+
+### Features
+
+- **connector:** [Authorizedotnet] add network transaction id support ([#13156](https://github.com/juspay/hyperswitch/pull/13156)) ([`2223f40`](https://github.com/juspay/hyperswitch/commit/2223f40068ea208b58e817ef687293d366ed7bf5))
+- **cypress:** Add MITM proxy record/replay for connector tests ([#12852](https://github.com/juspay/hyperswitch/pull/12852)) ([`c0ce9fb`](https://github.com/juspay/hyperswitch/commit/c0ce9fbf944eb737f599a02840593876f41d8fa5))
+
+**Full Changelog:** [`2026.07.06.0...2026.07.07.0`](https://github.com/juspay/hyperswitch/compare/2026.07.06.0...2026.07.07.0)
+
+- - -
+
 ## 2026.07.06.0
 
 ### Features
