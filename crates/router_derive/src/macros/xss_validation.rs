@@ -15,24 +15,71 @@ enum FieldType {
 }
 
 fn get_field_type(ty: &syn::Type) -> FieldType {
-    let type_str = quote!(#ty).to_string().replace(" ", "");
-
-    if type_str == "String" || type_str.ends_with("::String") {
-        FieldType::String
-    } else if type_str == "Option<String>" || type_str.ends_with("::Option<String>") {
-        FieldType::OptionString
-    } else if type_str == "Vec<String>" || type_str.ends_with("::Vec<String>") {
-        FieldType::VecString
-    } else if type_str == "Option<Vec<String>>" || type_str.ends_with("::Option<Vec<String>>") {
-        FieldType::OptionVecString
-    } else if type_str == "HashSet<String>" || type_str.ends_with("::HashSet<String>") {
-        FieldType::HashSetString
-    } else if type_str == "Option<HashSet<String>>"
-        || type_str.ends_with("::Option<HashSet<String>>")
-    {
-        FieldType::OptionHashSetString
-    } else {
-        FieldType::Other
+    match ty {
+        syn::Type::Path(type_path) => {
+            type_path
+                .path
+                .segments
+                .last()
+                .map_or(FieldType::Other, |segment| {
+                    let ident_str = segment.ident.to_string();
+                    if ident_str == "String" {
+                        FieldType::String
+                    } else if ident_str == "Option" {
+                        match &segment.arguments {
+                            syn::PathArguments::AngleBracketed(args) => {
+                                args.args.first().map_or(FieldType::Other, |arg| match arg {
+                                    syn::GenericArgument::Type(inner_type) => {
+                                        match get_field_type(inner_type) {
+                                            FieldType::String => FieldType::OptionString,
+                                            FieldType::VecString => FieldType::OptionVecString,
+                                            FieldType::HashSetString => {
+                                                FieldType::OptionHashSetString
+                                            }
+                                            _ => FieldType::Other,
+                                        }
+                                    }
+                                    _ => FieldType::Other,
+                                })
+                            }
+                            _ => FieldType::Other,
+                        }
+                    } else if ident_str == "Vec" {
+                        match &segment.arguments {
+                            syn::PathArguments::AngleBracketed(args) => {
+                                args.args.first().map_or(FieldType::Other, |arg| match arg {
+                                    syn::GenericArgument::Type(inner_type) => {
+                                        match get_field_type(inner_type) {
+                                            FieldType::String => FieldType::VecString,
+                                            _ => FieldType::Other,
+                                        }
+                                    }
+                                    _ => FieldType::Other,
+                                })
+                            }
+                            _ => FieldType::Other,
+                        }
+                    } else if ident_str == "HashSet" {
+                        match &segment.arguments {
+                            syn::PathArguments::AngleBracketed(args) => {
+                                args.args.first().map_or(FieldType::Other, |arg| match arg {
+                                    syn::GenericArgument::Type(inner_type) => {
+                                        match get_field_type(inner_type) {
+                                            FieldType::String => FieldType::HashSetString,
+                                            _ => FieldType::Other,
+                                        }
+                                    }
+                                    _ => FieldType::Other,
+                                })
+                            }
+                            _ => FieldType::Other,
+                        }
+                    } else {
+                        FieldType::Other
+                    }
+                })
+        }
+        _ => FieldType::Other,
     }
 }
 
@@ -42,6 +89,24 @@ fn is_xss_clean_skip(field: &syn::Field) -> bool {
             if let syn::Meta::List(ref meta_list) = attr.meta {
                 if let Ok(ident) = meta_list.parse_args::<syn::Ident>() {
                     ident == "skip"
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    })
+}
+
+fn is_xss_clean_recurse(field: &syn::Field) -> bool {
+    field.attrs.iter().any(|attr| {
+        if attr.path().is_ident("xss_clean") {
+            if let syn::Meta::List(ref meta_list) = attr.meta {
+                if let Ok(ident) = meta_list.parse_args::<syn::Ident>() {
+                    ident == "recurse"
                 } else {
                     false
                 }
@@ -67,6 +132,12 @@ pub fn validate_xss_or_sqli_derive(input: syn::DeriveInput) -> syn::Result<Token
             let field_name = field.ident.as_ref()?;
             if is_xss_clean_skip(field) {
                 None
+            } else if is_xss_clean_recurse(field) {
+                Some(quote! {
+                    .and_then(|_| {
+                        ::common_utils::validation::ValidateXSSOrSQLi::validate_xss_or_sqli(&self.#field_name)
+                    })
+                })
             } else {
                 match get_field_type(&field.ty) {
                     FieldType::String => Some(quote! {
@@ -169,8 +240,8 @@ pub fn validate_xss_or_sqli_derive(input: syn::DeriveInput) -> syn::Result<Token
 
     Ok(quote! {
         #[automatically_derived]
-        impl #impl_generics #name #ty_generics #where_clause {
-            pub fn validate_xss_or_sqli(&self) -> Result<(), String> {
+        impl #impl_generics common_utils::validation::ValidateXSSOrSQLi for #name #ty_generics #where_clause {
+            fn validate_xss_or_sqli(&self) -> Result<(), String> {
                 Ok(())
                     #(#validation_checks)*
             }

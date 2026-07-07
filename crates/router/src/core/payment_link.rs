@@ -758,12 +758,13 @@ pub fn get_payment_link_config_based_on_priority(
             show_merchant_name,
         };
 
-    payment_link_config.validate_xss_or_sqli().map_err(|err| {
-        error_stack::report!(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payment_link_config",
-        })
-        .attach_printable(err)
-    })?;
+    common_utils::validation::ValidateXSSOrSQLi::validate_xss_or_sqli(&payment_link_config)
+        .map_err(|err| {
+            error_stack::report!(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payment_link_config",
+            })
+            .attach_printable(err)
+        })?;
 
     Ok((payment_link_config, domain_name))
 }

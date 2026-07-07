@@ -3475,15 +3475,25 @@ impl BusinessGenericLinkConfig {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    PartialEq,
+    ToSchema,
+    router_derive::ValidateXSSOrSQLi,
+)]
 pub struct BusinessPaymentLinkConfig {
     /// Custom domain name to be used for hosting the link in your own domain
     pub domain_name: Option<String>,
     /// Default payment link config for all future payment link
     #[serde(flatten)]
     #[schema(value_type = PaymentLinkConfigRequest)]
+    #[xss_clean(recurse)]
     pub default_config: Option<PaymentLinkConfigRequest>,
     /// list of configs for multi theme setup
+    #[xss_clean(recurse)]
     pub business_specific_configs: Option<HashMap<String, PaymentLinkConfigRequest>>,
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     #[schema(value_type = Option<HashSet<String>>)]
@@ -3494,6 +3504,7 @@ pub struct BusinessPaymentLinkConfig {
 
 impl BusinessPaymentLinkConfig {
     pub fn validate(&self) -> Result<(), String> {
+        common_utils::validation::ValidateXSSOrSQLi::validate_xss_or_sqli(self)?;
         let host_domain_valid = self
             .domain_name
             .clone()
@@ -3565,6 +3576,7 @@ pub struct PaymentLinkConfigRequest {
     #[schema(default = true, example = true)]
     pub show_card_form_by_default: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
+    #[xss_clean(recurse)]
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
     /// Configurations for the background image for details section
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
@@ -3588,8 +3600,10 @@ pub struct PaymentLinkConfigRequest {
     /// Custom background colour for the payment link
     pub background_colour: Option<String>,
     /// SDK configuration rules
+    #[xss_clean(recurse)]
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Payment link configuration rules
+    #[xss_clean(recurse)]
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Flag to enable the button only when the payment form is ready for submission
     pub enable_button_only_on_form_ready: Option<bool>,
@@ -3612,7 +3626,7 @@ pub struct PaymentLinkConfigRequest {
 
 impl PaymentLinkConfigRequest {
     pub fn validate(&self) -> Result<(), String> {
-        self.validate_xss_or_sqli()?;
+        common_utils::validation::ValidateXSSOrSQLi::validate_xss_or_sqli(self)?;
 
         if let Some(custom_message) = self.custom_message_for_payment_method_types.as_ref() {
             custom_message.validate().map_err(|e| e.to_string())?;
@@ -3621,7 +3635,15 @@ impl PaymentLinkConfigRequest {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    PartialEq,
+    ToSchema,
+    router_derive::ValidateXSSOrSQLi,
+)]
 pub struct PaymentLinkTransactionDetails {
     /// Key for the transaction details
     #[schema(value_type = String, max_length = 255, example = "Policy-Number")]
@@ -3688,6 +3710,7 @@ pub struct PaymentLinkConfig {
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link
+    #[xss_clean(recurse)]
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
     /// Configurations for the background image for details section
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
@@ -3713,8 +3736,10 @@ pub struct PaymentLinkConfig {
     /// Custom background colour for the payment link
     pub background_colour: Option<String>,
     /// SDK configuration rules
+    #[xss_clean(recurse)]
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Payment link configuration rules
+    #[xss_clean(recurse)]
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Flag to enable the button only when the payment form is ready for submission
     pub enable_button_only_on_form_ready: bool,
