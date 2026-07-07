@@ -276,22 +276,6 @@ function createUcsConfigs(globalState, flow, type) {
     });
 }
 
-function filterNullableCardMetadata(expectedCard, actualCard) {
-  const nullableFields = [
-    "card_type",
-    "card_network",
-    "card_issuer",
-    "card_issuing_country",
-  ];
-  const filtered = { ...expectedCard };
-  for (const field of nullableFields) {
-    if (field in filtered && actualCard[field] === null) {
-      delete filtered[field];
-    }
-  }
-  return filtered;
-}
-
 Cypress.Commands.add("deleteBusinessProfileTest", (globalState) => {
   const adminApiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
@@ -1952,10 +1936,7 @@ Cypress.Commands.add("deleteBillingConnectorTest", (globalState) => {
       "Billing connector delete status: " + response.status
     );
     if (response.status === 200) {
-      globalState.set("billingProcessorConnectorId", null);
-    }
-  });
-});
+
 
 Cypress.Commands.add(
   "connectorUpdateCall",
@@ -3002,25 +2983,9 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                if (key === "payment_method_data") {
-                  if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(
-                      resData.body[key].card,
-                      response.body[key].card
-                    );
-                    expect(response.body[key].card, [
-                      key + ".card",
-                    ]).to.deep.include(filteredCard);
-                  } else {
-                    expect(response.body[key], [key]).to.deep.include(
-                      resData.body[key]
-                    );
-                  }
-                } else {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               // Handle pay later methods that require redirect (Affirm, Klarna, etc.)
@@ -3046,25 +3011,9 @@ Cypress.Commands.add(
                 );
               }
               for (const key in resData.body) {
-                if (key === "payment_method_data") {
-                  if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(
-                      resData.body[key].card,
-                      response.body[key].card
-                    );
-                    expect(response.body[key].card, [
-                      key + ".card",
-                    ]).to.deep.include(filteredCard);
-                  } else {
-                    expect(response.body[key], [key]).to.deep.include(
-                      resData.body[key]
-                    );
-                  }
-                } else {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
@@ -3119,25 +3068,9 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                if (key === "payment_method_data") {
-                  if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(
-                      resData.body[key].card,
-                      response.body[key].card
-                    );
-                    expect(response.body[key].card, [
-                      key + ".card",
-                    ]).to.deep.include(filteredCard);
-                  } else {
-                    expect(response.body[key], [key]).to.deep.include(
-                      resData.body[key]
-                    );
-                  }
-                } else {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               // Handle pay later methods that require redirect (Affirm, Klarna, etc.)
@@ -3152,25 +3085,9 @@ Cypress.Commands.add(
                 globalState.set("nextActionType", "redirect_to_url");
               }
               for (const key in resData.body) {
-                if (key === "payment_method_data") {
-                  if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(
-                      resData.body[key].card,
-                      response.body[key].card
-                    );
-                    expect(response.body[key].card, [
-                      key + ".card",
-                    ]).to.deep.include(filteredCard);
-                  } else {
-                    expect(response.body[key], [key]).to.deep.include(
-                      resData.body[key]
-                    );
-                  }
-                } else {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
@@ -3826,47 +3743,15 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                if (key === "payment_method_data") {
-                  if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(
-                      resData.body[key].card,
-                      response.body[key].card
-                    );
-                    expect(response.body[key].card, [
-                      key + ".card",
-                    ]).to.deep.include(filteredCard);
-                  } else {
-                    expect(response.body[key], [key]).to.deep.include(
-                      resData.body[key]
-                    );
-                  }
-                } else {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                if (key === "payment_method_data") {
-                  if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(
-                      resData.body[key].card,
-                      response.body[key].card
-                    );
-                    expect(response.body[key].card, [
-                      key + ".card",
-                    ]).to.deep.include(filteredCard);
-                  } else {
-                    expect(response.body[key], [key]).to.deep.include(
-                      resData.body[key]
-                    );
-                  }
-                } else {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
             } else {
               throw new Error(
@@ -3903,47 +3788,15 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                if (key === "payment_method_data") {
-                  if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(
-                      resData.body[key].card,
-                      response.body[key].card
-                    );
-                    expect(response.body[key].card, [
-                      key + ".card",
-                    ]).to.deep.include(filteredCard);
-                  } else {
-                    expect(response.body[key], [key]).to.deep.include(
-                      resData.body[key]
-                    );
-                  }
-                } else {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                if (key === "payment_method_data") {
-                  if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(
-                      resData.body[key].card,
-                      response.body[key].card
-                    );
-                    expect(response.body[key].card, [
-                      key + ".card",
-                    ]).to.deep.include(filteredCard);
-                  } else {
-                    expect(response.body[key], [key]).to.deep.include(
-                      resData.body[key]
-                    );
-                  }
-                } else {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
             } else {
               throw new Error(
@@ -4062,25 +3915,9 @@ Cypress.Commands.add(
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                if (key === "payment_method_data") {
-                  if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(
-                      resData.body[key].card,
-                      response.body[key].card
-                    );
-                    expect(response.body[key].card, [
-                      key + ".card",
-                    ]).to.deep.include(filteredCard);
-                  } else {
-                    expect(response.body[key], [key]).to.deep.include(
-                      resData.body[key]
-                    );
-                  }
-                } else {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
               expect(response.body.customer_id).to.equal(
                 globalState.get("customerId") ?? null
@@ -4127,25 +3964,9 @@ Cypress.Commands.add(
               );
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                if (key === "payment_method_data") {
-                  if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(
-                      resData.body[key].card,
-                      response.body[key].card
-                    );
-                    expect(response.body[key].card, [
-                      key + ".card",
-                    ]).to.deep.include(filteredCard);
-                  } else {
-                    expect(response.body[key], [key]).to.deep.include(
-                      resData.body[key]
-                    );
-                  }
-                } else {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
               expect(response.body.customer_id).to.equal(
                 globalState.get("customerId") ?? null
@@ -4831,25 +4652,9 @@ Cypress.Commands.add(
               // Response body key comparison runs for all three_ds paths, including succeeded status
               // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
-                if (key === "payment_method_data") {
-                  if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(
-                      resData.body[key].card,
-                      response.body[key].card
-                    );
-                    expect(response.body[key].card, [
-                      key + ".card",
-                    ]).to.deep.include(filteredCard);
-                  } else {
-                    expect(response.body[key], [key]).to.deep.include(
-                      resData.body[key]
-                    );
-                  }
-                } else {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               if (
@@ -4919,25 +4724,9 @@ Cypress.Commands.add(
               // Response body key comparison runs for all three_ds paths, including succeeded status
               // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
-                if (key === "payment_method_data") {
-                  if (resData.body[key].card) {
-                    const filteredCard = filterNullableCardMetadata(
-                      resData.body[key].card,
-                      response.body[key].card
-                    );
-                    expect(response.body[key].card, [
-                      key + ".card",
-                    ]).to.deep.include(filteredCard);
-                  } else {
-                    expect(response.body[key], [key]).to.deep.include(
-                      resData.body[key]
-                    );
-                  }
-                } else {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               if (
@@ -10960,6 +10749,116 @@ Cypress.Commands.add(
   }
 );
 
+Cypress.Commands.add("initiatePayoutLinkTest", (data, globalState) => {
+  const payoutLinkUrl = globalState.get("payoutLinkUrl");
+
+  if (!payoutLinkUrl) {
+    cy.task("cli_log", "Skipping: No payout link URL available");
+    return;
+  }
+
+  const redirectionUrl = new URL(payoutLinkUrl);
+  handleRedirection("payout_link_init", { redirectionUrl }, null, null, {});
+});
+
+Cypress.Commands.add(
+  "handlePayoutLinkBankRedirection",
+  (globalState, bankData, expectedOutcome = "success") => {
+    const payoutLinkUrl = globalState.get("payoutLinkUrl");
+
+    if (!payoutLinkUrl) {
+      cy.task("cli_log", "Skipping: No payout link URL available");
+      return;
+    }
+
+    const connectorId = globalState.get("connectorId") || "stripe";
+    const redirectionUrl = new URL(payoutLinkUrl);
+    const expectedUrl = new URL("https://example.com/return");
+
+    handleRedirection(
+      "payout_link",
+      { redirectionUrl, expectedUrl },
+      connectorId,
+      null,
+      { bankData, expectedOutcome, payoutLinkType: "bank" }
+    );
+  }
+);
+
+/**
+ * Resets the business profile's payout_link_config to null.
+ * Used in before/after hooks to ensure a clean state between test contexts.
+ *
+ * @param {Object} globalState - The global state object
+ */
+Cypress.Commands.add("resetBusinessProfilePayoutLinkConfig", (globalState) => {
+  const profileId =
+    globalState.get("profileId") || globalState.get("defaultProfileId");
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/business_profile/${profileId}`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    body: {
+      payout_link_config: null,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    expect(response.status).to.equal(200);
+  });
+});
+
+/**
+ * Lists payouts and validates the response structure.
+ *
+ * @param {Object} globalState - The global state object
+ */
+Cypress.Commands.add("listPayoutsTest", (globalState) => {
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/payouts/list?limit=10`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    expect(response.status).to.equal(200);
+    expect(response.body).to.have.property("data");
+    expect(response.body.data).to.be.an("array");
+  });
+});
+
+/**
+ * Retrieves a non-existent payout and verifies a 404 response.
+ *
+ * @param {Object} globalState - The global state object
+ */
+Cypress.Commands.add("retrieveNonExistentPayoutTest", (globalState) => {
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/payouts/non_existent_payout_12345`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    expect(response.status).to.equal(404);
+  });
+});
+
+Cypress.Commands.add("resetRedirectReadCount", (testIdHash) => {
+  resetMitmRedirectSeq(testIdHash);
+});
+
+);
+
 // Subscription Management Commands
 // ============================================
 
@@ -11377,7 +11276,3 @@ Cypress.Commands.add(
     );
   }
 );
-
-Cypress.Commands.add("resetRedirectReadCount", (testIdHash) => {
-  resetMitmRedirectSeq(testIdHash);
-});
