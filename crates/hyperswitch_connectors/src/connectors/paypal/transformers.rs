@@ -1098,7 +1098,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                                                 .as_ref()
                                                 .map(|customer_id| CustomerRequestData {
                                                     merchant_customer_id: Some(
-                                                        customer_id.to_owned()
+                                                        customer_id.to_owned(),
                                                     ),
                                                 }),
                                         }),
