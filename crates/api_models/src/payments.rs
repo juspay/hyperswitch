@@ -9568,7 +9568,8 @@ pub struct PaymentsUpdateMetadataRequest {
     #[schema(value_type = Object, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
-    #[schema(value_type = Option<FeatureMetadata>)]
+    /// Deprecated because feature_metadata update will be done via the /update api from now on
+    #[schema(value_type = Option<FeatureMetadata>, deprecated)]
     pub feature_metadata: Option<FeatureMetadata>,
 }
 
@@ -9581,10 +9582,12 @@ pub struct PaymentsUpdateMetadataResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// The status of the payment intent after the metadata update
-    #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
-    pub status: api_enums::IntentStatus,
+    /// Deprecated because there is no change in the status of payment intent after metadata update, and it might create confusion for the integrators.
+    #[schema(value_type = Option<IntentStatus>, example = "failed", default = "requires_confirmation", deprecated)]
+    pub status: Option<api_enums::IntentStatus>,
     /// Additional data that might be required by hyperswitch, to enable some specific features.
-    #[schema(value_type = Option<FeatureMetadata>)]
+    /// Deprecated because feature_metadata update will be done via the /update api from now on
+    #[deprecated(note = "feature_metadata update will be done via the /update api from now on")]
     #[schema(value_type = Option<FeatureMetadata>)]
     pub feature_metadata: Option<FeatureMetadata>,
 }
@@ -11245,6 +11248,9 @@ pub struct PaymentsManualUpdateRequest {
     pub connector_transaction_id: Option<String>,
     /// The amount that can be captured on the payment.
     pub amount_capturable: Option<MinorUnit>,
+    /// Whether to update amount_captured using amount_to_capture from the attempt.
+    /// When true, amount_captured will be set to amount_to_capture
+    pub update_amount_captured: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -11268,6 +11274,8 @@ pub struct PaymentsManualUpdateResponse {
     pub connector_transaction_id: Option<String>,
     /// The amount that can be captured on the payment.
     pub amount_capturable: Option<MinorUnit>,
+    /// The amount that has been captured on the payment.
+    pub amount_captured: Option<MinorUnit>,
 }
 
 /// Request to manually update payment status from Review state (Dashboard API)
@@ -13749,13 +13757,13 @@ impl PaymentsUpdateMetadataRequest {
     pub fn validate(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
         let Self {
             metadata,
-            feature_metadata,
+            feature_metadata: _,
             payment_id: _,
         } = self;
 
-        if metadata.is_none() && feature_metadata.is_none() {
+        if metadata.is_none() {
             return Err(ValidationError::MissingRequiredField {
-                field_name: "metadata or feature_metadata".to_string(),
+                field_name: "metadata".to_string(),
             }
             .into());
         }
