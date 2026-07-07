@@ -464,33 +464,14 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        // On a redirect completion the persisted payment_method_data is empty for
-        // no-data payment methods (e.g. the Skrill wallet or the paysafecard gift
-        // card), yet UCS still requires the payment_method oneof to settle the
-        // payment handle. Reconstruct it from the payment_method_type so
-        // CompleteAuthorize carries the concrete method.
-        let payment_method_data = router_data.request.payment_method_data.clone().or_else(|| {
-            use hyperswitch_domain_models::payment_method_data as pmd;
-            match router_data.request.payment_method_type {
-                Some(common_enums::PaymentMethodType::Skrill) => {
-                    Some(pmd::PaymentMethodData::Wallet(pmd::WalletData::Skrill(
-                        Box::new(pmd::SkrillData {}),
-                    )))
-                }
-                Some(common_enums::PaymentMethodType::Interac) => Some(
-                    pmd::PaymentMethodData::BankRedirect(pmd::BankRedirectData::Interac {
-                        country: None,
-                        email: None,
-                    }),
-                ),
-                Some(common_enums::PaymentMethodType::PaySafeCard) => Some(
-                    pmd::PaymentMethodData::GiftCard(Box::new(pmd::GiftCardData::PaySafeCard {})),
-                ),
-                _ => None,
-            }
-        });
-
-        let payment_method = payment_method_data
+        // For stateless redirect payment methods (Skrill, Interac, paysafecard) the
+        // completion leg carries no payment_method_data in the request; core's
+        // make_pm_data reconstructs the empty-shell PaymentMethodData from the persisted
+        // payment_method_type, so it is already populated here.
+        let payment_method = router_data
+            .request
+            .payment_method_data
+            .clone()
             .map(|payment_method_data| {
                 unified_connector_service::build_unified_connector_service_payment_method(
                     payment_method_data,
