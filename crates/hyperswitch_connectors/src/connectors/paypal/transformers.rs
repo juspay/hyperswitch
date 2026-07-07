@@ -458,6 +458,17 @@ pub struct CardRequestStruct {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VaultStruct {
     vault_id: Secret<String>,
+    attributes: Option<VaultRequestAttributes>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VaultRequestAttributes {
+    customer: Option<CustomerRequestData>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CustomerRequestData {
+    merchant_customer_id: Option<common_utils::id_type::CustomerId>,
 }
 
 #[derive(Debug, Serialize)]
@@ -470,6 +481,7 @@ pub enum CardRequest {
 pub struct CardRequestAttributes {
     vault: Option<PaypalVault>,
     verification: Option<ThreeDsMethod>,
+    customer: Option<CustomerRequestData>,
 }
 
 #[derive(Debug, Serialize)]
@@ -527,6 +539,7 @@ pub struct PaypalRedirectionStruct {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Attributes {
     vault: PaypalVault,
+    customer: Option<CustomerRequestData>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -893,6 +906,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsPostSessionTokensRouterData>> for Paypal
                                 usage_type: UsageType::Merchant,
                                 permit_multiple_payment_tokens: Some(true),
                             },
+                            customer: None,
                         }),
                         enums::FutureUsage::OnSession => None,
                     },
@@ -1026,6 +1040,11 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                                 },
                                 None => None,
                             },
+                            customer: item.router_data.request.customer_id.as_ref().map(
+                                |customer_id| CustomerRequestData {
+                                    merchant_customer_id: Some(customer_id.clone()),
+                                },
+                            ),
                             verification,
                         }),
                     },
@@ -1072,6 +1091,16 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                                                 usage_type: UsageType::Merchant,
                                                 permit_multiple_payment_tokens: Some(true),
                                             },
+                                            customer: item
+                                                .router_data
+                                                .request
+                                                .customer_id
+                                                .as_ref()
+                                                .map(|customer_id| CustomerRequestData {
+                                                    merchant_customer_id: Some(
+                                                        customer_id.to_owned()
+                                                    ),
+                                                }),
                                         }),
                                         enums::FutureUsage::OnSession => None,
                                     },
@@ -1105,6 +1134,16 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                                                 usage_type: UsageType::Merchant,
                                                 permit_multiple_payment_tokens: Some(true),
                                             },
+                                            customer: item
+                                                .router_data
+                                                .request
+                                                .customer_id
+                                                .as_ref()
+                                                .map(|customer_id| CustomerRequestData {
+                                                    merchant_customer_id: Some(
+                                                        customer_id.to_owned(),
+                                                    ),
+                                                }),
                                         }),
                                         enums::FutureUsage::OnSession => None,
                                     },
@@ -1204,6 +1243,13 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     enums::PaymentMethodType::Credit | enums::PaymentMethodType::Debit => Ok(Some(
                         PaymentSourceItem::Card(CardRequest::CardVaultStruct(VaultStruct {
                             vault_id: connector_mandate_id.into(),
+                            attributes: Some(VaultRequestAttributes {
+                                customer: item.router_data.request.customer_id.as_ref().map(
+                                    |customer_id| CustomerRequestData {
+                                        merchant_customer_id: Some(customer_id.clone()),
+                                    },
+                                ),
+                            }),
                         })),
                     )),
                     #[cfg(feature = "v2")]
@@ -1217,6 +1263,13 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     enums::PaymentMethodType::Paypal => Ok(Some(PaymentSourceItem::Paypal(
                         PaypalRedirectionRequest::PaypalVaultStruct(VaultStruct {
                             vault_id: connector_mandate_id.into(),
+                            attributes: Some(VaultRequestAttributes {
+                                customer: item.router_data.request.customer_id.as_ref().map(
+                                    |customer_id| CustomerRequestData {
+                                        merchant_customer_id: Some(customer_id.clone()),
+                                    },
+                                ),
+                            }),
                         }),
                     ))),
                     enums::PaymentMethodType::Ach
