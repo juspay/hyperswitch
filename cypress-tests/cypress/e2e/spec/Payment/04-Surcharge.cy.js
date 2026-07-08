@@ -8,34 +8,13 @@ let globalState;
 describe("Surcharge payment flow test", () => {
   let shouldContinue = true;
 
-  before("seed state + setup surcharge DSL", () => {
+  before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      if (
-        utils.shouldIncludeConnector(
-          globalState.get("connectorId"),
-          utils.CONNECTOR_LISTS.INCLUDE.SURCHARGE
-        )
-      ) {
-        shouldContinue = false;
-        return;
-      }
-      const dslData =
-        routingUtils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Create"
-        ];
-      cy.createSurchargeDSLConfig(dslData.Request, dslData, globalState);
     });
   });
 
-  after("flush state + cleanup surcharge DSL", () => {
-    if (shouldContinue) {
-      const dslData =
-        routingUtils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Delete"
-        ];
-      cy.deleteSurchargeDSLConfig(dslData, globalState);
-    }
+  after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -46,6 +25,36 @@ describe("Surcharge payment flow test", () => {
   });
 
   context("Surcharge payment flow test Create and confirm", () => {
+    before("setup surcharge DSL", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+        if (
+          utils.shouldIncludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.INCLUDE.SURCHARGE
+          )
+        ) {
+          shouldContinue = false;
+          return;
+        }
+        const dslData =
+          routingUtils.getConnectorDetails("common")[
+            "SurchargeDecisionManager"
+          ]["Create"];
+        cy.createSurchargeDSLConfig(dslData.Request, dslData, globalState);
+      });
+    });
+
+    after("cleanup surcharge DSL", () => {
+      if (shouldContinue) {
+        const dslData =
+          routingUtils.getConnectorDetails("common")[
+            "SurchargeDecisionManager"
+          ]["Delete"];
+        cy.deleteSurchargeDSLConfig(dslData, globalState);
+      }
+    });
+
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment -> Retrieve Payment", () => {
       let continueSteps = true;
 
