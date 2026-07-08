@@ -19,7 +19,6 @@ pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 /// # Panics
 ///
 /// Panics if failed to create a redis pool
-#[allow(dead_code)]
 #[allow(clippy::expect_used)]
 pub async fn redis_connection(
     conf: &crate::configs::Settings,

@@ -87,6 +87,11 @@ pub mod date_time {
         OffsetDateTime::now_utc().unix_timestamp()
     }
 
+    /// Return the UNIX timestamp in nanoseconds of the current date and time in UTC
+    pub fn now_unix_timestamp_nanos() -> i128 {
+        OffsetDateTime::now_utc().unix_timestamp_nanos()
+    }
+
     /// Calculate execution time for a async block in milliseconds
     #[cfg(feature = "async_ext")]
     pub async fn time_it<T, Fut: futures::Future<Output = T>, F: FnOnce() -> Fut>(

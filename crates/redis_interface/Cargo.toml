@@ -19,7 +19,6 @@ error-stack = "0.4.1"
 futures = "0.3"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"
-time = { version = "0.3.41", features = ["std"] }
 tokio = "1.48.0"
 tokio-stream = { version = "0.1.17", features = ["sync"] }
 tracing = { workspace = true }

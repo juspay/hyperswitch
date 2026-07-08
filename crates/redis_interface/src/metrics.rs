@@ -14,7 +14,6 @@
 use common_utils::external_service::{ExternalServiceCall, ExternalServiceEventEmitter};
 #[cfg(feature = "metrics")]
 use router_env::{global_meter, histogram_metric_f64};
-use time::OffsetDateTime;
 
 #[cfg(feature = "metrics")]
 global_meter!(GLOBAL_METER, "REDIS");
@@ -140,7 +139,7 @@ where
                 status_code: if success { 200 } else { 500 },
                 success,
                 latency_ms: time_elapsed.as_millis(),
-                created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos(),
+                created_at_timestamp: common_utils::date_time::now_unix_timestamp_nanos(),
             });
         }
     }
