@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use common_enums::connector_enums::Connector;
+use common_enums::{connector_enums::Connector, ConnectorType};
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
 pub use hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError;
@@ -1048,15 +1048,13 @@ impl UnifiedConnectorServiceClient {
 
     /// Performs Create Access Token Granular
     ///
-    /// When `is_payout` is set, the payout connector header (`x-payout-connector`) is
-    /// attached so the merchant-authentication flow resolves the payout connector
-    /// variant; otherwise the payment connector header (`x-connector`) is used.
+    /// The connector type determines which UCS connector header namespace is used.
     pub async fn create_access_token(
         &self,
         create_access_token_request: payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
-        is_payout: bool,
+        connector_type: ConnectorType,
     ) -> UnifiedConnectorServiceResult<
         tonic::Response<
             payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
@@ -1064,14 +1062,11 @@ impl UnifiedConnectorServiceClient {
     > {
         let mut request = tonic::Request::new(create_access_token_request);
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata = if is_payout {
-            build_unified_connector_service_grpc_headers_for_payouts(
-                connector_auth_metadata,
-                grpc_headers,
-            )?
-        } else {
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?
-        };
+        let metadata = build_unified_connector_service_grpc_headers_for_connector_type(
+            connector_auth_metadata,
+            grpc_headers,
+            connector_type,
+        )?;
         *request.metadata_mut() = metadata;
 
         self.merchant_authentication_service_client
@@ -1411,6 +1406,27 @@ pub fn build_unified_connector_service_grpc_headers_for_payouts(
     grpc_headers: GrpcHeadersUcs,
 ) -> Result<MetadataMap, UnifiedConnectorServiceError> {
     build_grpc_headers_internal(meta, grpc_headers, consts::UCS_HEADER_PAYOUT_CONNECTOR)
+}
+
+fn build_unified_connector_service_grpc_headers_for_connector_type(
+    meta: ConnectorAuthMetadata,
+    grpc_headers: GrpcHeadersUcs,
+    connector_type: ConnectorType,
+) -> Result<MetadataMap, UnifiedConnectorServiceError> {
+    let connector_header_key = match connector_type {
+        ConnectorType::PaymentProcessor => consts::UCS_HEADER_CONNECTOR,
+        ConnectorType::PayoutProcessor => consts::UCS_HEADER_PAYOUT_CONNECTOR,
+        ConnectorType::SurchargeProcessor => consts::UCS_HEADER_SURCHARGE_CONNECTOR,
+        connector_type => {
+            return Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
+                    "unsupported UCS connector type for connector headers: {connector_type:?}"
+                )),
+            )
+        }
+    };
+
+    build_grpc_headers_internal(meta, grpc_headers, connector_header_key)
 }
 
 fn build_grpc_headers_internal(

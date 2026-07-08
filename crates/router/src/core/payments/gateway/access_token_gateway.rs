@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use common_enums::{CallConnectorAction, ExecutionPath};
+use common_enums::{CallConnectorAction, ConnectorType, ExecutionPath};
 use common_utils::{errors::CustomResult, id_type, request::Request, ucs_types};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -103,10 +103,13 @@ where
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
         // A merchant-authentication (access-token) call can originate from either a
-        // payment or a payout. When it is a payout, attach the payout reference/resource
-        // ids so the downstream call carries the real payout reference and (via the
-        // payout gRPC client) resolves the payout connector variant.
-        let is_payout = router_data.payout_id.is_some();
+        // payment or a payout. The connector type selects the UCS connector header
+        // namespace, while the ids below carry the payment/payout reference context.
+        let connector_type = if router_data.payout_id.is_some() {
+            ConnectorType::PayoutProcessor
+        } else {
+            ConnectorType::PaymentProcessor
+        };
 
         let (merchant_reference_id, resource_id) = if let Some(payout_id) =
             router_data.payout_id.as_deref()
@@ -167,7 +170,7 @@ where
                         create_access_token_request,
                         connector_auth_metadata,
                         grpc_headers,
-                        is_payout,
+                        connector_type,
                     )
                     .await
                     .attach_printable("Failed to create access token")?;
