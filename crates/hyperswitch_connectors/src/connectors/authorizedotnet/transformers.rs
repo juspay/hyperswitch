@@ -1391,6 +1391,8 @@ pub enum AuthorizedotnetPaymentStatus {
     HeldForReview,
     #[serde(rename = "5")]
     RequiresAction,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, Serialize)]
@@ -1403,6 +1405,8 @@ pub enum AuthorizedotnetRefundStatus {
     Error,
     #[serde(rename = "4")]
     HeldForReview,
+    #[serde(other)]
+    Unknown,
 }
 
 fn get_payment_status(
@@ -1421,6 +1425,7 @@ fn get_payment_status(
         }
         AuthorizedotnetPaymentStatus::RequiresAction => enums::AttemptStatus::AuthenticationPending,
         AuthorizedotnetPaymentStatus::HeldForReview => enums::AttemptStatus::Unresolved,
+        AuthorizedotnetPaymentStatus::Unknown => enums::AttemptStatus::Unresolved,
     }
 }
 
@@ -1435,6 +1440,8 @@ enum ResultCode {
     #[default]
     Ok,
     Error,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
@@ -1539,6 +1546,8 @@ pub enum AuthorizedotnetVoidStatus {
     Error,
     #[serde(rename = "4")]
     HeldForReview,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<AuthorizedotnetVoidStatus> for enums::AttemptStatus {
@@ -1549,6 +1558,7 @@ impl From<AuthorizedotnetVoidStatus> for enums::AttemptStatus {
                 Self::VoidFailed
             }
             AuthorizedotnetVoidStatus::HeldForReview => Self::VoidInitiated,
+            AuthorizedotnetVoidStatus::Unknown => Self::VoidInitiated,
         }
     }
 }
