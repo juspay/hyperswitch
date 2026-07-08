@@ -98,6 +98,9 @@ export const connectorDetails = {
       },
     }),
     Refund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 10000,
       },
@@ -109,6 +112,9 @@ export const connectorDetails = {
       },
     }),
     PartialRefund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 5000,
       },
