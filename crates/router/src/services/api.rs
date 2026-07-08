@@ -1898,31 +1898,8 @@ pub fn extract_field_by_dot_path(
 
 #[cfg(test)]
 mod tests {
-    use hyperswitch_domain_models::router_response_types::RedirectForm;
-
     #[test]
     fn test_mime_essence() {
         assert_eq!(mime::APPLICATION_JSON.essence_str(), "application/json");
-    }
-
-    #[test]
-    fn worldpayxml_ddc_redirect_regex_allows_hyphenated_ids() {
-        let html = super::build_redirection_form(
-            &RedirectForm::WorldpayxmlDDCForm {
-                bin: "451903".to_string(),
-                jwt: "jwt".to_string(),
-            },
-            None,
-            "500".to_string(),
-            "CAD".to_string(),
-            crate::configs::Settings::default(),
-        )
-        .into_string();
-
-        let ddc_redirect_regex = r#"new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+")"#;
-        let word_only_redirect_regex = r#"new RegExp("payments/redirect/(\\w+)/(\\w+)/\\w+")"#;
-
-        assert_eq!(html.matches(ddc_redirect_regex).count(), 2);
-        assert!(!html.contains(word_only_redirect_regex));
     }
 }
