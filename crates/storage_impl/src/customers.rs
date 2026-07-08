@@ -393,11 +393,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_write(self).await?;
+        let customer_id = customer_data.get_id().clone();
         let key = PartitionKey::MerchantIdCustomerId {
             merchant_id: &customer_data.merchant_id.clone(),
-            customer_id: &customer_data.customer_id.clone(),
+            customer_id: &customer_id,
         };
-        let identifier = format!("cust_{}", customer_data.customer_id.get_string_repr());
+        let identifier = format!("cust_{}", customer_id.get_string_repr());
         let mut new_customer = customer_data
             .construct_new()
             .await

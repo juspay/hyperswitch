@@ -350,12 +350,14 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
     #[cfg(feature = "v1")]
+    #[allow(clippy::too_many_arguments)]
     async fn create_payment_method(
         &self,
         _state: &SessionState,
         _request: &R,
         _platform: &domain::Platform,
         _payment_data: &mut D,
+        _customer: Option<&domain::Customer>,
         _business_profile: &domain::Profile,
         _feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()> {
@@ -621,6 +623,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         locale: &Option<String>,
         #[cfg(feature = "dynamic_routing")] routable_connector: Vec<RoutableConnectorChoice>,
         #[cfg(feature = "dynamic_routing")] business_profile: &domain::Profile,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<D>
     where
         F: 'b + Send + Sync;

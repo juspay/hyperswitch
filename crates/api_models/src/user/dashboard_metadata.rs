@@ -33,7 +33,7 @@ pub enum SetMetaDataRequest {
     OnboardingSurvey(OnboardingSurvey),
     ReconStatus(ReconStatus),
     #[cfg(feature = "v1")]
-    PaymentViews(SavedViewOperation),
+    PaymentViews(Box<SavedViewOperation>),
 }
 
 #[cfg(feature = "v1")]
@@ -213,6 +213,7 @@ pub enum SavedViewFiltersV1 {
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PaymentListFilterConstraintsV1 {
+    pub query: Option<String>,
     pub payment_id: Option<id_type::PaymentId>,
     pub profile_id: Option<id_type::ProfileId>,
     pub customer_id: Option<id_type::CustomerId>,
@@ -232,6 +233,15 @@ pub struct PaymentListFilterConstraintsV1 {
     #[serde(default)]
     pub order: payments::Order,
     pub card_network: Option<Vec<enums::CardNetwork>>,
+    pub card_last_4: Option<Vec<String>>,
+    pub active_attempt_id: Option<Vec<String>>,
+    pub card_issuer: Option<Vec<String>>,
+    pub routing_approach: Option<Vec<enums::RoutingApproach>>,
+    pub refunds_status: Option<Vec<String>>,
+    pub dispute_status: Option<Vec<String>>,
+    pub client_source: Option<Vec<String>>,
+    pub client_version: Option<Vec<String>>,
+    pub first_attempt: Option<Vec<bool>>,
     pub merchant_order_reference_id: Option<String>,
     pub card_discovery: Option<Vec<enums::CardDiscovery>>,
     pub customer_email: Option<pii::Email>,

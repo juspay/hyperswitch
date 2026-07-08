@@ -262,8 +262,10 @@ pub struct PaymentIntentUpdateFields {
     pub description: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<serde_json::Value>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub payment_confirm_source: Option<common_enums::PaymentSource>,
     pub updated_by: String,
@@ -309,7 +311,6 @@ pub enum PaymentIntentUpdate {
     MetadataUpdate {
         metadata: Option<serde_json::Value>,
         updated_by: String,
-        feature_metadata: Option<Secret<serde_json::Value>>,
     },
     Update(Box<PaymentIntentUpdateFields>),
     PaymentCreateUpdate {
@@ -374,6 +375,7 @@ pub enum PaymentIntentUpdate {
     ManualUpdate {
         status: Option<common_enums::IntentStatus>,
         updated_by: String,
+        amount_captured: Option<MinorUnit>,
     },
     SessionResponseUpdate {
         tax_details: diesel_models::TaxDetails,
@@ -477,6 +479,7 @@ pub struct PaymentIntentUpdateInternal {
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<serde_json::Value>,
     pub billing_address_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
@@ -486,6 +489,7 @@ pub struct PaymentIntentUpdateInternal {
     pub description: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub attempt_count: Option<i16>,
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
@@ -1089,12 +1093,10 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
                 updated_by,
-                feature_metadata,
             } => Self {
                 metadata,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
-                feature_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::Update(value) => Self {
@@ -1113,6 +1115,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_suffix: value.statement_descriptor_suffix,
                 order_details: value.order_details,
                 metadata: value.metadata,
+                connector_metadata: value.connector_metadata,
                 payment_confirm_source: value.payment_confirm_source,
                 updated_by: value.updated_by,
                 session_expiry: value.session_expiry,
@@ -1278,10 +1281,15 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_address_id,
                 ..Default::default()
             },
-            PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::ManualUpdate {
+                status,
+                updated_by,
+                amount_captured,
+            } => Self {
                 status,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
+                amount_captured,
                 ..Default::default()
             },
             PaymentIntentUpdate::SessionResponseUpdate {
@@ -1311,6 +1319,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 setup_future_usage: None,
                 off_session: None,
                 metadata: None,
+                connector_metadata: None,
                 billing_address_id: None,
                 shipping_address_id: None,
                 modified_at: None,
@@ -1320,6 +1329,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 description: None,
                 statement_descriptor_name: None,
                 statement_descriptor_suffix: None,
+                billing_descriptor: None,
                 order_details: None,
                 attempt_count: None,
                 merchant_decision: None,
@@ -1367,6 +1377,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 setup_future_usage: None,
                 off_session: None,
                 metadata: None,
+                connector_metadata: None,
                 billing_address_id: None,
                 shipping_address_id: None,
                 modified_at: None,
@@ -1376,6 +1387,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 description: None,
                 statement_descriptor_name: None,
                 statement_descriptor_suffix: None,
+                billing_descriptor: None,
                 order_details: None,
                 attempt_count: None,
                 merchant_decision: None,
@@ -1456,11 +1468,9 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
                 updated_by,
-                feature_metadata,
             } => Self::MetadataUpdate {
                 metadata,
                 updated_by,
-                feature_metadata,
             },
             PaymentIntentUpdate::StateMetadataUpdate {
                 state_metadata,
@@ -1484,8 +1494,10 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     description: value.description,
                     statement_descriptor_name: value.statement_descriptor_name,
                     statement_descriptor_suffix: value.statement_descriptor_suffix,
+                    billing_descriptor: value.billing_descriptor,
                     order_details: value.order_details,
                     metadata: value.metadata,
+                    connector_metadata: value.connector_metadata,
                     payment_confirm_source: value.payment_confirm_source,
                     updated_by: value.updated_by,
                     session_expiry: value.session_expiry,
@@ -1623,9 +1635,15 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             } => Self::CompleteAuthorizeUpdate {
                 shipping_address_id,
             },
-            PaymentIntentUpdate::ManualUpdate { status, updated_by } => {
-                Self::ManualUpdate { status, updated_by }
-            }
+            PaymentIntentUpdate::ManualUpdate {
+                status,
+                updated_by,
+                amount_captured,
+            } => Self::ManualUpdate {
+                status,
+                updated_by,
+                amount_captured,
+            },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
                 shipping_address_id,
@@ -1658,6 +1676,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             setup_future_usage,
             off_session,
             metadata,
+            connector_metadata,
             billing_address_id,
             shipping_address_id,
             modified_at: _,
@@ -1667,6 +1686,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             description,
             statement_descriptor_name,
             statement_descriptor_suffix,
+            billing_descriptor,
             order_details,
             attempt_count,
             merchant_decision,
@@ -1713,6 +1733,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             setup_future_usage,
             off_session,
             metadata,
+            connector_metadata,
             billing_address_id,
             shipping_address_id,
             modified_at,
@@ -1722,6 +1743,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             description,
             statement_descriptor_name,
             statement_descriptor_suffix,
+            billing_descriptor,
             order_details,
             attempt_count,
             merchant_decision,
@@ -1983,6 +2005,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
 impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::PaymentListFilterConstraints) -> Self {
         let api_models::payments::PaymentListFilterConstraints {
+            query: _query,
             payment_id,
             profile_id,
             customer_id,
@@ -1999,6 +2022,15 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             merchant_connector_id,
             order,
             card_network,
+            card_last_4: _card_last_4,
+            active_attempt_id: _active_attempt_id,
+            card_issuer: _card_issuer,
+            routing_approach: _routing_approach,
+            refunds_status: _refunds_status,
+            dispute_status: _dispute_status,
+            client_source: _client_source,
+            client_version: _client_version,
+            first_attempt: _first_attempt,
             card_discovery,
             merchant_order_reference_id,
             customer_email,

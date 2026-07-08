@@ -17,6 +17,7 @@ function normalize(input) {
     cybersource: "Cybersource",
     datatrans: "Datatrans",
     facilitapay: "Facilitapay",
+    helcim: "Helcim",
     noon: "Noon",
     paybox: "Paybox",
     paypal: "Paypal",
@@ -197,6 +198,7 @@ const CURRENCY_MAP = {
   OnlineBankingFpx: "MYR", // Malaysian payment methods
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
+  Payjustnow: "ZAR", // South African BNPL
   Affirm: "USD", // US BNPL payment method
   AliPay: "CNY", // Default ISO-4217 currency; MultiSafepay sandbox overrides to EUR (see Multisafepay.js::wallet_pm.PaymentIntent)
   WeChatPay: "CNY", // Default ISO-4217 currency; MultiSafepay sandbox overrides to EUR (see Multisafepay.js::wallet_pm.PaymentIntent)
