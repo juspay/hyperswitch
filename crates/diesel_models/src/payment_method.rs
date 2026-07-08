@@ -1434,7 +1434,7 @@ impl From<PaymentsMandateReference> for PaymentsTokenReference {
             .map(|(mca_id, record)| {
                 let token_status = record
                     .connector_mandate_status
-                    .map(Into::into)
+                    .map(common_enums::ConnectorTokenStatus::from)
                     .unwrap_or(common_enums::ConnectorTokenStatus::Inactive);
 
                 let token_record = ConnectorTokenReferenceRecord {
@@ -1513,35 +1513,23 @@ pub struct ConnectorMandateCompatReference {
 impl ConnectorMandateCompatReference {
     #[cfg(feature = "v1")]
     fn add_v2_fields(&mut self) {
-        if self.connector_token.is_none() {
-            self.connector_token.clone_from(&self.connector_mandate_id);
-        }
-        if self.payment_method_subtype.is_none() {
-            self.payment_method_subtype = self.payment_method_type;
-        }
-        if self.connector_token_request_reference_id.is_none() {
-            self.connector_token_request_reference_id
-                .clone_from(&self.connector_mandate_request_reference_id);
-        }
-        if self.connector_token_status.is_none() {
-            self.connector_token_status = self.connector_mandate_status.map(Into::into);
-        }
+        self.connector_token = self.connector_mandate_id.clone();
+        self.payment_method_subtype = self.payment_method_type;
+        self.connector_token_request_reference_id =
+            self.connector_mandate_request_reference_id.clone();
+        self.connector_token_status = self
+            .connector_mandate_status
+            .map(common_enums::ConnectorTokenStatus::from);
     }
 
     fn add_v1_fields(&mut self) {
-        if self.connector_mandate_id.is_none() {
-            self.connector_mandate_id.clone_from(&self.connector_token);
-        }
-        if self.payment_method_type.is_none() {
-            self.payment_method_type = self.payment_method_subtype;
-        }
-        if self.connector_mandate_request_reference_id.is_none() {
-            self.connector_mandate_request_reference_id
-                .clone_from(&self.connector_token_request_reference_id);
-        }
-        if self.connector_mandate_status.is_none() {
-            self.connector_mandate_status = self.connector_token_status.map(Into::into);
-        }
+        self.connector_mandate_id = self.connector_token.clone();
+        self.payment_method_type = self.payment_method_subtype;
+        self.connector_mandate_request_reference_id =
+            self.connector_token_request_reference_id.clone();
+        self.connector_mandate_status = self
+            .connector_token_status
+            .map(common_enums::ConnectorMandateStatus::from);
     }
 }
 
