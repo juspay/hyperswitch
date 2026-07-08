@@ -120,6 +120,34 @@ pub struct RevenueRecoveryPaymentProcessTrackerMapping {
     pub default_mapping: RetryMapping,
 }
 
+/// Calendar-style revenue recovery schedule configuration.
+///
+/// Unlike [`RevenueRecoveryPaymentProcessTrackerMapping`] (relative offsets), this
+/// describes *absolute* schedule points: a set of allowed days-of-month and a set of
+/// allowed UTC hours. The next retry is placed on the next upcoming configured day,
+/// at a configured hour. This is the shape read from Superposition for error-code
+/// strategies that schedule on billing-anchor days (e.g. insufficient funds).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RevenueRecoveryCalendarMapping {
+    /// Allowed days-of-month for a recovery attempt (1..=31). Values outside the
+    /// range are ignored. A day that exceeds the target month's length is clamped
+    /// to that month's last day (e.g. 30 -> 28 in February).
+    pub recovery_days: Vec<u8>,
+    /// Allowed UTC hours for a recovery attempt (12..=21). Values outside the range
+    /// are ignored. The specific hour is chosen deterministically per invoice so
+    /// that load is spread across the window while staying sticky across retries.
+    pub recovery_hours_utc: Vec<u8>,
+}
+
+impl Default for RevenueRecoveryCalendarMapping {
+    fn default() -> Self {
+        Self {
+            recovery_days: vec![1, 8, 15, 20, 25, 26, 28, 30],
+            recovery_hours_utc: vec![12, 15, 18, 21],
+        }
+    }
+}
+
 impl Default for RevenueRecoveryPaymentProcessTrackerMapping {
     fn default() -> Self {
         Self {

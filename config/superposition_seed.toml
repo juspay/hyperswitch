@@ -64,6 +64,30 @@ schema = { type = "string" }
 description = "Business profile identifier"
 change_reason = "Initial setup"
 
+[dimensions.connector]
+position = 5
+schema = { type = "string" }
+description = "Payment connector identifier (e.g. stripe, adyen)"
+change_reason = "Initial setup"
+
+[dimensions.payout_retry_type]
+position = 6
+schema = { type = "string" }
+description = "Type of payout retry (single_connector or multi_connector)"
+change_reason = "Initial setup"
+
+[dimensions.incoming_webhook_events]
+position = 7
+schema = { type = "string" }
+description = "Incoming webhook event type identifier (e.g. payment_intent.succeeded)"
+change_reason = "Initial setup"
+
+[dimensions.error_code]
+position = 8
+schema = { type = "string" }
+description = "Previous attempt's connector (PG) error code, used by the ErrorCodeBased revenue recovery strategy to pick which algorithm to run next"
+change_reason = "Initial setup"
+
 [default-configs.requires_cvv]
 value = true
 schema = { type = "boolean" }
@@ -241,6 +265,21 @@ change_reason = "Initial setup"
 [default-configs.pt_mapping_pcr_retries.value.default_mapping]
 start_after = 60
 frequencies = [[10800, 2], [21600, 3], [32400, 3], [43200, 3], [64800, 3]]
+
+[default-configs.revenue_recovery_retry_algorithm]
+schema = { type = "string" }
+description = "Revenue recovery (PCR) strategy selector for the ErrorCodeBased profile. Superposition returns which strategy to run for the next attempt (insufficient_funds / cascading / smart), overridden per error_code dimension. Defaults to cascading."
+change_reason = "Initial setup"
+value = "cascading"
+
+[default-configs.pcr_insufficient_funds_schedule]
+schema = { type = "object" }
+description = "Revenue recovery (PCR) insufficient-funds schedule: absolute days-of-month and UTC hours for the next recovery attempt when ErrorCodeBased routes an insufficient-funds decline to the calendar schedule"
+change_reason = "Initial setup"
+
+[default-configs.pcr_insufficient_funds_schedule.value]
+recovery_days = [1, 8, 15, 20, 25, 26, 28, 30]
+recovery_hours_utc = [12, 15, 18, 21]
 
 [default-configs.pt_mapping_payment_sync]
 schema = { type = "object" }

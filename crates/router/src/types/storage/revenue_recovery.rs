@@ -79,6 +79,66 @@ impl RevenueRecoveryPaymentData {
                 .await
             }
             enums::RevenueRecoveryAlgorithmType::Smart => None,
+            // ErrorCodeBased asks Superposition (keyed on the previous attempt's error
+            // code) which concrete strategy to run, then dispatches to it. The existing
+            // Cascading/Smart arms above are reused via the same underlying helpers.
+            enums::RevenueRecoveryAlgorithmType::ErrorCodeBased => {
+                let connector = match payment_attempt.connector.as_ref().and_then(|c| {
+                    c.parse::<common_enums::connector_enums::Connector>()
+                        .map_err(|e| {
+                            logger::error!(
+                                "Failed to parse connector {:?} for payment_attempt {:?}: {:?}",
+                                c,
+                                payment_attempt.payment_id,
+                                e
+                            )
+                        })
+                        .ok()
+                }) {
+                    Some(connector) => connector,
+                    None => return None,
+                };
+
+                let error_code = payment_attempt
+                    .error
+                    .as_ref()
+                    .map(|error| error.code.clone());
+
+                let strategy = revenue_recovery::resolve_retry_strategy(
+                    state,
+                    merchant_id.clone(),
+                    connector,
+                    error_code,
+                    payment_intent.get_id().get_string_repr(),
+                )
+                .await;
+
+                let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                    .with_processor_merchant_id(merchant_id.clone().into())
+                    .with_connector(connector);
+
+                match strategy {
+                    revenue_recovery::ResolvedRecoveryStrategy::InsufficientFunds => {
+                        revenue_recovery::get_insufficient_funds_schedule_time_to_retry_mit_payments(
+                            state.store.as_ref(),
+                            state.superposition_service.as_ref(),
+                            &dimensions,
+                            payment_intent.get_id().get_string_repr(),
+                        )
+                        .await
+                    }
+                    revenue_recovery::ResolvedRecoveryStrategy::Cascading => {
+                        revenue_recovery::get_schedule_time_to_retry_mit_payments(
+                            state.store.as_ref(),
+                            state.superposition_service.as_ref(),
+                            &dimensions,
+                            retry_count,
+                        )
+                        .await
+                    }
+                    revenue_recovery::ResolvedRecoveryStrategy::Smart => None,
+                }
+            }
         }
     }
 }

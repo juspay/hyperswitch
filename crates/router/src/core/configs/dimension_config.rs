@@ -656,6 +656,23 @@ impl DatabaseBackedConfig for PtMappingPcrRetries {
 }
 
 config! {
+    superposition_key = PCR_INSUFFICIENT_FUNDS_SCHEDULE,
+    output = scheduler::types::process_data::RevenueRecoveryCalendarMapping,
+    default = scheduler::types::process_data::RevenueRecoveryCalendarMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for PcrInsufficientFundsSchedule {
+    const KEY: &'static str = "pcr_insufficient_funds_schedule";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        Some(Self::KEY.to_string())
+    }
+}
+
+config! {
     superposition_key = PT_MAPPING_PAYMENT_SYNC,
     output = scheduler::types::process_data::ConnectorPTMapping,
     default = scheduler::types::process_data::ConnectorPTMapping::default(),

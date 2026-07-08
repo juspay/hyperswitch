@@ -948,7 +948,12 @@ impl RedisTokenManager {
                 logger::error!("Monitoring type found for Revenue Recovery retry payment");
             }
 
-            RevenueRecoveryAlgorithmType::Cascading => {
+            // ErrorCodeBased reuses the cascading token fetch (the last used token):
+            // its error-code strategies that schedule on this path (e.g. insufficient
+            // funds) retry the same processor token as cascading. Only the schedule
+            // time is strategy-specific, and that is resolved in the calculate step.
+            RevenueRecoveryAlgorithmType::Cascading
+            | RevenueRecoveryAlgorithmType::ErrorCodeBased => {
                 token = match last_token_used {
                     Some(token_id) => {
                         Self::get_payment_processor_token_using_token_id(

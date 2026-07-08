@@ -359,6 +359,13 @@ pub enum RevenueRecoveryAlgorithmType {
     Monitoring,
     Smart,
     Cascading,
+    /// Error-code-driven selection. When a profile is set to this, the concrete
+    /// recovery strategy for the *next* attempt is decided by Superposition based on
+    /// the previous attempt's error code (e.g. an insufficient-funds decline can be
+    /// routed to a dedicated billing-anchor calendar schedule, while other declines
+    /// fall back to `Cascading`/`Smart`). This is never itself an executable
+    /// schedule — it always resolves to a concrete strategy at schedule time.
+    ErrorCodeBased,
 }
 
 #[derive(

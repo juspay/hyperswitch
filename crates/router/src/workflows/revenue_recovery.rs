@@ -248,6 +248,142 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     scheduler_utils::get_time_from_delta(time_delta)
 }
 
+/// Concrete recovery strategy chosen by Superposition for an
+/// [`RevenueRecoveryAlgorithmType::ErrorCodeBased`] retry, keyed on the previous
+/// attempt's error code.
+///
+/// Each *error-specific* strategy (e.g. [`Self::InsufficientFunds`]) is named for the
+/// decline reason it targets and encapsulates scheduling tuned for it. Superposition
+/// may also route an error code to one of the existing generic algorithms as a
+/// fallback. This enum is intentionally internal: only [`resolve_retry_strategy`]
+/// produces it, so the profile-settable [`RevenueRecoveryAlgorithmType`] stays
+/// unchanged (only `ErrorCodeBased` was added).
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ResolvedRecoveryStrategy {
+    /// Insufficient-funds declines: schedule the next retry on the next configured
+    /// billing-anchor day-of-month at a configured UTC hour (days + hours read from
+    /// Superposition, key [`consts::superposition::PCR_INSUFFICIENT_FUNDS_SCHEDULE`]).
+    /// Absolute calendar scheduling rather than a relative offset.
+    InsufficientFunds,
+    /// Reuse the existing relative-offset cascading schedule.
+    Cascading,
+    /// Reuse the existing smart-retry token selection.
+    Smart,
+}
+
+#[cfg(feature = "v2")]
+impl ResolvedRecoveryStrategy {
+    /// Parse the strategy identifier returned by Superposition. Unknown values fall
+    /// back to [`Self::Cascading`] so a misconfiguration never blocks recovery.
+    fn from_superposition_value(value: &str) -> Self {
+        match value.trim().to_lowercase().as_str() {
+            "insufficient_funds" => Self::InsufficientFunds,
+            "smart" => Self::Smart,
+            // "cascading" and anything unrecognized default to the safe baseline.
+            _ => Self::Cascading,
+        }
+    }
+}
+
+/// Resolve the next recovery time for the insufficient-funds strategy.
+///
+/// Reads the calendar schedule config from Superposition (same dimension-based read
+/// as the cascading mapping, but keyed on
+/// [`consts::superposition::PCR_INSUFFICIENT_FUNDS_SCHEDULE`]) and computes the next
+/// upcoming configured day-of-month at a configured UTC hour. `bucket_key` (the
+/// global payment id) makes the chosen hour deterministic and sticky per invoice.
+#[cfg(feature = "v2")]
+pub(crate) async fn get_insufficient_funds_schedule_time_to_retry_mit_payments(
+    db: &dyn StorageInterface,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    bucket_key: &str,
+) -> Option<time::PrimitiveDateTime> {
+    let mapping = dimensions
+        .get_pcr_insufficient_funds_schedule(db, superposition_client, None)
+        .await;
+
+    scheduler_utils::get_calendar_next_schedule_time(
+        mapping,
+        common_utils::date_time::now(),
+        bucket_key,
+    )
+}
+
+/// Resolve which recovery strategy to run for the next attempt when the profile is
+/// set to [`RevenueRecoveryAlgorithmType::ErrorCodeBased`].
+///
+/// The choice is delegated to Superposition: we send the previous attempt's error
+/// code (plus the `processor_merchant_id` and `connector` dimensions) and
+/// Superposition returns the strategy identifier — e.g. `insufficient_funds`,
+/// `cascading`, or `smart`. This makes the retry strategy fully operator-configurable
+/// per error, and generic across all error codes: adding a new mapping is a
+/// Superposition config change, not a code change.
+///
+/// Decision key: currently the raw connector (PG) error code
+/// (`first_payment_attempt_pg_error_code`). This is connector-specific, so
+/// Superposition rules are scoped by `connector`. Future alternatives (not yet
+/// wired) that would make rules connector-agnostic or network-standard:
+/// - `unified_code`: Hyperswitch's GSM-derived unified error code (one rule
+///   across all connectors); requires GSM to be populated.
+/// - `network_decline_code`: ISO 8583 code (e.g. "51" = insufficient funds),
+///   standard across card networks.
+///
+/// To switch, pass the chosen field as the `error_code` context dimension below.
+///
+/// Falls back to [`ResolvedRecoveryStrategy::Cascading`] when Superposition returns
+/// no (or an unrecognized) value.
+#[cfg(feature = "v2")]
+pub(crate) async fn resolve_retry_strategy(
+    state: &SessionState,
+    processor_merchant_id: common_utils::id_type::MerchantId,
+    connector: common_enums::connector_enums::Connector,
+    error_code: Option<String>,
+    targeting_key: &str,
+) -> ResolvedRecoveryStrategy {
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor_merchant_id.into())
+        .with_connector(connector);
+
+    let mut context = dimensions.to_superposition_context().unwrap_or_default();
+    // `error_code` is a runtime (non-type-state) Superposition dimension, so it is
+    // added to the context directly rather than through the typed builder.
+    if let Some(ref code) = error_code {
+        context = context.with("error_code", code);
+    }
+
+    let targeting = targeting_key.to_string();
+    let resolved = state
+        .superposition_service
+        .get_config_value::<String>(
+            consts::superposition::REVENUE_RECOVERY_RETRY_ALGORITHM,
+            Some(&context),
+            Some(&targeting),
+        )
+        .await
+        .ok()
+        .map(|value| ResolvedRecoveryStrategy::from_superposition_value(&value));
+
+    match resolved {
+        Some(strategy) => {
+            logger::info!(
+                resolved_strategy = ?strategy,
+                error_code = ?error_code,
+                "Resolved revenue recovery retry strategy from Superposition"
+            );
+            strategy
+        }
+        None => {
+            logger::info!(
+                error_code = ?error_code,
+                "No Superposition strategy resolved; defaulting to Cascading"
+            );
+            ResolvedRecoveryStrategy::Cascading
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct RetryDecision {
     pub retry_time: time::PrimitiveDateTime,
@@ -628,6 +764,74 @@ pub enum PaymentProcessorTokenResponse {
     None,
 }
 
+/// Build the token response for a schedule-time-driven strategy (cascading and the
+/// error-code strategies that reuse it, e.g. insufficient funds). Looks up the last
+/// used processor token's retry info in redis and maps it to a
+/// [`PaymentProcessorTokenResponse`], scheduling at `schedule_time` when the token is
+/// immediately retryable. Extracted so both the `Cascading` arm and the
+/// `ErrorCodeBased` dispatch share identical token handling.
+#[cfg(feature = "v2")]
+async fn build_cascading_token_response(
+    state: &SessionState,
+    connector_customer_id: &str,
+    payment_intent: &PaymentIntent,
+    schedule_time: time::PrimitiveDateTime,
+) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
+    let payment_processor_token = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+        .map(|recovery_metadata| {
+            recovery_metadata
+                .billing_connector_payment_details
+                .payment_processor_token
+                .clone()
+        });
+
+    let payment_processor_tokens_details =
+        RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
+            state,
+            connector_customer_id,
+        )
+        .await
+        .change_context(errors::ProcessTrackerError::ERedisError(
+            errors::RedisError::RedisConnectionError.into(),
+        ))?;
+
+    // Get the token info from redis
+    let payment_processor_tokens_details_with_retry_info = payment_processor_token
+        .as_ref()
+        .and_then(|t| payment_processor_tokens_details.get(t));
+
+    // If payment_processor_tokens_details_with_retry_info is None, then no schedule time
+    let response = match payment_processor_tokens_details_with_retry_info {
+        None => {
+            logger::debug!("No payment processor token found for cascading retry");
+            PaymentProcessorTokenResponse::None
+        }
+        Some(payment_token) => {
+            if payment_token.token_status.is_hard_decline.unwrap_or(false) {
+                PaymentProcessorTokenResponse::HardDecline
+            } else if payment_token.retry_wait_time_hours > 0 {
+                let utc_schedule_time: time::OffsetDateTime = time::OffsetDateTime::now_utc()
+                    + time::Duration::hours(payment_token.retry_wait_time_hours);
+                let next_available_time =
+                    time::PrimitiveDateTime::new(utc_schedule_time.date(), utc_schedule_time.time());
+
+                PaymentProcessorTokenResponse::NextAvailableTime {
+                    next_available_time,
+                }
+            } else {
+                PaymentProcessorTokenResponse::ScheduledTime {
+                    scheduled_time: schedule_time,
+                }
+            }
+        }
+    };
+
+    Ok(response)
+}
+
 #[cfg(feature = "v2")]
 pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     state: &SessionState,
@@ -656,61 +860,79 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             .await
             .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
-            let payment_processor_token = payment_intent
-                .feature_metadata
-                .as_ref()
-                .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
-                .map(|recovery_metadata| {
-                    recovery_metadata
-                        .billing_connector_payment_details
-                        .payment_processor_token
-                        .clone()
-                });
+            payment_processor_token_response = build_cascading_token_response(
+                state,
+                connector_customer_id,
+                payment_intent,
+                time,
+            )
+            .await?;
+        }
 
-            let payment_processor_tokens_details =
-                RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
-                    state,
-                    connector_customer_id,
-                )
-                .await
-                .change_context(errors::ProcessTrackerError::ERedisError(
-                    errors::RedisError::RedisConnectionError.into(),
-                ))?;
+        // ErrorCodeBased delegates the strategy choice to Superposition, keyed on the
+        // previous attempt's error code, then dispatches to the resolved strategy.
+        // Existing Cascading/Smart handling above is reused as-is.
+        RevenueRecoveryAlgorithmType::ErrorCodeBased => {
+            let previous_error_code = payment_intent
+                .get_revenue_recovery_metadata()
+                .and_then(|metadata| metadata.first_payment_attempt_pg_error_code.clone());
+            let strategy = resolve_retry_strategy(
+                state,
+                payment_intent.merchant_id.clone(),
+                billing_connector,
+                previous_error_code,
+                payment_intent.get_id().get_string_repr(),
+            )
+            .await;
 
-            // Get the token info from redis
-            let payment_processor_tokens_details_with_retry_info = payment_processor_token
-                .as_ref()
-                .and_then(|t| payment_processor_tokens_details.get(t));
-
-            // If payment_processor_tokens_details_with_retry_info is None, then no schedule time
-            match payment_processor_tokens_details_with_retry_info {
-                None => {
-                    payment_processor_token_response = PaymentProcessorTokenResponse::None;
-                    logger::debug!("No payment processor token found for cascading retry");
+            match strategy {
+                // Smart is a fully independent token selection (no schedule-time input).
+                ResolvedRecoveryStrategy::Smart => {
+                    payment_processor_token_response =
+                        get_best_psp_token_available_for_smart_retry(
+                            state,
+                            connector_customer_id,
+                            payment_intent,
+                        )
+                        .await
+                        .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
                 }
-                Some(payment_token) => {
-                    if payment_token.token_status.is_hard_decline.unwrap_or(false) {
-                        payment_processor_token_response =
-                            PaymentProcessorTokenResponse::HardDecline;
-                    } else if payment_token.retry_wait_time_hours > 0 {
-                        let utc_schedule_time: time::OffsetDateTime =
-                            time::OffsetDateTime::now_utc()
-                                + time::Duration::hours(payment_token.retry_wait_time_hours);
-                        let next_available_time = time::PrimitiveDateTime::new(
-                            utc_schedule_time.date(),
-                            utc_schedule_time.time(),
-                        );
-
-                        payment_processor_token_response =
-                            PaymentProcessorTokenResponse::NextAvailableTime {
-                                next_available_time,
-                            };
-                    } else {
-                        payment_processor_token_response =
-                            PaymentProcessorTokenResponse::ScheduledTime {
-                                scheduled_time: time,
-                            };
+                // InsufficientFunds and Cascading share token handling; only the
+                // schedule-time computation differs (absolute calendar vs relative).
+                ResolvedRecoveryStrategy::InsufficientFunds
+                | ResolvedRecoveryStrategy::Cascading => {
+                    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                        .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                        .with_connector(billing_connector);
+                    let time = match strategy {
+                        ResolvedRecoveryStrategy::InsufficientFunds => {
+                            get_insufficient_funds_schedule_time_to_retry_mit_payments(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                &dimensions,
+                                payment_intent.get_id().get_string_repr(),
+                            )
+                            .await
+                        }
+                        _ => {
+                            get_schedule_time_to_retry_mit_payments(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                &dimensions,
+                                retry_count,
+                            )
+                            .await
+                        }
                     }
+                    .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
+
+                    payment_processor_token_response = build_cascading_token_response(
+                        state,
+                        connector_customer_id,
+                        payment_intent,
+                        time,
+                    )
+                    .await?;
                 }
             }
         }

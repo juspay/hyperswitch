@@ -380,6 +380,14 @@ pub mod superposition {
         "pt_mapping_outgoing_connector_webhooks";
     /// PCR (Revenue Recovery) payments retry process tracker mapping key
     pub const PT_MAPPING_PCR_RETRIES: &str = "pt_mapping_pcr_retries";
+    /// PCR (Revenue Recovery) retry-strategy selector key. For an `ErrorCodeBased`
+    /// profile, Superposition returns the strategy to run for the next attempt,
+    /// keyed on the previous attempt's error code (plus merchant/connector).
+    pub const REVENUE_RECOVERY_RETRY_ALGORITHM: &str = "revenue_recovery_retry_algorithm";
+    /// PCR (Revenue Recovery) insufficient-funds schedule config key: the absolute
+    /// days-of-month and UTC hours used when `ErrorCodeBased` routes an
+    /// insufficient-funds decline to the billing-anchor calendar schedule.
+    pub const PCR_INSUFFICIENT_FUNDS_SCHEDULE: &str = "pcr_insufficient_funds_schedule";
     /// Payment sync (psync) retry process tracker mapping key
     pub const PT_MAPPING_PAYMENT_SYNC: &str = "pt_mapping_payment_sync";
     /// Refund sync retry process tracker mapping key

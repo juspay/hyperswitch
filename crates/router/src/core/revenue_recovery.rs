@@ -593,6 +593,10 @@ pub async fn perform_calculate_workflow(
     {
         common_enums::RevenueRecoveryAlgorithmType::Smart => common_enums::RevenueRecoveryAlgorithmType::Smart,
         common_enums::RevenueRecoveryAlgorithmType::Cascading => common_enums::RevenueRecoveryAlgorithmType::Cascading,
+        // Pass ErrorCodeBased through unchanged: the concrete strategy is resolved
+        // downstream (in get_token_with_schedule_time_based_on_retry_algorithm_type),
+        // once the previous attempt's error code is available.
+        common_enums::RevenueRecoveryAlgorithmType::ErrorCodeBased => common_enums::RevenueRecoveryAlgorithmType::ErrorCodeBased,
         common_enums::RevenueRecoveryAlgorithmType::Monitoring => {
             return Err(sch_errors::ProcessTrackerError::ProcessUpdateFailed);
         }

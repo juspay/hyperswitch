@@ -392,6 +392,94 @@ pub fn get_pcr_payments_retry_schedule_time(
     }
 }
 
+/// FNV-1a 64-bit hash used to deterministically (and stickily) spread invoices
+/// across the configured recovery hours. Not cryptographic.
+fn fnv1a_64(input: &str) -> u64 {
+    const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+    let mut hash = FNV_OFFSET_BASIS;
+    for byte in input.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+    hash
+}
+
+/// Compute the next calendar-based recovery time from a [`process_data::RevenueRecoveryCalendarMapping`].
+///
+/// Picks the next configured day-of-month strictly after `now`'s date (rolling into
+/// following months when none remain, clamping overflow days to the month's last day,
+/// e.g. `30` -> `28` in February), at a configured UTC hour chosen deterministically
+/// from `bucket_key`. The hour selection is sticky across retries for a given invoice
+/// (same key -> same hour) while spreading load across the configured window.
+///
+/// Returns `None` when the config has no usable days or hours, so callers fall back
+/// safely (no schedule produced). Unlike the relative-offset mappings, `retry_count`
+/// is intentionally not an input: the schedule is purely calendar-driven.
+pub fn get_calendar_next_schedule_time(
+    mapping: process_data::RevenueRecoveryCalendarMapping,
+    now: time::PrimitiveDateTime,
+    bucket_key: &str,
+) -> Option<time::PrimitiveDateTime> {
+    // Sanitize and order the configured days-of-month (1..=31).
+    let mut days: Vec<u8> = mapping
+        .recovery_days
+        .into_iter()
+        .filter(|day| (1..=31).contains(day))
+        .collect();
+    days.sort_unstable();
+    days.dedup();
+
+    // Sanitize and order the configured UTC hours (12..=21).
+    let mut hours: Vec<u8> = mapping
+        .recovery_hours_utc
+        .into_iter()
+        .filter(|hour| (12..=21).contains(hour))
+        .collect();
+    hours.sort_unstable();
+    hours.dedup();
+
+    if days.is_empty() || hours.is_empty() {
+        logger::warn!("Calendar recovery config has no usable days or hours; no schedule produced");
+        return None;
+    }
+
+    // Deterministic, sticky hour selection for this invoice.
+    let hour_count = u64::try_from(hours.len()).unwrap_or(1);
+    let hour_index = usize::try_from(fnv1a_64(bucket_key) % hour_count).unwrap_or(0);
+    // `hours` is non-empty and `hour_index < hours.len()`, so this always resolves.
+    let &hour = hours.get(hour_index)?;
+    let schedule_time = time::Time::from_hms(hour, 0, 0).ok()?;
+
+    let today = now.date();
+    let mut year = today.year();
+    let mut month = today.month();
+
+    // Search the current month and up to a year ahead. A configured day always
+    // resolves within the first two months; the bound just keeps this total.
+    for _ in 0..13 {
+        let days_in_month = month.length(year);
+        for &day in &days {
+            // Clamp overflow days (e.g. 30th in a 28-day February) to month end.
+            let clamped_day = day.min(days_in_month);
+            if let Ok(candidate) = time::Date::from_calendar_date(year, month, clamped_day) {
+                if candidate > today {
+                    return Some(time::PrimitiveDateTime::new(candidate, schedule_time));
+                }
+            }
+        }
+        // Advance to the next month.
+        if month == time::Month::December {
+            year += 1;
+            month = time::Month::January;
+        } else {
+            month = month.next();
+        }
+    }
+
+    None
+}
+
 pub fn get_subscription_invoice_sync_retry_schedule_time(
     mapping: process_data::SubscriptionInvoiceSyncPTMapping,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -494,5 +582,107 @@ mod tests {
                 "Delay and expected delay differ for `retry_count` = {retry_count}"
             );
         }
+    }
+
+    fn calendar_mapping(
+        days: Vec<u8>,
+        hours: Vec<u8>,
+    ) -> process_data::RevenueRecoveryCalendarMapping {
+        process_data::RevenueRecoveryCalendarMapping {
+            recovery_days: days,
+            recovery_hours_utc: hours,
+        }
+    }
+
+    fn datetime(year: i32, month: time::Month, day: u8, hour: u8) -> time::PrimitiveDateTime {
+        time::PrimitiveDateTime::new(
+            time::Date::from_calendar_date(year, month, day).unwrap(),
+            time::Time::from_hms(hour, 0, 0).unwrap(),
+        )
+    }
+
+    #[test]
+    fn calendar_picks_next_upcoming_day_this_month() {
+        // today = 10th, next configured day strictly after is the 15th.
+        let mapping = calendar_mapping(vec![1, 8, 15, 25], vec![12]);
+        let now = datetime(2026, time::Month::June, 10, 9);
+        let next = get_calendar_next_schedule_time(mapping, now, "pay_1").unwrap();
+        assert_eq!(
+            next.date(),
+            time::Date::from_calendar_date(2026, time::Month::June, 15).unwrap()
+        );
+        assert_eq!(next.time().hour(), 12);
+    }
+
+    #[test]
+    fn calendar_rolls_to_next_month_when_no_day_remains() {
+        // today = 27th, no configured day after it this month -> first day next month.
+        let mapping = calendar_mapping(vec![1, 8, 15, 25], vec![15]);
+        let now = datetime(2026, time::Month::June, 27, 9);
+        let next = get_calendar_next_schedule_time(mapping, now, "pay_1").unwrap();
+        assert_eq!(
+            next.date(),
+            time::Date::from_calendar_date(2026, time::Month::July, 1).unwrap()
+        );
+    }
+
+    #[test]
+    fn calendar_clamps_overflow_day_to_month_end() {
+        // Only the 30th is configured; February clamps it to the 28th (2026 is not a leap year).
+        let mapping = calendar_mapping(vec![30], vec![18]);
+        let now = datetime(2026, time::Month::February, 10, 9);
+        let next = get_calendar_next_schedule_time(mapping, now, "pay_1").unwrap();
+        assert_eq!(
+            next.date(),
+            time::Date::from_calendar_date(2026, time::Month::February, 28).unwrap()
+        );
+    }
+
+    #[test]
+    fn calendar_hour_is_deterministic_and_sticky() {
+        let now = datetime(2026, time::Month::June, 10, 9);
+        let first = get_calendar_next_schedule_time(
+            calendar_mapping(vec![15], vec![12, 15, 18, 21]),
+            now,
+            "pay_sticky",
+        )
+        .unwrap();
+        for _ in 0..5 {
+            let again = get_calendar_next_schedule_time(
+                calendar_mapping(vec![15], vec![12, 15, 18, 21]),
+                now,
+                "pay_sticky",
+            )
+            .unwrap();
+            assert_eq!(first.time().hour(), again.time().hour());
+        }
+        // Chosen hour is always within the configured window.
+        assert!((12..=21).contains(&first.time().hour()));
+    }
+
+    #[test]
+    fn calendar_ignores_out_of_range_values_and_dedupes() {
+        // 0 and 40 are invalid days; 5 and 23 are invalid hours -> only 15th at 20:00 remain.
+        let mapping = calendar_mapping(vec![0, 15, 40, 15], vec![5, 20, 23]);
+        let now = datetime(2026, time::Month::June, 10, 9);
+        let next = get_calendar_next_schedule_time(mapping, now, "pay_1").unwrap();
+        assert_eq!(next.date().day(), 15);
+        assert_eq!(next.time().hour(), 20);
+    }
+
+    #[test]
+    fn calendar_returns_none_when_no_usable_config() {
+        let now = datetime(2026, time::Month::June, 10, 9);
+        assert!(
+            get_calendar_next_schedule_time(calendar_mapping(vec![], vec![12]), now, "p").is_none()
+        );
+        assert!(
+            get_calendar_next_schedule_time(calendar_mapping(vec![15], vec![]), now, "p").is_none()
+        );
+        // All days out of range.
+        assert!(
+            get_calendar_next_schedule_time(calendar_mapping(vec![40], vec![12]), now, "p")
+                .is_none()
+        );
     }
 }
