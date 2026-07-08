@@ -441,6 +441,14 @@ describe("Config Tests", () => {
   });
 
   context("Webhook Config Disabled Events — Create and Update", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
     it("Create Business Profile with webhook disabled events", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -454,6 +462,8 @@ describe("Config Tests", () => {
         globalState,
         "webhookConfigProfile"
       );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Update Business Profile webhook disabled events", () => {
@@ -468,14 +478,31 @@ describe("Config Tests", () => {
         globalState,
         "webhookConfigProfile"
       );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("Delete Business Profile", () => {
+    after("cleanup webhookConfigProfile", () => {
       cy.deleteBusinessProfileTest(globalState, "webhookConfigProfile");
     });
   });
 
   context("Connector Webhook Registration and Retrieval", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      const connectorId = globalState.get("connectorId");
+      if (
+        !shouldContinue ||
+        utils.shouldIncludeConnector(
+          connectorId,
+          utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG
+        )
+      ) {
+        this.skip();
+      }
+    });
+
     it("Create Business Profile", () => {
       cy.createBusinessProfileTest(
         fixtures.businessProfile.bpCreate,
@@ -499,6 +526,8 @@ describe("Config Tests", () => {
         "card_pm"
       ]["WebhookConfig"]["RegisterWebhookAllEvents"];
       cy.registerConnectorWebhookTest(data, globalState);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Register connector webhook with specific_event — expect 400 IR_20", () => {
@@ -506,21 +535,42 @@ describe("Config Tests", () => {
         "card_pm"
       ]["WebhookConfig"]["RegisterWebhookSpecificEvent"];
       cy.registerConnectorWebhookTest(data, globalState);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Retrieve connector webhooks — expect 200 with empty list", () => {
+      // RetrieveWebhook returns an empty array because webhook registration is
+      // unsupported for this connector (RegisterWebhook returns 400 IR_20 above).
+      // This test validates the retrieval endpoint responds correctly — it does
+      // NOT assert a webhook was registered.
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["WebhookConfig"]["RetrieveWebhook"];
       cy.retrieveConnectorWebhooksTest(data, globalState);
     });
 
-    it("Delete Business Profile", () => {
+    after("cleanup webhookConnProfile", () => {
       cy.deleteBusinessProfileTest(globalState, "webhookConnProfile");
     });
   });
 
   context("Webhook Config Disabled Events — Negative Cases", () => {
+    const shouldContinue = true;
+
+    beforeEach(function () {
+      const connectorId = globalState.get("connectorId");
+      if (
+        !shouldContinue ||
+        utils.shouldIncludeConnector(
+          connectorId,
+          utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG
+        )
+      ) {
+        this.skip();
+      }
+    });
+
     it("Create Business Profile with invalid refund_statuses_enabled — expect error", () => {
       const createBody = {
         ...fixtures.businessProfile.bpCreate,
@@ -576,6 +626,12 @@ describe("Config Tests", () => {
         "webhookNegPayoutProfile",
         400
       );
+    });
+
+    after("cleanup negative-case profiles", () => {
+      cy.deleteBusinessProfileTest(globalState, "webhookNegativeProfile");
+      cy.deleteBusinessProfileTest(globalState, "webhookNegPaymentProfile");
+      cy.deleteBusinessProfileTest(globalState, "webhookNegPayoutProfile");
     });
   });
 });

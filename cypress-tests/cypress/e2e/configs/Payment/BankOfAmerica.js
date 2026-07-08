@@ -921,16 +921,16 @@ export const connectorDetails = {
         },
       },
     },
-    // WebhookConfig: webhook_username and webhook_password are test-only
-    // fixture values — not real credentials. They are safe to use in any
+    // WebhookConfig: webhook_username and webhook_password are masked
+    // placeholders — not real credentials. They are safe to use in any
     // connector config as placeholder webhook auth data.
     WebhookConfig: {
       Create: getCustomExchange({
         Request: {
           webhook_details: {
             webhook_version: "1.0.2",
-            webhook_username: "whuser",
-            webhook_password: "whpass123",
+            webhook_username: "<WEBHOOK_USERNAME>",
+            webhook_password: "<WEBHOOK_PASSWORD>",
             webhook_url: "https://example.com/webhook",
             payment_created_enabled: true,
             payment_succeeded_enabled: true,
@@ -956,8 +956,8 @@ export const connectorDetails = {
         Request: {
           webhook_details: {
             webhook_version: "1.0.2",
-            webhook_username: "whuser_updated",
-            webhook_password: "whpass456",
+            webhook_username: "<WEBHOOK_USERNAME_UPDATED>",
+            webhook_password: "<WEBHOOK_PASSWORD_UPDATED>",
             webhook_url: "https://example.com/webhook_updated",
             payment_created_enabled: true,
             payment_succeeded_enabled: true,

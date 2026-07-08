@@ -847,6 +847,11 @@ Cypress.Commands.add(
                   reqWebhook.payout_statuses_enabled
                 );
               }
+              if (reqWebhook.payment_failed_enabled !== undefined) {
+                expect(respWebhook.payment_failed_enabled).to.equal(
+                  reqWebhook.payment_failed_enabled
+                );
+              }
             }
           } else {
             throw new Error(
@@ -855,6 +860,7 @@ Cypress.Commands.add(
           }
         } else {
           expect(response.status).to.equal(expectedStatus);
+          expect(response.body.error).to.exist;
         }
       });
     });
@@ -1079,6 +1085,14 @@ Cypress.Commands.add(
 
 /**
  * Updates a business profile's webhook configuration and asserts the response echoes the requested webhook_details.
+ *
+ * This command is separate from UpdateBusinessProfileTest because it performs
+ * specialized webhook_details assertions (payment_statuses_enabled,
+ * refund_statuses_enabled, payout_statuses_enabled, payment_failed_enabled)
+ * that would clutter the general-purpose update command which handles wallet
+ * connector config fields. Consolidating would require adding conditional
+ * assertion branches for unrelated config domains.
+ *
  * @param {Object} webhookConfigBody - The webhook config update request body (must contain a webhook_details object)
  * @param {Object} globalState - The global state object
  * @param {string} [profilePrefix="profile"] - Prefix used to resolve the profile ID from globalState (e.g. "webhookConfigProfile" resolves to globalState.get("webhookConfigProfileId")). Defaults to "profile" for backward compatibility.
