@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.08.1
+
+### Features
+
+- **tsys_xml:** Route connector through UCS ([#12545](https://github.com/juspay/hyperswitch/pull/12545)) ([`ed1c9d5`](https://github.com/juspay/hyperswitch/commit/ed1c9d533133050b915ee417690b53db790a9129))
+
+**Full Changelog:** [`2026.07.08.0...2026.07.08.1`](https://github.com/juspay/hyperswitch/compare/2026.07.08.0...2026.07.08.1)
+
+- - -
+
 ## 2026.07.08.0
 
 ### Features
