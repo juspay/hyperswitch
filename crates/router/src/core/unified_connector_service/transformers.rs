@@ -1203,6 +1203,7 @@ impl
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: None,
+            domain_data: None,
         })
     }
 }
