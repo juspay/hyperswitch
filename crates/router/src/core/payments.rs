@@ -13846,24 +13846,23 @@ async fn calculate_external_surcharge(
     payment_intent: storage::PaymentIntent,
     inputs: SurchargeCalculationInputs,
 ) -> RouterResult<Option<api_models::payment_methods::SurchargeDetailsResponse>> {
-    let surcharge_details = match (
-        surcharge_connector_id,
-        inputs.card_iin.clone(),
-        inputs.currency,
-    ) {
-        (Some(surcharge_connector_id), Some(card_iin), Some(currency)) => {
-            let processor = platform.get_processor();
-            let surcharge_mca = match helpers::fetch_active_surcharge_mca(
+    let processor = platform.get_processor();
+    // Fetch + disabled-gate up front; a disabled MCA yields `None` and the tuple
+    // match below falls through to the no-op arm without any early return.
+    let surcharge_mca = match surcharge_connector_id.as_ref() {
+        Some(id) => {
+            helpers::fetch_active_surcharge_mca(
                 state,
                 processor.get_account().get_id(),
                 processor.get_key_store(),
-                &surcharge_connector_id,
+                id,
             )
             .await?
-            {
-                Some(mca) => mca,
-                None => return Ok(None),
-            };
+        }
+        None => None,
+    };
+    let surcharge_details = match (surcharge_mca, inputs.card_iin.clone(), inputs.currency) {
+        (Some(surcharge_mca), Some(card_iin), Some(currency)) => {
             match run_external_surcharge_ucs(
                 state,
                 processor,
@@ -14035,41 +14034,41 @@ async fn calculate_mit_external_surcharge(
     let payment_method_type = payment_attempt.payment_method_type;
     let profile_id = payment_intent.profile_id.clone();
 
+    // Fetch + disabled-gate up front. A missing id, a disabled MCA, or a fetch
+    // error all collapse to `None` so the tuple match below handles them via
+    // the no-op arm — no early returns from inside the arm.
+    let surcharge_mca = match surcharge_connector_id.as_ref() {
+        Some(id) => helpers::fetch_active_surcharge_mca(
+            state,
+            processor.get_account().get_id(),
+            processor.get_key_store(),
+            id,
+        )
+        .await
+        .unwrap_or_else(|err| {
+            logger::warn!(
+                error=?err,
+                "MIT confirm: failed to fetch surcharge MCA; proceeding without surcharge"
+            );
+            None
+        }),
+        None => None,
+    };
+
     match (
-        surcharge_connector_id,
+        surcharge_mca,
         card_iin,
         currency,
         payment_method,
         profile_id,
     ) {
         (
-            Some(surcharge_connector_id),
+            Some(surcharge_mca),
             Some(card_iin),
             Some(currency),
             Some(payment_method),
             Some(profile_id),
         ) => {
-            // Gate on surcharge MCA `disabled` before any pre-work. If the fetch
-            // errors, treat it as "no surcharge" to keep confirm best-effort.
-            let surcharge_mca = match helpers::fetch_active_surcharge_mca(
-                state,
-                processor.get_account().get_id(),
-                processor.get_key_store(),
-                &surcharge_connector_id,
-            )
-            .await
-            {
-                Ok(Some(mca)) => mca,
-                Ok(None) => return None,
-                Err(err) => {
-                    logger::warn!(
-                        error=?err,
-                        "MIT confirm: failed to fetch surcharge MCA; proceeding without surcharge"
-                    );
-                    return None;
-                }
-            };
-
             let pi_billing_address: Option<hyperswitch_domain_models::address::Address> =
                 payment_intent.billing_details.as_ref().and_then(|billing| {
                     match billing

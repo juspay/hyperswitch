@@ -8832,9 +8832,10 @@ pub async fn fetch_active_surcharge_mca(
             surcharge_connector_id = %surcharge_connector_id.get_string_repr(),
             "Surcharge MCA is disabled; skipping external surcharge calculation"
         );
-        return Ok(None);
+        Ok(None)
+    } else {
+        Ok(Some(surcharge_mca))
     }
-    Ok(Some(surcharge_mca))
 }
 
 pub fn check_integrity_based_on_flow<T, Request>(
