@@ -87,12 +87,40 @@ fn get_apple_pay_payment_data(
     }
 }
 
-/// Returns Google Pay tokenization data from payment method token when it has decrypt data,
+/// Connectors whose real (non-UCS) transformer for `WalletData::GooglePay` reads
+/// `payment_method_token` and consumes a server-side-decrypted Google Pay token. For every
+/// other connector, HS's real outbound request always uses the client-submitted tokenization
+/// data (typically `Encrypted`) regardless of whether a decrypted token happens to be present
+/// on the router data (e.g. because `connector_wallets_details` enables Google Pay JS session
+/// tokens without the connector itself ever reading the decrypted payload). The UCS shadow
+/// mapping must mirror that real behavior, or its request diverges from what HS actually sent.
+fn connector_supports_google_pay_decrypted_flow(connector_name: &str) -> bool {
+    matches!(
+        connector_name,
+        "cybersource"
+            | "aci"
+            | "tesouro"
+            | "worldpayxml"
+            | "stripe"
+            | "adyen"
+            | "nmi"
+            | "worldpayvantiv"
+            | "checkout"
+            | "nuvei"
+    )
+}
+
+/// Returns Google Pay tokenization data from payment method token when it has decrypt data
+/// AND the target connector actually consumes decrypted Google Pay data in its real transformer,
 /// otherwise returns the original tokenization data.
 fn get_google_pay_tokenization_data(
     tokenization_data: &common_types::payments::GpayTokenizationData,
     payment_method_token: Option<&PaymentMethodToken>,
+    connector_name: &str,
 ) -> common_types::payments::GpayTokenizationData {
+    if !connector_supports_google_pay_decrypted_flow(connector_name) {
+        return tokenization_data.clone();
+    }
     match (tokenization_data, payment_method_token) {
         (
             common_types::payments::GpayTokenizationData::Encrypted(_),
@@ -759,6 +787,7 @@ pub fn build_unified_connector_service_payment_method(
     payment_method_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     payment_method_type: Option<PaymentMethodType>,
     payment_method_token: Option<&PaymentMethodToken>,
+    connector_name: &str,
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
     match payment_method_data {
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => {
@@ -1336,6 +1365,7 @@ pub fn build_unified_connector_service_payment_method(
                     let google_pay_tokenization_data = get_google_pay_tokenization_data(
                         &google_pay_wallet_data.tokenization_data,
                         payment_method_token,
+                        connector_name,
                     );
 
                     let tokenization_data =
@@ -3528,4 +3558,83 @@ pub async fn call_unified_connector_service_for_notify_connector(
         .attach_printable("Failed to parse UCS notify_connector response")?;
 
     Ok(notify_connector_response_data)
+}
+
+#[cfg(test)]
+mod google_pay_shadow_mapping_tests {
+    use std::str::FromStr;
+
+    use common_types::payments::{
+        GPayPredecryptData, GpayEcryptedTokenizationData, GpayTokenizationData,
+    };
+    use hyperswitch_domain_models::router_data::PaymentMethodToken;
+    use hyperswitch_masking::Secret;
+
+    use super::{connector_supports_google_pay_decrypted_flow, get_google_pay_tokenization_data};
+
+    fn encrypted_tokenization_data() -> GpayTokenizationData {
+        GpayTokenizationData::Encrypted(GpayEcryptedTokenizationData {
+            token_type: "PAYMENT_GATEWAY".to_string(),
+            token: "encrypted-token-blob".to_string(),
+        })
+    }
+
+    fn decrypted_token() -> PaymentMethodToken {
+        PaymentMethodToken::GooglePayDecrypt(Box::new(GPayPredecryptData {
+            card_exp_month: Secret::new("03".to_string()),
+            card_exp_year: Secret::new("2030".to_string()),
+            application_primary_account_number: cards::CardNumber::from_str("4111111111111111")
+                .expect("valid test card number"),
+            cryptogram: Some(Secret::new("AAAAAA==".to_string())),
+            eci_indicator: Some("05".to_string()),
+        }))
+    }
+
+    #[test]
+    fn connectors_that_consume_decrypted_google_pay_are_allowlisted() {
+        for connector in [
+            "cybersource",
+            "aci",
+            "tesouro",
+            "worldpayxml",
+            "stripe",
+            "adyen",
+            "nmi",
+            "worldpayvantiv",
+            "checkout",
+            "nuvei",
+        ] {
+            assert!(
+                connector_supports_google_pay_decrypted_flow(connector),
+                "expected {connector} to be allowlisted for decrypted Google Pay"
+            );
+        }
+    }
+
+    #[test]
+    fn fiuu_does_not_support_decrypted_google_pay() {
+        assert!(!connector_supports_google_pay_decrypted_flow("fiuu"));
+    }
+
+    #[test]
+    fn substitutes_decrypted_data_for_an_allowlisted_connector() {
+        let token = decrypted_token();
+        let result = get_google_pay_tokenization_data(
+            &encrypted_tokenization_data(),
+            Some(&token),
+            "cybersource",
+        );
+        assert!(matches!(result, GpayTokenizationData::Decrypted(_)));
+    }
+
+    // Regression test for the fiuu authorize `body.keyDiff.GooglePay*` shadow-validation
+    // diff: fiuu's real transformer never reads `payment_method_token` for GooglePay, so the
+    // UCS shadow mapping must not swap in decrypted data fiuu's connector can't consume.
+    #[test]
+    fn keeps_encrypted_data_for_a_non_allowlisted_connector_even_with_decrypted_token_present() {
+        let token = decrypted_token();
+        let result =
+            get_google_pay_tokenization_data(&encrypted_tokenization_data(), Some(&token), "fiuu");
+        assert!(matches!(result, GpayTokenizationData::Encrypted(_)));
+    }
 }

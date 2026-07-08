@@ -303,6 +303,7 @@ impl
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
                 router_data.payment_method_token.as_ref(),
+                router_data.connector.as_str(),
             )?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
@@ -371,6 +372,7 @@ impl
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
                 router_data.payment_method_token.as_ref(),
+                router_data.connector.as_str(),
             )?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
@@ -599,6 +601,7 @@ impl
                     payment_method_data,
                     router_data.request.payment_method_type,
                     router_data.payment_method_token.as_ref(),
+                    router_data.connector.as_str(),
                 )
             })
             .transpose()?;
@@ -1135,6 +1138,7 @@ impl
                     payment_method_data,
                     router_data.request.payment_method_type,
                     router_data.payment_method_token.as_ref(),
+                    router_data.connector.as_str(),
                 )
             })
             .transpose()?;
@@ -1240,6 +1244,7 @@ impl
                     payment_method_data,
                     router_data.request.payment_method_type,
                     router_data.payment_method_token.as_ref(),
+                    router_data.connector.as_str(),
                 )
             })
             .transpose()?;
@@ -1328,6 +1333,7 @@ impl
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
                 router_data.payment_method_token.as_ref(),
+                router_data.connector.as_str(),
             )?;
 
         let capture_method = router_data
@@ -1505,6 +1511,7 @@ impl
                     payment_method_data,
                     router_data.request.payment_method_type,
                     router_data.payment_method_token.as_ref(),
+                    router_data.connector.as_str(),
                 )
             })
             .transpose()?;
@@ -1645,6 +1652,7 @@ impl
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
                 router_data.payment_method_token.as_ref(),
+                router_data.connector.as_str(),
             )?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
@@ -2011,6 +2019,7 @@ impl
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
                 router_data.payment_method_token.as_ref(),
+                router_data.connector.as_str(),
             )?;
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
         let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)?;
@@ -2275,6 +2284,7 @@ impl
                     payment_method_data,
                     router_data.request.payment_method_type,
                     router_data.payment_method_token.as_ref(),
+                    router_data.connector.as_str(),
                 )
             })
             .transpose()?;
