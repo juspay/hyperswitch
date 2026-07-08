@@ -13,8 +13,8 @@ import { connectorDetails as bamboraConnectorDetails } from "./Bambora.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as barclaycardConnectorDetails } from "./Barclaycard.js";
-import { connectorDetails as bitpayConnectorDetails } from "./Bitpay.js";
 import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
+import { connectorDetails as bitpayConnectorDetails } from "./Bitpay.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
 import { connectorDetails as calidaConnectorDetails } from "./Calida.js";
@@ -46,6 +46,7 @@ import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
 import { connectorDetails as klarnaConnectorDetails } from "./Klarna.js";
 import { connectorDetails as loonioConnectorDetails } from "./Loonio.js";
+import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
 import { connectorDetails as mollieConnectorDetails } from "./Mollie.js";
 import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
 import { connectorDetails as multisafepayConnectorDetails } from "./Multisafepay.js";
@@ -66,6 +67,7 @@ import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js"
 import { connectorDetails as rapydConnectorDetails } from "./Rapyd.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
+import { connectorDetails as signifydConnectorDetails } from "../FRM/Signifyd.js";
 import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js";
 import { connectorDetails as squareConnectorDetails } from "./Square.js";
 import { connectorDetails as staxConnectorDetails } from "./Stax.js";
@@ -82,7 +84,6 @@ import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayva
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
-import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
@@ -147,6 +148,7 @@ const connectorDetails = {
   rapyd: rapydConnectorDetails,
   redsys: redsysConnectorDetails,
   shift4: shift4ConnectorDetails,
+  signifyd: signifydConnectorDetails,
   silverflow: silverflowConnectorDetails,
   square: squareConnectorDetails,
   stax: staxConnectorDetails,
@@ -484,7 +486,6 @@ export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
     CONNECTOR_AGNOSTIC_NTID: [
-      "authorizedotnet",
       "bamboraapac",
       "bankofamerica",
       "billwerk",
@@ -738,6 +739,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
+    FRM: ["stripe"],
     PAYOUT_PRIORITY: ["adyenplatform"],
     DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
     CLIENT_SESSION_VALIDATION: ["stripe"],

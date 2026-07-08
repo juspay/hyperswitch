@@ -4,6 +4,53 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.08.1
+
+### Features
+
+- **tsys_xml:** Route connector through UCS ([#12545](https://github.com/juspay/hyperswitch/pull/12545)) ([`ed1c9d5`](https://github.com/juspay/hyperswitch/commit/ed1c9d533133050b915ee417690b53db790a9129))
+
+**Full Changelog:** [`2026.07.08.0...2026.07.08.1`](https://github.com/juspay/hyperswitch/compare/2026.07.08.0...2026.07.08.1)
+
+- - -
+
+## 2026.07.08.0
+
+### Features
+
+- **core:**
+  - Added TLID Support in UCS mandate request ([#13201](https://github.com/juspay/hyperswitch/pull/13201)) ([`aa8d7c3`](https://github.com/juspay/hyperswitch/commit/aa8d7c3ea7bfa51d290a52b2ae9b5414c4b44d57))
+  - Support for surcharge_amount based routing for MIT ([#13179](https://github.com/juspay/hyperswitch/pull/13179)) ([`ce6dc68`](https://github.com/juspay/hyperswitch/commit/ce6dc6897cd097a2f1d0918286f973d04f3ba829))
+- **core/connector:** [SANTANDER] Add UpdatePostConfirm Flow for Payments Update API ([#11500](https://github.com/juspay/hyperswitch/pull/11500)) ([`c564680`](https://github.com/juspay/hyperswitch/commit/c564680c75713c8175124a5bf5db081bfdaf904d))
+- **manual-update:** Add amount captured ([#13151](https://github.com/juspay/hyperswitch/pull/13151)) ([`b3f767b`](https://github.com/juspay/hyperswitch/commit/b3f767b2bc6926bae3dee1d62b4f0fac93e6026d))
+- **payment_link:** Added macro for sql-xss validator for payment link ([#13173](https://github.com/juspay/hyperswitch/pull/13173)) ([`46a6cb6`](https://github.com/juspay/hyperswitch/commit/46a6cb61b85722b2186e69ddf069eddc0952c431))
+
+### Bug Fixes
+
+- **connector:** [adyen] refund sync error message ([#13152](https://github.com/juspay/hyperswitch/pull/13152)) ([`c64f473`](https://github.com/juspay/hyperswitch/commit/c64f473cf5d5e2ae439b00920aeee9d8df3a605f))
+- **router:**
+  - Correct payment_method_data parsing in list-payments response ([#13135](https://github.com/juspay/hyperswitch/pull/13135)) ([`2bc1a23`](https://github.com/juspay/hyperswitch/commit/2bc1a23d60be7f3d266e39d5b1886dcb027cdf56))
+  - Resolve webhook event delivery-success from the correct source ([#13197](https://github.com/juspay/hyperswitch/pull/13197)) ([`979febe`](https://github.com/juspay/hyperswitch/commit/979febe60074c0435e77dfd9710d28b6c41cdc8b))
+
+### Documentation
+
+- **README:** Enhanced README with decision engine details ([#12979](https://github.com/juspay/hyperswitch/pull/12979)) ([`e53fa02`](https://github.com/juspay/hyperswitch/commit/e53fa02139a9db9164d126344f1f47cd7007eb3a))
+
+**Full Changelog:** [`2026.07.07.0...2026.07.08.0`](https://github.com/juspay/hyperswitch/compare/2026.07.07.0...2026.07.08.0)
+
+- - -
+
+## 2026.07.07.0
+
+### Features
+
+- **connector:** [Authorizedotnet] add network transaction id support ([#13156](https://github.com/juspay/hyperswitch/pull/13156)) ([`2223f40`](https://github.com/juspay/hyperswitch/commit/2223f40068ea208b58e817ef687293d366ed7bf5))
+- **cypress:** Add MITM proxy record/replay for connector tests ([#12852](https://github.com/juspay/hyperswitch/pull/12852)) ([`c0ce9fb`](https://github.com/juspay/hyperswitch/commit/c0ce9fbf944eb737f599a02840593876f41d8fa5))
+
+**Full Changelog:** [`2026.07.06.0...2026.07.07.0`](https://github.com/juspay/hyperswitch/compare/2026.07.06.0...2026.07.07.0)
+
+- - -
+
 ## 2026.07.06.0
 
 ### Features

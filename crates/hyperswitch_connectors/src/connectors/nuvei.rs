@@ -1810,6 +1810,7 @@ impl ConnectorSpecifications for Nuvei {
                 request_data,
             } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
         }
     }
 
