@@ -63,12 +63,11 @@ describe("[Payout] Recurring", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("fulfill-recurring-payout-test", () => {
+    it("save-payout-method-for-recurring", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["RecurringTrueFulfill"];
-      cy.fulfillPayoutCallTest({}, data, globalState);
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      ]["sepa_bank_transfer"]["SavePayoutMethod"];
+      cy.createPaymentMethodTest(globalState, data);
     });
 
     it("create-recurring-payout-using-saved-method", () => {
@@ -79,7 +78,7 @@ describe("[Payout] Recurring", () => {
         shouldContinue = false;
         return;
       }
-      data.Request.payout_method_id = globalState.get("payoutMethodId");
+      data.Request.payout_method_id = globalState.get("paymentMethodId");
       cy.createConfirmPayoutTest(
         fixtures.createPayoutBody,
         data,
@@ -180,15 +179,18 @@ describe("[Payout] Recurring", () => {
       }
     });
 
+    it("save-payout-method-for-validation", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["sepa_bank_transfer"]["SavePayoutMethod"];
+      cy.createPaymentMethodTest(globalState, data);
+    });
+
     it("attempt-payout-without-confirm-should-fail", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["RecurringInvalidConfirm"];
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-        return;
-      }
-      data.Request.payout_method_id = globalState.get("payoutMethodId");
+      data.Request.payout_method_id = globalState.get("paymentMethodId");
       cy.createConfirmPayoutTest(
         fixtures.createPayoutBody,
         data,
@@ -200,7 +202,6 @@ describe("[Payout] Recurring", () => {
           globalState.set("payoutMethodId", response.body.payout_method_id);
         }
       });
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 });

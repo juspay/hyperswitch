@@ -6125,32 +6125,6 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
   });
 });
 
-Cypress.Commands.add(
-  "verifyRecurringPayoutResponse",
-  (response, expectedRecurring, expectedMethodId, expectedPayoutStatus) => {
-    cy.wrap(response).should("have.property", "status", 200);
-    if (expectedPayoutStatus !== undefined && expectedPayoutStatus !== null) {
-      cy.wrap(response.body).should(
-        "have.property",
-        "status",
-        expectedPayoutStatus
-      );
-    }
-    cy.wrap(response.body).should(
-      "have.property",
-      "recurring",
-      expectedRecurring
-    );
-    if (expectedMethodId !== undefined && expectedMethodId !== null) {
-      cy.wrap(response.body).should(
-        "have.property",
-        "payout_method_id",
-        expectedMethodId
-      );
-    }
-  }
-);
-
 // User API calls
 // Below 3 commands should be called in sequence to login a user
 Cypress.Commands.add("userLogin", (globalState) => {

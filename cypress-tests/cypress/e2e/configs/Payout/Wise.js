@@ -228,9 +228,8 @@ export const connectorDetails = {
         },
       },
       // RecurringTrue/False/Default test the recurring flag field behaviour.
-      // recurring:bool is already present in PayoutCreateResponse — no backend
-      // changes needed. confirm:true + auto_fulfill:false yields
-      // status:"requires_fulfillment" on all environments.
+      // Wise returns status:"failed" for create+confirm bank transfer payouts
+      // (CAPABILITY_GAP — connector does not support bank transfer fulfillment).
       RecurringTrue: {
         Request: {
           currency: "EUR",
@@ -251,19 +250,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_fulfillment",
-            payout_type: "bank",
-            recurring: true,
-          },
-        },
-      },
-      RecurringTrueFulfill: {
-        // Request not used — fulfillPayoutCallTest only sends { payout_id } from globalState
-        Request: {},
-        Response: {
-          status: 200,
-          body: {
-            status: "initiated",
+            status: "failed",
             payout_type: "bank",
             recurring: true,
           },
@@ -289,7 +276,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_fulfillment",
+            status: "failed",
             payout_type: "bank",
             recurring: false,
           },
@@ -314,26 +301,23 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_fulfillment",
+            status: "failed",
             payout_type: "bank",
             recurring: false,
           },
         },
       },
-      // RecurringInvalidConfirm is TRIGGER_SKIP because it depends on
-      // payout_method_id from a prior RecurringTrue payout and the invalid
-      // confirm validation is not yet testable end-to-end.
+      // RecurringInvalidConfirm is a negative test case — it expects a 422 error.
+      // Do NOT add TRIGGER_SKIP or should_continue_further guards here.
+      // Pattern matches EntityTypeInvalid in 00008-EntityType.cy.js.
       RecurringInvalidConfirm: {
-        Configs: {
-          TRIGGER_SKIP: true,
-        },
         Request: {
           currency: "EUR",
           payout_type: "bank",
           confirm: false,
         },
         Response: {
-          status: 400,
+          status: 422,
           body: {
             error: {
               type: "invalid_request",
@@ -355,7 +339,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_fulfillment",
+            status: "failed",
             payout_type: "bank",
           },
         },
