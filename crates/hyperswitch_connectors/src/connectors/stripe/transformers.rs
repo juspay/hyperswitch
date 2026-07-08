@@ -5366,7 +5366,42 @@ impl TryFrom<&TokenizationRouterData> for StripePaymentMethodRequest {
             _ => Err(ConnectorError::NotImplemented(
                 "Only Card is supported for Stripe PaymentMethod creation".to_string(),
             )
-                .into()),
+            .into()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use hyperswitch_masking::Secret;
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn test_stripe_payment_method_request_serialization() {
+        let request = StripePaymentMethodRequest {
+            payment_method_type: "card".to_string(),
+            card: StripeRawCard {
+                number: "4242424242424242".parse().unwrap(),
+                exp_month: Secret::new("12".to_string()),
+                exp_year: Secret::new("2028".to_string()),
+                cvc: Some(Secret::new("123".to_string())),
+            },
+        };
+
+        let serialized = serde_json::to_value(&request).expect("Failed to serialize");
+
+        let expected = json!({
+            "type": "card",
+            "card": {
+                "number": "4242424242424242",
+                "exp_month": "12",
+                "exp_year": "2028",
+                "cvc": "123"
+            }
+        });
+
+        assert_eq!(serialized, expected);
     }
 }
