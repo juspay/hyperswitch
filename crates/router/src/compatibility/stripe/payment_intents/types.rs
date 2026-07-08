@@ -744,19 +744,34 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                     },
                 )
             })?;
-        let mandate_data = mandate_data.map(|mandate| payments::MandateData {
-            mandate_type: match mandate.mandate_type {
-                Some(item) => match item {
-                    StripeMandateType::SingleUse => Some(payments::MandateType::SingleUse(
-                        payments::MandateAmountData {
-                            amount: MinorUnit::new(mandate.amount.unwrap_or_default()),
-                            currency,
-                            start_date: mandate.start_date,
-                            end_date: mandate.end_date,
-                            metadata: None,
-                        },
-                    )),
-                    StripeMandateType::MultiUse => Some(payments::MandateType::MultiUse(Some(
+        let mandate_data = match mandate_data {
+            Some(mandate) => Some(payments::MandateData {
+                mandate_type: match mandate.mandate_type {
+                    Some(item) => match item {
+                        StripeMandateType::SingleUse => Some(payments::MandateType::SingleUse(
+                            payments::MandateAmountData {
+                                amount: MinorUnit::new(mandate.amount.ok_or(
+                                    errors::ApiErrorResponse::MissingRequiredField {
+                                        field_name: "mandate_data.amount",
+                                    },
+                                )?),
+                                currency,
+                                start_date: mandate.start_date,
+                                end_date: mandate.end_date,
+                                metadata: None,
+                            },
+                        )),
+                        StripeMandateType::MultiUse => Some(payments::MandateType::MultiUse(Some(
+                            payments::MandateAmountData {
+                                amount: MinorUnit::new(mandate.amount.unwrap_or_default()),
+                                currency,
+                                start_date: mandate.start_date,
+                                end_date: mandate.end_date,
+                                metadata: None,
+                            },
+                        ))),
+                    },
+                    None => Some(payments::MandateType::MultiUse(Some(
                         payments::MandateAmountData {
                             amount: MinorUnit::new(mandate.amount.unwrap_or_default()),
                             currency,
@@ -766,28 +781,20 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                         },
                     ))),
                 },
-                None => Some(payments::MandateType::MultiUse(Some(
-                    payments::MandateAmountData {
-                        amount: MinorUnit::new(mandate.amount.unwrap_or_default()),
-                        currency,
-                        start_date: mandate.start_date,
-                        end_date: mandate.end_date,
-                        metadata: None,
-                    },
-                ))),
-            },
-            customer_acceptance: Some(common_payments_types::CustomerAcceptance {
-                acceptance_type: common_payments_types::AcceptanceType::Online,
-                accepted_at: mandate.customer_acceptance.accepted_at,
-                online: mandate.customer_acceptance.online.map(|online| {
-                    common_payments_types::OnlineMandate {
-                        ip_address: Some(online.ip_address),
-                        user_agent: online.user_agent,
-                    }
+                customer_acceptance: Some(common_payments_types::CustomerAcceptance {
+                    acceptance_type: common_payments_types::AcceptanceType::Online,
+                    accepted_at: mandate.customer_acceptance.accepted_at,
+                    online: mandate.customer_acceptance.online.map(|online| {
+                        common_payments_types::OnlineMandate {
+                            ip_address: Some(online.ip_address),
+                            user_agent: online.user_agent,
+                        }
+                    }),
                 }),
+                update_mandate_id: None,
             }),
-            update_mandate_id: None,
-        });
+            None => None,
+        };
         Ok(mandate_data)
     }
 }
@@ -1012,5 +1019,64 @@ fn get_pmd_based_on_payment_method_type(
             ))
         }
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn stripe_mandate_data(mandate_type: StripeMandateType, amount: Option<i64>) -> MandateData {
+        MandateData {
+            customer_acceptance: CustomerAcceptance::default(),
+            mandate_type: Some(mandate_type),
+            amount,
+            start_date: None,
+            end_date: None,
+        }
+    }
+
+    #[test]
+    fn rejects_single_use_mandate_without_amount() {
+        let error = <Option<payments::MandateData> as ForeignTryFrom<(
+            Option<MandateData>,
+            Option<String>,
+        )>>::foreign_try_from((
+            Some(stripe_mandate_data(StripeMandateType::SingleUse, None)),
+            Some("usd".to_string()),
+        ))
+        .unwrap_err();
+
+        assert!(matches!(
+            error.current_context(),
+            errors::ApiErrorResponse::MissingRequiredField { field_name }
+                if *field_name == "mandate_data.amount"
+        ));
+    }
+
+    #[test]
+    fn preserves_single_use_mandate_amount_when_present() {
+        let mandate_data = <Option<payments::MandateData> as ForeignTryFrom<(
+            Option<MandateData>,
+            Option<String>,
+        )>>::foreign_try_from((
+            Some(stripe_mandate_data(
+                StripeMandateType::SingleUse,
+                Some(6540),
+            )),
+            Some("usd".to_string()),
+        ))
+        .unwrap()
+        .unwrap();
+
+        let payments::MandateType::SingleUse(amount_data) = mandate_data
+            .mandate_type
+            .expect("mandate type should be set")
+        else {
+            panic!("expected single use mandate data");
+        };
+
+        assert_eq!(amount_data.amount, MinorUnit::new(6540));
+        assert_eq!(amount_data.currency, api_enums::Currency::USD);
     }
 }
