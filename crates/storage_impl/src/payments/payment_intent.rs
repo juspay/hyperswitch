@@ -4,9 +4,7 @@ use api_models::payments::{AmountFilter, Order, SortBy, SortOn};
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::ext_traits::AsyncExt;
 #[cfg(feature = "v2")]
-use common_utils::ext_traits::Encode;
-#[cfg(feature = "v2")]
-use common_utils::fallback_reverse_lookup_not_found;
+use common_utils::{ext_traits::Encode, fallback_reverse_lookup_not_found};
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 #[cfg(feature = "v1")]
