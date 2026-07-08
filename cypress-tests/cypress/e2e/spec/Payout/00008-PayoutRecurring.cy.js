@@ -171,7 +171,7 @@ describe("[Payout] Recurring", () => {
   });
 
   context("Validation: payout_method_id requires confirm=true", () => {
-    let shouldContinue = true;
+    const shouldContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue) {
