@@ -659,7 +659,7 @@ async fn create_saved_view(
     let new_view_domain = types::SavedView {
         view_id,
         view_name: request.view_name.clone(),
-        version,
+        version: version.clone(),
         filters,
         created_at: now.to_string(),
         updated_at: now.to_string(),
