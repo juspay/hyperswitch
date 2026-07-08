@@ -10882,9 +10882,16 @@ Cypress.Commands.add(
       ...data.Request,
     };
 
-    // Substitute dynamic values
+    // Substitute dynamic values — only for the "" placeholder pattern.
+    // When a field is absent (undefined), the test intentionally omits it
+    // (e.g. negative "missing fields" test) and the guard must NOT fire.
     if (subscriptionBody.customer_id === "") {
       subscriptionBody.customer_id = globalState.get("customerId");
+      if (!subscriptionBody.customer_id) {
+        throw new Error(
+          "customerId missing from globalState - prerequisites failed"
+        );
+      }
     }
 
     if (
@@ -10893,21 +10900,11 @@ Cypress.Commands.add(
     ) {
       subscriptionBody.payment_details.payment_method_id =
         globalState.get("paymentMethodId");
-    }
-
-    // Hard-fail if prerequisites were not set — prevents empty-string leaks
-    if (!subscriptionBody.customer_id) {
-      throw new Error(
-        "customerId missing from globalState - prerequisites failed"
-      );
-    }
-    if (
-      subscriptionBody.payment_details &&
-      !subscriptionBody.payment_details.payment_method_id
-    ) {
-      throw new Error(
-        "payment_method_id missing from globalState - prerequisites failed"
-      );
+      if (!subscriptionBody.payment_details.payment_method_id) {
+        throw new Error(
+          "payment_method_id missing from globalState - prerequisites failed"
+        );
+      }
     }
 
     const headers = {
