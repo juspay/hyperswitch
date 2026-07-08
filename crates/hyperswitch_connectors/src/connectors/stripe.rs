@@ -169,31 +169,63 @@ impl ConnectorCommon for Stripe {
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         use hyperswitch_interfaces::consts::NO_ERROR_CODE;
 
-        let response: stripe::StripeConnectErrorResponse = res
-            .response
-            .parse_struct("StripeConnectErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_error_response_body(&response));
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            connector_response_reference_id: None,
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-            connector_metadata: None,
-        })
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+
+        let response: Result<stripe::StripeConnectErrorResponse, _> =
+            res.response.parse_struct("StripeConnectErrorResponse");
+
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message,
+                    attempt_status: None,
+                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+                    connector_response_reference_id: None,
+                    network_advice_code: response.error.network_advice_code,
+                    network_decline_code: response.error.network_decline_code,
+                    network_error_message: response
+                        .error
+                        .decline_code
+                        .or(response.error.advice_code),
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "stripe")
+            }
+        }
     }
 }
 
@@ -341,43 +373,73 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        let response: Result<stripe::ErrorResponse, _> = res.response.parse_struct("ErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}")
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            connector_response_reference_id: None,
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-            connector_metadata: None,
-        })
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message.map(|message| {
+                        response
+                            .error
+                            .decline_code
+                            .clone()
+                            .map(|decline_code| {
+                                format!("message - {message}, decline_code - {decline_code}")
+                            })
+                            .unwrap_or(message)
+                    }),
+                    attempt_status: None,
+                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+                    connector_response_reference_id: None,
+                    network_advice_code: response.error.network_advice_code,
+                    network_decline_code: response.error.network_decline_code,
+                    network_error_message: response
+                        .error
+                        .decline_code
+                        .or(response.error.advice_code),
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "stripe")
+            }
+        }
     }
 }
 
@@ -500,43 +562,73 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        let response: Result<stripe::ErrorResponse, _> = res.response.parse_struct("ErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}")
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            connector_response_reference_id: None,
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-            connector_metadata: None,
-        })
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message.map(|message| {
+                        response
+                            .error
+                            .decline_code
+                            .clone()
+                            .map(|decline_code| {
+                                format!("message - {message}, decline_code - {decline_code}")
+                            })
+                            .unwrap_or(message)
+                    }),
+                    attempt_status: None,
+                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+                    connector_response_reference_id: None,
+                    network_advice_code: response.error.network_advice_code,
+                    network_decline_code: response.error.network_decline_code,
+                    network_error_message: response
+                        .error
+                        .decline_code
+                        .or(response.error.advice_code),
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "stripe")
+            }
+        }
     }
 }
 
@@ -661,43 +753,73 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        let response: Result<stripe::ErrorResponse, _> = res.response.parse_struct("ErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}")
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            connector_response_reference_id: None,
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-            connector_metadata: None,
-        })
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message.map(|message| {
+                        response
+                            .error
+                            .decline_code
+                            .clone()
+                            .map(|decline_code| {
+                                format!("message - {message}, decline_code - {decline_code}")
+                            })
+                            .unwrap_or(message)
+                    }),
+                    attempt_status: None,
+                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+                    connector_response_reference_id: None,
+                    network_advice_code: response.error.network_advice_code,
+                    network_decline_code: response.error.network_decline_code,
+                    network_error_message: response
+                        .error
+                        .decline_code
+                        .or(response.error.advice_code),
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "stripe")
+            }
+        }
     }
 }
 
@@ -831,42 +953,73 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}")
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            connector_response_reference_id: None,
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-            connector_metadata: None,
-        })
+        let response: Result<stripe::ErrorResponse, _> = res.response.parse_struct("ErrorResponse");
+
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message.map(|message| {
+                        response
+                            .error
+                            .decline_code
+                            .clone()
+                            .map(|decline_code| {
+                                format!("message - {message}, decline_code - {decline_code}")
+                            })
+                            .unwrap_or(message)
+                    }),
+                    attempt_status: None,
+                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+                    connector_response_reference_id: None,
+                    network_advice_code: response.error.network_advice_code,
+                    network_decline_code: response.error.network_decline_code,
+                    network_error_message: response
+                        .error
+                        .decline_code
+                        .or(response.error.advice_code),
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "stripe")
+            }
+        }
     }
 }
 
@@ -984,41 +1137,73 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}")
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            connector_response_reference_id: None,
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-            connector_metadata: None,
-        })
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+
+        let response: Result<stripe::ErrorResponse, _> = res.response.parse_struct("ErrorResponse");
+
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message.map(|message| {
+                        response
+                            .error
+                            .decline_code
+                            .clone()
+                            .map(|decline_code| {
+                                format!("message - {message}, decline_code - {decline_code}")
+                            })
+                            .unwrap_or(message)
+                    }),
+                    attempt_status: None,
+                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+                    connector_response_reference_id: None,
+                    network_advice_code: response.error.network_advice_code,
+                    network_decline_code: response.error.network_decline_code,
+                    network_error_message: response
+                        .error
+                        .decline_code
+                        .or(response.error.advice_code),
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "stripe")
+            }
+        }
     }
 }
 
@@ -1130,41 +1315,7 @@ impl
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}")
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            connector_response_reference_id: None,
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-            connector_metadata: None,
-        })
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -1248,7 +1399,73 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+
+        let response: Result<stripe::ErrorResponse, _> = res.response.parse_struct("ErrorResponse");
+
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message.map(|message| {
+                        response
+                            .error
+                            .decline_code
+                            .clone()
+                            .map(|decline_code| {
+                                format!("message - {message}, decline_code - {decline_code}")
+                            })
+                            .unwrap_or(message)
+                    }),
+                    attempt_status: None,
+                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+                    connector_response_reference_id: None,
+                    network_advice_code: response.error.network_advice_code,
+                    network_decline_code: response.error.network_decline_code,
+                    network_error_message: response
+                        .error
+                        .decline_code
+                        .or(response.error.advice_code),
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "stripe")
+            }
+        }
     }
 }
 
@@ -1347,43 +1564,73 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for St
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        let response: Result<stripe::ErrorResponse, _> = res.response.parse_struct("ErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}")
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            connector_response_reference_id: None,
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-            connector_metadata: None,
-        })
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message.map(|message| {
+                        response
+                            .error
+                            .decline_code
+                            .clone()
+                            .map(|decline_code| {
+                                format!("message - {message}, decline_code - {decline_code}")
+                            })
+                            .unwrap_or(message)
+                    }),
+                    attempt_status: None,
+                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+                    connector_response_reference_id: None,
+                    network_advice_code: response.error.network_advice_code,
+                    network_decline_code: response.error.network_decline_code,
+                    network_error_message: response
+                        .error
+                        .decline_code
+                        .or(response.error.advice_code),
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "stripe")
+            }
+        }
     }
 }
 
@@ -1490,43 +1737,73 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        let response: Result<stripe::ErrorResponse, _> = res.response.parse_struct("ErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}")
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            connector_response_reference_id: None,
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-            connector_metadata: None,
-        })
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message.map(|message| {
+                        response
+                            .error
+                            .decline_code
+                            .clone()
+                            .map(|decline_code| {
+                                format!("message - {message}, decline_code - {decline_code}")
+                            })
+                            .unwrap_or(message)
+                    }),
+                    attempt_status: None,
+                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+                    connector_response_reference_id: None,
+                    network_advice_code: response.error.network_advice_code,
+                    network_decline_code: response.error.network_decline_code,
+                    network_error_message: response
+                        .error
+                        .decline_code
+                        .or(response.error.advice_code),
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "stripe")
+            }
+        }
     }
 }
 
@@ -1657,43 +1934,73 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Stripe 
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        let response: Result<stripe::ErrorResponse, _> = res.response.parse_struct("ErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}")
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            connector_response_reference_id: None,
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-            connector_metadata: None,
-        })
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message.map(|message| {
+                        response
+                            .error
+                            .decline_code
+                            .clone()
+                            .map(|decline_code| {
+                                format!("message - {message}, decline_code - {decline_code}")
+                            })
+                            .unwrap_or(message)
+                    }),
+                    attempt_status: None,
+                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+                    connector_response_reference_id: None,
+                    network_advice_code: response.error.network_advice_code,
+                    network_decline_code: response.error.network_decline_code,
+                    network_error_message: response
+                        .error
+                        .decline_code
+                        .or(response.error.advice_code),
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "stripe")
+            }
+        }
     }
 }
 
@@ -1790,43 +2097,73 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Stripe {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        let response: Result<stripe::ErrorResponse, _> = res.response.parse_struct("ErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}")
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            connector_response_reference_id: None,
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-            connector_metadata: None,
-        })
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message.map(|message| {
+                        response
+                            .error
+                            .decline_code
+                            .clone()
+                            .map(|decline_code| {
+                                format!("message - {message}, decline_code - {decline_code}")
+                            })
+                            .unwrap_or(message)
+                    }),
+                    attempt_status: None,
+                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+                    connector_response_reference_id: None,
+                    network_advice_code: response.error.network_advice_code,
+                    network_decline_code: response.error.network_decline_code,
+                    network_error_message: response
+                        .error
+                        .decline_code
+                        .or(response.error.advice_code),
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "stripe")
+            }
+        }
     }
 }
 
@@ -1935,43 +2272,73 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        let response: Result<stripe::ErrorResponse, _> = res.response.parse_struct("ErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}")
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            connector_response_reference_id: None,
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-            connector_metadata: None,
-        })
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message.map(|message| {
+                        response
+                            .error
+                            .decline_code
+                            .clone()
+                            .map(|decline_code| {
+                                format!("message - {message}, decline_code - {decline_code}")
+                            })
+                            .unwrap_or(message)
+                    }),
+                    attempt_status: None,
+                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+                    connector_response_reference_id: None,
+                    network_advice_code: response.error.network_advice_code,
+                    network_decline_code: response.error.network_decline_code,
+                    network_error_message: response
+                        .error
+                        .decline_code
+                        .or(response.error.advice_code),
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "stripe")
+            }
+        }
     }
 }
 
@@ -2037,43 +2404,73 @@ impl ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileRespons
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        let response: Result<stripe::ErrorResponse, _> = res.response.parse_struct("ErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}")
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            connector_response_reference_id: None,
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-            connector_metadata: None,
-        })
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message.map(|message| {
+                        response
+                            .error
+                            .decline_code
+                            .clone()
+                            .map(|decline_code| {
+                                format!("message - {message}, decline_code - {decline_code}")
+                            })
+                            .unwrap_or(message)
+                    }),
+                    attempt_status: None,
+                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+                    connector_response_reference_id: None,
+                    network_advice_code: response.error.network_advice_code,
+                    network_decline_code: response.error.network_decline_code,
+                    network_error_message: response
+                        .error
+                        .decline_code
+                        .or(response.error.advice_code),
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "stripe")
+            }
+        }
     }
 }
 
@@ -2164,43 +2561,73 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        let response: Result<stripe::ErrorResponse, _> = res.response.parse_struct("ErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message.map(|message| {
-                response
-                    .error
-                    .decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}")
-                    })
-                    .unwrap_or(message)
-            }),
-            attempt_status: None,
-            connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-            connector_response_reference_id: None,
-            network_advice_code: response.error.network_advice_code,
-            network_decline_code: response.error.network_decline_code,
-            network_error_message: response.error.decline_code.or(response.error.advice_code),
-            connector_metadata: None,
-        })
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message.map(|message| {
+                        response
+                            .error
+                            .decline_code
+                            .clone()
+                            .map(|decline_code| {
+                                format!("message - {message}, decline_code - {decline_code}")
+                            })
+                            .unwrap_or(message)
+                    }),
+                    attempt_status: None,
+                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+                    connector_response_reference_id: None,
+                    network_advice_code: response.error.network_advice_code,
+                    network_decline_code: response.error.network_decline_code,
+                    network_error_message: response
+                        .error
+                        .decline_code
+                        .or(response.error.advice_code),
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "stripe")
+            }
+        }
     }
 }
 
@@ -2382,6 +2809,9 @@ impl IncomingWebhook for Stripe {
                     ),
                 }
             }
+            stripe::WebhookEventObjectType::Unknown => {
+                return Err(ConnectorError::WebhookReferenceIdNotFound.into());
+            }
         })
     }
 
@@ -2390,6 +2820,10 @@ impl IncomingWebhook for Stripe {
         request: &IncomingWebhookRequestDetails<'_>,
         _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
+        if request.body.is_empty() {
+            return Ok(IncomingWebhookEvent::EndpointVerification);
+        }
+
         let details: stripe::WebhookEventTypeBody = request
             .body
             .parse_struct("WebhookEventTypeBody")

@@ -2757,23 +2757,33 @@ pub enum StripePaymentStatus {
     Chargeable,
     Consumed,
     Pending,
+    #[serde(other)]
+    Unknown,
 }
 
-impl From<StripePaymentStatus> for AttemptStatus {
-    fn from(item: StripePaymentStatus) -> Self {
-        match item {
-            StripePaymentStatus::Succeeded => Self::Charged,
-            StripePaymentStatus::Failed => Self::Failure,
-            StripePaymentStatus::Processing => Self::Authorizing,
-            StripePaymentStatus::RequiresCustomerAction => Self::AuthenticationPending,
-            // Make the payment attempt status as failed
-            StripePaymentStatus::RequiresPaymentMethod => Self::Failure,
-            StripePaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
-            StripePaymentStatus::Canceled => Self::Voided,
-            StripePaymentStatus::RequiresCapture => Self::Authorized,
-            StripePaymentStatus::Chargeable => Self::Authorizing,
-            StripePaymentStatus::Consumed => Self::Authorizing,
-            StripePaymentStatus::Pending => Self::Pending,
+pub fn get_stripe_payment_status(
+    stripe_status: StripePaymentStatus,
+    prev_status: AttemptStatus,
+) -> AttemptStatus {
+    match stripe_status {
+        StripePaymentStatus::Succeeded => AttemptStatus::Charged,
+        StripePaymentStatus::Failed => AttemptStatus::Failure,
+        StripePaymentStatus::Processing => AttemptStatus::Authorizing,
+        StripePaymentStatus::RequiresCustomerAction => AttemptStatus::AuthenticationPending,
+        // Make the payment attempt status as failed
+        StripePaymentStatus::RequiresPaymentMethod => AttemptStatus::Failure,
+        StripePaymentStatus::RequiresConfirmation => AttemptStatus::ConfirmationAwaited,
+        StripePaymentStatus::Canceled => AttemptStatus::Voided,
+        StripePaymentStatus::RequiresCapture => AttemptStatus::Authorized,
+        StripePaymentStatus::Chargeable => AttemptStatus::Authorizing,
+        StripePaymentStatus::Consumed => AttemptStatus::Authorizing,
+        StripePaymentStatus::Pending => AttemptStatus::Pending,
+        StripePaymentStatus::Unknown => {
+            router_env::logger::warn!(
+                "Unknown stripe payment status received; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
         }
     }
 }
@@ -2903,7 +2913,7 @@ impl StripeChargeEnum {
                             Some(StripeOvercaptureStatus::Unavailable) => {
                                 Some(primitive_wrappers::OvercaptureEnabledBool::new(false))
                             }
-                            None => None,
+                            Some(StripeOvercaptureStatus::Unknown) | None => None,
                         }),
                     _ => None,
                 }),
@@ -2987,6 +2997,8 @@ pub struct StripeExtendedAuthorizationResponse {
 pub enum StripeExtendedAuthorizationStatus {
     Disabled,
     Enabled,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -3002,6 +3014,8 @@ pub struct StripeOvercaptureResponse {
 pub enum StripeOvercaptureStatus {
     Available,
     Unavailable,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -3046,6 +3060,8 @@ pub enum StripePaymentMethodDetailsResponse {
     Alipay,
     CustomerBalance,
     RevolutPay,
+    #[serde(other)]
+    Unknown,
 }
 
 pub struct AdditionalPaymentMethodDetails {
@@ -3127,7 +3143,8 @@ impl StripePaymentMethodDetailsResponse {
             | Self::Alipay
             | Self::CustomerBalance
             | Self::RevolutPay
-            | Self::Cashapp { .. } => None,
+            | Self::Cashapp { .. }
+            | Self::Unknown => None,
         }
     }
 }
@@ -3309,7 +3326,7 @@ where
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
 
-        let status = AttemptStatus::from(item.response.status);
+        let status = get_stripe_payment_status(item.response.status, item.data.status);
 
         let response = if is_payment_failure(status) {
             *get_stripe_payments_response_data(
@@ -3396,6 +3413,12 @@ impl From<StripePaymentStatus> for common_enums::AuthorizationStatus {
             StripePaymentStatus::Failed
             | StripePaymentStatus::Canceled
             | StripePaymentStatus::RequiresPaymentMethod => Self::Failure,
+            StripePaymentStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown stripe payment status received for incremental authorization; marking as unresolved"
+                );
+                Self::Unresolved
+            }
         }
     }
 }
@@ -3485,6 +3508,7 @@ pub fn get_connector_metadata(
                                     ach_financial_information
                                         .insert("swift_code", swift_details.swift_code);
                                 }
+                                AchFinancialDetails::Unknown => {}
                             }
                         }
 
@@ -3577,6 +3601,7 @@ pub fn get_payment_method_id(
             | Some(StripePaymentMethodDetailsResponse::CustomerBalance)
             | Some(StripePaymentMethodDetailsResponse::Cashapp { .. })
             | Some(StripePaymentMethodDetailsResponse::RevolutPay)
+            | Some(StripePaymentMethodDetailsResponse::Unknown)
             | None => payment_method_id_from_intent_root.expose(),
         },
         Some(StripeChargeEnum::ChargeId(_)) | None => payment_method_id_from_intent_root.expose(),
@@ -3619,7 +3644,7 @@ where
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
 
-        let status = AttemptStatus::from(item.response.status.to_owned());
+        let status = get_stripe_payment_status(item.response.status.to_owned(), item.data.status);
 
         let connector_response_data =
             item.response
@@ -3675,7 +3700,7 @@ where
         };
 
         Ok(Self {
-            status: AttemptStatus::from(item.response.status.to_owned()),
+            status,
             response,
             amount_captured: item
                 .response
@@ -3729,7 +3754,7 @@ where
                 connector_mandate_request_reference_id: None,
             }
         });
-        let status = AttemptStatus::from(item.response.status);
+        let status = get_stripe_payment_status(item.response.status, item.data.status);
         let connector_response_data = item
             .response
             .latest_attempt
@@ -3947,6 +3972,8 @@ pub struct SwiftDetails {
 pub enum AchFinancialDetails {
     Aba(AbaDetails),
     Swift(SwiftDetails),
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -4072,15 +4099,25 @@ pub enum RefundStatus {
     #[default]
     Pending,
     RequiresAction,
+    #[serde(other)]
+    Unknown,
 }
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Pending => Self::Pending,
-            RefundStatus::RequiresAction => Self::ManualReview,
+pub fn get_stripe_refund_status(
+    stripe_status: RefundStatus,
+    prev_status: enums::RefundStatus,
+) -> enums::RefundStatus {
+    match stripe_status {
+        RefundStatus::Succeeded => enums::RefundStatus::Success,
+        RefundStatus::Failed => enums::RefundStatus::Failure,
+        RefundStatus::Pending => enums::RefundStatus::Pending,
+        RefundStatus::RequiresAction => enums::RefundStatus::ManualReview,
+        RefundStatus::Unknown => {
+            router_env::logger::warn!(
+                "Unknown stripe refund status received; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
         }
     }
 }
@@ -4102,7 +4139,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
     fn try_from(
         item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = enums::RefundStatus::from(item.response.status);
+        let refund_status =
+            get_stripe_refund_status(item.response.status, item.data.request.refund_status);
         let response = if is_refund_failure(refund_status) {
             Err(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(),
@@ -4140,7 +4178,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     fn try_from(
         item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = enums::RefundStatus::from(item.response.status);
+        let refund_status =
+            get_stripe_refund_status(item.response.status, item.data.request.refund_status);
         let response = if is_refund_failure(refund_status) {
             Err(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(),
@@ -4383,9 +4422,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, StripeSourceResponse, T, PaymentsRespon
             .change_context(ConnectorError::ResponseHandlingFailed)?;
         // We get pending as the status from stripe, but hyperswitch should give it as requires_customer_action as
         // customer has to make payment to the virtual account number given in the source response
-        let status = match connector_source_response.status.clone().into() {
+        let mapped_status =
+            get_stripe_payment_status(connector_source_response.status, item.data.status);
+        let status = match mapped_status {
             AttemptStatus::Pending => AttemptStatus::AuthenticationPending,
-            _ => connector_source_response.status.into(),
+            other => other,
         };
         Ok(Self {
             response: Ok(PaymentsResponseData::PreProcessingResponse {
@@ -4435,7 +4476,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
             .source
             .encode_to_value()
             .change_context(ConnectorError::ResponseHandlingFailed)?;
-        let status = AttemptStatus::from(item.response.status);
+        let status = get_stripe_payment_status(item.response.status, item.data.status);
         let response = if is_payment_failure(status) {
             Err(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: item
@@ -4633,6 +4674,8 @@ pub enum WebhookEventObjectType {
     Charge,
     Source,
     Refund,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
