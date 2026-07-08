@@ -27,7 +27,7 @@ describe("Surcharge payment flow test", () => {
   });
 
   context("Surcharge payment flow test Create and confirm", () => {
-    let shouldContinue = true;
+    const shouldContinue = true;
 
     before("check connector inclusion", function () {
       let skip = false;
