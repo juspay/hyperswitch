@@ -2084,7 +2084,6 @@ export const connectorDetails = {
     }),
     Update: getCustomExchange({
       Request: {
-        plan_id: stripeTestPriceId,
         item_price_id: stripeTestPriceId,
       },
       Response: {
