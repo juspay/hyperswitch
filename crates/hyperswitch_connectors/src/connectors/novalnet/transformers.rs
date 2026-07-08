@@ -679,7 +679,7 @@ pub fn get_novalnet_attempt_status(
 pub struct ResultData {
     pub redirect_url: Option<Secret<url::Url>>,
     pub status: NovalnetAPIStatus,
-    pub status_code: u64,
+    pub status_code: Option<u64>,
     pub status_text: String,
     pub additional_message: Option<String>,
 }
@@ -888,10 +888,10 @@ pub struct NovalnetSyncResponseTransactionData {
     pub date: Option<String>,
     pub order_no: Option<String>,
     pub payment_data: Option<NovalnetResponsePaymentData>,
-    pub payment_type: String,
+    pub payment_type: Option<String>,
     pub status: NovalnetTransactionStatus,
-    pub status_code: u64,
-    pub test_mode: u8,
+    pub status_code: Option<u64>,
+    pub test_mode: Option<u8>,
     pub tid: Option<i64>,
     pub txn_secret: Option<Secret<String>>,
     pub authorization: Option<NovalnetAuthorizationResponse>,
@@ -909,10 +909,10 @@ pub enum NovalnetResponsePaymentData {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetResponseCard {
     pub card_brand: Option<Secret<String>>,
-    pub card_expiry_month: Secret<u8>,
-    pub card_expiry_year: Secret<u16>,
-    pub card_holder: Secret<String>,
-    pub card_number: Secret<String>,
+    pub card_expiry_month: Option<Secret<u8>>,
+    pub card_expiry_year: Option<Secret<u16>>,
+    pub card_holder: Option<Secret<String>>,
+    pub card_number: Option<Secret<String>>,
     pub cc_3d: Option<Secret<u8>>,
     pub last_four: Option<Secret<String>>,
     pub token: Option<Secret<String>>,
@@ -1063,12 +1063,12 @@ pub struct NovalnetRefundsTransactionData {
     pub date: Option<String>,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
-    pub payment_type: String,
+    pub payment_type: Option<String>,
     pub refund: RefundData,
     pub refunded_amount: Option<u64>,
     pub status: NovalnetTransactionStatus,
-    pub status_code: u64,
-    pub test_mode: u8,
+    pub status_code: Option<u64>,
+    pub test_mode: Option<u8>,
     pub tid: Option<i64>,
 }
 
@@ -1077,10 +1077,10 @@ pub struct NovalnetChargebackTransactionData {
     pub amount: Option<MinorUnit>,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
-    pub payment_type: NovalNetPaymentTypes,
+    pub payment_type: Option<NovalNetPaymentTypes>,
     pub status: NovalnetTransactionStatus,
-    pub status_code: u64,
-    pub test_mode: u8,
+    pub status_code: Option<u64>,
+    pub test_mode: Option<u8>,
     pub tid: Option<i64>,
     pub reason: Option<String>,
     pub reason_code: Option<String>,
@@ -1088,8 +1088,8 @@ pub struct NovalnetChargebackTransactionData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundData {
-    amount: u64,
-    currency: common_enums::Currency,
+    amount: Option<u64>,
+    currency: Option<common_enums::Currency>,
     payment_type: Option<String>,
     tid: Option<i64>,
 }
@@ -1325,7 +1325,7 @@ pub struct CaptureData {
     amount: Option<u64>,
     payment_type: Option<String>,
     status: Option<String>,
-    status_code: u64,
+    status_code: Option<u64>,
     tid: Option<i64>,
 }
 
