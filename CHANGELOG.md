@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.01.0-hotfix4
+
+### Performance
+
+- **core:** Introduce a new MCA domain type to reduce encryption service calls ([#13227](https://github.com/juspay/hyperswitch/pull/13227)) ([`3a43310`](https://github.com/juspay/hyperswitch/commit/3a43310114c55ef46aaa14f57934f36951b8ab05))
+
+**Full Changelog:** [`2026.07.01.0-hotfix3...2026.07.01.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.07.01.0-hotfix3...2026.07.01.0-hotfix4)
+
+- - -
+
 ## 2026.07.01.0-hotfix3
 
 ### Features
