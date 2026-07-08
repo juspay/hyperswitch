@@ -1027,24 +1027,26 @@ impl<F> TryFrom<&NovalnetRouterData<&RefundsRouterData<F>>> for NovalnetRefundRe
     }
 }
 
-impl From<NovalnetTransactionStatus> for enums::RefundStatus {
-    fn from(item: NovalnetTransactionStatus) -> Self {
-        match item {
-            NovalnetTransactionStatus::Success | NovalnetTransactionStatus::Confirmed => {
-                Self::Success
-            }
-            NovalnetTransactionStatus::Pending => Self::Pending,
-            NovalnetTransactionStatus::Failure
-            | NovalnetTransactionStatus::Error
-            | NovalnetTransactionStatus::OnHold
-            | NovalnetTransactionStatus::Deactivated
-            | NovalnetTransactionStatus::Progress => Self::Failure,
-            NovalnetTransactionStatus::Unknown => {
-                router_env::logger::warn!(
-                    "Unknown Novalnet refund status received; defaulting to Pending"
-                );
-                Self::Pending
-            }
+pub fn get_novalnet_refund_status(
+    status: NovalnetTransactionStatus,
+    prev_status: enums::RefundStatus,
+) -> enums::RefundStatus {
+    match status {
+        NovalnetTransactionStatus::Success | NovalnetTransactionStatus::Confirmed => {
+            enums::RefundStatus::Success
+        }
+        NovalnetTransactionStatus::Pending => enums::RefundStatus::Pending,
+        NovalnetTransactionStatus::Failure
+        | NovalnetTransactionStatus::Error
+        | NovalnetTransactionStatus::OnHold
+        | NovalnetTransactionStatus::Deactivated
+        | NovalnetTransactionStatus::Progress => enums::RefundStatus::Failure,
+        NovalnetTransactionStatus::Unknown => {
+            router_env::logger::warn!(
+                "Unknown Novalnet refund status received; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
         }
     }
 }
@@ -1113,6 +1115,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
             .clone()
             .and_then(|data| data.refund.tid.or(data.tid).map(|tid| tid.to_string()))
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+        let prev_refund_status = item.data.request.refund_status;
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
                 let transaction_status = item
@@ -1124,7 +1127,10 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
                 Ok(Self {
                     response: Ok(RefundsResponseData {
                         connector_refund_id: refund_id,
-                        refund_status: enums::RefundStatus::from(transaction_status),
+                        refund_status: get_novalnet_refund_status(
+                            transaction_status,
+                            prev_refund_status,
+                        ),
                     }),
                     ..item.data
                 })
@@ -1437,6 +1443,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>>
             .and_then(|data| data.tid.map(|tid| tid.to_string()))
             .unwrap_or_default();
         //NOTE: Mapping refund_id with "" incase we dont get any tid
+        let prev_refund_status = item.data.request.refund_status;
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
                 let transaction_status = item
@@ -1448,7 +1455,10 @@ impl TryFrom<RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>>
                 Ok(Self {
                     response: Ok(RefundsResponseData {
                         connector_refund_id: refund_id,
-                        refund_status: enums::RefundStatus::from(transaction_status),
+                        refund_status: get_novalnet_refund_status(
+                            transaction_status,
+                            prev_refund_status,
+                        ),
                     }),
                     ..item.data
                 })
