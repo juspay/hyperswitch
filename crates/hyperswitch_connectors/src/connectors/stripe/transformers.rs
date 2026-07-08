@@ -395,7 +395,7 @@ pub struct TokenRequest {
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeTokenResponse {
     pub id: Secret<String>,
-    pub object: String,
+    pub object: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -411,7 +411,7 @@ pub struct CustomerRequest {
 pub struct StripeCustomerResponse {
     pub id: String,
     pub description: Option<String>,
-    pub email: Option<Email>,
+    pub email: Option<String>,
     pub phone: Option<Secret<String>>,
     pub name: Option<Secret<String>>,
 }
@@ -431,7 +431,7 @@ pub struct ChargesResponse {
     pub id: String,
     pub amount: MinorUnit,
     pub amount_captured: MinorUnit,
-    pub currency: String,
+    pub currency: Option<String>,
     pub status: StripePaymentStatus,
     pub source: StripeSourceResponse,
     pub failure_code: Option<String>,
@@ -2791,7 +2791,7 @@ pub fn get_stripe_payment_status(
 #[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentIntentResponse {
     pub id: String,
-    pub object: String,
+    pub object: Option<String>,
     pub amount: MinorUnit,
     #[serde(default, deserialize_with = "deserialize_zero_minor_amount_as_none")]
     // stripe gives amount_captured as 0 for payment intents instead of null
@@ -2807,7 +2807,7 @@ pub struct PaymentIntentResponse {
     pub description: Option<String>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: StripeMetadata,
+    pub metadata: Option<StripeMetadata>,
     pub next_action: Option<StripeNextActionResponse>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub last_payment_error: Option<ErrorDetails>,
@@ -3195,14 +3195,14 @@ impl From<SetupIntentResponse> for PaymentIntentResponse {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SetupIntentResponse {
     pub id: String,
-    pub object: String,
+    pub object: Option<String>,
     pub status: StripePaymentStatus, // Change to SetupStatus
     pub client_secret: Secret<String>,
     pub customer: Option<Secret<String>>,
     pub payment_method: Option<String>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: StripeMetadata,
+    pub metadata: Option<StripeMetadata>,
     pub next_action: Option<StripeNextActionResponse>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub latest_attempt: Option<LatestAttempt>,
@@ -3903,7 +3903,7 @@ impl Serialize for StripeNextActionResponse {
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeRedirectToUrlResponse {
-    return_url: String,
+    return_url: Option<String>,
     url: Url,
 }
 
@@ -3931,7 +3931,7 @@ pub enum FinancialInformation {
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeBankTransferDetails {
     pub amount_remaining: MinorUnit,
-    pub currency: String,
+    pub currency: Option<String>,
     pub financial_addresses: FinancialInformation,
     pub hosted_instructions_url: Option<String>,
     pub reference: Option<String>,
@@ -3962,8 +3962,8 @@ pub struct AbaDetails {
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SwiftDetails {
-    pub account_number: Secret<String>,
-    pub bank_name: Secret<String>,
+    pub account_number: Option<Secret<String>>,
+    pub bank_name: Option<Secret<String>>,
     pub swift_code: Secret<String>,
 }
 
@@ -3982,7 +3982,7 @@ pub struct StripeFinancialInformation {
     pub sort_code: Option<BacsFinancialDetails>,
     pub supported_networks: Vec<String>,
     #[serde(rename = "type")]
-    pub financial_info_type: String,
+    pub financial_info_type: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -3991,7 +3991,7 @@ pub struct AchFinancialInformation {
     pub financial_details: AchFinancialDetails,
     pub supported_networks: Vec<String>,
     #[serde(rename = "type")]
-    pub financial_info_type: String,
+    pub financial_info_type: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -4125,11 +4125,11 @@ pub fn get_stripe_refund_status(
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     pub id: String,
-    pub object: String,
+    pub object: Option<String>,
     pub amount: MinorUnit,
     pub currency: String,
-    pub metadata: StripeMetadata,
-    pub payment_intent: String,
+    pub metadata: Option<StripeMetadata>,
+    pub payment_intent: Option<String>,
     pub status: RefundStatus,
     pub failure_reason: Option<String>,
 }
@@ -5103,7 +5103,7 @@ impl TryFrom<&SubmitEvidenceRouterData> for Evidence {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DisputeObj {
     #[serde(rename = "id")]
-    pub dispute_id: String,
+    pub dispute_id: Option<String>,
     pub status: String,
 }
 
