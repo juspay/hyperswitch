@@ -25,7 +25,9 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::types::VaultRouterData;
 use hyperswitch_domain_models::{
-    merchant_connector_account::MerchantConnectorAccount,
+    merchant_connector_account::{
+        MerchantConnectorAccount, MerchantConnectorAccountWithoutEncrypted,
+    },
     payment_address::PaymentAddress,
     router_data::ErrorResponse,
     router_data_v2::flow_common_types::VaultConnectorFlowData,
@@ -2563,6 +2565,12 @@ pub(crate) trait GetProfileId {
 }
 
 impl GetProfileId for MerchantConnectorAccount {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
+    }
+}
+
+impl GetProfileId for MerchantConnectorAccountWithoutEncrypted {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         Some(&self.profile_id)
     }
