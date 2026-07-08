@@ -196,10 +196,9 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
         // `get_mca_status` check performed in the legacy DB flow.
         let merchant_connector_accounts = state
             .store
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
                 &merchant_id,
                 true,
-                platform.get_processor().get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
