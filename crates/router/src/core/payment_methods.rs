@@ -510,7 +510,7 @@ pub async fn payment_method_modular_forward_compat_action(
     customer_id: Option<&id_type::CustomerId>,
 ) -> Option<domain::PaymentMethodCompatAction> {
     let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(ProviderMerchantId::from_merchant_id(merchant_id.clone()));
+        .with_provider_merchant_id(ProviderMerchantId::new(merchant_id.clone()));
     let should_schedule_modular_forward_compat =
         utils::get_should_schedule_modular_forward_compat(state, &dimensions, customer_id).await;
 

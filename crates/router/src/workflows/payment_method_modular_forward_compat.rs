@@ -409,7 +409,7 @@ impl ForwardCompatWorkflowBuilder<ForwardDbCompatPrepared> {
             payment_method_utils::get_should_trigger_fingerprint_migration(
                 state,
                 Some(customer_id),
-                hyperswitch_domain_models::platform::ProviderMerchantId::from_merchant_id(
+                hyperswitch_domain_models::platform::ProviderMerchantId::new(
                     merchant_id.clone(),
                 ),
             )
