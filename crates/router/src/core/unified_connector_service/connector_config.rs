@@ -458,6 +458,14 @@ pub enum ConnectorSpecificConfig {
         transaction_key: Secret<String>,
         developer_id: Secret<String>,
     },
+    /// TsysTransit (TransIT XML, API3.0) connector configuration. Same auth shape as
+    /// the legacy JSON Tsys but a separate variant so the UCS side can route
+    /// to the tsys_transit ConnectorIntegration impls.
+    TsysTransit {
+        device_id: Secret<String>,
+        transaction_key: Secret<String>,
+        developer_id: Secret<String>,
+    },
     /// Bamboraapac connector configuration
     Bamboraapac {
         username: Secret<String>,
@@ -1285,6 +1293,18 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     developer_id: api_secret.clone(),
                 }),
                 _ => Err(err("Tsys requires SignatureKey auth type")),
+            },
+            Connector::TsysTransit => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::TsysTransit {
+                    device_id: api_key.clone(),
+                    transaction_key: key1.clone(),
+                    developer_id: api_secret.clone(),
+                }),
+                _ => Err(err("TsysTransit requires SignatureKey auth type")),
             },
             Connector::Wellsfargo => match auth {
                 ConnectorAuthType::SignatureKey {

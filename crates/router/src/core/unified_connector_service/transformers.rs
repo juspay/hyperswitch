@@ -15,13 +15,13 @@ use common_utils::{
     ext_traits::Encode,
     types::{self, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
-use diesel_models::enums as storage_enums;
+use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
     mandates,
     mandates::{MandateData, MandateDataType},
-    router_data::{AccessToken, ErrorResponse, RouterData},
+    router_data::{AccessToken, ErrorResponse, L2L3Data, RouterData},
     router_flow_types::{
         payments::{Authorize, Capture, PSync, PreAuthorizeVoid, SetupMandate},
         refunds::{Execute, RSync},
@@ -38,6 +38,7 @@ use hyperswitch_domain_models::{
         NotifyConnectorResponseData, PaymentsResponseData, PayoutsResponseData, RedirectForm,
         RefundsResponseData,
     },
+    ApiModelToDieselModelConvertor,
 };
 pub use hyperswitch_interfaces::{
     helpers::ForeignTryFrom,
@@ -63,6 +64,130 @@ use crate::{
 const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
+
+impl ForeignFrom<common_enums::ProductType> for payments_grpc::ProductType {
+    fn foreign_from(product_type: common_enums::ProductType) -> Self {
+        match product_type {
+            common_enums::ProductType::Physical => Self::Physical,
+            common_enums::ProductType::Digital => Self::Digital,
+            common_enums::ProductType::Travel => Self::Travel,
+            common_enums::ProductType::Ride => Self::Ride,
+            common_enums::ProductType::Event => Self::Event,
+            common_enums::ProductType::Accommodation => Self::Accommodation,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::TaxStatus> for payments_grpc::TaxStatus {
+    fn foreign_from(tax_status: common_enums::TaxStatus) -> Self {
+        match tax_status {
+            common_enums::TaxStatus::Taxable => Self::Taxable,
+            common_enums::TaxStatus::Exempt => Self::Exempt,
+        }
+    }
+}
+
+fn build_ucs_order_details(
+    order_details: Option<&[OrderDetailsWithAmount]>,
+) -> Vec<payments_grpc::OrderDetailsWithAmount> {
+    order_details
+        .map(|details| {
+            details
+                .iter()
+                .map(|detail| payments_grpc::OrderDetailsWithAmount {
+                    product_name: detail.product_name.clone(),
+                    quantity: u32::from(detail.quantity),
+                    amount: detail.amount.get_amount_as_i64(),
+                    tax_rate: detail.tax_rate,
+                    total_tax_amount: detail
+                        .total_tax_amount
+                        .map(|amount| amount.get_amount_as_i64()),
+                    requires_shipping: detail.requires_shipping,
+                    product_img_link: detail.product_img_link.clone(),
+                    product_id: detail.product_id.clone(),
+                    category: detail.category.clone(),
+                    sub_category: detail.sub_category.clone(),
+                    brand: detail.brand.clone(),
+                    description: detail.description.clone(),
+                    unit_of_measure: detail.unit_of_measure.clone(),
+                    product_type: detail.product_type.clone().map(|product_type| {
+                        payments_grpc::ProductType::foreign_from(product_type).into()
+                    }),
+                    product_tax_code: detail.product_tax_code.clone(),
+                    sku: detail.sku.clone(),
+                    upc: detail.upc.clone(),
+                    commodity_code: detail.commodity_code.clone(),
+                    unit_discount_amount: detail
+                        .unit_discount_amount
+                        .map(|amount| amount.get_amount_as_i64()),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::L2l3Data> {
+    let order_details = l2_l3_data
+        .and_then(|data| data.get_order_details())
+        .map(|details| {
+            let order_details = details
+                .into_iter()
+                .map(OrderDetailsWithAmount::convert_from)
+                .collect::<Vec<_>>();
+            build_ucs_order_details(Some(order_details.as_slice()))
+        })
+        .unwrap_or_default();
+    let merchant_order_reference_id =
+        l2_l3_data.and_then(|data| data.get_merchant_order_reference_id());
+    let order_date = l2_l3_data
+        .and_then(|data| data.get_order_date())
+        .map(|date| date.assume_utc().unix_timestamp());
+    let discount_amount = l2_l3_data.and_then(|data| data.get_discount_amount());
+    let shipping_cost = l2_l3_data.and_then(|data| data.get_shipping_cost());
+    let duty_amount = l2_l3_data.and_then(|data| data.get_duty_amount());
+    let shipping_amount_tax = l2_l3_data.and_then(|data| data.get_shipping_amount_tax());
+    let tax_status = l2_l3_data.and_then(|data| data.get_tax_status());
+    let order_tax_amount = l2_l3_data.and_then(|data| data.get_order_tax_amount());
+    let customer_tax_registration_id = l2_l3_data
+        .and_then(|data| data.get_customer_tax_registration_id())
+        .map(|tax_id| tax_id.peek().to_owned().into());
+    let merchant_tax_registration_id = l2_l3_data
+        .and_then(|data| data.get_merchant_tax_registration_id())
+        .map(|tax_id| tax_id.peek().to_owned().into());
+
+    let order_info = l2_l3_data
+        .and_then(|data| data.order_info.as_ref())
+        .is_some_and(|order_info| !order_info.is_empty())
+        .then_some(payments_grpc::OrderInfo {
+            order_date,
+            order_details,
+            merchant_order_reference_id,
+            discount_amount: discount_amount.map(|amount| amount.get_amount_as_i64()),
+            shipping_cost: shipping_cost.map(|amount| amount.get_amount_as_i64()),
+            duty_amount: duty_amount.map(|amount| amount.get_amount_as_i64()),
+        });
+
+    let tax_info = l2_l3_data
+        .and_then(|data| data.tax_info.as_ref())
+        .is_some_and(|tax_info| !tax_info.is_empty())
+        .then_some(payments_grpc::TaxInfo {
+            tax_status: tax_status
+                .map(|tax_status| payments_grpc::TaxStatus::foreign_from(tax_status).into()),
+            customer_tax_registration_id,
+            merchant_tax_registration_id,
+            shipping_amount_tax: shipping_amount_tax.map(|amount| amount.get_amount_as_i64()),
+            order_tax_amount: order_tax_amount.map(|tax| tax.get_amount_as_i64()),
+        });
+
+    if order_info.is_none() && tax_info.is_none() {
+        None
+    } else {
+        Some(payments_grpc::L2l3Data {
+            order_info,
+            tax_info,
+        })
+    }
+}
 
 pub fn build_upi_wait_screen_data(
 ) -> Result<serde_json::Value, error_stack::Report<UnifiedConnectorServiceError>> {
@@ -296,7 +421,8 @@ impl
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
-
+        let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
+        let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
             split_payments: router_data
                 .request
@@ -388,7 +514,7 @@ impl
                 .billing_descriptor
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
-            order_details: vec![],
+            order_details,
             enable_partial_authorization: router_data
                 .request
                 .enable_partial_authorization
@@ -415,7 +541,7 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
-            l2_l3_data: None,
+            l2_l3_data,
             merchant_request_id: None,
             partner_merchant_identifier_details: router_data
                 .request
@@ -853,6 +979,9 @@ impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
             payment_method_id: value.get_payment_method_id(),
             connector_mandate_request_reference_id: value
                 .get_connector_mandate_request_reference_id(),
+            mandate_metadata: value.get_mandate_metadata().map(|mandate_metadata| {
+                Secret::new(serde_json::to_string(&mandate_metadata.expose()).unwrap_or_default())
+            }),
         }
     }
 }
@@ -887,6 +1016,15 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
             connector_mandate_id,
             payment_method_id,
             connector_mandate_request_reference_id,
+            mandate_metadata: structured
+                .and_then(|connector_mandate_reference_id| {
+                    connector_mandate_reference_id.get_mandate_metadata()
+                })
+                .map(|mandate_metadata| {
+                    Secret::new(
+                        serde_json::to_string(&mandate_metadata.expose()).unwrap_or_default(),
+                    )
+                }),
         })
     }
 }
@@ -1064,6 +1202,7 @@ impl
                 .transpose()?,
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
+            webhook_url: None,
         })
     }
 }
@@ -1248,6 +1387,7 @@ impl
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
+            merchant_transaction_id: None,
         })
     }
 }
@@ -1320,12 +1460,17 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
-            order_tax_amount: None,
             split_payments: router_data
                 .request
                 .split_payments
                 .as_ref()
                 .map(payments_grpc::SplitPaymentsDetails::foreign_from),
+            order_tax_amount: router_data.request.order_tax_amount.map(|amount| {
+                payments_grpc::Money {
+                    minor_amount: amount.get_amount_as_i64(),
+                    currency: currency.into(),
+                }
+            }),
         })
     }
 }
@@ -1549,7 +1694,8 @@ impl
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
-
+        let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
+        let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
             split_payments: router_data
                 .request
@@ -1640,7 +1786,7 @@ impl
                 .billing_descriptor
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
-            order_details: vec![],
+            order_details,
             connector_feature_data: None,
             enable_partial_authorization: router_data
                 .request
@@ -1668,7 +1814,7 @@ impl
             redirection_response: None,
             continue_redirection_url: None,
             connector_order_id: None,
-            l2_l3_data: None,
+            l2_l3_data,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
         })
@@ -2038,6 +2184,14 @@ impl
                                     payment_method_id: connector_mandate_id.get_payment_method_id(),
                                     connector_mandate_request_reference_id: connector_mandate_id
                                         .get_connector_mandate_request_reference_id(),
+                                    mandate_metadata: connector_mandate_id
+                                        .get_mandate_metadata()
+                                        .map(|mandate_metadata| {
+                                            Secret::new(
+                                                serde_json::to_string(&mandate_metadata.expose())
+                                                    .unwrap_or_default(),
+                                            )
+                                        }),
                                 },
                             ),
                         ),
@@ -2047,7 +2201,14 @@ impl
                     Some(payments_grpc::MandateReference {
                         mandate_id_type: Some(
                             payments_grpc::mandate_reference::MandateIdType::NetworkMandateId(
-                                network_mandate_id.network_transaction_id.clone(),
+                                payments_grpc::NetworkMandateId {
+                                    network_transaction_id: network_mandate_id
+                                        .network_transaction_id
+                                        .clone(),
+                                    transaction_link_id: network_mandate_id
+                                        .transaction_link_id
+                                        .clone(),
+                                },
                             ),
                         ),
                     })
@@ -2068,6 +2229,9 @@ impl
                                         .token_exp_year
                                         .clone()
                                         .map(|exp| exp.expose().into()),
+                                    transaction_link_id: network_token_with_nti
+                                        .transaction_link_id
+                                        .clone(),
                                 },
                             ),
                         ),
@@ -2670,7 +2834,7 @@ impl
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(redirection_data),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
@@ -2777,7 +2941,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: None,
                     network_txn_link_id: None,
@@ -2971,7 +3135,7 @@ impl
                             .map(RedirectForm::foreign_try_from)
                             .transpose()?,
                     ),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id,
                     network_txn_link_id: None,
@@ -3087,7 +3251,7 @@ impl
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: None,
@@ -5774,6 +5938,14 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                                 dt.assume_utc().unix_timestamp()
                                             },
                                         ),
+                                        initial_billing_amount: None,
+                                        external_subscription_id: None,
+                                        billing_cycle: None,
+                                        description: None,
+                                        next_billing_date: None,
+                                        // Hyperswitch setup-mandate requests do not carry mandate status.
+                                        mandate_status: payments_grpc::MandateStatus::Unspecified
+                                            .into(),
                                     },
                                 ),
                             ),
@@ -5810,6 +5982,14 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                                     dt.assume_utc().unix_timestamp()
                                                 },
                                             ),
+                                            initial_billing_amount: None,
+                                            external_subscription_id: None,
+                                            billing_cycle: None,
+                                            description: None,
+                                            next_billing_date: None,
+                                            // Hyperswitch setup-mandate requests do not carry mandate status.
+                                            mandate_status:
+                                                payments_grpc::MandateStatus::Unspecified.into(),
                                         },
                                     ),
                                 )
@@ -6388,6 +6568,7 @@ impl
         Ok(Self {
             merchant_void_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
+            split_payments: None,
             connector_feature_data: router_data
                 .request
                 .connector_meta
@@ -6405,7 +6586,6 @@ impl
             metadata: None,
             state,
             test_mode: router_data.test_mode,
-            split_payments: None,
         })
     }
 }
@@ -6524,7 +6704,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: None,
                     network_txn_link_id: None,

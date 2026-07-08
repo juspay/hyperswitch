@@ -1066,6 +1066,10 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         capture_method: Some(payment_data.payment_intent.capture_method),
         amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
         minor_amount_to_capture: amount_to_capture,
+        order_tax_amount: payment_data
+            .payment_attempt
+            .amount_details
+            .get_order_tax_amount(),
         currency: payment_data.payment_intent.amount_details.currency,
         connector_transaction_id: connector
             .connector
@@ -5641,10 +5645,23 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             .unwrap_or(payment_data.payment_attempt.get_total_amount());
 
         let amount = payment_data.payment_attempt.get_total_amount();
+        let order_tax_amount = payment_data
+            .payment_attempt
+            .amount_details
+            .get_order_tax_amount()
+            .or_else(|| {
+                payment_data
+                    .payment_intent
+                    .amount_details
+                    .tax_details
+                    .clone()
+                    .and_then(|tax_details| tax_details.get_default_tax_amount())
+            });
         Ok(Self {
             capture_method: Some(payment_data.payment_intent.capture_method),
             amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
             minor_amount_to_capture: amount_to_capture,
+            order_tax_amount,
             currency: payment_data.currency,
             connector_transaction_id: connector
                 .connector
@@ -5695,6 +5712,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                 field_name: "browser_info",
             })?;
         let amount = payment_data.payment_attempt.get_total_amount();
+        let order_tax_amount = payment_data
+            .payment_attempt
+            .net_amount
+            .get_order_tax_amount()
+            .or_else(|| {
+                payment_data
+                    .payment_intent
+                    .tax_details
+                    .clone()
+                    .and_then(|tax_details| tax_details.get_default_tax_amount())
+            });
 
         let router_base_url = &additional_data.router_base_url;
         let attempt = &payment_data.payment_attempt;
@@ -5714,6 +5742,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             capture_method: payment_data.get_capture_method(),
             amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
             minor_amount_to_capture: amount_to_capture,
+            order_tax_amount,
             currency: payment_data.currency,
             connector_transaction_id: connector
                 .connector
