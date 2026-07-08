@@ -39,6 +39,7 @@ use hyperswitch_interfaces::{
         ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -145,8 +146,8 @@ impl ConnectorCommon for Novalnet {
         if res.response.is_empty() {
             return Ok(ErrorResponse {
                 status_code: res.status_code,
-                code: common_utils::consts::NO_ERROR_CODE.to_string(),
-                message: common_utils::consts::NO_ERROR_MESSAGE.to_string(),
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
                 reason: None,
                 attempt_status: None,
                 connector_transaction_id: None,
@@ -188,7 +189,7 @@ impl ConnectorCommon for Novalnet {
                     }))
                 });
                 router_env::logger::error!(deserialization_error =? error_msg);
-                crate::utils::handle_json_response_deserialization_failure(res, "novalnet")
+                utils::handle_json_response_deserialization_failure(res, "novalnet")
             }
         }
     }
