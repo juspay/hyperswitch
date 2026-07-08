@@ -464,10 +464,6 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        // For stateless redirect payment methods (Skrill, Interac, paysafecard) the
-        // completion leg carries no payment_method_data in the request; core's
-        // make_pm_data reconstructs the empty-shell PaymentMethodData from the persisted
-        // payment_method_type, so it is already populated here.
         let payment_method = router_data
             .request
             .payment_method_data
