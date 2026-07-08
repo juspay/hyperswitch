@@ -1315,7 +1315,73 @@ impl
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+
+        let response: Result<stripe::ErrorResponse, _> = res.response.parse_struct("ErrorResponse");
+
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message.map(|message| {
+                        response
+                            .error
+                            .decline_code
+                            .clone()
+                            .map(|decline_code| {
+                                format!("message - {message}, decline_code - {decline_code}")
+                            })
+                            .unwrap_or(message)
+                    }),
+                    attempt_status: None,
+                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
+                    connector_response_reference_id: None,
+                    network_advice_code: response.error.network_advice_code,
+                    network_decline_code: response.error.network_decline_code,
+                    network_error_message: response
+                        .error
+                        .decline_code
+                        .or(response.error.advice_code),
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "stripe")
+            }
+        }
     }
 }
 
@@ -1399,73 +1465,7 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        if res.response.is_empty() {
-            return Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: NO_ERROR_CODE.to_string(),
-                message: NO_ERROR_MESSAGE.to_string(),
-                reason: None,
-                attempt_status: None,
-                connector_transaction_id: None,
-                connector_response_reference_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
-                connector_metadata: None,
-            });
-        }
-
-        let response: Result<stripe::ErrorResponse, _> = res.response.parse_struct("ErrorResponse");
-
-        match response {
-            Ok(response) => {
-                event_builder.map(|i| i.set_error_response_body(&response));
-                router_env::logger::info!(connector_response=?response);
-
-                Ok(ErrorResponse {
-                    status_code: res.status_code,
-                    code: response
-                        .error
-                        .code
-                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-                    message: response
-                        .error
-                        .message
-                        .clone()
-                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                    reason: response.error.message.map(|message| {
-                        response
-                            .error
-                            .decline_code
-                            .clone()
-                            .map(|decline_code| {
-                                format!("message - {message}, decline_code - {decline_code}")
-                            })
-                            .unwrap_or(message)
-                    }),
-                    attempt_status: None,
-                    connector_transaction_id: response.error.payment_intent.map(|pi| pi.id),
-                    connector_response_reference_id: None,
-                    network_advice_code: response.error.network_advice_code,
-                    network_decline_code: response.error.network_decline_code,
-                    network_error_message: response
-                        .error
-                        .decline_code
-                        .or(response.error.advice_code),
-                    connector_metadata: None,
-                })
-            }
-            Err(error_msg) => {
-                event_builder.map(|event| {
-                    event.set_error(serde_json::json!({
-                        "error": res.response.escape_ascii().to_string(),
-                        "status_code": res.status_code,
-                    }))
-                });
-                router_env::logger::error!(deserialization_error =? error_msg);
-                utils::handle_json_response_deserialization_failure(res, "stripe")
-            }
-        }
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -2710,7 +2710,7 @@ impl IncomingWebhook for Stripe {
             .parse_struct("WebhookEvent")
             .change_context(ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(match details.event_data.event_object.object {
+        match details.event_data.event_object.object {
             stripe::WebhookEventObjectType::PaymentIntent => {
                 match details
                     .event_data
@@ -2719,15 +2719,15 @@ impl IncomingWebhook for Stripe {
                     .and_then(|meta_data| meta_data.order_id)
                 {
                     // if order_id is present
-                    Some(order_id) => api_models::webhooks::ObjectReferenceId::PaymentId(
+                    Some(order_id) => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                         api_models::payments::PaymentIdType::PaymentAttemptId(order_id),
-                    ),
+                    )),
                     // else used connector_transaction_id
-                    None => api_models::webhooks::ObjectReferenceId::PaymentId(
+                    None => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                         api_models::payments::PaymentIdType::ConnectorTransactionId(
                             details.event_data.event_object.id,
                         ),
-                    ),
+                    )),
                 }
             }
             stripe::WebhookEventObjectType::Charge => {
@@ -2738,11 +2738,11 @@ impl IncomingWebhook for Stripe {
                     .and_then(|meta_data| meta_data.order_id)
                 {
                     // if order_id is present
-                    Some(order_id) => api_models::webhooks::ObjectReferenceId::PaymentId(
+                    Some(order_id) => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                         api_models::payments::PaymentIdType::PaymentAttemptId(order_id),
-                    ),
+                    )),
                     // else used connector_transaction_id
-                    None => api_models::webhooks::ObjectReferenceId::PaymentId(
+                    None => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                         api_models::payments::PaymentIdType::ConnectorTransactionId(
                             details
                                 .event_data
@@ -2750,11 +2750,11 @@ impl IncomingWebhook for Stripe {
                                 .payment_intent
                                 .ok_or(ConnectorError::WebhookReferenceIdNotFound)?,
                         ),
-                    ),
+                    )),
                 }
             }
             stripe::WebhookEventObjectType::Dispute => {
-                api_models::webhooks::ObjectReferenceId::PaymentId(
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
                         details
                             .event_data
@@ -2762,14 +2762,14 @@ impl IncomingWebhook for Stripe {
                             .payment_intent
                             .ok_or(ConnectorError::WebhookReferenceIdNotFound)?,
                     ),
-                )
+                ))
             }
             stripe::WebhookEventObjectType::Source => {
-                api_models::webhooks::ObjectReferenceId::PaymentId(
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::PreprocessingId(
                         details.event_data.event_object.id,
                     ),
-                )
+                ))
             }
             stripe::WebhookEventObjectType::Refund => {
                 match details
@@ -2789,30 +2789,30 @@ impl IncomingWebhook for Stripe {
                             .and_then(|meta_data| meta_data.is_refund_id_as_reference)
                         {
                             // if the order_id is refund_id
-                            Some(_) => api_models::webhooks::ObjectReferenceId::RefundId(
+                            Some(_) => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                                 api_models::webhooks::RefundIdType::RefundId(order_id),
-                            ),
+                            )),
                             // if the order_id is payment_id
                             // since payment_id was being passed before the deployment of this pr
-                            _ => api_models::webhooks::ObjectReferenceId::RefundId(
+                            _ => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                                 api_models::webhooks::RefundIdType::ConnectorRefundId(
                                     details.event_data.event_object.id,
                                 ),
-                            ),
+                            )),
                         }
                     }
                     // else use connector_transaction_id
-                    None => api_models::webhooks::ObjectReferenceId::RefundId(
+                    None => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                         api_models::webhooks::RefundIdType::ConnectorRefundId(
                             details.event_data.event_object.id,
                         ),
-                    ),
+                    )),
                 }
             }
             stripe::WebhookEventObjectType::Unknown => {
-                return Err(ConnectorError::WebhookReferenceIdNotFound.into());
+                Err(ConnectorError::WebhookReferenceIdNotFound.into())
             }
-        })
+        }
     }
 
     fn get_webhook_event_type(
