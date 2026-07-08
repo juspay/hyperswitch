@@ -14192,7 +14192,7 @@ pub async fn payments_submit_eligibility(
     let surcharge_details = match sdk_next_action.next_action {
         api_models::payments::NextActionCall::Deny { .. } => None,
         _ => {
-            calculate_external_surcharge(
+            Box::pin(calculate_external_surcharge(
                 &state_for_surcharge,
                 &platform_for_surcharge,
                 &payment_id,
@@ -14200,7 +14200,7 @@ pub async fn payments_submit_eligibility(
                 surcharge_connector_id,
                 payment_intent_for_surcharge,
                 surcharge_inputs,
-            )
+            ))
             .await?
         }
     };
