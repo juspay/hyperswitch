@@ -467,7 +467,7 @@ where
 impl ForeignFrom<payments::PaymentListFilterConstraints> for PaymentListFilterConstraintsV1 {
     fn foreign_from(item: payments::PaymentListFilterConstraints) -> Self {
         let payments::PaymentListFilterConstraints {
-            query,
+            query: _query,
             payment_id,
             profile_id,
             customer_id,
@@ -484,21 +484,20 @@ impl ForeignFrom<payments::PaymentListFilterConstraints> for PaymentListFilterCo
             merchant_connector_id,
             order,
             card_network,
-            card_last_4,
-            active_attempt_id,
-            card_issuer,
-            routing_approach,
-            refunds_status,
-            dispute_status,
-            client_source,
-            client_version,
-            first_attempt,
+            card_last_4: _card_last_4,
+            active_attempt_id: _active_attempt_id,
+            card_issuer: _card_issuer,
+            routing_approach: _routing_approach,
+            refunds_status: _refunds_status,
+            dispute_status: _dispute_status,
+            client_source: _client_source,
+            client_version: _client_version,
+            first_attempt: _first_attempt,
             merchant_order_reference_id,
             card_discovery,
             customer_email,
         } = item;
         Self {
-            query,
             payment_id,
             profile_id,
             customer_id,
@@ -515,18 +514,10 @@ impl ForeignFrom<payments::PaymentListFilterConstraints> for PaymentListFilterCo
             merchant_connector_id,
             order,
             card_network,
-            card_last_4,
-            active_attempt_id,
-            card_issuer,
-            routing_approach,
-            refunds_status,
-            dispute_status,
-            client_source,
-            client_version,
-            first_attempt,
             merchant_order_reference_id,
             card_discovery,
             customer_email,
+            extra_filters: std::collections::HashMap::new(),
         }
     }
 }
@@ -535,7 +526,6 @@ impl ForeignFrom<payments::PaymentListFilterConstraints> for PaymentListFilterCo
 impl ForeignFrom<PaymentListFilterConstraintsV1> for payments::PaymentListFilterConstraints {
     fn foreign_from(item: PaymentListFilterConstraintsV1) -> Self {
         let PaymentListFilterConstraintsV1 {
-            query,
             payment_id,
             profile_id,
             customer_id,
@@ -552,21 +542,13 @@ impl ForeignFrom<PaymentListFilterConstraintsV1> for payments::PaymentListFilter
             merchant_connector_id,
             order,
             card_network,
-            card_last_4,
-            active_attempt_id,
-            card_issuer,
-            routing_approach,
-            refunds_status,
-            dispute_status,
-            client_source,
-            client_version,
-            first_attempt,
             merchant_order_reference_id,
             card_discovery,
             customer_email,
+            extra_filters: _extra_filters,
         } = item;
         Self {
-            query,
+            query: None,
             payment_id,
             profile_id,
             customer_id,
@@ -583,15 +565,15 @@ impl ForeignFrom<PaymentListFilterConstraintsV1> for payments::PaymentListFilter
             merchant_connector_id,
             order,
             card_network,
-            card_last_4,
-            active_attempt_id,
-            card_issuer,
-            routing_approach,
-            refunds_status,
-            dispute_status,
-            client_source,
-            client_version,
-            first_attempt,
+            card_last_4: None,
+            active_attempt_id: None,
+            card_issuer: None,
+            routing_approach: None,
+            refunds_status: None,
+            dispute_status: None,
+            client_source: None,
+            client_version: None,
+            first_attempt: None,
             merchant_order_reference_id,
             card_discovery,
             customer_email,
@@ -602,19 +584,36 @@ impl ForeignFrom<PaymentListFilterConstraintsV1> for payments::PaymentListFilter
 #[cfg(feature = "v1")]
 fn get_payment_views_filters(
     data: SavedViewFilters,
-) -> (
+) -> UserResult<(
     types::SavedViewVersion,
     payments::PaymentListFilterConstraints,
-) {
+)> {
     match data {
         SavedViewFilters::V1(f) => match f {
-            SavedViewFiltersV1::PaymentViews(p) => (
-                types::SavedViewVersion::V1,
-                payments::PaymentListFilterConstraints::foreign_from(p),
-            ),
+            SavedViewFiltersV1::PaymentViews(p) => {
+                if !p.extra_filters.is_empty() {
+                    let unsupported_filters = p
+                        .extra_filters
+                        .keys()
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .join(", ");
+
+                    return Err(report!(UserErrors::InvalidMetadataRequest)).attach_printable(
+                        format!(
+                            "Unsupported filters for v1 payment saved views: {unsupported_filters}"
+                        ),
+                    );
+                }
+
+                Ok((
+                    types::SavedViewVersion::V1,
+                    payments::PaymentListFilterConstraints::foreign_from(p),
+                ))
+            }
         },
         SavedViewFilters::V2(f) => match f {
-            SavedViewFiltersV2::PaymentViews(p) => (types::SavedViewVersion::V2, p),
+            SavedViewFiltersV2::PaymentViews(p) => Ok((types::SavedViewVersion::V2, p)),
         },
     }
 }
@@ -655,7 +654,7 @@ async fn create_saved_view(
 
     let now = common_utils::date_time::now();
     let view_id = common_utils::generate_id(common_utils::consts::ID_LENGTH, "view");
-    let (version, filters) = get_payment_views_filters(request.data);
+    let (version, filters) = get_payment_views_filters(request.data)?;
     let new_view_domain = types::SavedView {
         view_id,
         view_name: request.view_name.clone(),
@@ -708,7 +707,7 @@ async fn update_saved_view(
     profile_id: Option<String>,
     request: UpdateSavedViewRequest,
 ) -> UserResult<DashboardMetadata> {
-    let (version, filters) = get_payment_views_filters(request.data);
+    let (version, filters) = get_payment_views_filters(request.data)?;
 
     modify_dashboard_metadata(
         state,
