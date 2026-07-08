@@ -1264,8 +1264,9 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                                         merchant_customer_id: Some(customer_id.clone()),
                                     },
                                 ),
-                        })},
-                    )))),
+                            }),
+                        }),
+                    ))),
                     enums::PaymentMethodType::Paypal => Ok(Some(PaymentSourceItem::Paypal(
                         PaypalRedirectionRequest::PaypalVaultStruct(VaultStruct {
                             vault_id: connector_mandate_id.into(),
