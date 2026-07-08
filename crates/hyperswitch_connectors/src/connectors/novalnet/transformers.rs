@@ -1702,18 +1702,11 @@ pub enum WebhookDisputeStatus {
     Unknown,
 }
 
-pub fn get_novalnet_dispute_status(
-    status: WebhookEventType,
-) -> Result<WebhookDisputeStatus, error_stack::Report<errors::ConnectorError>> {
+pub fn get_novalnet_dispute_status(status: WebhookEventType) -> WebhookDisputeStatus {
     match status {
-        WebhookEventType::Chargeback => Ok(WebhookDisputeStatus::DisputeOpened),
-        WebhookEventType::Credit => Ok(WebhookDisputeStatus::DisputeWon),
-        WebhookEventType::Unknown => Err(errors::ConnectorError::WebhookBodyDecodingFailed.into())
-            .attach_printable(
-                "Unknown Novalnet webhook event type; cannot determine dispute status",
-            ),
-        _ => Err(errors::ConnectorError::WebhookBodyDecodingFailed.into())
-            .attach_printable("Non-dispute webhook event type received in get_dispute_details"),
+        WebhookEventType::Chargeback => WebhookDisputeStatus::DisputeOpened,
+        WebhookEventType::Credit => WebhookDisputeStatus::DisputeWon,
+        _ => WebhookDisputeStatus::Unknown,
     }
 }
 

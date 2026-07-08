@@ -1041,7 +1041,7 @@ impl webhooks::IncomingWebhook for Novalnet {
         };
 
         let dispute_status =
-            novalnet::get_novalnet_dispute_status(notif.event.event_type)?.to_string();
+            novalnet::get_novalnet_dispute_status(notif.event.event_type).to_string();
         Ok(disputes::DisputePayload {
             amount: utils::convert_amount(
                 self.amount_converter,
