@@ -3766,15 +3766,30 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
         _ => Ok((None, None)),
     }?;
 
-    // For stateless redirect pay-later PMs (e.g. Affirm BNPL), the redirect-completion
-    // request carries no payment_method_data and there is no stored card/token, so the
-    // match above resolves to None. Reconstruct the PaymentMethodData from the persisted
-    // payment_method_type so downstream flows (e.g. UCS CompleteAuthorize) still receive a
-    // payment_method and can run the transaction-create leg with the checkout_token.
+    // Stateless redirect payment methods (Affirm BNPL, Skrill wallet, Interac
+    // e-Transfer, paysafecard gift card) carry no payment_method_data and vault no
+    // token, so the match above resolves to None on the redirect-completion leg.
+    // Reconstruct the empty-shell PaymentMethodData from the persisted
+    // payment_method_type so downstream router_data (e.g. UCS CompleteAuthorize) — and
+    // thus every connector — receives a payment_method and can settle the handle.
     let payment_method =
         payment_method.or_else(|| match payment_data.payment_attempt.payment_method_type {
             Some(storage_enums::PaymentMethodType::Affirm) => Some(
                 domain::PaymentMethodData::PayLater(domain::PayLaterData::AffirmRedirect {}),
+            ),
+            Some(storage_enums::PaymentMethodType::Skrill) => {
+                Some(domain::PaymentMethodData::Wallet(
+                    domain::WalletData::Skrill(Box::new(domain::SkrillData {})),
+                ))
+            }
+            Some(storage_enums::PaymentMethodType::Interac) => Some(
+                domain::PaymentMethodData::BankRedirect(domain::BankRedirectData::Interac {
+                    country: None,
+                    email: None,
+                }),
+            ),
+            Some(storage_enums::PaymentMethodType::PaySafeCard) => Some(
+                domain::PaymentMethodData::GiftCard(Box::new(domain::GiftCardData::PaySafeCard {})),
             ),
             _ => None,
         });

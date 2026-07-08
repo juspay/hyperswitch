@@ -95,6 +95,7 @@ export const connectorDetails = {
     PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -164,6 +165,7 @@ export const connectorDetails = {
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -183,6 +185,7 @@ export const connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -202,6 +205,7 @@ export const connectorDetails = {
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: failedNo3DSCardDetails,
         },
