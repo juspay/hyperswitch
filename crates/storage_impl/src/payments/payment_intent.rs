@@ -100,10 +100,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         let mut query_gen_conn = pg_connection_write(self).await?;
         let drainer_query = new_payment_intent
             .clone()
-            .generate_drainer_insert_query(&mut query_gen_conn)
-            .await
-            .change_context(StorageError::KVError)
-            .attach_printable("Failed to generate payment intent insert query")?;
+            .generate_drainer_insert_query(&mut query_gen_conn);
 
         Box::pin(self.insert_resource(
             merchant_key_store,
@@ -248,16 +245,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             .apply_changeset(origin_diesel_intent.clone());
 
         let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query = diesel_intent_update
-            .clone()
-            .generate_drainer_update_query(
-                &mut query_gen_conn,
-                origin_diesel_intent.payment_id.clone(),
-                origin_diesel_intent.processor_merchant_id.clone(),
-            )
-            .await
-            .change_context(StorageError::KVError)
-            .attach_printable("Failed to generate payment intent update query")?;
+        let drainer_query = diesel_intent_update.clone().generate_drainer_update_query(
+            &mut query_gen_conn,
+            origin_diesel_intent.payment_id.clone(),
+            origin_diesel_intent.processor_merchant_id.clone(),
+        );
 
         Box::pin(self.update_resource(
             merchant_key_store,

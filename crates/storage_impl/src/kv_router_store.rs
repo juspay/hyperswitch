@@ -57,8 +57,11 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     }
 }
 
-pub struct InsertResourceParams<'a> {
-    pub drainer_query: kv::SerializableQuery,
+pub struct InsertResourceParams<'a, DrainerQuery>
+where
+    DrainerQuery: futures::Future<Output = diesel_models::StorageResult<kv::SerializableQuery>>,
+{
+    pub drainer_query: DrainerQuery,
     pub reverse_lookups: Vec<String>,
     pub key: PartitionKey<'a>,
     // secondary key
@@ -67,8 +70,11 @@ pub struct InsertResourceParams<'a> {
     pub resource_type: &'static str,
 }
 
-pub struct UpdateResourceParams<'a> {
-    pub drainer_query: kv::SerializableQuery,
+pub struct UpdateResourceParams<'a, DrainerQuery>
+where
+    DrainerQuery: futures::Future<Output = diesel_models::StorageResult<kv::SerializableQuery>>,
+{
+    pub drainer_query: DrainerQuery,
     pub operation: Op<'a>,
 }
 
@@ -368,7 +374,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         }
     }
 
-    pub async fn insert_resource<D, R, M>(
+    pub async fn insert_resource<D, R, M, DrainerQuery>(
         &self,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -380,12 +386,14 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             key,
             identifier,
             resource_type,
-        }: InsertResourceParams<'_>,
+        }: InsertResourceParams<'_, DrainerQuery>,
     ) -> error_stack::Result<D, errors::StorageError>
     where
         D: Debug + Sync + Conversion,
         M: StorageModel<D>,
         R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
+        DrainerQuery:
+            futures::Future<Output = diesel_models::StorageResult<kv::SerializableQuery>> + Send,
     {
         let storage_scheme = Box::pin(decide_storage_scheme::<_, M>(
             self,
@@ -412,6 +420,11 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                     .map(|v| self.insert_reverse_lookup(reverse_lookup_entry(v), storage_scheme));
 
                 futures::future::try_join_all(results).await?;
+
+                let drainer_query = drainer_query
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable("Failed to generate drainer insert query")?;
 
                 match Box::pin(kv_wrapper::<M, _, _>(
                     self,
@@ -442,7 +455,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         .change_context(errors::StorageError::DecryptionError)
     }
 
-    pub async fn update_resource<D, R, M>(
+    pub async fn update_resource<D, R, M, DrainerQuery>(
         &self,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -451,12 +464,14 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         UpdateResourceParams {
             drainer_query,
             operation,
-        }: UpdateResourceParams<'_>,
+        }: UpdateResourceParams<'_, DrainerQuery>,
     ) -> error_stack::Result<D, errors::StorageError>
     where
         D: Debug + Sync + Conversion,
         M: StorageModel<D>,
         R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
+        DrainerQuery:
+            futures::Future<Output = diesel_models::StorageResult<kv::SerializableQuery>> + Send,
     {
         match operation {
             Op::Update(key, field, updated_by) => {
@@ -477,6 +492,10 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                         let key_str = key.to_string();
                         let redis_value = serde_json::to_string(&updated_resource)
                             .change_context(errors::StorageError::SerializationFailed)?;
+                        let drainer_query = drainer_query
+                            .await
+                            .change_context(errors::StorageError::KVError)
+                            .attach_printable("Failed to generate drainer update query")?;
 
                         Box::pin(kv_wrapper::<(), _, _>(
                             self,

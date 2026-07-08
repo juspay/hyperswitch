@@ -203,15 +203,11 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let field = format!("cust_{}", customer_id.get_string_repr());
 
         let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query = customer_update_internal
-            .generate_drainer_update_query(
-                &mut query_gen_conn,
-                customer_id.clone(),
-                merchant_id.clone(),
-            )
-            .await
-            .change_context(StorageError::KVError)
-            .attach_printable("Failed to generate customer update query")?;
+        let drainer_query = customer_update_internal.generate_drainer_update_query(
+            &mut query_gen_conn,
+            customer_id.clone(),
+            merchant_id.clone(),
+        );
 
         self.update_resource(
             key_store,
@@ -363,10 +359,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let mut query_gen_conn = pg_connection_write(self).await?;
         let drainer_query = new_customer
             .clone()
-            .generate_drainer_insert_query(&mut query_gen_conn)
-            .await
-            .change_context(StorageError::KVError)
-            .attach_printable("Failed to generate customer insert query")?;
+            .generate_drainer_insert_query(&mut query_gen_conn);
 
         self.insert_resource(
             key_store,
@@ -415,10 +408,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let mut query_gen_conn = pg_connection_write(self).await?;
         let drainer_query = new_customer
             .clone()
-            .generate_drainer_insert_query(&mut query_gen_conn)
-            .await
-            .change_context(StorageError::KVError)
-            .attach_printable("Failed to generate customer insert query")?;
+            .generate_drainer_insert_query(&mut query_gen_conn);
 
         self.insert_resource(
             key_store,
@@ -539,10 +529,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let mut query_gen_conn = pg_connection_write(self).await?;
         let drainer_query = customer_update_internal
             .clone()
-            .generate_drainer_update_query(&mut query_gen_conn, id.clone())
-            .await
-            .change_context(StorageError::KVError)
-            .attach_printable("Failed to generate customer update query")?;
+            .generate_drainer_update_query(&mut query_gen_conn, id.clone());
 
         self.update_resource(
             key_store,
