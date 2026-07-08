@@ -602,24 +602,26 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.payment_method_authentication_service_client
-            .clone()
-            .authenticate(request)
-            .await
-            .map_err(|error| {
-                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
-                    &error,
-                    &connector_name,
-                ))
-            })
-            .inspect_err(|error| {
-                logger::error!(
-                    grpc_error=?error,
-                    method="payment_authenticate",
-                    connector_name=?connector_name,
-                    "UCS payment authenticate gRPC call failed"
-                )
-            })
+        Box::pin(
+            self.payment_method_authentication_service_client
+                .clone()
+                .authenticate(request),
+        )
+        .await
+        .map_err(|error| {
+            error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                &error,
+                &connector_name,
+            ))
+        })
+        .inspect_err(|error| {
+            logger::error!(
+                grpc_error=?error,
+                method="payment_authenticate",
+                connector_name=?connector_name,
+                "UCS payment authenticate gRPC call failed"
+            )
+        })
     }
 
     /// Performs Session token create
