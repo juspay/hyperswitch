@@ -6,8 +6,6 @@ import * as routingUtils from "../../configs/Routing/Utils";
 let globalState;
 
 describe("Surcharge payment flow test", () => {
-  let shouldContinue = true;
-
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
@@ -18,40 +16,45 @@ describe("Surcharge payment flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  beforeEach(function () {
-    if (!shouldContinue) {
-      this.skip();
-    }
+  context("Setup surcharge DSL config", () => {
+    it("create-surcharge-dsl-config", () => {
+      const dslData =
+        routingUtils.getConnectorDetails("common")["SurchargeDecisionManager"][
+          "Create"
+        ];
+      cy.createSurchargeDSLConfig(dslData.Request, dslData, globalState);
+    });
   });
 
   context("Surcharge payment flow test Create and confirm", () => {
-    before("setup surcharge DSL", () => {
-      cy.task("getGlobalState").then((state) => {
-        globalState = new State(state);
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.SURCHARGE
-          )
-        ) {
-          shouldContinue = false;
-          return;
-        }
-        const dslData =
-          routingUtils.getConnectorDetails("common")[
-            "SurchargeDecisionManager"
-          ]["Create"];
-        cy.createSurchargeDSLConfig(dslData.Request, dslData, globalState);
-      });
+    let shouldContinue = true;
+
+    before("check connector inclusion", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          if (
+            utils.shouldIncludeConnector(
+              globalState.get("connectorId"),
+              utils.CONNECTOR_LISTS.INCLUDE.SURCHARGE
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
     });
 
-    after("cleanup surcharge DSL", () => {
-      if (shouldContinue) {
-        const dslData =
-          routingUtils.getConnectorDetails("common")[
-            "SurchargeDecisionManager"
-          ]["Delete"];
-        cy.deleteSurchargeDSLConfig(dslData, globalState);
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
       }
     });
 
