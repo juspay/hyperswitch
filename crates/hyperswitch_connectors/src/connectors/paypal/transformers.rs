@@ -1258,8 +1258,14 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Card => Ok(Some(PaymentSourceItem::Card(
                         CardRequest::CardVaultStruct(VaultStruct {
                             vault_id: connector_mandate_id.into(),
-                        }),
-                    ))),
+                            attributes: Some(VaultRequestAttributes {
+                                customer: item.router_data.request.customer_id.as_ref().map(
+                                    |customer_id| CustomerRequestData {
+                                        merchant_customer_id: Some(customer_id.clone()),
+                                    },
+                                ),
+                        })},
+                    )))),
                     enums::PaymentMethodType::Paypal => Ok(Some(PaymentSourceItem::Paypal(
                         PaypalRedirectionRequest::PaypalVaultStruct(VaultStruct {
                             vault_id: connector_mandate_id.into(),
