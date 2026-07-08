@@ -34,7 +34,7 @@ pub struct CustomerNew {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
-    pub id: Option<String>,
+    pub id: Option<common_utils::id_type::GlobalCustomerId>,
 }
 
 #[cfg(feature = "v1")]
@@ -166,7 +166,7 @@ pub struct Customer {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
-    pub id: Option<String>,
+    pub id: Option<common_utils::id_type::GlobalCustomerId>,
 }
 
 #[cfg(feature = "v2")]
