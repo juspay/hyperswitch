@@ -16,17 +16,6 @@ const simplifiedCustomerAcceptance = {
   acceptance_type: "offline",
 };
 
-const notImplementedResponse = {
-  status: 400,
-  body: {
-    error: {
-      type: "invalid_request",
-      message:
-        "No eligible connector was found for the current payment method configuration",
-    },
-  },
-};
-
 const notImplementedConfirmRequest = {
   payment_method: "card",
   payment_method_data: {
@@ -202,14 +191,24 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: notImplementedConfirmRequest,
-      Response: notImplementedResponse,
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
     },
     "3DSManualCapture": {
       Configs: {
         TRIGGER_SKIP: true,
       },
       Request: notImplementedConfirmRequest,
-      Response: notImplementedResponse,
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
     },
     Capture: {
       Request: {
@@ -255,7 +254,14 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: notImplementedConfirmRequest,
-      Response: notImplementedResponse,
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6000,
+        },
+      },
     },
   },
 };
