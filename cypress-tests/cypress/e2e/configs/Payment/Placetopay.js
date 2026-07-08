@@ -257,7 +257,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_payment_method",
+          status: "succeeded",
           shipping_cost: 50,
           amount: 6000,
         },
