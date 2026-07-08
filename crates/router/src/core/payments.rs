@@ -13853,12 +13853,23 @@ async fn calculate_external_surcharge(
     ) {
         (Some(surcharge_connector_id), Some(card_iin), Some(currency)) => {
             let processor = platform.get_processor();
+            let surcharge_mca = match helpers::fetch_active_surcharge_mca(
+                state,
+                processor.get_account().get_id(),
+                processor.get_key_store(),
+                &surcharge_connector_id,
+            )
+            .await?
+            {
+                Some(mca) => mca,
+                None => return Ok(None),
+            };
             match run_external_surcharge_ucs(
                 state,
                 processor,
                 payment_id,
                 profile_id,
-                &surcharge_connector_id,
+                surcharge_mca,
                 card_iin,
                 currency,
                 &inputs,
@@ -13910,7 +13921,10 @@ async fn calculate_external_surcharge(
     Ok(surcharge_details)
 }
 
-// Shared UCS surcharge call for /eligibility and MIT /confirm.
+// Fire the UCS `surcharge_calculate` gRPC for `payment_id` using the given
+// surcharge MCA and return the connector's surcharge amount + id. Best-effort:
+// any UCS error is swallowed and returned as `Ok(None)` so the caller can
+// proceed without a surcharge.
 #[cfg(all(feature = "oltp", feature = "v1"))]
 #[allow(clippy::too_many_arguments)]
 async fn run_external_surcharge_ucs(
@@ -13918,7 +13932,7 @@ async fn run_external_surcharge_ucs(
     processor: &domain::Processor,
     payment_id: &id_type::PaymentId,
     profile_id: &id_type::ProfileId,
-    surcharge_connector_id: &id_type::MerchantConnectorAccountId,
+    surcharge_mca: domain::MerchantConnectorAccount,
     card_iin: String,
     currency: storage_enums::Currency,
     inputs: &SurchargeCalculationInputs,
@@ -13928,18 +13942,6 @@ async fn run_external_surcharge_ucs(
     let merchant_id = processor.get_account().get_id().clone();
     let storage_scheme = processor.get_account().storage_scheme;
     let key_store = processor.get_key_store();
-
-    let surcharge_mca = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &merchant_id,
-            surcharge_connector_id,
-            key_store,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: surcharge_connector_id.get_string_repr().to_string(),
-        })?;
 
     let previous_connector_surcharge_id = previous_connector_surcharge_id(
         state,
@@ -14047,6 +14049,27 @@ async fn calculate_mit_external_surcharge(
             Some(payment_method),
             Some(profile_id),
         ) => {
+            // Gate on surcharge MCA `disabled` before any pre-work. If the fetch
+            // errors, treat it as "no surcharge" to keep confirm best-effort.
+            let surcharge_mca = match helpers::fetch_active_surcharge_mca(
+                state,
+                processor.get_account().get_id(),
+                processor.get_key_store(),
+                &surcharge_connector_id,
+            )
+            .await
+            {
+                Ok(Some(mca)) => mca,
+                Ok(None) => return None,
+                Err(err) => {
+                    logger::warn!(
+                        error=?err,
+                        "MIT confirm: failed to fetch surcharge MCA; proceeding without surcharge"
+                    );
+                    return None;
+                }
+            };
+
             let pi_billing_address: Option<hyperswitch_domain_models::address::Address> =
                 payment_intent.billing_details.as_ref().and_then(|billing| {
                     match billing
@@ -14083,7 +14106,7 @@ async fn calculate_mit_external_surcharge(
                 processor,
                 &payment_attempt.payment_id,
                 &profile_id,
-                &surcharge_connector_id,
+                surcharge_mca,
                 card_iin,
                 currency,
                 &inputs,
