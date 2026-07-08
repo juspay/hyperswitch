@@ -1698,10 +1698,10 @@ pub fn get_novalnet_dispute_status(
     match status {
         WebhookEventType::Chargeback => Ok(WebhookDisputeStatus::DisputeOpened),
         WebhookEventType::Credit => Ok(WebhookDisputeStatus::DisputeWon),
-        WebhookEventType::Unknown => {
-            Err(errors::ConnectorError::WebhookBodyDecodingFailed.into())
-                .attach_printable("Unknown Novalnet webhook event type; cannot determine dispute status")
-        }
+        WebhookEventType::Unknown => Err(errors::ConnectorError::WebhookBodyDecodingFailed.into())
+            .attach_printable(
+                "Unknown Novalnet webhook event type; cannot determine dispute status",
+            ),
         _ => Err(errors::ConnectorError::WebhookBodyDecodingFailed.into())
             .attach_printable("Non-dispute webhook event type received in get_dispute_details"),
     }
