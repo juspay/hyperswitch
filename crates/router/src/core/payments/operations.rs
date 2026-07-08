@@ -623,6 +623,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         locale: &Option<String>,
         #[cfg(feature = "dynamic_routing")] routable_connector: Vec<RoutableConnectorChoice>,
         #[cfg(feature = "dynamic_routing")] business_profile: &domain::Profile,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<D>
     where
         F: 'b + Send + Sync;
