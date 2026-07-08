@@ -59,7 +59,7 @@ use crate::{
     diesel_error_to_data_error,
     errors::StorageError,
     kv_router_store::KVRouterStore,
-    redis::kv_store::{decide_storage_scheme, Op, PartitionKey},
+    redis::kv_store::{Op, PartitionKey},
     utils::{pg_connection_read, pg_connection_write},
     DatabaseStore,
 };
@@ -68,7 +68,7 @@ use crate::{errors, lookup::ReverseLookupInterface};
 #[cfg(feature = "v2")]
 use crate::{
     errors::RedisErrorExt,
-    redis::kv_store::{kv_wrapper, KvOperation},
+    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation},
     utils,
 };
 
@@ -89,51 +89,36 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             merchant_id: &processor_merchant_id,
             payment_id: &payment_id,
         };
-        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentIntent>(
-            self,
+
+        let conn = pg_connection_write(self).await?;
+        let new_payment_intent = payment_intent
+            .construct_new()
+            .await
+            .change_context(StorageError::EncryptionError)?;
+        let diesel_payment_intent = DieselPaymentIntent::from(new_payment_intent.clone());
+
+        let mut query_gen_conn = pg_connection_write(self).await?;
+        let drainer_query = new_payment_intent
+            .clone()
+            .generate_drainer_insert_query(&mut query_gen_conn)
+            .await
+            .change_context(StorageError::KVError)
+            .attach_printable("Failed to generate payment intent insert query")?;
+
+        Box::pin(self.insert_resource(
+            merchant_key_store,
             storage_scheme,
-            Op::Insert,
+            new_payment_intent.insert(&conn),
+            diesel_payment_intent,
+            InsertResourceParams {
+                drainer_query,
+                reverse_lookups: vec![],
+                key,
+                identifier: field,
+                resource_type: "payment_intent",
+            },
         ))
-        .await;
-        match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => {
-                self.router_store
-                    .insert_payment_intent(payment_intent, merchant_key_store, storage_scheme)
-                    .await
-            }
-
-            MerchantStorageScheme::RedisKv => {
-                let conn = pg_connection_write(self).await?;
-                let new_payment_intent = payment_intent
-                    .construct_new()
-                    .await
-                    .change_context(StorageError::EncryptionError)?;
-                let diesel_payment_intent = DieselPaymentIntent::from(new_payment_intent.clone());
-
-                let mut query_gen_conn = pg_connection_write(self).await?;
-                let drainer_query = new_payment_intent
-                    .clone()
-                    .generate_drainer_insert_query(&mut query_gen_conn)
-                    .await
-                    .change_context(StorageError::KVError)
-                    .attach_printable("Failed to generate payment intent insert query")?;
-
-                Box::pin(self.insert_resource(
-                    merchant_key_store,
-                    storage_scheme,
-                    new_payment_intent.insert(&conn),
-                    diesel_payment_intent,
-                    InsertResourceParams {
-                        drainer_query,
-                        reverse_lookups: vec![],
-                        key,
-                        identifier: field,
-                        resource_type: "payment_intent",
-                    },
-                ))
-                .await
-            }
-        }
+        .await
     }
 
     #[cfg(feature = "v2")]
