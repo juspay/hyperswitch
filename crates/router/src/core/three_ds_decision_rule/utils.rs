@@ -52,6 +52,7 @@ impl ForeignFrom<api_threedsecure::PaymentData> for dsl_inputs::PaymentInput {
             setup_future_usage: None,
             card_bin: None,
             extended_card_bin: None,
+            surcharge_amount: None,
         }
     }
 }

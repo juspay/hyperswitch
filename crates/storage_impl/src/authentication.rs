@@ -88,73 +88,109 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
-    async fn find_authentication_by_merchant_id_authentication_id(
+    async fn find_authentication_by_processor_merchant_id_authentication_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
         merchant_key_store: &MerchantKeyStore,
         state: &common_utils::types::keymanager::KeyManagerState,
         _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        diesel_authentication::find_by_merchant_id_authentication_id(
+        // Stagger release: try processor_merchant_id, fall back to merchant_id for legacy NULL rows.
+        let result = diesel_authentication::find_by_processor_merchant_id_authentication_id(
             &conn,
-            merchant_id,
+            processor_merchant_id,
             authentication_id,
         )
-        .await
-        .map_err(|error| {
-            let new_err = diesel_error_to_data_error(*error.current_context());
-            error.change_context(new_err)
-        })
-        .async_and_then(|authentication| async {
-            Authentication::convert_back(
-                state,
-                authentication,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
+        .await;
+        let result = match result {
+            Err(error)
+                if matches!(
+                    error.current_context(),
+                    diesel_models::errors::DatabaseError::NotFound
+                ) =>
+            {
+                diesel_authentication::find_by_merchant_id_authentication_id(
+                    &conn,
+                    processor_merchant_id,
+                    authentication_id,
+                )
+                .await
+            }
+            other => other,
+        };
+        result
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
+            .async_and_then(|authentication| async {
+                Authentication::convert_back(
+                    state,
+                    authentication,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+            })
             .await
-            .change_context(errors::StorageError::DecryptionError)
-        })
-        .await
     }
 
     #[instrument(skip_all)]
-    async fn find_authentication_by_merchant_id_connector_authentication_id(
+    async fn find_authentication_by_processor_merchant_id_connector_authentication_id(
         &self,
-        merchant_id: common_utils::id_type::MerchantId,
+        processor_merchant_id: common_utils::id_type::MerchantId,
         connector_authentication_id: String,
         merchant_key_store: &MerchantKeyStore,
         state: &common_utils::types::keymanager::KeyManagerState,
         _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        diesel_authentication::find_authentication_by_merchant_id_connector_authentication_id(
+        // Stagger release: try processor_merchant_id, fall back to merchant_id for legacy NULL rows.
+        let result = diesel_authentication::find_authentication_by_processor_merchant_id_connector_authentication_id(
             &conn,
-            &merchant_id,
+            &processor_merchant_id,
             &connector_authentication_id,
         )
-        .await
-        .map_err(|error| {
-            let new_err = diesel_error_to_data_error(*error.current_context());
-            error.change_context(new_err)
-        })
-        .async_and_then(|authentication| async {
-            Authentication::convert_back(
-                state,
-                authentication,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
+        .await;
+        let result = match result {
+            Err(error)
+                if matches!(
+                    error.current_context(),
+                    diesel_models::errors::DatabaseError::NotFound
+                ) =>
+            {
+                diesel_authentication::find_authentication_by_merchant_id_connector_authentication_id(
+                    &conn,
+                    &processor_merchant_id,
+                    &connector_authentication_id,
+                )
+                .await
+            }
+            other => other,
+        };
+        result
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
+            .async_and_then(|authentication| async {
+                Authentication::convert_back(
+                    state,
+                    authentication,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+            })
             .await
-            .change_context(errors::StorageError::DecryptionError)
-        })
-        .await
     }
 
     #[instrument(skip_all)]
-    async fn update_authentication_by_merchant_id_authentication_id(
+    async fn update_authentication_by_processor_merchant_id_authentication_id(
         &self,
         previous_state: Authentication,
         authentication_update: AuthenticationUpdate,
@@ -163,30 +199,55 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
         _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
         let conn = pg_connection_write(self).await?;
-        diesel_authentication::update_by_merchant_id_authentication_id(
-            &conn,
-            &previous_state.merchant_id,
-            &previous_state.authentication_id,
+        let authentication_update_internal =
             diesel_models::authentication::AuthenticationUpdateInternal::from(
                 diesel_models::authentication::AuthenticationUpdate::from(authentication_update),
-            ),
+            );
+        // Stagger release: try processor_merchant_id, fall back to merchant_id for legacy NULL rows.
+        let processor_merchant_id = previous_state
+            .processor_merchant_id
+            .clone()
+            .unwrap_or_else(|| previous_state.merchant_id.clone());
+        let result = diesel_authentication::update_by_processor_merchant_id_authentication_id(
+            &conn,
+            &processor_merchant_id,
+            &previous_state.authentication_id,
+            authentication_update_internal.clone(),
         )
-        .await
-        .map_err(|error| {
-            let new_err = diesel_error_to_data_error(*error.current_context());
-            error.change_context(new_err)
-        })
-        .async_and_then(|authentication| async {
-            Authentication::convert_back(
-                state,
-                authentication,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
+        .await;
+        let result = match result {
+            Err(error)
+                if matches!(
+                    error.current_context(),
+                    diesel_models::errors::DatabaseError::NotFound
+                ) =>
+            {
+                diesel_authentication::update_by_merchant_id_authentication_id(
+                    &conn,
+                    &processor_merchant_id,
+                    &previous_state.authentication_id,
+                    authentication_update_internal,
+                )
+                .await
+            }
+            other => other,
+        };
+        result
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
+            .async_and_then(|authentication| async {
+                Authentication::convert_back(
+                    state,
+                    authentication,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+            })
             .await
-            .change_context(errors::StorageError::DecryptionError)
-        })
-        .await
     }
 }
 
@@ -224,7 +285,10 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                 // Record which layer wrote this row; drives KV-vs-Postgres routing on later updates.
                 let authentication = authentication.update_storage_scheme(storage_scheme);
 
-                let merchant_id = &authentication.merchant_id;
+                let merchant_id = authentication
+                    .processor_merchant_id
+                    .as_ref()
+                    .unwrap_or(&authentication.merchant_id);
                 let authentication_id = &authentication.authentication_id;
                 let payment_id = &authentication.payment_id;
 
@@ -312,9 +376,9 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
     }
 
     #[instrument(skip_all)]
-    async fn find_authentication_by_merchant_id_authentication_id(
+    async fn find_authentication_by_processor_merchant_id_authentication_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
         merchant_key_store: &MerchantKeyStore,
         state: &common_utils::types::keymanager::KeyManagerState,
@@ -322,13 +386,30 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
     ) -> error_stack::Result<Authentication, errors::StorageError> {
         let database_call = || async {
             let conn = pg_connection_read(self).await?;
-            diesel_authentication::find_by_merchant_id_authentication_id(
+            // Stagger release: try processor_merchant_id, fall back to merchant_id for legacy NULL rows.
+            let result = diesel_authentication::find_by_processor_merchant_id_authentication_id(
                 &conn,
-                merchant_id,
+                processor_merchant_id,
                 authentication_id,
             )
-            .await
-            .map_err(|error| {
+            .await;
+            let result = match result {
+                Err(error)
+                    if matches!(
+                        error.current_context(),
+                        diesel_models::errors::DatabaseError::NotFound
+                    ) =>
+                {
+                    diesel_authentication::find_by_merchant_id_authentication_id(
+                        &conn,
+                        processor_merchant_id,
+                        authentication_id,
+                    )
+                    .await
+                }
+                other => other,
+            };
+            result.map_err(|error| {
                 let new_err = diesel_error_to_data_error(*error.current_context());
                 error.change_context(new_err)
             })
@@ -346,7 +427,7 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
             common_enums::MerchantStorageScheme::RedisKv => {
                 // Resolve partition/field via the authentication-id reverse lookup.
                 let lookup_id = diesel_authentication::get_authentication_id_lookup_id(
-                    merchant_id,
+                    processor_merchant_id,
                     authentication_id,
                 );
                 let lookup = fallback_reverse_lookup_not_found!(
@@ -394,9 +475,9 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
     }
 
     #[instrument(skip_all)]
-    async fn find_authentication_by_merchant_id_connector_authentication_id(
+    async fn find_authentication_by_processor_merchant_id_connector_authentication_id(
         &self,
-        merchant_id: common_utils::id_type::MerchantId,
+        processor_merchant_id: common_utils::id_type::MerchantId,
         connector_authentication_id: String,
         merchant_key_store: &MerchantKeyStore,
         state: &common_utils::types::keymanager::KeyManagerState,
@@ -404,13 +485,31 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
     ) -> error_stack::Result<Authentication, errors::StorageError> {
         let database_call = || async {
             let conn = pg_connection_read(self).await?;
-            diesel_authentication::find_authentication_by_merchant_id_connector_authentication_id(
-                &conn,
-                &merchant_id,
-                &connector_authentication_id,
-            )
-            .await
-            .map_err(|error| {
+            // Stagger release: try processor_merchant_id, fall back to merchant_id for legacy NULL rows.
+            let result =
+                diesel_authentication::find_authentication_by_processor_merchant_id_connector_authentication_id(
+                    &conn,
+                    &processor_merchant_id,
+                    &connector_authentication_id,
+                )
+                .await;
+            let result = match result {
+                Err(error)
+                    if matches!(
+                        error.current_context(),
+                        diesel_models::errors::DatabaseError::NotFound
+                    ) =>
+                {
+                    diesel_authentication::find_authentication_by_merchant_id_connector_authentication_id(
+                        &conn,
+                        &processor_merchant_id,
+                        &connector_authentication_id,
+                    )
+                    .await
+                }
+                other => other,
+            };
+            result.map_err(|error| {
                 let new_err = diesel_error_to_data_error(*error.current_context());
                 error.change_context(new_err)
             })
@@ -428,7 +527,7 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
             common_enums::MerchantStorageScheme::RedisKv => {
                 // Resolve partition/field via the connector reverse lookup (webhook flow).
                 let lookup_id = diesel_authentication::get_connector_authentication_lookup_id(
-                    &merchant_id,
+                    &processor_merchant_id,
                     &connector_authentication_id,
                 );
                 let lookup = fallback_reverse_lookup_not_found!(
@@ -476,7 +575,7 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
     }
 
     #[instrument(skip_all)]
-    async fn update_authentication_by_merchant_id_authentication_id(
+    async fn update_authentication_by_processor_merchant_id_authentication_id(
         &self,
         previous_state: Authentication,
         authentication_update: AuthenticationUpdate,
@@ -484,7 +583,10 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
         state: &common_utils::types::keymanager::KeyManagerState,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
-        let merchant_id = previous_state.merchant_id.clone();
+        let merchant_id = previous_state
+            .processor_merchant_id
+            .clone()
+            .unwrap_or_else(|| previous_state.merchant_id.clone());
         let authentication_id = previous_state.authentication_id.clone();
         let payment_id = previous_state.payment_id.clone();
 
@@ -512,7 +614,7 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
         match storage_scheme {
             common_enums::MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .update_authentication_by_merchant_id_authentication_id(
+                    .update_authentication_by_processor_merchant_id_authentication_id(
                         previous_state,
                         authentication_update,
                         merchant_key_store,
@@ -646,9 +748,9 @@ impl AuthenticationInterface for MockDb {
         Ok(authentication)
     }
 
-    async fn find_authentication_by_merchant_id_authentication_id(
+    async fn find_authentication_by_processor_merchant_id_authentication_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
         _merchant_key_store: &MerchantKeyStore,
         _state: &common_utils::types::keymanager::KeyManagerState,
@@ -658,22 +760,22 @@ impl AuthenticationInterface for MockDb {
         authentications
             .iter()
             .find(|auth| {
-                auth.merchant_id == *merchant_id && auth.authentication_id == *authentication_id
+                auth.merchant_id == *processor_merchant_id && auth.authentication_id == *authentication_id
             })
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "Authentication not found for merchant_id: {} and authentication_id: {}",
-                    merchant_id.get_string_repr(),
+                    "Authentication not found for processor_merchant_id: {} and authentication_id: {}",
+                    processor_merchant_id.get_string_repr(),
                     authentication_id.get_string_repr()
                 ))
                 .into(),
             )
     }
 
-    async fn find_authentication_by_merchant_id_connector_authentication_id(
+    async fn find_authentication_by_processor_merchant_id_connector_authentication_id(
         &self,
-        merchant_id: common_utils::id_type::MerchantId,
+        processor_merchant_id: common_utils::id_type::MerchantId,
         connector_authentication_id: String,
         _merchant_key_store: &MerchantKeyStore,
         _state: &common_utils::types::keymanager::KeyManagerState,
@@ -683,22 +785,22 @@ impl AuthenticationInterface for MockDb {
         authentications
             .iter()
             .find(|auth| {
-                auth.merchant_id == merchant_id
+                auth.merchant_id == processor_merchant_id
                     && auth.connector_authentication_id.as_ref()
                         == Some(&connector_authentication_id)
             })
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "Authentication not found for merchant_id: {} and connector_authentication_id: {}",
-                    merchant_id.get_string_repr(),
+                    "Authentication not found for processor_merchant_id: {} and connector_authentication_id: {}",
+                    processor_merchant_id.get_string_repr(),
                     connector_authentication_id
                 ))
                 .into(),
             )
     }
 
-    async fn update_authentication_by_merchant_id_authentication_id(
+    async fn update_authentication_by_processor_merchant_id_authentication_id(
         &self,
         previous_state: Authentication,
         authentication_update: AuthenticationUpdate,

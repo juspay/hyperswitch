@@ -1108,7 +1108,9 @@ impl ConnectorSpecifications for Shift4 {
             // No alternate flow for complete authorize and SetupMandate
             api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
+                false
+            }
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
