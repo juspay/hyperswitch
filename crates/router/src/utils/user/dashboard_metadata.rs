@@ -461,41 +461,27 @@ where
 }
 
 #[cfg(feature = "v1")]
-fn get_payment_view(
-    view_id: String,
-    view_name: String,
-    data: SavedViewFilters,
-    created_at: String,
-    updated_at: String,
-) -> types::SavedView {
+fn get_payment_view_filter(data: SavedViewFilters) -> types::SavedViewFilter {
     match data {
-        SavedViewFilters::V1(SavedViewFiltersV1::PaymentViews(filters)) => {
-            types::SavedView::V1(types::SavedViewV1 {
-                view_id,
-                view_name,
-                filters,
-                created_at,
-                updated_at,
-            })
-        }
-        SavedViewFilters::V2(SavedViewFiltersV2::PaymentViews(filters)) => {
-            types::SavedView::V2(types::SavedViewV2 {
-                view_id,
-                view_name,
-                filters,
-                created_at,
-                updated_at,
-            })
-        }
+        SavedViewFilters::V1(filters) => match *filters {
+            SavedViewFiltersV1::PaymentViews(filters) => {
+                types::SavedViewFilter::V1(Box::new(filters))
+            }
+        },
+        SavedViewFilters::V2(filters) => match *filters {
+            SavedViewFiltersV2::PaymentViews(filters) => {
+                types::SavedViewFilter::V2(Box::new(filters))
+            }
+        },
     }
 }
 
 #[cfg(feature = "v1")]
 fn is_same_payment_view_version(left: &types::SavedView, right: &types::SavedView) -> bool {
     matches!(
-        (left, right),
-        (types::SavedView::V1(_), types::SavedView::V1(_))
-            | (types::SavedView::V2(_), types::SavedView::V2(_))
+        (&left.filters, &right.filters),
+        (types::SavedViewFilter::V1(_), types::SavedViewFilter::V1(_))
+            | (types::SavedViewFilter::V2(_), types::SavedViewFilter::V2(_))
     )
 }
 
@@ -505,26 +491,10 @@ fn matches_payment_view_filter_version(
     filters: &SavedViewFilters,
 ) -> bool {
     matches!(
-        (view, filters),
-        (types::SavedView::V1(_), SavedViewFilters::V1(_))
-            | (types::SavedView::V2(_), SavedViewFilters::V2(_))
+        (&view.filters, filters),
+        (types::SavedViewFilter::V1(_), SavedViewFilters::V1(_))
+            | (types::SavedViewFilter::V2(_), SavedViewFilters::V2(_))
     )
-}
-
-#[cfg(feature = "v1")]
-fn get_payment_view_id(view: &types::SavedView) -> &str {
-    match view {
-        types::SavedView::V1(view) => &view.view_id,
-        types::SavedView::V2(view) => &view.view_id,
-    }
-}
-
-#[cfg(feature = "v1")]
-fn get_payment_view_name(view: &types::SavedView) -> &str {
-    match view {
-        types::SavedView::V1(view) => &view.view_name,
-        types::SavedView::V2(view) => &view.view_name,
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -533,33 +503,28 @@ fn update_payment_view(
     view_name: Option<String>,
     filters: SavedViewFilters,
 ) -> UserResult<()> {
-    let updated_at = common_utils::date_time::now().to_string();
-    match (view, filters) {
-        (
-            types::SavedView::V1(view),
-            SavedViewFilters::V1(SavedViewFiltersV1::PaymentViews(filters)),
-        ) => {
-            if let Some(view_name) = view_name {
-                view.view_name = view_name;
+    match (&mut view.filters, filters) {
+        (types::SavedViewFilter::V1(current_filters), SavedViewFilters::V1(filters)) => {
+            match *filters {
+                SavedViewFiltersV1::PaymentViews(filters) => **current_filters = filters,
             }
-            view.filters = filters;
-            view.updated_at = updated_at;
-            Ok(())
         }
-        (
-            types::SavedView::V2(view),
-            SavedViewFilters::V2(SavedViewFiltersV2::PaymentViews(filters)),
-        ) => {
-            if let Some(view_name) = view_name {
-                view.view_name = view_name;
+        (types::SavedViewFilter::V2(current_filters), SavedViewFilters::V2(filters)) => {
+            match *filters {
+                SavedViewFiltersV2::PaymentViews(filters) => **current_filters = filters,
             }
-            view.filters = filters;
-            view.updated_at = updated_at;
-            Ok(())
         }
-        _ => Err(report!(UserErrors::SavedViewNotFound))
-            .attach_printable("Saved view with this version not found"),
+        _ => {
+            return Err(report!(UserErrors::SavedViewNotFound))
+                .attach_printable("Saved view with this version not found");
+        }
     }
+
+    if let Some(view_name) = view_name {
+        view.view_name = view_name;
+    }
+    view.updated_at = common_utils::date_time::now().to_string();
+    Ok(())
 }
 
 #[cfg(feature = "v1")]
@@ -598,13 +563,13 @@ async fn create_saved_view(
 
     let now = common_utils::date_time::now();
     let view_id = common_utils::generate_id(common_utils::consts::ID_LENGTH, "view");
-    let new_view_domain = get_payment_view(
+    let new_view_domain = types::SavedView {
         view_id,
-        request.view_name.clone(),
-        request.data,
-        now.to_string(),
-        now.to_string(),
-    );
+        view_name: request.view_name.clone(),
+        filters: get_payment_view_filter(request.data),
+        created_at: now.to_string(),
+        updated_at: now.to_string(),
+    };
 
     modify_dashboard_metadata(
         state,
@@ -627,7 +592,7 @@ async fn create_saved_view(
 
             if views_data.views.iter().any(|v| {
                 is_same_payment_view_version(v, &new_view_domain)
-                    && get_payment_view_name(v) == request.view_name.as_str()
+                    && v.view_name == request.view_name
             }) {
                 return Err(report!(UserErrors::SavedViewNameAlreadyExists))
                     .attach_printable("A saved view with this name already exists");
@@ -659,8 +624,7 @@ async fn update_saved_view(
             let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
 
             if !views_data.views.iter().any(|v| {
-                get_payment_view_id(v) == request.view_id.as_str()
-                    && matches_payment_view_filter_version(v, &filters)
+                v.view_id == request.view_id && matches_payment_view_filter_version(v, &filters)
             }) {
                 return Err(report!(UserErrors::SavedViewNotFound))
                     .attach_printable("Saved view with this ID not found");
@@ -674,8 +638,8 @@ async fn update_saved_view(
 
                 if views_data.views.iter().any(|v| {
                     matches_payment_view_filter_version(v, &filters)
-                        && get_payment_view_id(v) != request.view_id.as_str()
-                        && get_payment_view_name(v) == new_name.as_str()
+                        && v.view_id != request.view_id
+                        && v.view_name == *new_name
                 }) {
                     return Err(report!(UserErrors::SavedViewNameAlreadyExists))
                         .attach_printable("A saved view with this name already exists");
@@ -686,8 +650,7 @@ async fn update_saved_view(
                 .views
                 .iter_mut()
                 .find(|v| {
-                    get_payment_view_id(v) == request.view_id.as_str()
-                        && matches_payment_view_filter_version(v, &filters)
+                    v.view_id == request.view_id && matches_payment_view_filter_version(v, &filters)
                 })
                 .ok_or(report!(UserErrors::SavedViewNotFound))?;
 
@@ -718,7 +681,7 @@ async fn delete_saved_view(
             let position = views_data
                 .views
                 .iter()
-                .position(|v| get_payment_view_id(v) == request.view_id.as_str())
+                .position(|v| v.view_id == request.view_id)
                 .ok_or_else(|| {
                     report!(UserErrors::SavedViewNotFound)
                         .attach_printable("Saved view with this ID not found")

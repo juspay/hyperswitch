@@ -159,21 +159,21 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
 
 #[cfg(feature = "v1")]
 fn payment_view_into_response(view: types::SavedView) -> api::SavedViewResponse {
-    match view {
-        types::SavedView::V1(view) => api::SavedViewResponse {
-            view_id: view.view_id,
-            view_name: view.view_name,
-            data: api::SavedViewFilters::V1(api::SavedViewFiltersV1::PaymentViews(view.filters)),
-            created_at: view.created_at,
-            updated_at: view.updated_at,
-        },
-        types::SavedView::V2(view) => api::SavedViewResponse {
-            view_id: view.view_id,
-            view_name: view.view_name,
-            data: api::SavedViewFilters::V2(api::SavedViewFiltersV2::PaymentViews(view.filters)),
-            created_at: view.created_at,
-            updated_at: view.updated_at,
-        },
+    let data = match view.filters {
+        types::SavedViewFilter::V1(filters) => {
+            api::SavedViewFilters::V1(Box::new(api::SavedViewFiltersV1::PaymentViews(*filters)))
+        }
+        types::SavedViewFilter::V2(filters) => {
+            api::SavedViewFilters::V2(Box::new(api::SavedViewFiltersV2::PaymentViews(*filters)))
+        }
+    };
+
+    api::SavedViewResponse {
+        view_id: view.view_id,
+        view_name: view.view_name,
+        data,
+        created_at: view.created_at,
+        updated_at: view.updated_at,
     }
 }
 

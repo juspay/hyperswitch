@@ -76,30 +76,21 @@ pub struct ProductionAgreementValue {
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct SavedViewV1 {
-    pub view_id: String,
-    pub view_name: String,
-    pub filters: api::PaymentListFilterConstraintsV1,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-#[cfg(feature = "v1")]
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct SavedViewV2 {
-    pub view_id: String,
-    pub view_name: String,
-    pub filters: api::PaymentListFilterConstraintsV2,
-    pub created_at: String,
-    pub updated_at: String,
+#[serde(tag = "version", content = "filters", rename_all = "snake_case")]
+pub enum SavedViewFilter {
+    V1(Box<api::PaymentListFilterConstraintsV1>),
+    V2(Box<api::PaymentListFilterConstraintsV2>),
 }
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize)]
-#[serde(tag = "version", rename_all = "snake_case")]
-pub enum SavedView {
-    V1(SavedViewV1),
-    V2(SavedViewV2),
+pub struct SavedView {
+    pub view_id: String,
+    pub view_name: String,
+    #[serde(flatten)]
+    pub filters: SavedViewFilter,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 #[cfg(feature = "v1")]
@@ -109,17 +100,45 @@ impl<'de> Deserialize<'de> for SavedView {
         D: serde::Deserializer<'de>,
     {
         let value = serde_json::Value::deserialize(deserializer)?;
-        match value.get("version").and_then(serde_json::Value::as_str) {
-            None | Some("v1") => SavedViewV1::deserialize(value)
-                .map(Self::V1)
-                .map_err(serde::de::Error::custom),
-            Some("v2") => SavedViewV2::deserialize(value)
-                .map(Self::V2)
-                .map_err(serde::de::Error::custom),
-            Some(version) => Err(serde::de::Error::custom(format!(
-                "unsupported saved view version: {version}"
-            ))),
+
+        #[derive(serde::Deserialize)]
+        struct SavedViewData {
+            view_id: String,
+            view_name: String,
+            filters: serde_json::Value,
+            created_at: String,
+            updated_at: String,
         }
+
+        let version = value
+            .get("version")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("v1")
+            .to_owned();
+        let view = SavedViewData::deserialize(value).map_err(serde::de::Error::custom)?;
+        let filters = match version.as_str() {
+            "v1" => serde_json::from_value(view.filters)
+                .map(Box::new)
+                .map(SavedViewFilter::V1)
+                .map_err(serde::de::Error::custom)?,
+            "v2" => serde_json::from_value(view.filters)
+                .map(Box::new)
+                .map(SavedViewFilter::V2)
+                .map_err(serde::de::Error::custom)?,
+            _ => {
+                return Err(serde::de::Error::custom(format!(
+                    "unsupported saved view version: {version}"
+                )));
+            }
+        };
+
+        Ok(Self {
+            view_id: view.view_id,
+            view_name: view.view_name,
+            filters,
+            created_at: view.created_at,
+            updated_at: view.updated_at,
+        })
     }
 }
 
