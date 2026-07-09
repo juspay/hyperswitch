@@ -1181,7 +1181,8 @@ impl ConnectorSpecifications for Xendit {
             api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::CompleteAuthorize { .. }
             | api::CurrentFlowInfo::Psync { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
