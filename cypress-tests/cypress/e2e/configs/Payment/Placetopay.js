@@ -233,9 +233,6 @@ export const connectorDetails = {
       },
     },
     PaymentIntentWithShippingCost: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         currency: "COP",
         shipping_cost: 50,
@@ -250,10 +247,7 @@ export const connectorDetails = {
       },
     },
     PaymentConfirmWithShippingCost: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: notImplementedConfirmRequest,
+      Request: manualCaptureConfirmRequest,
       Response: {
         status: 200,
         body: {
