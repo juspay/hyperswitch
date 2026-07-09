@@ -378,6 +378,7 @@ pub async fn handle_metadata_update(
                 crate::core::payment_methods::payment_method_modular_forward_compat_action(
                     state,
                     &payment_method.merchant_id,
+                    &platform.get_provider().get_account().organization_id,
                     payment_method.customer_id.as_ref(),
                 )
                 .await;

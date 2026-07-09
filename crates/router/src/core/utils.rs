@@ -102,14 +102,15 @@ pub async fn get_feature_config(
                 .organization_id
                 .clone(),
         )
-        .without_provider_merchant_id()
         .without_processor_merchant_id();
 
-    let is_payment_method_modular_allowed = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
-        state,
-        &dimensions,
-    )
-    .await;
+    let is_payment_method_modular_allowed =
+        crate::core::payment_methods::utils::get_should_call_pm_modular_service(
+            state,
+            &dimensions,
+            None,
+        )
+        .await;
     FeatureConfig {
         is_payment_method_modular_allowed,
     }

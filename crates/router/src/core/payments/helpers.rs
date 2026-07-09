@@ -2146,12 +2146,12 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     let pm_modular_dimensions = dimensions
                         .without_profile_id()
                         .with_organization_id(provider.get_account().organization_id.clone())
-                        .without_provider_merchant_id()
                         .without_processor_merchant_id();
                     let should_call_pm_modular_service =
-                        payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
+                        payment_methods::utils::get_should_call_pm_modular_service(
                             state,
                             &pm_modular_dimensions,
+                            None,
                         )
                         .await;
 

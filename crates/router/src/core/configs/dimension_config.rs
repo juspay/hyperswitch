@@ -414,7 +414,7 @@ config! {
     superposition_key = SHOULD_CALL_PM_MODULAR_SERVICE,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithOrgId,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
     targeting_key = id_type::CustomerId
 }
 
@@ -432,7 +432,7 @@ config! {
     superposition_key = SHOULD_SCHEDULE_MODULAR_FORWARD_COMPAT,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithProviderMerchantId,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
     targeting_key = id_type::CustomerId
 }
 
@@ -450,7 +450,7 @@ config! {
     superposition_key = SHOULD_SCHEDULE_MODULAR_BACKWARD_COMPAT,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithProviderMerchantId,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
     targeting_key = id_type::CustomerId
 }
 
@@ -468,7 +468,7 @@ config! {
     superposition_key = SHOULD_TRIGGER_BACKWARDS_COMPATIBILITY_INLINE,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithProviderMerchantId,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
     targeting_key = id_type::CustomerId
 }
 
