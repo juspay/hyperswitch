@@ -139,6 +139,7 @@ Never share your secret api keys. Keep them guarded and secure.
         //Routes for customers
         routes::customers::customers_create,
         routes::customers::customers_retrieve,
+        routes::customers::customers_retrieve_by_merchant_reference_id,
         routes::customers::customers_list,
         routes::customers::customers_update,
         routes::customers::customers_delete,
@@ -797,6 +798,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::HyperswitchVaultData,
         api_models::payments::VgsVaultData,
         api_models::payments::ProxyCardData,
+        api_models::payments::PeachpaymentsCardOnFileTransactionType,
         api_models::payment_methods::RequiredFieldInfo,
         api_models::payment_methods::DefaultPaymentMethod,
         api_models::payment_methods::MaskedBankDetails,
@@ -898,6 +900,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::webhooks::OutgoingWebhookContent,
         api_models::enums::EventClass,
         api_models::enums::EventType,
+        api_models::enums::EventRecipient,
         api_models::enums::DecoupledAuthenticationType,
         api_models::enums::Tokenization,
         api_models::enums::AuthenticationStatus,

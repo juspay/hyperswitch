@@ -146,9 +146,10 @@ impl<'a> SubscriptionHandler<'a> {
         let merchant_id = platform.get_processor().get_account().get_id();
         let db = state.store.as_ref();
 
+        let customer_id = customer.get_id().clone();
         let updated_customer = db
             .update_customer_by_customer_id_merchant_id(
-                customer.customer_id.clone(),
+                customer_id,
                 merchant_id.clone(),
                 customer,
                 customer_update,

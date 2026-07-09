@@ -57,7 +57,7 @@ where
         router_data: &RouterData<Self, types::CompleteAuthorizeData, types::PaymentsResponseData>,
         call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<Self, types::CompleteAuthorizeData, types::PaymentsResponseData>,
@@ -152,10 +152,12 @@ where
                 router_data.minor_amount_captured = payment_authorize_response
                     .captured_amount
                     .map(MinorUnit::new);
-                router_data.raw_connector_response = payment_authorize_response
-                    .raw_connector_response
-                    .clone()
-                    .map(|raw_connector_response| raw_connector_response.expose().into());
+                if return_raw_connector_response.unwrap_or(false) {
+                    router_data.raw_connector_response = payment_authorize_response
+                        .raw_connector_response
+                        .clone()
+                        .map(|raw_connector_response| raw_connector_response.expose().into());
+                }
                 router_data.connector_http_status_code = Some(ucs_data.status_code);
 
                 ucs_data.connector_response.map(|customer_response| {

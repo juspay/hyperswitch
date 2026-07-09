@@ -1549,6 +1549,19 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
+    async fn find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        get_disabled: bool,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, errors::StorageError> {
+        self.diesel_store
+            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+                merchant_id,
+                get_disabled,
+            )
+            .await
+    }
+
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
         &self,
@@ -4203,9 +4216,9 @@ impl AuthenticationInterface for KafkaStore {
         Ok(auth)
     }
 
-    async fn find_authentication_by_merchant_id_authentication_id(
+    async fn find_authentication_by_processor_merchant_id_authentication_id(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         authentication_id: &id_type::AuthenticationId,
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
@@ -4215,8 +4228,8 @@ impl AuthenticationInterface for KafkaStore {
         errors::StorageError,
     > {
         self.diesel_store
-            .find_authentication_by_merchant_id_authentication_id(
-                merchant_id,
+            .find_authentication_by_processor_merchant_id_authentication_id(
+                processor_merchant_id,
                 authentication_id,
                 key_store,
                 state,
@@ -4225,9 +4238,9 @@ impl AuthenticationInterface for KafkaStore {
             .await
     }
 
-    async fn find_authentication_by_merchant_id_connector_authentication_id(
+    async fn find_authentication_by_processor_merchant_id_connector_authentication_id(
         &self,
-        merchant_id: id_type::MerchantId,
+        processor_merchant_id: id_type::MerchantId,
         connector_authentication_id: String,
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
@@ -4237,8 +4250,8 @@ impl AuthenticationInterface for KafkaStore {
         errors::StorageError,
     > {
         self.diesel_store
-            .find_authentication_by_merchant_id_connector_authentication_id(
-                merchant_id,
+            .find_authentication_by_processor_merchant_id_connector_authentication_id(
+                processor_merchant_id,
                 connector_authentication_id,
                 key_store,
                 state,
@@ -4247,7 +4260,7 @@ impl AuthenticationInterface for KafkaStore {
             .await
     }
 
-    async fn update_authentication_by_merchant_id_authentication_id(
+    async fn update_authentication_by_processor_merchant_id_authentication_id(
         &self,
         previous_state: hyperswitch_domain_models::authentication::Authentication,
         authentication_update: hyperswitch_domain_models::authentication::AuthenticationUpdate,
@@ -4260,7 +4273,7 @@ impl AuthenticationInterface for KafkaStore {
     > {
         let auth = self
             .diesel_store
-            .update_authentication_by_merchant_id_authentication_id(
+            .update_authentication_by_processor_merchant_id_authentication_id(
                 previous_state.clone(),
                 authentication_update,
                 key_store,
