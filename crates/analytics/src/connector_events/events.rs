@@ -3,6 +3,7 @@ use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
+use super::ConnectorEventSource;
 use crate::{
     query::{Aggregate, GroupByClause, QueryBuilder, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, FiltersError, FiltersResult, LoadRow},
@@ -13,6 +14,7 @@ pub async fn get_connector_events<T>(
     merchant_id: &common_utils::id_type::MerchantId,
     query_param: ConnectorEventsRequest,
     pool: &T,
+    source: ConnectorEventSource,
 ) -> FiltersResult<Vec<ConnectorEventsResult>>
 where
     T: AnalyticsDataSource + ConnectorEventLogAnalytics,
@@ -22,9 +24,19 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
-    let mut query_builder: QueryBuilder<T> = match query_param.payment_id {
-        Some(_) => QueryBuilder::new(AnalyticsCollection::ConnectorEvents),
-        None => QueryBuilder::new(AnalyticsCollection::ConnectorPayoutEvents),
+    let mut query_builder: QueryBuilder<T> = match (source, query_param.payment_id.as_ref()) {
+        (ConnectorEventSource::Prism, Some(_)) => {
+            QueryBuilder::new(AnalyticsCollection::PrismConnectorEvents)
+        }
+        (ConnectorEventSource::Prism, None) => {
+            QueryBuilder::new(AnalyticsCollection::PrismConnectorPayoutEvents)
+        }
+        (ConnectorEventSource::Hyperswitch, Some(_)) => {
+            QueryBuilder::new(AnalyticsCollection::ConnectorEvents)
+        }
+        (ConnectorEventSource::Hyperswitch, None) => {
+            QueryBuilder::new(AnalyticsCollection::ConnectorPayoutEvents)
+        }
     };
     query_builder.add_select_column("*").switch()?;
 
@@ -81,4 +93,10 @@ pub struct ConnectorEventsResult {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     pub method: Option<String>,
+    #[serde(default = "default_connector_event_destination")]
+    pub destination: common_enums::EventDestination,
+}
+
+fn default_connector_event_destination() -> common_enums::EventDestination {
+    common_enums::EventDestination::Connector
 }

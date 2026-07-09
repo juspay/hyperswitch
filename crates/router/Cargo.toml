@@ -91,8 +91,8 @@ ring = "0.17.14"
 rust_decimal = { version = "1.37.1", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
 
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.06.30.1", package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.06.30.1", package = "ucs_cards" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.07.08.1", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.07.08.1", package = "ucs_cards" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
 rustls-pemfile = "2"
@@ -146,6 +146,7 @@ storage_impl = { version = "0.1.0", path = "../storage_impl", default-features =
 payment_link = { version = "0.1.0", path = "../payment_link", default-features = false }
 payment_methods = { version = "0.1.0", path = "../payment_methods", default-features = false }
 subscriptions = { version = "0.1.0", path = "../subscriptions", default-features = false }
+superposition_sdk = {version = "0.114.0"}
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }

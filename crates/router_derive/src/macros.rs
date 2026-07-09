@@ -8,6 +8,7 @@ pub(crate) mod operation;
 pub(crate) mod schema;
 pub(crate) mod to_encryptable;
 pub(crate) mod try_get_enum;
+pub(crate) mod xss_validation;
 
 mod helpers;
 
@@ -23,6 +24,7 @@ pub(crate) use self::{
     generate_schema::polymorphic_macro_derive_inner,
     schema::validate_schema_derive,
     to_encryptable::derive_to_encryption,
+    xss_validation::validate_xss_or_sqli_derive,
 };
 
 pub(crate) fn debug_as_display_inner(ast: &DeriveInput) -> syn::Result<TokenStream> {
