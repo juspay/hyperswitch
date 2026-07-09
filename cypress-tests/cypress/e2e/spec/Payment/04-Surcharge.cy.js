@@ -47,15 +47,46 @@ describe("Surcharge payment flow test", () => {
                 `[Surcharge] Login failed (${signinResp.status}): ${JSON.stringify(signinResp.body)}`
               );
             }
-            const { token, token_type } = signinResp.body;
-            if (token_type === "user_info") {
-              globalState.set("userInfoToken", token);
-            } else if (token_type === "totp") {
+            const { token: signinToken, token_type: signinType } =
+              signinResp.body;
+
+            const resolveAuthToken = (bearerToken, tokenType) => {
+              if (tokenType === "user_info") {
+                globalState.set("userInfoToken", bearerToken);
+              } else if (tokenType === "AcceptInvite") {
+                // User has no active merchant role — must select a merchant first
+                cy.request({
+                  method: "POST",
+                  url: `${globalState.get("baseUrl")}/user/switch/merchant`,
+                  headers: {
+                    Authorization: `Bearer ${bearerToken}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: { merchant_id: globalState.get("merchantId") },
+                  failOnStatusCode: false,
+                }).then((switchResp) => {
+                  if (switchResp.status !== 200) {
+                    throw new Error(
+                      `[Surcharge] Merchant switch failed (${switchResp.status}): ${JSON.stringify(switchResp.body)}`
+                    );
+                  }
+                  globalState.set("userInfoToken", switchResp.body.token);
+                });
+              } else {
+                throw new Error(
+                  `[Surcharge] Unexpected token_type "${tokenType}" — cannot obtain an AuthToken`
+                );
+              }
+            };
+
+            if (signinType === "user_info") {
+              resolveAuthToken(signinToken, "user_info");
+            } else if (signinType === "totp") {
               cy.request({
                 method: "GET",
                 url: `${globalState.get("baseUrl")}/user/2fa/terminate?skip_two_factor_auth=true`,
                 headers: {
-                  Authorization: `Bearer ${token}`,
+                  Authorization: `Bearer ${signinToken}`,
                   "Content-Type": "application/json",
                 },
                 failOnStatusCode: false,
@@ -65,11 +96,11 @@ describe("Surcharge payment flow test", () => {
                     `[Surcharge] 2FA terminate failed (${totpResp.status}): ${JSON.stringify(totpResp.body)}`
                   );
                 }
-                globalState.set("userInfoToken", totpResp.body.token);
+                resolveAuthToken(totpResp.body.token, totpResp.body.token_type);
               });
             } else {
               throw new Error(
-                `[Surcharge] Unexpected token_type "${token_type}" from signin`
+                `[Surcharge] Unexpected token_type "${signinType}" from signin`
               );
             }
           });
