@@ -9,6 +9,7 @@ use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
+    unified_connector_service::transformers::UnifiedConnectorServiceError,
 };
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -115,13 +116,51 @@ where
             header_payload,
             unified_connector_service_execution_mode,
             |mut router_data, payment_setup_recurring_request, grpc_headers| async move {
-                let response = Box::pin(client.payment_setup_recurring(
+                let response = match Box::pin(client.payment_setup_recurring(
                     payment_setup_recurring_request,
                     connector_auth_metadata,
                     grpc_headers,
                 ))
                 .await
-                .attach_printable("Failed to setup recurring payment")?;
+                {
+                    Ok(response) => response,
+                    Err(report) => {
+                        if let UnifiedConnectorServiceError::ConnectorError(inner) =
+                            report.current_context()
+                        {
+                            logger::info!(
+                                "Connector error via UCS for setup mandate (connector {}, status {}): {} - {}",
+                                inner.connector,
+                                inner.status_code,
+                                inner.code,
+                                inner.message
+                            );
+                            router_data.response =
+                                Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                                    code: inner.code.clone(),
+                                    message: inner.message.clone(),
+                                    reason: inner.reason.clone(),
+                                    status_code: inner.status_code,
+                                    attempt_status: None,
+                                    connector_transaction_id: inner
+                                        .connector_transaction_id
+                                        .clone(),
+                                    connector_response_reference_id: None,
+                                    network_decline_code: inner.network_decline_code.clone(),
+                                    network_advice_code: inner.network_advice_code.clone(),
+                                    network_error_message: inner.network_error_message.clone(),
+                                    connector_metadata: None,
+                                });
+                            router_data.connector_http_status_code = Some(inner.status_code);
+                            return Ok((
+                                router_data,
+                                (),
+                                payments_grpc::PaymentServiceSetupRecurringResponse::default(),
+                            ));
+                        }
+                        return Err(report.attach_printable("Failed to setup recurring payment"));
+                    }
+                };
 
                 let setup_recurring_response = response.into_inner();
 
@@ -165,7 +204,7 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .change_context(ConnectorError::ResponseHandlingFailed)
+        .map_err(super::convert_ucs_error_to_connector_error)
     }
 }
 
