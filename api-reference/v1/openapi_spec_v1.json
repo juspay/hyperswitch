@@ -17628,32 +17628,14 @@
         }
       },
       "ConnectorWebhookResponse": {
-        "type": "object",
-        "required": [
-          "connector_webhook_id"
-        ],
-        "properties": {
-          "event_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorWebhookEventType"
-              }
-            ],
-            "nullable": true
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/LegacyConnectorWebhookResponse"
           },
-          "connector_webhook_id": {
-            "type": "string"
-          },
-          "scope": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorWebhookScope"
-              }
-            ],
-            "nullable": true
+          {
+            "$ref": "#/components/schemas/ScopeBasedConnectorWebhookResponse"
           }
-        },
-        "additionalProperties": false
+        ]
       },
       "ConnectorWebhookScope": {
         "oneOf": [
@@ -24364,6 +24346,77 @@
           },
           "mca_id": {
             "type": "string"
+          }
+        }
+      },
+      "LegacyConnectorWebhookResponse": {
+        "type": "object",
+        "required": [
+          "connector_webhook_id"
+        ],
+        "properties": {
+          "event_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWebhookEventType"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_webhook_id": {
+            "type": "string"
+          }
+        }
+      },
+      "LegacyRegisterConnectorWebhookResponse": {
+        "type": "object",
+        "properties": {
+          "event_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWebhookEventType"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_webhook_id": {
+            "type": "string",
+            "deprecated": true,
+            "nullable": true
+          },
+          "webhook_registration_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookRegistrationStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "deprecated": true,
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "deprecated": true,
+            "nullable": true
+          },
+          "secret_generation_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookSecretGenerationStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "secret_error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookSecretErrorDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -40386,80 +40439,14 @@
         ]
       },
       "RegisterConnectorWebhookResponse": {
-        "type": "object",
-        "description": "Response for registering connector webhooks.",
-        "required": [
-          "scope_type",
-          "requested",
-          "results"
-        ],
-        "properties": {
-          "event_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorWebhookEventType"
-              }
-            ],
-            "nullable": true
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/LegacyRegisterConnectorWebhookResponse"
           },
-          "connector_webhook_id": {
-            "type": "string",
-            "deprecated": true,
-            "nullable": true
-          },
-          "webhook_registration_status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/WebhookRegistrationStatus"
-              }
-            ],
-            "nullable": true
-          },
-          "error_code": {
-            "type": "string",
-            "deprecated": true,
-            "nullable": true
-          },
-          "error_message": {
-            "type": "string",
-            "deprecated": true,
-            "nullable": true
-          },
-          "scope_type": {
-            "$ref": "#/components/schemas/ScopeType"
-          },
-          "requested": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ScopeIdentifier"
-            },
-            "description": "List of identifiers that were requested to be registered."
-          },
-          "results": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/WebhookRegistrationResult"
-            },
-            "description": "Per-identifier registration results."
-          },
-          "secret_generation_status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/WebhookSecretGenerationStatus"
-              }
-            ],
-            "nullable": true
-          },
-          "secret_error": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/WebhookSecretErrorDetails"
-              }
-            ],
-            "nullable": true
+          {
+            "$ref": "#/components/schemas/ScopeBasedRegisterConnectorWebhookResponse"
           }
-        },
-        "additionalProperties": false
+        ]
       },
       "RelayCaptureRequestData": {
         "type": "object",
@@ -42274,6 +42261,65 @@
         "description": "The scope of webhook registration.\nDetermines which entities the connector should register webhooks for.",
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "ScopeBasedConnectorWebhookResponse": {
+        "type": "object",
+        "required": [
+          "connector_webhook_id",
+          "scope"
+        ],
+        "properties": {
+          "connector_webhook_id": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ConnectorWebhookScope"
+          }
+        }
+      },
+      "ScopeBasedRegisterConnectorWebhookResponse": {
+        "type": "object",
+        "description": "Response for registering connector webhooks using the new scope-based model.",
+        "required": [
+          "scope_type",
+          "requested",
+          "results"
+        ],
+        "properties": {
+          "scope_type": {
+            "$ref": "#/components/schemas/ScopeType"
+          },
+          "requested": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeIdentifier"
+            },
+            "description": "List of identifiers that were requested to be registered."
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebhookRegistrationResult"
+            },
+            "description": "Per-identifier registration results."
+          },
+          "secret_generation_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookSecretGenerationStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "secret_error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookSecretErrorDetails"
+              }
+            ],
+            "nullable": true
+          }
         }
       },
       "ScopeIdentifier": {
