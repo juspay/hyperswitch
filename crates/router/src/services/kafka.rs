@@ -17,6 +17,8 @@ use diesel_models::fraud_check::FraudCheck;
 use crate::{events::EventType, services::kafka::fraud_check_event::KafkaFraudCheckEvent};
 mod authentication;
 mod authentication_event;
+#[cfg(feature = "deja")]
+pub mod deja_record_sink;
 mod dispute;
 mod dispute_event;
 mod fraud_check;
@@ -375,6 +377,7 @@ impl KafkaProducer {
             .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
             .change_context(KafkaError::GenericError)
     }
+
     pub async fn log_fraud_check(
         &self,
         attempt: &FraudCheck,
