@@ -87,9 +87,7 @@ impl ClientSessionManager {
         let ttl_seconds = if ttl_seconds > 0 {
             Ok(ttl_seconds)
         } else {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Session expiry is in the past".to_string(),
-            })
+            Err(errors::ApiErrorResponse::PaymentSessionExpired)
         }?;
 
         // Create session data structure

@@ -1194,7 +1194,9 @@ impl ConnectorSpecifications for Nmi {
                 auth_type,
                 request_data,
             } => auth_type.is_three_ds() && request_data.is_card(),
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
+                false
+            }
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

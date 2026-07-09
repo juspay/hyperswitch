@@ -1,490 +1,846 @@
-use std::str::FromStr;
-
-use async_trait::async_trait;
 use common_utils::{
-    encryption::Encryption,
-    errors::{CustomResult, ValidationError},
-    pii,
-    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
+    errors::CustomResult,
+    ext_traits::{AsyncExt, Encode},
+    fallback_reverse_lookup_not_found,
+};
+use diesel_models::{
+    authentication::Authentication as diesel_authentication, reverse_lookup::ReverseLookupNew,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    authentication::{
-        AuthenticationUpdate, EncryptedAuthentication, FromRequestEncryptableAuthentication,
-    },
-    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+    authentication::{Authentication, AuthenticationInterface, AuthenticationUpdate},
+    behaviour::Conversion,
+    merchant_key_store::MerchantKeyStore,
 };
-use hyperswitch_masking::{PeekInterface, Secret};
+use redis_interface::HsetnxReply;
+use router_env::{instrument, tracing};
 
-use crate::behaviour::{self, ForeignFrom};
+use crate::{
+    diesel_error_to_data_error,
+    errors::{self, RedisErrorExt},
+    kv_router_store::KVRouterStore,
+    lookup::ReverseLookupInterface,
+    mock_db::MockDb,
+    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
+    utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
+    DatabaseStore, RouterStore,
+};
 
-#[async_trait]
-impl behaviour::Conversion for hyperswitch_domain_models::authentication::Authentication {
-    type DstType = diesel_models::authentication::Authentication;
-    type NewDstType = diesel_models::authentication::AuthenticationNew;
+impl crate::redis::kv_store::KvStorePartition for diesel_authentication {}
 
-    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(Self::DstType {
-            authentication_id: self.authentication_id,
-            merchant_id: self.merchant_id,
-            authentication_connector: self.authentication_connector,
-            connector_authentication_id: self.connector_authentication_id,
-            authentication_data: self.authentication_data,
-            payment_method_id: self.payment_method_id,
-            authentication_type: self.authentication_type,
-            authentication_status: self.authentication_status,
-            authentication_lifecycle_status: self.authentication_lifecycle_status,
-            created_at: self.created_at,
-            modified_at: self.modified_at,
-            error_message: self.error_message,
-            error_code: self.error_code,
-            connector_metadata: self.connector_metadata,
-            maximum_supported_version: self.maximum_supported_version,
-            threeds_server_transaction_id: self.threeds_server_transaction_id,
-            cavv: self.cavv,
-            authentication_flow_type: self.authentication_flow_type,
-            message_version: self.message_version,
-            eci: self.eci,
-            trans_status: self.trans_status,
-            acquirer_bin: self.acquirer_bin,
-            acquirer_merchant_id: self.acquirer_merchant_id,
-            three_ds_method_data: self.three_ds_method_data,
-            three_ds_method_url: self.three_ds_method_url,
-            acs_url: self.acs_url,
-            challenge_request: self.challenge_request,
-            acs_reference_number: self.acs_reference_number,
-            acs_trans_id: self.acs_trans_id,
-            acs_signed_content: self.acs_signed_content,
-            profile_id: self.profile_id,
-            payment_id: self.payment_id,
-            merchant_connector_id: self.merchant_connector_id,
-            ds_trans_id: self.ds_trans_id,
-            directory_server_id: self.directory_server_id,
-            acquirer_country_code: self.acquirer_country_code,
-            service_details: self.service_details,
-            organization_id: self.organization_id,
-            authentication_client_secret: self.authentication_client_secret,
-            force_3ds_challenge: self.force_3ds_challenge,
-            psd2_sca_exemption_type: self.psd2_sca_exemption_type,
-            return_url: self.return_url,
-            amount: self.amount,
-            currency: self.currency,
-            billing_address: self.billing_address.map(Encryption::from),
-            shipping_address: self.shipping_address.map(Encryption::from),
-            browser_info: self.browser_info,
-            email: self.email.map(|email| email.into()),
-            profile_acquirer_id: self.profile_acquirer_id,
-            challenge_code: self.challenge_code,
-            challenge_cancel: self.challenge_cancel,
-            challenge_code_reason: self.challenge_code_reason,
-            message_extension: self.message_extension,
-            challenge_request_key: self.challenge_request_key,
-            customer_details: self.customer_details,
-            earliest_supported_version: self.earliest_supported_version,
-            latest_supported_version: self.latest_supported_version,
-            mcc: self.mcc,
-            platform: self.platform.map(|platform| platform.to_string()),
-            device_type: self.device_type,
-            device_brand: self.device_brand,
-            device_os: self.device_os,
-            device_display: self.device_display,
-            browser_name: self.browser_name,
-            browser_version: self.browser_version,
-            scheme_name: self.scheme_name,
-            exemption_requested: self.exemption_requested,
-            exemption_accepted: self.exemption_accepted,
-            issuer_id: self.issuer_id,
-            issuer_country: self.issuer_country,
-            merchant_country_code: self.merchant_country_code,
-            billing_country: self.billing_country,
-            shipping_country: self.shipping_country,
-            processor_merchant_id: self.processor_merchant_id,
-            created_by: self.created_by.map(|created_by| created_by.to_string()),
-        })
-    }
+/// Insert the connector-authentication-id reverse lookup (webhook find path).
+#[inline]
+#[instrument(skip_all)]
+async fn add_connector_authentication_id_to_reverse_lookup<T: DatabaseStore>(
+    store: &KVRouterStore<T>,
+    key: &str,
+    field: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
+    connector_authentication_id: &str,
+    storage_scheme: common_enums::MerchantStorageScheme,
+) -> error_stack::Result<diesel_models::reverse_lookup::ReverseLookup, errors::StorageError> {
+    let reverse_lookup = ReverseLookupNew {
+        lookup_id: diesel_authentication::get_connector_authentication_lookup_id(
+            merchant_id,
+            connector_authentication_id,
+        ),
+        pk_id: key.to_owned(),
+        sk_id: field.to_owned(),
+        source: "authentication".to_string(),
+        updated_by: storage_scheme.to_string(),
+    };
+    store
+        .insert_reverse_lookup(reverse_lookup, storage_scheme)
+        .await
+}
 
-    async fn convert_back(
-        state: &KeyManagerState,
-        other: Self::DstType,
-        key: &Secret<Vec<u8>>,
-        _key_manager_identifier: Identifier,
-    ) -> CustomResult<Self, ValidationError> {
-        let encrypted_data = crypto_operation(
+#[async_trait::async_trait]
+impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
+    type Error = errors::StorageError;
+
+    #[instrument(skip_all)]
+    async fn insert_authentication(
+        &self,
+        state: &common_utils::types::keymanager::KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        authentication: Authentication,
+        _storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Authentication, errors::StorageError> {
+        let conn = pg_connection_write(self).await?;
+        let inserted_authentication = authentication
+            .construct_new()
+            .await
+            .change_context(errors::StorageError::EncryptionError)?
+            .insert(&conn)
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })?;
+        Authentication::convert_back(
             state,
-            common_utils::type_name!(Self),
-            CryptoOperation::BatchDecrypt(EncryptedAuthentication::to_encryptable(
-                EncryptedAuthentication {
-                    billing_address: other.billing_address.clone(),
-                    shipping_address: other.shipping_address.clone(),
-                },
-            )),
-            Identifier::Merchant(other.merchant_id.clone()),
-            key.peek(),
+            inserted_authentication,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
         )
         .await
-        .and_then(|val| val.try_into_batchoperation())
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting authentication data".to_string(),
-        })?;
-
-        let decrypted_data = FromRequestEncryptableAuthentication::from_encryptable(encrypted_data)
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while decrypting authentication data".to_string(),
-            })?;
-
-        let email_decrypted = other
-            .email
-            .clone()
-            .async_lift(|inner| async {
-                crypto_operation::<String, pii::EmailStrategy>(
-                    state,
-                    common_utils::type_name!(Self),
-                    CryptoOperation::DecryptOptional(inner),
-                    Identifier::Merchant(other.merchant_id.clone()),
-                    key.peek(),
-                )
-                .await
-                .and_then(|val| val.try_into_optionaloperation())
-            })
-            .await
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while decrypting authentication email".to_string(),
-            })?;
-
-        Ok(Self {
-            authentication_id: other.authentication_id,
-            merchant_id: other.merchant_id,
-            authentication_connector: other.authentication_connector,
-            connector_authentication_id: other.connector_authentication_id,
-            authentication_data: other.authentication_data,
-            payment_method_id: other.payment_method_id,
-            authentication_type: other.authentication_type,
-            authentication_status: other.authentication_status,
-            authentication_lifecycle_status: other.authentication_lifecycle_status,
-            created_at: other.created_at,
-            modified_at: other.modified_at,
-            error_message: other.error_message,
-            error_code: other.error_code,
-            connector_metadata: other.connector_metadata,
-            maximum_supported_version: other.maximum_supported_version,
-            threeds_server_transaction_id: other.threeds_server_transaction_id,
-            cavv: other.cavv,
-            authentication_flow_type: other.authentication_flow_type,
-            message_version: other.message_version,
-            eci: other.eci,
-            trans_status: other.trans_status,
-            acquirer_bin: other.acquirer_bin,
-            acquirer_merchant_id: other.acquirer_merchant_id,
-            three_ds_method_data: other.three_ds_method_data,
-            three_ds_method_url: other.three_ds_method_url,
-            acs_url: other.acs_url,
-            challenge_request: other.challenge_request,
-            acs_reference_number: other.acs_reference_number,
-            acs_trans_id: other.acs_trans_id,
-            acs_signed_content: other.acs_signed_content,
-            profile_id: other.profile_id,
-            payment_id: other.payment_id,
-            merchant_connector_id: other.merchant_connector_id,
-            ds_trans_id: other.ds_trans_id,
-            directory_server_id: other.directory_server_id,
-            acquirer_country_code: other.acquirer_country_code,
-            organization_id: other.organization_id,
-            mcc: other.mcc,
-            amount: other.amount,
-            currency: other.currency,
-            issuer_country: other.issuer_country,
-            earliest_supported_version: other.earliest_supported_version,
-            latest_supported_version: other.latest_supported_version,
-            platform: other
-                .platform
-                .as_deref()
-                .map(|s| {
-                    api_models::payments::DeviceChannel::from_str(s).change_context(
-                        ValidationError::InvalidValue {
-                            message: "Invalid device channel".into(),
-                        },
-                    )
-                })
-                .transpose()?,
-            device_type: other.device_type,
-            device_brand: other.device_brand,
-            device_os: other.device_os,
-            device_display: other.device_display,
-            browser_name: other.browser_name,
-            browser_version: other.browser_version,
-            issuer_id: other.issuer_id,
-            scheme_name: other.scheme_name,
-            exemption_requested: other.exemption_requested,
-            exemption_accepted: other.exemption_accepted,
-            service_details: other.service_details,
-            authentication_client_secret: other.authentication_client_secret,
-            force_3ds_challenge: other.force_3ds_challenge,
-            psd2_sca_exemption_type: other.psd2_sca_exemption_type,
-            return_url: other.return_url,
-            billing_address: decrypted_data.billing_address,
-            shipping_address: decrypted_data.shipping_address,
-            browser_info: other.browser_info,
-            email: email_decrypted,
-            profile_acquirer_id: other.profile_acquirer_id,
-            challenge_code: other.challenge_code,
-            challenge_cancel: other.challenge_cancel,
-            challenge_code_reason: other.challenge_code_reason,
-            message_extension: other.message_extension,
-            challenge_request_key: other.challenge_request_key,
-            customer_details: other.customer_details,
-            billing_country: other.billing_country,
-            shipping_country: other.shipping_country,
-            merchant_country_code: other.merchant_country_code,
-            processor_merchant_id: other.processor_merchant_id,
-            created_by: other
-                .created_by
-                .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
-        })
+        .change_context(errors::StorageError::DecryptionError)
     }
 
-    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        Ok(Self::NewDstType {
-            authentication_id: self.authentication_id,
-            merchant_id: self.merchant_id,
-            authentication_connector: self.authentication_connector,
-            connector_authentication_id: self.connector_authentication_id,
-            authentication_data: self.authentication_data,
-            payment_method_id: self.payment_method_id,
-            authentication_type: self.authentication_type,
-            authentication_status: self.authentication_status,
-            authentication_lifecycle_status: self.authentication_lifecycle_status,
-            error_message: self.error_message,
-            error_code: self.error_code,
-            connector_metadata: self.connector_metadata,
-            maximum_supported_version: self.maximum_supported_version,
-            threeds_server_transaction_id: self.threeds_server_transaction_id,
-            cavv: self.cavv,
-            authentication_flow_type: self.authentication_flow_type,
-            message_version: self.message_version,
-            eci: self.eci,
-            trans_status: self.trans_status,
-            acquirer_bin: self.acquirer_bin,
-            acquirer_merchant_id: self.acquirer_merchant_id,
-            three_ds_method_data: self.three_ds_method_data,
-            three_ds_method_url: self.three_ds_method_url,
-            acs_url: self.acs_url,
-            challenge_request: self.challenge_request,
-            acs_reference_number: self.acs_reference_number,
-            acs_trans_id: self.acs_trans_id,
-            acs_signed_content: self.acs_signed_content,
-            profile_id: self.profile_id,
-            payment_id: self.payment_id,
-            merchant_connector_id: self.merchant_connector_id,
-            ds_trans_id: self.ds_trans_id,
-            directory_server_id: self.directory_server_id,
-            acquirer_country_code: self.acquirer_country_code,
-            service_details: self.service_details,
-            organization_id: self.organization_id,
-            authentication_client_secret: self.authentication_client_secret,
-            force_3ds_challenge: self.force_3ds_challenge,
-            psd2_sca_exemption_type: self.psd2_sca_exemption_type,
-            return_url: self.return_url,
-            amount: self.amount,
-            currency: self.currency,
-            billing_address: self.billing_address.map(Encryption::from),
-            shipping_address: self.shipping_address.map(Encryption::from),
-            browser_info: self.browser_info,
-            email: self.email.map(|email| email.into()),
-            profile_acquirer_id: self.profile_acquirer_id,
-            challenge_code: self.challenge_code,
-            challenge_cancel: self.challenge_cancel,
-            challenge_code_reason: self.challenge_code_reason,
-            message_extension: self.message_extension,
-            challenge_request_key: self.challenge_request_key,
-            customer_details: self.customer_details,
-            earliest_supported_version: self.earliest_supported_version,
-            latest_supported_version: self.latest_supported_version,
-            mcc: self.mcc,
-            platform: self.platform.map(|platform| platform.to_string()),
-            device_type: self.device_type,
-            device_brand: self.device_brand,
-            device_os: self.device_os,
-            device_display: self.device_display,
-            browser_name: self.browser_name,
-            browser_version: self.browser_version,
-            scheme_name: self.scheme_name,
-            exemption_requested: self.exemption_requested,
-            exemption_accepted: self.exemption_accepted,
-            issuer_id: self.issuer_id,
-            issuer_country: self.issuer_country,
-            merchant_country_code: self.merchant_country_code,
-            created_at: self.created_at,
-            modified_at: self.modified_at,
-            billing_country: self.billing_country,
-            shipping_country: self.shipping_country,
-            processor_merchant_id: self.processor_merchant_id,
-            created_by: self.created_by.map(|created_by| created_by.to_string()),
-        })
+    #[instrument(skip_all)]
+    async fn find_authentication_by_processor_merchant_id_authentication_id(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        authentication_id: &common_utils::id_type::AuthenticationId,
+        merchant_key_store: &MerchantKeyStore,
+        state: &common_utils::types::keymanager::KeyManagerState,
+        _storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Authentication, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        // Stagger release: try processor_merchant_id, fall back to merchant_id for legacy NULL rows.
+        let result = diesel_authentication::find_by_processor_merchant_id_authentication_id(
+            &conn,
+            processor_merchant_id,
+            authentication_id,
+        )
+        .await;
+        let result = match result {
+            Err(error)
+                if matches!(
+                    error.current_context(),
+                    diesel_models::errors::DatabaseError::NotFound
+                ) =>
+            {
+                diesel_authentication::find_by_merchant_id_authentication_id(
+                    &conn,
+                    processor_merchant_id,
+                    authentication_id,
+                )
+                .await
+            }
+            other => other,
+        };
+        result
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
+            .async_and_then(|authentication| async {
+                Authentication::convert_back(
+                    state,
+                    authentication,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn find_authentication_by_processor_merchant_id_connector_authentication_id(
+        &self,
+        processor_merchant_id: common_utils::id_type::MerchantId,
+        connector_authentication_id: String,
+        merchant_key_store: &MerchantKeyStore,
+        state: &common_utils::types::keymanager::KeyManagerState,
+        _storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Authentication, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        // Stagger release: try processor_merchant_id, fall back to merchant_id for legacy NULL rows.
+        let result = diesel_authentication::find_authentication_by_processor_merchant_id_connector_authentication_id(
+            &conn,
+            &processor_merchant_id,
+            &connector_authentication_id,
+        )
+        .await;
+        let result = match result {
+            Err(error)
+                if matches!(
+                    error.current_context(),
+                    diesel_models::errors::DatabaseError::NotFound
+                ) =>
+            {
+                diesel_authentication::find_authentication_by_merchant_id_connector_authentication_id(
+                    &conn,
+                    &processor_merchant_id,
+                    &connector_authentication_id,
+                )
+                .await
+            }
+            other => other,
+        };
+        result
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
+            .async_and_then(|authentication| async {
+                Authentication::convert_back(
+                    state,
+                    authentication,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn update_authentication_by_processor_merchant_id_authentication_id(
+        &self,
+        previous_state: Authentication,
+        authentication_update: AuthenticationUpdate,
+        merchant_key_store: &MerchantKeyStore,
+        state: &common_utils::types::keymanager::KeyManagerState,
+        _storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Authentication, errors::StorageError> {
+        let conn = pg_connection_write(self).await?;
+        let authentication_update_internal =
+            diesel_models::authentication::AuthenticationUpdateInternal::from(
+                diesel_models::authentication::AuthenticationUpdate::from(authentication_update),
+            );
+        // Stagger release: try processor_merchant_id, fall back to merchant_id for legacy NULL rows.
+        let processor_merchant_id = previous_state
+            .processor_merchant_id
+            .clone()
+            .unwrap_or_else(|| previous_state.merchant_id.clone());
+        let result = diesel_authentication::update_by_processor_merchant_id_authentication_id(
+            &conn,
+            &processor_merchant_id,
+            &previous_state.authentication_id,
+            authentication_update_internal.clone(),
+        )
+        .await;
+        let result = match result {
+            Err(error)
+                if matches!(
+                    error.current_context(),
+                    diesel_models::errors::DatabaseError::NotFound
+                ) =>
+            {
+                diesel_authentication::update_by_merchant_id_authentication_id(
+                    &conn,
+                    &processor_merchant_id,
+                    &previous_state.authentication_id,
+                    authentication_update_internal,
+                )
+                .await
+            }
+            other => other,
+        };
+        result
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
+            .async_and_then(|authentication| async {
+                Authentication::convert_back(
+                    state,
+                    authentication,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
     }
 }
 
-impl ForeignFrom<AuthenticationUpdate> for diesel_models::authentication::AuthenticationUpdate {
-    fn foreign_from(authentication_update: AuthenticationUpdate) -> Self {
-        match authentication_update {
-            AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
-                maximum_supported_3ds_version,
-                message_version,
-            } => Self::PreAuthenticationVersionCallUpdate {
-                maximum_supported_3ds_version,
-                message_version,
-            },
-            AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
-                threeds_server_transaction_id,
-                three_ds_method_data,
-                three_ds_method_url,
-                acquirer_bin,
-                acquirer_merchant_id,
-                connector_metadata,
-            } => Self::PreAuthenticationThreeDsMethodCall {
-                threeds_server_transaction_id,
-                three_ds_method_data,
-                three_ds_method_url,
-                acquirer_bin,
-                acquirer_merchant_id,
-                connector_metadata,
-            },
-            AuthenticationUpdate::PreAuthenticationUpdate {
-                threeds_server_transaction_id,
-                maximum_supported_3ds_version,
-                connector_authentication_id,
-                three_ds_method_data,
-                three_ds_method_url,
-                message_version,
-                connector_metadata,
-                authentication_status,
-                acquirer_bin,
-                acquirer_merchant_id,
-                directory_server_id,
-                acquirer_country_code,
-                billing_address,
-                shipping_address,
-                browser_info,
-                email,
-                scheme_id,
-                merchant_category_code,
-                merchant_country_code,
-                billing_country,
-                shipping_country,
-                earliest_supported_version,
-                latest_supported_version,
-            } => Self::PreAuthenticationUpdate {
-                threeds_server_transaction_id,
-                maximum_supported_3ds_version,
-                connector_authentication_id,
-                three_ds_method_data,
-                three_ds_method_url,
-                message_version,
-                connector_metadata,
-                authentication_status,
-                acquirer_bin,
-                acquirer_merchant_id,
-                directory_server_id,
-                acquirer_country_code,
-                billing_address: billing_address.map(|billing_address| billing_address.into()),
-                shipping_address: shipping_address.map(|shipping_address| shipping_address.into()),
-                browser_info,
-                email: email.map(|email| email.into()),
-                scheme_id,
-                merchant_category_code,
-                merchant_country_code,
-                billing_country,
-                shipping_country,
-                earliest_supported_version,
-                latest_supported_version,
-            },
-            AuthenticationUpdate::AuthenticationUpdate {
-                trans_status,
-                authentication_type,
-                acs_url,
-                challenge_request,
-                acs_reference_number,
-                acs_trans_id,
-                acs_signed_content,
-                connector_metadata,
-                authentication_status,
-                ds_trans_id,
-                eci,
-                challenge_code,
-                challenge_cancel,
-                challenge_code_reason,
-                message_extension,
-                challenge_request_key,
-                device_type,
-                device_brand,
-                device_os,
-                device_display,
-            } => Self::AuthenticationUpdate {
-                trans_status,
-                authentication_type,
-                acs_url,
-                challenge_request,
-                acs_reference_number,
-                acs_trans_id,
-                acs_signed_content,
-                connector_metadata,
-                authentication_status,
-                ds_trans_id,
-                eci,
-                challenge_code,
-                challenge_cancel,
-                challenge_code_reason,
-                message_extension,
-                challenge_request_key,
-                device_type,
-                device_brand,
-                device_os,
-                device_display,
-            },
-            AuthenticationUpdate::PostAuthenticationUpdate {
-                trans_status,
-                eci,
-                authentication_status,
-                challenge_cancel,
-                challenge_code_reason,
-            } => Self::PostAuthenticationUpdate {
-                trans_status,
-                eci,
-                authentication_status,
-                challenge_cancel,
-                challenge_code_reason,
-            },
-            AuthenticationUpdate::ErrorUpdate {
-                error_message,
-                error_code,
-                authentication_status,
-                connector_authentication_id,
-            } => Self::ErrorUpdate {
-                error_message,
-                error_code,
-                authentication_status,
-                connector_authentication_id,
-            },
-            AuthenticationUpdate::PostAuthorizationUpdate {
-                authentication_lifecycle_status,
-            } => Self::PostAuthorizationUpdate {
-                authentication_lifecycle_status,
-            },
-            AuthenticationUpdate::AuthenticationStatusUpdate {
-                trans_status,
-                authentication_status,
-            } => Self::AuthenticationStatusUpdate {
-                trans_status,
-                authentication_status,
-            },
-            AuthenticationUpdate::AcquirerDetailsUpdate {
-                acquirer_bin,
-                acquirer_merchant_id,
-                acquirer_country_code,
-            } => Self::AcquirerDetailsUpdate {
-                acquirer_bin,
-                acquirer_merchant_id,
-                acquirer_country_code,
-            },
+#[async_trait::async_trait]
+impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
+    type Error = errors::StorageError;
+
+    #[instrument(skip_all)]
+    async fn insert_authentication(
+        &self,
+        state: &common_utils::types::keymanager::KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        authentication: Authentication,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Authentication, errors::StorageError> {
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_authentication>(
+            self,
+            storage_scheme,
+            Op::Insert,
+        ))
+        .await;
+
+        match storage_scheme {
+            common_enums::MerchantStorageScheme::PostgresOnly => {
+                self.router_store
+                    .insert_authentication(
+                        state,
+                        merchant_key_store,
+                        authentication,
+                        storage_scheme,
+                    )
+                    .await
+            }
+            common_enums::MerchantStorageScheme::RedisKv => {
+                // Record which layer wrote this row; drives KV-vs-Postgres routing on later updates.
+                let authentication = authentication.update_storage_scheme(storage_scheme);
+
+                let merchant_id = authentication
+                    .processor_merchant_id
+                    .as_ref()
+                    .unwrap_or(&authentication.merchant_id);
+                let authentication_id = &authentication.authentication_id;
+                let payment_id = &authentication.payment_id;
+
+                // Co-locate on the payment's partition; modular auth is its own partition.
+                let key = match payment_id {
+                    Some(payment_id) => PartitionKey::MerchantIdPaymentId {
+                        merchant_id,
+                        payment_id,
+                    },
+                    None => PartitionKey::AuthenticationId { authentication_id },
+                };
+                let field = diesel_authentication::get_hash_key_for_kv_store(authentication_id);
+                let key_str = key.to_string();
+
+                let authentication_to_insert = authentication
+                    .clone()
+                    .construct_new()
+                    .await
+                    .change_context(errors::StorageError::EncryptionError)?;
+
+                let mut query_gen_conn = pg_connection_write(self).await?;
+                let drainer_query = authentication_to_insert
+                    .generate_drainer_insert_query(&mut query_gen_conn)
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable("Failed to generate authentication insert query")?;
+
+                let diesel_authentication =
+                    <Authentication as Conversion>::convert(authentication.clone())
+                        .await
+                        .change_context(errors::StorageError::EncryptionError)?;
+
+                // Reverse lookup by authentication id (find when under the payment's partition).
+                let authentication_id_lookup = ReverseLookupNew {
+                    lookup_id: diesel_authentication::get_authentication_id_lookup_id(
+                        merchant_id,
+                        authentication_id,
+                    ),
+                    pk_id: key_str.clone(),
+                    sk_id: field.clone(),
+                    source: "authentication".to_string(),
+                    updated_by: storage_scheme.to_string(),
+                };
+                self.insert_reverse_lookup(authentication_id_lookup, storage_scheme)
+                    .await?;
+
+                // Reverse lookup by connector authentication id (webhook path), when present.
+                if let Some(connector_authentication_id) =
+                    authentication.connector_authentication_id.as_ref()
+                {
+                    add_connector_authentication_id_to_reverse_lookup(
+                        self,
+                        &key_str,
+                        &field,
+                        merchant_id,
+                        connector_authentication_id,
+                        storage_scheme,
+                    )
+                    .await?;
+                }
+
+                match Box::pin(kv_wrapper::<diesel_authentication, _, _>(
+                    self,
+                    KvOperation::<diesel_authentication>::HSetNx(
+                        &field,
+                        &diesel_authentication,
+                        drainer_query,
+                    ),
+                    key,
+                ))
+                .await
+                .map_err(|err| err.to_redis_failed_response(&key_str))?
+                .try_into_hsetnx()
+                {
+                    Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
+                        entity: "authentication",
+                        key: Some(key_str),
+                    }
+                    .into()),
+                    Ok(HsetnxReply::KeySet) => Ok(authentication),
+                    Err(error) => Err(error.change_context(errors::StorageError::KVError)),
+                }
+            }
         }
+    }
+
+    #[instrument(skip_all)]
+    async fn find_authentication_by_processor_merchant_id_authentication_id(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        authentication_id: &common_utils::id_type::AuthenticationId,
+        merchant_key_store: &MerchantKeyStore,
+        state: &common_utils::types::keymanager::KeyManagerState,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Authentication, errors::StorageError> {
+        let database_call = || async {
+            let conn = pg_connection_read(self).await?;
+            // Stagger release: try processor_merchant_id, fall back to merchant_id for legacy NULL rows.
+            let result = diesel_authentication::find_by_processor_merchant_id_authentication_id(
+                &conn,
+                processor_merchant_id,
+                authentication_id,
+            )
+            .await;
+            let result = match result {
+                Err(error)
+                    if matches!(
+                        error.current_context(),
+                        diesel_models::errors::DatabaseError::NotFound
+                    ) =>
+                {
+                    diesel_authentication::find_by_merchant_id_authentication_id(
+                        &conn,
+                        processor_merchant_id,
+                        authentication_id,
+                    )
+                    .await
+                }
+                other => other,
+            };
+            result.map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
+        };
+
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_authentication>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
+
+        let diesel_authentication = match storage_scheme {
+            common_enums::MerchantStorageScheme::PostgresOnly => database_call().await,
+            common_enums::MerchantStorageScheme::RedisKv => {
+                // Resolve partition/field via the authentication-id reverse lookup.
+                let lookup_id = diesel_authentication::get_authentication_id_lookup_id(
+                    processor_merchant_id,
+                    authentication_id,
+                );
+                let lookup = fallback_reverse_lookup_not_found!(
+                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await,
+                    {
+                        let diesel_authentication = database_call().await?;
+                        Authentication::convert_back(
+                            state,
+                            diesel_authentication,
+                            merchant_key_store.key.get_inner(),
+                            merchant_key_store.merchant_id.clone().into(),
+                        )
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                    }
+                );
+                let key = PartitionKey::CombinationKey {
+                    combination: &lookup.pk_id,
+                };
+                Box::pin(try_redis_get_else_try_database_get(
+                    async {
+                        Box::pin(kv_wrapper::<diesel_authentication, _, _>(
+                            self,
+                            KvOperation::<diesel_authentication>::HGet(&lookup.sk_id),
+                            key,
+                        ))
+                        .await?
+                        .try_into_hget()
+                    },
+                    database_call,
+                ))
+                .await
+            }
+        }?;
+
+        Authentication::convert_back(
+            state,
+            diesel_authentication,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)
+    }
+
+    #[instrument(skip_all)]
+    async fn find_authentication_by_processor_merchant_id_connector_authentication_id(
+        &self,
+        processor_merchant_id: common_utils::id_type::MerchantId,
+        connector_authentication_id: String,
+        merchant_key_store: &MerchantKeyStore,
+        state: &common_utils::types::keymanager::KeyManagerState,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Authentication, errors::StorageError> {
+        let database_call = || async {
+            let conn = pg_connection_read(self).await?;
+            // Stagger release: try processor_merchant_id, fall back to merchant_id for legacy NULL rows.
+            let result =
+                diesel_authentication::find_authentication_by_processor_merchant_id_connector_authentication_id(
+                    &conn,
+                    &processor_merchant_id,
+                    &connector_authentication_id,
+                )
+                .await;
+            let result = match result {
+                Err(error)
+                    if matches!(
+                        error.current_context(),
+                        diesel_models::errors::DatabaseError::NotFound
+                    ) =>
+                {
+                    diesel_authentication::find_authentication_by_merchant_id_connector_authentication_id(
+                        &conn,
+                        &processor_merchant_id,
+                        &connector_authentication_id,
+                    )
+                    .await
+                }
+                other => other,
+            };
+            result.map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
+        };
+
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_authentication>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
+
+        let diesel_authentication = match storage_scheme {
+            common_enums::MerchantStorageScheme::PostgresOnly => database_call().await,
+            common_enums::MerchantStorageScheme::RedisKv => {
+                // Resolve partition/field via the connector reverse lookup (webhook flow).
+                let lookup_id = diesel_authentication::get_connector_authentication_lookup_id(
+                    &processor_merchant_id,
+                    &connector_authentication_id,
+                );
+                let lookup = fallback_reverse_lookup_not_found!(
+                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await,
+                    {
+                        let diesel_authentication = database_call().await?;
+                        Authentication::convert_back(
+                            state,
+                            diesel_authentication,
+                            merchant_key_store.key.get_inner(),
+                            merchant_key_store.merchant_id.clone().into(),
+                        )
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                    }
+                );
+                let key = PartitionKey::CombinationKey {
+                    combination: &lookup.pk_id,
+                };
+                Box::pin(try_redis_get_else_try_database_get(
+                    async {
+                        Box::pin(kv_wrapper::<diesel_authentication, _, _>(
+                            self,
+                            KvOperation::<diesel_authentication>::HGet(&lookup.sk_id),
+                            key,
+                        ))
+                        .await?
+                        .try_into_hget()
+                    },
+                    database_call,
+                ))
+                .await
+            }
+        }?;
+
+        Authentication::convert_back(
+            state,
+            diesel_authentication,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)
+    }
+
+    #[instrument(skip_all)]
+    async fn update_authentication_by_processor_merchant_id_authentication_id(
+        &self,
+        previous_state: Authentication,
+        authentication_update: AuthenticationUpdate,
+        merchant_key_store: &MerchantKeyStore,
+        state: &common_utils::types::keymanager::KeyManagerState,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Authentication, errors::StorageError> {
+        let merchant_id = previous_state
+            .processor_merchant_id
+            .clone()
+            .unwrap_or_else(|| previous_state.merchant_id.clone());
+        let authentication_id = previous_state.authentication_id.clone();
+        let payment_id = previous_state.payment_id.clone();
+
+        // Same partition key as on insert (payment's, else authentication's own).
+        let key = match payment_id {
+            Some(ref payment_id) => PartitionKey::MerchantIdPaymentId {
+                merchant_id: &merchant_id,
+                payment_id,
+            },
+            None => PartitionKey::AuthenticationId {
+                authentication_id: &authentication_id,
+            },
+        };
+        let field = diesel_authentication::get_hash_key_for_kv_store(&authentication_id);
+
+        // The previous write location drives KV-vs-Postgres routing in decide_storage_scheme.
+        let updated_by = previous_state.updated_by.clone();
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_authentication>(
+            self,
+            storage_scheme,
+            Op::Update(key.clone(), &field, updated_by.as_deref()),
+        ))
+        .await;
+
+        match storage_scheme {
+            common_enums::MerchantStorageScheme::PostgresOnly => {
+                self.router_store
+                    .update_authentication_by_processor_merchant_id_authentication_id(
+                        previous_state,
+                        authentication_update,
+                        merchant_key_store,
+                        state,
+                        storage_scheme,
+                    )
+                    .await
+            }
+            common_enums::MerchantStorageScheme::RedisKv => {
+                let key_str = key.to_string();
+
+                let current_authentication =
+                    <Authentication as Conversion>::convert(previous_state.clone())
+                        .await
+                        .change_context(errors::StorageError::EncryptionError)?;
+
+                // Captured before the changeset to detect a connector-authentication-id change.
+                let old_connector_authentication_id =
+                    previous_state.connector_authentication_id.clone();
+
+                let authentication_update_internal =
+                    diesel_models::authentication::AuthenticationUpdateInternal::from(
+                        diesel_models::authentication::AuthenticationUpdate::from(
+                            authentication_update,
+                        ),
+                    );
+
+                let updated_authentication = authentication_update_internal
+                    .clone()
+                    .apply_changeset(current_authentication);
+
+                // Add the connector reverse lookup when the update sets/changes that id.
+                match (
+                    old_connector_authentication_id,
+                    &updated_authentication.connector_authentication_id,
+                ) {
+                    (None, Some(connector_authentication_id)) => {
+                        add_connector_authentication_id_to_reverse_lookup(
+                            self,
+                            &key_str,
+                            &field,
+                            &merchant_id,
+                            connector_authentication_id,
+                            storage_scheme,
+                        )
+                        .await?;
+                    }
+                    (Some(old), Some(connector_authentication_id))
+                        if &old != connector_authentication_id =>
+                    {
+                        add_connector_authentication_id_to_reverse_lookup(
+                            self,
+                            &key_str,
+                            &field,
+                            &merchant_id,
+                            connector_authentication_id,
+                            storage_scheme,
+                        )
+                        .await?;
+                    }
+                    (_, _) => {}
+                }
+
+                let redis_value = updated_authentication
+                    .encode_to_string_of_json()
+                    .change_context(errors::StorageError::SerializationFailed)?;
+
+                let mut query_gen_conn = pg_connection_write(self).await?;
+                let drainer_query = authentication_update_internal
+                    .generate_drainer_update_query(
+                        &mut query_gen_conn,
+                        merchant_id.clone(),
+                        authentication_id.clone(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable("Failed to generate authentication update query")?;
+
+                Box::pin(kv_wrapper::<(), _, _>(
+                    self,
+                    KvOperation::<diesel_authentication>::Hset(
+                        (&field, redis_value),
+                        drainer_query,
+                    ),
+                    key,
+                ))
+                .await
+                .map_err(|err| err.to_redis_failed_response(&key_str))?
+                .try_into_hset()
+                .change_context(errors::StorageError::KVError)?;
+
+                Authentication::convert_back(
+                    state,
+                    updated_authentication,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+            }
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl AuthenticationInterface for MockDb {
+    type Error = errors::StorageError;
+
+    async fn insert_authentication(
+        &self,
+        _state: &common_utils::types::keymanager::KeyManagerState,
+        _merchant_key_store: &MerchantKeyStore,
+        authentication: Authentication,
+        _storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> CustomResult<Authentication, errors::StorageError> {
+        let mut authentications = self.authentications.lock().await;
+        if authentications.iter().any(|authentication_inner| {
+            authentication_inner.authentication_id == authentication.authentication_id
+        }) {
+            Err(errors::StorageError::DuplicateValue {
+                entity: "authentication_id",
+                key: Some(
+                    authentication
+                        .authentication_id
+                        .get_string_repr()
+                        .to_string(),
+                ),
+            })?
+        }
+        authentications.push(authentication.clone());
+        Ok(authentication)
+    }
+
+    async fn find_authentication_by_processor_merchant_id_authentication_id(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        authentication_id: &common_utils::id_type::AuthenticationId,
+        _merchant_key_store: &MerchantKeyStore,
+        _state: &common_utils::types::keymanager::KeyManagerState,
+        _storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> CustomResult<Authentication, errors::StorageError> {
+        let authentications = self.authentications.lock().await;
+        authentications
+            .iter()
+            .find(|auth| {
+                auth.merchant_id == *processor_merchant_id && auth.authentication_id == *authentication_id
+            })
+            .cloned()
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "Authentication not found for processor_merchant_id: {} and authentication_id: {}",
+                    processor_merchant_id.get_string_repr(),
+                    authentication_id.get_string_repr()
+                ))
+                .into(),
+            )
+    }
+
+    async fn find_authentication_by_processor_merchant_id_connector_authentication_id(
+        &self,
+        processor_merchant_id: common_utils::id_type::MerchantId,
+        connector_authentication_id: String,
+        _merchant_key_store: &MerchantKeyStore,
+        _state: &common_utils::types::keymanager::KeyManagerState,
+        _storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> CustomResult<Authentication, errors::StorageError> {
+        let authentications = self.authentications.lock().await;
+        authentications
+            .iter()
+            .find(|auth| {
+                auth.merchant_id == processor_merchant_id
+                    && auth.connector_authentication_id.as_ref()
+                        == Some(&connector_authentication_id)
+            })
+            .cloned()
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "Authentication not found for processor_merchant_id: {} and connector_authentication_id: {}",
+                    processor_merchant_id.get_string_repr(),
+                    connector_authentication_id
+                ))
+                .into(),
+            )
+    }
+
+    async fn update_authentication_by_processor_merchant_id_authentication_id(
+        &self,
+        previous_state: Authentication,
+        authentication_update: AuthenticationUpdate,
+        merchant_key_store: &MerchantKeyStore,
+        state: &common_utils::types::keymanager::KeyManagerState,
+        _storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> CustomResult<Authentication, errors::StorageError> {
+        let mut authentications = self.authentications.lock().await;
+        let item = authentications
+            .iter_mut()
+            .find(|auth| {
+                auth.merchant_id == previous_state.merchant_id
+                    && auth.authentication_id == previous_state.authentication_id
+            })
+            .ok_or(errors::StorageError::ValueNotFound(format!(
+                "Authentication not found for merchant_id: {} and authentication_id: {}",
+                previous_state.merchant_id.get_string_repr(),
+                previous_state.authentication_id.get_string_repr()
+            )))?;
+
+        let current_authentication =
+            <Authentication as Conversion>::convert(previous_state.clone())
+                .await
+                .change_context(errors::StorageError::EncryptionError)?;
+
+        let updated_authentication =
+            diesel_models::authentication::AuthenticationUpdateInternal::from(
+                diesel_models::authentication::AuthenticationUpdate::from(authentication_update),
+            )
+            .apply_changeset(current_authentication);
+
+        *item = Authentication::convert_back(
+            state,
+            updated_authentication,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)?;
+
+        Ok(item.clone())
     }
 }

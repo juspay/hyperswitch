@@ -22,6 +22,7 @@ pub mod configs;
 pub mod connection;
 pub mod customers;
 pub mod database;
+pub mod dispute;
 pub mod errors;
 pub mod invoice;
 pub mod kv_router_store;
@@ -364,16 +365,35 @@ pub trait UniqueConstraints {
         redis_conn: &Arc<RedisConnectionPool>,
     ) -> CustomResult<(), RedisError> {
         let constraints = self.unique_constraints();
+        let unique_contraint_count = constraints.len();
         let sadd_result = redis_conn
             .sadd(
                 &format!("unique_constraint:{}", self.table_name()).into(),
-                constraints,
+                constraints.clone(),
             )
             .await?;
 
         match sadd_result {
             SaddReply::KeyNotSet => Err(error_stack::report!(RedisError::SetAddMembersFailed)),
-            SaddReply::KeySet => Ok(()),
+            SaddReply::KeySet(set_count) => {
+                if usize::try_from(set_count) == Ok(unique_contraint_count) {
+                    // If all unique constraints were succesfully inserted into the set, then no collision occurred
+                    Ok(())
+                } else {
+                    Err(error_stack::report!(RedisError::SetAddMembersFailed)).attach_printable_lazy(||{
+                        // saturating_sub avoids panic if set_count somehow exceeds unique_contraint_count.
+                        let duplicates_found = unique_contraint_count
+                            .saturating_sub(usize::try_from(set_count).unwrap_or(0));
+                        format!(
+                            "Unique constraint collision in table '{}': tried to insert {} constraint(s), but {} already existed. Attempted constraints: {:?}",
+                            self.table_name(),
+                            unique_contraint_count,
+                            duplicates_found,
+                            constraints
+                        )
+                    })
+                }
+            }
         }
     }
 }
@@ -396,6 +416,18 @@ impl KvSupportedEntity for diesel_models::Capture {
             "pa_{}_capture_{}",
             self.authorized_attempt_id, self.capture_id
         )
+    }
+}
+
+impl KvSupportedEntity for diesel_models::Dispute {
+    fn get_partition_key(&self) -> kv_store::PartitionKey<'_> {
+        kv_store::PartitionKey::MerchantIdPaymentId {
+            merchant_id: &self.merchant_id,
+            payment_id: &self.payment_id,
+        }
+    }
+    fn get_hash_field_key(&self) -> String {
+        format!("dispute_{}", self.dispute_id)
     }
 }
 
@@ -573,6 +605,19 @@ impl UniqueConstraints for diesel_models::Mandate {
     }
 }
 
+impl UniqueConstraints for diesel_models::authentication::Authentication {
+    fn unique_constraints(&self) -> Vec<String> {
+        // Mirror the DB's only uniqueness: the `authentication_id` primary key.
+        vec![format!(
+            "authentication_{}",
+            self.authentication_id.get_string_repr()
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "Authentication"
+    }
+}
+
 #[cfg(feature = "v1")]
 impl UniqueConstraints for diesel_models::Customer {
     fn unique_constraints(&self) -> Vec<String> {
@@ -610,5 +655,26 @@ impl UniqueConstraints for diesel_models::tokenization::Tokenization {
 
     fn table_name(&self) -> &str {
         "tokenization"
+    }
+}
+
+impl UniqueConstraints for diesel_models::Dispute {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![
+            format!(
+                "dispute_{}_{}",
+                self.merchant_id.get_string_repr(),
+                self.dispute_id
+            ),
+            format!(
+                "dispute_{}_{}_{}",
+                self.merchant_id.get_string_repr(),
+                self.payment_id.get_string_repr(),
+                self.connector_dispute_id
+            ),
+        ]
+    }
+    fn table_name(&self) -> &str {
+        "Dispute"
     }
 }

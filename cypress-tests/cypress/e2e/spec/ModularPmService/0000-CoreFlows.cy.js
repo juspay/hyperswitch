@@ -52,6 +52,10 @@ describe("Core flows", () => {
       cy.paymentMethodCreateCall(globalState, fixtures.paymentMethodCreate);
     });
 
+    it("Modular PM Service - Get Raw Payment Method Details call", () => {
+      cy.getRawPaymentMethodDetailsCall(globalState);
+    });
+
     it("Modular PM Service - Payments call with pm_id", () => {
       cy.paymentWithSavedPMCall(
         globalState,

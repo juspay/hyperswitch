@@ -1539,6 +1539,10 @@ impl NetAmount {
         self.tax_on_surcharge = surcharge_details.map(|details| details.tax_on_surcharge_amount);
     }
 
+    pub fn set_external_surcharge_amount(&mut self, surcharge_amount: Option<MinorUnit>) {
+        self.surcharge_amount = surcharge_amount;
+    }
+
     pub fn set_installment_interest(&mut self, installment_interest: Option<MinorUnit>) {
         self.installment_interest = installment_interest;
     }
@@ -2006,6 +2010,7 @@ pub enum PaymentAttemptUpdate {
         network_transaction_link_id: Option<String>,
         is_stored_credential: Option<bool>,
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+        external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -2181,6 +2186,10 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
+    ExternalSurchargeUpdate {
+        external_surcharge_details: common_types::payments::ExternalSurchargeDetails,
+        updated_by: String,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -2333,6 +2342,7 @@ impl PaymentAttemptUpdate {
                 network_transaction_link_id,
                 is_stored_credential,
                 request_extended_authorization,
+                external_surcharge_details,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -2383,6 +2393,7 @@ impl PaymentAttemptUpdate {
                 network_transaction_link_id,
                 is_stored_credential,
                 request_extended_authorization,
+                external_surcharge_details,
             },
             Self::VoidUpdate {
                 status,
@@ -2762,6 +2773,13 @@ impl PaymentAttemptUpdate {
                 updated_by,
                 connector_mandate_detail,
             },
+            Self::ExternalSurchargeUpdate {
+                external_surcharge_details,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::ExternalSurchargeUpdate {
+                external_surcharge_details,
+                updated_by,
+            },
         }
     }
 
@@ -2791,7 +2809,8 @@ impl PaymentAttemptUpdate {
             | Self::AuthenticationUpdate { .. }
             | Self::ManualUpdate { .. }
             | Self::PostSessionTokensUpdate { .. }
-            | Self::RecurrenceUpdate { .. } => None,
+            | Self::RecurrenceUpdate { .. }
+            | Self::ExternalSurchargeUpdate { .. } => None,
         }
     }
 }
