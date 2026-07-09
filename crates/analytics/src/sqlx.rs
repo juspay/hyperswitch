@@ -60,7 +60,10 @@ impl SqlxClient {
         #[allow(clippy::expect_used)]
         let pool = PgPoolOptions::new()
             .max_connections(conf.max_pool_size)
+            .min_connections(conf.min_idle_pool_size)
             .acquire_timeout(std::time::Duration::from_secs(conf.connection_timeout))
+            .max_lifetime(std::time::Duration::from_secs(conf.max_lifetime))
+            .idle_timeout(std::time::Duration::from_secs(conf.idle_timeout))
             .connect_lazy(&database_url)
             .expect("SQLX Pool Creation failed");
         Self { pool }

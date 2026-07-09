@@ -22,9 +22,12 @@ password = "db_pass"      # Analytics DB Password
 host = "localhost"        # Analytics DB Host
 port = 5432               # Analytics DB Port
 dbname = "hyperswitch_db" # Name of Database
-pool_size = 5             # Number of connections to keep open
+max_pool_size = 5         # Maximum number of connections in the pool
+min_idle_pool_size = 2    # Minimum number of idle connections to maintain in the pool
 connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
+idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
+max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
 
 [api_keys]
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" # API key hashing key.

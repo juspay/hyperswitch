@@ -865,9 +865,11 @@ pub struct Database {
     pub host: String,
     pub port: u16,
     pub dbname: String,
+    #[serde(alias = "pool_size")]
     pub max_pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: QueueStrategy,
+    #[serde(alias = "min_idle")]
     pub min_idle_pool_size: u32,
     pub max_lifetime: u64,
     pub idle_timeout: u64,
