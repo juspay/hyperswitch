@@ -272,12 +272,42 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             ..CustomerDetails::default()
         };
 
-        let external_vault_pmd = match resolved_external_vault_pmd {
+        let mut external_vault_pmd = match resolved_external_vault_pmd {
             Some(external_vault_pmd) => Some(external_vault_pmd),
             None => {
                 build_external_vault_payment_method_data(request, payment_method_wrapper.as_ref())?
             }
         };
+
+        if let Some(
+            hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+                card,
+            ),
+        ) = external_vault_pmd.as_mut()
+        {
+            if card.card_cvc.is_none() {
+                if let Some(payment_token) = payment_attempt.payment_token.clone() {
+                    let resolved_payment_method = payment_attempt
+                        .payment_method
+                        .unwrap_or(common_enums::PaymentMethod::Card);
+                    if let Ok(
+                        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+                            stored_card,
+                        ),
+                    ) = crate::core::payments::resolve_external_vault_alias_from_payment_token(
+                        state,
+                        platform,
+                        &business_profile,
+                        payment_token,
+                        resolved_payment_method,
+                    )
+                    .await
+                    {
+                        card.card_cvc = stored_card.card_cvc;
+                    }
+                }
+            }
+        }
 
         let payment_method = request
             .payment_method
@@ -770,6 +800,36 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             );
             return Ok(());
         }
+        if let Some(
+            hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+                card,
+            ),
+        ) = payment_data.external_vault_pmd.clone()
+        {
+            let mut vault_card = *card;
+            let year = vault_card.card_exp_year.peek().clone();
+            if !year.contains("{{") && year.len() > 2 {
+                vault_card.card_exp_year = Secret::new(year[year.len() - 2..].to_string());
+            }
+            let payment_method = payment_data
+                .payment_attempt
+                .payment_method
+                .unwrap_or(common_enums::PaymentMethod::Card);
+            let external_vault_pmd =
+                hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+                    Box::new(vault_card),
+                );
+            let token = crate::core::payments::tokenize_external_vault_alias_for_external_proxy(
+                state,
+                &external_vault_pmd,
+                payment_method,
+                business_profile,
+                platform.get_processor().get_key_store(),
+            )
+            .await?;
+            payment_data.payment_attempt.payment_token = Some(token.clone());
+            payment_data.set_token(token);
+        }
         if let Some(existing_pm_id) = payment_data
             .payment_method_info
             .as_ref()
@@ -906,44 +966,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                 }
             }
         } else {
-            let mut vault_card = match payment_data.external_vault_pmd.clone() {
-                Some(
-                    hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
-                        card,
-                    ),
-                ) => *card,
-                Some(other) => {
-                    router_env::logger::info!(?other, "Skipping temp-locker tokenization: external_vault_pmd is not a Card variant");
-                    return Ok(());
-                }
-                None => {
-                    router_env::logger::info!("Skipping temp-locker tokenization: external_vault_pmd is None");
-                    return Ok(());
-                }
-            };
-            let year = vault_card.card_exp_year.peek().clone();
-            if !year.contains("{{") && year.len() > 2 {
-                vault_card.card_exp_year = Secret::new(year[year.len() - 2..].to_string());
-            }
-            vault_card.card_cvc = None;
-            let payment_method = payment_data
-                .payment_attempt
-                .payment_method
-                .unwrap_or(common_enums::PaymentMethod::Card);
-            let external_vault_pmd =
-                hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
-                    Box::new(vault_card),
-                );
-            let token = crate::core::payments::tokenize_external_vault_alias_for_external_proxy(
-                state,
-                &external_vault_pmd,
-                payment_method,
-                business_profile,
-                platform.get_processor().get_key_store(),
-            )
-            .await?;
-            payment_data.payment_attempt.payment_token = Some(token.clone());
-            payment_data.set_token(token);
             Ok(())
         }
     }

@@ -3856,7 +3856,7 @@ pub(crate) async fn read_external_vault_alias_from_temp_locker(
 }
 
 #[cfg(feature = "v1")]
-async fn resolve_external_vault_alias_from_payment_token(
+pub(crate) async fn resolve_external_vault_alias_from_payment_token(
     state: &SessionState,
     platform: &domain::Platform,
     business_profile: &domain::Profile,
