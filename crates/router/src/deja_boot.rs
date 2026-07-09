@@ -193,6 +193,7 @@ fn install_record(settings: &DejaSettings) -> InstallReport {
 /// - absolute `source` → that file, `lookup_dir` ignored
 /// - relative `source` → a file name under `lookup_dir` (required)
 /// - `lookup_dir` alone → `<lookup_dir>/<run_id>.jsonl` (`run_id` required)
+///
 /// Anything else is a configuration error.
 fn replay_lookup_path(
     settings: &DejaSettings,

@@ -305,23 +305,12 @@ impl Default for DejaRecordingKafkaSettings {
 }
 
 #[cfg(feature = "deja")]
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone)]
 #[serde(default)]
 pub struct DejaReplaySettings {
     pub source: Option<String>,
     pub lookup_dir: Option<PathBuf>,
     pub observed_sink: Option<String>,
-}
-
-#[cfg(feature = "deja")]
-impl Default for DejaReplaySettings {
-    fn default() -> Self {
-        Self {
-            source: None,
-            lookup_dir: None,
-            observed_sink: None,
-        }
-    }
 }
 
 #[cfg(feature = "deja")]
