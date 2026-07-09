@@ -160,7 +160,7 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .change_context(ConnectorError::ResponseHandlingFailed)
+        .map_err(super::convert_ucs_error_to_connector_error)
     }
 }
 

@@ -1253,8 +1253,25 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
                     error_body.to_string(),
                 )))
             }
-            // Connector errors with status code → ResponseHandlingFailed
-            Self::ConnectorError(_) => ConnectorError::ResponseHandlingFailed,
+            // Connector HTTP errors returned through UCS must keep their
+            // connector payload instead of collapsing to ResponseHandlingFailed,
+            // otherwise payment/payout error mappers surface them as HS 500s.
+            Self::ConnectorError(inner) => {
+                let error_body = serde_json::json!({
+                    "code": inner.code.clone(),
+                    "message": inner.message.clone(),
+                    "status_code": inner.status_code,
+                    "reason": inner.reason.clone(),
+                    "connector": inner.connector.clone(),
+                    "connector_transaction_id": inner.connector_transaction_id.clone(),
+                    "network_decline_code": inner.network_decline_code.clone(),
+                    "network_advice_code": inner.network_advice_code.clone(),
+                    "network_error_message": inner.network_error_message.clone(),
+                });
+                ConnectorError::ProcessingStepFailed(Some(bytes::Bytes::from(
+                    error_body.to_string(),
+                )))
+            }
             // Connection/availability errors → ResponseHandlingFailed
             Self::ConnectionError(_) => ConnectorError::ResponseHandlingFailed,
             // Request encoding errors
