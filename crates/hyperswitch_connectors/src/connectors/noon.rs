@@ -915,7 +915,7 @@ impl webhooks::IncomingWebhook for Noon {
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         if request.body.is_empty() {
-            return Ok(IncomingWebhookEvent::EventNotSupported);
+            return Ok(IncomingWebhookEvent::EndpointVerification);
         }
 
         let details: noon::NoonWebhookEvent = request
