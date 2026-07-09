@@ -87,9 +87,10 @@ pub async fn update_card_info(
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: card_info_request.last_updated_provider,
             funding_source: card_info_request.funding_source,
-            pan_or_token: card_info_request.pan_or_token,
+            card_iin_type: card_info_request.card_iin_type,
             virtual_card: card_info_request.virtual_card,
             gambling_blocked: card_info_request.gambling_blocked,
+            co_badged_card_networks: card_info_request.co_badged_card_networks,
         },
     )
     .await
@@ -221,10 +222,11 @@ impl<'a> CardInfoMigrateExecutor<'a> {
                 country_code: self.record.country_code.clone(),
                 last_updated: Some(common_utils::date_time::now()),
                 last_updated_provider: self.record.last_updated_provider.clone(),
-                funding_source: self.record.funding_source.clone(),
-                pan_or_token: self.record.pan_or_token.clone(),
+                funding_source: self.record.funding_source,
+                card_iin_type: self.record.card_iin_type,
                 virtual_card: self.record.virtual_card,
                 gambling_blocked: self.record.gambling_blocked,
+                co_badged_card_networks: self.record.co_badged_card_networks.clone(),
             },
         )
         .await
@@ -304,10 +306,13 @@ impl CardInfoBuilder<CardInfoResponse> {
                 card_type: card_info.card_type,
                 card_sub_type: card_info.card_subtype,
                 card_issuing_country: card_info.card_issuing_country,
-                funding_source: card_info.funding_source,
-                pan_or_token: card_info.pan_or_token,
+                funding_source: card_info.funding_source.map(|x| x.to_string()),
+                card_iin_type: card_info.card_iin_type.map(|x| x.to_string()),
                 virtual_card: card_info.virtual_card,
                 gambling_blocked: card_info.gambling_blocked,
+                co_badged_card_networks: card_info
+                    .co_badged_card_networks
+                    .map(|networks| networks.iter().map(ToString::to_string).collect()),
             },
             None => cards_info_api_types::CardInfoMigrateResponseRecord {
                 card_iin: None,
@@ -317,9 +322,10 @@ impl CardInfoBuilder<CardInfoResponse> {
                 card_sub_type: None,
                 card_issuing_country: None,
                 funding_source: None,
-                pan_or_token: None,
+                card_iin_type: None,
                 virtual_card: None,
                 gambling_blocked: None,
+                co_badged_card_networks: None,
             },
         }
     }

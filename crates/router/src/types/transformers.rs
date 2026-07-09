@@ -833,10 +833,13 @@ impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info
             card_network: item.card_network.map(|x| x.to_string()),
             card_issuer: item.card_issuer,
             card_issuing_country: item.card_issuing_country,
-            funding_source: item.funding_source,
-            pan_or_token: item.pan_or_token,
+            funding_source: item.funding_source.map(|x| x.to_string()),
+            card_iin_type: item.card_iin_type.map(|x| x.to_string()),
             virtual_card: item.virtual_card,
             gambling_blocked: item.gambling_blocked,
+            co_badged_card_networks: item
+                .co_badged_card_networks
+                .map(|networks| networks.iter().map(ToString::to_string).collect()),
         }
     }
 }
@@ -2610,9 +2613,10 @@ impl ForeignFrom<card_info_types::CardInfoCreateRequest> for storage::CardInfo {
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: value.last_updated_provider,
             funding_source: value.funding_source,
-            pan_or_token: value.pan_or_token,
+            card_iin_type: value.card_iin_type,
             virtual_card: value.virtual_card,
             gambling_blocked: value.gambling_blocked,
+            co_badged_card_networks: value.co_badged_card_networks,
         }
     }
 }
@@ -2633,9 +2637,10 @@ impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for storage::CardInfo {
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: value.last_updated_provider,
             funding_source: value.funding_source,
-            pan_or_token: value.pan_or_token,
+            card_iin_type: value.card_iin_type,
             virtual_card: value.virtual_card,
             gambling_blocked: value.gambling_blocked,
+            co_badged_card_networks: value.co_badged_card_networks,
         }
     }
 }

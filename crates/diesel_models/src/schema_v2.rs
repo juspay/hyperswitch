@@ -427,9 +427,10 @@ diesel::table! {
         last_updated -> Nullable<Timestamp>,
         last_updated_provider -> Nullable<Text>,
         funding_source -> Nullable<Text>,
-        pan_or_token -> Nullable<Text>,
+        card_iin_type -> Nullable<Text>,
         virtual_card -> Nullable<Bool>,
         gambling_blocked -> Nullable<Bool>,
+        co_badged_card_networks -> Nullable<Array<Text>>,
     }
 }
 

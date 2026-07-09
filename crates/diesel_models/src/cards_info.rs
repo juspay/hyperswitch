@@ -27,10 +27,12 @@ pub struct CardInfo {
     pub date_created: PrimitiveDateTime,
     pub last_updated: Option<PrimitiveDateTime>,
     pub last_updated_provider: Option<String>,
-    pub funding_source: Option<String>,
-    pub pan_or_token: Option<String>,
+    pub funding_source: Option<storage_enums::FundingSource>,
+    pub card_iin_type: Option<storage_enums::PanOrToken>,
     pub virtual_card: Option<bool>,
     pub gambling_blocked: Option<bool>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<storage_enums::CoBadgedCardNetwork>)]
+    pub co_badged_card_networks: Option<Vec<storage_enums::CoBadgedCardNetwork>>,
 }
 
 #[derive(
@@ -48,8 +50,9 @@ pub struct UpdateCardInfo {
     pub country_code: Option<String>,
     pub last_updated: Option<PrimitiveDateTime>,
     pub last_updated_provider: Option<String>,
-    pub funding_source: Option<String>,
-    pub pan_or_token: Option<String>,
+    pub funding_source: Option<storage_enums::FundingSource>,
+    pub card_iin_type: Option<storage_enums::PanOrToken>,
     pub virtual_card: Option<bool>,
     pub gambling_blocked: Option<bool>,
+    pub co_badged_card_networks: Option<Vec<storage_enums::CoBadgedCardNetwork>>,
 }
