@@ -291,20 +291,20 @@ struct ReturnCode {
 #[derive(Debug, Deserialize, Serialize)]
 struct ResultCode {
     #[serde(rename = "@description")]
-    description: String,
+    description: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Balance {
     #[serde(rename = "@accountType")]
-    account_type: String,
-    amount: WorldpayXmlAmount,
+    account_type: Option<String>,
+    amount: Option<WorldpayXmlAmount>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PaymentMethodDetail {
-    card: CardResponse,
+    card: Option<CardResponse>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -313,14 +313,14 @@ struct CardResponse {
     #[serde(rename = "@number")]
     number: Option<Secret<String>>,
     #[serde(rename = "@type")]
-    card_type: String,
+    card_type: Option<String>,
     expiry_date: Option<ExpiryDate>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct AuthorisationId {
     #[serde(rename = "@id")]
-    id: Secret<String>,
+    id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
