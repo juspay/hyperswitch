@@ -1809,7 +1809,7 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         let status = get_incremental_authorization_status(
             item.response.status,
-            common_enums::AuthorizationStatus::Processing,
+            common_enums::AuthorizationStatus::Unresolved,
         );
         Ok(Self {
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
