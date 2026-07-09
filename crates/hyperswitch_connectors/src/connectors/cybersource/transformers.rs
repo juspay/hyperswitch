@@ -4867,12 +4867,11 @@ impl TryFrom<PaymentsSyncResponseRouterData<CybersourceTransactionResponse>>
     ) -> Result<Self, Self::Error> {
         match item.response.application_information.status {
             Some(status) => {
-                let status =
-                    map_cybersource_attempt_status(
-                        status,
-                        item.data.request.is_auto_capture()?,
-                        item.data.status,
-                    );
+                let status = map_cybersource_attempt_status(
+                    status,
+                    item.data.request.is_auto_capture()?,
+                    item.data.status,
+                );
                 let incremental_authorization_allowed =
                     Some(status == enums::AttemptStatus::Authorized);
                 let risk_info: Option<ClientRiskInformation> = None;
