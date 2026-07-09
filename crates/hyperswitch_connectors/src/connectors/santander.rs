@@ -300,7 +300,13 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
                     let boleto_mca_metadata = santander_mca_metadata
                         .boleto
                         .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
-                    let workspace_id = boleto_mca_metadata.workspace_id.peek();
+                    let workspace_id = boleto_mca_metadata
+                        .workspace_id
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "workspace_id",
+                        })?
+                        .peek()
+                        .to_string();
                     Ok(format!("{base_url}collection_bill_management/{version}/workspaces/{workspace_id}/bank_slips"))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
@@ -1116,11 +1122,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                                 field_name: "secondary_base_url for Santander",
                             },
                         )?;
+                    let workspace_id = boleto_mca_metadata
+                        .workspace_id
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "workspace_id",
+                        })?
+                        .peek()
+                        .to_string();
+
                     Ok(format!(
                         "{}collection_bill_management/{}/workspaces/{}/bank_slips",
                         secondary_base_url,
                         santander_constants::SANTANDER_VERSION,
-                        boleto_mca_metadata.workspace_id.peek(),
+                        workspace_id,
                     ))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
@@ -1384,7 +1398,13 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                                 field_name: "connector_transaction_id",
                             },
                         )?;
-                        let workspace_id = boleto_mca_metadata.workspace_id.peek();
+                        let workspace_id = boleto_mca_metadata
+                            .workspace_id
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "workspace_id",
+                            })?
+                            .peek()
+                            .to_string();
                         let version = santander_constants::SANTANDER_VERSION;
                         let voucher_data = req
                             .request
@@ -1676,9 +1696,16 @@ impl ConnectorIntegration<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, Paym
                         .boleto
                         .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
 
+                    let workspace_id = boleto_mca_metadata
+                        .workspace_id
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "workspace_id",
+                        })?
+                        .peek()
+                        .to_string();
+
                     Ok(format!(
-                        "{base_url}collection_bill_management/{version}/workspaces/{}/bank_slips",
-                        boleto_mca_metadata.workspace_id.peek(),
+                        "{base_url}collection_bill_management/{version}/workspaces/{workspace_id}/bank_slips",
                     ))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {

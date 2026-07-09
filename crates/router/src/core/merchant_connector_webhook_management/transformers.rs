@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use api_models::merchant_connector_webhook_management::{
     ConnectorWebhookRegisterRequest as ApiConnectorWebhookRegisterRequest, ConnectorWebhookScope,
-    RegisterConnectorWebhookResponse, Scope, ScopeIdentifier, ScopeType, WebhookRegistrationResult,
+    LegacyConnectorWebhookResponse, LegacyRegisterConnectorWebhookResponse,
+    RegisterConnectorWebhookResponse, Scope, ScopeBasedConnectorWebhookResponse,
+    ScopeBasedRegisterConnectorWebhookResponse, ScopeIdentifier, ScopeType,
+    WebhookRegistrationResult,
 };
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::{ensure, Report, ResultExt};
@@ -217,11 +220,28 @@ pub async fn construct_generate_secret_router_data<'a>(
     })
 }
 
+fn deep_merge_json_values(base: &mut serde_json::Value, patch: serde_json::Value) {
+    match (base, patch) {
+        (serde_json::Value::Object(base_map), serde_json::Value::Object(patch_map)) => {
+            for (key, patch_value) in patch_map {
+                match base_map.get_mut(&key) {
+                    Some(base_value) => deep_merge_json_values(base_value, patch_value),
+                    None => {
+                        base_map.insert(key, patch_value);
+                    }
+                }
+            }
+        }
+        (base, patch) => *base = patch,
+    }
+}
+
 #[cfg(feature = "v1")]
 pub fn construct_connector_webhook_registration_details(
     merchant_connector_account: &domain::MerchantConnectorAccount,
     registration_entries: Vec<(String, ScopeIdentifier)>,
     generated_secret: Option<Secret<String>>,
+    metadata_patches: Vec<common_utils::pii::SecretSerdeValue>,
 ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
     let connector_webhook_registration_details = if registration_entries.is_empty() {
         None
@@ -254,6 +274,21 @@ pub fn construct_connector_webhook_registration_details(
         Some(connector_webhook_registration_details)
     };
 
+    let metadata = if metadata_patches.is_empty() {
+        None
+    } else {
+        let mut merged_metadata = merchant_connector_account
+            .get_metadata()
+            .map(|secret| secret.expose().clone())
+            .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
+
+        for patch in metadata_patches {
+            deep_merge_json_values(&mut merged_metadata, patch.expose().clone());
+        }
+
+        Some(common_utils::pii::SecretSerdeValue::new(merged_metadata))
+    };
+
     let connector_webhook_details = generated_secret
         .map(|secret| {
             build_connector_webhook_details_with_secret(merchant_connector_account, secret)
@@ -264,6 +299,7 @@ pub fn construct_connector_webhook_registration_details(
         domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
             connector_webhook_registration_details,
             connector_webhook_details,
+            metadata,
         },
     )
 }
@@ -392,71 +428,67 @@ pub fn construct_connector_webhook_registration_response(
         })
         .unwrap_or((None, None));
 
-    // Only emit deprecated response fields when the caller used the deprecated `event_type`
-    // New callers using `scope` receive only the new scope-based response.
-    let (event_type, connector_webhook_id, webhook_registration_status, error_code, error_message) =
-        if is_legacy_request {
-            let event_type = match scope_type {
-                ScopeType::NotSpecific => Some(common_enums::ConnectorWebhookEventType::AllEvents),
-                ScopeType::EventType => requested.iter().find_map(|identifier| match identifier {
-                    ScopeIdentifier::EventType(event) => Some(
-                        common_enums::ConnectorWebhookEventType::SpecificEvent(*event),
-                    ),
-                    _ => None,
-                }),
-                ScopeType::PaymentMethodType => None,
+    if is_legacy_request {
+        let event_type = match scope_type {
+            ScopeType::NotSpecific => Some(common_enums::ConnectorWebhookEventType::AllEvents),
+            ScopeType::EventType => requested.iter().find_map(|identifier| match identifier {
+                ScopeIdentifier::EventType(event) => Some(
+                    common_enums::ConnectorWebhookEventType::SpecificEvent(*event),
+                ),
+                _ => None,
+            }),
+            ScopeType::PaymentMethodType => None,
+        };
+
+        let (connector_webhook_id, webhook_registration_status, error_code, error_message) =
+            if let Some(success) = results
+                .iter()
+                .find(|result| result.connector_webhook_id.is_some())
+            {
+                (
+                    success.connector_webhook_id.clone(),
+                    Some(success.status),
+                    None,
+                    None,
+                )
+            } else if let Some(failure) = results.iter().find(|result| result.error.is_some()) {
+                (
+                    None,
+                    Some(failure.status),
+                    failure.error.as_ref().map(|error| error.code.clone()),
+                    failure.error.as_ref().map(|error| error.message.clone()),
+                )
+            } else {
+                (
+                    None,
+                    results.first().map(|result| result.status),
+                    None,
+                    None,
+                )
             };
 
-            let (connector_webhook_id, webhook_registration_status, error_code, error_message) =
-                if let Some(success) = results
-                    .iter()
-                    .find(|result| result.connector_webhook_id.is_some())
-                {
-                    (
-                        success.connector_webhook_id.clone(),
-                        Some(success.status),
-                        None,
-                        None,
-                    )
-                } else if let Some(failure) = results.iter().find(|result| result.error.is_some()) {
-                    (
-                        None,
-                        Some(failure.status),
-                        failure.error.as_ref().map(|error| error.code.clone()),
-                        failure.error.as_ref().map(|error| error.message.clone()),
-                    )
-                } else {
-                    (
-                        None,
-                        results.first().map(|result| result.status),
-                        None,
-                        None,
-                    )
-                };
-
-            (
+        return Ok(RegisterConnectorWebhookResponse::Legacy(
+            LegacyRegisterConnectorWebhookResponse {
                 event_type,
                 connector_webhook_id,
                 webhook_registration_status,
                 error_code,
                 error_message,
-            )
-        } else {
-            (None, None, None, None, None)
-        };
+                secret_generation_status,
+                secret_error,
+            },
+        ));
+    }
 
-    Ok(RegisterConnectorWebhookResponse {
-        scope_type,
-        requested,
-        results,
-        secret_generation_status,
-        secret_error,
-        event_type,
-        connector_webhook_id,
-        webhook_registration_status,
-        error_code,
-        error_message,
-    })
+    Ok(RegisterConnectorWebhookResponse::ScopeBased(
+        ScopeBasedRegisterConnectorWebhookResponse {
+            scope_type,
+            requested,
+            results,
+            secret_generation_status,
+            secret_error,
+        },
+    ))
 }
 /// Legacy shape stored in `connector_webhook_registration_details` before scope-based
 /// registration was introduced.
@@ -492,37 +524,22 @@ pub fn get_connector_webhook_list_response(
 
     let webhooks = webhook_map
         .into_iter()
-        .map(|(connector_webhook_id, entry)| {
-            let (scope, event_type) = match entry {
-                StoredConnectorWebhookEntry::Legacy(legacy) => {
-                    let scope = match &legacy.event_type {
-                        common_enums::ConnectorWebhookEventType::AllEvents => {
-                            ConnectorWebhookScope::NotSpecific
-                        }
-                        common_enums::ConnectorWebhookEventType::SpecificEvent(event) => {
-                            ConnectorWebhookScope::EventType { value: *event }
-                        }
-                    };
-                    (scope, Some(legacy.event_type))
-                }
-                StoredConnectorWebhookEntry::New(scope) => {
-                    let event_type = match &scope {
-                        ConnectorWebhookScope::NotSpecific => {
-                            Some(common_enums::ConnectorWebhookEventType::AllEvents)
-                        }
-                        ConnectorWebhookScope::EventType { value } => Some(
-                            common_enums::ConnectorWebhookEventType::SpecificEvent(*value),
-                        ),
-                        ConnectorWebhookScope::PaymentMethodType { .. } => None,
-                    };
-                    (scope, event_type)
-                }
-            };
-
-            api_models::merchant_connector_webhook_management::ConnectorWebhookResponse {
-                connector_webhook_id,
-                scope: Some(scope),
-                event_type,
+        .map(|(connector_webhook_id, entry)| match entry {
+            StoredConnectorWebhookEntry::Legacy(legacy) => {
+                api_models::merchant_connector_webhook_management::ConnectorWebhookResponse::Legacy(
+                    LegacyConnectorWebhookResponse {
+                        event_type: Some(legacy.event_type),
+                        connector_webhook_id,
+                    },
+                )
+            }
+            StoredConnectorWebhookEntry::New(scope) => {
+                api_models::merchant_connector_webhook_management::ConnectorWebhookResponse::ScopeBased(
+                    ScopeBasedConnectorWebhookResponse {
+                        connector_webhook_id,
+                        scope,
+                    },
+                )
             }
         })
         .collect();

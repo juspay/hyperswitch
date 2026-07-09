@@ -947,6 +947,7 @@ impl
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,
                 error_message: None,
+                metadata: None,
             }),
             ..item.data
         })

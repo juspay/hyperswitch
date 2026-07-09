@@ -7473,7 +7473,7 @@ type="Text"
 name="workspace_id"
 label="Workspace Id"
 placeholder="Enter the workspace id"
-required=true
+required=false
 type="Text"
 [[santander.metadata.boleto]]
 name="covenant_code"

@@ -2583,9 +2583,6 @@ impl
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let merchant_id = auth.merchant_account.expose();
         let base_url = req.request.base_url.to_string();
-
-        // The placeholder may be literal in the raw config string or percent-encoded after
-        // parsing into `url::Url`.
         Ok(base_url
             .replace("{merchantId}", &merchant_id)
             .replace("%7BmerchantId%7D", &merchant_id))
@@ -3591,7 +3588,7 @@ impl ConnectorSpecifications for Adyen {
         match scope {
             Scope::NotSpecific => Ok(vec![(
                 ScopeIdentifier::NotSpecific,
-                format!("{endpoint}v1/merchants/{{merchantId}}/webhooks"),
+                format!("{endpoint}v3/merchants/{{merchantId}}/webhooks"),
             )]),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Scope type not supported".to_string(),

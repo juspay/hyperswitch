@@ -1,6 +1,4 @@
-use std::fmt;
-
-use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use utoipa::ToSchema;
 
 use crate::enums::{EventType, PaymentMethodType, WebhookRegistrationStatus};
@@ -29,69 +27,40 @@ pub enum ScopeType {
     EventType,
 }
 
-#[derive(Debug, Clone, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(into = "String", try_from = "String")]
 pub enum ScopeIdentifier {
     NotSpecific,
     PaymentMethodType(PaymentMethodType),
     EventType(EventType),
 }
 
-impl Serialize for ScopeIdentifier {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        match self {
-            Self::NotSpecific => serializer.serialize_str("not_specific"),
-            Self::PaymentMethodType(v) => v.serialize(serializer),
-            Self::EventType(v) => v.serialize(serializer),
+impl From<ScopeIdentifier> for String {
+    fn from(identifier: ScopeIdentifier) -> Self {
+        match identifier {
+            ScopeIdentifier::NotSpecific => "not_specific".to_owned(),
+            ScopeIdentifier::PaymentMethodType(payment_method_type) => {
+                payment_method_type.to_string()
+            }
+            ScopeIdentifier::EventType(event_type) => event_type.to_string(),
         }
     }
 }
 
-struct ScopeIdentifierVisitor;
+impl TryFrom<String> for ScopeIdentifier {
+    type Error = String;
 
-impl Visitor<'_> for ScopeIdentifierVisitor {
-    type Value = ScopeIdentifier;
-
-    /// Provides a description of the expected input format for deserialization error messages.
-    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .write_str("\"not_specific\", a payment method type string, or an event type string")
-    }
-
-    /// Handles null/JSON unit values by defaulting to NotSpecific.
-    fn visit_unit<E>(self) -> Result<Self::Value, E> {
-        Ok(ScopeIdentifier::NotSpecific)
-    }
-
-    /// Handles explicit None values by defaulting to NotSpecific.
-    fn visit_none<E>(self) -> Result<Self::Value, E> {
-        Ok(ScopeIdentifier::NotSpecific)
-    }
-
-    /// Parses a JSON string into ScopeIdentifier by trying each variant in order:
-    /// "not_specific" literal
-    /// Parse as PaymentMethodType (e.g. "pix", "boleto")
-    /// Parse as EventType (e.g. "payments", "refunds")
-    /// Returns a deserialization error if none match.
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        if v == "not_specific" {
-            return Ok(ScopeIdentifier::NotSpecific);
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if value == "not_specific" {
+            return Ok(Self::NotSpecific);
         }
-        if let Ok(pmt) = v.parse::<PaymentMethodType>() {
-            return Ok(ScopeIdentifier::PaymentMethodType(pmt));
+        if let Ok(payment_method_type) = value.parse::<PaymentMethodType>() {
+            return Ok(Self::PaymentMethodType(payment_method_type));
         }
-        if let Ok(evt) = v.parse::<EventType>() {
-            return Ok(ScopeIdentifier::EventType(evt));
+        if let Ok(event_type) = value.parse::<EventType>() {
+            return Ok(Self::EventType(event_type));
         }
-        Err(E::custom(format!("unknown ScopeIdentifier: {v}")))
-    }
-}
-
-impl<'de> Deserialize<'de> for ScopeIdentifier {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        deserializer.deserialize_any(ScopeIdentifierVisitor)
+        Err(format!("unknown ScopeIdentifier: {value}"))
     }
 }
 
@@ -185,11 +154,9 @@ pub struct WebhookSecretErrorDetails {
     pub message: Option<String>,
 }
 
-/// Response for registering connector webhooks.
+#[allow(deprecated)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct RegisterConnectorWebhookResponse {
-    // Deprecated fields retained for backward compatibility.
+pub struct LegacyRegisterConnectorWebhookResponse {
     #[schema(value_type = Option<ConnectorWebhookEventType>, deprecated)]
     pub event_type: Option<common_enums::ConnectorWebhookEventType>,
     #[schema(value_type = Option<String>, deprecated)]
@@ -200,6 +167,14 @@ pub struct RegisterConnectorWebhookResponse {
     pub error_code: Option<String>,
     #[schema(value_type = Option<String>, deprecated)]
     pub error_message: Option<String>,
+    #[schema(value_type = Option<WebhookSecretGenerationStatus>)]
+    pub secret_generation_status: Option<common_enums::WebhookSecretGenerationStatus>,
+    pub secret_error: Option<WebhookSecretErrorDetails>,
+}
+
+/// Response for registering connector webhooks using the new scope-based model.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ScopeBasedRegisterConnectorWebhookResponse {
     /// The type of scope used for this registration.
     pub scope_type: ScopeType,
     /// List of identifiers that were requested to be registered.
@@ -213,6 +188,13 @@ pub struct RegisterConnectorWebhookResponse {
     /// Connector error reported during the HMAC generation step. `None` when HMAC generation
     /// wasn't attempted or succeeded.
     pub secret_error: Option<WebhookSecretErrorDetails>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum RegisterConnectorWebhookResponse {
+    Legacy(LegacyRegisterConnectorWebhookResponse),
+    ScopeBased(ScopeBasedRegisterConnectorWebhookResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -231,12 +213,23 @@ pub enum ConnectorWebhookScope {
     EventType { value: EventType },
 }
 
+#[allow(deprecated)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ConnectorWebhookResponse {
+pub struct LegacyConnectorWebhookResponse {
     #[schema(value_type = Option<ConnectorWebhookEventType>, deprecated)]
     pub event_type: Option<common_enums::ConnectorWebhookEventType>,
     pub connector_webhook_id: String,
-    #[schema(value_type = Option<ConnectorWebhookScope>)]
-    pub scope: Option<ConnectorWebhookScope>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ScopeBasedConnectorWebhookResponse {
+    pub connector_webhook_id: String,
+    pub scope: ConnectorWebhookScope,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum ConnectorWebhookResponse {
+    Legacy(LegacyConnectorWebhookResponse),
+    ScopeBased(ScopeBasedConnectorWebhookResponse),
 }

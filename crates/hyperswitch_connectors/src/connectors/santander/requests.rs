@@ -65,10 +65,20 @@ pub struct SantanderMetadataObject {
 pub struct BoletoMetadataObject {
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
-    pub workspace_id: Secret<String>,
+    pub workspace_id: Option<Secret<String>>,
     pub covenant_code: Secret<String>,
     pub pix_key_value: Option<Secret<String>>,
     pub pix_key_type: Option<responses::SantanderPixKeyType>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BoletoMetadataPatch {
+    pub workspace_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SantanderMetadataPatch {
+    pub boleto: BoletoMetadataPatch,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

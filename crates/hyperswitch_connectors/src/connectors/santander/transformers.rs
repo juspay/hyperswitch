@@ -46,13 +46,14 @@ use url::Url;
 use crate::{
     connectors::santander::{
         requests::{
-            AccessTokenUrlPath, BoletoAdditionalFields, Discount, DiscountObject, Environment,
-            JourneyData, Periodicidade, RecurrenceActivation, RecurrenceCalendar, RecurrenceDebtor,
-            RecurrenceLink, RecurrenceValue, RetryPolicy, SantanderAccountType,
-            SantanderAuthRequest, SantanderAuthType, SantanderBoletoCancelOperation,
-            SantanderBoletoCancelRequest, SantanderBoletoPaymentRequest,
-            SantanderBoletoUpdateRequest, SantanderBoletoWebhookRegisterRequest, SantanderDebtor,
-            SantanderDiscountType, SantanderGrantType, SantanderMetadataObject,
+            AccessTokenUrlPath, BoletoAdditionalFields, BoletoMetadataPatch, Discount,
+            DiscountObject, Environment, JourneyData, Periodicidade, RecurrenceActivation,
+            RecurrenceCalendar, RecurrenceDebtor, RecurrenceLink, RecurrenceValue, RetryPolicy,
+            SantanderAccountType, SantanderAuthRequest, SantanderAuthType,
+            SantanderBoletoCancelOperation, SantanderBoletoCancelRequest,
+            SantanderBoletoPaymentRequest, SantanderBoletoUpdateRequest,
+            SantanderBoletoWebhookRegisterRequest, SantanderDebtor, SantanderDiscountType,
+            SantanderGrantType, SantanderMetadataObject, SantanderMetadataPatch,
             SantanderPaymentRequest, SantanderPaymentsCancelRequest,
             SantanderPixAutomaticCalendarRequest, SantanderPixAutomaticDestinationRequest,
             SantanderPixAutomaticSolicitationRequest, SantanderPixAutomaticoCobrCalendario,
@@ -2947,6 +2948,7 @@ impl
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,
                 error_message: None,
+                metadata: None,
             }),
             ..item.data
         })
@@ -2972,6 +2974,17 @@ impl
             ConnectorWebhookRegisterResponse,
         >,
     ) -> Result<Self, Self::Error> {
+        let workspace_id = item.response.id.clone();
+        let metadata = Some(
+            serde_json::to_value(SantanderMetadataPatch {
+                boleto: BoletoMetadataPatch {
+                    workspace_id: Secret::new(workspace_id),
+                },
+            })
+            .change_context(errors::ConnectorError::ParsingFailed)
+            .map(common_utils::pii::SecretSerdeValue::new)?,
+        );
+
         Ok(ConnectorWebhookRegisterRouterData {
             response: Ok(ConnectorWebhookRegisterResponse {
                 identifier: item.data.request.scope.clone(),
@@ -2982,6 +2995,7 @@ impl
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,
                 error_message: None,
+                metadata,
             }),
             ..item.data
         })
@@ -3017,6 +3031,7 @@ impl
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,
                 error_message: None,
+                metadata: None,
             }),
             ..item.data
         })

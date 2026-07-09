@@ -225,6 +225,7 @@ pub async fn register_connector_webhook(
 
     let mut results = Vec::new();
     let mut registration_entries = Vec::new();
+    let mut metadata_patches = Vec::new();
     let mut first_successful_webhook_id = None;
 
     for (identifier, base_url) in registration_plan {
@@ -333,12 +334,18 @@ pub async fn register_connector_webhook(
         };
 
         let result = match response.response {
-            Ok(success) => api_models::merchant_connector_webhook_management::WebhookRegistrationResult {
-                identifier: identifier.clone(),
-                status: success.status,
-                connector_webhook_id: success.connector_webhook_id,
-                error: None,
-            },
+            Ok(success) => {
+                if let Some(metadata) = success.metadata {
+                    metadata_patches.push(metadata);
+                }
+
+                api_models::merchant_connector_webhook_management::WebhookRegistrationResult {
+                    identifier: identifier.clone(),
+                    status: success.status,
+                    connector_webhook_id: success.connector_webhook_id,
+                    error: None,
+                }
+            }
             Err(err) => api_models::merchant_connector_webhook_management::WebhookRegistrationResult {
                 identifier: identifier.clone(),
                 status: common_enums::WebhookRegistrationStatus::Failure,
@@ -387,6 +394,7 @@ pub async fn register_connector_webhook(
             &mca,
             registration_entries,
             generated_secret,
+            metadata_patches,
         )?;
 
     let should_update_db = matches!(
@@ -396,6 +404,9 @@ pub async fn register_connector_webhook(
             ..
         } | MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
             connector_webhook_details: Some(_),
+            ..
+        } | MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+            metadata: Some(_),
             ..
         }
     );

@@ -10,6 +10,7 @@ pub struct ConnectorWebhookRegisterResponse {
     pub error_code: Option<String>,
     /// Error message, if the registration failed.
     pub error_message: Option<String>,
+    pub metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
