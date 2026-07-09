@@ -749,7 +749,17 @@ impl
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
             order_details: vec![],
-            connector_feature_data: None,
+            // Forward the connector metadata stored at Authorize (which holds the
+            // Paysafe paymentHandleToken) so CompleteAuthorize can settle the handle.
+            // Mirrors the PSync request builder.
+            connector_feature_data: router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                .map(|s| s.into()),
             enable_partial_authorization: None,
             payment_channel: None,
             billing_descriptor: None,
@@ -1211,7 +1221,6 @@ impl
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: None,
-            // Field added by the newer connector-service proto (patched-in local build).
             domain_data: None,
         })
     }
@@ -3523,6 +3532,7 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::RevolutPay => Ok(Self::RevolutPay),
             common_enums::PaymentMethodType::NetworkToken => Ok(Self::NetworkToken),
             common_enums::PaymentMethodType::OpenBanking => Ok(Self::OpenBanking),
+            common_enums::PaymentMethodType::Skrill => Ok(Self::Skrill),
             _ => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Payment Method Type not yet supported".to_string(),
