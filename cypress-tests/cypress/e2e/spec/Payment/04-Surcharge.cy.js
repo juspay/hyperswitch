@@ -53,24 +53,35 @@ describe("Surcharge payment flow test", () => {
             const resolveAuthToken = (bearerToken, tokenType) => {
               if (tokenType === "user_info") {
                 globalState.set("userInfoToken", bearerToken);
-              } else if (tokenType === "AcceptInvite") {
-                // User has no active merchant role — must select a merchant first
+              } else if (tokenType === "accept_invite") {
+                // User has no active merchant role — accept invitation to activate it
                 cy.request({
                   method: "POST",
-                  url: `${globalState.get("baseUrl")}/user/switch/merchant`,
+                  url: `${globalState.get("baseUrl")}/user/invite/accept/pre_auth`,
                   headers: {
                     Authorization: `Bearer ${bearerToken}`,
                     "Content-Type": "application/json",
                   },
-                  body: { merchant_id: globalState.get("merchantId") },
+                  body: [
+                    {
+                      entity_id: globalState.get("merchantId"),
+                      entity_type: "merchant",
+                    },
+                  ],
                   failOnStatusCode: false,
-                }).then((switchResp) => {
-                  if (switchResp.status !== 200) {
+                }).then((acceptResp) => {
+                  if (acceptResp.status !== 200) {
                     throw new Error(
-                      `[Surcharge] Merchant switch failed (${switchResp.status}): ${JSON.stringify(switchResp.body)}`
+                      `[Surcharge] Accept invitation failed (${acceptResp.status}): ${JSON.stringify(acceptResp.body)}`
                     );
                   }
-                  globalState.set("userInfoToken", switchResp.body.token);
+                  if (acceptResp.body.token_type === "user_info") {
+                    globalState.set("userInfoToken", acceptResp.body.token);
+                  } else {
+                    throw new Error(
+                      `[Surcharge] Unexpected token_type "${acceptResp.body.token_type}" after accepting invitation`
+                    );
+                  }
                 });
               } else {
                 throw new Error(
