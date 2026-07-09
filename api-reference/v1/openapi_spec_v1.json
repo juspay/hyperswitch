@@ -28686,6 +28686,14 @@
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
+          },
+          "business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Country"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -43800,6 +43808,10 @@
                 "$ref": "#/components/schemas/AcquirerData"
               }
             ],
+            "nullable": true
+          },
+          "metadata": {
+            "description": "Optional metadata about the payment.",
             "nullable": true
           }
         },
