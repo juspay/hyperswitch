@@ -247,7 +247,26 @@ fn into_response(
             Ok(api::GetMetaDataResponse::PaymentViews(resp.map(|d| {
                 d.views
                     .into_iter()
-                    .map(types::SavedView::into_response)
+                    .map(|view| match view {
+                        types::SavedView::V1(view) => api::SavedViewResponse {
+                            view_id: view.view_id,
+                            view_name: view.view_name,
+                            data: api::SavedViewFilters::V1(api::SavedViewFiltersV1::PaymentViews(
+                                view.filters,
+                            )),
+                            created_at: view.created_at,
+                            updated_at: view.updated_at,
+                        },
+                        types::SavedView::V2(view) => api::SavedViewResponse {
+                            view_id: view.view_id,
+                            view_name: view.view_name,
+                            data: api::SavedViewFilters::V2(api::SavedViewFiltersV2::PaymentViews(
+                                view.filters,
+                            )),
+                            created_at: view.created_at,
+                            updated_at: view.updated_at,
+                        },
+                    })
                     .collect()
             })))
         }
