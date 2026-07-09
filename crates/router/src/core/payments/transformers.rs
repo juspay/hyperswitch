@@ -4659,6 +4659,13 @@ impl ForeignFrom<(DieselPaymentIntent, DieselPaymentAttempt)> for api::PlatformP
             partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
             installment_data: pa.installment_data,
             sender_payment_instrument_id: pa.sender_payment_instrument_id,
+            surcharge_details: pa.surcharge_amount.map(|surcharge_amount| {
+                RequestSurchargeDetails {
+                    surcharge_amount,
+                    tax_amount: pa.tax_amount,
+                }
+            }),
+            installment_options: pi.installment_options.map(|options| options.0),
         }
     }
 }

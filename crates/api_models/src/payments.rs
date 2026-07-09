@@ -9003,28 +9003,13 @@ pub struct PlatformPaymentListConstraints {
     pub order: Option<Order>,
 }
 
-#[cfg(feature = "v1")]
-impl PlatformPaymentListConstraints {
-    pub fn has_no_attempt_filters(&self) -> bool {
-        self.connector.is_none()
-            && self.payment_method.is_none()
-            && self.payment_method_type.is_none()
-            && self.authentication_type.is_none()
-            && self.merchant_connector_id.is_none()
-            && self.card_network.is_none()
-            && self.card_discovery.is_none()
-    }
-}
-
 /// A single item in the platform payments list.
 ///
-/// Mirrors [`PaymentsResponse`] for exactly the fields the payment-list response populates (the
-/// values mapped by its `ForeignFrom<(PaymentIntent, PaymentAttempt)>`), plus
-/// `processor_merchant_id`. A platform listing aggregates payments across many connected
-/// merchants, each with PII encrypted under its own key store, so this view performs no
-/// decryption: encrypted/PII fields (customer details, billing, shipping, payment method data)
-/// are omitted, and fields the list response leaves unset are not included. Use the
-/// single-payment retrieve (scoped to the connected merchant) when full PII is required.
+/// Built directly from raw diesel rows with no decryption, since a platform listing spans many
+/// connected merchants each with their own key store. Encrypted/PII fields (customer, billing,
+/// shipping, payment method data) and `connector_response_metadata` (derived on the domain
+/// `PaymentAttempt`) are therefore omitted. Use the single-payment retrieve (scoped to the
+/// connected merchant) when full PII is required.
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PlatformPaymentListItem {
@@ -9232,6 +9217,14 @@ pub struct PlatformPaymentListItem {
     /// A connector-specific identifier representing the stored payment instrument.
     #[schema(value_type = Option<String>, max_length = 255)]
     pub sender_payment_instrument_id: Option<String>,
+
+    /// Surcharge and tax-on-surcharge applied on the active attempt.
+    #[schema(value_type = Option<RequestSurchargeDetails>)]
+    pub surcharge_details: Option<RequestSurchargeDetails>,
+
+    /// Installment options available/selected for this payment.
+    #[schema(value_type = Option<Vec<InstallmentOption>>)]
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 }
 
 #[cfg(feature = "v1")]
