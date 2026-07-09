@@ -9,6 +9,9 @@ license.workspace = true
 
 [features]
 default = ["olap", "oltp", "accounts_cache", "redis-rs"]
+# Deja replay (R1): feature-gate the replay DB routing hook so default/prod builds
+# are byte-for-byte unaffected.
+deja = ["dep:deja", "diesel_models/deja"]
 dynamic_routing = []
 oltp = []
 accounts_cache = []
@@ -25,6 +28,7 @@ redis-rs = ["redis_interface/redis-rs"]
 api_models = { version = "0.1.0", path = "../api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
+deja = { git = "https://github.com/juspay/deja", rev = "075a614324897b8b6a878af36d7ac243fbec5d33", optional = true, default-features = false }
 diesel_models = { version = "0.1.0", path = "../diesel_models", default-features = false }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 hyperswitch_masking = "0.0.1"

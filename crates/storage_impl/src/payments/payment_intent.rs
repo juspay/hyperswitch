@@ -725,16 +725,18 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
-        let diesel_payment_intent = payment_intent
-            .construct_new()
-            .await
-            .change_context(StorageError::EncryptionError)?
-            .insert(&conn)
-            .await
-            .map_err(|er| {
-                let new_err = diesel_error_to_data_error(*er.current_context());
-                er.change_context(new_err)
-            })?;
+        let diesel_payment_intent = Box::pin(
+            payment_intent
+                .construct_new()
+                .await
+                .change_context(StorageError::EncryptionError)?
+                .insert(&conn),
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })?;
 
         PaymentIntent::convert_back(
             self.get_keymanager_state()

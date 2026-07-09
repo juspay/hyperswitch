@@ -15,6 +15,7 @@ pub(crate) enum RedisOperation {
     SetKey,
     SetKeyWithoutModifyingTtl,
     SetKeyWithExpiry,
+    #[cfg(not(feature = "deja"))]
     SerializeAndSetKeyWithExpiry,
     SetMultipleKeysIfNotExist,
     SetKeyIfNotExistsWithExpiry,

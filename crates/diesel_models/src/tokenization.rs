@@ -12,6 +12,7 @@ use crate::schema_v2::tokenization;
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Clone, Debug, Identifiable, Insertable, Queryable)]
+#[cfg_attr(feature = "deja", derive(Serialize, Deserialize))]
 #[diesel(table_name = tokenization)]
 pub struct Tokenization {
     pub id: id_type::GlobalTokenId,

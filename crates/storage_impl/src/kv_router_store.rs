@@ -39,6 +39,7 @@ pub struct KVRouterStore<T: DatabaseStore> {
     drainer_stream_name: String,
     drainer_num_partitions: u8,
     pub ttl_for_kv: u32,
+    #[cfg(feature = "deja")]
     pub request_id: Option<String>,
     pub soft_kill_mode: bool,
 }
@@ -151,6 +152,14 @@ where
     fn get_accounts_replica_pool(&self) -> &PgPool {
         self.router_store.get_accounts_replica_pool()
     }
+
+    /// Request correlation consumed by the deja replay DB routing hook.
+    #[cfg(feature = "deja")]
+    fn get_request_id(&self) -> Option<String> {
+        self.request_id
+            .clone()
+            .or_else(|| self.router_store.get_request_id())
+    }
 }
 
 impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {
@@ -168,6 +177,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         soft_kill: Option<bool>,
         key_manager_state: Option<KeyManagerState>,
     ) -> Self {
+        #[cfg(feature = "deja")]
         let request_id = store.request_id.clone();
 
         Self {
@@ -175,6 +185,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             drainer_stream_name,
             drainer_num_partitions,
             ttl_for_kv,
+            #[cfg(feature = "deja")]
             request_id,
             soft_kill_mode: soft_kill.unwrap_or(false),
             key_manager_state,
@@ -198,7 +209,10 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         R: KvStorePartition,
     {
         let global_id = format!("{partition_key}");
+        #[cfg(feature = "deja")]
         let request_id = self.request_id.clone().unwrap_or_default();
+        #[cfg(not(feature = "deja"))]
+        let request_id = String::new();
 
         let shard_key = R::shard_key(partition_key, self.drainer_num_partitions);
         let stream_name = self.get_drainer_stream_name(&shard_key);
