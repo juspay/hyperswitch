@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.08.1-hotfix1
+
+### Bug Fixes
+
+- **connector:** [Peachpayments] Revert the Condition of cofData.source for Network Token Passthrough ([#13231](https://github.com/juspay/hyperswitch/pull/13231)) ([`128c140`](https://github.com/juspay/hyperswitch/commit/128c1402352f2135bd3e8168929ec3e6b204d2d6))
+
+**Full Changelog:** [`2026.07.08.1...2026.07.08.1-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.07.08.1...2026.07.08.1-hotfix1)
+
+- - -
+
 ## 2026.07.08.1
 
 ### Features
