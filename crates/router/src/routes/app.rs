@@ -156,7 +156,13 @@ impl scheduler::SchedulerSessionState for SessionState {
     }
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id.clone());
-        self.store.add_request_id(request_id.to_string());
+        #[cfg(feature = "deja")]
+        {
+            let request_id = request_id.to_string();
+            self.store.add_request_id(request_id.clone());
+            self.accounts_store.add_request_id(request_id.clone());
+            self.global_store.add_request_id(request_id);
+        }
         self.request_id.replace(request_id);
     }
 }
@@ -246,7 +252,13 @@ impl SessionStateInfo for SessionState {
     }
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id.clone());
-        self.store.add_request_id(request_id.to_string());
+        #[cfg(feature = "deja")]
+        {
+            let request_id = request_id.to_string();
+            self.store.add_request_id(request_id.clone());
+            self.accounts_store.add_request_id(request_id.clone());
+            self.global_store.add_request_id(request_id);
+        }
         self.request_id.replace(request_id);
     }
 

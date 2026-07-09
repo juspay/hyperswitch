@@ -65,7 +65,18 @@ use crate::{
     utils,
 };
 
+// deja: the publishable key embeds a random UUIDv4 and is persisted on the
+// merchant row + returned in the response, so it must replay to the recorded
+// string for byte-exact self-replay.
 #[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "router::admin",
+        operation = "create_merchant_publishable_key",
+        codec = SerdeCodec,
+    )
+)]
 pub fn create_merchant_publishable_key() -> String {
     format!(
         "pk_{}_{}",

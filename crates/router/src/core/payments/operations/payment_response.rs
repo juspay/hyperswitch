@@ -696,78 +696,80 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let cloned_platform = platform.clone();
             let async_dimension = dimensions.clone();
             logger::info!("Call to save_payment_method in locker");
-            let _task_handle = tokio::spawn(
-                async move {
-                    logger::info!("Starting async call to save_payment_method in locker");
+            let save_payment_method_fut = async move {
+                logger::info!("Starting async call to save_payment_method in locker");
 
-                    let result = Box::pin(tokenization::save_payment_method(
-                        &state,
-                        connector_name,
-                        save_payment_data,
-                        customer_id,
-                        &cloned_platform,
-                        payment_method_type,
-                        billing_name,
-                        payment_method_billing_address.as_ref(),
-                        &business_profile,
-                        connector_mandate_reference_id,
-                        merchant_connector_id.clone(),
-                        vault_operation.clone(),
-                        payment_method_info.clone(),
-                        payment_method_token.clone(),
-                        customer_details.clone(),
-                        &async_dimension,
-                    ))
-                    .await;
+                let result = Box::pin(tokenization::save_payment_method(
+                    &state,
+                    connector_name,
+                    save_payment_data,
+                    customer_id,
+                    &cloned_platform,
+                    payment_method_type,
+                    billing_name,
+                    payment_method_billing_address.as_ref(),
+                    &business_profile,
+                    connector_mandate_reference_id,
+                    merchant_connector_id.clone(),
+                    vault_operation.clone(),
+                    payment_method_info.clone(),
+                    payment_method_token.clone(),
+                    customer_details.clone(),
+                    &async_dimension,
+                ))
+                .await;
 
-                    if let Err(err) = result {
-                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
-                    } else if let Ok(tokenization::SavePaymentMethodDataResponse {
-                        payment_method_id,
-                        ..
-                    }) = result
-                    {
-                        let payment_attempt_update =
-                            storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
-                                payment_method_id,
-                                updated_by: cloned_platform
-                                    .get_processor()
-                                    .get_account()
-                                    .storage_scheme
-                                    .clone()
-                                    .to_string(),
-                            };
-
-                        #[cfg(feature = "v1")]
-                        let respond = state
-                            .store
-                            .update_payment_attempt_with_attempt_id(
-                                payment_attempt,
-                                payment_attempt_update,
-                                cloned_platform.get_processor().get_account().storage_scheme,
-                                cloned_platform.get_processor().get_key_store(),
-                            )
-                            .await;
-
-                        #[cfg(feature = "v2")]
-                        let respond = state
-                            .store
-                            .update_payment_attempt_with_attempt_id(
-                                &(&state).into(),
-                                &key_store.clone(),
-                                payment_attempt,
-                                payment_attempt_update,
-                                cloned_platform.get_processor().get_account().storage_scheme,
-                            )
-                            .await;
-
-                        if let Err(err) = respond {
-                            logger::error!("Error updating payment attempt: {:?}", err);
+                if let Err(err) = result {
+                    logger::error!("Asynchronously saving card in locker failed : {:?}", err);
+                } else if let Ok(tokenization::SavePaymentMethodDataResponse {
+                    payment_method_id,
+                    ..
+                }) = result
+                {
+                    let payment_attempt_update =
+                        storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                            payment_method_id,
+                            updated_by: cloned_platform
+                                .get_processor()
+                                .get_account()
+                                .storage_scheme
+                                .clone()
+                                .to_string(),
                         };
-                    }
+
+                    #[cfg(feature = "v1")]
+                    let respond = state
+                        .store
+                        .update_payment_attempt_with_attempt_id(
+                            payment_attempt,
+                            payment_attempt_update,
+                            cloned_platform.get_processor().get_account().storage_scheme,
+                            cloned_platform.get_processor().get_key_store(),
+                        )
+                        .await;
+
+                    #[cfg(feature = "v2")]
+                    let respond = state
+                        .store
+                        .update_payment_attempt_with_attempt_id(
+                            &(&state).into(),
+                            &key_store.clone(),
+                            payment_attempt,
+                            payment_attempt_update,
+                            cloned_platform.get_processor().get_account().storage_scheme,
+                        )
+                        .await;
+
+                    if let Err(err) = respond {
+                        logger::error!("Error updating payment attempt: {:?}", err);
+                    };
                 }
-                .in_current_span(),
-            );
+            }
+            .in_current_span();
+            #[cfg(feature = "deja")]
+            deja::spawn_fork(save_payment_method_fut);
+            #[cfg(not(feature = "deja"))]
+            let _task_handle = tokio::spawn(save_payment_method_fut);
             Ok(())
         }
     }
@@ -3020,30 +3022,31 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             let profile_id = business_profile.get_id().to_owned();
             let payment_attempt = payment_attempt.clone();
 
-            tokio::spawn(
-                async move {
-                    let should_route_to_open_router =
-                        state.conf.open_router.dynamic_routing_enabled;
-                    let is_success_rate_based = matches!(
-                        payment_attempt.routing_approach,
-                        Some(enums::RoutingApproach::SuccessRateExploitation)
-                            | Some(enums::RoutingApproach::SuccessRateExploration)
-                    );
+            let update_gateway_score_fut = async move {
+                let should_route_to_open_router = state.conf.open_router.dynamic_routing_enabled;
+                let is_success_rate_based = matches!(
+                    payment_attempt.routing_approach,
+                    Some(enums::RoutingApproach::SuccessRateExploitation)
+                        | Some(enums::RoutingApproach::SuccessRateExploration)
+                );
 
-                    if should_route_to_open_router && is_success_rate_based {
-                        routing_helpers::update_gateway_score_helper_with_open_router(
-                            &state,
-                            &payment_attempt,
-                            &profile_id,
-                            dynamic_routing_algo_ref.clone(),
-                        )
-                        .await
-                        .map_err(|e| logger::error!(open_router_update_gateway_score_err=?e))
-                        .ok();
-                    }
+                if should_route_to_open_router && is_success_rate_based {
+                    routing_helpers::update_gateway_score_helper_with_open_router(
+                        &state,
+                        &payment_attempt,
+                        &profile_id,
+                        dynamic_routing_algo_ref.clone(),
+                    )
+                    .await
+                    .map_err(|e| logger::error!(open_router_update_gateway_score_err=?e))
+                    .ok();
                 }
-                .in_current_span(),
-            );
+            }
+            .in_current_span();
+            #[cfg(feature = "deja")]
+            deja::spawn_fork(update_gateway_score_fut);
+            #[cfg(not(feature = "deja"))]
+            let _task_handle = tokio::spawn(update_gateway_score_fut);
         }
     }
 

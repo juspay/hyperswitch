@@ -62,6 +62,7 @@ pub struct RouterStore<T: DatabaseStore> {
     db_store: T,
     cache_store: Arc<RedisStore>,
     master_encryption_key: StrongSecret<Vec<u8>>,
+    #[cfg(feature = "deja")]
     pub request_id: Option<String>,
     key_manager_state: Option<KeyManagerState>,
 }
@@ -139,6 +140,12 @@ where
     fn get_accounts_replica_pool(&self) -> &PgPool {
         self.db_store.get_accounts_replica_pool()
     }
+
+    /// Request correlation consumed by the deja replay DB routing hook.
+    #[cfg(feature = "deja")]
+    fn get_request_id(&self) -> Option<String> {
+        self.request_id.clone()
+    }
 }
 
 impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
@@ -175,6 +182,7 @@ impl<T: DatabaseStore> RouterStore<T> {
             db_store,
             cache_store,
             master_encryption_key: encryption_key,
+            #[cfg(feature = "deja")]
             request_id: None,
             key_manager_state,
         })
@@ -311,6 +319,7 @@ impl<T: DatabaseStore> RouterStore<T> {
             db_store,
             cache_store: Arc::new(cache_store),
             master_encryption_key: encryption_key,
+            #[cfg(feature = "deja")]
             request_id: None,
             key_manager_state,
         })

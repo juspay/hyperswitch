@@ -93,6 +93,7 @@ pub enum StorageImpl {
     Mock,
 }
 
+#[cfg(feature = "deja")]
 #[async_trait::async_trait]
 pub trait StorageInterface:
     Send
@@ -163,6 +164,94 @@ pub trait StorageInterface:
     fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState);
 }
 
+#[cfg(not(feature = "deja"))]
+#[async_trait::async_trait]
+pub trait StorageInterface:
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + address::AddressInterface
+    + api_keys::ApiKeyInterface
+    + blocklist_lookup::BlocklistLookupInterface
+    + configs::ConfigInterface<Error = StorageError>
+    + capture::CaptureInterface
+    + customers::CustomerInterface<Error = StorageError>
+    + dashboard_metadata::DashboardMetadataInterface
+    + dispute::DisputeInterface
+    + ephemeral_key::EphemeralKeyInterface
+    + ephemeral_key::ClientSecretInterface
+    + events::EventInterface
+    + file::FileMetadataInterface
+    + FraudCheckInterface
+    + locker_mock_up::LockerMockUpInterface
+    + mandate::MandateInterface
+    + merchant_account::MerchantAccountInterface<Error = StorageError>
+    + merchant_connector_account::ConnectorAccessToken
+    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
+    + PaymentAttemptInterface<Error = StorageError>
+    + PaymentIntentInterface<Error = StorageError>
+    + PaymentMethodInterface<Error = StorageError>
+    + blocklist::BlocklistInterface
+    + blocklist_fingerprint::BlocklistFingerprintInterface
+    + batch_blocklist_job::BatchBlocklistJobInterface
+    + CardIssuersInterface<Error = StorageError>
+    + dynamic_routing_stats::DynamicRoutingStatsInterface
+    + scheduler::SchedulerInterface
+    + PayoutAttemptInterface<Error = StorageError>
+    + PayoutsInterface<Error = StorageError>
+    + refund::RefundInterface
+    + reverse_lookup::ReverseLookupInterface
+    + CardsInfoInterface<Error = StorageError>
+    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
+    + MasterKeyInterface
+    + payment_link::PaymentLinkInterface
+    + RedisConnInterface
+    + business_profile::ProfileInterface<Error = StorageError>
+    + routing_algorithm::RoutingAlgorithmInterface
+    + gsm::GsmInterface
+    + unified_translations::UnifiedTranslationsInterface
+    + authorization::AuthorizationInterface
+    + user::sample_data::BatchSampleDataInterface
+    + health_check::HealthCheckDbInterface
+    + user_authentication_method::UserAuthenticationMethodInterface
+    + hyperswitch_ai_interaction::HyperswitchAiInteractionInterface
+    + AuthenticationInterface<Error = StorageError>
+    + generic_link::GenericLinkInterface
+    + relay::RelayInterface
+    + user::theme::ThemeInterface
+    + payment_method_session::PaymentMethodsSessionInterface
+    + tokenization::TokenizationInterface
+    + callback_mapper::CallbackMapperInterface
+    + storage_impl::subscription::SubscriptionInterface<Error = StorageError>
+    + storage_impl::invoice::InvoiceInterface<Error = StorageError>
+    + 'static
+{
+    fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
+    fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface>;
+    fn get_subscription_store(&self)
+        -> Box<dyn subscriptions::state::SubscriptionStorageInterface>;
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState);
+}
+
+#[cfg(feature = "deja")]
+#[async_trait::async_trait]
+pub trait GlobalStorageInterface:
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + user::UserInterface
+    + user_role::UserRoleInterface
+    + user_key_store::UserKeyStoreInterface
+    + role::RoleInterface
+    + RedisConnInterface
+    + RequestIdStore
+    + 'static
+{
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
+}
+
+#[cfg(not(feature = "deja"))]
 #[async_trait::async_trait]
 pub trait GlobalStorageInterface:
     Send
@@ -178,6 +267,24 @@ pub trait GlobalStorageInterface:
     fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
 }
 
+#[cfg(feature = "deja")]
+#[async_trait::async_trait]
+pub trait AccountsStorageInterface:
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + OrganizationInterface
+    + merchant_account::MerchantAccountInterface<Error = StorageError>
+    + business_profile::ProfileInterface<Error = StorageError>
+    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
+    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
+    + dashboard_metadata::DashboardMetadataInterface
+    + RequestIdStore
+    + 'static
+{
+}
+
+#[cfg(not(feature = "deja"))]
 #[async_trait::async_trait]
 pub trait AccountsStorageInterface:
     Send
@@ -295,6 +402,7 @@ impl CommonStorageInterface for Store {
     }
 }
 
+#[cfg(feature = "deja")]
 pub trait RequestIdStore {
     fn add_request_id(&mut self, _request_id: String) {}
     fn get_request_id(&self) -> Option<String> {
@@ -302,10 +410,18 @@ pub trait RequestIdStore {
     }
 }
 
+#[cfg(feature = "deja")]
 impl RequestIdStore for MockDb {}
 
+#[cfg(feature = "deja")]
 impl RequestIdStore for Store {
     fn add_request_id(&mut self, request_id: String) {
+        // During deja replay, also stamp the inner RouterStore in KV builds because
+        // PostgresOnly-delegated operations route through it.
+        #[cfg(feature = "kv_store")]
+        {
+            self.router_store.request_id = Some(request_id.clone());
+        }
         self.request_id = Some(request_id.clone());
         self.update_key_manager_request_id(request_id);
     }
@@ -335,6 +451,7 @@ dyn_clone::clone_trait_object!(StorageInterface);
 dyn_clone::clone_trait_object!(GlobalStorageInterface);
 dyn_clone::clone_trait_object!(AccountsStorageInterface);
 
+#[cfg(feature = "deja")]
 impl RequestIdStore for KafkaStore {
     fn add_request_id(&mut self, request_id: String) {
         self.diesel_store.add_request_id(request_id)
