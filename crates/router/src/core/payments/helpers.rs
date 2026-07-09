@@ -3776,6 +3776,34 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
         _ => Ok((None, None)),
     }?;
 
+    // Stateless redirect payment methods (Affirm BNPL, Skrill wallet, Interac
+    // e-Transfer, paysafecard gift card) carry no payment_method_data and vault no
+    // token, so the match above resolves to None on the redirect-completion leg.
+    // Reconstruct the empty-shell PaymentMethodData from the persisted
+    // payment_method_type so downstream router_data (e.g. UCS CompleteAuthorize) — and
+    // thus every connector — receives a payment_method and can settle the handle.
+    let payment_method =
+        payment_method.or_else(|| match payment_data.payment_attempt.payment_method_type {
+            Some(storage_enums::PaymentMethodType::Affirm) => Some(
+                domain::PaymentMethodData::PayLater(domain::PayLaterData::AffirmRedirect {}),
+            ),
+            Some(storage_enums::PaymentMethodType::Skrill) => {
+                Some(domain::PaymentMethodData::Wallet(
+                    domain::WalletData::Skrill(Box::new(domain::SkrillData {})),
+                ))
+            }
+            Some(storage_enums::PaymentMethodType::Interac) => Some(
+                domain::PaymentMethodData::BankRedirect(domain::BankRedirectData::Interac {
+                    country: None,
+                    email: None,
+                }),
+            ),
+            Some(storage_enums::PaymentMethodType::PaySafeCard) => Some(
+                domain::PaymentMethodData::GiftCard(Box::new(domain::GiftCardData::PaySafeCard {})),
+            ),
+            _ => None,
+        });
+
     Ok((operation, payment_method, pm_id))
 }
 
@@ -6935,10 +6963,9 @@ pub async fn get_apple_pay_retryable_connectors(
     )? {
         let merchant_connector_account_list = state
             .store
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
                 processor.get_account().get_id(),
                 false,
-                processor.get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
@@ -7787,6 +7814,7 @@ pub struct JwsBody {
 
 pub fn get_key_params_for_surcharge_details(
     payment_method_data: &domain::PaymentMethodData,
+    payment_method_type_option: Option<common_enums::PaymentMethodType>,
 ) -> Option<(
     common_enums::PaymentMethod,
     common_enums::PaymentMethodType,
@@ -7853,7 +7881,15 @@ pub fn get_key_params_for_surcharge_details(
             None,
         )),
         domain::PaymentMethodData::MandatePayment => None,
-        domain::PaymentMethodData::Reward => None,
+        domain::PaymentMethodData::Reward => {
+            payment_method_type_option.map(|payment_method_type| {
+                (
+                    common_enums::PaymentMethod::Reward,
+                    payment_method_type,
+                    None,
+                )
+            })
+        }
         domain::PaymentMethodData::RealTimePayment(real_time_payment) => Some((
             common_enums::PaymentMethod::RealTimePayment,
             real_time_payment.get_payment_method_type(),
@@ -8908,24 +8944,23 @@ pub async fn validate_routing_id_with_profile_id(
 #[cfg(feature = "v1")]
 pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+    _key_store: &domain::MerchantKeyStore,
     connector_mandate_details: &api_models::payment_methods::CommonMandateReference,
     merchant_id: &id_type::MerchantId,
     card_network: Option<api_enums::CardNetwork>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let db = &*state.store;
     let merchant_connector_account_list = db
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             merchant_id,
             true,
-            key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
     let merchant_connector_account_details_hash_map: std::collections::HashMap<
         id_type::MerchantConnectorAccountId,
-        domain::MerchantConnectorAccount,
+        domain::MerchantConnectorAccountWithoutEncrypted,
     > = merchant_connector_account_list
         .iter()
         .map(|merchant_connector_account| {
@@ -9224,10 +9259,9 @@ pub async fn validate_allowed_payment_method_types_request(
     if let Some(allowed_payment_method_types) = allowed_payment_method_types {
         let db = &*state.store;
         let all_connector_accounts = db
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
                 processor.get_account().get_id(),
                 false,
-                processor.get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

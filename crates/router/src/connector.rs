@@ -49,7 +49,7 @@ pub use hyperswitch_connectors::connectors::{
     tesouro::Tesouro, threedsecureio, threedsecureio::Threedsecureio, thunes, thunes::Thunes,
     tokenex, tokenex::Tokenex, tokenio, tokenio::Tokenio, truelayer, truelayer::Truelayer, trustly,
     trustly::Trustly, trustpay, trustpay::Trustpay, trustpayments, trustpayments::Trustpayments,
-    tsys, tsys::Tsys, unified_authentication_service,
+    tsys, tsys::Tsys, tsys_transit, tsys_transit::TsysTransit, unified_authentication_service,
     unified_authentication_service::UnifiedAuthenticationService, vgs, vgs::Vgs, volt, volt::Volt,
     wellsfargo, wellsfargo::Wellsfargo, wellsfargopayout, wellsfargopayout::Wellsfargopayout, wise,
     wise::Wise, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, worldpaymodular,

@@ -17241,6 +17241,7 @@
           "trustpay",
           "trustpayments",
           "tsys",
+          "tsys_transit",
           "vgs",
           "volt",
           "wellsfargo",
@@ -21264,6 +21265,14 @@
             "type": "boolean",
             "description": "Filter all events by `is_overall_delivery_successful` field of the event.",
             "nullable": true
+          },
+          "recipient": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventRecipient"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -21335,6 +21344,13 @@
             "example": "2022-09-10T10:11:12Z"
           }
         }
+      },
+      "EventRecipient": {
+        "type": "string",
+        "enum": [
+          "merchant",
+          "connector"
+        ]
       },
       "EventRetrieveResponse": {
         "allOf": [
@@ -30533,6 +30549,11 @@
             ],
             "nullable": true
           },
+          "email": {
+            "type": "string",
+            "description": "The email associated with the payment",
+            "nullable": true
+          },
           "metadata": {
             "type": "object",
             "description": "Additional metadata",
@@ -35209,8 +35230,7 @@
       "PaymentsUpdateMetadataResponse": {
         "type": "object",
         "required": [
-          "payment_id",
-          "status"
+          "payment_id"
         ],
         "properties": {
           "payment_id": {
@@ -35228,7 +35248,8 @@
                 "$ref": "#/components/schemas/IntentStatus"
               }
             ],
-            "default": "requires_confirmation"
+            "default": "requires_confirmation",
+            "nullable": true
           },
           "feature_metadata": {
             "allOf": [
@@ -41314,6 +41335,7 @@
           "trustpayments",
           "tokenio",
           "tsys",
+          "tsys_transit",
           "volt",
           "wellsfargo",
           "wise",
