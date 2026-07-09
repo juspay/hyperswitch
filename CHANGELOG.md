@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.01.0-hotfix7
+
+### Revert
+
+- "feat(core/connector): [SANTANDER] Add UpdatePostConfirm Flow for Payments Update API" ([#13252](https://github.com/juspay/hyperswitch/pull/13252)) ([`66f5c07`](https://github.com/juspay/hyperswitch/commit/66f5c077d8dba7ee8ab551dc4df871ec9e667acc))
+
+**Full Changelog:** [`2026.07.01.0-hotfix6...2026.07.01.0-hotfix7`](https://github.com/juspay/hyperswitch/compare/2026.07.01.0-hotfix6...2026.07.01.0-hotfix7)
+
+- - -
+
 ## 2026.07.01.0-hotfix6
 
 ### Bug Fixes
