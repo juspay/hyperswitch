@@ -2288,6 +2288,7 @@ impl
             .map(|additional_payment_data| {
                 payments_grpc::AdditionalPaymentData::foreign_from(additional_payment_data)
             });
+        let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)?;
         Ok(Self {
             split_payments: router_data
                 .request
@@ -2409,6 +2410,7 @@ impl
                         }
                     }),
                 }),
+            auth_type: Some(auth_type.into()),
         })
     }
 }
@@ -3048,6 +3050,9 @@ impl
             .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id.clone()))
             .unwrap_or(router_request_types::ResponseId::NoResponseId);
 
+        let connector_response_reference_id =
+            Some(response.merchant_recurring_payment_id.clone()).filter(|id| !id.is_empty());
+
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if let Some(error_info) = response.error.as_ref() {
@@ -3087,10 +3092,7 @@ impl
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_transaction_id.get_optional_response_id(),
-                connector_response_reference_id: Some(
-                    response.merchant_recurring_payment_id.clone(),
-                )
-                .filter(|s| !s.is_empty()),
+                connector_response_reference_id: connector_response_reference_id.clone(),
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
@@ -3140,7 +3142,7 @@ impl
                     connector_metadata,
                     network_txn_id: response.network_transaction_id,
                     network_txn_link_id: None,
-                    connector_response_reference_id: Some(response.merchant_recurring_payment_id.clone()),
+                    connector_response_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -3259,7 +3261,7 @@ impl
                     connector_response_reference_id: response.merchant_charge_id.clone(),
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
-                    charges: None,
+                    charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
                 },
                 status,
             ))
