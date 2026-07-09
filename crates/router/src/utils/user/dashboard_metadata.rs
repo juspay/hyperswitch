@@ -3,8 +3,8 @@ use std::{net::IpAddr, ops::Not, str::FromStr};
 use actix_web::http::header::HeaderMap;
 #[cfg(feature = "v1")]
 use api_models::user::dashboard_metadata::{
-    CreateSavedViewRequest, PaymentListFilterConstraintsV1, SavedViewFilters, SavedViewFiltersV1,
-    SavedViewFiltersV2, SavedViewOperation, UpdateSavedViewRequest,
+    CreateSavedViewRequest, SavedViewFilters, SavedViewFiltersV1, SavedViewFiltersV2,
+    SavedViewOperation, UpdateSavedViewRequest,
 };
 use api_models::user::dashboard_metadata::{
     DeleteSavedViewRequest, GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent,
@@ -461,51 +461,31 @@ where
 }
 
 #[cfg(feature = "v1")]
-fn validate_v1_payment_views_filters(
-    filters: PaymentListFilterConstraintsV1,
-) -> UserResult<PaymentListFilterConstraintsV1> {
-    if !filters.extra_filters.is_empty() {
-        let unsupported_filters = filters
-            .extra_filters
-            .keys()
-            .cloned()
-            .collect::<Vec<_>>()
-            .join(", ");
-
-        return Err(report!(UserErrors::InvalidMetadataRequest)).attach_printable(format!(
-            "Unsupported filters for v1 payment saved views: {unsupported_filters}"
-        ));
-    }
-
-    Ok(filters)
-}
-
-#[cfg(feature = "v1")]
 fn get_payment_view(
     view_id: String,
     view_name: String,
     data: SavedViewFilters,
     created_at: String,
     updated_at: String,
-) -> UserResult<types::SavedView> {
+) -> types::SavedView {
     match data {
         SavedViewFilters::V1(SavedViewFiltersV1::PaymentViews(filters)) => {
-            Ok(types::SavedView::V1(types::SavedViewV1 {
-                view_id,
-                view_name,
-                filters: validate_v1_payment_views_filters(filters)?,
-                created_at,
-                updated_at,
-            }))
-        }
-        SavedViewFilters::V2(SavedViewFiltersV2::PaymentViews(filters)) => {
-            Ok(types::SavedView::V2(types::SavedViewV2 {
+            types::SavedView::V1(types::SavedViewV1 {
                 view_id,
                 view_name,
                 filters,
                 created_at,
                 updated_at,
-            }))
+            })
+        }
+        SavedViewFilters::V2(SavedViewFiltersV2::PaymentViews(filters)) => {
+            types::SavedView::V2(types::SavedViewV2 {
+                view_id,
+                view_name,
+                filters,
+                created_at,
+                updated_at,
+            })
         }
     }
 }
@@ -562,7 +542,7 @@ fn update_payment_view(
             if let Some(view_name) = view_name {
                 view.view_name = view_name;
             }
-            view.filters = validate_v1_payment_views_filters(filters)?;
+            view.filters = filters;
             view.updated_at = updated_at;
             Ok(())
         }
@@ -624,7 +604,7 @@ async fn create_saved_view(
         request.data,
         now.to_string(),
         now.to_string(),
-    )?;
+    );
 
     modify_dashboard_metadata(
         state,
