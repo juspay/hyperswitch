@@ -1,17 +1,14 @@
 use std::{net::IpAddr, ops::Not, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
+#[cfg(feature = "v1")]
+use api_models::user::dashboard_metadata::{
+    CreateSavedViewRequest, SavedViewFilters, SavedViewFiltersV1, SavedViewFiltersV2,
+    SavedViewOperation, UpdateSavedViewRequest,
+};
 use api_models::user::dashboard_metadata::{
     DeleteSavedViewRequest, GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent,
     SetMetaDataRequest,
-};
-#[cfg(feature = "v1")]
-use api_models::{
-    payments,
-    user::dashboard_metadata::{
-        CreateSavedViewRequest, PaymentListFilterConstraintsV1, SavedViewFilters,
-        SavedViewFiltersV1, SavedViewOperation, UpdateSavedViewRequest,
-    },
 };
 use common_enums::EntityType;
 use common_utils::id_type;
@@ -27,7 +24,7 @@ use crate::{
     core::errors::{UserErrors, UserResult},
     headers,
     services::{authentication::UserFromToken, authorization::roles::RoleInfo},
-    types::{domain::user::dashboard_metadata as types, transformers::ForeignFrom},
+    types::domain::user::dashboard_metadata as types,
     SessionState,
 };
 
@@ -464,148 +461,110 @@ where
 }
 
 #[cfg(feature = "v1")]
-impl ForeignFrom<payments::PaymentListFilterConstraints> for PaymentListFilterConstraintsV1 {
-    fn foreign_from(item: payments::PaymentListFilterConstraints) -> Self {
-        let payments::PaymentListFilterConstraints {
-            query,
-            payment_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            amount_filter,
-            time_range,
-            connector,
-            currency,
-            status,
-            payment_method,
-            payment_method_type,
-            authentication_type,
-            merchant_connector_id,
-            order,
-            card_network,
-            card_last_4,
-            active_attempt_id,
-            card_issuer,
-            routing_approach,
-            refunds_status,
-            dispute_status,
-            client_source,
-            client_version,
-            first_attempt,
-            merchant_order_reference_id,
-            card_discovery,
-            customer_email,
-        } = item;
-        Self {
-            query,
-            payment_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            amount_filter,
-            time_range,
-            connector,
-            currency,
-            status,
-            payment_method,
-            payment_method_type,
-            authentication_type,
-            merchant_connector_id,
-            order,
-            card_network,
-            card_last_4,
-            active_attempt_id,
-            card_issuer,
-            routing_approach,
-            refunds_status,
-            dispute_status,
-            client_source,
-            client_version,
-            first_attempt,
-            merchant_order_reference_id,
-            card_discovery,
-            customer_email,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
-impl ForeignFrom<PaymentListFilterConstraintsV1> for payments::PaymentListFilterConstraints {
-    fn foreign_from(item: PaymentListFilterConstraintsV1) -> Self {
-        let PaymentListFilterConstraintsV1 {
-            query,
-            payment_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            amount_filter,
-            time_range,
-            connector,
-            currency,
-            status,
-            payment_method,
-            payment_method_type,
-            authentication_type,
-            merchant_connector_id,
-            order,
-            card_network,
-            card_last_4,
-            active_attempt_id,
-            card_issuer,
-            routing_approach,
-            refunds_status,
-            dispute_status,
-            client_source,
-            client_version,
-            first_attempt,
-            merchant_order_reference_id,
-            card_discovery,
-            customer_email,
-        } = item;
-        Self {
-            query,
-            payment_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            amount_filter,
-            time_range,
-            connector,
-            currency,
-            status,
-            payment_method,
-            payment_method_type,
-            authentication_type,
-            merchant_connector_id,
-            order,
-            card_network,
-            card_last_4,
-            active_attempt_id,
-            card_issuer,
-            routing_approach,
-            refunds_status,
-            dispute_status,
-            client_source,
-            client_version,
-            first_attempt,
-            merchant_order_reference_id,
-            card_discovery,
-            customer_email,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
-fn get_payment_views_filters_v1(data: SavedViewFilters) -> PaymentListFilterConstraintsV1 {
+fn create_payment_view(
+    view_id: String,
+    view_name: String,
+    data: SavedViewFilters,
+    created_at: String,
+    updated_at: String,
+) -> types::SavedView {
     match data {
-        SavedViewFilters::V1(f) => match f {
-            SavedViewFiltersV1::PaymentViews(p) => p,
+        SavedViewFilters::V1(filters) => match *filters {
+            SavedViewFiltersV1::PaymentViews(filters) => {
+                types::SavedView::V1(Box::new(types::SavedViewV1 {
+                    view_id,
+                    view_name,
+                    filters,
+                    created_at,
+                    updated_at,
+                }))
+            }
+        },
+        SavedViewFilters::V2(filters) => match *filters {
+            SavedViewFiltersV2::PaymentViews(filters) => {
+                types::SavedView::V2(Box::new(types::SavedViewV2 {
+                    view_id,
+                    view_name,
+                    filters,
+                    created_at,
+                    updated_at,
+                }))
+            }
         },
     }
+}
+
+#[cfg(feature = "v1")]
+fn payment_view_id(view: &types::SavedView) -> &str {
+    match view {
+        types::SavedView::V1(view) => &view.view_id,
+        types::SavedView::V2(view) => &view.view_id,
+    }
+}
+
+#[cfg(feature = "v1")]
+fn payment_view_name(view: &types::SavedView) -> &str {
+    match view {
+        types::SavedView::V1(view) => &view.view_name,
+        types::SavedView::V2(view) => &view.view_name,
+    }
+}
+
+#[cfg(feature = "v1")]
+fn is_same_payment_view_version(left: &types::SavedView, right: &types::SavedView) -> bool {
+    matches!(
+        (left, right),
+        (types::SavedView::V1(_), types::SavedView::V1(_))
+            | (types::SavedView::V2(_), types::SavedView::V2(_))
+    )
+}
+
+#[cfg(feature = "v1")]
+fn matches_payment_view_filter_version(
+    view: &types::SavedView,
+    filters: &SavedViewFilters,
+) -> bool {
+    matches!(
+        (view, filters),
+        (types::SavedView::V1(_), SavedViewFilters::V1(_))
+            | (types::SavedView::V2(_), SavedViewFilters::V2(_))
+    )
+}
+
+#[cfg(feature = "v1")]
+fn update_payment_view(
+    view: &mut types::SavedView,
+    view_name: Option<String>,
+    filters: SavedViewFilters,
+) -> UserResult<()> {
+    let updated_at = common_utils::date_time::now().to_string();
+
+    match (view, filters) {
+        (types::SavedView::V1(view), SavedViewFilters::V1(filters)) => {
+            match *filters {
+                SavedViewFiltersV1::PaymentViews(filters) => view.filters = filters,
+            }
+            if let Some(view_name) = view_name {
+                view.view_name = view_name;
+            }
+            view.updated_at = updated_at;
+        }
+        (types::SavedView::V2(view), SavedViewFilters::V2(filters)) => {
+            match *filters {
+                SavedViewFiltersV2::PaymentViews(filters) => view.filters = filters,
+            }
+            if let Some(view_name) = view_name {
+                view.view_name = view_name;
+            }
+            view.updated_at = updated_at;
+        }
+        _ => {
+            return Err(report!(UserErrors::SavedViewNotFound))
+                .attach_printable("Saved view with this version not found");
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(feature = "v1")]
@@ -644,13 +603,13 @@ async fn create_saved_view(
 
     let now = common_utils::date_time::now();
     let view_id = common_utils::generate_id(common_utils::consts::ID_LENGTH, "view");
-    let new_view_domain = types::SavedViewV1 {
+    let new_view_domain = create_payment_view(
         view_id,
-        view_name: request.view_name.clone(),
-        filters: get_payment_views_filters_v1(request.data),
-        created_at: now.to_string(),
-        updated_at: now.to_string(),
-    };
+        request.view_name.clone(),
+        request.data,
+        now.to_string(),
+        now.to_string(),
+    );
 
     modify_dashboard_metadata(
         state,
@@ -660,16 +619,21 @@ async fn create_saved_view(
         |existing: Option<types::PaymentViewsValue>| {
             let mut views_data = existing.unwrap_or(types::PaymentViewsValue { views: vec![] });
 
-            if views_data.views.len() >= MAX_SAVED_VIEWS {
-                return Err(report!(UserErrors::MaxSavedViewsReached))
-                    .attach_printable("Maximum of 5 saved views reached");
-            }
-
             if views_data
                 .views
                 .iter()
-                .any(|v| v.view_name == request.view_name)
+                .filter(|view| is_same_payment_view_version(view, &new_view_domain))
+                .count()
+                >= MAX_SAVED_VIEWS
             {
+                return Err(report!(UserErrors::MaxSavedViewsReached))
+                    .attach_printable("Maximum of 5 saved views reached for this view type");
+            }
+
+            if views_data.views.iter().any(|view| {
+                is_same_payment_view_version(view, &new_view_domain)
+                    && payment_view_name(view) == request.view_name
+            }) {
                 return Err(report!(UserErrors::SavedViewNameAlreadyExists))
                     .attach_printable("A saved view with this name already exists");
             }
@@ -689,6 +653,8 @@ async fn update_saved_view(
     profile_id: Option<String>,
     request: UpdateSavedViewRequest,
 ) -> UserResult<DashboardMetadata> {
+    let filters = request.data;
+
     modify_dashboard_metadata(
         state,
         user,
@@ -697,11 +663,10 @@ async fn update_saved_view(
         |existing: Option<types::PaymentViewsValue>| {
             let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
 
-            if !views_data
-                .views
-                .iter()
-                .any(|v| v.view_id == request.view_id)
-            {
+            if !views_data.views.iter().any(|view| {
+                payment_view_id(view) == request.view_id
+                    && matches_payment_view_filter_version(view, &filters)
+            }) {
                 return Err(report!(UserErrors::SavedViewNotFound))
                     .attach_printable("Saved view with this ID not found");
             }
@@ -712,11 +677,11 @@ async fn update_saved_view(
                         .attach_printable("Saved view name cannot be empty");
                 }
 
-                if views_data
-                    .views
-                    .iter()
-                    .any(|v| v.view_id != request.view_id && v.view_name == *new_name)
-                {
+                if views_data.views.iter().any(|view| {
+                    matches_payment_view_filter_version(view, &filters)
+                        && payment_view_id(view) != request.view_id
+                        && payment_view_name(view) == *new_name
+                }) {
                     return Err(report!(UserErrors::SavedViewNameAlreadyExists))
                         .attach_printable("A saved view with this name already exists");
                 }
@@ -725,14 +690,13 @@ async fn update_saved_view(
             let view = views_data
                 .views
                 .iter_mut()
-                .find(|v| v.view_id == request.view_id)
+                .find(|view| {
+                    payment_view_id(view) == request.view_id
+                        && matches_payment_view_filter_version(view, &filters)
+                })
                 .ok_or(report!(UserErrors::SavedViewNotFound))?;
 
-            if let Some(new_name) = request.view_name {
-                view.view_name = new_name;
-            }
-            view.filters = get_payment_views_filters_v1(request.data);
-            view.updated_at = common_utils::date_time::now().to_string();
+            update_payment_view(view, request.view_name, filters)?;
 
             Ok(views_data)
         },
@@ -759,7 +723,7 @@ async fn delete_saved_view(
             let position = views_data
                 .views
                 .iter()
-                .position(|v| v.view_id == request.view_id)
+                .position(|view| payment_view_id(view) == request.view_id)
                 .ok_or_else(|| {
                     report!(UserErrors::SavedViewNotFound)
                         .attach_printable("Saved view with this ID not found")

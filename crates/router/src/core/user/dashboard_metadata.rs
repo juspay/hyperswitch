@@ -11,6 +11,8 @@ use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
 
+#[cfg(feature = "v1")]
+use crate::types::transformers::ForeignFrom;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::{app::ReqState, SessionState},
@@ -247,15 +249,7 @@ fn into_response(
             Ok(api::GetMetaDataResponse::PaymentViews(resp.map(|d| {
                 d.views
                     .into_iter()
-                    .map(|v| api::SavedViewResponse {
-                        view_id: v.view_id,
-                        view_name: v.view_name,
-                        data: api::SavedViewFilters::V1(api::SavedViewFiltersV1::PaymentViews(
-                            v.filters,
-                        )),
-                        created_at: v.created_at.to_string(),
-                        updated_at: v.updated_at.to_string(),
-                    })
+                    .map(api::SavedViewResponse::foreign_from)
                     .collect()
             })))
         }
