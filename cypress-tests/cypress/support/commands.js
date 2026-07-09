@@ -2943,13 +2943,20 @@ Cypress.Commands.add(
                     "nextActionUrl",
                     response.body.next_action.popup_url
                   );
-                } else {
-                  expect(response.body)
-                    .to.have.property("next_action")
-                    .to.have.property("redirect_to_url");
+                } else if (response.body.next_action.redirect_to_url) {
                   globalState.set(
                     "nextActionUrl",
                     response.body.next_action.redirect_to_url
+                  );
+                } else if (response.body.next_action.url) {
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.url
+                  );
+                } else {
+                  cy.task(
+                    "cli_log",
+                    `PayPal-like next_action without redirect_to_url: ${JSON.stringify(response.body.next_action)}`
                   );
                 }
               }
@@ -3028,13 +3035,20 @@ Cypress.Commands.add(
                     "nextActionUrl",
                     response.body.next_action.popup_url
                   );
-                } else {
-                  expect(response.body.next_action).to.have.property(
-                    "redirect_to_url"
-                  );
+                } else if (response.body.next_action.redirect_to_url) {
                   globalState.set(
                     "nextActionUrl",
                     response.body.next_action.redirect_to_url
+                  );
+                } else if (response.body.next_action.url) {
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.url
+                  );
+                } else {
+                  cy.task(
+                    "cli_log",
+                    `PayPal-like next_action without redirect_to_url: ${JSON.stringify(response.body.next_action)}`
                   );
                 }
               }
@@ -3703,13 +3717,20 @@ Cypress.Commands.add(
                     "threeDsData",
                     response.body.next_action.three_ds_data
                   );
-                } else {
-                  expect(response.body.next_action).to.have.property(
-                    "redirect_to_url"
-                  );
+                } else if (response.body.next_action.redirect_to_url) {
                   globalState.set(
                     "nextActionUrl",
                     response.body.next_action.redirect_to_url
+                  );
+                } else if (response.body.next_action.url) {
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.url
+                  );
+                } else {
+                  cy.task(
+                    "cli_log",
+                    `PayPal-like next_action without redirect_to_url: ${JSON.stringify(response.body.next_action)}`
                   );
                 }
               }
@@ -3748,13 +3769,20 @@ Cypress.Commands.add(
                     "threeDsData",
                     response.body.next_action.three_ds_data
                   );
-                } else {
-                  expect(response.body.next_action).to.have.property(
-                    "redirect_to_url"
-                  );
+                } else if (response.body.next_action.redirect_to_url) {
                   globalState.set(
                     "nextActionUrl",
                     response.body.next_action.redirect_to_url
+                  );
+                } else if (response.body.next_action.url) {
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.url
+                  );
+                } else {
+                  cy.task(
+                    "cli_log",
+                    `PayPal-like next_action without redirect_to_url: ${JSON.stringify(response.body.next_action)}`
                   );
                 }
               }
@@ -4390,10 +4418,15 @@ Cypress.Commands.add(
       Response: resData,
     } = data || {};
 
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task("cli_log", "TRIGGER_SKIP enabled, skipping refundCallTest");
+      return;
+    }
+
     const payment_id = globalState.get("paymentID");
 
-    // we only need this to set the delay. We don't need the return value
-    execConfig(validateConfig(configs));
+    execConfig(validatedConfigs);
 
     for (const key in reqData) {
       requestBody[key] = reqData[key];

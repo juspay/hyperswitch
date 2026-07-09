@@ -2757,6 +2757,15 @@ function threeDsRedirection(
     return;
   }
 
+  // PayPal sandbox 3DS auto-approves and immediately redirects to the return URL
+  // before any cy.origin() commands can run. Handle it here to avoid the cross-origin crash.
+  if (connectorId === "paypal") {
+    cy.visit(redirectionUrl.href, { failOnStatusCode: false });
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl.host);
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    return;
+  }
+
   // For all other connectors, use the standard flow
   waitForRedirect(redirectionUrl.href);
 
@@ -3023,6 +3032,21 @@ function threeDsRedirection(
             .should("be.visible")
             .click();
           break;
+
+        case "nexixpay":
+          // NexixPay ACS shows an INTESA SANPAOLO | nexi branded loading spinner
+          // ("Operazione in corso. Attendi...") then transitions to a DemoBank challenge
+          // modal with two buttons: "AUTENTICAZIONE RIUSCITA" (success) and
+          // "AUTENTICAZIONE FALLITA" (failure). No OTP input exists on this page.
+          cy.contains("button", "AUTENTICAZIONE RIUSCITA", {
+            timeout: constants.TIMEOUT,
+          })
+            .should("be.visible")
+            .and("contain.text", "AUTENTICAZIONE RIUSCITA");
+          cy.screenshot("nexixpay-3ds-acs-page");
+          cy.contains("button", "AUTENTICAZIONE RIUSCITA").click();
+          break;
+
         default:
           cy.wait(constants.WAIT_TIME);
       }
