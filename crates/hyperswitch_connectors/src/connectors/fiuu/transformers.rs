@@ -769,24 +769,24 @@ impl TryFrom<Box<ApplePayPredecryptData>> for FiuuPaymentMethodData {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PaymentsResponse {
-    pub reference_no: String,
+    pub reference_no: Option<String>,
     #[serde(rename = "TxnID")]
     pub txn_id: String,
-    pub txn_type: TxnType,
-    pub txn_currency: Currency,
-    pub txn_amount: StringMajorUnit,
-    pub txn_channel: String,
+    pub txn_type: Option<String>,
+    pub txn_currency: Option<Currency>,
+    pub txn_amount: Option<StringMajorUnit>,
+    pub txn_channel: Option<String>,
     pub txn_data: TxnData,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct DuitNowQrCodeResponse {
-    pub reference_no: String,
-    pub txn_type: TxnType,
-    pub txn_currency: Currency,
-    pub txn_amount: StringMajorUnit,
-    pub txn_channel: String,
+    pub reference_no: Option<String>,
+    pub txn_type: Option<String>,
+    pub txn_currency: Option<Currency>,
+    pub txn_amount: Option<StringMajorUnit>,
+    pub txn_channel: Option<String>,
     #[serde(rename = "TxnID")]
     pub txn_id: String,
     pub txn_data: QrTxnData,
@@ -816,7 +816,7 @@ pub enum FiuuPaymentsResponse {
 pub struct FiuuRecurringResponse {
     status: FiuuRecurringStautus,
     #[serde(rename = "orderid")]
-    order_id: String,
+    order_id: Option<String>,
     #[serde(rename = "tranID")]
     tran_id: Option<String>,
     reason: Option<String>,
@@ -826,6 +826,8 @@ pub struct FiuuRecurringResponse {
 pub enum FiuuRecurringStautus {
     Accepted,
     Failed,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -833,16 +835,9 @@ pub enum FiuuRecurringStautus {
 pub struct TxnData {
     #[serde(rename = "RequestURL")]
     pub request_url: String,
-    pub request_type: RequestType,
+    pub request_type: Option<String>,
     pub request_data: RequestData,
     pub request_method: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum RequestType {
-    Redirect,
-    Response,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -880,6 +875,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
     fn try_from(
         item: PaymentsResponseRouterData<FiuuPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
+        let prev_status = item.data.status;
         match item.response {
             FiuuPaymentsResponse::QRPaymentResponse(ref response) => Ok(Self {
                 status: enums::AttemptStatus::AuthenticationPending,
@@ -1013,8 +1009,10 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                 let recurring_response_item = recurring_response_vec.first();
                 let router_data_response = match recurring_response_item {
                     Some(recurring_response) => {
-                        let status =
-                            common_enums::AttemptStatus::from(recurring_response.status.clone());
+                        let status = get_recurring_attempt_status(
+                            recurring_response.status.clone(),
+                            prev_status,
+                        );
                         let connector_transaction_id = recurring_response
                             .tran_id
                             .as_ref()
@@ -1087,11 +1085,19 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
     }
 }
 
-impl From<FiuuRecurringStautus> for common_enums::AttemptStatus {
-    fn from(status: FiuuRecurringStautus) -> Self {
-        match status {
-            FiuuRecurringStautus::Accepted => Self::Charged,
-            FiuuRecurringStautus::Failed => Self::Failure,
+fn get_recurring_attempt_status(
+    status: FiuuRecurringStautus,
+    prev_status: common_enums::AttemptStatus,
+) -> common_enums::AttemptStatus {
+    match status {
+        FiuuRecurringStautus::Accepted => common_enums::AttemptStatus::Charged,
+        FiuuRecurringStautus::Failed => common_enums::AttemptStatus::Failure,
+        FiuuRecurringStautus::Unknown => {
+            router_env::logger::warn!(
+                "Fiuu returned unknown recurring status; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
         }
     }
 }
@@ -1273,6 +1279,8 @@ pub enum StatCode {
     Failure,
     #[serde(rename = "22")]
     Pending,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Serialize, Deserialize, Display, Clone, Copy, PartialEq)]
@@ -1294,7 +1302,7 @@ pub enum StatName {
     ReqChargeback,
     #[serde(rename = "Pending")]
     Pending,
-    #[serde(rename = "Unknown")]
+    #[serde(other)]
     Unknown,
 }
 impl TryFrom<&PaymentsSyncRouterData> for FiuuPaymentSyncRequest {
@@ -1387,6 +1395,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
     fn try_from(
         item: PaymentsSyncResponseRouterData<FiuuPaymentResponse>,
     ) -> Result<Self, Self::Error> {
+        let prev_status = item.data.status;
         match item.response {
             FiuuPaymentResponse::FiuuPaymentSyncResponse(response) => {
                 let stat_name = response.stat_name;
@@ -1395,6 +1404,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 let status = enums::AttemptStatus::try_from(FiuuSyncStatus {
                     stat_name,
                     stat_code,
+                    prev_status,
                 })?;
                 let error_response = if status == enums::AttemptStatus::Failure {
                     let error_details = ErrorDetails::try_from(ErrorInputs {
@@ -1446,6 +1456,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 let status = enums::AttemptStatus::try_from(FiuuWebhookStatus {
                     capture_method: item.data.request.capture_method,
                     status: response.status,
+                    prev_status,
                 })?;
                 let txn_id = response.tran_id;
                 let mandate_reference = response.extra_parameters.as_ref().and_then(|extra_p| {
@@ -1520,11 +1531,13 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
 pub struct FiuuWebhookStatus {
     pub capture_method: Option<CaptureMethod>,
     pub status: FiuuPaymentWebhookStatus,
+    pub prev_status: enums::AttemptStatus,
 }
 
 impl TryFrom<FiuuWebhookStatus> for enums::AttemptStatus {
     type Error = Report<errors::ConnectorError>;
     fn try_from(webhook_status: FiuuWebhookStatus) -> Result<Self, Self::Error> {
+        let prev_status = webhook_status.prev_status;
         match webhook_status.status {
             FiuuPaymentWebhookStatus::Success => match webhook_status.capture_method {
                 Some(CaptureMethod::Automatic) | Some(CaptureMethod::SequentialAutomatic) => {
@@ -1537,6 +1550,13 @@ impl TryFrom<FiuuWebhookStatus> for enums::AttemptStatus {
             },
             FiuuPaymentWebhookStatus::Failure => Ok(Self::Failure),
             FiuuPaymentWebhookStatus::Pending => Ok(Self::AuthenticationPending),
+            FiuuPaymentWebhookStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Fiuu returned unknown webhook payment status; retaining previous status {:?}",
+                    prev_status
+                );
+                Ok(prev_status)
+            }
         }
     }
 }
@@ -1563,11 +1583,13 @@ pub struct PaymentCaptureResponse {
 pub struct FiuuSyncStatus {
     pub stat_name: StatName,
     pub stat_code: StatCode,
+    pub prev_status: enums::AttemptStatus,
 }
 
 impl TryFrom<FiuuSyncStatus> for enums::AttemptStatus {
     type Error = errors::ConnectorError;
     fn try_from(sync_status: FiuuSyncStatus) -> Result<Self, Self::Error> {
+        let prev_status = sync_status.prev_status;
         match (sync_status.stat_code, sync_status.stat_name) {
             (StatCode::Success, StatName::Captured | StatName::Settled) => Ok(Self::Charged), // For Success as StatCode we can only expect Captured,Settled and Authorized as StatName.
             (StatCode::Success, StatName::Authorized) => Ok(Self::Authorized),
@@ -1577,6 +1599,13 @@ impl TryFrom<FiuuSyncStatus> for enums::AttemptStatus {
                 Ok(Self::Voided)
             }
             (StatCode::Failure, _) => Ok(Self::Failure),
+            (StatCode::Unknown, _) => {
+                router_env::logger::warn!(
+                    "Fiuu returned unknown sync stat_code; retaining previous status {:?}",
+                    prev_status
+                );
+                Ok(prev_status)
+            }
             (other, _) => Err(errors::ConnectorError::UnexpectedResponseError(
                 bytes::Bytes::from(other.to_string()),
             )),
@@ -1868,6 +1897,8 @@ pub enum RefundStatus {
     Pending,
     Rejected,
     Processing,
+    #[serde(other)]
+    Unknown,
 }
 
 impl TryFrom<RefundsResponseRouterData<RSync, FiuuRefundSyncResponse>>
@@ -1878,6 +1909,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, FiuuRefundSyncResponse>>
     fn try_from(
         item: RefundsResponseRouterData<RSync, FiuuRefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
+        let prev_status = item.data.request.refund_status;
         match item.response {
             FiuuRefundSyncResponse::Error(error) => Ok(Self {
                 response: Err(ErrorResponse {
@@ -1905,7 +1937,10 @@ impl TryFrom<RefundsResponseRouterData<RSync, FiuuRefundSyncResponse>>
                 Ok(Self {
                     response: Ok(RefundsResponseData {
                         connector_refund_id: refund.refund_id.clone(),
-                        refund_status: enums::RefundStatus::from(refund.status.clone()),
+                        refund_status: get_refund_status_from_sync(
+                            refund.status.clone(),
+                            prev_status,
+                        ),
                     }),
                     ..item.data
                 })
@@ -1913,8 +1948,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, FiuuRefundSyncResponse>>
             FiuuRefundSyncResponse::Webhook(fiuu_webhooks_refund_response) => Ok(Self {
                 response: Ok(RefundsResponseData {
                     connector_refund_id: fiuu_webhooks_refund_response.refund_id,
-                    refund_status: enums::RefundStatus::from(
+                    refund_status: get_refund_status_from_webhook(
                         fiuu_webhooks_refund_response.status.clone(),
+                        prev_status,
                     ),
                 }),
                 ..item.data
@@ -1923,13 +1959,21 @@ impl TryFrom<RefundsResponseRouterData<RSync, FiuuRefundSyncResponse>>
     }
 }
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Pending => Self::Pending,
-            RefundStatus::Success => Self::Success,
-            RefundStatus::Rejected => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
+fn get_refund_status_from_sync(
+    status: RefundStatus,
+    prev_status: enums::RefundStatus,
+) -> enums::RefundStatus {
+    match status {
+        RefundStatus::Pending => enums::RefundStatus::Pending,
+        RefundStatus::Success => enums::RefundStatus::Success,
+        RefundStatus::Rejected => enums::RefundStatus::Failure,
+        RefundStatus::Processing => enums::RefundStatus::Pending,
+        RefundStatus::Unknown => {
+            router_env::logger::warn!(
+                "Fiuu returned unknown refund sync status; previous status was {:?}, marking refund as pending",
+                prev_status
+            );
+            enums::RefundStatus::Pending
         }
     }
 }
@@ -1977,13 +2021,13 @@ pub struct FiuuWebhooksPaymentResponse {
     pub order_id: String,
     #[serde(rename = "tranID")]
     pub tran_id: String,
-    pub nbcb: String,
+    pub nbcb: Option<String>,
     pub amount: StringMajorUnit,
     pub currency: String,
     pub domain: Secret<String>,
     pub appcode: Option<Secret<String>>,
     pub paydate: String,
-    pub channel: String,
+    pub channel: Option<String>,
     pub error_desc: Option<String>,
     pub error_code: Option<String>,
     #[serde(rename = "extraP")]
@@ -2029,6 +2073,8 @@ pub enum FiuuRefundsWebhookStatus {
     #[strum(serialize = "22")]
     #[serde(rename = "22")]
     RefundPending,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, strum::Display)]
@@ -2062,6 +2108,8 @@ pub enum FiuuPaymentWebhookStatus {
     #[strum(serialize = "22")]
     #[serde(rename = "22")]
     Pending,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<FiuuPaymentWebhookStatus> for StatCode {
@@ -2070,6 +2118,7 @@ impl From<FiuuPaymentWebhookStatus> for StatCode {
             FiuuPaymentWebhookStatus::Success => Self::Success,
             FiuuPaymentWebhookStatus::Failure => Self::Failure,
             FiuuPaymentWebhookStatus::Pending => Self::Pending,
+            FiuuPaymentWebhookStatus::Unknown => Self::Unknown,
         }
     }
 }
@@ -2080,6 +2129,12 @@ impl From<FiuuPaymentWebhookStatus> for api_models::webhooks::IncomingWebhookEve
             FiuuPaymentWebhookStatus::Success => Self::PaymentIntentSuccess,
             FiuuPaymentWebhookStatus::Failure => Self::PaymentIntentFailure,
             FiuuPaymentWebhookStatus::Pending => Self::PaymentIntentProcessing,
+            FiuuPaymentWebhookStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown fiuu payment webhook status received; acknowledging without processing"
+                );
+                Self::EventNotSupported
+            }
         }
     }
 }
@@ -2090,16 +2145,30 @@ impl From<FiuuRefundsWebhookStatus> for api_models::webhooks::IncomingWebhookEve
             FiuuRefundsWebhookStatus::RefundSuccess => Self::RefundSuccess,
             FiuuRefundsWebhookStatus::RefundFailure => Self::RefundFailure,
             FiuuRefundsWebhookStatus::RefundPending => Self::EventNotSupported,
+            FiuuRefundsWebhookStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown fiuu refund webhook status received; acknowledging without processing"
+                );
+                Self::EventNotSupported
+            }
         }
     }
 }
 
-impl From<FiuuRefundsWebhookStatus> for enums::RefundStatus {
-    fn from(value: FiuuRefundsWebhookStatus) -> Self {
-        match value {
-            FiuuRefundsWebhookStatus::RefundFailure => Self::Failure,
-            FiuuRefundsWebhookStatus::RefundSuccess => Self::Success,
-            FiuuRefundsWebhookStatus::RefundPending => Self::Pending,
+fn get_refund_status_from_webhook(
+    status: FiuuRefundsWebhookStatus,
+    prev_status: enums::RefundStatus,
+) -> enums::RefundStatus {
+    match status {
+        FiuuRefundsWebhookStatus::RefundFailure => enums::RefundStatus::Failure,
+        FiuuRefundsWebhookStatus::RefundSuccess => enums::RefundStatus::Success,
+        FiuuRefundsWebhookStatus::RefundPending => enums::RefundStatus::Pending,
+        FiuuRefundsWebhookStatus::Unknown => {
+            router_env::logger::warn!(
+                "Fiuu returned unknown refund webhook status; previous status was {:?}, marking refund as pending",
+                prev_status
+            );
+            prev_status
         }
     }
 }
