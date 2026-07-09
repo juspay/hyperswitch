@@ -1,17 +1,14 @@
 use std::{net::IpAddr, ops::Not, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
+#[cfg(feature = "v1")]
+use api_models::user::dashboard_metadata::{
+    CreateSavedViewRequest, PaymentListFilterConstraintsV1, SavedViewFilters, SavedViewFiltersV1,
+    SavedViewFiltersV2, SavedViewOperation, UpdateSavedViewRequest,
+};
 use api_models::user::dashboard_metadata::{
     DeleteSavedViewRequest, GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent,
     SetMetaDataRequest,
-};
-#[cfg(feature = "v1")]
-use api_models::{
-    payments,
-    user::dashboard_metadata::{
-        CreateSavedViewRequest, PaymentListFilterConstraintsV1, SavedViewFilters,
-        SavedViewFiltersV1, SavedViewFiltersV2, SavedViewOperation, UpdateSavedViewRequest,
-    },
 };
 use common_enums::EntityType;
 use common_utils::id_type;
@@ -27,7 +24,7 @@ use crate::{
     core::errors::{UserErrors, UserResult},
     headers,
     services::{authentication::UserFromToken, authorization::roles::RoleInfo},
-    types::{domain::user::dashboard_metadata as types, transformers::ForeignFrom},
+    types::domain::user::dashboard_metadata as types,
     SessionState,
 };
 
@@ -464,157 +461,77 @@ where
 }
 
 #[cfg(feature = "v1")]
-impl ForeignFrom<payments::PaymentListFilterConstraints> for PaymentListFilterConstraintsV1 {
-    fn foreign_from(item: payments::PaymentListFilterConstraints) -> Self {
-        let payments::PaymentListFilterConstraints {
-            query: _query,
-            payment_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            amount_filter,
-            time_range,
-            connector,
-            currency,
-            status,
-            payment_method,
-            payment_method_type,
-            authentication_type,
-            merchant_connector_id,
-            order,
-            card_network,
-            card_last_4: _card_last_4,
-            active_attempt_id: _active_attempt_id,
-            card_issuer: _card_issuer,
-            routing_approach: _routing_approach,
-            refunds_status: _refunds_status,
-            dispute_status: _dispute_status,
-            client_source: _client_source,
-            client_version: _client_version,
-            first_attempt: _first_attempt,
-            merchant_order_reference_id,
-            card_discovery,
-            customer_email,
-        } = item;
-        Self {
-            payment_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            amount_filter,
-            time_range,
-            connector,
-            currency,
-            status,
-            payment_method,
-            payment_method_type,
-            authentication_type,
-            merchant_connector_id,
-            order,
-            card_network,
-            merchant_order_reference_id,
-            card_discovery,
-            customer_email,
-            extra_filters: std::collections::HashMap::new(),
-        }
+fn validate_v1_payment_views_filters(
+    filters: PaymentListFilterConstraintsV1,
+) -> UserResult<PaymentListFilterConstraintsV1> {
+    if !filters.extra_filters.is_empty() {
+        let unsupported_filters = filters
+            .extra_filters
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        return Err(report!(UserErrors::InvalidMetadataRequest)).attach_printable(format!(
+            "Unsupported filters for v1 payment saved views: {unsupported_filters}"
+        ));
     }
+
+    Ok(filters)
 }
 
 #[cfg(feature = "v1")]
-impl ForeignFrom<PaymentListFilterConstraintsV1> for payments::PaymentListFilterConstraints {
-    fn foreign_from(item: PaymentListFilterConstraintsV1) -> Self {
-        let PaymentListFilterConstraintsV1 {
-            payment_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            amount_filter,
-            time_range,
-            connector,
-            currency,
-            status,
-            payment_method,
-            payment_method_type,
-            authentication_type,
-            merchant_connector_id,
-            order,
-            card_network,
-            merchant_order_reference_id,
-            card_discovery,
-            customer_email,
-            extra_filters: _extra_filters,
-        } = item;
-        Self {
-            query: None,
-            payment_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            amount_filter,
-            time_range,
-            connector,
-            currency,
-            status,
-            payment_method,
-            payment_method_type,
-            authentication_type,
-            merchant_connector_id,
-            order,
-            card_network,
-            card_last_4: None,
-            active_attempt_id: None,
-            card_issuer: None,
-            routing_approach: None,
-            refunds_status: None,
-            dispute_status: None,
-            client_source: None,
-            client_version: None,
-            first_attempt: None,
-            merchant_order_reference_id,
-            card_discovery,
-            customer_email,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
-fn get_payment_views_filters(
+fn get_payment_view(
+    view_id: String,
+    view_name: String,
     data: SavedViewFilters,
-) -> UserResult<(
-    types::SavedViewVersion,
-    payments::PaymentListFilterConstraints,
-)> {
+    created_at: String,
+    updated_at: String,
+) -> UserResult<types::SavedView> {
     match data {
-        SavedViewFilters::V1(f) => match f {
-            SavedViewFiltersV1::PaymentViews(p) => {
-                if !p.extra_filters.is_empty() {
-                    let unsupported_filters = p
-                        .extra_filters
-                        .keys()
-                        .cloned()
-                        .collect::<Vec<_>>()
-                        .join(", ");
+        SavedViewFilters::V1(SavedViewFiltersV1::PaymentViews(filters)) => {
+            Ok(types::SavedView::V1(types::SavedViewV1 {
+                view_id,
+                view_name,
+                filters: validate_v1_payment_views_filters(filters)?,
+                created_at,
+                updated_at,
+            }))
+        }
+        SavedViewFilters::V2(SavedViewFiltersV2::PaymentViews(filters)) => {
+            Ok(types::SavedView::V2(types::SavedViewV2 {
+                view_id,
+                view_name,
+                filters,
+                created_at,
+                updated_at,
+            }))
+        }
+    }
+}
 
-                    return Err(report!(UserErrors::InvalidMetadataRequest)).attach_printable(
-                        format!(
-                            "Unsupported filters for v1 payment saved views: {unsupported_filters}"
-                        ),
-                    );
-                }
-
-                Ok((
-                    types::SavedViewVersion::V1,
-                    payments::PaymentListFilterConstraints::foreign_from(p),
-                ))
-            }
-        },
-        SavedViewFilters::V2(f) => match f {
-            SavedViewFiltersV2::PaymentViews(p) => Ok((types::SavedViewVersion::V2, p)),
-        },
+#[cfg(feature = "v1")]
+fn set_payment_view_filters(
+    view: &mut types::SavedView,
+    filters: SavedViewFilters,
+) -> UserResult<()> {
+    match (view, filters) {
+        (
+            types::SavedView::V1(view),
+            SavedViewFilters::V1(SavedViewFiltersV1::PaymentViews(filters)),
+        ) => {
+            view.filters = validate_v1_payment_views_filters(filters)?;
+            Ok(())
+        }
+        (
+            types::SavedView::V2(view),
+            SavedViewFilters::V2(SavedViewFiltersV2::PaymentViews(filters)),
+        ) => {
+            view.filters = filters;
+            Ok(())
+        }
+        _ => Err(report!(UserErrors::SavedViewNotFound))
+            .attach_printable("Saved view with this version not found"),
     }
 }
 
@@ -654,15 +571,13 @@ async fn create_saved_view(
 
     let now = common_utils::date_time::now();
     let view_id = common_utils::generate_id(common_utils::consts::ID_LENGTH, "view");
-    let (version, filters) = get_payment_views_filters(request.data)?;
-    let new_view_domain = types::SavedView {
+    let new_view_domain = get_payment_view(
         view_id,
-        view_name: request.view_name.clone(),
-        version: version.clone(),
-        filters,
-        created_at: now.to_string(),
-        updated_at: now.to_string(),
-    };
+        request.view_name.clone(),
+        request.data,
+        now.to_string(),
+        now.to_string(),
+    )?;
 
     modify_dashboard_metadata(
         state,
@@ -675,7 +590,7 @@ async fn create_saved_view(
             if views_data
                 .views
                 .iter()
-                .filter(|view| view.version == version)
+                .filter(|view| view.is_same_version(&new_view_domain))
                 .count()
                 >= MAX_SAVED_VIEWS
             {
@@ -683,11 +598,9 @@ async fn create_saved_view(
                     .attach_printable("Maximum of 5 saved views reached for this view type");
             }
 
-            if views_data
-                .views
-                .iter()
-                .any(|v| v.version == version && v.view_name == request.view_name)
-            {
+            if views_data.views.iter().any(|v| {
+                v.is_same_version(&new_view_domain) && v.view_name() == request.view_name.as_str()
+            }) {
                 return Err(report!(UserErrors::SavedViewNameAlreadyExists))
                     .attach_printable("A saved view with this name already exists");
             }
@@ -707,7 +620,7 @@ async fn update_saved_view(
     profile_id: Option<String>,
     request: UpdateSavedViewRequest,
 ) -> UserResult<DashboardMetadata> {
-    let (version, filters) = get_payment_views_filters(request.data)?;
+    let filters = request.data;
 
     modify_dashboard_metadata(
         state,
@@ -720,7 +633,7 @@ async fn update_saved_view(
             if !views_data
                 .views
                 .iter()
-                .any(|v| v.view_id == request.view_id && v.version == version)
+                .any(|v| v.view_id() == request.view_id && v.matches_filters_version(&filters))
             {
                 return Err(report!(UserErrors::SavedViewNotFound))
                     .attach_printable("Saved view with this ID not found");
@@ -733,7 +646,9 @@ async fn update_saved_view(
                 }
 
                 if views_data.views.iter().any(|v| {
-                    v.version == version && v.view_id != request.view_id && v.view_name == *new_name
+                    v.matches_filters_version(&filters)
+                        && v.view_id() != request.view_id
+                        && v.view_name() == new_name.as_str()
                 }) {
                     return Err(report!(UserErrors::SavedViewNameAlreadyExists))
                         .attach_printable("A saved view with this name already exists");
@@ -743,15 +658,14 @@ async fn update_saved_view(
             let view = views_data
                 .views
                 .iter_mut()
-                .find(|v| v.view_id == request.view_id && v.version == version)
+                .find(|v| v.view_id() == request.view_id && v.matches_filters_version(&filters))
                 .ok_or(report!(UserErrors::SavedViewNotFound))?;
 
             if let Some(new_name) = request.view_name {
-                view.view_name = new_name;
+                view.set_view_name(new_name);
             }
-            view.version = version;
-            view.filters = filters;
-            view.updated_at = common_utils::date_time::now().to_string();
+            set_payment_view_filters(view, filters)?;
+            view.set_updated_at(common_utils::date_time::now().to_string());
 
             Ok(views_data)
         },
@@ -778,7 +692,7 @@ async fn delete_saved_view(
             let position = views_data
                 .views
                 .iter()
-                .position(|v| v.view_id == request.view_id)
+                .position(|v| v.view_id() == request.view_id)
                 .ok_or_else(|| {
                     report!(UserErrors::SavedViewNotFound)
                         .attach_printable("Saved view with this ID not found")
