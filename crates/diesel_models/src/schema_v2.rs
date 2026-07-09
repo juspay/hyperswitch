@@ -430,7 +430,7 @@ diesel::table! {
         card_iin_type -> Nullable<Text>,
         virtual_card -> Nullable<Bool>,
         gambling_blocked -> Nullable<Bool>,
-        co_badged_card_networks -> Nullable<Array<Text>>,
+        co_badged_card_networks -> Nullable<Array<Nullable<Text>>>,
     }
 }
 
