@@ -1549,6 +1549,19 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
+    async fn find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        get_disabled: bool,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, errors::StorageError> {
+        self.diesel_store
+            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+                merchant_id,
+                get_disabled,
+            )
+            .await
+    }
+
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
         &self,
