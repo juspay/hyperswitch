@@ -3086,7 +3086,11 @@ impl
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: connector_transaction_id.get_optional_response_id(),
+                connector_transaction_id: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.connector_transaction_id.clone())
+                    .or_else(|| connector_transaction_id.get_optional_response_id()),
                 connector_response_reference_id: Some(
                     response.merchant_recurring_payment_id.clone(),
                 )
