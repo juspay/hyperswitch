@@ -14067,10 +14067,13 @@ async fn perform_external_vault_authentication_v1(
             ),
             _ => (None, None, None, None, None),
         };
-    let acs_signed_content = acs_signed_content
-        .or_else(|| app_acs.as_ref().and_then(|m| m.acs_signed_content.clone()));
-    let acs_reference_number = acs_reference_number
-        .or_else(|| app_acs.as_ref().and_then(|m| m.acs_reference_number.clone()));
+    let acs_signed_content =
+        acs_signed_content.or_else(|| app_acs.as_ref().and_then(|m| m.acs_signed_content.clone()));
+    let acs_reference_number = acs_reference_number.or_else(|| {
+        app_acs
+            .as_ref()
+            .and_then(|m| m.acs_reference_number.clone())
+    });
 
     let trans_status = areq_authentication_data
         .as_ref()
