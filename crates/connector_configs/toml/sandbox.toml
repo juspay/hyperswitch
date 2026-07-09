@@ -5275,6 +5275,42 @@ api_secret = "Developer Id"
 [tsys.connector_webhook_details]
 merchant_secret = "Source verification key"
 
+[tsys_transit]
+[[tsys_transit.credit]]
+payment_method_type = "Mastercard"
+[[tsys_transit.credit]]
+payment_method_type = "Visa"
+[[tsys_transit.credit]]
+payment_method_type = "AmericanExpress"
+[[tsys_transit.credit]]
+payment_method_type = "JCB"
+[[tsys_transit.credit]]
+payment_method_type = "DinersClub"
+[[tsys_transit.credit]]
+payment_method_type = "Discover"
+[[tsys_transit.credit]]
+payment_method_type = "UnionPay"
+[[tsys_transit.debit]]
+payment_method_type = "Mastercard"
+[[tsys_transit.debit]]
+payment_method_type = "Visa"
+[[tsys_transit.debit]]
+payment_method_type = "AmericanExpress"
+[[tsys_transit.debit]]
+payment_method_type = "JCB"
+[[tsys_transit.debit]]
+payment_method_type = "DinersClub"
+[[tsys_transit.debit]]
+payment_method_type = "Discover"
+[[tsys_transit.debit]]
+payment_method_type = "UnionPay"
+[tsys_transit.connector_auth.SignatureKey]
+api_key = "Device Id"
+key1 = "Transaction Key"
+api_secret = "Developer Id"
+[tsys_transit.connector_webhook_details]
+merchant_secret = "Source verification key"
+
 [volt]
 [[volt.bank_redirect]]
 payment_method_type = "open_banking_uk"
@@ -7286,7 +7322,7 @@ options = []
 
 [santander]
 [[santander.bank_transfer]]
-payment_method_type = "pix_emv"
+payment_method_type = "pix_qr"
 [[santander.bank_transfer]]
 payment_method_type = "pix_automatico_push"
 [[santander.bank_transfer]]
@@ -7297,38 +7333,38 @@ payment_method_type = "boleto"
 certificate="Base64 encoded PEM formatted certificate chain"
 private_key="Base64 encoded PEM formatted private key"
   
-[[santander.metadata.pix_emv]]
+[[santander.metadata.pix_qr]]
 name="client_id"
 label="Client ID"
 placeholder="Enter your Client Id"
 required=true
 type="Text"
-[[santander.metadata.pix_emv]]
+[[santander.metadata.pix_qr]]
 name="client_secret"
 label="Client Secret"
 placeholder="Enter your Client Secret"
 required=true
 type="Text"
-[[santander.metadata.pix_emv]]
+[[santander.metadata.pix_qr]]
 name="pix_key_type"
 label="Chave Key Type"
 placeholder="Enter your Chave/Pix Key Type"
 required=true
 type="Select"
 options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
-[[santander.metadata.pix_emv]]
+[[santander.metadata.pix_qr]]
 name="pix_key_value"
 label="Chave Key"
 placeholder="Enter your Chave/Pix Key"
 required=true
 type="Text"
-[[santander.metadata.pix_emv]]
+[[santander.metadata.pix_qr]]
 name="merchant_city"
 label="Merchant City"
 placeholder="Enter the city the merchant is based in"
 required=true
 type="Text"
-[[santander.metadata.pix_emv]]
+[[santander.metadata.pix_qr]]
 name="merchant_name"
 label="Merchant Name"
 placeholder="Enter the merchant name"
@@ -8295,7 +8331,7 @@ key1 = "Username"
 [[envoy_payout.bank_transfer]]
   payment_method_type = "ach"
 
-  
+
 [vgs]
 [vgs.connector_auth.SignatureKey]
   api_key="Client Id"
@@ -8606,6 +8642,10 @@ payment_method_type = "JCB"
 payment_method_type = "Discover"
 [[imerchantsolutions.debit]]
 payment_method_type = "UnionPay"
+[[imerchantsolutions.wallet]]
+payment_method_type = "google_pay"
+[[imerchantsolutions.wallet]]
+payment_method_type = "apple_pay"
 
 [absa_sanlam]
 [absa_sanlam.connector_auth.BodyKey]

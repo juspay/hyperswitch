@@ -312,6 +312,8 @@ pub enum ApiErrorResponse {
         message = "Access forbidden, invalid Basic authentication credentials"
     )]
     InvalidBasicAuth,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_52", message = "Payment Session has expired")]
+    PaymentSessionExpired,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -742,6 +744,11 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("CE", 9, format!("Subscription operation: {operation} failed with connector"), None))
             }
             Self::ExpiredJwtToken => AER::Unauthorized(ApiError::new("IR", 48, "Access forbidden, expired JWT token was used", None)),
+            Self::PaymentSessionExpired => AER::BadRequest(ApiError::new(
+                "IR",
+                52,
+                "The provided payment session has expired", None
+            )),
         }
     }
 }

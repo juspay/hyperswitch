@@ -389,7 +389,7 @@ pub async fn render_pm_collect_link(
                     publishable_key: Secret::new(provider.get_account().clone().publishable_key),
                     client_secret: link_data.client_secret.clone(),
                     pm_collect_link_id: pm_collect_link.link_id,
-                    customer_id: customer.customer_id,
+                    customer_id: customer.get_id().clone(),
                     session_expiry: pm_collect_link.expiry,
                     return_url: pm_collect_link.return_url,
                     ui_config: ui_config_data,
@@ -1726,7 +1726,7 @@ impl LockerOperations for GenericLocker {
         )
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-        let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+        let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None, None)
             .await
             .change_context(errors::VaultError::VaultAPIError)
             .attach_printable("Call to vault failed")?;
@@ -1754,7 +1754,7 @@ impl LockerOperations for GenericLocker {
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultDeleteRequest")?;
 
-        let resp = vault::call_to_vault::<pm_types::VaultDelete>(state, payload, None)
+        let resp = vault::call_to_vault::<pm_types::VaultDelete>(state, payload, None, None)
             .await
             .change_context(errors::VaultError::VaultAPIError)
             .attach_printable("Call to vault failed")?;

@@ -506,7 +506,7 @@ impl From<SignifydPaymentStatus> for FraudCheckStatus {
 pub struct SignifydPaymentsResponse {
     signifyd_id: i64,
     order_id: String,
-    decision: Decision,
+    decision: Option<Decision>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, SignifydPaymentsResponse, T, FraudCheckResponseData>>
@@ -516,17 +516,23 @@ impl<F, T> TryFrom<ResponseRouterData<F, SignifydPaymentsResponse, T, FraudCheck
     fn try_from(
         item: ResponseRouterData<F, SignifydPaymentsResponse, T, FraudCheckResponseData>,
     ) -> Result<Self, Self::Error> {
+        let (status, score, reason) = match item.response.decision {
+            Some(decision) => (
+                FraudCheckStatus::from(decision.checkpoint_action),
+                decision.score.and_then(|data| data.to_i32()),
+                decision
+                    .checkpoint_action_reason
+                    .map(serde_json::Value::from),
+            ),
+            None => (FraudCheckStatus::Legit, None, None),
+        };
         Ok(Self {
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order_id),
-                status: FraudCheckStatus::from(item.response.decision.checkpoint_action),
+                status,
                 connector_metadata: None,
-                score: item.response.decision.score.and_then(|data| data.to_i32()),
-                reason: item
-                    .response
-                    .decision
-                    .checkpoint_action_reason
-                    .map(serde_json::Value::from),
+                score,
+                reason,
             }),
             ..item.data
         })
