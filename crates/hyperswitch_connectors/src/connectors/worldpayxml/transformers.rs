@@ -216,7 +216,7 @@ struct OrderStatus {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Token {
-    authenticated_shopper_i_d: String,
+    authenticated_shopper_i_d: Option<String>,
     token_details: TokenDetails,
 }
 
@@ -224,7 +224,7 @@ struct Token {
 #[serde(rename_all = "camelCase")]
 struct TokenDetails {
     #[serde(rename = "@tokenEvent")]
-    token_event: String,
+    token_event: Option<String>,
     payment_token_i_d: Secret<String>,
 }
 
@@ -248,8 +248,8 @@ struct ThreeDSChallengeDetails {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payment {
-    payment_method: String,
-    amount: WorldpayXmlAmount,
+    payment_method: Option<String>,
+    amount: Option<WorldpayXmlAmount>,
     pub last_event: LastEvent,
     #[serde(rename = "AuthorisationId")]
     authorisation_id: Option<AuthorisationId>,
@@ -347,6 +347,8 @@ pub enum LastEvent {
     PushRequested,
     PushRefused,
     SettledByMerchant,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1664,6 +1666,14 @@ fn get_attempt_status(
             Ok(common_enums::AttemptStatus::Charged)
         }
         LastEvent::SentForAuthorisation => Ok(common_enums::AttemptStatus::Authorizing),
+        LastEvent::Unknown => {
+            let status = previous_status.copied().unwrap_or_default();
+            router_env::logger::warn!(
+                "Unknown worldpayxml connector status received; retaining previous status {:?}",
+                status
+            );
+            Ok(status)
+        }
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
         )),
@@ -1672,6 +1682,7 @@ fn get_attempt_status(
 
 fn get_attempt_status_for_setup_mandate(
     last_event: LastEvent,
+    previous_status: Option<&common_enums::AttemptStatus>,
 ) -> Result<common_enums::AttemptStatus, errors::ConnectorError> {
     match last_event {
         LastEvent::Refused => Ok(common_enums::AttemptStatus::Failure),
@@ -1681,13 +1692,24 @@ fn get_attempt_status_for_setup_mandate(
         | LastEvent::Settled
         | LastEvent::SettledByMerchant => Ok(common_enums::AttemptStatus::Charged),
         LastEvent::SentForAuthorisation => Ok(common_enums::AttemptStatus::Authorizing),
+        LastEvent::Unknown => {
+            let status = previous_status.copied().unwrap_or_default();
+            router_env::logger::warn!(
+                "Unknown worldpayxml connector status received; retaining previous status {:?}",
+                status
+            );
+            Ok(status)
+        }
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
         )),
     }
 }
 
-fn get_refund_status(last_event: LastEvent) -> Result<enums::RefundStatus, errors::ConnectorError> {
+fn get_refund_status(
+    last_event: LastEvent,
+    previous_status: enums::RefundStatus,
+) -> Result<enums::RefundStatus, errors::ConnectorError> {
     match last_event {
         LastEvent::Refunded | LastEvent::RefundedByMerchant => Ok(enums::RefundStatus::Success),
         LastEvent::SentForRefund | LastEvent::RefundRequested | LastEvent::SentForFastRefund => {
@@ -1695,6 +1717,13 @@ fn get_refund_status(last_event: LastEvent) -> Result<enums::RefundStatus, error
         }
         LastEvent::RefundFailed => Ok(enums::RefundStatus::Failure),
         LastEvent::Captured | LastEvent::Settled => Ok(enums::RefundStatus::Pending),
+        LastEvent::Unknown => {
+            router_env::logger::warn!(
+                "Unknown worldpayxml connector status received for refund; retaining previous status {:?}",
+                previous_status
+            );
+            Ok(previous_status)
+        }
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
         )),
@@ -2409,7 +2438,10 @@ impl<F>
             validate_order_status(&order_status)?;
 
             if let Some(payment_data) = order_status.payment {
-                let status = get_attempt_status_for_setup_mandate(payment_data.last_event)?;
+                let status = get_attempt_status_for_setup_mandate(
+                    payment_data.last_event,
+                    Some(&item.data.status),
+                )?;
                 let response = process_payment_response(
                     status,
                     &payment_data,
@@ -2797,7 +2829,10 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                     validate_order_status(&order_status)?;
 
                     if let Some(payment_data) = order_status.payment {
-                        let status = get_refund_status(payment_data.last_event)?;
+                        let status = get_refund_status(
+                            payment_data.last_event,
+                            item.data.request.refund_status,
+                        )?;
                         let response = if connector_utils::is_refund_failure(status) {
                             let error_code = payment_data
                                 .return_code
@@ -2863,7 +2898,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                 }
             }
             WorldpayxmlSyncResponse::Webhook(data) => {
-                let status = get_refund_status(data.payment_status)?;
+                let status =
+                    get_refund_status(data.payment_status, item.data.request.refund_status)?;
                 let response = if connector_utils::is_refund_failure(status) {
                     let error_code = data.return_code;
                     let error_message = data.return_message;
