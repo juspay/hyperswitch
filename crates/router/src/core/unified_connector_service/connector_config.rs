@@ -6,6 +6,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use common_enums::{connector_enums::Connector, enums::Currency};
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -899,8 +900,10 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 ConnectorAuthType::BodyKey { api_key, key1 } => {
                     let jpm_meta = metadata
                         .map(|m| {
-                            serde_json::from_value::<JpmorganMetadata>(m.clone())
-                                .map_err(|_| err("Invalid Jpmorgan metadata format"))
+                            m.clone()
+                                .parse_value::<JpmorganMetadata>("JpmorganMetadata")
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Invalid Jpmorgan metadata format")
                         })
                         .transpose()?;
                     Ok(Self::Jpmorgan {
