@@ -1694,7 +1694,7 @@ pub fn build_redirection_form(
                                     var data = JSON.parse(event.data);
                                     var responseForm = document.createElement('form');
                                     responseForm.action=window.location.pathname.replace(
-                                        new RegExp("payments/redirect/(\\w+)/(\\w+)/\\w+"),
+                                        new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
                                         "payments/$1/$2/redirect/complete/worldpayxml"
                                     );
                                     responseForm.method='POST';
@@ -1716,7 +1716,7 @@ pub fn build_redirection_form(
                                 }} catch (e) {{
                                     var responseForm = document.createElement('form');
                                     responseForm.action=window.location.pathname.replace(
-                                        new RegExp("payments/redirect/(\\w+)/(\\w+)/\\w+"),
+                                        new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
                                         "payments/$1/$2/redirect/complete/worldpayxml"
                                     );
                                     responseForm.method='POST';
