@@ -10836,6 +10836,7 @@ Cypress.Commands.add("retrieveNonExistentPayoutTest", (globalState) => {
  * @param {Object} globalState  - Global state instance
  * @param {number} expectedStatus - Expected HTTP status (default 200)
  * @param {string} profilePrefix - globalState key prefix for profileId (default "profile")
+ * @param {string} stateKey - globalState key for storing profile_acquirer_id (default "profileAcquirerId")
  */
 Cypress.Commands.add(
   "createAcquirerConfigTest",
@@ -10843,12 +10844,13 @@ Cypress.Commands.add(
     requestBody,
     globalState,
     expectedStatus = 200,
-    profilePrefix = "profile"
+    profilePrefix = "profile",
+    stateKey = "profileAcquirerId"
   ) => {
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
 
-    if (expectedStatus === 200) {
+    if (expectedStatus === 200 && !requestBody.profile_id) {
       requestBody.profile_id = globalState.get(`${profilePrefix}Id`);
     }
 
@@ -10869,10 +10871,7 @@ Cypress.Commands.add(
         expect(response.status).to.equal(expectedStatus);
 
         if (expectedStatus === 200) {
-          globalState.set(
-            "profileAcquirerId",
-            response.body.profile_acquirer_id
-          );
+          globalState.set(stateKey, response.body.profile_acquirer_id);
           expect(response.body).to.have.property("profile_acquirer_id");
           expect(response.body.profile_id).to.equal(
             globalState.get(`${profilePrefix}Id`)

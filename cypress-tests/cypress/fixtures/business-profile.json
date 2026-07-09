@@ -27,7 +27,8 @@
     "merchant_name": "Mastercard Retailer",
     "network": "Mastercard",
     "acquirer_bin": "555555",
-    "acquirer_country_code": "US"
+    "acquirer_country_code": "US",
+    "is_default": false
   },
 
   "acquirerConfigUpdate": {

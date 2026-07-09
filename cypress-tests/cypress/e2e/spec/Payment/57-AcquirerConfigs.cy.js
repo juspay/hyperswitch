@@ -21,7 +21,7 @@ describe("Acquirer-specific configurations", () => {
   context(
     "Create, Update, and Verify Visa Acquirer Config (is_default=true)",
     () => {
-      const shouldContinue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
         if (!shouldContinue) {
@@ -74,7 +74,7 @@ describe("Acquirer-specific configurations", () => {
   );
 
   context("Error Cases — Update (requires existing Visa acquirer)", () => {
-    const shouldContinue = true;
+    let shouldContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue || !globalState.get("profileAcquirerId")) {
@@ -106,7 +106,7 @@ describe("Acquirer-specific configurations", () => {
   context(
     "Create Second Acquirer Config (Mastercard, is_default=false)",
     () => {
-      const shouldContinue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
         if (
@@ -122,7 +122,13 @@ describe("Acquirer-specific configurations", () => {
         const body = {
           ...fixtures.businessProfile.acquirerConfigCreateMastercard,
         };
-        cy.createAcquirerConfigTest(body, globalState);
+        cy.createAcquirerConfigTest(
+          body,
+          globalState,
+          200,
+          "profile",
+          "mastercardAcquirerId"
+        );
       });
 
       it("Retrieve Business Profile — Verify both acquirer configs", () => {
@@ -132,6 +138,9 @@ describe("Acquirer-specific configurations", () => {
           expect(response.body.acquirer_config_bucket).to.not.be.null;
           expect(response.body.acquirer_config_bucket.configs).to.have.property(
             globalState.get("profileAcquirerId")
+          );
+          expect(response.body.acquirer_config_bucket.configs).to.have.property(
+            globalState.get("mastercardAcquirerId")
           );
           const networks = response.body.acquirer_configs.map(
             (config) => config.network
@@ -144,7 +153,7 @@ describe("Acquirer-specific configurations", () => {
   );
 
   context("Error Cases — Create (independent)", () => {
-    const shouldContinue = true;
+    let shouldContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue) {
