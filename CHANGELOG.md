@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.09.1
+
+### Bug Fixes
+
+- **fiuu:** Fallback to customer email when billing email is absent for mandate payment ([#13215](https://github.com/juspay/hyperswitch/pull/13215)) ([`7b823b4`](https://github.com/juspay/hyperswitch/commit/7b823b40439fe45c9fbf8584dbdfead07bacd159))
+
+**Full Changelog:** [`2026.07.09.0...2026.07.09.1`](https://github.com/juspay/hyperswitch/compare/2026.07.09.0...2026.07.09.1)
+
+- - -
+
 ## 2026.07.09.0
 
 ### Features
