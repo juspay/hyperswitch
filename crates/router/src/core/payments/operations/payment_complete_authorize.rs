@@ -400,7 +400,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             client_session_id: None,
             vault_session_details: None,
             external_vault_pmd: None,
-            update_request_fields: None,
         };
 
         let customer_details = Some(CustomerDetails {

@@ -5,6 +5,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::connectors::santander::responses;
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+// Only due date is updatable as of now. Will add other fields when required.
+pub struct SantanderBoletoUpdateRequest {
+    #[serde(skip_deserializing)]
+    pub covenant_code: Secret<String>,
+    #[serde(skip_deserializing)]
+    pub bank_number: String,
+    pub due_date: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InterestPercentage {

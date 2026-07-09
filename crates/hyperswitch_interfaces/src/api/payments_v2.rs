@@ -10,7 +10,7 @@ use hyperswitch_domain_models::{
             IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid,
             PostCaptureVoidSync, PostProcessing, PostSessionTokens, PreAuthorizeVoid,
             PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
-            SettlementSplitCreate, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
+            SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         Authenticate, GiftCardBalanceCheck, PostAuthenticate, PreAuthenticate,
     },
@@ -26,8 +26,8 @@ use hyperswitch_domain_models::{
         PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData,
         PaymentsRejectData, PaymentsSessionData, PaymentsSurchargeCalculationData,
         PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
-        PaymentsUpdatePostConfirmData, PushNotificationRequestData, SdkPaymentsSessionUpdateData,
-        SettlementSplitRequestData, SetupMandateRequestData,
+        PushNotificationRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SetupMandateRequestData,
     },
     router_response_types::{
         CompleteRefundSurchrgeResponseData, CompleteSurchargeResponseData,
@@ -237,17 +237,6 @@ pub trait PaymentUpdateMetadataV2:
 {
 }
 
-/// trait PaymentUpdatePostConfirmV2
-pub trait PaymentUpdatePostConfirmV2:
-    ConnectorIntegrationV2<
-    UpdatePostConfirm,
-    PaymentFlowData,
-    PaymentsUpdatePostConfirmData,
-    PaymentsResponseData,
->
-{
-}
-
 /// trait PaymentsCompleteAuthorizeV2
 pub trait PaymentsCompleteAuthorizeV2:
     ConnectorIntegrationV2<
@@ -421,6 +410,5 @@ pub trait PaymentV2:
     + ExternalVaultProxyPaymentsCreate
     + PaymentsSettlementSplitCreate
     + PaymentsGiftCardBalanceCheckV2
-    + PaymentUpdatePostConfirmV2
 {
 }
