@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.01.0-hotfix6
+
+### Bug Fixes
+
+- **worldpayxml:** Allow hyphenated ids in DDC redirect regex ([#13246](https://github.com/juspay/hyperswitch/pull/13246)) ([`5d6c26f`](https://github.com/juspay/hyperswitch/commit/5d6c26f765b85c78e60f6ad8faf25eedbea2a21d))
+
+**Full Changelog:** [`2026.07.01.0-hotfix5...2026.07.01.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.07.01.0-hotfix5...2026.07.01.0-hotfix6)
+
+- - -
+
 ## 2026.07.01.0-hotfix5
 
 ### Features
