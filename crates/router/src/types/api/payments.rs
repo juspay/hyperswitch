@@ -45,16 +45,16 @@ pub use hyperswitch_domain_models::router_flow_types::payments::{
     IncrementalAuthorization, InitPayment, PSync, PaymentCreateIntent, PaymentGetIntent,
     PaymentMethodToken, PaymentUpdateIntent, PostCaptureVoid, PostCaptureVoidSync, PostProcessing,
     PostSessionTokens, PreAuthorizeVoid, PreProcessing, PushNotification, RecordAttempt, Reject,
-    SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
+    SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
 };
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
     PaymentAuthorizeSessionToken, PaymentCapture, PaymentIncrementalAuthorization,
     PaymentPostCaptureVoid, PaymentPostCaptureVoidSync, PaymentPostSessionTokens, PaymentReject,
-    PaymentSession, PaymentSessionUpdate, PaymentSync, PaymentToken, PaymentUpdate,
-    PaymentUpdateMetadata, PaymentVoid, PaymentsCompleteAuthorize, PaymentsCreateOrder,
-    PaymentsGenerateQr, PaymentsPostProcessing, PaymentsPreProcessing, PaymentsPushNotification,
-    SurchargeCalculation, SurchargeComplete, SurchargeRefund, TaxCalculation,
+    PaymentSession, PaymentSessionUpdate, PaymentSync, PaymentToken, PaymentUpdateMetadata,
+    PaymentVoid, PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsGenerateQr,
+    PaymentsPostProcessing, PaymentsPreProcessing, PaymentsPushNotification, SurchargeCalculation,
+    SurchargeComplete, SurchargeRefund, TaxCalculation,
 };
 pub use mandates::MandateTransactionType;
 

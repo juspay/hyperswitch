@@ -21,8 +21,7 @@ use crate::{
         IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostCaptureVoid,
         PostCaptureVoidSync, PostSessionTokens, PreAuthenticate, PreAuthorizeVoid, PreProcessing,
         ProcessIncomingWebhook, PushNotification, RSync, SdkSessionUpdate, Session,
-        SettlementSplitCreate, SetupMandate, UpdateMetadata, UpdatePostConfirm,
-        VerifyWebhookSource, Void,
+        SettlementSplitCreate, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
         merchant_connector_webhook_management::{
@@ -53,9 +52,9 @@ use crate::{
         PaymentsPostSessionTokensData, PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSurchargeCalculationData,
         PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
-        PaymentsUpdatePostConfirmData, PushNotificationRequestData, RefundsData,
-        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        PushNotificationRequestData, RefundsData, SdkPaymentsSessionUpdateData,
+        SettlementSplitRequestData, SetupMandateRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::{
@@ -149,8 +148,7 @@ pub type PaymentsPostSessionTokensRouterData =
 pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, PaymentsResponseData>;
 pub type PaymentsUpdateMetadataRouterData =
     RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>;
-pub type PaymentsUpdatePostConfirmRouterData =
-    RouterData<UpdatePostConfirm, PaymentsUpdatePostConfirmData, PaymentsResponseData>;
+
 pub type CreateOrderRouterData =
     RouterData<CreateOrder, CreateOrderRequestData, PaymentsResponseData>;
 pub type UasPostAuthenticationRouterData =

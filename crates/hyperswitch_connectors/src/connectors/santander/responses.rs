@@ -10,19 +10,12 @@ use crate::connectors::santander::requests;
 #[serde(rename_all = "camelCase")]
 pub struct Payer {
     pub name: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub document_type: Option<SantanderDocumentKind>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_type: SantanderDocumentKind,
     pub document_number: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub neighborhood: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub city: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub zip_code: Option<Secret<String>>,
 }
 
@@ -811,7 +804,7 @@ pub struct QrDataUrlSantander {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum SantanderUpdateResponse {
+pub enum SantanderUpdateMetadataResponse {
     Pix(Box<SantanderPixQRCodePaymentsResponse>),
     Boleto(Box<SantanderUpdateBoletoResponse>),
 }

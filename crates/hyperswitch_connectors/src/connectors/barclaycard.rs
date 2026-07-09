@@ -1646,9 +1646,7 @@ impl ConnectorSpecifications for Barclaycard {
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
-                false
-            }
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     /// Check if authentication flow is required
@@ -1674,9 +1672,7 @@ impl ConnectorSpecifications for Barclaycard {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
-                false
-            }
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     /// Check if post-authentication flow is required
@@ -1702,9 +1698,7 @@ impl ConnectorSpecifications for Barclaycard {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
-                false
-            }
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

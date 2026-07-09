@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
             SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         Authenticate, CreateOrder, ExternalVaultProxy, GiftCardBalanceCheck, PostAuthenticate,
-        PreAuthenticate, UpdatePostConfirm,
+        PreAuthenticate,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
@@ -25,8 +25,8 @@ use hyperswitch_domain_models::{
         PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData,
         PaymentsRejectData, PaymentsSessionData, PaymentsSurchargeCalculationData,
         PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
-        PaymentsUpdatePostConfirmData, PushNotificationRequestData, SdkPaymentsSessionUpdateData,
-        SettlementSplitRequestData, SetupMandateRequestData,
+        PushNotificationRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SetupMandateRequestData,
     },
     router_response_types::{
         CompleteRefundSurchrgeResponseData, CompleteSurchargeResponseData,
@@ -72,7 +72,6 @@ pub trait Payment:
     + ExternalVaultProxyPaymentsCreateV1
     + PaymentsSettlementSplitCreate
     + PaymentsGiftCardBalanceCheck
-    + PaymentUpdate
 {
 }
 
@@ -229,12 +228,6 @@ pub trait PaymentPostSessionTokens:
 /// trait UpdateMetadata
 pub trait PaymentUpdateMetadata:
     api::ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>
-{
-}
-
-/// trait UpdatePostConfirm
-pub trait PaymentUpdate:
-    api::ConnectorIntegration<UpdatePostConfirm, PaymentsUpdatePostConfirmData, PaymentsResponseData>
 {
 }
 

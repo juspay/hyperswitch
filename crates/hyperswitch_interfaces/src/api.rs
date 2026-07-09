@@ -34,8 +34,7 @@ use std::fmt::Debug;
 
 use common_enums::{
     enums::{
-        self, CallConnectorAction, CaptureMethod, EventClass, IntentStatus, PaymentAction,
-        PaymentMethodType,
+        self, CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType,
     },
     PaymentMethod,
 };
@@ -474,14 +473,6 @@ pub trait ConnectorSpecifications {
     fn is_pre_authorize_cancel_supported(
         &self,
         _payment_method_type: Option<PaymentMethodType>,
-    ) -> bool {
-        false
-    }
-    /// Check if connector should be called for UpdatePostConfirm
-    fn should_call_connector_for_update_post_confirm(
-        &self,
-        _payment_method_type: Option<PaymentMethodType>,
-        _intent_status: IntentStatus,
     ) -> bool {
         false
     }
