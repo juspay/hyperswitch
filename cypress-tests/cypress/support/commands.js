@@ -6648,7 +6648,6 @@ Cypress.Commands.add(
       url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
       headers: {
         "api-key": globalState.get("apiKey") || globalState.get("adminApiKey"),
-        Authorization: `Bearer ${globalState.get("adminApiKey")}`,
         "Content-Type": "application/json",
       },
       body: surchargeBody,
@@ -6760,7 +6759,6 @@ Cypress.Commands.add("retrieveSurchargeDSLConfig", (data, globalState) => {
     url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
     headers: {
       "api-key": globalState.get("apiKey") || globalState.get("adminApiKey"),
-      Authorization: `Bearer ${globalState.get("adminApiKey")}`,
       "Content-Type": "application/json",
     },
     failOnStatusCode: false,
@@ -6789,7 +6787,6 @@ Cypress.Commands.add("deleteSurchargeDSLConfig", (data, globalState) => {
     url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
     headers: {
       "api-key": globalState.get("apiKey") || globalState.get("adminApiKey"),
-      Authorization: `Bearer ${globalState.get("adminApiKey")}`,
       "Content-Type": "application/json",
     },
     failOnStatusCode: false,
