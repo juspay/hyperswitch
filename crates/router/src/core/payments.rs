@@ -13798,6 +13798,8 @@ async fn perform_external_vault_authentication_v1(
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     optional_email: Option<pii::Email>,
     header_payload: HeaderPayload,
+    device_channel: api_models::payments::DeviceChannel,
+    sdk_information: Option<api_models::payments::SdkInformation>,
 ) -> RouterResult<authentication::AuthenticationResponse> {
     use hyperswitch_domain_models::authentication::AuthenticationUpdate;
 
@@ -13920,6 +13922,8 @@ async fn perform_external_vault_authentication_v1(
         redirect_response: None,
         capture_method: payment_attempt.capture_method,
         authentication_data: Some(ucs_authentication_data),
+        sdk_information,
+        device_channel: Some(device_channel),
     };
 
     let payment_address = PaymentAddress::new(None, billing_address, None, None);
@@ -14018,41 +14022,61 @@ async fn perform_external_vault_authentication_v1(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to call UCS authenticate for external vault proxy")?;
 
-    let (areq_authentication_data, redirection_data, areq_error_message) =
+    let (areq_authentication_data, redirection_data, areq_error_message, connector_metadata) =
         match &authenticate_router_data.response {
             Ok(router_types::PaymentsResponseData::TransactionResponse {
                 authentication_data,
                 redirection_data,
+                connector_metadata,
                 ..
             }) => (
                 authentication_data.clone().map(|boxed| *boxed),
                 (**redirection_data).clone(),
                 None,
+                connector_metadata.clone(),
             ),
-            Ok(_) => (None, None, None),
-            Err(err) => (None, None, Some(err.message.clone())),
+            Ok(_) => (None, None, None, None),
+            Err(err) => (None, None, Some(err.message.clone()), None),
         };
 
-    let (acs_url, challenge_request) = match &redirection_data {
-        Some(services::RedirectForm::Form {
-            endpoint,
-            form_fields,
-            ..
-        }) => (
-            Some(endpoint.clone()),
-            form_fields
-                .get(consts::CREQ_CHALLENGE_REQUEST_KEY)
-                .or_else(|| form_fields.get("creq"))
-                .cloned(),
-        ),
-        _ => (None, None),
-    };
+    #[derive(serde::Deserialize)]
+    struct AppChallengeAcsMetadata {
+        acs_signed_content: Option<String>,
+        acs_reference_number: Option<String>,
+        acs_trans_id: Option<String>,
+    }
+    let app_acs = connector_metadata
+        .as_ref()
+        .and_then(|m| serde_json::from_value::<AppChallengeAcsMetadata>(m.clone()).ok());
+
+    let (acs_url, challenge_request, acs_signed_content, acs_reference_number, form_acs_trans_id) =
+        match &redirection_data {
+            Some(services::RedirectForm::Form {
+                endpoint,
+                form_fields,
+                ..
+            }) => (
+                Some(endpoint.clone()),
+                form_fields
+                    .get(consts::CREQ_CHALLENGE_REQUEST_KEY)
+                    .or_else(|| form_fields.get("creq"))
+                    .cloned(),
+                form_fields.get("acsSignedContent").cloned(),
+                form_fields.get("acsReferenceNumber").cloned(),
+                form_fields.get("acsTransID").cloned(),
+            ),
+            _ => (None, None, None, None, None),
+        };
+    let acs_signed_content = acs_signed_content
+        .or_else(|| app_acs.as_ref().and_then(|m| m.acs_signed_content.clone()));
+    let acs_reference_number = acs_reference_number
+        .or_else(|| app_acs.as_ref().and_then(|m| m.acs_reference_number.clone()));
 
     let trans_status = areq_authentication_data
         .as_ref()
         .and_then(|data| data.trans_status.clone())
         .unwrap_or_else(|| {
-            if acs_url.is_some() {
+            if acs_url.is_some() || acs_signed_content.is_some() {
                 common_enums::TransactionStatus::ChallengeRequired
             } else {
                 common_enums::TransactionStatus::VerificationNotPerformed
@@ -14060,7 +14084,9 @@ async fn perform_external_vault_authentication_v1(
         });
     let acs_trans_id = areq_authentication_data
         .as_ref()
-        .and_then(|data| data.acs_trans_id.clone());
+        .and_then(|data| data.acs_trans_id.clone())
+        .or(form_acs_trans_id)
+        .or_else(|| app_acs.as_ref().and_then(|m| m.acs_trans_id.clone()));
     let eci = areq_authentication_data
         .as_ref()
         .and_then(|data| data.eci.clone());
@@ -14107,9 +14133,9 @@ async fn perform_external_vault_authentication_v1(
         authentication_type,
         acs_url: acs_url.clone(),
         challenge_request: challenge_request.clone(),
-        acs_reference_number: None,
+        acs_reference_number: acs_reference_number.clone(),
         acs_trans_id: acs_trans_id.clone(),
-        acs_signed_content: None,
+        acs_signed_content: acs_signed_content.clone(),
         // cavv is vaulted (encrypted) below, not stashed here.
         connector_metadata: None,
         authentication_status,
@@ -14191,10 +14217,10 @@ async fn perform_external_vault_authentication_v1(
         trans_status,
         acs_url,
         challenge_request,
-        acs_reference_number: None,
+        acs_reference_number,
         acs_trans_id,
         three_dsserver_trans_id: three_ds_server_transaction_id,
-        acs_signed_content: None,
+        acs_signed_content,
         challenge_request_key: None,
         error_message: areq_error_message,
     })
@@ -14401,6 +14427,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .as_ref()
                 .and_then(|customer| customer.email.clone().map(pii::Email::from)),
             HeaderPayload::default(),
+            req.device_channel,
+            req.sdk_information.clone(),
         ))
         .await?
     } else if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)

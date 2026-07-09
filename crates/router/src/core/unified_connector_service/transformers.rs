@@ -1182,7 +1182,14 @@ impl
             }),
             address: Some(address),
             authentication_data,
-            metadata: None,
+            metadata: Some(
+                serde_json::json!({
+                    "device_channel": router_data.request.device_channel,
+                    "sdk_information": router_data.request.sdk_information,
+                })
+                .to_string()
+                .into(),
+            ),
             return_url: None,
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             state: None,
@@ -1652,7 +1659,14 @@ impl
             }),
             address: Some(address),
             authentication_data,
-            metadata: None,
+            metadata: Some(
+                serde_json::json!({
+                    "device_channel": router_data.request.device_channel,
+                    "sdk_information": router_data.request.sdk_information,
+                })
+                .to_string()
+                .into(),
+            ),
             return_url: None,
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             state: None,
@@ -6061,7 +6075,22 @@ impl
                 },
                 None => (None, None),
             },
-            None => (None, None),
+            None => (
+                response.connector_feature_data.clone().and_then(|secret| {
+                    let exposed = secret.expose();
+                    serde_json::from_str(&exposed)
+                        .map_err(|e| {
+                            tracing::warn!(
+                                serialization_error = ?e,
+                                metadata = ?response.connector_feature_data,
+                                "Failed to parse connector_metadata as JSON value"
+                            );
+                            e
+                        })
+                        .ok()
+                }),
+                None,
+            ),
         };
 
         let status_code = convert_connector_service_status_code(response.status_code)?;

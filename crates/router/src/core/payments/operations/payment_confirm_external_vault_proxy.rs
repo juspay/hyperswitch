@@ -334,7 +334,21 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             .take()
             .or_else(|| request.browser_info.clone());
 
-        let payment_method_info = payment_method_wrapper.map(|w| w.payment_method);
+        let payment_method_info = match payment_method_wrapper.map(|w| w.payment_method) {
+            Some(pm) => Some(pm),
+            None => match payment_attempt.payment_method_id.clone() {
+                Some(pm_id) => state
+                    .store
+                    .find_payment_method(
+                        platform.get_provider().get_key_store(),
+                        &pm_id,
+                        platform.get_provider().get_account().storage_scheme,
+                    )
+                    .await
+                    .ok(),
+                None => None,
+            },
+        };
 
         let customer_acceptance = request.customer_acceptance.clone().or(payment_attempt
             .customer_acceptance
