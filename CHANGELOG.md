@@ -4,6 +4,44 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.09.1
+
+### Bug Fixes
+
+- **fiuu:** Fallback to customer email when billing email is absent for mandate payment ([#13215](https://github.com/juspay/hyperswitch/pull/13215)) ([`7b823b4`](https://github.com/juspay/hyperswitch/commit/7b823b40439fe45c9fbf8584dbdfead07bacd159))
+
+**Full Changelog:** [`2026.07.09.0...2026.07.09.1`](https://github.com/juspay/hyperswitch/compare/2026.07.09.0...2026.07.09.1)
+
+- - -
+
+## 2026.07.09.0
+
+### Features
+
+- **analytics:** Expose connector event destination ([#13177](https://github.com/juspay/hyperswitch/pull/13177)) ([`42ea52b`](https://github.com/juspay/hyperswitch/commit/42ea52b4136b853804964e53f457f641da55413b))
+
+### Bug Fixes
+
+- **connector:** [Peachpayments] Revert the Condition of cofData.source for Network Token Passthrough ([#13222](https://github.com/juspay/hyperswitch/pull/13222)) ([`15e61ed`](https://github.com/juspay/hyperswitch/commit/15e61edf064d11c26cdfd5d79985bb6760280934))
+- **router:** Resolve notify connector comments ([#13122](https://github.com/juspay/hyperswitch/pull/13122)) ([`bf3ee5e`](https://github.com/juspay/hyperswitch/commit/bf3ee5ef489700ee1fd06d5bfbecd2bbae949e15))
+- **ucs:** Paysafe Apple Pay predecrypt + gift card bridge fixes ([#13163](https://github.com/juspay/hyperswitch/pull/13163)) ([`12fd469`](https://github.com/juspay/hyperswitch/commit/12fd469f444af3f3828a75543ce090824e527628))
+
+### Performance
+
+- **core:** Introduce a new MCA domain type to reduce encryption service calls ([#13223](https://github.com/juspay/hyperswitch/pull/13223)) ([`f7f2824`](https://github.com/juspay/hyperswitch/commit/f7f28242e105e771b0ba4a4581887d8d752cf97e))
+
+### Refactors
+
+- **connector:** [Authorizedotnet] gracefully handle unknown response enum variants and missing optional fields ([#13220](https://github.com/juspay/hyperswitch/pull/13220)) ([`65d0229`](https://github.com/juspay/hyperswitch/commit/65d0229e7595c984db23c8504479e8401d4d9116))
+
+### Testing
+
+- **cypress:** [Peachpayments] add payment_method_type and card IIN data ([#13198](https://github.com/juspay/hyperswitch/pull/13198)) ([`f7a37da`](https://github.com/juspay/hyperswitch/commit/f7a37da7a2ebedd9ec88369fe17cd733d099b3e6))
+
+**Full Changelog:** [`2026.07.08.1...2026.07.09.0`](https://github.com/juspay/hyperswitch/compare/2026.07.08.1...2026.07.09.0)
+
+- - -
+
 ## 2026.07.08.1
 
 ### Features
