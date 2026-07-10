@@ -1607,10 +1607,7 @@ impl<F> TryFrom<&NexixpayRouterData<&RefundsRouterData<F>>> for NexixpayRefundRe
     }
 }
 
-fn get_refund_status(
-    item: NexixpayRefundResultStatus,
-    prev_status: RefundStatus,
-) -> RefundStatus {
+fn get_refund_status(item: NexixpayRefundResultStatus, prev_status: RefundStatus) -> RefundStatus {
     match item {
         NexixpayRefundResultStatus::Voided
         | NexixpayRefundResultStatus::Refunded
@@ -1651,7 +1648,10 @@ impl TryFrom<RefundsResponseRouterData<RSync, NexixpayRSyncResponse>> for Refund
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.operation_id,
-                refund_status: get_refund_status(item.response.operation_result, prev_refund_status),
+                refund_status: get_refund_status(
+                    item.response.operation_result,
+                    prev_refund_status,
+                ),
             }),
             ..item.data
         })
@@ -1894,7 +1894,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<NexixpayTransactionResponse>>
         item: PaymentsSyncResponseRouterData<NexixpayTransactionResponse>,
     ) -> Result<Self, Self::Error> {
         let prev_status = item.data.status;
-        let status = get_payment_attempt_status(item.response.operation_result.clone(), prev_status);
+        let status =
+            get_payment_attempt_status(item.response.operation_result.clone(), prev_status);
         let mandate_reference = if item.data.request.is_mandate_payment() {
             Box::new(Some(MandateReference {
                 connector_mandate_id: item.data.connector_mandate_request_reference_id.clone(),
@@ -2096,8 +2097,10 @@ impl
         }));
 
         let prev_status = item.data.status;
-        let status =
-            get_payment_attempt_status(item.response.operation.operation_result.clone(), prev_status);
+        let status = get_payment_attempt_status(
+            item.response.operation.operation_result.clone(),
+            prev_status,
+        );
         match status {
             AttemptStatus::Failure => {
                 let response = Err(get_error_response(
