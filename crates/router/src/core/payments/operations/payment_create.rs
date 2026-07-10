@@ -1694,7 +1694,11 @@ impl PaymentCreate {
                 connector_response_reference_id: None,
                 multiple_capture_count: None,
                 amount_capturable: MinorUnit::new(i64::default()),
-                updated_by: String::default(),
+                // V2 CANDIDATE (real change): stamp a non-default `updated_by` on the
+                // payment_attempt insert. This value flows into the recorded `db`
+                // insert args, so its args_hash differs from V1's — a genuine
+                // behavioral change the cross-version gate MUST flag as a divergence.
+                updated_by: "v2-candidate".to_string(),
                 authentication_data: None,
                 encoded_data: None,
                 merchant_connector_id: None,
