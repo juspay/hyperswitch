@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.25.0-hotfix5
+
+### Performance
+
+- **router:** Remove MCA decryption call in routing ([#13271](https://github.com/juspay/hyperswitch/pull/13271)) ([`1e59691`](https://github.com/juspay/hyperswitch/commit/1e596918b90ecac30668bbfaaa652982425fb3e9))
+
+**Full Changelog:** [`2026.06.25.0-hotfix4...2026.06.25.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.06.25.0-hotfix4...2026.06.25.0-hotfix5)
+
+- - -
+
 ## 2026.06.25.0-hotfix4
 
 ### Performance
