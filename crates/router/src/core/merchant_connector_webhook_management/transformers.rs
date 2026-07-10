@@ -472,6 +472,12 @@ pub fn construct_connector_webhook_registration_response(
         None
     };
 
+    let (scope_type, requested, results) = if is_legacy_request {
+        (None, None, None)
+    } else {
+        (Some(scope_type), Some(requested), Some(results))
+    };
+
     Ok(RegisterConnectorWebhookResponse {
         event_type,
         connector_webhook_id,
@@ -480,9 +486,9 @@ pub fn construct_connector_webhook_registration_response(
         error_message,
         secret_generation_status,
         secret_error,
-        scope_type: Some(scope_type),
-        requested: Some(requested),
-        results: Some(results),
+        scope_type,
+        requested,
+        results,
     })
 }
 /// Legacy shape stored in `connector_webhook_registration_details` before scope-based

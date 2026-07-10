@@ -143,9 +143,8 @@ pub struct WebhookSecretErrorDetails {
 }
 
 /// Response for registering connector webhooks.
-/// This struct combines the legacy fields with the new scope-based fields
-/// response remains backward-compatible. Legacy clients can continue reading the original fields
-/// New clients can use `scope_type`, `requested`, and `results`.
+/// The response shape mirrors the request shape:
+/// legacy requests that use `event_type` receive the legacy fields, while new requests that use `scope` receive `scope_type`, `requested`, and `results`.
 #[allow(deprecated)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
