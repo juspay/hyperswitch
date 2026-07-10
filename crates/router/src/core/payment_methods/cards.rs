@@ -4540,11 +4540,31 @@ pub async fn build_merchant_enabled_pms_context(
     };
 
     // ---- sdk_next_action ----
-    let has_surcharge_processor = business_profile
+    // Gate on the surcharge MCA `disabled` flag via the shared helper. Fetch is
+    // skipped entirely when no surcharge connector is configured on the profile.
+    let has_surcharge_processor = match business_profile
         .surcharge_connector_details
         .as_ref()
         .and_then(|details| details.surcharge_connector_id.as_ref())
-        .is_some();
+    {
+        Some(surcharge_connector_id) => helpers::fetch_active_surcharge_mca(
+            state,
+            platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_key_store(),
+            surcharge_connector_id,
+        )
+        .await
+        .unwrap_or_else(|err| {
+            logger::warn!(
+                error=?err,
+                surcharge_connector_id = %surcharge_connector_id.get_string_repr(),
+                "Failed to fetch surcharge MCA for PML; treating as absent"
+            );
+            None
+        })
+        .is_some(),
+        None => false,
+    };
 
     let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
         state,
