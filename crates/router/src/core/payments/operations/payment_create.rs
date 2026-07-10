@@ -1946,11 +1946,15 @@ impl PaymentCreate {
             payment_link_id,
             payment_confirm_source: None,
             surcharge_applicable: None,
-            updated_by: platform
-                .get_processor()
-                .get_account()
-                .storage_scheme
-                .to_string(),
+            // V2 CANDIDATE (earlier-fork): stamp a non-default `updated_by` on the
+            // payment_INTENT construction (storage::PaymentIntent). This value flows
+            // through convert() into the diesel PaymentIntentNew insert args, so the
+            // recorded generic_insert(payment_intent) — which fires immediately BEFORE
+            // generic_insert(payment_attempt) — misses on its args_hash. That moves
+            // the divergence ORIGIN one db call earlier than the existing `real`
+            // scenario (which mutates the ATTEMPT insert), proving the gate localizes
+            // the fork, not just that it fires.
+            updated_by: "v2-candidate".to_string(),
             request_incremental_authorization,
             incremental_authorization_allowed: None,
             authorization_count: None,
