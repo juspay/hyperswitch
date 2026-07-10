@@ -381,7 +381,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         create_resource_fut: R,
         resource_new: M,
         InsertResourceParams {
-            drainer_query,
+            drainer_query_fut,
             reverse_lookups,
             key,
             identifier,
@@ -462,7 +462,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         update_resource_fut: R,
         updated_resource: M,
         UpdateResourceParams {
-            drainer_query,
+            drainer_query_fut,
             operation,
         }: UpdateResourceParams<'_, DrainerQueryFut>,
     ) -> error_stack::Result<D, errors::StorageError>

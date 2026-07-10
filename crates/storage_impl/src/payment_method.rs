@@ -229,7 +229,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         let updated_payment_method = p_update.clone().apply_changeset(payment_method.clone());
 
         let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query = p_update.clone().generate_drainer_update_query(
+        let drainer_query_fut = p_update.clone().generate_drainer_update_query(
             &mut query_gen_conn,
             payment_method.payment_method_id.clone(),
         );
@@ -243,7 +243,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
                     .update_with_payment_method_id(&conn, p_update.clone()),
                 updated_payment_method,
                 UpdateResourceParams {
-                    drainer_query,
+                    drainer_query_fut,
                     operation: Op::Update(
                         key.clone(),
                         &field,

@@ -243,7 +243,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             .apply_changeset(origin_diesel_intent.clone());
 
         let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query = diesel_intent_update.clone().generate_drainer_update_query(
+        let drainer_query_fut = diesel_intent_update.clone().generate_drainer_update_query(
             &mut query_gen_conn,
             origin_diesel_intent.payment_id.clone(),
             origin_diesel_intent.processor_merchant_id.clone(),
@@ -255,7 +255,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             origin_diesel_intent.update(&conn, diesel_intent_update),
             diesel_intent,
             UpdateResourceParams {
-                drainer_query,
+                drainer_query_fut,
                 operation: Op::Update(key.clone(), &field, Some(updated_by.as_str())),
             },
         ))
