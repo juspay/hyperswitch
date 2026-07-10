@@ -469,7 +469,10 @@ pub fn construct_connector_webhook_registration_response(
 
         return Ok(RegisterConnectorWebhookResponse::Legacy(
             LegacyRegisterConnectorWebhookResponse {
-                event_type,
+                event_type: event_type.ok_or_else(|| {
+                    Report::from(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("legacy webhook registration response missing event_type")
+                })?,
                 connector_webhook_id,
                 webhook_registration_status,
                 error_code,

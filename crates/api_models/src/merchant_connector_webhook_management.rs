@@ -1,7 +1,9 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use utoipa::ToSchema;
 
-use crate::enums::{EventType, PaymentMethodType, WebhookRegistrationStatus};
+use crate::enums::{
+    ConnectorWebhookEventType, EventType, PaymentMethodType, WebhookRegistrationStatus,
+};
 
 /// The scope of webhook registration.
 /// Determines which entities the connector should register webhooks for.
@@ -92,7 +94,7 @@ pub struct ConnectorWebhookRegisterRequest {
     pub scope: Option<Scope>,
     #[schema(value_type = Option<ConnectorWebhookEventType>, deprecated)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub event_type: Option<common_enums::ConnectorWebhookEventType>,
+    pub event_type: Option<ConnectorWebhookEventType>,
     /// Internal marker set during deserialization when the caller used the deprecated
     /// `event_type` field instead of `scope`. Used to decide whether to emit legacy response
     /// fields for backward compatibility.
@@ -106,12 +108,10 @@ impl ConnectorWebhookRegisterRequest {
     }
 }
 
-fn event_type_to_scope(event_type: common_enums::ConnectorWebhookEventType) -> Scope {
+fn event_type_to_scope(event_type: ConnectorWebhookEventType) -> Scope {
     match event_type {
-        common_enums::ConnectorWebhookEventType::AllEvents => Scope::NotSpecific,
-        common_enums::ConnectorWebhookEventType::SpecificEvent(event) => {
-            Scope::EventTypes(vec![event])
-        }
+        ConnectorWebhookEventType::AllEvents => Scope::NotSpecific,
+        ConnectorWebhookEventType::SpecificEvent(event) => Scope::EventTypes(vec![event]),
     }
 }
 
@@ -123,7 +123,7 @@ impl<'de> Deserialize<'de> for ConnectorWebhookRegisterRequest {
         struct RawConnectorWebhookRegisterRequest {
             scope: Option<Scope>,
             #[serde(default)]
-            event_type: Option<common_enums::ConnectorWebhookEventType>,
+            event_type: Option<ConnectorWebhookEventType>,
         }
 
         let raw = RawConnectorWebhookRegisterRequest::deserialize(deserializer)?;
@@ -154,21 +154,31 @@ pub struct WebhookSecretErrorDetails {
     pub message: Option<String>,
 }
 
+/// Legacy response format. These fields remain supported for backward compatibility
+/// but will be deprecated soon. Prefer[`ScopeBasedRegisterConnectorWebhookResponse`] for new integrations.
 #[allow(deprecated)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct LegacyRegisterConnectorWebhookResponse {
-    #[schema(value_type = Option<ConnectorWebhookEventType>, deprecated)]
-    pub event_type: Option<common_enums::ConnectorWebhookEventType>,
-    #[schema(value_type = Option<String>, deprecated)]
+    /// To be deprecated soon; prefer the scope-based response format for new integrations.
+    #[schema(value_type = ConnectorWebhookEventType)]
+    pub event_type: ConnectorWebhookEventType,
+    /// To be deprecated soon; prefer the scope-based response format for new integrations.
+    #[schema(value_type = Option<String>)]
     pub connector_webhook_id: Option<String>,
-    #[schema(value_type = Option<WebhookRegistrationStatus>, deprecated)]
+    /// To be deprecated soon; prefer the scope-based response format for new integrations.
+    #[schema(value_type = Option<WebhookRegistrationStatus>)]
     pub webhook_registration_status: Option<WebhookRegistrationStatus>,
-    #[schema(value_type = Option<String>, deprecated)]
+    /// To be deprecated soon; prefer the scope-based response format for new integrations.
+    #[schema(value_type = Option<String>)]
     pub error_code: Option<String>,
-    #[schema(value_type = Option<String>, deprecated)]
+    /// To be deprecated soon; prefer the scope-based response format for new integrations.
+    #[schema(value_type = Option<String>)]
     pub error_message: Option<String>,
+    /// To be deprecated soon; prefer the scope-based response format for new integrations.
     #[schema(value_type = Option<WebhookSecretGenerationStatus>)]
     pub secret_generation_status: Option<common_enums::WebhookSecretGenerationStatus>,
+    /// Remains supported; prefer the scope-based response format for new integrations.
+    #[schema(value_type = Option<WebhookSecretErrorDetails>)]
     pub secret_error: Option<WebhookSecretErrorDetails>,
 }
 
@@ -217,7 +227,7 @@ pub enum ConnectorWebhookScope {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct LegacyConnectorWebhookResponse {
     #[schema(value_type = Option<ConnectorWebhookEventType>, deprecated)]
-    pub event_type: Option<common_enums::ConnectorWebhookEventType>,
+    pub event_type: Option<ConnectorWebhookEventType>,
     pub connector_webhook_id: String,
 }
 
