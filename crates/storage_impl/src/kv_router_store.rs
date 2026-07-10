@@ -61,7 +61,7 @@ pub struct InsertResourceParams<'a, DrainerQueryFut>
 where
     DrainerQueryFut: futures::Future<Output = diesel_models::StorageResult<kv::SerializableQuery>>,
 {
-    pub drainer_query: DrainerQueryFut,
+    pub drainer_query_fut: DrainerQueryFut,
     pub reverse_lookups: Vec<String>,
     pub key: PartitionKey<'a>,
     // secondary key
@@ -74,7 +74,7 @@ pub struct UpdateResourceParams<'a, DrainerQueryFut>
 where
     DrainerQueryFut: futures::Future<Output = diesel_models::StorageResult<kv::SerializableQuery>>,
 {
-    pub drainer_query: DrainerQueryFut,
+    pub drainer_query_fut: DrainerQueryFut,
     pub operation: Op<'a>,
 }
 
