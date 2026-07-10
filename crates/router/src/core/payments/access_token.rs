@@ -406,7 +406,12 @@ async fn fetch_access_token_from_ucs(
         };
 
     let response = client
-        .create_access_token(create_request, connector_auth_metadata, grpc_headers)
+        .create_access_token(
+            create_request,
+            connector_auth_metadata,
+            grpc_headers,
+            common_enums::ConnectorType::PaymentProcessor,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("UCS create_access_token gRPC call failed")?;
