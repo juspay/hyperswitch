@@ -36,12 +36,16 @@ import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import { handleRedirection, MICRODEPOSIT_CONFIG } from "./redirectionHandler";
-
-// In MITM replay mode (MOCK_SERVER=true) there is no live browser redirection
-// to drive. Cypress.env may return a boolean or a string, hence String().
-function isMockServer() {
-  return String(Cypress.env("MOCK_SERVER")) === "true";
-}
+import {
+  isMockServer,
+  isRecordMode,
+  isReplayMode,
+  mockRecord3ds,
+  mockRecordBankRedirect,
+  mockReplay3ds,
+  mockReplayBankRedirect,
+  resetMitmRedirectSeq,
+} from "./mitmProxy";
 
 // Returns true (after logging a consistent skip line) when a redirection
 // command should bail out early because we're in replay mode.
@@ -1242,7 +1246,25 @@ Cypress.Commands.add(
     createConnectorBody.connector_name =
       getOriginalConnectorName(connectorName);
     createConnectorBody.connector_label = connectorLabel;
-    createConnectorBody.payment_methods_enabled = paymentMethodsEnabled;
+
+    // For payment_vas (FRM) connectors, use frm_configs with payment_methods array inside
+    if (connectorType === "payment_vas") {
+      createConnectorBody.frm_configs = [
+        {
+          gateway: getOriginalConnectorName(globalState.get("connectorId")),
+          payment_methods: [
+            {
+              payment_method: "card",
+              flow: "pre",
+            },
+          ],
+        },
+      ];
+      delete createConnectorBody.payment_methods_enabled;
+    } else {
+      createConnectorBody.payment_methods_enabled = paymentMethodsEnabled;
+    }
+
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
@@ -1251,6 +1273,11 @@ Cypress.Commands.add(
           JSON.stringify(jsonContent),
           connectorName
         );
+        if (!authDetails) {
+          throw new Error(
+            `No credentials found for ${connectorName} in creds.json — skipping connector creation`
+          );
+        }
         createConnectorBody.connector_account_details =
           authDetails.connector_account_details;
         cy.request({
@@ -1816,6 +1843,69 @@ Cypress.Commands.add("connectorDeleteCall", (globalState) => {
       );
       expect(response.body.deleted).to.equal(true);
     });
+  });
+});
+
+Cypress.Commands.add("setFrmRoutingAlgorithm", (body, globalState) => {
+  const merchantId = globalState.get("merchantId");
+  const adminApiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  body.merchant_id = merchantId;
+
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/accounts/${merchantId}`,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "api-key": adminApiKey,
+    },
+    body: body,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.task(
+      "cli_log",
+      "Set frm_routing_algorithm status: " +
+        response.status +
+        " body: " +
+        JSON.stringify(response.body)
+    );
+    expect(
+      [200, 400],
+      "frm_routing_algorithm update should return 200 (success) or 400 (already set)"
+    ).to.include(response.status);
+  });
+});
+
+Cypress.Commands.add("deleteFrmConnector", (globalState) => {
+  const frmMcaId = globalState.get("frmConnectorId");
+
+  if (!frmMcaId) {
+    cy.task("cli_log", "No frmConnectorId found, skipping delete");
+    return;
+  }
+
+  const merchantId = globalState.get("merchantId");
+  const baseUrl = globalState.get("baseUrl");
+  const adminApiKey = globalState.get("adminApiKey");
+
+  cy.request({
+    method: "DELETE",
+    url: `${baseUrl}/account/${merchantId}/connectors/${frmMcaId}`,
+    headers: {
+      Accept: "application/json",
+      "api-key": adminApiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    cy.task(
+      "cli_log",
+      "FRM Signifyd connector delete status: " + response.status
+    );
   });
 });
 
@@ -4104,10 +4194,12 @@ Cypress.Commands.add(
               : "inactive";
 
             // Validate the status
-            expect(
-              response.body.payment_method_status,
-              "payment_method_status"
-            ).to.equal(expectedStatus);
+            if (!configs.skipPaymentMethodStatusAssertion) {
+              expect(
+                response.body.payment_method_status,
+                "payment_method_status"
+              ).to.equal(expectedStatus);
+            }
           }
 
           if (autoretries) {
@@ -4300,10 +4392,16 @@ Cypress.Commands.add(
       Response: resData,
     } = data || {};
 
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task("cli_log", "TRIGGER_SKIP enabled, skipping refundCallTest");
+      return;
+    }
+
     const payment_id = globalState.get("paymentID");
 
     // we only need this to set the delay. We don't need the return value
-    execConfig(validateConfig(configs));
+    execConfig(validatedConfigs);
 
     for (const key in reqData) {
       requestBody[key] = reqData[key];
@@ -5230,9 +5328,9 @@ Cypress.Commands.add(
   "handleRedirection",
   (globalState, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
-    // Cassettes recorded from a non-3DS scenario won't carry a
-    // next_action URL; fall back to example.com so replay can still
-    // burn the step-counter slot and reach later assertions.
+    // Cassettes recorded from a non-3DS scenario won't carry a next_action
+    // URL; fall back to example.com so replay can still burn the step-counter
+    // slot and reach later assertions.
     let nextActionUrl = globalState.get("nextActionUrl");
     if (!nextActionUrl) {
       cy.task(
@@ -5242,29 +5340,27 @@ Cypress.Commands.add(
       nextActionUrl = "https://example.com";
     }
 
-    if (isMockServer()) {
-      // In MITM replay mode the ThreeDS browser flow is skipped.  Consume one
-      // cy.request slot so the Cypress step counter stays aligned with how the
-      // cassettes were recorded (threeDsRedirection() always issues one request
-      // before starting browser navigation).  The force_sync Retrieve that
-      // follows will call Stripe PSync, receive "requires_capture" from the
-      // cassette, and HS transitions the payment state automatically.
-      if (Cypress.env("PROXY_ADMIN_URL")) {
-        cy.request({
-          url: nextActionUrl,
-          failOnStatusCode: false,
-          followRedirect: false,
-        });
-      }
+    if (isRecordMode()) {
+      mockRecord3ds(
+        globalState,
+        nextActionUrl,
+        expectedRedirection,
+        handleRedirection
+      );
       return;
     }
 
-    const expectedUrl = new URL(expectedRedirection);
-    const redirectionUrl = new URL(nextActionUrl);
+    if (isReplayMode()) {
+      mockReplay3ds(globalState, connectorId, nextActionUrl);
+      return;
+    }
 
     handleRedirection(
       "three_ds",
-      { redirectionUrl, expectedUrl },
+      {
+        redirectionUrl: new URL(nextActionUrl),
+        expectedUrl: new URL(expectedRedirection),
+      },
       connectorId,
       globalState.get("paymentMethodType")
     );
@@ -5277,6 +5373,28 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
+    // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
+    // trying to handle that specific case results in stripe 3ds tests to fail
+    if (connectorId === "adyen" && paymentMethodType === "sofort") {
+      return;
+    }
+
+    if (isRecordMode()) {
+      mockRecordBankRedirect(
+        globalState,
+        nextActionUrl,
+        expectedRedirection,
+        paymentMethodType,
+        handleRedirection
+      );
+      return;
+    }
+
+    if (isReplayMode()) {
+      mockReplayBankRedirect(globalState, connectorId);
+      return;
+    }
+
     if (skipRedirectionInMockServer("handleBankRedirectRedirection")) {
       return;
     }
@@ -5284,21 +5402,17 @@ Cypress.Commands.add(
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
-    // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
-    // trying to handle that specific case results in stripe 3ds tests to fail
-    if (!(connectorId == "adyen" && paymentMethodType == "sofort")) {
-      // Wrap in cy.then() so that commands enqueued by handleRedirection
-      // (especially cy.origin() calls for PayJustNow) are chained inline
-      // and complete before subsequent test steps (Retrieve Payment, Refund).
-      cy.then(() => {
-        handleRedirection(
-          "bank_redirect",
-          { redirectionUrl, expectedUrl },
-          connectorId,
-          paymentMethodType
-        );
-      });
-    }
+    // Wrap in cy.then() so that commands enqueued by handleRedirection
+    // (especially cy.origin() calls for PayJustNow) are chained inline
+    // and complete before subsequent test steps (Retrieve Payment, Refund).
+    cy.then(() => {
+      handleRedirection(
+        "bank_redirect",
+        { redirectionUrl, expectedUrl },
+        connectorId,
+        paymentMethodType
+      );
+    });
   }
 );
 
@@ -10716,4 +10830,8 @@ Cypress.Commands.add("retrieveNonExistentPayoutTest", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
     expect(response.status).to.equal(404);
   });
+});
+
+Cypress.Commands.add("resetRedirectReadCount", (testIdHash) => {
+  resetMitmRedirectSeq(testIdHash);
 });
