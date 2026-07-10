@@ -40388,7 +40388,7 @@
       },
       "RegisterConnectorWebhookResponse": {
         "type": "object",
-        "description": "Response for registering connector webhooks.\nThis struct combines the legacy fields with the new scope-based fields\nresponse remains backward-compatible. Legacy clients can continue reading the original fields\nNew clients can use `scope_type`, `requested`, and `results`.",
+        "description": "Response for registering connector webhooks.\nThe response shape mirrors the request shape:\nlegacy requests that use `event_type` receive the legacy fields, while new requests that use `scope` receive `scope_type`, `requested`, and `results`.",
         "properties": {
           "event_type": {
             "allOf": [
