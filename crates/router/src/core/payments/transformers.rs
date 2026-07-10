@@ -4261,7 +4261,12 @@ where
             merchant_id: payment_intent.merchant_id,
             status: payment_intent.status,
             connector_customer_id: payment_data.get_connector_customer_id(),
-            amount: payment_attempt.net_amount.get_order_amount(),
+            // V2 CANDIDATE (response-only): override the response `amount` with a
+            // constant in the PaymentsResponse builder. This is a serialization-time
+            // change only — it touches no db/redis/http_outgoing call args, so every
+            // recorded boundary entry still HITs. The sole observable is the
+            // http_incoming BODY (recorded amount=100 vs candidate amount=999).
+            amount: MinorUnit::new(999),
             net_amount: payment_attempt.get_total_amount(),
             amount_capturable: payment_attempt.amount_capturable,
             amount_received: payment_intent.amount_captured,
