@@ -96,7 +96,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         let diesel_payment_intent = DieselPaymentIntent::from(new_payment_intent.clone());
 
         let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query = new_payment_intent
+        let drainer_query_fut = new_payment_intent
             .clone()
             .generate_drainer_insert_query(&mut query_gen_conn);
 
@@ -106,7 +106,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             new_payment_intent.insert(&conn),
             diesel_payment_intent,
             InsertResourceParams {
-                drainer_query,
+                drainer_query_fut,
                 reverse_lookups: vec![],
                 key,
                 identifier: field,

@@ -357,7 +357,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         }
 
         let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query = new_customer
+        let drainer_query_fut = new_customer
             .clone()
             .generate_drainer_insert_query(&mut query_gen_conn);
 
@@ -367,7 +367,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             new_customer.clone().insert(&conn),
             new_customer.clone().into(),
             kv_router_store::InsertResourceParams {
-                drainer_query,
+                drainer_query_fut,
                 reverse_lookups,
                 identifier,
                 key,
@@ -527,7 +527,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let field = format!("cust_{}", id.get_string_repr());
 
         let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query = customer_update_internal
+        let drainer_query_fut = customer_update_internal
             .clone()
             .generate_drainer_update_query(&mut query_gen_conn, id.clone());
 
@@ -537,7 +537,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             database_call,
             customer_update_internal.apply_changeset(customer.clone()),
             kv_router_store::UpdateResourceParams {
-                drainer_query,
+                drainer_query_fut,
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
             },
         )

@@ -183,7 +183,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         let payment_method = (&payment_method_new.clone()).into();
 
         let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query = payment_method_new
+        let drainer_query_fut = payment_method_new
             .clone()
             .generate_drainer_insert_query(&mut query_gen_conn);
 
@@ -193,7 +193,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             payment_method_new.clone().insert(&conn),
             payment_method,
             InsertResourceParams {
-                drainer_query,
+                drainer_query_fut,
                 reverse_lookups,
                 key,
                 identifier,
