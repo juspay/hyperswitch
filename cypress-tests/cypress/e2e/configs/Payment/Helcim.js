@@ -1,5 +1,10 @@
 import { getCustomExchange } from "./Modifiers";
 import { stampPaymentMethodType } from "./Utils";
+import {
+  customerAcceptance,
+  singleUseMandateData,
+  multiUseMandateData,
+} from "./Commons";
 
 // Disable Cypress retries for Helcim because the connector enforces strict
 // idempotency rules: it identifies transactions by card number, cardholder
@@ -148,6 +153,187 @@ const card_pm = {
       },
     },
   }),
+  // Mandate flows — Helcim connector returns NotImplemented for setup_mandate.
+  // The payment intent creation succeeds, but the confirm/SETUP_MANDATE step
+  // returns 501 with "Setup Mandate flow for Helcim is not implemented".
+  // These entries map the test expectations to that actual error response.
+  ZeroAuthPaymentIntent: getCustomExchange({
+    Request: {
+      amount: 0,
+      setup_future_usage: "off_session",
+      currency: "USD",
+      payment_type: "setup_mandate",
+    },
+    Response: {
+      status: 200,
+      body: {
+        status: "requires_payment_method",
+      },
+    },
+  }),
+  ZeroAuthConfirmPayment: getCustomExchange({
+    Request: {
+      payment_type: "setup_mandate",
+      payment_method: "card",
+      payment_method_data: { card: successfulNo3DSCardDetails },
+      mandate_data: null,
+      customer_acceptance: customerAcceptance,
+    },
+    Response: {
+      status: 501,
+      body: {
+        error: {
+          type: "invalid_request",
+          message: "Setup Mandate flow for Helcim is not implemented",
+          code: "IR_00",
+        },
+      },
+    },
+  }),
+  ZeroAuthMandate: {
+    Response: {
+      status: 501,
+      body: {
+        error: {
+          type: "invalid_request",
+          message: "Setup Mandate flow for Helcim is not implemented",
+          code: "IR_00",
+        },
+      },
+    },
+  },
+  MandateSingleUseNo3DSAutoCapture: {
+    Configs: { TRIGGER_SKIP: true },
+    Request: {
+      payment_method: "card",
+      payment_method_data: { card: successfulNo3DSCardDetails },
+      currency: "USD",
+      mandate_data: singleUseMandateData,
+    },
+    Response: {
+      status: 200,
+      body: { status: "succeeded" },
+    },
+  },
+  MandateSingleUseNo3DSManualCapture: {
+    Configs: { TRIGGER_SKIP: true },
+    Request: {
+      payment_method: "card",
+      payment_method_data: { card: successfulNo3DSCardDetails },
+      currency: "USD",
+      mandate_data: singleUseMandateData,
+    },
+    Response: {
+      status: 200,
+      body: { status: "requires_capture" },
+    },
+  },
+  PaymentMethodIdMandateNo3DSAutoCapture: {
+    Configs: {
+      TRIGGER_SKIP: true,
+    },
+    Request: {
+      payment_method: "card",
+      payment_method_data: { card: successfulNo3DSCardDetails },
+      currency: "USD",
+      mandate_data: null,
+      customer_acceptance: customerAcceptance,
+    },
+    Response: {
+      status: 200,
+      body: {
+        status: "succeeded",
+      },
+    },
+  },
+  PaymentMethodIdMandateNo3DSManualCapture: {
+    Configs: {
+      TRIGGER_SKIP: true,
+    },
+    Request: {
+      payment_method: "card",
+      payment_method_data: { card: successfulNo3DSCardDetails },
+      currency: "USD",
+      mandate_data: null,
+      customer_acceptance: customerAcceptance,
+    },
+    Response: {
+      status: 200,
+      body: {
+        status: "requires_capture",
+      },
+    },
+  },
+  PaymentMethodIdMandate3DSAutoCapture: {
+    Configs: {
+      TRIGGER_SKIP: true,
+    },
+    Request: {},
+    Response: {
+      status: 200,
+      body: {},
+    },
+  },
+  PaymentMethodIdMandate3DSManualCapture: {
+    Configs: {
+      TRIGGER_SKIP: true,
+    },
+    Request: {},
+    Response: {
+      status: 200,
+      body: {},
+    },
+  },
+  MITAutoCapture: {
+    Configs: { TRIGGER_SKIP: true },
+    Request: {},
+    Response: {
+      status: 200,
+      body: { status: "succeeded" },
+    },
+  },
+  MITManualCapture: {
+    Configs: { TRIGGER_SKIP: true },
+    Request: {},
+    Response: {
+      status: 200,
+      body: { status: "requires_capture" },
+    },
+  },
+  MITWithoutBillingAddress: {
+    Configs: { TRIGGER_SKIP: true },
+    Request: { billing: null },
+    Response: {
+      status: 200,
+      body: { status: "succeeded" },
+    },
+  },
+  MandateMultiUseNo3DSAutoCapture: {
+    Configs: { TRIGGER_SKIP: true },
+    Request: {
+      payment_method: "card",
+      payment_method_data: { card: successfulNo3DSCardDetails },
+      currency: "USD",
+      mandate_data: multiUseMandateData,
+    },
+    Response: {
+      status: 200,
+      body: { status: "succeeded" },
+    },
+  },
+  MandateMultiUseNo3DSManualCapture: {
+    Configs: { TRIGGER_SKIP: true },
+    Request: {
+      payment_method: "card",
+      payment_method_data: { card: successfulNo3DSCardDetails },
+      currency: "USD",
+      mandate_data: multiUseMandateData,
+    },
+    Response: {
+      status: 200,
+      body: { status: "requires_capture" },
+    },
+  },
 };
 
 export const connectorDetails = {
