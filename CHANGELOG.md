@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.10.0
+
+### Bug Fixes
+
+- **connector:**
+  - [noon] gracefully handle unknown response enum variants and missing optional fields ([#13228](https://github.com/juspay/hyperswitch/pull/13228)) ([`3c4fee8`](https://github.com/juspay/hyperswitch/commit/3c4fee8eb3b3a66071a80495f305e4a8680e5e4b))
+  - [worldpayxml] gracefully handle unknown response enum variants and missing optional fields ([#13245](https://github.com/juspay/hyperswitch/pull/13245)) ([`c9e8b89`](https://github.com/juspay/hyperswitch/commit/c9e8b89ca7976ed730e02ebdef2cfbd1153201a9))
+- **connectors:** [stripe] gracefully handle unknown response enum variants and missing optional fields ([#13218](https://github.com/juspay/hyperswitch/pull/13218)) ([`a874f08`](https://github.com/juspay/hyperswitch/commit/a874f08ecf555872cb207ca8a6a2c8c084276ad8))
+- **payouts:** Route merchant-authentication (access-token) calls through the payout connector ([#13150](https://github.com/juspay/hyperswitch/pull/13150)) ([`f02f42c`](https://github.com/juspay/hyperswitch/commit/f02f42c45dcb6668b764733b0b5797e4ac7c564e))
+- **worldpayxml:** Allow hyphenated ids in DDC redirect regex ([#13217](https://github.com/juspay/hyperswitch/pull/13217)) ([`d738889`](https://github.com/juspay/hyperswitch/commit/d738889b43e7e52cf1ad985ad06af067b5fe123e))
+
+### Refactors
+
+- **connector:** [Paypal] gracefully handle unknown response enum variants and missing optional fields ([#13240](https://github.com/juspay/hyperswitch/pull/13240)) ([`e0f0081`](https://github.com/juspay/hyperswitch/commit/e0f0081e5f04785a6735eb01f35f50cca852e0b6))
+- **core:** Add support for disabling surcharge calculation if MCA is disabled ([#13224](https://github.com/juspay/hyperswitch/pull/13224)) ([`6382781`](https://github.com/juspay/hyperswitch/commit/638278140589fa92b4dbf3a8ff83d33d1677236e))
+- **storage_impl:** Move Conversion impl for business_profile to storage_impl crate ([#11806](https://github.com/juspay/hyperswitch/pull/11806)) ([`e5199cf`](https://github.com/juspay/hyperswitch/commit/e5199cff27ea463dbb71812f0aa35a9be1a39584))
+
+**Full Changelog:** [`2026.07.09.1...2026.07.10.0`](https://github.com/juspay/hyperswitch/compare/2026.07.09.1...2026.07.10.0)
+
+- - -
+
 ## 2026.07.09.1
 
 ### Bug Fixes
