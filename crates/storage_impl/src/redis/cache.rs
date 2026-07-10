@@ -320,10 +320,17 @@ where
         .await;
     let get_data_set_redis = || async {
         let data = fun().await?;
-        redis
-            .serialize_and_set_key(&key.into(), &data)
-            .await
-            .change_context(StorageError::KVError)?;
+        // V2 CANDIDATE (dropped-write): gate the cache-populate SET behind `if false`.
+        // The preceding redis GET miss and the fun() DB find still run with identical
+        // args (and `data` is still returned), but the recorded serialize_and_set_key
+        // (a redis set_key write) is silently skipped. Pure SILENT OMITTED side effect:
+        // no args change anywhere, so zero NOVEL pairs and a byte-identical 2xx body.
+        if false {
+            redis
+                .serialize_and_set_key(&key.into(), &data)
+                .await
+                .change_context(StorageError::KVError)?;
+        }
         Ok::<_, Report<StorageError>>(data)
     };
     match redis_val {
