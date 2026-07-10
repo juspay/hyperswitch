@@ -49,7 +49,7 @@ EXCLUDED_CONNECTORS = {
     "fiservcommercehub",  # UCS only connector
     "revolv3",  # UCS only connector
     "juspaythreedsserver", "katapult", "mpgs", "payeezy", "payme",  # creds not available
-    "paytm", "phonepe",
+    "paytm", "phonepe", "tokenio",  # creds not available
     "powertranz", "prophetpay", "santander", "sift", "silverflow", "square",
     "hyperpg", "tokenex", "trustpayments", "zen"
 }
