@@ -141,7 +141,7 @@ where
                             if let UnifiedConnectorServiceError::ConnectorError(inner) =
                                 report.current_context()
                             {
-                                logger::info!(
+                                logger::debug!(
                                     "Connector error via UCS for incremental authorization (connector {}, status {}): {} - {}",
                                     inner.connector,
                                     inner.status_code,

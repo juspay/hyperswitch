@@ -132,7 +132,7 @@ where
                         if let UnifiedConnectorServiceError::ConnectorError(inner) =
                             report.current_context()
                         {
-                            logger::info!(
+                            logger::debug!(
                                 "Connector error via UCS for pre-authorize void (connector {}, status {}): {} - {}",
                                 inner.connector,
                                 inner.status_code,

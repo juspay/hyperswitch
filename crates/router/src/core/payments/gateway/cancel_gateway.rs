@@ -131,7 +131,7 @@ where
                                 &inner.network_decline_code, &inner.network_advice_code,
                                 &inner.network_error_message, &inner.connector,
                             );
-                            logger::info!(
+                            logger::debug!(
                                 "Connector error via UCS for void (connector {}, status {}): {} - {}",
                                 connector,
                                 status_code,
