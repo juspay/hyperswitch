@@ -4,7 +4,6 @@ const config_fields = [
   "DELAY",
   "TRIGGER_SKIP",
   "LOCAL_VAULT_REQUIRED",
-  "skipPaymentMethodStatusAssertion",
 ];
 
 const DEFAULT_CONNECTOR = "connector_1";
@@ -83,7 +82,6 @@ function validateConfigValue(key, value) {
       case "TRIGGER_SKIP":
       case "LOCAL_VAULT_REQUIRED":
       case "DELAY.STATUS":
-      case "skipPaymentMethodStatusAssertion":
         if (!validateType(value, "boolean")) return false;
         break;
 
