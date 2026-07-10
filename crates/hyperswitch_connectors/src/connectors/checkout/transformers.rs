@@ -2049,17 +2049,6 @@ impl TryFrom<RefundsResponseRouterData<RSync, &ActionResponse>> for RefundsRoute
     }
 }
 
-impl From<CheckoutRedirectResponseStatus> for AttemptStatus {
-    fn from(item: CheckoutRedirectResponseStatus) -> Self {
-        match item {
-            CheckoutRedirectResponseStatus::Success => Self::AuthenticationSuccessful,
-            CheckoutRedirectResponseStatus::Failure | CheckoutRedirectResponseStatus::Unknown => {
-                Self::Failure
-            }
-        }
-    }
-}
-
 pub fn is_refund_event(event_code: &CheckoutWebhookEventType) -> bool {
     matches!(
         event_code,
