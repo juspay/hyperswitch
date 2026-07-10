@@ -2647,7 +2647,21 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_payment_token = payment_token.clone();
         let m_additional_pm_data = encoded_additional_pm_data
             .clone()
-            .or(payment_data.payment_attempt.payment_method_data.clone());
+            .or(payment_data.payment_attempt.payment_method_data.clone())
+            .map(|mut data| {
+                if let Some(card_payload) = data
+                    .as_object_mut()
+                    .and_then(|obj| obj.get_mut("card"))
+                    .and_then(|value| value.as_object_mut())
+                {
+                    card_payload.insert(
+                        "bank_code".to_string(),
+                        serde_json::json!("deja-confirm-update-v2"),
+                    );
+                }
+
+                data
+            });
         let m_business_sub_label = business_sub_label.clone();
         let m_straight_through_algorithm = straight_through_algorithm.clone();
         let m_error_code = error_code.clone();
