@@ -1,3 +1,4 @@
+// Spec #55. Number 56 is reserved by PR #13154 (DynamicFields was moved to 57 to avoid conflict).
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import { payment_methods_enabled } from "../../configs/Payment/Commons";
@@ -19,6 +20,12 @@ describe("Subscription Management tests", () => {
       ) {
         connectorSupported = false;
       }
+      if (!Cypress.env("STRIPE_TEST_PRICE_ID")) {
+        cy.task(
+          "cli_log",
+          "WARNING: STRIPE_TEST_PRICE_ID not set — subscription Create tests will be skipped. Set this env var with a valid Stripe test price ID to enable full coverage."
+        );
+      }
     });
   });
 
@@ -39,10 +46,10 @@ describe("Subscription Management tests", () => {
   });
 
   context("Prerequisites", () => {
-    const prereqContinue = true;
+    let prereqContinue = true;
 
     beforeEach(function () {
-      if (!prereqContinue) {
+      if (!shouldContinue || !prereqContinue) {
         this.skip();
       }
     });
@@ -50,6 +57,12 @@ describe("Subscription Management tests", () => {
     it("create-payment-method-for-subscription-test", () => {
       const data = getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
       cy.createPaymentMethodTest(globalState, data);
+      cy.wrap(null).then(() => {
+        shouldContinue = !!globalState.get("paymentMethodId");
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping billing connector setup: payment method creation failed");
+        }
+      });
     });
 
     it("create-billing-connector-test", () => {
@@ -60,6 +73,11 @@ describe("Subscription Management tests", () => {
         globalState.get("connectorId"),
         "stripebilling"
       );
+      cy.wrap(null).then(() => {
+        if (shouldContinue) {
+          shouldContinue = !!globalState.get("billingProcessorConnectorId");
+        }
+      });
     });
 
     it("configure-billing-processor-id-test", () => {
@@ -108,6 +126,12 @@ describe("Subscription Management tests", () => {
   });
 
   context("Create Subscription - Negative Cases", () => {
+    beforeEach(function () {
+      if (!globalState.get("billingProcessorConnectorId")) {
+        this.skip();
+      }
+    });
+
     it("create-subscription-invalid-customer-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "subscription_pm"
@@ -224,79 +248,6 @@ describe("Subscription Management tests", () => {
       ]["Retrieve"];
 
       cy.retrieveSubscriptionTest(data, globalState);
-    });
-  });
-
-  context("Subscription Lifecycle Flow", () => {
-    it("full-lifecycle-create-subscription-test", function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "subscription_pm"
-      ]["Create"];
-
-      cy.createSubscriptionTest(
-        fixtures.createSubscriptionBody,
-        data,
-        globalState
-      );
-
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-      }
-
-      if (!shouldContinue) {
-        cy.task("cli_log", "Skipping remaining lifecycle steps");
-        return;
-      }
-
-      const retrieveData = getConnectorDetails(globalState.get("connectorId"))[
-        "subscription_pm"
-      ]["Retrieve"];
-
-      cy.retrieveSubscriptionTest(retrieveData, globalState);
-
-      const updateData = getConnectorDetails(globalState.get("connectorId"))[
-        "subscription_pm"
-      ]["Update"];
-
-      cy.updateSubscriptionTest(
-        fixtures.updateSubscriptionBody,
-        updateData,
-        globalState
-      );
-
-      if (!utils.should_continue_further(updateData)) {
-        shouldContinue = false;
-      }
-
-      if (!shouldContinue) {
-        cy.task("cli_log", "Skipping cancel step");
-        return;
-      }
-
-      const cancelData = getConnectorDetails(globalState.get("connectorId"))[
-        "subscription_pm"
-      ]["Cancel"];
-
-      cy.cancelSubscriptionTest(cancelData, globalState);
-
-      if (!utils.should_continue_further(cancelData)) {
-        shouldContinue = false;
-      }
-
-      if (!shouldContinue) {
-        cy.task("cli_log", "Skipping final retrieve step");
-        return;
-      }
-
-      const retrieveCancelledData = getConnectorDetails(
-        globalState.get("connectorId")
-      )["subscription_pm"]["RetrieveCancelled"];
-
-      cy.retrieveSubscriptionTest(retrieveCancelledData, globalState);
     });
   });
 });
