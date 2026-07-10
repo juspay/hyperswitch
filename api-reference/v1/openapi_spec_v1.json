@@ -24370,18 +24370,17 @@
       },
       "LegacyRegisterConnectorWebhookResponse": {
         "type": "object",
+        "description": "Legacy response format. These fields remain supported for backward compatibility\nbut will be deprecated soon. Prefer[`ScopeBasedRegisterConnectorWebhookResponse`] for new integrations.",
+        "required": [
+          "event_type"
+        ],
         "properties": {
           "event_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorWebhookEventType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/ConnectorWebhookEventType"
           },
           "connector_webhook_id": {
             "type": "string",
-            "deprecated": true,
+            "description": "To be deprecated soon; prefer the scope-based response format for new integrations.",
             "nullable": true
           },
           "webhook_registration_status": {
@@ -24394,12 +24393,12 @@
           },
           "error_code": {
             "type": "string",
-            "deprecated": true,
+            "description": "To be deprecated soon; prefer the scope-based response format for new integrations.",
             "nullable": true
           },
           "error_message": {
             "type": "string",
-            "deprecated": true,
+            "description": "To be deprecated soon; prefer the scope-based response format for new integrations.",
             "nullable": true
           },
           "secret_generation_status": {
