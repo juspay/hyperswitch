@@ -119,6 +119,10 @@ describe("Acquirer-specific configurations", () => {
       });
 
       it("Create Acquirer Config (Mastercard)", () => {
+        globalState.set(
+          "visaAcquirerId",
+          globalState.get("profileAcquirerId")
+        );
         const body = {
           ...fixtures.businessProfile.acquirerConfigCreateMastercard,
         };
@@ -137,7 +141,7 @@ describe("Acquirer-specific configurations", () => {
           expect(response.body.acquirer_configs.length).to.equal(2);
           expect(response.body.acquirer_config_bucket).to.not.be.null;
           expect(response.body.acquirer_config_bucket.configs).to.have.property(
-            globalState.get("profileAcquirerId")
+            globalState.get("visaAcquirerId")
           );
           expect(response.body.acquirer_config_bucket.configs).to.have.property(
             globalState.get("mastercardAcquirerId")
