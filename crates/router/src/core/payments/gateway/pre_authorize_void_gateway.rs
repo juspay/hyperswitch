@@ -139,22 +139,7 @@ where
                                 inner.code,
                                 inner.message
                             );
-                            router_data.response =
-                                Err(hyperswitch_domain_models::router_data::ErrorResponse {
-                                    code: inner.code.clone(),
-                                    message: inner.message.clone(),
-                                    reason: inner.reason.clone(),
-                                    status_code: inner.status_code,
-                                    attempt_status: None,
-                                    connector_transaction_id: inner
-                                        .connector_transaction_id
-                                        .clone(),
-                                    connector_response_reference_id: None,
-                                    network_decline_code: inner.network_decline_code.clone(),
-                                    network_advice_code: inner.network_advice_code.clone(),
-                                    network_error_message: inner.network_error_message.clone(),
-                                    connector_metadata: None,
-                                });
+                            router_data.response = Err(inner.as_ref().into());
                             router_data.connector_http_status_code = Some(inner.status_code);
                             return Ok((
                                 router_data,

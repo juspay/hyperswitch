@@ -149,14 +149,10 @@ where
                             if let UnifiedConnectorServiceError::ConnectorError(inner) =
                                 report.current_context()
                             {
-                                let (code, message, status_code, reason,
-                                     connector_transaction_id,
-                                     network_decline_code, network_advice_code,
-                                     network_error_message, connector) = (
-                                    &inner.code, &inner.message, inner.status_code,
-                                    &inner.reason, &inner.connector_transaction_id,
-                                    &inner.network_decline_code,
-                                    &inner.network_advice_code, &inner.network_error_message,
+                                let (code, message, status_code, connector) = (
+                                    &inner.code,
+                                    &inner.message,
+                                    inner.status_code,
                                     &inner.connector,
                                 );
                                 logger::debug!(
@@ -166,20 +162,7 @@ where
                                     code,
                                     message
                                 );
-                                router_data.response =
-                                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
-                                        code: code.clone(),
-                                        message: message.clone(),
-                                        reason: reason.clone(),
-                                        status_code,
-                                        attempt_status: None,
-                                        connector_transaction_id: connector_transaction_id.clone(),
-                                        connector_response_reference_id: None,
-                                        network_decline_code: network_decline_code.clone(),
-                                        network_advice_code: network_advice_code.clone(),
-                                        network_error_message: network_error_message.clone(),
-                                        connector_metadata: None,
-                                    });
+                                router_data.response = Err(inner.as_ref().into());
                                 router_data.connector_http_status_code = Some(status_code);
                                 return Ok((
                                     router_data,
@@ -274,25 +257,10 @@ where
                             if let UnifiedConnectorServiceError::ConnectorError(inner) =
                                 report.current_context()
                             {
-                                let (
-                                    code,
-                                    message,
-                                    status_code,
-                                    reason,
-                                    connector_transaction_id,
-                                    network_decline_code,
-                                    network_advice_code,
-                                    network_error_message,
-                                    connector,
-                                ) = (
+                                let (code, message, status_code, connector) = (
                                     &inner.code,
                                     &inner.message,
                                     inner.status_code,
-                                    &inner.reason,
-                                    &inner.connector_transaction_id,
-                                    &inner.network_decline_code,
-                                    &inner.network_advice_code,
-                                    &inner.network_error_message,
                                     &inner.connector,
                                 );
                                 logger::debug!(
@@ -302,20 +270,7 @@ where
                                     code,
                                     message
                                 );
-                                router_data.response =
-                                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
-                                        code: code.clone(),
-                                        message: message.clone(),
-                                        reason: reason.clone(),
-                                        status_code,
-                                        attempt_status: None,
-                                        connector_transaction_id: connector_transaction_id.clone(),
-                                        connector_response_reference_id: None,
-                                        network_decline_code: network_decline_code.clone(),
-                                        network_advice_code: network_advice_code.clone(),
-                                        network_error_message: network_error_message.clone(),
-                                        connector_metadata: None,
-                                    });
+                                router_data.response = Err(inner.as_ref().into());
                                 // Return Ok with router_data containing the error response
                                 // This ensures the connector error flows through the normal
                                 // response handling path (same as direct connector errors)
