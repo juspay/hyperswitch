@@ -602,6 +602,7 @@ export const CONNECTOR_LISTS = {
     ],
     BANK_DEBIT: [
       "adyen",
+      "mollie",
       "novalnet",
       "payload",
       "stax",
