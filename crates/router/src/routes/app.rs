@@ -208,8 +208,7 @@ impl SessionState {
             .request_id(request_id)
             .shadow_mode(shadow_mode)
             .proxy_name(proxy_name)
-            // no override: UCS emits in all modes, distinguished downstream by `execution_mode`
-            .config_override(None)
+            .config_override(config_override)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
