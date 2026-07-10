@@ -1,0 +1,46 @@
+covered_in_tag,bucket,connector,pm,pmt,feature
+2026.06.30.0,2,adyen,BankDebit,Ach,Mandate
+2026.06.30.0,2,adyen,BankDebit,Bacs,Mandate
+2026.06.30.0,2,adyen,BankDebit,Sepa,Mandate
+2026.06.30.0,2,adyen,PayLater,Alma,Payment
+2026.06.30.0,2,adyen,PayLater,Atome,Payment
+2026.06.30.0,2,adyen,PayLater,Walley,Payment
+2026.06.30.0,2,novalnet,BankDebit,Sepa,Mandate
+2026.06.30.0,2,novalnet,BankDebit,SepaGuarenteedDebit,Mandate
+2026.06.30.0,2,novalnet,Wallet,ApplePay,Mandate
+2026.06.30.0,2,novalnet,Wallet,GooglePay,Mandate
+2026.06.30.0,2,novalnet,Wallet,Paypal,Mandate
+2026.07.01.0,1,peachpayments,,,Network Transaction ID
+2026.07.01.0,2,trustpay,Wallet,ApplePay,Payment
+2026.07.01.0,2,trustpay,Wallet,GooglePay,Payment
+2026.07.02.0,2,helcim,Card,Credit,Payment
+2026.07.02.0,2,helcim,Card,Debit,Payment
+2026.07.02.0,2,nuvei,NetworkToken,NetworkToken,Mandate
+2026.07.02.0,2,nuvei,NetworkToken,NetworkToken,Payment
+2026.07.03.0,2,stripe,Wallet,AliPay,Payment
+2026.07.03.0,2,stripe,Wallet,AmazonPay,Mandate
+2026.07.03.0,2,stripe,Wallet,AmazonPay,Payment
+2026.07.03.0,2,stripe,Wallet,ApplePay,Mandate
+2026.07.03.0,2,stripe,Wallet,ApplePay,Payment
+2026.07.03.0,2,stripe,Wallet,ApplePay,Payment (Decrypt Flow)
+2026.07.03.0,2,stripe,Wallet,Cashapp,Mandate
+2026.07.03.0,2,stripe,Wallet,Cashapp,Payment
+2026.07.03.0,2,stripe,Wallet,GooglePay,Mandate
+2026.07.03.0,2,stripe,Wallet,GooglePay,Payment
+2026.07.03.0,2,stripe,Wallet,GooglePay,Payment (Decrypt Flow)
+2026.07.03.0,2,stripe,Wallet,Paze,Payment (Decrypt Flow)
+2026.07.03.0,2,stripe,Wallet,RevolutPay,Mandate
+2026.07.03.0,2,stripe,Wallet,RevolutPay,Payment
+2026.07.03.0,2,stripe,Wallet,WeChatPay,Payment
+2026.07.06.0,1,payjustnow,,,Refund
+2026.07.06.0,2,payjustnow,PayLater,Payjustnow,Payment
+2026.07.06.0,2,stripe,BankDebit,Ach,Mandate
+2026.07.06.0,2,stripe,BankDebit,Ach,Payment
+2026.07.06.0,2,stripe,BankDebit,Bacs,Mandate
+2026.07.06.0,2,stripe,BankDebit,Bacs,Payment
+2026.07.06.0,2,stripe,BankDebit,Becs,Mandate
+2026.07.06.0,2,stripe,BankDebit,Becs,Payment
+2026.07.06.0,2,stripe,BankDebit,Sepa,Mandate
+2026.07.06.0,2,stripe,BankDebit,Sepa,Payment
+2026.07.07.0,1,authorizedotnet,,,Network Transaction ID
+2026.07.08.0,3,,,,FRM (Fraud Risk Management)

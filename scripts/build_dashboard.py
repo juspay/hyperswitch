@@ -40,14 +40,24 @@ EXCLUDED_CONNECTORS = {
     "absa_sanlam",
     # Standard exclusions
     "blackhawknetwork", "boku", "breadpay", "celero", "chargebee", "digitalvirgo",
-    "flexiti", "getnet", "gpayments", "hyperwallet", "imerchantsolutions",
-    "juspaythreedesserver", "katapult", "mpgs", "payeezy", "paytm", "phonepe",
+    "flexiti", "getnet", "gpayments", "hyperwallet",
+    "imerchantsolutions",  # UCS only connector
+    "tsys_transit",  # UCS only connector
+    "fiservcommercehub",  # UCS only connector
+    "revolv3",  # UCS only connector
+    "juspaythreedesserver", "katapult", "mpgs", "payeezy", "payme",  # creds not available
+    "paytm", "phonepe",
     "powertranz", "prophetpay", "santander", "sift", "silverflow", "square",
     "hyperpg", "tokenex", "trustpayments", "zen"
 }
 
 # Payment method types to exclude from Bucket 2
-EXCLUDED_PM_TYPES_BUCKET2 = {"GooglePay", "ApplePay"}
+EXCLUDED_PM_TYPES_BUCKET2 = {"GooglePay", "ApplePay", "Paze", "SamsungPay"}  # Paze not fully implemented, SamsungPay can't automate
+
+# Specific B2 (connector, pm, pmt, feature) combinations to exclude
+EXCLUDED_B2_COMBINATIONS = {
+    ("braintree", "Wallet", "Paypal", "Payment"),  # Can't automate in cypress
+}
 
 # Specific connector + flow combinations to exclude
 EXCLUDED_FLOW_COMBINATIONS = {
@@ -67,7 +77,6 @@ EXCLUDED_FLOW_COMBINATIONS = {
     ("razorpay",  "Refund"),              # Not possible to verify e2e cases
     ("santander", "Refund"),              # Not possible to verify e2e cases
     ("stripe",    "Overcapture"),         # Creds not available
-    ("revolv3",   "Refund"),              # UCS only connector
     ("truelayer", "Refund"),              # UCS only connector
     ("trustly",   "Refund"),              # UCS only connector
     ("adyen",     "Split Refunds"),       # Creds not available
@@ -81,6 +90,14 @@ EXCLUDED_FLOW_COMBINATIONS = {
     ("xendit",         "Split Refunds"),          # Creds not available
     ("xendit",         "Settlement Split Call"),  # Creds not available
     ("worldpaymodular", "Refund"),                 # Not possible to verify e2e cases
+    ("barclaycard", "Pre-Authentication Flow"),     # Internal flow
+    ("cybersource", "Pre-Authentication Flow"),     # Internal flow
+    ("nexixpay",    "Pre-Authentication Flow"),     # Internal flow
+    ("nmi",         "Pre-Authentication Flow"),     # Internal flow
+    ("nuvei",       "Pre-Authentication Flow"),     # Internal flow
+    ("redsys",      "Pre-Authentication Flow"),     # Internal flow
+    ("shift4",      "Pre-Authentication Flow"),     # Internal flow
+    ("worldpayxml", "Pre-Authentication Flow"),     # Internal flow
 }
 
 # Features to exclude from Bucket 3
@@ -127,6 +144,8 @@ def fetch_prod_coverage(until_tag=None):
         if connector and connector.lower() in EXCLUDED_CONNECTORS:
             continue
         if bucket == 2 and pmt in EXCLUDED_PM_TYPES_BUCKET2:
+            continue
+        if bucket == 2 and (connector and connector.lower(), pm, pmt, feature) in EXCLUDED_B2_COMBINATIONS:
             continue
         if bucket == 1 and (connector and connector.lower(), feature) in EXCLUDED_FLOW_COMBINATIONS:
             continue
@@ -187,6 +206,12 @@ def fetch_series(cutoff_tag=None, until_tag=None):
          for c, f in EXCLUDED_FLOW_COMBINATIONS]
     )
 
+    # Exclude specific (connector, pm, pmt, feature) combinations from B2
+    b2_combo_excludes = " OR ".join(
+        [f"(LOWER(connector) = '{c}' AND pm = '{pm}' AND pmt = '{pmt}' AND feature = '{f}')"
+         for c, pm, pmt, f in EXCLUDED_B2_COMBINATIONS]
+    )
+
     sql = f"""
         SELECT
             tag,
@@ -202,7 +227,7 @@ def fetch_series(cutoff_tag=None, until_tag=None):
         FROM tag_snapshots
         WHERE (bucket != 1 OR NOT ({connector_excludes}))
           AND (bucket != 1 OR NOT ({flow_combo_excludes}))
-          AND (bucket != 2 OR (NOT ({connector_excludes}) AND NOT ({pm_type_excludes})))
+          AND (bucket != 2 OR (NOT ({connector_excludes}) AND NOT ({pm_type_excludes}) AND NOT ({b2_combo_excludes})))
           AND (bucket != 3 OR NOT ({b3_feature_excludes}))
           {{cutoff_where}}
         GROUP BY tag

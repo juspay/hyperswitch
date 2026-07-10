@@ -44,14 +44,18 @@ EXCLUDED_CONNECTORS = {
     "absa_sanlam",
     # Standard exclusions
     "blackhawknetwork", "boku", "breadpay", "celero", "chargebee", "digitalvirgo",
-    "flexiti", "getnet", "gpayments", "hyperwallet", "imerchantsolutions",
-    "juspaythreedsserver", "katapult", "mpgs", "payeezy", "paytm", "phonepe",
+    "flexiti", "getnet", "gpayments", "hyperwallet",     "imerchantsolutions",
+    "tsys_transit",  # UCS only connector
+    "fiservcommercehub",  # UCS only connector
+    "revolv3",  # UCS only connector
+    "juspaythreedsserver", "katapult", "mpgs", "payeezy", "payme",  # creds not available
+    "paytm", "phonepe",
     "powertranz", "prophetpay", "santander", "sift", "silverflow", "square",
     "hyperpg", "tokenex", "trustpayments", "zen"
 }
 
 # Payment method types to exclude from Bucket 2
-EXCLUDED_PM_TYPES_BUCKET2 = {"GooglePay", "ApplePay"}
+EXCLUDED_PM_TYPES_BUCKET2 = {"GooglePay", "ApplePay", "SamsungPay"}  # SamsungPay can't automate
 
 # Specific connector + flow combinations to exclude
 EXCLUDED_FLOW_COMBINATIONS = {
