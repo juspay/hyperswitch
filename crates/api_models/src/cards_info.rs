@@ -6,8 +6,8 @@ use utoipa::ToSchema;
 use crate::enums;
 
 /// Accepts either a JSON array of co-badged card networks (from the create/update JSON APIs) or a
-/// JSON-array-encoded string within a single CSV cell (from the bulk migration upload),
-/// e.g. `["RUPAY","STAR"]`.
+/// comma-separated list of network codes within a single CSV cell (from the bulk migration upload),
+/// e.g. `STAR,PULSE`.
 fn deserialize_co_badged_card_networks<'de, D>(
     deserializer: D,
 ) -> Result<Option<Vec<enums::CoBadgedCardNetwork>>, D::Error>
@@ -20,8 +20,9 @@ where
         type Value = Option<Vec<enums::CoBadgedCardNetwork>>;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            formatter
-                .write_str("a JSON array of card networks, or that array JSON-encoded as a string")
+            formatter.write_str(
+                "a JSON array of card networks, or a comma-separated list of card networks",
+            )
         }
 
         fn visit_unit<E>(self) -> Result<Self::Value, E>
@@ -38,9 +39,20 @@ where
             if value.trim().is_empty() {
                 return Ok(None);
             }
-            serde_json::from_str(value)
-                .map(Some)
-                .map_err(|_| E::custom("invalid card network in co_badged_card_networks"))
+            let networks = value
+                .split(',')
+                .map(str::trim)
+                .filter(|token| !token.is_empty())
+                .map(|token| {
+                    serde_json::from_str::<enums::CoBadgedCardNetwork>(&format!("\"{token}\""))
+                        .map_err(|_| {
+                            E::custom(format!(
+                                "invalid card network in co_badged_card_networks: {token}"
+                            ))
+                        })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Some(networks))
         }
 
         fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
