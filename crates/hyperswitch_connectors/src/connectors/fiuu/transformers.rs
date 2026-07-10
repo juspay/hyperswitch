@@ -263,7 +263,10 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuMandateReque
             .router_data
             .request
             .get_card_holder_name_from_additional_payment_method_data()?;
-        let email = item.router_data.get_billing_email()?;
+        let email = item
+            .router_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
         let token = Secret::new(item.router_data.request.get_connector_mandate_id()?);
         let verify_key = auth.verify_key;
         let recurring_request = FiuuRecurringRequest {
@@ -664,7 +667,10 @@ impl TryFrom<(&Card, &PaymentsAuthorizeRouterData)> for FiuuPaymentMethodData {
     ) -> Result<Self, Self::Error> {
         let (mps_token_status, customer_email) =
             if item.request.is_customer_initiated_mandate_payment() {
-                (Some(1), Some(item.get_billing_email()?))
+                (
+                    Some(1),
+                    Some(item.get_billing_email().or(item.request.get_email())?),
+                )
             } else {
                 (Some(3), None)
             };

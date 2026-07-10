@@ -5458,7 +5458,19 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    if is_operation_confirm(operation)
+    // The wallet predecrypt must run whenever this call will reach the connector:
+    // the standalone Confirm operation, and equally a one-shot PaymentCreate with
+    // confirm=true (which otherwise ships the still-encrypted wallet token to the
+    // connector tokenization step).
+    let is_confirm_operation = is_operation_confirm(operation)
+        || matches!(
+            (
+                format!("{operation:?}").as_str(),
+                payment_data.get_payment_attempt().confirm,
+            ),
+            ("PaymentCreate", true)
+        );
+    if is_confirm_operation
         && payment_data.get_payment_attempt().payment_method
             == Some(storage_enums::PaymentMethod::Wallet)
         && payment_data.get_payment_method_data().is_some()
@@ -13846,19 +13858,29 @@ async fn calculate_external_surcharge(
     payment_intent: storage::PaymentIntent,
     inputs: SurchargeCalculationInputs,
 ) -> RouterResult<Option<api_models::payment_methods::SurchargeDetailsResponse>> {
-    let surcharge_details = match (
-        surcharge_connector_id,
-        inputs.card_iin.clone(),
-        inputs.currency,
-    ) {
-        (Some(surcharge_connector_id), Some(card_iin), Some(currency)) => {
-            let processor = platform.get_processor();
+    let processor = platform.get_processor();
+    // Fetch + disabled-gate up front; a disabled MCA yields `None` and the tuple
+    // match below falls through to the no-op arm without any early return.
+    let surcharge_mca = match surcharge_connector_id.as_ref() {
+        Some(id) => {
+            helpers::fetch_active_surcharge_mca(
+                state,
+                processor.get_account().get_id(),
+                processor.get_key_store(),
+                id,
+            )
+            .await?
+        }
+        None => None,
+    };
+    let surcharge_details = match (surcharge_mca, inputs.card_iin.clone(), inputs.currency) {
+        (Some(surcharge_mca), Some(card_iin), Some(currency)) => {
             match run_external_surcharge_ucs(
                 state,
                 processor,
                 payment_id,
                 profile_id,
-                &surcharge_connector_id,
+                surcharge_mca,
                 card_iin,
                 currency,
                 &inputs,
@@ -13910,7 +13932,10 @@ async fn calculate_external_surcharge(
     Ok(surcharge_details)
 }
 
-// Shared UCS surcharge call for /eligibility and MIT /confirm.
+// Fire the UCS `surcharge_calculate` gRPC for `payment_id` using the given
+// surcharge MCA and return the connector's surcharge amount + id. Best-effort:
+// any UCS error is swallowed and returned as `Ok(None)` so the caller can
+// proceed without a surcharge.
 #[cfg(all(feature = "oltp", feature = "v1"))]
 #[allow(clippy::too_many_arguments)]
 async fn run_external_surcharge_ucs(
@@ -13918,7 +13943,7 @@ async fn run_external_surcharge_ucs(
     processor: &domain::Processor,
     payment_id: &id_type::PaymentId,
     profile_id: &id_type::ProfileId,
-    surcharge_connector_id: &id_type::MerchantConnectorAccountId,
+    surcharge_mca: domain::MerchantConnectorAccount,
     card_iin: String,
     currency: storage_enums::Currency,
     inputs: &SurchargeCalculationInputs,
@@ -13928,18 +13953,6 @@ async fn run_external_surcharge_ucs(
     let merchant_id = processor.get_account().get_id().clone();
     let storage_scheme = processor.get_account().storage_scheme;
     let key_store = processor.get_key_store();
-
-    let surcharge_mca = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &merchant_id,
-            surcharge_connector_id,
-            key_store,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: surcharge_connector_id.get_string_repr().to_string(),
-        })?;
 
     let previous_connector_surcharge_id = previous_connector_surcharge_id(
         state,
@@ -14033,15 +14046,36 @@ async fn calculate_mit_external_surcharge(
     let payment_method_type = payment_attempt.payment_method_type;
     let profile_id = payment_intent.profile_id.clone();
 
+    // Fetch + disabled-gate up front. A missing id, a disabled MCA, or a fetch
+    // error all collapse to `None` so the tuple match below handles them via
+    // the no-op arm — no early returns from inside the arm.
+    let surcharge_mca = match surcharge_connector_id.as_ref() {
+        Some(id) => helpers::fetch_active_surcharge_mca(
+            state,
+            processor.get_account().get_id(),
+            processor.get_key_store(),
+            id,
+        )
+        .await
+        .unwrap_or_else(|err| {
+            logger::warn!(
+                error=?err,
+                "MIT confirm: failed to fetch surcharge MCA; proceeding without surcharge"
+            );
+            None
+        }),
+        None => None,
+    };
+
     match (
-        surcharge_connector_id,
+        surcharge_mca,
         card_iin,
         currency,
         payment_method,
         profile_id,
     ) {
         (
-            Some(surcharge_connector_id),
+            Some(surcharge_mca),
             Some(card_iin),
             Some(currency),
             Some(payment_method),
@@ -14083,7 +14117,7 @@ async fn calculate_mit_external_surcharge(
                 processor,
                 &payment_attempt.payment_id,
                 &profile_id,
-                &surcharge_connector_id,
+                surcharge_mca,
                 card_iin,
                 currency,
                 &inputs,
@@ -14158,7 +14192,7 @@ pub async fn payments_submit_eligibility(
     let surcharge_details = match sdk_next_action.next_action {
         api_models::payments::NextActionCall::Deny { .. } => None,
         _ => {
-            calculate_external_surcharge(
+            Box::pin(calculate_external_surcharge(
                 &state_for_surcharge,
                 &platform_for_surcharge,
                 &payment_id,
@@ -14166,7 +14200,7 @@ pub async fn payments_submit_eligibility(
                 surcharge_connector_id,
                 payment_intent_for_surcharge,
                 surcharge_inputs,
-            )
+            ))
             .await?
         }
     };

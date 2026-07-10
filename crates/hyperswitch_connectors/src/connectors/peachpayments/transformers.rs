@@ -517,11 +517,7 @@ impl
                 amount: get_amount_details(item),
                 cof_data: CardOnFileData {
                     cof_type: get_cof_type(item),
-                    source: if item.router_data.request.is_cit_mandate_payment() {
-                        CofSource::Cit
-                    } else {
-                        CofSource::Mit
-                    },
+                    source: CofSource::Cit,
                     mode: CofMode::Initial,
                 },
                 rrn: get_rrn(&peachpayments_data),
