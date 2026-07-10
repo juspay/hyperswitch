@@ -147,6 +147,19 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?
         };
+        // V2 CANDIDATE (extra-call): issue an ADDITIONAL profile lookup V1 never made
+        // on this path. V1 resolves the profile via validate_and_get_business_profile
+        // (which calls find_business_profile_by_merchant_id_profile_id), so the
+        // find_business_profile_by_profile_id query — diesel Profile::find_by_profile_id,
+        // a DISTINCT generic_find_one predicate at a distinct callsite — is never
+        // recorded here. Result discarded (no `?`, no downstream use) so the HTTP body
+        // and every other boundary call stay byte-identical to V1. Pure NOVEL db call.
+        let _extra_profile_lookup = platform_wrapper::business_profile::find_business_profile_by_profile_id(
+            state.store.as_ref(),
+            platform.get_processor(),
+            &profile_id,
+        )
+        .await;
         let customer_acceptance = request.customer_acceptance.clone();
 
         let recurring_details = request.recurring_details.clone();
