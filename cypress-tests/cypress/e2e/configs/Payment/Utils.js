@@ -523,7 +523,6 @@ export const CONNECTOR_LISTS = {
       "loonio",
       "redsys",
       "worldpayxml",
-      "helcim",
     ],
     SAVE_CARD: ["helcim"],
     // Add more exclusion lists
