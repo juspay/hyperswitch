@@ -201,8 +201,6 @@ pub async fn register_connector_webhook(
         Some(mca.merchant_connector_id.clone()),
     )?;
 
-    let is_legacy_request = req.is_legacy_request();
-
     configure_connector_webhook_flow::validate_webhook_registration_request(
         &connector_data,
         req.clone(),
@@ -433,7 +431,7 @@ pub async fn register_connector_webhook(
             scope_type,
             requested,
             generate_secret_response.as_ref(),
-            is_legacy_request,
+            req.event_type.is_some(),
         )?;
 
     Ok(service_api::ApplicationResponse::Json(response))

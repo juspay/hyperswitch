@@ -387,8 +387,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::SurchargeConnectorDetails,
         api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         api_models::merchant_connector_webhook_management::WebhookSecretErrorDetails,
-        api_models::merchant_connector_webhook_management::LegacyRegisterConnectorWebhookResponse,
-        api_models::merchant_connector_webhook_management::ScopeBasedRegisterConnectorWebhookResponse,
         api_models::merchant_connector_webhook_management::RegisterConnectorWebhookResponse,
         api_models::merchant_connector_webhook_management::LegacyConnectorWebhookResponse,
         api_models::merchant_connector_webhook_management::ScopeBasedConnectorWebhookResponse,

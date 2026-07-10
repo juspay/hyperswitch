@@ -95,17 +95,6 @@ pub struct ConnectorWebhookRegisterRequest {
     #[schema(value_type = Option<ConnectorWebhookEventType>, deprecated)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub event_type: Option<ConnectorWebhookEventType>,
-    /// Internal marker set during deserialization when the caller used the deprecated
-    /// `event_type` field instead of `scope`. Used to decide whether to emit legacy response
-    /// fields for backward compatibility.
-    #[serde(skip)]
-    pub is_legacy_request: bool,
-}
-
-impl ConnectorWebhookRegisterRequest {
-    pub fn is_legacy_request(&self) -> bool {
-        self.is_legacy_request
-    }
 }
 
 fn event_type_to_scope(event_type: ConnectorWebhookEventType) -> Scope {
@@ -128,12 +117,12 @@ impl<'de> Deserialize<'de> for ConnectorWebhookRegisterRequest {
 
         let raw = RawConnectorWebhookRegisterRequest::deserialize(deserializer)?;
 
-        let (scope, is_legacy_request) = match (raw.scope, raw.event_type) {
-            (Some(scope), _) => (scope, false),
-            (None, Some(event_type)) => (event_type_to_scope(event_type), true),
+        let scope = match (raw.scope, raw.event_type) {
+            (Some(scope), _) => scope,
+            (None, Some(event_type)) => event_type_to_scope(event_type),
             (None, None) => {
                 return Err(serde::de::Error::custom(
-                    "missing field: either `scope` or deprecated `event_type` must be provided",
+                    "missing field: either `scope` or `event_type` must be provided",
                 ))
             }
         };
@@ -141,7 +130,6 @@ impl<'de> Deserialize<'de> for ConnectorWebhookRegisterRequest {
         Ok(Self {
             scope: Some(scope),
             event_type: raw.event_type,
-            is_legacy_request,
         })
     }
 }
@@ -154,57 +142,50 @@ pub struct WebhookSecretErrorDetails {
     pub message: Option<String>,
 }
 
-/// Legacy response format. These fields remain supported for backward compatibility
-/// but will be deprecated soon. Prefer[`ScopeBasedRegisterConnectorWebhookResponse`] for new integrations.
+/// Response for registering connector webhooks.
+/// This struct combines the legacy fields with the new scope-based fields
+/// response remains backward-compatible. Legacy clients can continue reading the original fields
+/// New clients can use `scope_type`, `requested`, and `results`.
 #[allow(deprecated)]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct LegacyRegisterConnectorWebhookResponse {
-    /// To be deprecated soon; prefer the scope-based response format for new integrations.
-    #[schema(value_type = ConnectorWebhookEventType)]
-    pub event_type: ConnectorWebhookEventType,
-    /// To be deprecated soon; prefer the scope-based response format for new integrations.
+#[serde(deny_unknown_fields)]
+pub struct RegisterConnectorWebhookResponse {
+    /// To be Deprecated soon; prefer the scope-based response fields (`scope_type`, `requested`, `results`).
+    #[schema(value_type = Option<ConnectorWebhookEventType>, deprecated)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub event_type: Option<ConnectorWebhookEventType>,
+    /// To be Deprecated soon; prefer `results` for per-identifier registration outcomes.
     #[schema(value_type = Option<String>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub connector_webhook_id: Option<String>,
-    /// To be deprecated soon; prefer the scope-based response format for new integrations.
+    /// To be Deprecated soon; prefer `results` for per-identifier registration outcomes.
     #[schema(value_type = Option<WebhookRegistrationStatus>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub webhook_registration_status: Option<WebhookRegistrationStatus>,
-    /// To be deprecated soon; prefer the scope-based response format for new integrations.
+    /// To be Deprecated soon; prefer `results` for per-identifier registration outcomes.
     #[schema(value_type = Option<String>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
-    /// To be deprecated soon; prefer the scope-based response format for new integrations.
+    /// To be Deprecated soon; prefer `results` for per-identifier registration outcomes.
     #[schema(value_type = Option<String>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
-    /// To be deprecated soon; prefer the scope-based response format for new integrations.
+    /// Status of the webhook secret key generation. `None` when the connector does not require a separate webhook secret generation step after registration.
     #[schema(value_type = Option<WebhookSecretGenerationStatus>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub secret_generation_status: Option<common_enums::WebhookSecretGenerationStatus>,
-    /// Remains supported; prefer the scope-based response format for new integrations.
-    #[schema(value_type = Option<WebhookSecretErrorDetails>)]
+    /// Connector error reported during the HMAC generation step. `None` when HMAC generation wasn't attempted or succeeded.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub secret_error: Option<WebhookSecretErrorDetails>,
-}
-
-/// Response for registering connector webhooks using the new scope-based model.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct ScopeBasedRegisterConnectorWebhookResponse {
     /// The type of scope used for this registration.
-    pub scope_type: ScopeType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scope_type: Option<ScopeType>,
     /// List of identifiers that were requested to be registered.
-    pub requested: Vec<ScopeIdentifier>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requested: Option<Vec<ScopeIdentifier>>,
     /// Per-identifier registration results.
-    pub results: Vec<WebhookRegistrationResult>,
-    /// Status of the webhook secret key generation. `None` when the connector does not require a
-    /// separate webhook secret generation step after registration.
-    #[schema(value_type = Option<WebhookSecretGenerationStatus>)]
-    pub secret_generation_status: Option<common_enums::WebhookSecretGenerationStatus>,
-    /// Connector error reported during the HMAC generation step. `None` when HMAC generation
-    /// wasn't attempted or succeeded.
-    pub secret_error: Option<WebhookSecretErrorDetails>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(untagged)]
-pub enum RegisterConnectorWebhookResponse {
-    Legacy(LegacyRegisterConnectorWebhookResponse),
-    ScopeBased(ScopeBasedRegisterConnectorWebhookResponse),
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub results: Option<Vec<WebhookRegistrationResult>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

@@ -2,10 +2,8 @@ use std::marker::PhantomData;
 
 use api_models::merchant_connector_webhook_management::{
     ConnectorWebhookRegisterRequest as ApiConnectorWebhookRegisterRequest, ConnectorWebhookScope,
-    LegacyConnectorWebhookResponse, LegacyRegisterConnectorWebhookResponse,
-    RegisterConnectorWebhookResponse, Scope, ScopeBasedConnectorWebhookResponse,
-    ScopeBasedRegisterConnectorWebhookResponse, ScopeIdentifier, ScopeType,
-    WebhookRegistrationResult,
+    LegacyConnectorWebhookResponse, RegisterConnectorWebhookResponse, Scope,
+    ScopeBasedConnectorWebhookResponse, ScopeIdentifier, ScopeType, WebhookRegistrationResult,
 };
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::{ensure, Report, ResultExt};
@@ -428,19 +426,8 @@ pub fn construct_connector_webhook_registration_response(
         })
         .unwrap_or((None, None));
 
-    if is_legacy_request {
-        let event_type = match scope_type {
-            ScopeType::NotSpecific => Some(common_enums::ConnectorWebhookEventType::AllEvents),
-            ScopeType::EventType => requested.iter().find_map(|identifier| match identifier {
-                ScopeIdentifier::EventType(event) => Some(
-                    common_enums::ConnectorWebhookEventType::SpecificEvent(*event),
-                ),
-                _ => None,
-            }),
-            ScopeType::PaymentMethodType => None,
-        };
-
-        let (connector_webhook_id, webhook_registration_status, error_code, error_message) =
+    let (connector_webhook_id, webhook_registration_status, error_code, error_message) =
+        if is_legacy_request {
             if let Some(success) = results
                 .iter()
                 .find(|result| result.connector_webhook_id.is_some())
@@ -465,33 +452,38 @@ pub fn construct_connector_webhook_registration_response(
                     None,
                     None,
                 )
-            };
+            }
+        } else {
+            (None, None, None, None)
+        };
 
-        return Ok(RegisterConnectorWebhookResponse::Legacy(
-            LegacyRegisterConnectorWebhookResponse {
-                event_type: event_type.ok_or_else(|| {
-                    Report::from(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("legacy webhook registration response missing event_type")
-                })?,
-                connector_webhook_id,
-                webhook_registration_status,
-                error_code,
-                error_message,
-                secret_generation_status,
-                secret_error,
-            },
-        ));
-    }
+    let event_type = if is_legacy_request {
+        match scope_type {
+            ScopeType::NotSpecific => Some(common_enums::ConnectorWebhookEventType::AllEvents),
+            ScopeType::EventType => requested.iter().find_map(|identifier| match identifier {
+                ScopeIdentifier::EventType(event) => Some(
+                    common_enums::ConnectorWebhookEventType::SpecificEvent(*event),
+                ),
+                _ => None,
+            }),
+            ScopeType::PaymentMethodType => None,
+        }
+    } else {
+        None
+    };
 
-    Ok(RegisterConnectorWebhookResponse::ScopeBased(
-        ScopeBasedRegisterConnectorWebhookResponse {
-            scope_type,
-            requested,
-            results,
-            secret_generation_status,
-            secret_error,
-        },
-    ))
+    Ok(RegisterConnectorWebhookResponse {
+        event_type,
+        connector_webhook_id,
+        webhook_registration_status,
+        error_code,
+        error_message,
+        secret_generation_status,
+        secret_error,
+        scope_type: Some(scope_type),
+        requested: Some(requested),
+        results: Some(results),
+    })
 }
 /// Legacy shape stored in `connector_webhook_registration_details` before scope-based
 /// registration was introduced.
