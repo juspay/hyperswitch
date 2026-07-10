@@ -2302,6 +2302,9 @@ impl
                 currency: currency.into(),
             }),
             original_payment_authorized_amount: None,
+            auth_type: Some(
+                payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)?.into(),
+            ),
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             metadata: router_data
                 .request
@@ -4450,7 +4453,29 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
                 .cb_network_params
                 .map(payments_grpc::NetworkParams::foreign_try_from)
                 .transpose()?,
+            created_at: Some(authentication_data.created_at.assume_utc().unix_timestamp()),
+            challenge_code: authentication_data.challenge_code,
+            challenge_cancel: authentication_data.challenge_cancel,
+            challenge_code_reason: authentication_data.challenge_code_reason,
+            message_extension: authentication_data
+                .message_extension
+                .map(|message_extension| message_extension.expose().to_string()),
+            authentication_type: authentication_data
+                .authentication_type
+                .map(payments_grpc::DecoupledAuthenticationType::foreign_from)
+                .map(i32::from),
         })
+    }
+}
+
+impl ForeignFrom<common_enums::DecoupledAuthenticationType>
+    for payments_grpc::DecoupledAuthenticationType
+{
+    fn foreign_from(authentication_type: common_enums::DecoupledAuthenticationType) -> Self {
+        match authentication_type {
+            common_enums::DecoupledAuthenticationType::Challenge => Self::Challenge,
+            common_enums::DecoupledAuthenticationType::Frictionless => Self::Frictionless,
+        }
     }
 }
 
@@ -4479,6 +4504,14 @@ impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
             ucaf_collection_indicator: authentication_data.ucaf_collection_indicator,
             exemption_indicator: None,
             network_params: None,
+            // `UcsAuthenticationData` is the pre-serialized 3DS payload and carries none of
+            // these; only the router-internal `AuthenticationData` above has them.
+            created_at: None,
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+            authentication_type: None,
         })
     }
 }
@@ -4662,6 +4695,12 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             ucaf_collection_indicator,
             exemption_indicator: _,
             network_params: _,
+            created_at: _,
+            challenge_code: _,
+            challenge_cancel: _,
+            challenge_code_reason: _,
+            message_extension: _,
+            authentication_type: _,
         } = response;
         let trans_status = trans_status
             .map(payments_grpc::TransactionStatus::try_from)
