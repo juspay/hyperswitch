@@ -147,6 +147,7 @@ pub struct Connectors {
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub trustpayments: ConnectorParams,
     pub tsys: ConnectorParams,
+    pub tsys_transit: ConnectorParams,
     pub unified_authentication_service: ConnectorParams,
     pub vgs: ConnectorParams,
     pub volt: ConnectorParamsWithSecondaryBaseUrl,
