@@ -24368,57 +24368,6 @@
           }
         }
       },
-      "LegacyRegisterConnectorWebhookResponse": {
-        "type": "object",
-        "description": "Legacy response format. These fields remain supported for backward compatibility\nbut will be deprecated soon. Prefer[`ScopeBasedRegisterConnectorWebhookResponse`] for new integrations.",
-        "required": [
-          "event_type"
-        ],
-        "properties": {
-          "event_type": {
-            "$ref": "#/components/schemas/ConnectorWebhookEventType"
-          },
-          "connector_webhook_id": {
-            "type": "string",
-            "description": "To be deprecated soon; prefer the scope-based response format for new integrations.",
-            "nullable": true
-          },
-          "webhook_registration_status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/WebhookRegistrationStatus"
-              }
-            ],
-            "nullable": true
-          },
-          "error_code": {
-            "type": "string",
-            "description": "To be deprecated soon; prefer the scope-based response format for new integrations.",
-            "nullable": true
-          },
-          "error_message": {
-            "type": "string",
-            "description": "To be deprecated soon; prefer the scope-based response format for new integrations.",
-            "nullable": true
-          },
-          "secret_generation_status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/WebhookSecretGenerationStatus"
-              }
-            ],
-            "nullable": true
-          },
-          "secret_error": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/WebhookSecretErrorDetails"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
       "LinkedRoutingConfigRetrieveResponse": {
         "oneOf": [
           {
@@ -40438,14 +40387,82 @@
         ]
       },
       "RegisterConnectorWebhookResponse": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/LegacyRegisterConnectorWebhookResponse"
+        "type": "object",
+        "description": "Response for registering connector webhooks.\nThis struct combines the legacy fields with the new scope-based fields\nresponse remains backward-compatible. Legacy clients can continue reading the original fields\nNew clients can use `scope_type`, `requested`, and `results`.",
+        "properties": {
+          "event_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWebhookEventType"
+              }
+            ],
+            "nullable": true
           },
-          {
-            "$ref": "#/components/schemas/ScopeBasedRegisterConnectorWebhookResponse"
+          "connector_webhook_id": {
+            "type": "string",
+            "description": "To be Deprecated soon; prefer `results` for per-identifier registration outcomes.",
+            "nullable": true
+          },
+          "webhook_registration_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookRegistrationStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "To be Deprecated soon; prefer `results` for per-identifier registration outcomes.",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "To be Deprecated soon; prefer `results` for per-identifier registration outcomes.",
+            "nullable": true
+          },
+          "secret_generation_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookSecretGenerationStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "secret_error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookSecretErrorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "scope_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScopeType"
+              }
+            ],
+            "nullable": true
+          },
+          "requested": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeIdentifier"
+            },
+            "description": "List of identifiers that were requested to be registered.",
+            "nullable": true
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebhookRegistrationResult"
+            },
+            "description": "Per-identifier registration results.",
+            "nullable": true
           }
-        ]
+        },
+        "additionalProperties": false
       },
       "RelayCaptureRequestData": {
         "type": "object",
@@ -42274,50 +42291,6 @@
           },
           "scope": {
             "$ref": "#/components/schemas/ConnectorWebhookScope"
-          }
-        }
-      },
-      "ScopeBasedRegisterConnectorWebhookResponse": {
-        "type": "object",
-        "description": "Response for registering connector webhooks using the new scope-based model.",
-        "required": [
-          "scope_type",
-          "requested",
-          "results"
-        ],
-        "properties": {
-          "scope_type": {
-            "$ref": "#/components/schemas/ScopeType"
-          },
-          "requested": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ScopeIdentifier"
-            },
-            "description": "List of identifiers that were requested to be registered."
-          },
-          "results": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/WebhookRegistrationResult"
-            },
-            "description": "Per-identifier registration results."
-          },
-          "secret_generation_status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/WebhookSecretGenerationStatus"
-              }
-            ],
-            "nullable": true
-          },
-          "secret_error": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/WebhookSecretErrorDetails"
-              }
-            ],
-            "nullable": true
           }
         }
       },
