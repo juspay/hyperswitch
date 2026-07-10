@@ -421,7 +421,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
                 futures::future::try_join_all(results).await?;
 
-                let drainer_query = drainer_query
+                let drainer_query = drainer_query_fut
                     .await
                     .change_context(errors::StorageError::KVError)
                     .attach_printable("Failed to generate drainer insert query")?;
@@ -492,7 +492,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                         let key_str = key.to_string();
                         let redis_value = serde_json::to_string(&updated_resource)
                             .change_context(errors::StorageError::SerializationFailed)?;
-                        let drainer_query = drainer_query
+                        let drainer_query = drainer_query_fut
                             .await
                             .change_context(errors::StorageError::KVError)
                             .attach_printable("Failed to generate drainer update query")?;
