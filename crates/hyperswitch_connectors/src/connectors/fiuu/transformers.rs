@@ -1973,7 +1973,7 @@ fn get_refund_status_from_sync(
                 "Fiuu returned unknown refund sync status; previous status was {:?}, marking refund as pending",
                 prev_status
             );
-            enums::RefundStatus::Pending
+            prev_status
         }
     }
 }
