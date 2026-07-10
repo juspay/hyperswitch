@@ -46,7 +46,7 @@ describe("Subscription Management tests", () => {
   });
 
   context("Prerequisites", () => {
-    let prereqContinue = true;
+    const prereqContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue || !prereqContinue) {
@@ -60,7 +60,10 @@ describe("Subscription Management tests", () => {
       cy.wrap(null).then(() => {
         shouldContinue = !!globalState.get("paymentMethodId");
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping billing connector setup: payment method creation failed");
+          cy.task(
+            "cli_log",
+            "Skipping billing connector setup: payment method creation failed"
+          );
         }
       });
     });
