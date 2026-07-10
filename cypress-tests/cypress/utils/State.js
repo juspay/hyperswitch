@@ -18,6 +18,7 @@ class State {
     this.data["proxyHttps"] = Cypress.env("PROXY_HTTPS");
     this.data["methodFlow"] = Cypress.env("METHOD_FLOW");
     this.data["validationServiceUrl"] = Cypress.env("VALIDATION_SERVICE_URL");
+    this.data["kvEnabled"] = Cypress.env("KV_ENABLED");
   }
 
   set(key, val) {
