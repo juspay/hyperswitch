@@ -4194,10 +4194,12 @@ Cypress.Commands.add(
               : "inactive";
 
             // Validate the status
-            expect(
-              response.body.payment_method_status,
-              "payment_method_status"
-            ).to.equal(expectedStatus);
+            if (!configs.skipPaymentMethodStatusAssertion) {
+              expect(
+                response.body.payment_method_status,
+                "payment_method_status"
+              ).to.equal(expectedStatus);
+            }
           }
 
           if (autoretries) {
@@ -4390,10 +4392,16 @@ Cypress.Commands.add(
       Response: resData,
     } = data || {};
 
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task("cli_log", "TRIGGER_SKIP enabled, skipping refundCallTest");
+      return;
+    }
+
     const payment_id = globalState.get("paymentID");
 
     // we only need this to set the delay. We don't need the return value
-    execConfig(validateConfig(configs));
+    execConfig(validatedConfigs);
 
     for (const key in reqData) {
       requestBody[key] = reqData[key];
