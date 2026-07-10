@@ -98,33 +98,18 @@ export const connectorDetails = {
       },
     }),
     Refund: getCustomExchange({
-      Request: {
-        amount: 10000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+      Configs: {
+        TRIGGER_SKIP: true,
       },
     }),
     PartialRefund: getCustomExchange({
-      Request: {
-        amount: 5000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+      Configs: {
+        TRIGGER_SKIP: true,
       },
     }),
     SyncRefund: getCustomExchange({
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+      Configs: {
+        TRIGGER_SKIP: true,
       },
     }),
   },
