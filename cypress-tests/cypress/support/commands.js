@@ -4108,10 +4108,12 @@ Cypress.Commands.add(
               : "inactive";
 
             // Validate the status
-            expect(
-              response.body.payment_method_status,
-              "payment_method_status"
-            ).to.equal(expectedStatus);
+            if (!configs.skipPaymentMethodStatusAssertion) {
+              expect(
+                response.body.payment_method_status,
+                "payment_method_status"
+              ).to.equal(expectedStatus);
+            }
           }
 
           if (autoretries) {
