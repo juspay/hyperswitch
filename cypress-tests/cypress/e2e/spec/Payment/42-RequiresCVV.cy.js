@@ -207,6 +207,13 @@ describe("Superposition Config Tests (Requires CVV)", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
+      it("List Customer PM — get fresh payment token for saved card use", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["RequiresCVVListPMOffSession"];
+        cy.listCustomerPMByClientSecret(globalState, data);
+      });
+
       it("Save Card Confirm without CVV — expect success", () => {
         const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
         const data = getConnectorDetails(globalState.get("connectorId"))[

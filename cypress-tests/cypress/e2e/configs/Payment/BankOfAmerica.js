@@ -872,7 +872,6 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        billing: billing_with_newline,
         customer_acceptance: customerAcceptance,
         setup_future_usage: "on_session",
       },
