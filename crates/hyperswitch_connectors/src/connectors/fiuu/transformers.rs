@@ -1862,7 +1862,10 @@ pub enum FiuuRefundSyncResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct RefundData {
-    #[serde(rename = "RefundID")]
+    #[serde(
+        rename = "RefundID",
+        deserialize_with = "deserialize_string_from_number_or_string"
+    )]
     refund_id: String,
     status: RefundStatus,
 }
@@ -2015,13 +2018,36 @@ pub struct FiuuWebhooksRefundResponse {
     pub merchant_id: Secret<String>,
     #[serde(rename = "RefID")]
     pub ref_id: String,
-    #[serde(rename = "RefundID")]
+    #[serde(
+        rename = "RefundID",
+        deserialize_with = "deserialize_string_from_number_or_string"
+    )]
     pub refund_id: String,
-    #[serde(rename = "TxnID")]
+    #[serde(
+        rename = "TxnID",
+        deserialize_with = "deserialize_string_from_number_or_string"
+    )]
     pub txn_id: String,
     pub amount: StringMajorUnit,
     pub status: FiuuRefundsWebhookStatus,
     pub signature: Secret<String>,
+}
+
+fn deserialize_string_from_number_or_string<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrNumber {
+        String(String),
+        Number(serde_json::Number),
+    }
+
+    match StringOrNumber::deserialize(deserializer)? {
+        StringOrNumber::String(value) => Ok(value),
+        StringOrNumber::Number(value) => Ok(value.to_string()),
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, strum::Display)]
