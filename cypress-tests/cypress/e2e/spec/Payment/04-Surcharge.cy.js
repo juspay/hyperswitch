@@ -1,9 +1,22 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
+import { payment_methods_enabled } from "../../configs/Payment/Commons";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 import * as routingUtils from "../../configs/Routing/Utils";
 
 let globalState;
+
+// AuthToken JWT payload includes merchant_id and profile_id — decode locally
+// so we can retarget the test at the merchant we just created.
+function decodeJwtPayload(token) {
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    throw new Error(`[Surcharge] Invalid JWT format`);
+  }
+  const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+  const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+  return JSON.parse(atob(padded));
+}
 
 describe("Surcharge payment flow test", () => {
   before("seed global state", () => {
@@ -31,91 +44,99 @@ describe("Surcharge payment flow test", () => {
           shouldContinue = false;
           return;
         }
-        if (globalState.get("email") && globalState.get("password")) {
+
+        // Create a fresh user + merchant so we get an active AuthToken.
+        // Env-based credentials don't reliably yield an AuthToken because the
+        // env user may not have an active role on the test merchant.
+        const uniqueSuffix = `${Date.now()}${Math.floor(Math.random() * 10000)}`;
+        const surchargeEmail = `cypress_surcharge_${uniqueSuffix}@cypresstest.in`;
+        const surchargePassword = `Cypress@${uniqueSuffix}`;
+
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/user/signup_with_merchant_id`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("adminApiKey"),
+          },
+          body: {
+            email: surchargeEmail,
+            password: surchargePassword,
+            company_name: "Juspay",
+            name: "CypressSurcharge",
+          },
+          failOnStatusCode: false,
+        }).then((signupResp) => {
+          if (signupResp.status !== 200) {
+            throw new Error(
+              `[Surcharge] signup_with_merchant_id failed (${signupResp.status}): ${JSON.stringify(signupResp.body)}`
+            );
+          }
+
           cy.request({
             method: "POST",
             url: `${globalState.get("baseUrl")}/user/v2/signin?token_only=true`,
             headers: { "Content-Type": "application/json" },
-            body: {
-              email: globalState.get("email"),
-              password: globalState.get("password"),
-            },
+            body: { email: surchargeEmail, password: surchargePassword },
             failOnStatusCode: false,
           }).then((signinResp) => {
             if (signinResp.status !== 200) {
               throw new Error(
-                `[Surcharge] Login failed (${signinResp.status}): ${JSON.stringify(signinResp.body)}`
+                `[Surcharge] Signin failed (${signinResp.status}): ${JSON.stringify(signinResp.body)}`
               );
             }
-            const { token: signinToken, token_type: signinType } =
-              signinResp.body;
+            if (signinResp.body.token_type !== "totp") {
+              throw new Error(
+                `[Surcharge] Expected totp from signin, got "${signinResp.body.token_type}"`
+              );
+            }
 
-            const resolveAuthToken = (bearerToken, tokenType) => {
-              if (tokenType === "user_info") {
-                globalState.set("userInfoToken", bearerToken);
-              } else if (tokenType === "accept_invite") {
-                // User has no active merchant role — accept invitation to activate it
-                cy.request({
-                  method: "POST",
-                  url: `${globalState.get("baseUrl")}/user/invite/accept/pre_auth`,
-                  headers: {
-                    Authorization: `Bearer ${bearerToken}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: [
-                    {
-                      entity_id: globalState.get("merchantId"),
-                      entity_type: "merchant",
-                    },
-                  ],
-                  failOnStatusCode: false,
-                }).then((acceptResp) => {
-                  if (acceptResp.status !== 200) {
-                    throw new Error(
-                      `[Surcharge] Accept invitation failed (${acceptResp.status}): ${JSON.stringify(acceptResp.body)}`
-                    );
-                  }
-                  if (acceptResp.body.token_type === "user_info") {
-                    globalState.set("userInfoToken", acceptResp.body.token);
-                  } else {
-                    throw new Error(
-                      `[Surcharge] Unexpected token_type "${acceptResp.body.token_type}" after accepting invitation`
-                    );
-                  }
-                });
-              } else {
+            cy.request({
+              method: "GET",
+              url: `${globalState.get("baseUrl")}/user/2fa/terminate?skip_two_factor_auth=true`,
+              headers: {
+                Authorization: `Bearer ${signinResp.body.token}`,
+                "Content-Type": "application/json",
+              },
+              failOnStatusCode: false,
+            }).then((totpResp) => {
+              if (totpResp.status !== 200) {
                 throw new Error(
-                  `[Surcharge] Unexpected token_type "${tokenType}" — cannot obtain an AuthToken`
+                  `[Surcharge] 2FA terminate failed (${totpResp.status}): ${JSON.stringify(totpResp.body)}`
                 );
               }
-            };
-
-            if (signinType === "user_info") {
-              resolveAuthToken(signinToken, "user_info");
-            } else if (signinType === "totp") {
-              cy.request({
-                method: "GET",
-                url: `${globalState.get("baseUrl")}/user/2fa/terminate?skip_two_factor_auth=true`,
-                headers: {
-                  Authorization: `Bearer ${signinToken}`,
-                  "Content-Type": "application/json",
-                },
-                failOnStatusCode: false,
-              }).then((totpResp) => {
-                if (totpResp.status !== 200) {
-                  throw new Error(
-                    `[Surcharge] 2FA terminate failed (${totpResp.status}): ${JSON.stringify(totpResp.body)}`
-                  );
-                }
-                resolveAuthToken(totpResp.body.token, totpResp.body.token_type);
-              });
-            } else {
-              throw new Error(
-                `[Surcharge] Unexpected token_type "${signinType}" from signin`
-              );
-            }
+              if (totpResp.body.token_type !== "user_info") {
+                throw new Error(
+                  `[Surcharge] Expected user_info from 2FA terminate, got "${totpResp.body.token_type}"`
+                );
+              }
+              const authToken = totpResp.body.token;
+              const payload = decodeJwtPayload(authToken);
+              if (!payload.merchant_id || !payload.profile_id) {
+                throw new Error(
+                  `[Surcharge] AuthToken missing merchant_id/profile_id: ${JSON.stringify(payload)}`
+                );
+              }
+              // Retarget the entire test at the freshly-created merchant so the
+              // surcharge DSL and payment share a merchant.
+              globalState.set("userInfoToken", authToken);
+              globalState.set("merchantId", payload.merchant_id);
+              globalState.set("profileId", payload.profile_id);
+            });
           });
-        }
+        });
+
+        // Bootstrap the fresh merchant with an api-key, a customer, and the
+        // authorizedotnet connector so the payment flow can run against it.
+        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+        cy.createConnectorCallTest(
+          "payment_processor",
+          fixtures.createConnectorBody,
+          payment_methods_enabled,
+          globalState
+        );
+
         const dslData =
           routingUtils.getConnectorDetails("common")[
             "SurchargeDecisionManager"
