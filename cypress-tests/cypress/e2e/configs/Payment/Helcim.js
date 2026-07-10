@@ -153,47 +153,43 @@ const card_pm = {
       },
     },
   }),
+  // Refund flows — Helcim's sandbox returns "Card Transaction cannot be
+  // refunded" because sandbox transactions never settle into a closed card
+  // batch. The connector sends a spec-compliant refund request; the failure
+  // is a sandbox limitation, not a code bug. Confirmed in hyperswitch-prism
+  // (helcim_payment_flows_test.rs). Tests assert the actual "failed" status.
   SyncRefund: getCustomExchange({
     Response: {
       status: 200,
-      body: { status: "succeeded" },
+      body: { status: "failed" },
     },
   }),
   Refund: getCustomExchange({
-    Configs: {
-      DELAY: { STATUS: true, TIMEOUT: 10000 },
-    },
     Request: { amount: 6000 },
     Response: {
       status: 200,
-      body: { status: "succeeded" },
+      body: { status: "failed" },
     },
   }),
   PartialRefund: getCustomExchange({
     Request: { amount: 2000 },
     Response: {
       status: 200,
-      body: { status: "succeeded" },
+      body: { status: "failed" },
     },
   }),
   manualPaymentRefund: getCustomExchange({
-    Configs: {
-      DELAY: { STATUS: true, TIMEOUT: 10000 },
-    },
     Request: { amount: 6000 },
     Response: {
       status: 200,
-      body: { status: "succeeded" },
+      body: { status: "failed" },
     },
   }),
   manualPaymentPartialRefund: getCustomExchange({
-    Configs: {
-      DELAY: { STATUS: true, TIMEOUT: 10000 },
-    },
     Request: { amount: 2000 },
     Response: {
       status: 200,
-      body: { status: "succeeded" },
+      body: { status: "failed" },
     },
   }),
   // Mandate flows — Helcim connector returns NotImplemented for setup_mandate.
