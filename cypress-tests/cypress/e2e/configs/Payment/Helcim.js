@@ -153,6 +153,49 @@ const card_pm = {
       },
     },
   }),
+  SyncRefund: getCustomExchange({
+    Response: {
+      status: 200,
+      body: { status: "succeeded" },
+    },
+  }),
+  Refund: getCustomExchange({
+    Configs: {
+      DELAY: { STATUS: true, TIMEOUT: 10000 },
+    },
+    Request: { amount: 6000 },
+    Response: {
+      status: 200,
+      body: { status: "succeeded" },
+    },
+  }),
+  PartialRefund: getCustomExchange({
+    Request: { amount: 2000 },
+    Response: {
+      status: 200,
+      body: { status: "succeeded" },
+    },
+  }),
+  manualPaymentRefund: getCustomExchange({
+    Configs: {
+      DELAY: { STATUS: true, TIMEOUT: 10000 },
+    },
+    Request: { amount: 6000 },
+    Response: {
+      status: 200,
+      body: { status: "succeeded" },
+    },
+  }),
+  manualPaymentPartialRefund: getCustomExchange({
+    Configs: {
+      DELAY: { STATUS: true, TIMEOUT: 10000 },
+    },
+    Request: { amount: 2000 },
+    Response: {
+      status: 200,
+      body: { status: "succeeded" },
+    },
+  }),
   // Mandate flows — Helcim connector returns NotImplemented for setup_mandate.
   // The payment intent creation succeeds, but the confirm/SETUP_MANDATE step
   // returns 501 with "Setup Mandate flow for Helcim is not implemented".
