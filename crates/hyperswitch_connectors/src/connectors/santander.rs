@@ -657,6 +657,7 @@ impl ConnectorValidation for Santander {
             AccessTokenUrlPath::Leg1 => "pix",
             AccessTokenUrlPath::Leg2 => "pix_automatico",
             AccessTokenUrlPath::Boleto => "boleto",
+            AccessTokenUrlPath::Payout => "payout",
         });
 
         match suffix {
@@ -715,7 +716,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                 "{}auth/oauth/v2/token",
                 connectors.santander.base_url
             )),
-            AccessTokenUrlPath::Boleto => {
+            AccessTokenUrlPath::Boleto | AccessTokenUrlPath::Payout => {
                 let secondary_base_url = connectors.santander.secondary_base_url.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "secondary_base_url for Santander",

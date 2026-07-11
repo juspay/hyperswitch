@@ -416,6 +416,21 @@ impl TryFrom<(&RefreshTokenRouterData, &SantanderMetadataObject)> for SantanderA
                     boleto_mca_metadata.client_secret.clone(),
                 ))
             }
+            Some(
+                enums::PaymentMethodType::Pix
+                | enums::PaymentMethodType::PixKey
+                | enums::PaymentMethodType::PixEmv,
+            ) => {
+                let pix_payout_metadata = item
+                    .1
+                    .pix_payout
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+                Ok((
+                    pix_payout_metadata.client_id.clone(),
+                    pix_payout_metadata.client_secret.clone(),
+                ))
+            }
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: item.0.payment_method.to_string(),
                 connector: "Santander",
@@ -2964,6 +2979,15 @@ pub fn decide_access_token_key_suffix(
                     Some(enums::PaymentMethodType::PixAutomaticoQr),
                 ) => None,
 
+                // Payout PIX types use the secondary base URL
+                (
+                    _,
+                    Some(
+                        enums::PaymentMethodType::Pix
+                        | enums::PaymentMethodType::PixKey
+                        | enums::PaymentMethodType::PixEmv,
+                    ),
+                ) => Some(AccessTokenUrlPath::Payout),
                 (None, Some(enums::PaymentMethodType::Boleto)) => Some(AccessTokenUrlPath::Boleto),
                 (None, Some(enums::PaymentMethodType::PixQr)) => Some(AccessTokenUrlPath::Leg1),
                 (

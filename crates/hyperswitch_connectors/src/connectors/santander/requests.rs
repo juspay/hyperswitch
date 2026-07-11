@@ -1,5 +1,6 @@
 use api_models::payments::AccountType;
 use common_utils::types::{FloatMajorUnit, StringMajorUnit};
+use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -48,6 +49,7 @@ pub struct SantanderMetadataObject {
     pub boleto: Option<BoletoMetadataObject>,
     pub pix_automatico_push: Option<PixAutomaticoPushMetadataObject>,
     pub pix_automatico_qr: Option<PixAutomaticoQrMetadataObject>,
+    pub pix_payout: Option<PixPayoutMetadata>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -590,4 +592,62 @@ pub enum AccessTokenUrlPath {
     Leg1,
     Leg2,
     Boleto,
+    Payout,
+}
+
+// ── Payout auth & metadata ──────────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+pub struct SantanderPayoutAuthType {
+    pub(super) certificates: Secret<String>,
+    pub(super) private_key: Secret<String>,
+}
+
+impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType>
+    for SantanderPayoutAuthType
+{
+    type Error = error_stack::Report<hyperswitch_interfaces::errors::ConnectorError>;
+    fn try_from(
+        auth_type: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+    ) -> Result<Self, Self::Error> {
+        match auth_type {
+            hyperswitch_domain_models::router_data::ConnectorAuthType::CertificateAuth {
+                certificate,
+                private_key,
+            } => Ok(Self {
+                certificates: certificate.to_owned(),
+                private_key: private_key.to_owned(),
+            }),
+            _ => Err(
+                hyperswitch_interfaces::errors::ConnectorError::FailedToObtainAuthType.into(),
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SantanderPayoutMetadataObject {
+    pub pix_payout: Option<PixPayoutMetadata>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PixPayoutMetadata {
+    pub client_id: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub workspace_id: Secret<String>,
+    pub debit_account_branch: Secret<String>,
+    pub debit_account_number: Secret<String>,
+}
+
+impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for SantanderPayoutMetadataObject {
+    type Error = error_stack::Report<hyperswitch_interfaces::errors::ConnectorError>;
+    fn try_from(
+        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> Result<Self, Self::Error> {
+        let metadata = crate::utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(hyperswitch_interfaces::errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
+    }
 }

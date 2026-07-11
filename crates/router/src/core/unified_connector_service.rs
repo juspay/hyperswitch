@@ -1891,6 +1891,20 @@ pub fn build_unified_connector_service_auth_metadata(
             merchant_id: Secret::new(merchant_id.to_string()),
             connector_config,
         }),
+        ConnectorAuthType::CertificateAuth {
+            certificate,
+            private_key,
+        } => Ok(ConnectorAuthMetadata {
+            connector_name,
+            auth_type: consts::UCS_AUTH_MULTI_KEY.to_string(),
+            api_key: Some(certificate.clone()),
+            key1: Some(private_key.clone()),
+            key2: None,
+            api_secret: None,
+            auth_key_map: None,
+            merchant_id: Secret::new(merchant_id.to_string()),
+            connector_config,
+        }),
         _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
             .attach_printable("Unsupported ConnectorAuthType for header injection"),
     }

@@ -506,8 +506,16 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 Ok(())
             }
             api_enums::Connector::Santander => {
-                santander::requests::SantanderAuthType::try_from(self.auth_type)?;
-                santander::requests::SantanderMetadataObject::try_from(self.connector_meta_data)?;
+                if santander::requests::SantanderPayoutAuthType::try_from(self.auth_type).is_ok() {
+                    santander::requests::SantanderPayoutMetadataObject::try_from(
+                        self.connector_meta_data,
+                    )?;
+                } else {
+                    santander::requests::SantanderAuthType::try_from(self.auth_type)?;
+                    santander::requests::SantanderMetadataObject::try_from(
+                        self.connector_meta_data,
+                    )?;
+                }
                 Ok(())
             }
             api_enums::Connector::Shift4 => {

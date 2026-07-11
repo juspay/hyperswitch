@@ -3757,6 +3757,35 @@ api_key="Client Secret"
 api_secret="Certificates"
 key2="Certificate Key"
 
+[santander_payout]
+[[santander_payout.bank_transfer]]
+  payment_method_type = "pix"
+[[santander_payout.bank_transfer]]
+  payment_method_type = "pix_key"
+[[santander_payout.bank_transfer]]
+  payment_method_type = "pix_emv"
+[santander_payout.connector_auth.CertificateAuth]
+certificate="Certificate"
+private_key="Certificate Key"
+[[santander_payout.metadata.pix_payout]]
+name="client_id"
+label="Client Id"
+placeholder="Enter the client id"
+required=true
+type="Text"
+[[santander_payout.metadata.pix_payout]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter the client secret"
+required=true
+type="Text"
+[[santander_payout.metadata.pix_payout]]
+name="workspace_id"
+label="Workspace Id"
+placeholder="Enter the workspace id"
+required=true
+type="Text"
+
 [paystack]
 [[paystack.bank_redirect]]
 payment_method_type = "eft"

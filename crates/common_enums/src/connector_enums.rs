@@ -248,7 +248,10 @@ impl Connector {
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
         matches!(
             (self, payout_method),
-            (Self::Paypal, _) | (Self::Truelayer, _) | (Self::Itaubank, _)
+            (Self::Paypal, _)
+                | (Self::Truelayer, _)
+                | (Self::Itaubank, _)
+                | (Self::Santander, Some(PayoutType::Bank))
         )
     }
     #[cfg(feature = "payouts")]

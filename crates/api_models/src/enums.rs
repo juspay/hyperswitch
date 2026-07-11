@@ -64,6 +64,7 @@ pub enum PayoutConnectors {
     Worldpayxml,
     Envoy,
     Itaubank,
+    Santander,
 }
 
 #[cfg(feature = "v2")]
@@ -109,6 +110,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Worldpayxml => Self::Worldpayxml,
             PayoutConnectors::Envoy => Self::Envoy,
             PayoutConnectors::Itaubank => Self::Itaubank,
+            PayoutConnectors::Santander => Self::Santander,
         }
     }
 }
@@ -135,6 +137,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Worldpayxml => Self::Worldpayxml,
             PayoutConnectors::Envoy => Self::Envoy,
             PayoutConnectors::Itaubank => Self::Itaubank,
+            PayoutConnectors::Santander => Self::Santander,
         }
     }
 }
@@ -162,6 +165,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Worldpayxml => Ok(Self::Worldpayxml),
             Connector::Envoy => Ok(Self::Envoy),
             Connector::Itaubank => Ok(Self::Itaubank),
+            Connector::Santander => Ok(Self::Santander),
             _ => Err(format!("Invalid payout connector {value}")),
         }
     }
