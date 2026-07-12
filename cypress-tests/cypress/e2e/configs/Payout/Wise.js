@@ -168,6 +168,9 @@ export const connectorDetails = {
             payout_type: "bank",
           },
         },
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
       },
       Fulfill: {
         Request: {
