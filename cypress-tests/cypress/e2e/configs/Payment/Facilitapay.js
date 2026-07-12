@@ -73,5 +73,58 @@ export const connectorDetails = {
         },
       },
     }),
+    PixForRefund: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "pix",
+        payment_method_data: {
+          bank_transfer: {
+            pix: {
+              cpf: "86665623580",
+              source_bank_account_id: "739d6b0a-e92a-40fd-9f58-6d4cdeb699bb",
+              pix_qr_expiry: isoTimeTomorrow(),
+            },
+          },
+        },
+        billing: {
+          ...billingAddress,
+          address: {
+            ...billingAddress.address,
+            country: "BR",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    Refund: getCustomExchange({
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      ResponseCustom: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    SyncRefund: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
   },
 };
