@@ -49,7 +49,6 @@ describe("Card - Implicit Customer Update flow test", () => {
 
   after("restore implicit_customer_update to false in Superposition", () => {
     setImplicitCustomerUpdate(false);
-    cy.wait(SUPERPOSITION_POLL_WAIT_MS);
   });
 
   context(
