@@ -30,15 +30,17 @@ function setImplicitCustomerUpdate(value) {
 }
 
 describe("Card - Implicit Customer Update flow test", () => {
-  before("enable implicit_customer_update in Superposition", () => {
-    setImplicitCustomerUpdate(true);
-    cy.wait(SUPERPOSITION_POLL_WAIT_MS);
-  });
-
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
     });
+  });
+
+  // Re-enable before each test so a parallel connector's after-hook resetting the
+  // flag to false (between our two tests) cannot poison the router's cached value.
+  beforeEach("enable implicit_customer_update in Superposition", () => {
+    setImplicitCustomerUpdate(true);
+    cy.wait(SUPERPOSITION_POLL_WAIT_MS);
   });
 
   after("flush global state", () => {
