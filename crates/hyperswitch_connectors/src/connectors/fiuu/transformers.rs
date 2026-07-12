@@ -824,7 +824,7 @@ pub struct FiuuRecurringResponse {
     #[serde(rename = "orderid")]
     order_id: String,
     #[serde(rename = "tranID")]
-    tran_id: Option<String>,
+    tran_id: Option<u64>,
     reason: Option<String>,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -948,18 +948,6 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                     })
                 }
                 RequestData::NonThreeDS(non_threeds_data) => {
-                    let mandate_reference =
-                        non_threeds_data
-                            .extra_parameters
-                            .as_ref()
-                            .and_then(|extra_p| {
-                                extra_p.token.as_ref().map(|token| MandateReference {
-                                    connector_mandate_id: Some(token.clone().expose()),
-                                    payment_method_id: None,
-                                    mandate_metadata: None,
-                                    connector_mandate_request_reference_id: None,
-                                })
-                            });
                     let status = match non_threeds_data.status.as_str() {
                         "00" => {
                             if item.data.request.is_auto_capture()? {
@@ -998,7 +986,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                         Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(data.txn_id.clone()),
                             redirection_data: Box::new(None),
-                            mandate_reference: Box::new(mandate_reference),
+                            mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
                             network_txn_link_id: None,
@@ -1023,9 +1011,8 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             common_enums::AttemptStatus::from(recurring_response.status.clone());
                         let connector_transaction_id = recurring_response
                             .tran_id
-                            .as_ref()
                             .map_or(ResponseId::NoResponseId, |tran_id| {
-                                ResponseId::ConnectorTransactionId(tran_id.clone())
+                                ResponseId::ConnectorTransactionId(tran_id.to_string())
                             });
                         let response = if status == common_enums::AttemptStatus::Failure {
                             Err(ErrorResponse {
@@ -1040,7 +1027,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                                 reason: recurring_response.reason.clone(),
                                 status_code: item.http_code,
                                 attempt_status: None,
-                                connector_transaction_id: recurring_response.tran_id.clone(),
+                                connector_transaction_id: recurring_response.tran_id.map(|id| id.to_string()),
                                 connector_response_reference_id: None,
                                 network_advice_code: None,
                                 network_decline_code: None,
