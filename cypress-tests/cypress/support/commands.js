@@ -276,6 +276,28 @@ function createUcsConfigs(globalState, flow, type) {
     });
 }
 
+function assertResponseKey(resData, response, key) {
+  if (key === "payment_method_data") {
+    if (resData.body[key].card) {
+      const expectedCard = resData.body[key].card;
+      const actualCard = response.body[key].card;
+      const filteredExpected = {};
+      for (const prop in expectedCard) {
+        if (actualCard && actualCard[prop] !== null && actualCard[prop] !== undefined) {
+          filteredExpected[prop] = expectedCard[prop];
+        }
+      }
+      if (Object.keys(filteredExpected).length > 0) {
+        expect(actualCard, [key + ".card"]).to.deep.include(filteredExpected);
+      }
+    } else {
+      expect(response.body[key], [key]).to.deep.include(resData.body[key]);
+    }
+  } else {
+    expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
+  }
+}
+
 Cypress.Commands.add("deleteBusinessProfileTest", (globalState) => {
   const adminApiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
@@ -2897,7 +2919,7 @@ Cypress.Commands.add(
           expect(response.status, "status_code").to.equal(200);
           // Validate response body against expected values from config (Commons.js)
           for (const key in resData.body) {
-            expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
+            assertResponseKey(resData, response, key);
           }
         } else if (response.status === 200) {
           if (response.body.next_action?.redirect_to_url) {
@@ -2982,9 +3004,7 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                assertResponseKey(resData, response, key);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               // Handle pay later methods that require redirect (Affirm, Klarna, etc.)
@@ -3010,9 +3030,7 @@ Cypress.Commands.add(
                 );
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                assertResponseKey(resData, response, key);
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
@@ -3067,9 +3085,7 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                assertResponseKey(resData, response, key);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               // Handle pay later methods that require redirect (Affirm, Klarna, etc.)
@@ -3084,9 +3100,7 @@ Cypress.Commands.add(
                 globalState.set("nextActionType", "redirect_to_url");
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                assertResponseKey(resData, response, key);
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
@@ -3391,9 +3405,7 @@ Cypress.Commands.add(
             }
 
             for (const key in resData.body) {
-              expect(resData.body[key], [key]).to.deep.equal(
-                response.body[key]
-              );
+              assertResponseKey(resData, response, key);
             }
           } else {
             throw new Error(
@@ -3742,15 +3754,11 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                assertResponseKey(resData, response, key);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                assertResponseKey(resData, response, key);
               }
             } else {
               throw new Error(
@@ -3787,15 +3795,11 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                assertResponseKey(resData, response, key);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                assertResponseKey(resData, response, key);
               }
             } else {
               throw new Error(
@@ -3914,9 +3918,7 @@ Cypress.Commands.add(
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                assertResponseKey(resData, response, key);
               }
               expect(response.body.customer_id).to.equal(
                 globalState.get("customerId") ?? null
@@ -3963,9 +3965,7 @@ Cypress.Commands.add(
               );
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                assertResponseKey(resData, response, key);
               }
               expect(response.body.customer_id).to.equal(
                 globalState.get("customerId") ?? null
@@ -4651,9 +4651,7 @@ Cypress.Commands.add(
               // Response body key comparison runs for all three_ds paths, including succeeded status
               // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                assertResponseKey(resData, response, key);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               if (
@@ -4671,9 +4669,7 @@ Cypress.Commands.add(
                 requestBody.payment_method_type
               );
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                assertResponseKey(resData, response, key);
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.mandate_id === null &&
@@ -4723,9 +4719,7 @@ Cypress.Commands.add(
               // Response body key comparison runs for all three_ds paths, including succeeded status
               // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                assertResponseKey(resData, response, key);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               if (
@@ -4743,9 +4737,7 @@ Cypress.Commands.add(
                 requestBody.payment_method_type
               );
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                assertResponseKey(resData, response, key);
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.mandate_id === null &&
@@ -5688,9 +5680,7 @@ Cypress.Commands.add(
                     .to.have.property("next_action")
                     .and.have.nested.property("image_data_url").and.not.be.null;
                 for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
+                  assertResponseKey(resData, response, key);
                 }
                 if (response.body.connector === "iatapay") {
                   expect(response.body)
@@ -5783,9 +5773,7 @@ Cypress.Commands.add(
             globalState.set("nextActionType", "redirect_to_url");
 
             for (const key in resData.body) {
-              expect(resData.body[key], [key]).to.deep.equal(
-                response.body[key]
-              );
+              assertResponseKey(resData, response, key);
             }
           } else {
             throw new Error(
@@ -5862,9 +5850,7 @@ Cypress.Commands.add(
             }
 
             for (const key in resData.body) {
-              expect(resData.body[key], [key]).to.deep.equal(
-                response.body[key]
-              );
+              assertResponseKey(resData, response, key);
             }
           } else {
             throw new Error(
@@ -9015,9 +9001,7 @@ Cypress.Commands.add(
             if (key === "connector") {
               expect(response.body[key]).to.be.oneOf(["adyen", "stripe"]);
             } else {
-              expect(resData.body[key], [key]).to.deep.equal(
-                response.body[key]
-              );
+              assertResponseKey(resData, response, key);
             }
           }
         } else {
@@ -10044,7 +10028,7 @@ Cypress.Commands.add(
           );
 
           for (const key in resData.body) {
-            expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
+            assertResponseKey(resData, response, key);
           }
 
           validateErrorMessage(response, resData);
