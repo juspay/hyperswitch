@@ -283,7 +283,11 @@ function assertResponseKey(resData, response, key) {
       const actualCard = response.body[key].card;
       const filteredExpected = {};
       for (const prop in expectedCard) {
-        if (actualCard && actualCard[prop] !== null && actualCard[prop] !== undefined) {
+        if (
+          actualCard &&
+          actualCard[prop] !== null &&
+          actualCard[prop] !== undefined
+        ) {
           filteredExpected[prop] = expectedCard[prop];
         }
       }
