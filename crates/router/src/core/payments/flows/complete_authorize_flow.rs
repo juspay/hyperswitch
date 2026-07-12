@@ -1001,6 +1001,7 @@ impl<F>
             capture_method: item.request.capture_method,
             minor_payment_amount: item.request.minor_amount,
             minor_amount_to_capture: item.request.minor_amount,
+            order_tax_amount: None,
             integrity_object: None,
             split_payments: None,
             webhook_url: None,

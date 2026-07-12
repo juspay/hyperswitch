@@ -370,6 +370,7 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::CardDiscovery => dir_enums::CardDiscovery::VARIANTS,
 
         dir::DirKeyKind::PaymentAmount
+        | dir::DirKeyKind::SurchargeAmount
         | dir::DirKeyKind::Connector
         | dir::DirKeyKind::CardBin
         | dir::DirKeyKind::ExtendedCardBin
