@@ -1,0 +1,7 @@
+{
+  "customer_id": "cust_invalid_nonexistent",
+  "item_price_id": "",
+  "payment_details": {
+    "return_url": "https://example.com/subscription/return"
+  }
+}
