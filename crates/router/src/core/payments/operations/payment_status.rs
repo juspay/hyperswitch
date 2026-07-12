@@ -232,9 +232,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
         request: &api::PaymentsRetrieveRequest,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
+        _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
     > {
@@ -397,7 +399,11 @@ async fn get_tracker_for_sync<
         })?;
 
     let disputes = db
-        .find_disputes_by_processor_merchant_id_payment_id(platform.get_processor().get_account().get_id(), &payment_id)
+        .find_disputes_by_processor_merchant_id_payment_id(
+            platform.get_processor().get_account().get_id(),
+            &payment_id,
+            platform.get_processor().get_account().storage_scheme,
+        )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
@@ -472,17 +478,17 @@ async fn get_tracker_for_sync<
             None
         };
 
-    let merchant_id = payment_intent.merchant_id.clone();
     let key_manager_state = &(state).into();
 
     let authentication_store =
         if let Some(ref authentication_id) = payment_attempt.authentication_id {
             let authentication = db
-                .find_authentication_by_merchant_id_authentication_id(
-                    &merchant_id,
+                .find_authentication_by_processor_merchant_id_authentication_id(
+                    platform.get_processor().get_account().get_id(),
                     authentication_id,
                     platform.get_processor().get_key_store(),
                     key_manager_state,
+                    platform.get_processor().get_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -575,6 +581,8 @@ async fn get_tracker_for_sync<
         external_authentication_data: None,
         client_session_id: None,
         vault_session_details: None,
+        external_vault_pmd: None,
+        update_request_fields: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

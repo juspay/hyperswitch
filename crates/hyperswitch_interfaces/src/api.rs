@@ -34,7 +34,8 @@ use std::fmt::Debug;
 
 use common_enums::{
     enums::{
-        self, CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType,
+        self, CallConnectorAction, CaptureMethod, EventClass, IntentStatus, PaymentAction,
+        PaymentMethodType,
     },
     PaymentMethod,
 };
@@ -47,7 +48,6 @@ pub use hyperswitch_domain_models::router_request_types::CurrentFlowInfo;
 use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
-    payment_method_data::PaymentMethodData,
     router_data::{
         AccessToken, AccessTokenAuthenticationResponse, ConnectorAuthType, ErrorResponse,
         RouterData,
@@ -61,13 +61,17 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::{
         mandate_revoke::MandateRevoke,
-        merchant_connector_webhook_management::ConnectorWebhookRegister, AccessTokenAuth,
-        AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, PostAuthenticate,
-        PreAuthenticate, ProcessIncomingWebhook, VerifyWebhookSource,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
+        AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
+        PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook, VerifyWebhookSource,
     },
     router_request_types::{
         self,
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -77,7 +81,10 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        self, merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        self,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
         VerifyWebhookSourceResponseData,
     },
@@ -94,8 +101,7 @@ pub use self::payouts::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts_v2::*;
 pub use self::{
-    merchant_connector_webhook_management::*, merchant_connector_webhook_management_v2::*,
-    payments::*, refunds::*, vault::*, vault_v2::*,
+    merchant_connector_webhook_management::*, payments::*, refunds::*, vault::*, vault_v2::*,
 };
 use crate::{
     api::subscriptions::Subscriptions, connector_integration_v2::ConnectorIntegrationV2, consts,
@@ -125,6 +131,7 @@ pub trait Connector:
     + ExternalVault
     + Subscriptions
     + WebhookRegister
+    + WebhookGenerateSecret
 {
 }
 
@@ -135,6 +142,7 @@ impl<
             + Send
             + webhooks::IncomingWebhook
             + WebhookRegister
+            + WebhookGenerateSecret
             + ConnectorAccessToken
             + ConnectorAuthenticationToken
             + disputes::Dispute
@@ -460,6 +468,21 @@ pub trait ConnectorSpecifications {
     }
     /// Check if post-authentication flow is required
     fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
+    /// Check if pre-authenticate cancel flow is supported
+    fn is_pre_authorize_cancel_supported(
+        &self,
+        _payment_method_type: Option<PaymentMethodType>,
+    ) -> bool {
+        false
+    }
+    /// Check if connector should be called for UpdatePostConfirm
+    fn should_call_connector_for_update_post_confirm(
+        &self,
+        _payment_method_type: Option<PaymentMethodType>,
+        _intent_status: IntentStatus,
+    ) -> bool {
         false
     }
     /// Check if settlement split flow is required
@@ -830,6 +853,17 @@ pub trait WebhookRegisterV2:
 {
 }
 
+/// trait WebhookGenerateSecretV2
+pub trait WebhookGenerateSecretV2:
+    ConnectorIntegrationV2<
+    ConnectorWebhookGenerateSecret,
+    ConnectorWebhookConfigurationFlowData,
+    ConnectorWebhookGenerateSecretRequest,
+    ConnectorWebhookGenerateSecretResponse,
+>
+{
+}
+
 /// trait UasAuthenticationV2
 pub trait UasAuthenticationV2:
     ConnectorIntegrationV2<
@@ -882,27 +916,6 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
                 connector: self.id(),
             }
             .into())
-        }
-    }
-
-    /// fn validate_mandate_payment
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        _pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let connector = self.id();
-        match pm_type {
-            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{pm_type} mandate payment"),
-                connector,
-            }
-            .into()),
-            None => Err(errors::ConnectorError::NotSupported {
-                message: " mandate payment".to_string(),
-                connector,
-            }
-            .into()),
         }
     }
 

@@ -25,7 +25,9 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::types::VaultRouterData;
 use hyperswitch_domain_models::{
-    merchant_connector_account::MerchantConnectorAccount,
+    merchant_connector_account::{
+        MerchantConnectorAccount, MerchantConnectorAccountWithoutEncrypted,
+    },
     payment_address::PaymentAddress,
     router_data::ErrorResponse,
     router_data_v2::flow_common_types::VaultConnectorFlowData,
@@ -242,12 +244,12 @@ pub async fn construct_payout_router_data<'a, F>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: platform.get_processor().get_account().get_id().to_owned(),
-        customer_id: customer_details.to_owned().map(|c| c.customer_id),
+        customer_id: customer_details.as_ref().map(|c| c.get_id().clone()),
         tenant_id: state.tenant.tenant_id.clone(),
         connector_customer: get_payout_connector_customer_id(
             connector_data,
             connector_customer_id.clone(),
-            &customer_details.to_owned().map(|c| c.customer_id),
+            &customer_details.as_ref().map(|c| c.get_id().clone()),
             &payout_data.payment_method,
             &payout_data.payout_attempt,
         )?,
@@ -282,7 +284,7 @@ pub async fn construct_payout_router_data<'a, F>(
             customer_details: customer_details
                 .to_owned()
                 .map(|c| payments::CustomerDetails {
-                    customer_id: Some(c.customer_id),
+                    customer_id: Some(c.get_id().clone()),
                     name: c.name.map(Encryptable::into_inner),
                     email: c.email.map(Email::from),
                     phone: c.phone.map(Encryptable::into_inner),
@@ -2568,6 +2570,12 @@ impl GetProfileId for MerchantConnectorAccount {
     }
 }
 
+impl GetProfileId for MerchantConnectorAccountWithoutEncrypted {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
+    }
+}
+
 impl GetProfileId for storage::PaymentIntent {
     #[cfg(feature = "v1")]
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
@@ -2697,6 +2705,7 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn construct_vault_router_data<F>(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -2707,6 +2716,7 @@ pub async fn construct_vault_router_data<F>(
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
     should_generate_multiple_tokens: Option<bool>,
+    storage_type: Option<common_enums::StorageType>,
 ) -> RouterResult<VaultRouterDataV2<F>> {
     let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
@@ -2726,6 +2736,7 @@ pub async fn construct_vault_router_data<F>(
             connector_vault_id,
             connector_customer_id,
             should_generate_multiple_tokens,
+            storage_type,
         },
         response: Ok(types::VaultResponseData::default()),
     };

@@ -50,6 +50,7 @@ use hyperswitch_interfaces::{
         ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     disputes::DisputePayload,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -249,43 +250,59 @@ impl ConnectorCommon for Payload {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: responses::PayloadErrorResponse = res
-            .response
-            .parse_struct("PayloadErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        let response: Result<responses::PayloadErrorResponse, _> =
+            res.response.parse_struct("PayloadErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_type,
-            message: response.error_description.clone(),
-            reason: Some(response.error_description),
-            attempt_status: None,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response.error_type,
+                    message: response.error_description.clone(),
+                    reason: Some(response.error_description),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                if let Some(event) = event_builder {
+                    event.set_error(serde_json::json!({
+                        "error": "Error response parsing failed",
+                        "status_code": res.status_code
+                    }));
+                }
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "payload")
+            }
+        }
     }
 }
 
-impl ConnectorValidation for Payload {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            utils::PaymentMethodDataType::Card,
-            utils::PaymentMethodDataType::AchBankDebit,
-        ]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Payload {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Payload {}
 
@@ -1113,7 +1130,8 @@ impl webhooks::IncomingWebhook for Payload {
             | responses::PayloadWebhooksTrigger::ChargebackReversal
             | responses::PayloadWebhooksTrigger::PaymentActivationStatus
             | responses::PayloadWebhooksTrigger::PaymentLinkStatus
-            | responses::PayloadWebhooksTrigger::Refund => {
+            | responses::PayloadWebhooksTrigger::Refund
+            | responses::PayloadWebhooksTrigger::Unknown => {
                 Err(errors::ConnectorError::WebhooksNotImplemented.into())
             }
         }
@@ -1124,6 +1142,10 @@ impl webhooks::IncomingWebhook for Payload {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         snapshot: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
+        if request.body.is_empty() {
+            return Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported);
+        }
+
         let webhook_body: responses::PayloadWebhookEvent =
             request.body.parse_struct("PayloadWebhookEvent").switch()?;
 

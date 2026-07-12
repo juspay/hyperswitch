@@ -903,19 +903,20 @@ impl RequiredField {
                 },
             ),
             Self::PixKey => (
-                "payment_method_data.bank_transfer.pix.pix_key".to_string(),
+                "payment_method_data.bank_transfer.pix_qr.pix_key".to_string(),
                 RequiredFieldInfo {
-                    required_field: "payment_method_data.bank_transfer.pix.pix_key".to_string(),
+                    required_field: "payment_method_data.bank_transfer.pix_qr.pix_key".to_string(),
                     display_name: "pix_key".to_string(),
                     field_type: FieldType::UserPixKey,
                     value: None,
                 },
             ),
             Self::PixSourceBankAccountId => (
-                "payment_method_data.bank_transfer.pix.source_bank_account_id".to_string(),
+                "payment_method_data.bank_transfer.pix_qr.source_bank_account_id".to_string(),
                 RequiredFieldInfo {
-                    required_field: "payment_method_data.bank_transfer.pix.source_bank_account_id"
-                        .to_string(),
+                    required_field:
+                        "payment_method_data.bank_transfer.pix_qr.source_bank_account_id"
+                            .to_string(),
                     display_name: "source_bank_account_id".to_string(),
                     field_type: FieldType::UserSourceBankAccountId,
                     value: None,

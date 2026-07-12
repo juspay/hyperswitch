@@ -1,7 +1,11 @@
 pub(super) mod customer;
+#[cfg(feature = "v2")]
 pub(super) mod payment;
+#[cfg(feature = "v2")]
 pub(super) mod payment_methods;
+#[cfg(feature = "v2")]
 pub(super) mod refunds;
+#[cfg(feature = "v2")]
 pub(super) mod token;
 
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
@@ -23,12 +27,19 @@ pub(crate) struct GlobalId(LengthId<MAX_GLOBAL_ID_LENGTH, MIN_GLOBAL_ID_LENGTH>)
 /// Entities that can be identified by a global id
 pub(crate) enum GlobalEntity {
     Customer,
+    #[cfg(feature = "v2")]
     Payment,
+    #[cfg(feature = "v2")]
     Attempt,
+    #[cfg(feature = "v2")]
     AttemptGroup,
+    #[cfg(feature = "v2")]
     PaymentMethod,
+    #[cfg(feature = "v2")]
     Refund,
+    #[cfg(feature = "v2")]
     PaymentMethodSession,
+    #[cfg(feature = "v2")]
     Token,
 }
 
@@ -36,12 +47,19 @@ impl GlobalEntity {
     fn prefix(self) -> &'static str {
         match self {
             Self::Customer => "cus",
+            #[cfg(feature = "v2")]
             Self::Payment => "pay",
+            #[cfg(feature = "v2")]
             Self::PaymentMethod => "pm",
+            #[cfg(feature = "v2")]
             Self::Attempt => "att",
+            #[cfg(feature = "v2")]
             Self::AttemptGroup => "atg",
+            #[cfg(feature = "v2")]
             Self::Refund => "ref",
+            #[cfg(feature = "v2")]
             Self::PaymentMethodSession => "pms",
+            #[cfg(feature = "v2")]
             Self::Token => "tok",
         }
     }
@@ -112,7 +130,7 @@ impl<'de> serde::Deserialize<'de> for CellId {
 #[derive(Debug, Error, PartialEq, Eq)]
 pub(crate) enum GlobalIdError {
     /// The format for the global id is invalid
-    #[error("The id format is invalid, expected format is {{cell_id:5}}_{{entity_prefix:3}}_{{uuid:32}}_{{random:24}}")]
+    #[error("The id format is invalid, expected format is {{cell_id:2}}_{{entity_prefix:3}}_{{uuid:32}}_{{random:24}}")]
     InvalidIdFormat,
 
     /// LengthIdError and AlphanumericIdError
@@ -180,7 +198,7 @@ where
 }
 
 /// Deserialize the global id from string
-/// The format should match {cell_id:5}_{entity_prefix:3}_{time_ordered_id:32}_{.*:24}
+/// The format should match {cell_id:2}_{entity_prefix:3}_{time_ordered_id:32}_{.*:24}
 impl<'de> serde::Deserialize<'de> for GlobalId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -197,28 +215,28 @@ mod global_id_tests {
 
     #[test]
     fn test_cell_id_from_str() {
-        let cell_id_string = "12345";
+        let cell_id_string = "0a";
         let cell_id = CellId::from_str(cell_id_string).unwrap();
         assert_eq!(cell_id.get_string_repr(), cell_id_string);
     }
 
     #[test]
     fn test_global_id_generate() {
-        let cell_id_string = "12345";
+        let cell_id_string = "0a";
         let entity = GlobalEntity::Customer;
         let cell_id = CellId::from_str(cell_id_string).unwrap();
         let global_id = GlobalId::generate(&cell_id, entity);
 
         // Generate a regex for globalid
         // Eg - 12abc_cus_abcdefghijklmnopqrstuvwxyz1234567890
-        let regex = regex::Regex::new(r"[a-z0-9]{5}_cus_[a-z0-9]{32}").unwrap();
+        let regex = regex::Regex::new(r"[a-z0-9]{2}_cus_[a-z0-9]{32}").unwrap();
 
         assert!(regex.is_match(&global_id.0 .0 .0));
     }
 
     #[test]
     fn test_global_id_from_string() {
-        let input_string = "12345_cus_abcdefghijklmnopqrstuvwxyz1234567890";
+        let input_string = "0a_cus_abcdefghijklmnopqrstuvwxyz1234567890";
         let global_id = GlobalId::from_string(input_string.into()).unwrap();
         assert_eq!(global_id.0 .0 .0, input_string);
     }
@@ -226,9 +244,9 @@ mod global_id_tests {
     #[test]
     fn test_global_id_deser() {
         let input_string_for_serde_json_conversion =
-            r#""12345_cus_abcdefghijklmnopqrstuvwxyz1234567890""#;
+            r#""0a_cus_abcdefghijklmnopqrstuvwxyz1234567890""#;
 
-        let input_string = "12345_cus_abcdefghijklmnopqrstuvwxyz1234567890";
+        let input_string = "0a_cus_abcdefghijklmnopqrstuvwxyz1234567890";
         let global_id =
             serde_json::from_str::<GlobalId>(input_string_for_serde_json_conversion).unwrap();
         assert_eq!(global_id.0 .0 .0, input_string);

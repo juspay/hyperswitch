@@ -92,7 +92,7 @@ pub const MAX_GLOBAL_ID_LENGTH: u8 = 64;
 pub const MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 1;
 
 /// Length of a cell identifier in a distributed system
-pub const CELL_IDENTIFIER_LENGTH: u8 = 5;
+pub const CELL_IDENTIFIER_LENGTH: u8 = 2;
 
 /// General purpose base64 engine
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
@@ -141,8 +141,6 @@ pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
 pub const ROLE_ID_INTERNAL_VIEW_ONLY_USER: &str = "internal_view_only";
 /// Role ID for Internal Admin
 pub const ROLE_ID_INTERNAL_ADMIN: &str = "internal_admin";
-/// Role ID for Internal Demo
-pub const ROLE_ID_INTERNAL_DEMO: &str = "internal_demo";
 
 /// Max length allowed for Description
 pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
@@ -178,6 +176,9 @@ pub const X_SUB_FLOW_NAME: &str = "x-sub-flow";
 /// Unified Connector Service Mode
 pub const X_UNIFIED_CONNECTOR_SERVICE_MODE: &str = "x-shadow-mode";
 
+/// Proxy name for UCS to select the proxy to route the request through
+pub const X_PROXY_NAME: &str = "x-proxy-name";
+
 /// Config Override Header for UCS
 pub const X_CONFIG_OVERRIDE: &str = "x-config-override";
 
@@ -210,6 +211,12 @@ pub const DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD: i32 = 5;
 
 /// Default Card Testing Guard Redis Expiry in seconds
 pub const DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS: i32 = 3600;
+
+/// Default status of Guest IP Blocking
+pub const DEFAULT_GUEST_IP_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Guest IP Blocking
+pub const DEFAULT_GUEST_IP_BLOCKING_THRESHOLD: i32 = 10;
 
 /// SOAP 1.1 Envelope Namespace
 pub const SOAP_ENV_NAMESPACE: &str = "http://schemas.xmlsoap.org/soap/envelope/";

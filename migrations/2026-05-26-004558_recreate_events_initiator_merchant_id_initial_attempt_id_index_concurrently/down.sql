@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS events_initiator_merchant_id_initial_attempt_id_index;

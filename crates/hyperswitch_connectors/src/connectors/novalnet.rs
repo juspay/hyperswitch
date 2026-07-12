@@ -1,6 +1,6 @@
 pub mod transformers;
 use core::str;
-use std::{collections::HashSet, sync::LazyLock};
+use std::sync::LazyLock;
 
 use base64::Engine;
 use common_enums::enums;
@@ -13,7 +13,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -40,6 +39,7 @@ use hyperswitch_interfaces::{
         ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -51,7 +51,7 @@ use transformers as novalnet;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, PaymentMethodDataType, PaymentsAuthorizeRequestData},
+    utils::{self, PaymentsAuthorizeRequestData},
 };
 
 #[derive(Clone)]
@@ -143,27 +143,55 @@ impl ConnectorCommon for Novalnet {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: novalnet::NovalnetErrorResponse = res
-            .response
-            .parse_struct("NovalnetErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        let response: Result<novalnet::NovalnetErrorResponse, _> =
+            res.response.parse_struct("NovalnetErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
-            attempt_status: None,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response.code,
+                    message: response.message,
+                    reason: response.reason,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "novalnet")
+            }
+        }
     }
 }
 
@@ -185,19 +213,6 @@ impl ConnectorValidation for Novalnet {
         }
 
         Err(errors::ConnectorError::MissingConnectorTransactionID.into())
-    }
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd: HashSet<PaymentMethodDataType> = HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::PaypalRedirect,
-            PaymentMethodDataType::ApplePay,
-        ]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -938,7 +953,18 @@ impl webhooks::IncomingWebhook for Novalnet {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
+        if request.body.is_empty() {
+            return Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported);
+        }
+
         let notif = get_webhook_object_from_body(request.body)?;
+
+        if novalnet::is_unknown_event(&notif.event.event_type) {
+            router_env::logger::warn!(
+                "Unknown Novalnet webhook event type received; acknowledging without processing"
+            );
+            return Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported);
+        }
 
         let optional_transaction_status = match &notif.transaction {
             novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => data.status,

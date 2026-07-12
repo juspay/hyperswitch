@@ -78,4 +78,5 @@ pub struct RelayUpdateInternal {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub modified_at: PrimitiveDateTime,
+    pub response_data: Option<pii::SecretSerdeValue>,
 }

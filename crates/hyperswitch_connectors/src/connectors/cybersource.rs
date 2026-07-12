@@ -12,7 +12,6 @@ use common_utils::{
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -81,8 +80,8 @@ use crate::{
     constants::{self, headers},
     types::ResponseRouterData,
     utils::{
-        self, convert_amount, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-        PaymentsPreAuthenticateRequestData, RefundsRequestData, RouterData as OtherRouterData,
+        self, convert_amount, PaymentsAuthorizeRequestData, PaymentsPreAuthenticateRequestData,
+        RefundsRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -308,21 +307,7 @@ impl ConnectorCommon for Cybersource {
     }
 }
 
-impl ConnectorValidation for Cybersource {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::SamsungPay,
-        ]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Cybersource {}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Cybersource
 where
@@ -2305,7 +2290,9 @@ impl ConnectorSpecifications for Cybersource {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => None,
-            api::CurrentFlowInfo::Psync { .. } => None,
+            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
+                None
+            }
         }
     }
     fn get_alternate_flow_if_needed(
@@ -2326,7 +2313,9 @@ impl ConnectorSpecifications for Cybersource {
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => None,
             api::CurrentFlowInfo::SetupMandate { .. } => None,
-            api::CurrentFlowInfo::Psync { .. } => None,
+            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
+                None
+            }
         }
     }
     fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
@@ -2338,7 +2327,9 @@ impl ConnectorSpecifications for Cybersource {
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
+                false
+            }
         }
     }
     /// Check if authentication flow is required
@@ -2364,7 +2355,9 @@ impl ConnectorSpecifications for Cybersource {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
+                false
+            }
         }
     }
     /// Check if post-authentication flow is required
@@ -2390,7 +2383,9 @@ impl ConnectorSpecifications for Cybersource {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
+                false
+            }
         }
     }
 }

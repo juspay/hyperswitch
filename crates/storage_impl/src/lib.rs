@@ -10,8 +10,11 @@ use hyperswitch_domain_models::{
 use hyperswitch_masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
+pub mod authentication;
+pub mod behaviour;
 pub mod business_profile;
 pub mod callback_mapper;
+pub mod capture;
 pub mod card_issuer;
 pub mod cards_info;
 pub mod config;
@@ -19,6 +22,7 @@ pub mod configs;
 pub mod connection;
 pub mod customers;
 pub mod database;
+pub mod dispute;
 pub mod errors;
 pub mod invoice;
 pub mod kv_router_store;
@@ -50,6 +54,7 @@ use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
 
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
+use crate::redis::kv_store;
 pub use crate::{database::store::DatabaseStore, errors::StorageError};
 
 #[derive(Debug, Clone)]
@@ -191,6 +196,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         &self.master_encryption_key
     }
 
+    // TODO: This needs to be removed after the removal of diesel_models dependency from domain_models is done
     pub async fn call_database<D, R, M>(
         &self,
         key_store: &MerchantKeyStore,
@@ -201,6 +207,34 @@ impl<T: DatabaseStore> RouterStore<T> {
         R: futures::Future<Output = error_stack::Result<M, diesel_models::errors::DatabaseError>>
             + Send,
         M: ReverseConversion<D>,
+    {
+        execute_query
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })?
+            .convert(
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(StorageError::DecryptionError)
+    }
+
+    // Equivalent of call_database but where conversion trait is implemented in storage_impl crate
+    pub async fn call_database_new<D, R, M>(
+        &self,
+        key_store: &MerchantKeyStore,
+        execute_query: R,
+    ) -> error_stack::Result<D, StorageError>
+    where
+        D: Debug + Sync + behaviour::Conversion,
+        R: futures::Future<Output = error_stack::Result<M, diesel_models::errors::DatabaseError>>
+            + Send,
+        M: behaviour::ReverseConversion<D>,
     {
         execute_query
             .await
@@ -249,6 +283,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         }
     }
 
+    // TODO: This needs to be removed after the removal of diesel_models dependency from domain_models is done
     pub async fn find_resources<D, R, M>(
         &self,
         key_store: &MerchantKeyStore,
@@ -260,6 +295,44 @@ impl<T: DatabaseStore> RouterStore<T> {
                 Output = error_stack::Result<Vec<M>, diesel_models::errors::DatabaseError>,
             > + Send,
         M: ReverseConversion<D>,
+    {
+        let resource_futures = execute_query
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })?
+            .into_iter()
+            .map(|resource| async {
+                resource
+                    .convert(
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)
+            })
+            .collect::<Vec<_>>();
+
+        let resources = futures::future::try_join_all(resource_futures).await?;
+
+        Ok(resources)
+    }
+
+    // Equivalent of find_resources but where conversion trait is implemented in storage_impl crate
+    pub async fn find_resources_new<D, R, M>(
+        &self,
+        key_store: &MerchantKeyStore,
+        execute_query: R,
+    ) -> error_stack::Result<Vec<D>, StorageError>
+    where
+        D: Debug + Sync + behaviour::Conversion,
+        R: futures::Future<
+                Output = error_stack::Result<Vec<M>, diesel_models::errors::DatabaseError>,
+            > + Send,
+        M: behaviour::ReverseConversion<D>,
     {
         let resource_futures = execute_query
             .await
@@ -347,17 +420,69 @@ pub trait UniqueConstraints {
         redis_conn: &Arc<RedisConnectionPool>,
     ) -> CustomResult<(), RedisError> {
         let constraints = self.unique_constraints();
+        let unique_contraint_count = constraints.len();
         let sadd_result = redis_conn
             .sadd(
                 &format!("unique_constraint:{}", self.table_name()).into(),
-                constraints,
+                constraints.clone(),
             )
             .await?;
 
         match sadd_result {
             SaddReply::KeyNotSet => Err(error_stack::report!(RedisError::SetAddMembersFailed)),
-            SaddReply::KeySet => Ok(()),
+            SaddReply::KeySet(set_count) => {
+                if usize::try_from(set_count) == Ok(unique_contraint_count) {
+                    // If all unique constraints were succesfully inserted into the set, then no collision occurred
+                    Ok(())
+                } else {
+                    Err(error_stack::report!(RedisError::SetAddMembersFailed)).attach_printable_lazy(||{
+                        // saturating_sub avoids panic if set_count somehow exceeds unique_contraint_count.
+                        let duplicates_found = unique_contraint_count
+                            .saturating_sub(usize::try_from(set_count).unwrap_or(0));
+                        format!(
+                            "Unique constraint collision in table '{}': tried to insert {} constraint(s), but {} already existed. Attempted constraints: {:?}",
+                            self.table_name(),
+                            unique_contraint_count,
+                            duplicates_found,
+                            constraints
+                        )
+                    })
+                }
+            }
         }
+    }
+}
+
+/// This trait defines behaviour that must be followed by any table that has support for KV
+pub trait KvSupportedEntity: UniqueConstraints {
+    fn get_partition_key(&self) -> kv_store::PartitionKey<'_>;
+    fn get_hash_field_key(&self) -> String;
+}
+
+impl KvSupportedEntity for diesel_models::Capture {
+    fn get_partition_key(&self) -> kv_store::PartitionKey<'_> {
+        kv_store::PartitionKey::MerchantIdPaymentId {
+            merchant_id: &self.merchant_id,
+            payment_id: &self.payment_id,
+        }
+    }
+    fn get_hash_field_key(&self) -> String {
+        format!(
+            "pa_{}_capture_{}",
+            self.authorized_attempt_id, self.capture_id
+        )
+    }
+}
+
+impl KvSupportedEntity for diesel_models::Dispute {
+    fn get_partition_key(&self) -> kv_store::PartitionKey<'_> {
+        kv_store::PartitionKey::MerchantIdPaymentId {
+            merchant_id: &self.merchant_id,
+            payment_id: &self.payment_id,
+        }
+    }
+    fn get_hash_field_key(&self) -> String {
+        format!("dispute_{}", self.dispute_id)
     }
 }
 
@@ -508,6 +633,20 @@ impl UniqueConstraints for diesel_models::PaymentMethod {
     }
 }
 
+impl UniqueConstraints for diesel_models::Capture {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!(
+            "capture_{}_{}_{}",
+            self.merchant_id.get_string_repr(),
+            self.authorized_attempt_id,
+            self.capture_id
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "Capture"
+    }
+}
+
 impl UniqueConstraints for diesel_models::Mandate {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
@@ -518,6 +657,19 @@ impl UniqueConstraints for diesel_models::Mandate {
     }
     fn table_name(&self) -> &str {
         "Mandate"
+    }
+}
+
+impl UniqueConstraints for diesel_models::authentication::Authentication {
+    fn unique_constraints(&self) -> Vec<String> {
+        // Mirror the DB's only uniqueness: the `authentication_id` primary key.
+        vec![format!(
+            "authentication_{}",
+            self.authentication_id.get_string_repr()
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "Authentication"
     }
 }
 
@@ -558,5 +710,26 @@ impl UniqueConstraints for diesel_models::tokenization::Tokenization {
 
     fn table_name(&self) -> &str {
         "tokenization"
+    }
+}
+
+impl UniqueConstraints for diesel_models::Dispute {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![
+            format!(
+                "dispute_{}_{}",
+                self.merchant_id.get_string_repr(),
+                self.dispute_id
+            ),
+            format!(
+                "dispute_{}_{}_{}",
+                self.merchant_id.get_string_repr(),
+                self.payment_id.get_string_repr(),
+                self.connector_dispute_id
+            ),
+        ]
+    }
+    fn table_name(&self) -> &str {
+        "Dispute"
     }
 }

@@ -574,6 +574,11 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 tsys::transformers::TsysAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::TsysTransit => {
+                tsys_transit::TsysTransitAuthType::try_from(self.auth_type)?;
+                tsys_transit::TsysTransitMetadataObject::try_from(self.connector_meta_data)?;
+                Ok(())
+            }
             api_enums::Connector::Volt => {
                 volt::transformers::VoltAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -651,6 +656,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Paytm => {
                 paytm::transformers::PaytmAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Payconex => {
+                payconex::transformers::PayconexAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Finix => {

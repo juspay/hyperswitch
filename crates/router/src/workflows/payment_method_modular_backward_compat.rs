@@ -1,6 +1,6 @@
 #[cfg(feature = "v1")]
 use api_models::payment_methods::Card;
-use common_utils::ext_traits::{Encode, OptionExt, StringExt, ValueExt};
+use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
 #[cfg(feature = "v2")]
 use common_utils::id_type;
 use error_stack::ResultExt;
@@ -14,7 +14,7 @@ use crate::core::payment_methods::add_payment_method_to_legacy_locker;
 #[cfg(feature = "v1")]
 use crate::core::payment_methods::transformers;
 use crate::{
-    core::payment_methods::{cards, vault},
+    core::payment_methods::{cards, utils as payment_method_utils, vault},
     errors,
     logger::{self, error},
     routes::{app::StorageInterface, SessionState},
@@ -107,7 +107,7 @@ pub async fn backfill_legacy_db_fields(
 #[cfg(feature = "v1")]
 pub async fn backfill_legacy_locker_card(
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    platform: &domain::Platform,
     payment_method: &domain::PaymentMethod,
     tracking_data: &PaymentMethodModularCompatTrackingData,
     process_id: &str,
@@ -122,6 +122,8 @@ pub async fn backfill_legacy_locker_card(
         (Some(common_enums::PaymentMethod::Card), Some(_), None) => Some("customer_id is missing"),
         _ => Some("payment method is not card"),
     };
+
+    let merchant_id = platform.get_provider().get_account().get_id();
 
     if let Some(skip_reason) = legacy_locker_skip_reason {
         logger::info!(
@@ -176,18 +178,26 @@ pub async fn backfill_legacy_locker_card(
         };
 
         if !legacy_card_exists {
-            let vault_request = pm_types::GenericVaultRetrieveRequest {
-                entity_id: customer_id.clone(),
-                vault_id: domain::VaultId::generate(card_reference.clone()),
-            };
-            let payload = vault_request
-                .encode_to_vec()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to encode generic locker retrieve request in backward compatibility PT",
-                )?;
+            let should_trigger_fingerprint_migration =
+                payment_method_utils::get_should_trigger_fingerprint_migration(
+                    state,
+                    None,
+                    platform.get_provider().get_provider_merchant_id(),
+                )
+                .await;
+
+            let payload = cards::encode_vault_retrieve_request(
+                should_trigger_fingerprint_migration,
+                merchant_id.clone(),
+                &customer_id,
+                &card_reference,
+            )
+            .attach_printable(
+                "Failed to encode generic locker retrieve request in backward compatibility PT",
+            )?;
+
             let vault_response =
-                vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+                vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None, None)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
@@ -272,6 +282,15 @@ pub async fn backfill_legacy_locker_card(
         _ => Some("payment method is not card"),
     };
 
+    let pm_customer_id = payment_method
+        .customer_id
+        .clone()
+        .get_required_value("customer_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "customer_id not found for card payment method in backward compatibility inline flow",
+        )?;
+
     if let Some(skip_reason) = legacy_locker_skip_reason {
         logger::info!(
             process_id=%process_id,
@@ -280,21 +299,11 @@ pub async fn backfill_legacy_locker_card(
             "Skipping legacy locker card backfill in modular backward compatibility inline flow"
         );
     } else {
-        let customer_id = payment_method
-            .customer_id
-            .clone()
-            .get_required_value("customer_id")
+        let customer_id = id_type::CustomerId::try_from(pm_customer_id.clone())
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
-                "customer_id not found for card payment method in backward compatibility inline flow",
-            )
-            .and_then(|customer_id| {
-                id_type::CustomerId::try_from(customer_id)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to convert global customer id for backward compatibility inline flow",
-                    )
-            })?;
+                "Failed to convert global customer id for backward compatibility inline flow",
+            )?;
 
         let card_reference = payment_method
             .locker_id
@@ -333,18 +342,26 @@ pub async fn backfill_legacy_locker_card(
         };
 
         if !legacy_card_exists {
-            let vault_request = pm_types::GenericVaultRetrieveRequest {
-                entity_id: customer_id.clone(),
-                vault_id: domain::VaultId::generate(card_reference.clone()),
-            };
-            let payload = vault_request
-                .encode_to_vec()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
+            let should_trigger_fingerprint_migration =
+                payment_method_utils::get_should_trigger_fingerprint_migration(
+                    state,
+                    None,
+                    platform.get_provider().get_provider_merchant_id(),
+                )
+                .await;
+
+            let payload = cards::encode_vault_retrieve_request(
+                should_trigger_fingerprint_migration,
+                platform.get_provider().get_account().get_id().clone(),
+                &pm_customer_id,
+                &card_reference,
+            )
+            .attach_printable(
                     "Failed to encode generic locker retrieve request in backward compatibility inline flow",
                 )?;
+
             let vault_response = vault::call_to_vault::<pm_types::VaultRetrieve>(
-                state, payload, None,
+                state, payload, None, None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -374,10 +391,7 @@ pub async fn backfill_legacy_locker_card(
                 platform,
                 &stored_pm_resp.data,
                 Some(domain::VaultId::generate(card_reference.clone())),
-                payment_method
-                    .customer_id
-                    .as_ref()
-                    .get_required_value("customer_id")?,
+                &pm_customer_id,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -447,11 +461,19 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
     )
     .await?;
 
+    let platform = domain::Platform::new(
+        merchant_account.clone(),
+        key_store.clone(),
+        merchant_account,
+        key_store,
+        None,
+    );
+
     #[cfg(feature = "v1")]
     {
         backfill_legacy_locker_card(
             state,
-            &merchant_id,
+            &platform,
             &payment_method,
             &tracking_data,
             process_id,
@@ -461,13 +483,6 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
 
     #[cfg(feature = "v2")]
     {
-        let platform = domain::Platform::new(
-            merchant_account.clone(),
-            key_store.clone(),
-            merchant_account,
-            key_store,
-            None,
-        );
         backfill_legacy_locker_card(
             state,
             &platform,

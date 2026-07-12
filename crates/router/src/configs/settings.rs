@@ -83,6 +83,7 @@ pub struct Settings<S: SecretState> {
     pub proxy: Proxy,
     pub env: Env,
     pub chat: SecretStateContainer<ChatSettings, S>,
+    pub sage: SecretStateContainer<SageSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
@@ -166,7 +167,6 @@ pub struct Settings<S: SecretState> {
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
     pub grpc_client: GrpcClientSettings,
-    #[cfg(feature = "v2")]
     pub cell_information: CellInformation,
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
     pub alt_id_required_card_networks_and_connector: AltIdRequiredCardNetworksAndConnector,
@@ -224,10 +224,10 @@ pub struct OpenRouter {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct CloneConnectorAllowlistConfig {
-    #[serde(deserialize_with = "deserialize_merchant_ids")]
-    pub merchant_ids: HashSet<id_type::MerchantId>,
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_names: HashSet<enums::Connector>,
+    #[serde(deserialize_with = "deserialize_hashmap")]
+    pub payment_method_types: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -242,6 +242,15 @@ pub struct ChatSettings {
     pub enabled: bool,
     pub hyperswitch_ai_host: String,
     pub encryption_key: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct SageSettings {
+    pub enabled: bool,
+    pub base_url: String,
+    pub mint_path: String,
+    pub infra_key: Secret<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -856,11 +865,14 @@ pub struct Database {
     pub host: String,
     pub port: u16,
     pub dbname: String,
-    pub pool_size: u32,
+    #[serde(alias = "pool_size")]
+    pub max_pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: QueueStrategy,
-    pub min_idle: Option<u32>,
-    pub max_lifetime: Option<u64>,
+    #[serde(alias = "min_idle")]
+    pub min_idle_pool_size: u32,
+    pub max_lifetime: u64,
+    pub idle_timeout: u64,
 }
 
 impl From<Database> for storage_impl::config::Database {
@@ -871,11 +883,12 @@ impl From<Database> for storage_impl::config::Database {
             host: val.host,
             port: val.port,
             dbname: val.dbname,
-            pool_size: val.pool_size,
+            max_pool_size: val.max_pool_size,
             connection_timeout: val.connection_timeout,
             queue_strategy: val.queue_strategy,
-            min_idle: val.min_idle,
+            min_idle_pool_size: val.min_idle_pool_size,
             max_lifetime: val.max_lifetime,
+            idle_timeout: val.idle_timeout,
         }
     }
 }
@@ -1215,6 +1228,7 @@ impl Settings<SecuredSecret> {
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
         self.chat.get_inner().validate()?;
+        self.sage.get_inner().validate()?;
         self.cors.validate()?;
 
         self.scheduler
@@ -1376,13 +1390,11 @@ pub struct ServerTls {
     pub certificate: PathBuf,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct CellInformation {
     pub id: id_type::CellId,
 }
 
-#[cfg(feature = "v2")]
 impl Default for CellInformation {
     fn default() -> Self {
         // We provide a static default cell id for constructing application settings.
@@ -1391,7 +1403,7 @@ impl Default for CellInformation {
         // And a panic at application startup is considered acceptable.
         #[allow(clippy::expect_used)]
         let cell_id =
-            id_type::CellId::from_string("defid").expect("Failed to create a default for Cell Id");
+            id_type::CellId::from_string("00").expect("Failed to create a default for Cell Id");
         Self { id: cell_id }
     }
 }

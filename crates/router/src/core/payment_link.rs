@@ -25,7 +25,7 @@ use crate::{
         self, DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
         DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY, DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
         DEFAULT_HIDE_CARD_NICKNAME_FIELD, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG,
-        DEFAULT_SDK_LAYOUT, DEFAULT_SHOW_CARD_FORM,
+        DEFAULT_SDK_LAYOUT, DEFAULT_SHOW_CARD_FORM, DEFAULT_SHOW_MERCHANT_NAME,
     },
     errors::RouterResponse,
     get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
@@ -142,6 +142,7 @@ pub async fn form_payment_link_data(
                 show_card_terms: None,
                 is_setup_mandate_flow: None,
                 color_icon_card_cvc_error: None,
+                show_merchant_name: Some(DEFAULT_SHOW_MERCHANT_NAME),
             }
         };
 
@@ -323,6 +324,7 @@ pub async fn form_payment_link_data(
         color_icon_card_cvc_error: payment_link_config.color_icon_card_cvc_error.clone(),
         capture_method: payment_attempt.capture_method,
         setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
+        show_merchant_name: payment_link_config.show_merchant_name,
     };
 
     Ok((
@@ -490,8 +492,11 @@ pub fn get_js_script(payment_details: &PaymentLinkData) -> RouterResult<String> 
 pub fn get_payment_link_css_script(
     payment_link_config: &PaymentLinkConfig,
 ) -> RouterResult<String> {
-    payment_link::get_css_script(payment_link_config)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+    payment_link::get_css_script(payment_link_config).map_err(|err| {
+        error_stack::report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: err.to_string(),
+        })
+    })
 }
 
 pub fn get_meta_tags_html(payment_details: &api_models::payments::PaymentLinkDetails) -> String {
@@ -694,6 +699,7 @@ pub fn get_payment_link_config_based_on_priority(
         show_card_terms,
         is_setup_mandate_flow,
         color_icon_card_cvc_error,
+        show_merchant_name,
     ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
@@ -714,6 +720,7 @@ pub fn get_payment_link_config_based_on_priority(
         (show_card_terms),
         (is_setup_mandate_flow),
         (color_icon_card_cvc_error),
+        (show_merchant_name),
     );
 
     let payment_link_config =
@@ -748,7 +755,16 @@ pub fn get_payment_link_config_based_on_priority(
             show_card_terms,
             is_setup_mandate_flow,
             color_icon_card_cvc_error,
+            show_merchant_name,
         };
+
+    common_utils::validation::ValidateXSSOrSQLi::validate_xss_or_sqli(&payment_link_config)
+        .map_err(|err| {
+            error_stack::report!(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payment_link_config",
+            })
+            .attach_printable(err)
+        })?;
 
     Ok((payment_link_config, domain_name))
 }
@@ -863,6 +879,7 @@ pub async fn get_payment_link_status(
             show_card_terms: None,
             is_setup_mandate_flow: None,
             color_icon_card_cvc_error: None,
+            show_merchant_name: Some(DEFAULT_SHOW_MERCHANT_NAME),
         }
     };
 

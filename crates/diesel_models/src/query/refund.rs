@@ -6,7 +6,7 @@ use crate::schema::refund::dsl;
 #[cfg(feature = "v2")]
 use crate::schema_v2::refund::dsl;
 use crate::{
-    errors,
+    errors, kv,
     refund::{Refund, RefundNew, RefundUpdate, RefundUpdateInternal},
     PgPooledConn, StorageResult,
 };
@@ -14,6 +14,13 @@ use crate::{
 impl RefundNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Refund> {
         generics::generic_insert(conn, self).await
+    }
+
+    pub async fn generate_drainer_insert_query(
+        self,
+        conn: &mut PgPooledConn,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_insert_query(conn, self).await
     }
 }
 
@@ -281,6 +288,39 @@ impl Refund {
             None,
             None,
             None,
+        )
+        .await
+    }
+}
+
+impl RefundUpdate {
+    #[cfg(feature = "v1")]
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        refund_id: String,
+        processor_merchant_id: common_utils::id_type::MerchantId,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_with_predicate::<<Refund as HasTable>::Table, _, _>(
+            conn,
+            dsl::refund_id
+                .eq(refund_id)
+                .and(dsl::processor_merchant_id.eq(processor_merchant_id)),
+            RefundUpdateInternal::from(self),
+        )
+        .await
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        id: common_utils::id_type::GlobalRefundId,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_by_id::<<Refund as HasTable>::Table, _, _>(
+            conn,
+            id,
+            RefundUpdateInternal::from(self),
         )
         .await
     }

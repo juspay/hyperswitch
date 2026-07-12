@@ -5,7 +5,6 @@ use hyperswitch_domain_models::{
     api::ApplicationResponse,
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
-    payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::RouterDataV2,
     router_request_types::CurrentFlowInfo,
@@ -508,17 +507,6 @@ impl ConnectorValidation for ConnectorEnum {
         }
     }
 
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<common_enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match self {
-            Self::Old(connector) => connector.validate_mandate_payment(pm_type, pm_data),
-            Self::New(connector) => connector.validate_mandate_payment(pm_type, pm_data),
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
@@ -554,7 +542,7 @@ impl ConnectorValidation for ConnectorEnum {
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id_or_connector_name: String,
         current_flow: Option<CurrentFlowInfo>,
-        payment_method_type: Option<common_enums::enums::PaymentMethodType>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
         is_mit_payment: Option<bool>,
     ) -> CustomResult<String, errors::ConnectorError> {
         match self {
@@ -663,6 +651,35 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.get_connector_about(),
             Self::New(connector) => connector.get_connector_about(),
+        }
+    }
+
+    /// Check if connector supports pre-authorize cancel
+    fn is_pre_authorize_cancel_supported(
+        &self,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+    ) -> bool {
+        match self {
+            Self::Old(connector) => {
+                connector.is_pre_authorize_cancel_supported(payment_method_type)
+            }
+            Self::New(connector) => {
+                connector.is_pre_authorize_cancel_supported(payment_method_type)
+            }
+        }
+    }
+
+    /// Check if connector should be called for UpdatePostConfirm
+    fn should_call_connector_for_update_post_confirm(
+        &self,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+        intent_status: common_enums::IntentStatus,
+    ) -> bool {
+        match self {
+            Self::Old(connector) => connector
+                .should_call_connector_for_update_post_confirm(payment_method_type, intent_status),
+            Self::New(connector) => connector
+                .should_call_connector_for_update_post_confirm(payment_method_type, intent_status),
         }
     }
 
@@ -839,6 +856,17 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.get_api_webhook_config(),
             Self::New(connector) => connector.get_api_webhook_config(),
+        }
+    }
+}
+
+impl ConnectorEnum {
+    /// Whether the connector requires a separate HMAC generation call after registering the
+    /// webhook. Defaults to `false` for connectors that don't override it.
+    pub fn requires_webhook_secret_generation(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.requires_webhook_secret_generation(),
+            Self::New(connector) => connector.requires_webhook_secret_generation(),
         }
     }
 }

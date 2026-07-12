@@ -112,7 +112,7 @@ pub struct SessionRoutingPmTypeInput<'a> {
     key_store: &'a domain::MerchantKeyStore,
     routing_algorithm: &'a MerchantAccountRoutingAlgorithm,
     backend_input: dsl_inputs::BackendInput,
-    allowed_connectors: FxHashMap<String, api::GetToken>,
+    allowed_connectors: FxHashMap<SessionRoutingConnectorKey, api::GetToken>,
     profile_id: &'a common_utils::id_type::ProfileId,
 }
 
@@ -120,11 +120,13 @@ pub struct SessionRoutingPmTypeInput<'a> {
 pub struct SessionRoutingPmTypeInput<'a> {
     routing_algorithm: &'a MerchantAccountRoutingAlgorithm,
     backend_input: dsl_inputs::BackendInput,
-    allowed_connectors: FxHashMap<String, api::GetToken>,
+    allowed_connectors: FxHashMap<SessionRoutingConnectorKey, api::GetToken>,
     profile_id: &'a common_utils::id_type::ProfileId,
 }
 
 type RoutingResult<O> = oss_errors::CustomResult<O, errors::RoutingError>;
+
+type SessionRoutingConnectorKey = Option<common_utils::id_type::MerchantConnectorAccountId>;
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -185,6 +187,7 @@ pub fn make_dsl_input_for_payouts(
             .map(api_enums::Country::from_alpha2),
         business_label: payout_data.payout_attempt.business_label.clone(),
         setup_future_usage: None,
+        surcharge_amount: None,
     };
     let payment_method = dsl_inputs::PaymentMethodInput {
         payment_method: payout_data
@@ -324,6 +327,7 @@ pub fn make_dsl_input(
             .map(api_enums::Country::from_alpha2),
         business_label: None,
         setup_future_usage: Some(payments_dsl_input.payment_intent.setup_future_usage),
+        surcharge_amount: None,
     };
 
     let metadata = payments_dsl_input
@@ -649,6 +653,11 @@ pub fn make_dsl_input(
                 .map(api_enums::Country::from_alpha2),
             business_label: payments_dsl_input.payment_intent.business_label.clone(),
             setup_future_usage: payments_dsl_input.payment_intent.setup_future_usage,
+            surcharge_amount: payments_dsl_input
+                .payment_attempt
+                .external_surcharge_details
+                .as_ref()
+                .map(|details| details.external_surcharge_amount),
         };
 
     let metadata = payments_dsl_input
@@ -917,7 +926,7 @@ impl RoutingStage for SessionRoutingStage {
         Box::pin(async move {
             let mut pm_type_map: FxHashMap<
                 api_enums::PaymentMethodType,
-                FxHashMap<String, api::GetToken>,
+                FxHashMap<SessionRoutingConnectorKey, api::GetToken>,
             > = FxHashMap::default();
 
             let profile_id = input.business_profile.get_id();
@@ -927,7 +936,7 @@ impl RoutingStage for SessionRoutingStage {
                     .entry(connector_data.payment_method_sub_type)
                     .or_default()
                     .insert(
-                        connector_data.connector.connector_name.to_string(),
+                        connector_data.connector.merchant_connector_id.clone(),
                         connector_data.connector.get_token.clone(),
                     );
             }
@@ -1047,7 +1056,9 @@ impl RoutingStage for SessionRoutingStage {
 
                     for selection in routable_connector_choice {
                         let connector_name = selection.connector.to_string();
-                        if let Some(get_token) = allowed_connectors.get(&connector_name) {
+                        if let Some(get_token) =
+                            allowed_connectors.get(&selection.merchant_connector_id)
+                        {
                             let connector_data = api::ConnectorData::get_connector_by_name(
                                 &input.state.clone().conf.connectors,
                                 &connector_name,
@@ -2453,8 +2464,10 @@ pub async fn perform_session_flow_routing<'a>(
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>>
 {
-    let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
-        FxHashMap::default();
+    let mut pm_type_map: FxHashMap<
+        api_enums::PaymentMethodType,
+        FxHashMap<SessionRoutingConnectorKey, api::GetToken>,
+    > = FxHashMap::default();
 
     let profile_id = business_profile.get_id().clone();
 
@@ -2489,6 +2502,7 @@ pub async fn perform_session_flow_routing<'a>(
         // business_label not available in payment_intent anymore
         business_label: None,
         setup_future_usage: Some(session_input.payment_intent.setup_future_usage),
+        surcharge_amount: None,
     };
 
     let metadata = session_input
@@ -2517,7 +2531,7 @@ pub async fn perform_session_flow_routing<'a>(
             .entry(connector_data.payment_method_sub_type)
             .or_default()
             .insert(
-                connector_data.connector.connector_name.to_string(),
+                connector_data.connector.merchant_connector_id.clone(),
                 connector_data.connector.get_token.clone(),
             );
     }
@@ -2557,7 +2571,10 @@ pub async fn perform_session_flow_routing<'a>(
 
             for selection in routable_connector_choice {
                 let connector_name = selection.connector.to_string();
-                if let Some(get_token) = session_pm_input.allowed_connectors.get(&connector_name) {
+                if let Some(get_token) = session_pm_input
+                    .allowed_connectors
+                    .get(&selection.merchant_connector_id)
+                {
                     let connector_data = api::ConnectorData::get_connector_by_name(
                         &state.clone().conf.connectors,
                         &connector_name,
@@ -2590,8 +2607,10 @@ pub async fn perform_session_flow_routing(
     FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>,
     Option<common_enums::RoutingApproach>,
 )> {
-    let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
-        FxHashMap::default();
+    let mut pm_type_map: FxHashMap<
+        api_enums::PaymentMethodType,
+        FxHashMap<SessionRoutingConnectorKey, api::GetToken>,
+    > = FxHashMap::default();
 
     let profile_id = session_input
         .payment_intent
@@ -2646,6 +2665,7 @@ pub async fn perform_session_flow_routing(
             .map(storage_enums::Country::from_alpha2),
         business_label: session_input.payment_intent.business_label.clone(),
         setup_future_usage: session_input.payment_intent.setup_future_usage,
+        surcharge_amount: None,
     };
 
     let metadata = session_input
@@ -2674,7 +2694,7 @@ pub async fn perform_session_flow_routing(
             .entry(connector_data.payment_method_sub_type)
             .or_default()
             .insert(
-                connector_data.connector.connector_name.to_string(),
+                connector_data.connector.merchant_connector_id.clone(),
                 connector_data.connector.get_token.clone(),
             );
     }
@@ -2719,7 +2739,10 @@ pub async fn perform_session_flow_routing(
 
             for selection in routable_connector_choice {
                 let connector_name = selection.connector.to_string();
-                if let Some(get_token) = session_pm_input.allowed_connectors.get(&connector_name) {
+                if let Some(get_token) = session_pm_input
+                    .allowed_connectors
+                    .get(&selection.merchant_connector_id)
+                {
                     let connector_data = api::ConnectorData::get_connector_by_name(
                         &session_pm_input.state.clone().conf.connectors,
                         &connector_name,
@@ -2984,6 +3007,7 @@ pub fn make_dsl_input_for_surcharge(
             .map(api_enums::Country::from_alpha2),
         business_label: payment_intent.business_label.clone(),
         setup_future_usage: payment_intent.setup_future_usage,
+        surcharge_amount: None,
     };
 
     let metadata = payment_intent
@@ -4067,14 +4091,13 @@ pub async fn get_active_mca_ids(
 ) -> RoutingResult<std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>> {
     let db_mcas = state
         .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             &key_store.merchant_id,
             false,
-            key_store,
         )
         .await
         .unwrap_or_else(|_| {
-            hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccounts::new(
+            hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountsWithoutEncrypted::new(
                 vec![],
             )
         });

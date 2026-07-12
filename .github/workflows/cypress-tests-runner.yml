@@ -27,13 +27,15 @@ env:
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat loonio nmi"
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_2: "paypal redsys zift"
   EXTENDED_PAYOUTS_CONNECTORS: "adyenplatform wise"
-  MOCK_PAYMENTS_CONNECTORS: "bluesnap gigadat zift loonio cashtocode"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat zift loonio cashtocode"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_2: "redsys worldpayxml cybersource braintree fiuu"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_3: "nmi calida adyen peachpayments payload"
   MOCK_PAYOUTS_CONNECTORS: "adyenplatform wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
-  RUST_MIN_STACK: 11534336
+  RUST_MIN_STACK: 16777216
 
 jobs:
   formatter:
@@ -291,7 +293,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "68bba6ea-3c75-440f-9c4b-00a30ecbb79d.json.gpg"
+          S3_SOURCE_FILE_NAME: "e8883809-7b5d-4ab1-b54d-8709db59e8b1.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -582,7 +584,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "68bba6ea-3c75-440f-9c4b-00a30ecbb79d.json.gpg"
+          S3_SOURCE_FILE_NAME: "5da926cb-68c9-405b-889b-0d3da40922ac.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -746,13 +748,31 @@ jobs:
                   "server_logs_artifact": "mock-server-logs-payouts"
                 },
                 {
-                  "name": "mock-payments",
-                  "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS}"'",
+                  "name": "mock-payments-batch-1",
+                  "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_1}"'",
                   "payouts_connectors": "",
                   "platform_connectors": "",
                   "parallel": 5,
-                  "report_artifact_name": "cypress-mock-test-results-payments",
-                  "server_logs_artifact": "mock-server-logs-payments"
+                  "report_artifact_name": "cypress-mock-test-results-payments-batch-1",
+                  "server_logs_artifact": "mock-server-logs-payments-batch-1"
+                },
+                {
+                  "name": "mock-payments-batch-2",
+                  "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_2}"'",
+                  "payouts_connectors": "",
+                  "platform_connectors": "",
+                  "parallel": 5,
+                  "report_artifact_name": "cypress-mock-test-results-payments-batch-2",
+                  "server_logs_artifact": "mock-server-logs-payments-batch-2"
+                },
+                {
+                  "name": "mock-payments-batch-3",
+                  "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_3}"'",
+                  "payouts_connectors": "",
+                  "platform_connectors": "",
+                  "parallel": 5,
+                  "report_artifact_name": "cypress-mock-test-results-payments-batch-3",
+                  "server_logs_artifact": "mock-server-logs-payments-batch-3"
                 }
               ]
             }'
@@ -848,7 +868,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI }}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "68bba6ea-3c75-440f-9c4b-00a30ecbb79d.json.gpg"
+          S3_SOURCE_FILE_NAME: "5da926cb-68c9-405b-889b-0d3da40922ac.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -937,7 +957,7 @@ jobs:
           # replay store finds them at cypress-tests/mitm-proxy/captures/{connector}/.
           # We accept tarballs created either way (with or without a leading
           # {connector}/ component) and normalise the on-disk layout here so
-          # a misformed tarball doesn't silently produce zero cassettes.
+          # a malformed tarball doesn't silently produce zero cassettes.
           set -euo pipefail
           mkdir -p "cypress-tests/mitm-proxy/captures"
 
@@ -1044,6 +1064,7 @@ jobs:
           ROUTER__TRACE_HEADER__ID_REUSE_STRATEGY: "use_incoming"
           ROUTER__SERVER__WORKERS: 4
           SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
+          RUST_MIN_STACK: 134217728
         shell: bash
         run: |
           MITM_CERT=$(sed 's/$/\\r\\n/' "$HOME/.mitmproxy/mitmproxy-ca-cert.pem" | tr -d '\n')
@@ -1101,6 +1122,7 @@ jobs:
           # Notifies the MITM proxy of each test start/end so test names appear
           # in the replay log alongside cassette hits/misses (logging only).
           CYPRESS_PROXY_ADMIN_URL: "http://127.0.0.1:8001"
+          CYPRESS_CAPTURE_DIR: "${{ github.workspace }}/cypress-tests/mitm-proxy/captures"
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
@@ -1139,8 +1161,9 @@ jobs:
     name: MITM Mock Cypress Tests — Consolidated Result
     needs: [mitm-cassette-replay-cypress-tests]
     if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+      (github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' &&
+        contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && !cancelled()
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -1283,7 +1306,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "68bba6ea-3c75-440f-9c4b-00a30ecbb79d.json.gpg"
+          S3_SOURCE_FILE_NAME: "5da926cb-68c9-405b-889b-0d3da40922ac.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -1705,7 +1728,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "68bba6ea-3c75-440f-9c4b-00a30ecbb79d.json.gpg"
+          S3_SOURCE_FILE_NAME: "5da926cb-68c9-405b-889b-0d3da40922ac.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"

@@ -400,6 +400,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PixAutomaticoQr
             | api_enums::PaymentMethodType::PixKey
             | api_enums::PaymentMethodType::PixEmv
+            | api_enums::PaymentMethodType::PixQr
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex
             | api_enums::PaymentMethodType::PaySafeCard
@@ -448,6 +449,8 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
                 })
             }
             payments::PaymentMethodData::NetworkToken(..) => Ok(Self::NetworkToken),
+            payments::PaymentMethodData::ProxyCard(..)
+            | payments::PaymentMethodData::VaultCardTokenData(..) => Ok(Self::Card),
         }
     }
 }
@@ -993,6 +996,81 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
     }
 }
 
+impl ForeignTryFrom<domain::MerchantConnectorAccountWithoutEncrypted>
+    for api_models::admin::MerchantConnectorListResponse
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
+        item: domain::MerchantConnectorAccountWithoutEncrypted,
+    ) -> Result<Self, Self::Error> {
+        #[cfg(feature = "v1")]
+        let payment_methods_enabled = match item.payment_methods_enabled {
+            Some(secret_val) => {
+                let val = secret_val
+                    .into_iter()
+                    .map(|secret| secret.expose())
+                    .collect();
+                serde_json::Value::Array(val)
+                    .parse_value("PaymentMethods")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+            }
+            None => None,
+        };
+
+        let frm_configs = match item.frm_configs {
+            Some(frm_value) => {
+                let configs_for_frm : Vec<api_models::admin::FrmConfigs> = frm_value
+                    .iter()
+                    .map(|config| { config
+                        .peek()
+                        .clone()
+                        .parse_value("FrmConfigs")
+                        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                            field_name: "frm_configs".to_string(),
+                            expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","payment_method_types": [{"payment_method_type": "credit","card_networks": ["Visa"],"flow": "pre","action": "cancel_txn"}]}]}]"#.to_string(),
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Some(configs_for_frm)
+            }
+            None => None,
+        };
+        #[cfg(feature = "v1")]
+        let response = Self {
+            connector_type: item.connector_type,
+            connector_name: item.connector_name,
+            connector_label: item.connector_label,
+            merchant_connector_id: item.merchant_connector_id,
+            test_mode: item.test_mode,
+            disabled: item.disabled,
+            payment_methods_enabled,
+            business_country: item.business_country,
+            business_label: item.business_label,
+            business_sub_label: item.business_sub_label,
+            frm_configs,
+            profile_id: item.profile_id,
+            applepay_verified_domains: item.applepay_verified_domains,
+            pm_auth_config: item.pm_auth_config,
+            status: item.status,
+        };
+        #[cfg(feature = "v2")]
+        let response = Self {
+            id: item.id,
+            connector_type: item.connector_type,
+            connector_name: item.connector_name,
+            connector_label: item.connector_label,
+            disabled: item.disabled,
+            payment_methods_enabled: item.payment_methods_enabled,
+            frm_configs,
+            profile_id: item.profile_id,
+            applepay_verified_domains: item.applepay_verified_domains,
+            pm_auth_config: item.pm_auth_config,
+            status: item.status,
+        };
+        Ok(response)
+    }
+}
+
 #[cfg(feature = "v1")]
 impl ForeignTryFrom<domain::MerchantConnectorAccount>
     for api_models::admin::MerchantConnectorResponse
@@ -1382,6 +1460,7 @@ impl ForeignFrom<&api_models::payouts::Wallet> for api_enums::PaymentMethodType 
             api_models::payouts::Wallet::Paypal(_) => Self::Paypal,
             api_models::payouts::Wallet::Venmo(_) => Self::Venmo,
             api_models::payouts::Wallet::ApplePayDecrypt(_) => Self::ApplePay,
+            api_models::payouts::Wallet::GooglePayDecrypt(_) => Self::GooglePay,
         }
     }
 }
@@ -1982,7 +2061,7 @@ impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
 impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
     fn foreign_from(customer: &domain::Customer) -> Self {
         Self {
-            id: Some(customer.customer_id.clone()),
+            id: Some(customer.get_id().clone()),
             name: customer
                 .name
                 .as_ref()
@@ -2028,7 +2107,10 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
         }
 
         match (item.object_id.clone(), item.event_id.clone()) {
-            (Some(object_id), None) => Ok(Self::ObjectIdFilter { object_id }),
+            (Some(object_id), None) => Ok(Self::ObjectIdFilter {
+                object_id,
+                recipient: item.recipient,
+            }),
 
             (None, Some(event_id)) => Ok(Self::EventIdFilter { event_id }),
 
@@ -2040,6 +2122,7 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
                 event_classes: item.event_classes,
                 event_types: item.event_types,
                 is_delivered: item.is_delivered,
+                recipient: item.recipient,
             }),
 
             (Some(_), Some(_)) => Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -2051,11 +2134,16 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
 }
 
 #[cfg(feature = "olap")]
-impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemResponse {
+impl TryFrom<domain::EventWithDeliverySuccessSource>
+    for api_models::webhook_events::EventListItemResponse
+{
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
+    fn try_from(value: domain::EventWithDeliverySuccessSource) -> Result<Self, Self::Error> {
         use crate::utils::OptionExt;
+
+        let item = value.event;
+        let is_delivery_successful = item.resolve_delivery_success(value.source);
 
         // We only allow retrieving events with merchant_id, business_profile_id
         // and initial_attempt_id populated.
@@ -2080,7 +2168,7 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
             object_id: item.primary_object_id,
             event_type: item.event_type,
             event_class: item.event_class,
-            is_delivery_successful: item.is_overall_delivery_successful,
+            is_delivery_successful,
             initial_attempt_id,
             processor_merchant_id: item.processor_merchant_id,
             created: item.created_at,
@@ -2089,17 +2177,20 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
 }
 
 #[cfg(feature = "olap")]
-impl TryFrom<domain::Event> for api_models::webhook_events::EventRetrieveResponse {
+impl TryFrom<domain::EventWithDeliverySuccessSource>
+    for api_models::webhook_events::EventRetrieveResponse
+{
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
+    fn try_from(value: domain::EventWithDeliverySuccessSource) -> Result<Self, Self::Error> {
         use crate::utils::OptionExt;
+
+        let item = value.event.clone();
 
         // We only allow retrieving events with all required fields in `EventListItemResponse`, and
         // `request` and `response` populated.
         // We cannot retrieve events with only some of these fields populated.
-        let event_information =
-            api_models::webhook_events::EventListItemResponse::try_from(item.clone())?;
+        let event_information = api_models::webhook_events::EventListItemResponse::try_from(value)?;
 
         let request = item
             .request
@@ -2246,6 +2337,14 @@ impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
             },
             customer_id_blocking_threshold: item.customer_id_blocking_threshold,
             card_testing_guard_expiry: item.card_testing_guard_expiry,
+            is_guest_ip_blocking_enabled: match item.guest_ip_blocking_status {
+                Some(api_models::admin::CardTestingGuardStatus::Enabled) => true,
+                Some(api_models::admin::CardTestingGuardStatus::Disabled) => false,
+                None => common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_STATUS,
+            },
+            guest_ip_blocking_threshold: item
+                .guest_ip_blocking_threshold
+                .unwrap_or(common_utils::consts::DEFAULT_GUEST_IP_BLOCKING_THRESHOLD),
         }
     }
 }
@@ -2271,6 +2370,11 @@ impl ForeignFrom<diesel_models::business_profile::CardTestingGuardConfig>
             },
             customer_id_blocking_threshold: item.customer_id_blocking_threshold,
             card_testing_guard_expiry: item.card_testing_guard_expiry,
+            guest_ip_blocking_status: Some(match item.is_guest_ip_blocking_enabled {
+                true => api_models::admin::CardTestingGuardStatus::Enabled,
+                false => api_models::admin::CardTestingGuardStatus::Disabled,
+            }),
+            guest_ip_blocking_threshold: Some(item.guest_ip_blocking_threshold),
         }
     }
 }
@@ -2452,6 +2556,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             show_card_terms: item.show_card_terms,
             is_setup_mandate_flow: item.is_setup_mandate_flow,
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
+            show_merchant_name: item.show_merchant_name,
         }
     }
 }
@@ -2489,6 +2594,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             show_card_terms: item.show_card_terms,
             is_setup_mandate_flow: item.is_setup_mandate_flow,
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
+            show_merchant_name: item.show_merchant_name,
         }
     }
 }

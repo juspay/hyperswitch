@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -39,6 +39,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -50,10 +51,11 @@ use transformers as peachpayments;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, is_mandate_supported, PaymentMethodDataType},
+    utils::{self, ForeignTryFrom},
 };
 
 const REFUND: &str = "Refund";
+const CONNECTOR: &str = "Peachpayments";
 #[derive(Clone)]
 pub struct Peachpayments {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
@@ -180,18 +182,6 @@ impl ConnectorValidation for Peachpayments {
     ) -> CustomResult<(), errors::ConnectorError> {
         Ok(())
     }
-
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::CardWithLimitedDetails,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Peachpayments {
@@ -203,15 +193,119 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
     for Peachpayments
 {
+    fn get_headers(
+        &self,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method.unwrap_or_default() == CaptureMethod::Automatic {
+            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+        }
+        Ok(format!(
+            "{}/transactions/authorization",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &SetupMandateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        if req.request.amount > 0 {
+            return Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Setup Mandate with non zero amount".to_string(),
+                connector: CONNECTOR.to_string(),
+            }
+            .into());
+        }
+
+        match req.request.payment_method_data.clone() {
+            PaymentMethodData::Card(_) | PaymentMethodData::NetworkToken(_) => {
+                let authorize_req = utils::convert_payment_authorize_router_response((
+                    req,
+                    utils::convert_setup_mandate_router_data_to_authorize_router_data(req),
+                ));
+
+                let amount = utils::convert_amount(
+                    self.amount_converter,
+                    authorize_req.request.minor_amount,
+                    authorize_req.request.currency,
+                )?;
+
+                let connector_router_data =
+                    peachpayments::PeachpaymentsRouterData::from((amount, &authorize_req));
+                let connector_req =
+                    peachpayments::PeachpaymentsPaymentsRequest::try_from(&connector_router_data)?;
+                Ok(RequestContent::Json(Box::new(connector_req)))
+            }
+            _ => Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Setup Mandate flow is not implemented for this payment method".to_string(),
+                connector: CONNECTOR.to_string(),
+            }
+            .into()),
+        }
+    }
+
     fn build_request(
         &self,
-        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
-        _connectors: &Connectors,
+        req: &SetupMandateRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented(
-            "Setup Mandate flow for Peachpayments".to_string(),
-        )
-        .into())
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .set_body(types::SetupMandateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &SetupMandateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<SetupMandateRouterData, errors::ConnectorError> {
+        let response: peachpayments::PeachpaymentsPaymentsResponse = res
+            .response
+            .parse_struct("Peachpayments PaymentsAuthorizeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::foreign_try_from((
+            ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            true,
+        ))
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -237,10 +331,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.request.capture_method.unwrap_or_default() {
-            CaptureMethod::Automatic => Ok(format!(
-                "{}/transactions/create-and-confirm",
-                self.base_url(connectors)
-            )),
+            CaptureMethod::Automatic => {
+                if req.request.minor_amount == MinorUnit::zero() {
+                    return Err(errors::ConnectorError::NotSupported {
+                        message: "automatic capture for zero-amount transactions".to_string(),
+                        connector: CONNECTOR,
+                    }
+                    .into());
+                }
+                Ok(format!(
+                    "{}/transactions/create-and-confirm",
+                    self.base_url(connectors)
+                ))
+            }
             CaptureMethod::Manual => Ok(format!(
                 "{}/transactions/authorization",
                 self.base_url(connectors)
@@ -304,11 +407,15 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        let is_account_service_inquiry_flow = data.request.minor_amount == MinorUnit::zero();
+        RouterData::foreign_try_from((
+            ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            is_account_service_inquiry_flow,
+        ))
     }
 
     fn get_error_response(
@@ -374,11 +481,15 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pea
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        let is_account_service_inquiry_flow = data.request.amount == MinorUnit::zero();
+        RouterData::foreign_try_from((
+            ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            is_account_service_inquiry_flow,
+        ))
     }
 
     fn get_error_response(
@@ -480,6 +591,73 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: peachpayments::Peachpayments5xxErrorResponse = res
+            .response
+            .parse_struct("Peachpayments5xxErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        match response {
+            peachpayments::Peachpayments5xxErrorResponse::Standard(error_response) => {
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: error_response.error_ref.clone(),
+                    message: error_response.message.clone(),
+                    reason: Some(error_response.message.clone()),
+                    attempt_status: Some(enums::AttemptStatus::Authorized),
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            peachpayments::Peachpayments5xxErrorResponse::Detailed(decline_response) => {
+                let (code, message, reason) = match &decline_response.response.response_code {
+                    Some(peachpayments::ResponseCode::Text(text)) => {
+                        (text.clone(), text.clone(), Some(text.clone()))
+                    }
+                    Some(peachpayments::ResponseCode::Structured {
+                        value,
+                        description,
+                        explanation,
+                        ..
+                    }) => (value.clone(), description.clone(), explanation.clone()),
+                    None => (
+                        NO_ERROR_CODE.to_string(),
+                        NO_ERROR_MESSAGE.to_string(),
+                        None,
+                    ),
+                };
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code,
+                    message,
+                    reason,
+                    attempt_status: Some(enums::AttemptStatus::Authorized),
+                    connector_transaction_id: Some(
+                        decline_response.response.transaction_id.clone(),
+                    ),
+                    connector_response_reference_id: Some(
+                        decline_response.response.reference_id.clone(),
+                    ),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+        }
+    }
 }
 
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Peachpayments {
@@ -565,11 +743,14 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pe
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        RouterData::foreign_try_from((
+            ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            false,
+        ))
     }
 
     fn get_error_response(
@@ -578,6 +759,34 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pe
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: peachpayments::PeachpaymentsErrorResponse = res
+            .response
+            .parse_struct("PeachpaymentsErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_ref.clone(),
+            message: response.message.clone(),
+            reason: Some(response.message.clone()),
+            attempt_status: Some(enums::AttemptStatus::Authorized),
+            connector_transaction_id: None,
+            connector_response_reference_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
     }
 }
 
@@ -765,7 +974,7 @@ impl webhooks::IncomingWebhook for Peachpayments {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _context: Option<&webhooks::WebhookContext>,
+        context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let webhook_body: peachpayments::PeachpaymentsIncomingWebhook = request
             .body
@@ -793,6 +1002,19 @@ impl webhooks::IncomingWebhook for Peachpayments {
                         }
                         peachpayments::PeachpaymentsPaymentStatus::Authorized
                         | peachpayments::PeachpaymentsPaymentStatus::Approved => {
+                            let is_account_service_inquiry_flow = context
+                                .is_some_and(|ctx| ctx.get_payment_context().amount == MinorUnit::zero());
+
+                            Ok(if is_account_service_inquiry_flow {
+                                api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+                            } else {
+                                api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess
+                            })
+                        }
+                        // `FailedRetry` is returned by PeachPayments for 5xx capture failures.
+                        // In this state, the transaction remains retryable and Capture/Void
+                        // operations can be re-attempted.
+                        peachpayments::PeachpaymentsPaymentStatus::FailedRetry => {
                             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
                         }
                         peachpayments::PeachpaymentsPaymentStatus::Pending => {

@@ -1,8 +1,9 @@
 use api_models::payments::PaymentConnectorInvokeDDCMetadata;
 #[cfg(feature = "payouts")]
-use api_models::payouts::{ApplePayDecrypt, CardPayout};
+use api_models::payouts::{ApplePayDecrypt, CardPayout, GooglePayDecrypt};
 use base64::Engine;
 use common_enums::enums;
+use common_types::payments::GpayTokenizationData;
 #[cfg(feature = "payouts")]
 use common_utils::pii;
 use common_utils::types::StringMinorUnit;
@@ -50,7 +51,7 @@ use crate::{
     utils::{
         self as connector_utils, AddressDetailsData, BrowserInformationData, CardData,
         ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsSyncRequestData, RouterData as _,
+        PaymentsSyncRequestData, PhoneDetailsData, RouterData as _,
     },
 };
 
@@ -215,7 +216,7 @@ struct OrderStatus {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Token {
-    authenticated_shopper_i_d: String,
+    authenticated_shopper_i_d: Option<String>,
     token_details: TokenDetails,
 }
 
@@ -223,7 +224,7 @@ struct Token {
 #[serde(rename_all = "camelCase")]
 struct TokenDetails {
     #[serde(rename = "@tokenEvent")]
-    token_event: String,
+    token_event: Option<String>,
     payment_token_i_d: Secret<String>,
 }
 
@@ -247,8 +248,8 @@ struct ThreeDSChallengeDetails {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payment {
-    payment_method: String,
-    amount: WorldpayXmlAmount,
+    payment_method: Option<String>,
+    amount: Option<WorldpayXmlAmount>,
     pub last_event: LastEvent,
     #[serde(rename = "AuthorisationId")]
     authorisation_id: Option<AuthorisationId>,
@@ -290,20 +291,20 @@ struct ReturnCode {
 #[derive(Debug, Deserialize, Serialize)]
 struct ResultCode {
     #[serde(rename = "@description")]
-    description: String,
+    description: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Balance {
     #[serde(rename = "@accountType")]
-    account_type: String,
-    amount: WorldpayXmlAmount,
+    account_type: Option<String>,
+    amount: Option<WorldpayXmlAmount>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PaymentMethodDetail {
-    card: CardResponse,
+    card: Option<CardResponse>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -312,14 +313,14 @@ struct CardResponse {
     #[serde(rename = "@number")]
     number: Option<Secret<String>>,
     #[serde(rename = "@type")]
-    card_type: String,
+    card_type: Option<String>,
     expiry_date: Option<ExpiryDate>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct AuthorisationId {
     #[serde(rename = "@id")]
-    id: Secret<String>,
+    id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -346,6 +347,8 @@ pub enum LastEvent {
     PushRequested,
     PushRefused,
     SettledByMerchant,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -373,14 +376,14 @@ struct Order {
     shipping_address: Option<WorldpayxmlPayinAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     billing_address: Option<WorldpayxmlPayinAddress>,
-    #[serde(skip_serializing_if = "Option::is_none", rename = "additional3DSData")]
-    additional_threeds_data: Option<AdditionalThreeDSData>,
     #[serde(skip_serializing_if = "Option::is_none", rename = "info3DSecure")]
     info_threed_secure: Option<Info3DSecure>,
     #[serde(skip_serializing_if = "Option::is_none")]
     session: Option<CompleteAuthSession>,
     #[serde(skip_serializing_if = "Option::is_none")]
     create_token: Option<CreateToken>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "additional3DSData")]
+    additional_threeds_data: Option<AdditionalThreeDSData>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -460,6 +463,8 @@ struct WorldpayxmlAddressData {
     #[serde(skip_serializing_if = "Option::is_none")]
     state: Option<Secret<String>>,
     country_code: common_enums::CountryAlpha2,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    telephone_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -509,9 +514,9 @@ struct PaymentDetails {
     #[serde(flatten)]
     payment_method: PaymentMethod,
     #[serde(skip_serializing_if = "Option::is_none")]
-    session: Option<Session>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     stored_credentials: Option<StoredCredentials>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    session: Option<Session>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -571,7 +576,7 @@ enum PaymentMethod {
     CardSSL(CardSSL),
 
     #[serde(rename = "FF_DISBURSE-SSL")]
-    FastAccessSSL(FastAccessData),
+    FastAccessSSL(Box<FastAccessData>),
 
     #[serde(rename = "PAYWITHGOOGLE-SSL")]
     PayWithGoogleSSL(GooglePayData),
@@ -678,6 +683,7 @@ struct ApplePayHeader {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 enum EmvcoTokenType {
     Applepay,
+    Googlepay,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -688,7 +694,7 @@ struct EmvcoTokenData {
     token_number: cards::CardNumber,
     expiry_date: ExpiryDate,
     card_holder_name: Option<Secret<String>>,
-    cryptogram: Secret<String>,
+    cryptogram: Option<Secret<String>>,
     eci_indicator: Option<String>,
 }
 
@@ -775,7 +781,10 @@ impl TryFrom<(&Card, Option<enums::CaptureMethod>, Option<Session>)> for Payment
                         year: card_data.get_expiry_year_4_digit(),
                     },
                 },
-                card_holder_name: card_data.card_holder_name.to_owned(),
+                card_holder_name: card_data
+                    .card_holder_name
+                    .as_ref()
+                    .map(|name| normalize_cardholder_name(name.clone())),
                 cvc: Some(card_data.card_cvc.to_owned()),
             }),
             session,
@@ -820,8 +829,24 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
         let metadata_for_jwt =
             WorldpayxmlConnectorMetadataObject::try_from(item.data.connector_meta_data.as_ref())?;
 
-        let bin = match item.data.request.payment_method_data {
+        let bin = match &item.data.request.payment_method_data {
             PaymentMethodData::Card(ref card_info) => card_info.card_number.get_card_isin(),
+            PaymentMethodData::Wallet(WalletData::GooglePay(ref gpay_decrypt_data)) => {
+                match gpay_decrypt_data.tokenization_data {
+                    GpayTokenizationData::Decrypted(ref gpay_decrypt_data) => gpay_decrypt_data
+                        .application_primary_account_number
+                        .get_card_isin(),
+                    GpayTokenizationData::Encrypted(_) => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message:
+                                "PreAuthenticate flow is not supported for this payment method"
+                                    .to_string(),
+                            connector: "WorldpayWPG",
+                        }
+                        .into())
+                    }
+                }
+            }
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
                     message: "PreAuthenticate flow is not supported for this payment method"
@@ -898,47 +923,132 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentDetails {
     }
 }
 
-impl TryFrom<(&GooglePayWalletData, PaymentsAuthorizeData)> for PaymentDetails {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (gpay_data, item): (&GooglePayWalletData, PaymentsAuthorizeData),
-    ) -> Result<Self, Self::Error> {
-        let token_string = gpay_data
-            .tokenization_data
-            .get_encrypted_google_pay_token()
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "gpay wallet_token",
-            })?
-            .to_owned();
+fn build_google_pay_payment_details(
+    gpay_data: &GooglePayWalletData,
+    capture_method: Option<enums::CaptureMethod>,
+    session: Option<Session>,
+    is_cit_mandate_payment: bool,
+    mit_category: Option<common_enums::MitCategory>,
+    customer_name: Option<Secret<String>>,
+) -> Result<PaymentDetails, error_stack::Report<errors::ConnectorError>> {
+    let stored_credentials = if is_cit_mandate_payment {
+        Some(StoredCredentials {
+            usage: UsageType::First,
+            customer_initiated_reason: Some(get_mandate_type(mit_category)),
+            merchant_initiated_reason: None,
+            scheme_transaction_identifier: None,
+        })
+    } else {
+        None
+    };
 
-        let parsed_token = serde_json::from_str::<GooglePayData>(&token_string)
-            .change_context(errors::ConnectorError::ParsingFailed)?;
-
-        let stored_credentials = if item.is_cit_mandate_payment() {
-            Some(StoredCredentials {
-                usage: UsageType::First,
-                customer_initiated_reason: Some(get_mandate_type(item.mit_category)),
-                merchant_initiated_reason: None,
-                scheme_transaction_identifier: None,
-            })
-        } else {
-            None
-        };
-
-        Ok(Self {
-            action: if connector_utils::is_manual_capture(item.capture_method) {
-                Some(Action::Authorise)
+    let action = if connector_utils::is_manual_capture(capture_method) {
+        Some(Action::Authorise)
+    } else {
+        Some(Action::Sale)
+    };
+    let payment_method = match gpay_data.tokenization_data {
+        GpayTokenizationData::Decrypted(ref gpay_decrypt_data) => {
+            // If cryptogram is present, use EMVCO token SSL; otherwise fallback to CardSSL
+            if let Some(cryptogram) = &gpay_decrypt_data.cryptogram {
+                PaymentMethod::EmvcoTokenSSL(EmvcoTokenData {
+                    token_type: EmvcoTokenType::Googlepay,
+                    token_number: gpay_decrypt_data.application_primary_account_number.clone(),
+                    expiry_date: ExpiryDate {
+                        date: Date {
+                            month: gpay_decrypt_data.card_exp_month.clone(),
+                            year: gpay_decrypt_data
+                                .get_four_digit_expiry_year()
+                                .change_context(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "gpay expiry year",
+                                })?,
+                        },
+                    },
+                    card_holder_name: customer_name.clone(),
+                    cryptogram: Some(cryptogram.clone()),
+                    eci_indicator: gpay_decrypt_data.eci_indicator.clone(),
+                })
             } else {
-                Some(Action::Sale)
-            },
-            payment_method: PaymentMethod::PayWithGoogleSSL(GooglePayData {
+                // Fallback to CardSSL when cryptogram is not available
+                PaymentMethod::CardSSL(CardSSL {
+                    card_number: gpay_decrypt_data.application_primary_account_number.clone(),
+                    expiry_date: ExpiryDate {
+                        date: Date {
+                            month: gpay_decrypt_data.card_exp_month.clone(),
+                            year: gpay_decrypt_data
+                                .get_four_digit_expiry_year()
+                                .change_context(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "gpay expiry year",
+                                })?,
+                        },
+                    },
+                    card_holder_name: customer_name.clone(),
+                    cvc: None,
+                })
+            }
+        }
+
+        GpayTokenizationData::Encrypted(ref token_string) => {
+            let parsed_token = serde_json::from_str::<GooglePayData>(&token_string.token)
+                .change_context(errors::ConnectorError::ParsingFailed)?;
+
+            PaymentMethod::PayWithGoogleSSL(GooglePayData {
                 protocol_version: parsed_token.protocol_version,
                 signature: parsed_token.signature,
                 signed_message: parsed_token.signed_message.clone(),
-            }),
-            session: None,
-            stored_credentials,
-        })
+            })
+        }
+    };
+
+    Ok(PaymentDetails {
+        action,
+        payment_method,
+        session,
+        stored_credentials,
+    })
+}
+
+impl TryFrom<(&GooglePayWalletData, PaymentsAuthorizeData, Option<Session>)> for PaymentDetails {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (gpay_data, item, session): (&GooglePayWalletData, PaymentsAuthorizeData, Option<Session>),
+    ) -> Result<Self, Self::Error> {
+        build_google_pay_payment_details(
+            gpay_data,
+            item.capture_method,
+            session,
+            item.is_cit_mandate_payment(),
+            item.mit_category,
+            item.customer_name,
+        )
+    }
+}
+
+impl
+    TryFrom<(
+        &GooglePayWalletData,
+        CompleteAuthorizeData,
+        Option<Session>,
+        Option<Secret<String>>, //customer name
+    )> for PaymentDetails
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (gpay_data, item, session, customer_name): (
+            &GooglePayWalletData,
+            CompleteAuthorizeData,
+            Option<Session>,
+            Option<Secret<String>>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        build_google_pay_payment_details(
+            gpay_data,
+            item.capture_method,
+            session,
+            item.is_cit_mandate_payment(),
+            None,
+            customer_name,
+        )
     }
 }
 
@@ -991,9 +1101,11 @@ impl
                         },
                     },
                     card_holder_name: None,
-                    cryptogram: apple_pay_decrypt_data
-                        .payment_data
-                        .online_payment_cryptogram,
+                    cryptogram: Some(
+                        apple_pay_decrypt_data
+                            .payment_data
+                            .online_payment_cryptogram,
+                    ),
                     eci_indicator: apple_pay_decrypt_data.payment_data.eci_indicator,
                 })
             } else {
@@ -1027,6 +1139,13 @@ impl
     }
 }
 
+// Mastercard requires the cardholder name to contain only English (ASCII)
+// characters and to match the name exactly as printed on the card. Accented
+// characters are transliterated to their closest ASCII equivalent.
+fn normalize_cardholder_name(name: Secret<String>) -> Secret<String> {
+    Secret::new(unidecode::unidecode(&name.expose()))
+}
+
 fn get_address_details(data: &Address) -> Option<WorldpayxmlPayinAddress> {
     let address1_option = data
         .address
@@ -1044,6 +1163,12 @@ fn get_address_details(data: &Address) -> Option<WorldpayxmlPayinAddress> {
         .address
         .as_ref()
         .and_then(|address| address.get_optional_city());
+    let telephone_number = data.phone.as_ref().and_then(|phone| {
+        phone
+            .get_number_with_country_code()
+            .or_else(|_| phone.get_number())
+            .ok()
+    });
 
     if let (Some(address1), Some(postal_code), Some(country_code), Some(city), Some(address_data)) = (
         address1_option,
@@ -1063,6 +1188,7 @@ fn get_address_details(data: &Address) -> Option<WorldpayxmlPayinAddress> {
                 city,
                 state: address_data.get_optional_state(),
                 country_code,
+                telephone_number,
             },
         })
     } else {
@@ -1187,8 +1313,12 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
         )?;
 
         let is_three_ds = item.router_data.is_three_ds();
+        let is_google_pay = matches!(
+            item.router_data.request.payment_method_data,
+            PaymentMethodData::Wallet(WalletData::GooglePay(_))
+        );
         let (additional_threeds_data, session, accept_header, user_agent_header) =
-            if is_three_ds && item.router_data.request.is_card() {
+            if is_three_ds && (item.router_data.request.is_card() || is_google_pay) {
                 let additional_threeds_data = Some(AdditionalThreeDSData {
                     df_reference_id: None,
                     javascript_enabled: false,
@@ -1263,9 +1393,11 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
                 session,
             ))?,
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                WalletData::GooglePay(google_pay_data) => {
-                    PaymentDetails::try_from((&google_pay_data, item.router_data.request.clone()))?
-                }
+                WalletData::GooglePay(google_pay_data) => PaymentDetails::try_from((
+                    &google_pay_data,
+                    item.router_data.request.clone(),
+                    session,
+                ))?,
                 WalletData::ApplePay(apple_pay_data) => PaymentDetails::try_from((
                     &apple_pay_data,
                     item.router_data.request.clone(),
@@ -1534,6 +1666,14 @@ fn get_attempt_status(
             Ok(common_enums::AttemptStatus::Charged)
         }
         LastEvent::SentForAuthorisation => Ok(common_enums::AttemptStatus::Authorizing),
+        LastEvent::Unknown => {
+            let status = previous_status.copied().unwrap_or_default();
+            router_env::logger::warn!(
+                "Unknown worldpayxml connector status received; retaining previous status {:?}",
+                status
+            );
+            Ok(status)
+        }
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
         )),
@@ -1542,6 +1682,7 @@ fn get_attempt_status(
 
 fn get_attempt_status_for_setup_mandate(
     last_event: LastEvent,
+    previous_status: Option<&common_enums::AttemptStatus>,
 ) -> Result<common_enums::AttemptStatus, errors::ConnectorError> {
     match last_event {
         LastEvent::Refused => Ok(common_enums::AttemptStatus::Failure),
@@ -1551,13 +1692,24 @@ fn get_attempt_status_for_setup_mandate(
         | LastEvent::Settled
         | LastEvent::SettledByMerchant => Ok(common_enums::AttemptStatus::Charged),
         LastEvent::SentForAuthorisation => Ok(common_enums::AttemptStatus::Authorizing),
+        LastEvent::Unknown => {
+            let status = previous_status.copied().unwrap_or_default();
+            router_env::logger::warn!(
+                "Unknown worldpayxml connector status received; retaining previous status {:?}",
+                status
+            );
+            Ok(status)
+        }
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
         )),
     }
 }
 
-fn get_refund_status(last_event: LastEvent) -> Result<enums::RefundStatus, errors::ConnectorError> {
+fn get_refund_status(
+    last_event: LastEvent,
+    previous_status: enums::RefundStatus,
+) -> Result<enums::RefundStatus, errors::ConnectorError> {
     match last_event {
         LastEvent::Refunded | LastEvent::RefundedByMerchant => Ok(enums::RefundStatus::Success),
         LastEvent::SentForRefund | LastEvent::RefundRequested | LastEvent::SentForFastRefund => {
@@ -1565,6 +1717,13 @@ fn get_refund_status(last_event: LastEvent) -> Result<enums::RefundStatus, error
         }
         LastEvent::RefundFailed => Ok(enums::RefundStatus::Failure),
         LastEvent::Captured | LastEvent::Settled => Ok(enums::RefundStatus::Pending),
+        LastEvent::Unknown => {
+            router_env::logger::warn!(
+                "Unknown worldpayxml connector status received for refund; retaining previous status {:?}",
+                previous_status
+            );
+            Ok(previous_status)
+        }
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
         )),
@@ -2208,12 +2367,22 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                 .router_data
                 .get_optional_shipping()
                 .and_then(get_address_details);
+
             let payment_details = match item.router_data.request.payment_method_data.clone() {
                 Some(PaymentMethodData::Card(req_card)) => PaymentDetails::try_from((
                     &req_card,
                     item.router_data.request.capture_method,
                     session,
                 ))?,
+                Some(PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data))) => {
+                    let customer_name = item.router_data.get_billing_full_name()?;
+                    PaymentDetails::try_from((
+                        &google_pay_data,
+                        item.router_data.request.clone(),
+                        session,
+                        Some(customer_name),
+                    ))?
+                }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     connector_utils::get_unimplemented_payment_method_error_message("Worldpayxml"),
                 ))?,
@@ -2269,7 +2438,10 @@ impl<F>
             validate_order_status(&order_status)?;
 
             if let Some(payment_data) = order_status.payment {
-                let status = get_attempt_status_for_setup_mandate(payment_data.last_event)?;
+                let status = get_attempt_status_for_setup_mandate(
+                    payment_data.last_event,
+                    Some(&item.data.status),
+                )?;
                 let response = process_payment_response(
                     status,
                     &payment_data,
@@ -2657,7 +2829,10 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                     validate_order_status(&order_status)?;
 
                     if let Some(payment_data) = order_status.payment {
-                        let status = get_refund_status(payment_data.last_event)?;
+                        let status = get_refund_status(
+                            payment_data.last_event,
+                            item.data.request.refund_status,
+                        )?;
                         let response = if connector_utils::is_refund_failure(status) {
                             let error_code = payment_data
                                 .return_code
@@ -2723,7 +2898,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                 }
             }
             WorldpayxmlSyncResponse::Webhook(data) => {
-                let status = get_refund_status(data.payment_status)?;
+                let status =
+                    get_refund_status(data.payment_status, item.data.request.refund_status)?;
                 let response = if connector_utils::is_refund_failure(status) {
                     let error_code = data.return_code;
                     let error_message = data.return_message;
@@ -2807,6 +2983,32 @@ impl TryFrom<ApplePayDecrypt> for PaymentInstrument {
 }
 
 #[cfg(feature = "payouts")]
+impl TryFrom<GooglePayDecrypt> for PaymentInstrument {
+    type Error = errors::ConnectorError;
+    fn try_from(google_pay_decrypted_data: GooglePayDecrypt) -> Result<Self, Self::Error> {
+        let card_data = CardSSL {
+            card_number: google_pay_decrypted_data
+                .application_primary_account_number
+                .clone(),
+            expiry_date: ExpiryDate {
+                date: Date {
+                    month: google_pay_decrypted_data.get_card_expiry_month_2_digit()?,
+                    year: google_pay_decrypted_data.get_expiry_year_4_digit(),
+                },
+            },
+            card_holder_name: google_pay_decrypted_data.card_holder_name.clone(),
+            cvc: None,
+        };
+
+        Ok(Self {
+            card_details: CardDetails {
+                card_ssl: card_data,
+            },
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
 impl TryFrom<CardPayout> for PaymentInstrument {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(card_payout: CardPayout) -> Result<Self, Self::Error> {
@@ -2855,6 +3057,7 @@ impl TryFrom<Option<&pii::SecretSerdeValue>> for WorldpayxmlConnectorMetadataObj
     }
 }
 
+// https://docs.worldpay.com/apis/wpg/manage/fastaccess
 #[cfg(feature = "payouts")]
 impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentService {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -2885,6 +3088,9 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
             api_models::payouts::PayoutMethodData::Wallet(
                 api_models::payouts::Wallet::ApplePayDecrypt(apple_pay_decrypted_data),
             ) => PaymentInstrument::try_from(apple_pay_decrypted_data)?,
+            api_models::payouts::PayoutMethodData::Wallet(
+                api_models::payouts::Wallet::GooglePayDecrypt(google_pay_decrypted_data),
+            ) => PaymentInstrument::try_from(google_pay_decrypted_data)?,
             api_models::payouts::PayoutMethodData::Card(card_payout) => {
                 PaymentInstrument::try_from(card_payout)?
             }
@@ -2901,13 +3107,13 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
 
         let payment_details = PaymentDetails {
             action: None,
-            payment_method: PaymentMethod::FastAccessSSL(FastAccessData {
+            payment_method: PaymentMethod::FastAccessSSL(Box::new(FastAccessData {
                 recipient: Recipient {
                     payment_instrument,
                     address,
                 },
                 purpose_of_payment: purpose_of_payment_code,
-            }),
+            })),
             session: None,
             stored_credentials: None,
         };

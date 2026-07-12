@@ -19,8 +19,11 @@ password = "postgres"
 host = "db"
 port = 5432
 dbname = "loadtest_router"
-pool_size = 20
+max_pool_size = 20
 connection_timeout = 10
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
 
 [server]
 host = "0.0.0.0"
@@ -175,6 +178,7 @@ multisafepay.base_url = "https://testapi.multisafepay.com/"
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"
+payconex.base_url = "https://cert.payconex.net"
 nmi.base_url = "https://secure.nmi.com/"
 nomupay.base_url = "https://payout-api.sandbox.nomupay.com"
 noon.base_url = "https://api-test{{region}}.noonpayments.com/"
@@ -689,7 +693,7 @@ crypto_currency = { country = "AL, AD, AT, BE, BA, BG, HR, CZ, DK, EE, FI, FR, D
 eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 
 [pm_filters.santander]
-pix = { country = "BR", currency = "BRL" }
+pix_qr = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.calida]
@@ -809,12 +813,12 @@ bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }
 bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }
 bank_debit.bacs = { connector_list = "stripe,gocardless" }
 bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }
-card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload,mollie,airwallex"
-card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload,mollie,airwallex"
+card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload,mollie,airwallex,imerchantsolutions"
+card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload,mollie,airwallex,imerchantsolutions"
 pay_later.klarna.connector_list = "adyen,aci"
-wallet.apple_pay.connector_list = "aci,stripe,adyen,braintree,cybersource,noon,bankofamerica,nexinets,novalnet,authorizedotnet,worldpayxml"
+wallet.apple_pay.connector_list = "aci,stripe,adyen,braintree,cybersource,noon,bankofamerica,nexinets,novalnet,authorizedotnet,worldpayxml,imerchantsolutions"
 wallet.samsung_pay.connector_list = "aci,cybersource"
-wallet.google_pay.connector_list = "aci,stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet,authorizedotnet,worldpayxml"
+wallet.google_pay.connector_list = "aci,stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet,authorizedotnet,worldpayxml,imerchantsolutions"
 wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal,authorizedotnet"
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
@@ -867,8 +871,11 @@ password = "db_pass"
 host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
-pool_size = 5
+max_pool_size = 5
 connection_timeout = 10
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
 
 [kv_config]
 ttl = 300 # 5 * 60 seconds

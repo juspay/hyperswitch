@@ -52,6 +52,35 @@ fn get_processing_account_id_from_metadata(
         .map(|s| Secret::new(s.to_string()))
 }
 
+fn get_filtered_metadata(metadata: Option<&serde_json::Value>) -> Option<serde_json::Value> {
+    metadata.and_then(|m| match m {
+        serde_json::Value::Object(map) => {
+            let mut filtered = map.clone();
+            filtered.remove("processing_account_id");
+            if filtered.is_empty() {
+                None
+            } else {
+                Some(serde_json::Value::Object(filtered))
+            }
+        }
+        _ => None,
+    })
+}
+
+fn get_description_from_billing_descriptor(
+    billing_descriptor: Option<&common_types::payments::BillingDescriptor>,
+) -> Option<String> {
+    billing_descriptor
+        .and_then(|bd| bd.statement_descriptor.as_ref())
+        .map(|desc| {
+            if desc.len() > 32 {
+                desc.chars().take(32).collect()
+            } else {
+                desc.clone()
+            }
+        })
+}
+
 #[allow(clippy::too_many_arguments)]
 fn build_payload_payment_request_data(
     payment_method_data: &PaymentMethodData,
@@ -64,6 +93,8 @@ fn build_payload_payment_request_data(
     customer_id: Option<String>,
     is_three_ds: bool,
     metadata: Option<&serde_json::Value>,
+    description: Option<String>,
+    billing_descriptor: Option<&common_types::payments::BillingDescriptor>,
 ) -> Result<requests::PayloadPaymentRequestData, Error> {
     let payment_method: Result<requests::PayloadPaymentMethods, Error> = match payment_method_data {
         PaymentMethodData::Card(req_card) => {
@@ -161,6 +192,9 @@ fn build_payload_payment_request_data(
         processing_id: get_processing_account_id_from_metadata(metadata)
             .or(payload_auth.processing_account_id),
         customer_id,
+        description,
+        descriptor: get_description_from_billing_descriptor(billing_descriptor),
+        attrs: get_filtered_metadata(metadata),
     })
 }
 
@@ -298,6 +332,8 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentRequestData {
                 item.get_connector_customer_id()?.into(),
                 item.is_three_ds(),
                 item.request.metadata.as_ref().map(|m| m.peek()),
+                item.description.clone(),
+                item.request.billing_descriptor.as_ref(),
             )
         }
     }
@@ -366,6 +402,10 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &PayloadRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        let description = item.router_data.description.clone();
+        let billing_descriptor = item.router_data.request.billing_descriptor.as_ref();
+        let metadata = item.router_data.request.metadata.as_ref();
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. })
             | PaymentMethodData::Card(_) => {
@@ -382,7 +422,9 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     is_mandate,
                     item.router_data.connector_customer.clone(),
                     item.router_data.is_three_ds(),
-                    item.router_data.request.metadata.as_ref(),
+                    metadata,
+                    description,
+                    billing_descriptor,
                 )?;
 
                 Ok(Self::PaymentRequest(Box::new(payment_request)))
@@ -409,6 +451,9 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                         ),
                         status,
                         processing_id,
+                        description,
+                        descriptor: get_description_from_billing_descriptor(billing_descriptor),
+                        attrs: get_filtered_metadata(metadata),
                     },
                 )))
             }
@@ -417,15 +462,24 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
     }
 }
 
-impl From<responses::PayloadPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: responses::PayloadPaymentStatus) -> Self {
-        match item {
-            responses::PayloadPaymentStatus::Authorized => Self::Authorized,
-            responses::PayloadPaymentStatus::Processed => Self::Charged,
-            responses::PayloadPaymentStatus::Processing => Self::Pending,
-            responses::PayloadPaymentStatus::Rejected
-            | responses::PayloadPaymentStatus::Declined => Self::Failure,
-            responses::PayloadPaymentStatus::Voided => Self::Voided,
+fn get_payload_attempt_status(
+    status: responses::PayloadPaymentStatus,
+    prev_status: common_enums::AttemptStatus,
+) -> common_enums::AttemptStatus {
+    match status {
+        responses::PayloadPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
+        responses::PayloadPaymentStatus::Processed => common_enums::AttemptStatus::Charged,
+        responses::PayloadPaymentStatus::Processing => common_enums::AttemptStatus::Pending,
+        responses::PayloadPaymentStatus::Rejected | responses::PayloadPaymentStatus::Declined => {
+            common_enums::AttemptStatus::Failure
+        }
+        responses::PayloadPaymentStatus::Voided => common_enums::AttemptStatus::Voided,
+        responses::PayloadPaymentStatus::Unknown => {
+            router_env::logger::warn!(
+                "Payload returned unknown payment status; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
         }
     }
 }
@@ -467,7 +521,7 @@ where
                     (true, responses::PayloadPaymentStatus::Authorized) => {
                         enums::AttemptStatus::Pending
                     }
-                    _ => enums::AttemptStatus::from(response.status),
+                    _ => get_payload_attempt_status(response.status, item.data.status),
                 };
 
                 let mandate_reference = is_mandate_payment
@@ -629,6 +683,12 @@ impl
             | responses::PayloadPaymentStatus::Processed => {
                 common_enums::PostCaptureVoidStatus::Failed
             }
+            responses::PayloadPaymentStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Payload returned unknown payment status for post-capture-void; defaulting to pending"
+                );
+                common_enums::PostCaptureVoidStatus::Pending
+            }
         };
 
         let description = post_capture_void_status
@@ -673,12 +733,22 @@ impl<F> TryFrom<&PayloadRouterData<&RefundsRouterData<F>>> for requests::Payload
     }
 }
 
-impl From<responses::RefundStatus> for enums::RefundStatus {
-    fn from(item: responses::RefundStatus) -> Self {
-        match item {
-            responses::RefundStatus::Processed => Self::Success,
-            responses::RefundStatus::Processing => Self::Pending,
-            responses::RefundStatus::Declined | responses::RefundStatus::Rejected => Self::Failure,
+fn get_payload_refund_status(
+    status: responses::RefundStatus,
+    prev_refund_status: enums::RefundStatus,
+) -> enums::RefundStatus {
+    match status {
+        responses::RefundStatus::Processed => enums::RefundStatus::Success,
+        responses::RefundStatus::Processing => enums::RefundStatus::Pending,
+        responses::RefundStatus::Declined | responses::RefundStatus::Rejected => {
+            enums::RefundStatus::Failure
+        }
+        responses::RefundStatus::Unknown => {
+            router_env::logger::warn!(
+                "Payload returned unknown refund status; retaining previous refund status {:?}",
+                prev_refund_status
+            );
+            prev_refund_status
         }
     }
 }
@@ -690,10 +760,12 @@ impl TryFrom<RefundsResponseRouterData<Execute, responses::PayloadRefundResponse
     fn try_from(
         item: RefundsResponseRouterData<Execute, responses::PayloadRefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_status =
+            get_payload_refund_status(item.response.status, item.data.request.refund_status);
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status,
             }),
             ..item.data
         })
@@ -707,10 +779,12 @@ impl TryFrom<RefundsResponseRouterData<RSync, responses::PayloadRefundResponse>>
     fn try_from(
         item: RefundsResponseRouterData<RSync, responses::PayloadRefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_status =
+            get_payload_refund_status(item.response.status, item.data.request.refund_status);
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status,
             }),
             ..item.data
         })
@@ -750,6 +824,12 @@ impl From<responses::PayloadWebhooksTrigger> for IncomingWebhookEvent {
             | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
                 Self::EventNotSupported
             }
+            responses::PayloadWebhooksTrigger::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown payload webhook trigger received; acknowledging without processing"
+                );
+                Self::EventNotSupported
+            }
         }
     }
 }
@@ -785,7 +865,8 @@ impl TryFrom<responses::PayloadWebhooksTrigger> for responses::PayloadPaymentSta
             | responses::PayloadWebhooksTrigger::PaymentLinkStatus
             | responses::PayloadWebhooksTrigger::ProcessingStatus
             | responses::PayloadWebhooksTrigger::TransactionOperation
-            | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
+            | responses::PayloadWebhooksTrigger::TransactionOperationClear
+            | responses::PayloadWebhooksTrigger::Unknown => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
         }

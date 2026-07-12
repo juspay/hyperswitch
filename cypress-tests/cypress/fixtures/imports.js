@@ -9,6 +9,7 @@ import customerCreateBody from "./create-customer-body.json";
 import citConfirmBody from "./create-mandate-cit.json";
 import mitConfirmBody from "./create-mandate-mit.json";
 import createPaymentBody from "./create-payment-body.json";
+import createPayoutLinkBody from "./create-payout-link-body.json";
 import createPayoutBody from "./create-payout-confirm-body.json";
 import payoutRoutingConfigBody from "./payout-routing-config-body.json";
 import pmIdConfirmBody from "./create-pm-id-mit.json";
@@ -31,6 +32,7 @@ import disputeEvidenceBody from "./dispute-evidence-body.json";
 import cardLimitedDataMITBody from "./create-card-limited-data-mit.json";
 import eligibilityCheckBody from "./eligibility-check-body.json";
 import extendAuthBody from "./extend-auth-body.json";
+import frmRoutingAlgorithmBody from "./frm-routing-algorithm-body.json";
 import relayBody from "./relay-body.json";
 import threeDSAuthenticationBody from "./three-ds-authentication-body.json";
 import * as IncomingWebhookBody from "./webhooks/import";
@@ -55,11 +57,13 @@ export {
   createConnectorBody,
   createPaymentBody,
   createPayoutBody,
+  createPayoutLinkBody,
   customerCreateBody,
   customerUpdateBody,
   disputeEvidenceBody,
   eligibilityCheckBody,
   extendAuthBody,
+  frmRoutingAlgorithmBody,
   threeDSAuthenticationBody,
   gsmBody,
   listRefundCall,

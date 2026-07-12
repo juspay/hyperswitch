@@ -778,6 +778,7 @@ impl PaymentMethodsController for PmCards<'_> {
         bank_debit_data: api_models::payment_methods::BankDebitDetail,
         key_store: &domain::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
+        key: Option<String>,
     ) -> errors::CustomResult<
         (
             domain::PaymentMethodResponse,
@@ -785,31 +786,32 @@ impl PaymentMethodsController for PmCards<'_> {
         ),
         errors::VaultError,
     > {
+        let should_trigger_fingerprint_migration =
+            payment_method_utils::get_should_trigger_fingerprint_migration(
+                self.state,
+                Some(customer_id),
+                self.provider.get_provider_merchant_id(),
+            )
+            .await;
+
         let pmd = hyperswitch_domain_models::vault::PaymentMethodVaultingData::from(
             api_models::payment_methods::PaymentMethodCreateData::BankDebit(bank_debit_data)
                 .clone(),
         );
 
-        let data = serde_json::to_string(&pmd)
-            .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode Vaulting data to string")?;
+        let payload = encode_vault_fingerprint_request(
+            should_trigger_fingerprint_migration,
+            key_store.merchant_id.clone(),
+            customer_id.to_owned(),
+            &pmd,
+            key,
+        )?;
 
-        let payload = pm_types::VaultFingerprintRequest {
-            key: hyperswitch_domain_models::vault::V1VaultEntityId::new(
-                // The merchant_id should belong to the Provider
-                key_store.merchant_id.clone(),
-                customer_id.to_owned(),
-            ),
-            data,
-        }
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultFingerprintRequest")?;
-
-        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None)
-            .await
-            .change_context(errors::VaultError::VaultAPIError)
-            .attach_printable("Call to vault failed")?;
+        let resp =
+            vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None, None)
+                .await
+                .change_context(errors::VaultError::VaultAPIError)
+                .attach_printable("Call to vault failed")?;
 
         let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
             .parse_struct("VaultFingerprintResponse")
@@ -848,34 +850,27 @@ impl PaymentMethodsController for PmCards<'_> {
             ))
         } else {
             // The merchant_id should belong to the Provider
-            let payload = pm_types::AddVaultRequest {
-                entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
-                    key_store.merchant_id.clone(),
-                    customer_id.to_owned(),
-                ),
-                vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
-                data: pmd,
-                ttl: self.state.conf.locker.ttl_for_storage_in_secs,
-            }
-            .encode_to_vec()
-            .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode AddVaultRequest")?;
+            let payload = encode_add_vault_request(
+                should_trigger_fingerprint_migration,
+                key_store.merchant_id.clone(),
+                customer_id,
+                pmd,
+                self.state.conf.locker.ttl_for_storage_in_secs,
+                None,
+            )?;
 
             let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
 
             let resp =
-                vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params)
+                vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params, None)
                     .await
                     .change_context(errors::VaultError::VaultAPIError)
                     .attach_printable("Call to vault failed")?;
 
-            let stored_pm_resp: pm_types::InternalAddVaultResponse = resp
-                .parse_struct("InternalAddVaultResponse")
-                .change_context(errors::VaultError::ResponseDeserializationFailed)
-                .attach_printable("Failed to parse data into AddVaultResponse")?;
+            let vault_id = parse_add_vault_response(should_trigger_fingerprint_migration, resp)?;
 
             let payment_method_resp = payment_methods::mk_add_bank_debit_response_hs(
-                stored_pm_resp.vault_id.get_string_repr().to_owned(),
+                vault_id.get_string_repr().to_owned(),
                 req,
                 self.provider.get_account().get_id(),
                 fingerprint_id,
@@ -892,6 +887,7 @@ impl PaymentMethodsController for PmCards<'_> {
         wallet_data: api_models::payment_methods::WalletDetail,
         key_store: &domain::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
+        key: Option<String>,
     ) -> errors::CustomResult<
         (
             domain::PaymentMethodResponse,
@@ -899,30 +895,31 @@ impl PaymentMethodsController for PmCards<'_> {
         ),
         errors::VaultError,
     > {
+        let should_trigger_fingerprint_migration =
+            payment_method_utils::get_should_trigger_fingerprint_migration(
+                self.state,
+                Some(customer_id),
+                self.provider.get_provider_merchant_id(),
+            )
+            .await;
+
         let pmd = hyperswitch_domain_models::vault::PaymentMethodVaultingData::from(
             api_models::payment_methods::PaymentMethodCreateData::Wallet(wallet_data).clone(),
         );
 
-        let data = serde_json::to_string(&pmd)
-            .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode Vaulting data to string")?;
+        let payload = encode_vault_fingerprint_request(
+            should_trigger_fingerprint_migration,
+            key_store.merchant_id.clone(),
+            customer_id.to_owned(),
+            &pmd,
+            key,
+        )?;
 
-        let payload = pm_types::VaultFingerprintRequest {
-            key: hyperswitch_domain_models::vault::V1VaultEntityId::new(
-                // The merchant_id should belong to the Provider
-                key_store.merchant_id.clone(),
-                customer_id.to_owned(),
-            ),
-            data,
-        }
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultFingerprintRequest")?;
-
-        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None)
-            .await
-            .change_context(errors::VaultError::VaultAPIError)
-            .attach_printable("Call to vault failed")?;
+        let resp =
+            vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None, None)
+                .await
+                .change_context(errors::VaultError::VaultAPIError)
+                .attach_printable("Call to vault failed")?;
 
         let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
             .parse_struct("VaultFingerprintResponse")
@@ -960,35 +957,27 @@ impl PaymentMethodsController for PmCards<'_> {
                 Some(payment_methods::DataDuplicationCheck::Duplicated),
             ))
         } else {
-            // The merchant_id should belong to the Provider
-            let payload = pm_types::AddVaultRequest {
-                entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
-                    key_store.merchant_id.clone(),
-                    customer_id.to_owned(),
-                ),
-                vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
-                data: pmd,
-                ttl: self.state.conf.locker.ttl_for_storage_in_secs,
-            }
-            .encode_to_vec()
-            .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode AddVaultRequest")?;
+            let payload = encode_add_vault_request(
+                should_trigger_fingerprint_migration,
+                key_store.merchant_id.clone(),
+                customer_id,
+                pmd,
+                self.state.conf.locker.ttl_for_storage_in_secs,
+                None,
+            )?;
 
             let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
 
             let resp =
-                vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params)
+                vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params, None)
                     .await
                     .change_context(errors::VaultError::VaultAPIError)
                     .attach_printable("Call to vault failed")?;
 
-            let stored_pm_resp: pm_types::InternalAddVaultResponse = resp
-                .parse_struct("InternalAddVaultResponse")
-                .change_context(errors::VaultError::ResponseDeserializationFailed)
-                .attach_printable("Failed to parse data into AddVaultResponse")?;
+            let vault_id = parse_add_vault_response(should_trigger_fingerprint_migration, resp)?;
 
-            let payment_method_resp = payment_methods::mk_add_bank_debit_response_hs(
-                stored_pm_resp.vault_id.get_string_repr().to_owned(),
+            let payment_method_resp = payment_methods::mk_add_wallet_response_hs(
+                vault_id.get_string_repr().to_owned(),
                 req,
                 self.provider.get_account().get_id(),
                 fingerprint_id,
@@ -1217,7 +1206,7 @@ impl PaymentMethodsController for PmCards<'_> {
             },
         )?;
 
-        let customer_id = customer.customer_id.clone();
+        let customer_id = customer.get_id().clone();
 
         let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
             default_payment_method_id: Some(Some(payment_method_id.to_owned())),
@@ -1395,6 +1384,126 @@ impl PaymentMethodsController for PmCards<'_> {
         pm: &domain::PaymentMethod,
     ) -> errors::RouterResult<api::CardDetailFromLocker> {
         get_card_details_from_locker(self.state, pm).await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn retrieve_payment_method_from_vault(
+        &self,
+        vault_id: &domain::VaultId,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
+        is_v2_pm: bool,
+    ) -> errors::CustomResult<
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+        errors::VaultError,
+    > {
+        let payload = if !is_v2_pm {
+            pm_types::VaultRetrieveRequest {
+                entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
+                    merchant_id.clone(),
+                    customer_id.clone(),
+                ),
+                vault_id: vault_id.clone(),
+            }
+            .encode_to_vec()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode VaultRetrieveRequest")?
+        } else {
+            pm_types::GenericVaultRetrieveRequest {
+                entity_id: customer_id.clone(),
+                vault_id: vault_id.clone(),
+            }
+            .encode_to_vec()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode GenericVaultRetrieveRequest")?
+        };
+
+        let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(self.state, payload, None, None)
+            .await
+            .change_context(errors::VaultError::VaultAPIError)
+            .attach_printable("Call to vault failed")?;
+
+        let stored_pm_resp: pm_types::VaultRetrieveResponse = resp
+            .parse_struct("VaultRetrieveResponse")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
+
+        Ok(stored_pm_resp.data)
+    }
+
+    #[cfg(feature = "v1")]
+    async fn store_payment_method_in_vault(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        vault_id: &domain::VaultId,
+        data: &hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    ) -> errors::CustomResult<(), errors::VaultError> {
+        let payload = pm_types::AddVaultRequestNew {
+            entity_id: merchant_id.clone(),
+            vault_id: vault_id.clone(),
+            data: data.clone(),
+            ttl: self.state.conf.locker.ttl_for_storage_in_secs,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode AddVaultRequest")?;
+
+        let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
+
+        vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params, None)
+            .await
+            .change_context(errors::VaultError::VaultAPIError)
+            .attach_printable("Call to vault failed")?;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "v1")]
+    async fn get_fingerprint_id_from_vault(
+        &self,
+        entity_id: &Option<String>,
+        fingerprint_data: &hyperswitch_domain_models::vault::FingerprintData,
+        fingerprint_id: String,
+    ) -> errors::CustomResult<String, errors::VaultError> {
+        let entity_id = entity_id
+            .to_owned()
+            .get_required_value("Customer key")
+            .change_context(errors::VaultError::MissingRequiredField {
+                field_name: "Customer key",
+            })
+            .attach_printable("entity_id is required to get fingerprint id from vault")?;
+
+        let data = serde_json::to_string(fingerprint_data)
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode fingerprint data")?;
+
+        let payload = pm_types::VaultFingerprintRequestNew {
+            key: entity_id,
+            data,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultFingerprintRequestNew")?;
+
+        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(
+            self.state,
+            payload,
+            None,
+            Some(HashMap::from([(
+                crate::headers::X_FINGERPRINT_ID.to_string(),
+                fingerprint_id.to_string(),
+            )])),
+        )
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")?;
+
+        let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
+            .parse_struct("VaultFingerprintResponse")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse VaultFingerprintResponse")?;
+
+        Ok(fingerprint_resp.fingerprint_id)
     }
 
     #[cfg(feature = "v1")]
@@ -1602,6 +1711,18 @@ impl PaymentMethodsController for PmCards<'_> {
             .map(serde_json::to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let customer_obj = db
+            .find_customer_by_customer_id_merchant_id(
+                &customer_id,
+                merchant_id,
+                self.provider.get_key_store(),
+                self.provider.get_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::CustomerNotFound)
+            .attach_printable("Customer not found in db")?;
+
         let response = match payment_method {
             #[cfg(feature = "payouts")]
             api_enums::PaymentMethod::BankTransfer => {
@@ -1656,12 +1777,17 @@ impl PaymentMethodsController for PmCards<'_> {
             api_enums::PaymentMethod::BankDebit => match req.payment_method_data.clone() {
                 Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
                     bank_debit_data,
-                )) => Box::pin(self.add_bank_debit_to_locker(
-                    req.clone(),
-                    bank_debit_data,
-                    self.provider.get_key_store(),
-                    &customer_id,
-                ))
+                )) => Box::pin(
+                    self.add_bank_debit_to_locker(
+                        req.clone(),
+                        bank_debit_data,
+                        self.provider.get_key_store(),
+                        &customer_id,
+                        customer_obj
+                            .get_global_id()
+                            .map(|id| id.get_string_repr().to_owned()),
+                    ),
+                )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Add BankDebit Failed"),
@@ -1855,6 +1981,228 @@ impl PaymentMethodsController for PmCards<'_> {
         let api_resp = api::PaymentMethodResponse::foreign_from(resp);
 
         Ok(services::ApplicationResponse::Json(api_resp))
+    }
+}
+
+// -------------------------------------------------------------------------
+// Helpers for migrating between v1 entity_id (merchant_id + customer_id)
+// and new-style entity_id (merchant_id only).
+// -------------------------------------------------------------------------
+
+/// Encode the appropriate `AddVaultRequest` based on the migration flag.
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub fn encode_add_vault_request(
+    should_trigger_fingerprint_migration: bool,
+    merchant_id: id_type::MerchantId,
+    customer_id: &id_type::CustomerId,
+    pmd: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    ttl: i64,
+    vault_id: Option<domain::VaultId>,
+) -> errors::CustomResult<Vec<u8>, errors::VaultError> {
+    if should_trigger_fingerprint_migration {
+        // New fingerprint migration path uses merchant-scoped vault entity ids.
+        pm_types::AddVaultRequestNew {
+            entity_id: merchant_id,
+            vault_id: vault_id
+                .unwrap_or_else(|| domain::VaultId::generate(uuid::Uuid::now_v7().to_string())),
+            data: pmd,
+            ttl,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode AddVaultRequestNew")
+    } else if let Some(vault_id) = vault_id {
+        // Forward-compat PT reuses the existing locker id so modular reads can address the row.
+        pm_types::AddCompatVaultRequest {
+            entity_id: customer_id.to_owned(),
+            vault_id,
+            data: pmd,
+            ttl,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode AddCompatVaultRequest")
+    } else {
+        // Legacy v1 add path keeps the original merchant-and-customer entity id shape.
+        pm_types::AddVaultRequest {
+            entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
+                merchant_id,
+                customer_id.to_owned(),
+            ),
+            vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
+            data: pmd,
+            ttl,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode AddVaultRequest")
+    }
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub fn encode_vault_fingerprint_request(
+    should_trigger_fingerprint_migration: bool,
+    merchant_id: id_type::MerchantId,
+    customer_id: id_type::CustomerId,
+    pmd: &hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    key: Option<String>,
+) -> errors::CustomResult<Vec<u8>, errors::VaultError> {
+    if should_trigger_fingerprint_migration {
+        let key = key
+            .get_required_value("Customer key is required")
+            .change_context(errors::VaultError::MissingRequiredField {
+                field_name: "Customer key",
+            })?;
+
+        let data = serde_json::to_string(&pmd.clone().to_fingerprint_data())
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode Vaulting data to string")?;
+
+        pm_types::VaultFingerprintRequestNew { data, key }
+            .encode_to_vec()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode VaultFingerprintRequestNew")
+    } else {
+        let data = serde_json::to_string(&pmd)
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode Vaulting data to string")?;
+
+        pm_types::VaultFingerprintRequest {
+            data,
+            key: hyperswitch_domain_models::vault::V1VaultEntityId::new(merchant_id, customer_id),
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultFingerprintRequest")
+    }
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub fn encode_add_vault_request(
+    should_trigger_fingerprint_migration: bool,
+    merchant_id: id_type::MerchantId,
+    customer_id: &id_type::GlobalCustomerId,
+    pmd: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    ttl: i64,
+    vault_id: Option<domain::VaultId>,
+) -> errors::CustomResult<Vec<u8>, errors::VaultError> {
+    let vault_id =
+        vault_id.unwrap_or_else(|| domain::VaultId::generate(uuid::Uuid::now_v7().to_string()));
+
+    if should_trigger_fingerprint_migration {
+        pm_types::AddVaultRequestNew {
+            entity_id: merchant_id,
+            vault_id,
+            data: pmd,
+            ttl,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode AddVaultRequestNew")
+    } else {
+        pm_types::AddVaultRequest {
+            entity_id: customer_id.clone(),
+            vault_id,
+            data: pmd,
+            ttl,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode AddVaultRequest")
+    }
+}
+/// Parse the vault `AddVault` response and extract the `vault_id`.
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub fn parse_add_vault_response(
+    should_trigger_fingerprint_migration: bool,
+    resp: String,
+) -> errors::CustomResult<domain::VaultId, errors::VaultError> {
+    if should_trigger_fingerprint_migration {
+        let parsed: pm_types::InternalAddVaultResponseNew = resp
+            .parse_struct("InternalAddVaultResponseNew")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse data into InternalAddVaultResponseNew")?;
+        Ok(parsed.vault_id)
+    } else {
+        let parsed: pm_types::InternalAddVaultResponse = resp
+            .parse_struct("InternalAddVaultResponse")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse data into InternalAddVaultResponse")?;
+        Ok(parsed.vault_id)
+    }
+}
+
+/// Encode the appropriate `VaultRetrieveRequest` based on the migration flag.
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub fn encode_vault_retrieve_request(
+    should_trigger_fingerprint_migration: bool,
+    merchant_id: id_type::MerchantId,
+    customer_id: &id_type::CustomerId,
+    token_ref: &str,
+) -> errors::CustomResult<Vec<u8>, errors::ApiErrorResponse> {
+    if should_trigger_fingerprint_migration {
+        pm_types::VaultRetrieveRequestNew {
+            entity_id: merchant_id,
+            vault_id: hyperswitch_domain_models::payment_methods::VaultId::generate(
+                token_ref.to_owned(),
+            ),
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultRetrieveRequest")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+    } else {
+        pm_types::VaultRetrieveRequest {
+            entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
+                merchant_id,
+                customer_id.to_owned(),
+            ),
+            vault_id: hyperswitch_domain_models::payment_methods::VaultId::generate(
+                token_ref.to_owned(),
+            ),
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultRetrieveRequest")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+    }
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub fn encode_vault_retrieve_request(
+    should_trigger_fingerprint_migration: bool,
+    merchant_id: id_type::MerchantId,
+    customer_id: &id_type::GlobalCustomerId,
+    token_ref: &str,
+) -> errors::CustomResult<Vec<u8>, errors::ApiErrorResponse> {
+    if should_trigger_fingerprint_migration {
+        pm_types::VaultRetrieveRequestNew {
+            entity_id: merchant_id,
+            vault_id: hyperswitch_domain_models::payment_methods::VaultId::generate(
+                token_ref.to_owned(),
+            ),
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultRetrieveRequest")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+    } else {
+        pm_types::VaultRetrieveRequest {
+            entity_id: customer_id.clone(),
+            vault_id: hyperswitch_domain_models::payment_methods::VaultId::generate(
+                token_ref.to_owned(),
+            ),
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultRetrieveRequest")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
     }
 }
 
@@ -2939,7 +3287,7 @@ pub async fn update_payment_method_connector_mandate_details(
         .transpose()?;
 
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-        connector_mandate_details: connector_mandate_details_value,
+        connector_mandate_details: connector_mandate_details_value.map(Secret::new),
         last_modified_by: initiator
             .and_then(|initiator| initiator.to_created_by())
             .map(|last_modified_by| last_modified_by.to_string()),
@@ -3381,6 +3729,41 @@ pub struct MerchantEnabledPmsContext {
 
 #[cfg(feature = "v1")]
 impl MerchantEnabledPmsContext {
+    /// Collects all unique eligible connectors across all payment methods in the context.
+    pub fn get_eligible_connectors(&self) -> HashSet<String> {
+        let mut connectors = HashSet::new();
+
+        for pmt_map in self.payment_experiences_consolidated_hm.values() {
+            for pe_map in pmt_map.values() {
+                for conn_list in pe_map.values() {
+                    connectors.extend(conn_list.iter().cloned());
+                }
+            }
+        }
+
+        for pmt_map in self.card_networks_consolidated_hm.values() {
+            for cn_map in pmt_map.values() {
+                for conn_list in cn_map.values() {
+                    connectors.extend(conn_list.iter().cloned());
+                }
+            }
+        }
+
+        for conn_list in self.banks_consolidated_hm.values() {
+            connectors.extend(conn_list.iter().cloned());
+        }
+
+        for conn_list in self.bank_debits_consolidated_hm.values() {
+            connectors.extend(conn_list.iter().cloned());
+        }
+
+        for conn_list in self.bank_transfer_consolidated_hm.values() {
+            connectors.extend(conn_list.iter().cloned());
+        }
+
+        connectors
+    }
+
     /// Converts `payment_experiences_consolidated_hm` → client PM entries (wallet, pay_later, upi, …)
     pub fn payment_experience_pms_for_client(&self) -> Vec<ResponsePaymentMethodsEnabledForClient> {
         let mut out = vec![];
@@ -3520,10 +3903,9 @@ pub async fn build_merchant_enabled_pms_context(
 
     // --- Load all MCAs and filter by profile + connector type ---
     let all_mcas = db
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             platform.get_processor().get_account().get_id(),
             false,
-            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -3667,10 +4049,18 @@ pub async fn build_merchant_enabled_pms_context(
                 &intermediate.payment_method_type,
                 &skip_pre_routing,
             ) {
+                let merchant_connector_id = id_type::MerchantConnectorAccountId::wrap(
+                    intermediate.merchant_connector_id.clone(),
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "invalid merchant_connector_id received in payment methods list",
+                )?;
+
                 let connector_data = helpers::get_connector_data_with_token(
                     state,
                     intermediate.connector.to_string(),
-                    None,
+                    Some(merchant_connector_id),
                     intermediate.payment_method_type,
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4150,10 +4540,37 @@ pub async fn build_merchant_enabled_pms_context(
     };
 
     // ---- sdk_next_action ----
+    // Gate on the surcharge MCA `disabled` flag via the shared helper. Fetch is
+    // skipped entirely when no surcharge connector is configured on the profile.
+    let has_surcharge_processor = match business_profile
+        .surcharge_connector_details
+        .as_ref()
+        .and_then(|details| details.surcharge_connector_id.as_ref())
+    {
+        Some(surcharge_connector_id) => helpers::fetch_active_surcharge_mca(
+            state,
+            platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_key_store(),
+            surcharge_connector_id,
+        )
+        .await
+        .unwrap_or_else(|err| {
+            logger::warn!(
+                error=?err,
+                surcharge_connector_id = %surcharge_connector_id.get_string_repr(),
+                "Failed to fetch surcharge MCA for PML; treating as absent"
+            );
+            None
+        })
+        .is_some(),
+        None => false,
+    };
+
     let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
         state,
         &dimensions,
         payment_intent.and_then(|pi| pi.customer_id.as_ref()),
+        has_surcharge_processor,
     )
     .await;
 
@@ -4576,6 +4993,7 @@ pub async fn list_payment_methods(
                 pms_ctx.connector_supports_installments,
                 extra,
                 &business_profile,
+                customer.as_ref(),
             )
         })
         .transpose()
@@ -5163,27 +5581,47 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     }
 }
 
-/// Filters customer payment methods to keep only the latest Apple Pay method when multiple DPANs exist.
-/// All other payment methods are returned unchanged.
+/// Filters customer payment methods to keep only the latest Apple Pay and Google Pay method
+/// when multiple DPANs exist. All other payment methods are returned unchanged.
 #[cfg(feature = "v1")]
-fn filter_latest_apple_pay(
+fn filter_latest_wallet_methods(
     payment_methods: Vec<api::CustomerPaymentMethod>,
 ) -> Vec<api::CustomerPaymentMethod> {
-    let (apple_pay_methods, other_methods): (Vec<_>, Vec<_>) =
+    let (wallet_methods, other_methods): (Vec<_>, Vec<_>) =
         payment_methods.into_iter().partition(|pm| {
             pm.payment_method == api_enums::PaymentMethod::Wallet
-                && pm.payment_method_type == Some(api_enums::PaymentMethodType::ApplePay)
+                && (pm.payment_method_type == Some(api_enums::PaymentMethodType::ApplePay)
+                    || pm.payment_method_type == Some(api_enums::PaymentMethodType::GooglePay))
         });
 
-    if apple_pay_methods.len() > 1 {
-        // Sort by last_used_at timestamp descending (latest first) and keep only the first one
-        let mut sorted = apple_pay_methods;
-        sorted.sort_by_key(|b| std::cmp::Reverse(b.last_used_at));
-        let latest_apple_pay = sorted.into_iter().next();
-        other_methods.into_iter().chain(latest_apple_pay).collect()
-    } else {
-        other_methods.into_iter().chain(apple_pay_methods).collect()
+    if wallet_methods.is_empty() {
+        return other_methods;
     }
+
+    let mut result = other_methods;
+
+    for wallet_type in [
+        api_enums::PaymentMethodType::ApplePay,
+        api_enums::PaymentMethodType::GooglePay,
+    ] {
+        let type_methods: Vec<_> = wallet_methods
+            .iter()
+            .filter(|pm| pm.payment_method_type == Some(wallet_type))
+            .cloned()
+            .collect();
+
+        if type_methods.len() > 1 {
+            let mut sorted = type_methods;
+            sorted.sort_by_key(|b| std::cmp::Reverse(b.last_used_at));
+            if let Some(latest) = sorted.into_iter().next() {
+                result.push(latest);
+            }
+        } else {
+            result.extend(type_methods);
+        }
+    }
+
+    result
 }
 
 #[cfg(feature = "v1")]
@@ -5264,10 +5702,9 @@ pub async fn list_customer_payment_method(
 
     let merchant_connector_accounts = state
         .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             platform.get_processor().get_account().get_id(),
             true,
-            platform.get_provider().get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -5421,7 +5858,7 @@ pub async fn list_customer_payment_method(
     }
 
     // // Filter to keep only the latest Apple Pay method if duplicates exist
-    let filtered_customer_pms = filter_latest_apple_pay(customer_pms);
+    let filtered_customer_pms = filter_latest_wallet_methods(customer_pms);
 
     let mut response = api::CustomerPaymentMethodsListResponse {
         customer_payment_methods: filtered_customer_pms,
@@ -5615,7 +6052,7 @@ pub async fn get_mca_status(
     is_connector_agnostic_mit_enabled: bool,
     connector_mandate_details: Option<CommonMandateReference>,
     network_transaction_id: Option<&String>,
-    merchant_connector_accounts: &domain::MerchantConnectorAccounts,
+    merchant_connector_accounts: &domain::MerchantConnectorAccountsWithoutEncrypted,
 ) -> errors::RouterResult<bool> {
     let agnostic_mit = is_connector_agnostic_mit_enabled && network_transaction_id.is_some();
 
@@ -5997,22 +6434,22 @@ pub async fn get_bank_debit_from_hs_locker(
     customer_id: &id_type::CustomerId,
     token_ref: &str,
 ) -> errors::RouterResult<hyperswitch_domain_models::payment_method_data::BankDebitDetail> {
-    let vault_request = pm_types::VaultRetrieveRequest {
-        entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
-            provider.get_account().get_id().clone(),
-            customer_id.to_owned(),
-        ),
-        vault_id: hyperswitch_domain_models::payment_methods::VaultId::generate(
-            token_ref.to_owned(),
-        ),
-    };
-    let payload = vault_request
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultRetrieveRequest")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let should_trigger_fingerprint_migration =
+        payment_method_utils::get_should_trigger_fingerprint_migration(
+            state,
+            Some(customer_id),
+            provider.get_provider_merchant_id(),
+        )
+        .await;
 
-    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+    let payload = encode_vault_retrieve_request(
+        should_trigger_fingerprint_migration,
+        provider.get_account().get_id().clone(),
+        customer_id,
+        token_ref,
+    )?;
+
+    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None, None)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")
@@ -6040,22 +6477,22 @@ pub async fn get_wallet_from_hs_locker(
     customer_id: &id_type::CustomerId,
     token_ref: &str,
 ) -> errors::RouterResult<hyperswitch_domain_models::payment_method_data::WalletDetail> {
-    let vault_request = pm_types::VaultRetrieveRequest {
-        entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
-            provider.get_account().get_id().clone(),
-            customer_id.to_owned(),
-        ),
-        vault_id: hyperswitch_domain_models::payment_methods::VaultId::generate(
-            token_ref.to_owned(),
-        ),
-    };
-    let payload = vault_request
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultRetrieveRequest")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let should_trigger_fingerprint_migration =
+        payment_method_utils::get_should_trigger_fingerprint_migration(
+            state,
+            Some(customer_id),
+            provider.get_provider_merchant_id(),
+        )
+        .await;
 
-    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+    let payload = encode_vault_retrieve_request(
+        should_trigger_fingerprint_migration,
+        provider.get_account().get_id().clone(),
+        customer_id,
+        token_ref,
+    )?;
+
+    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None, None)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")

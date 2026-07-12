@@ -6,7 +6,7 @@ use crate::schema::payment_intent::dsl;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_intent::dsl;
 use crate::{
-    errors,
+    errors, kv,
     payment_intent::{self, PaymentIntent, PaymentIntentNew},
     PgPooledConn, StorageResult,
 };
@@ -14,6 +14,13 @@ use crate::{
 impl PaymentIntentNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentIntent> {
         generics::generic_insert(conn, self).await
+    }
+
+    pub async fn generate_drainer_insert_query(
+        self,
+        conn: &mut PgPooledConn,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_insert_query(conn, self).await
     }
 }
 
@@ -147,5 +154,36 @@ impl PaymentIntent {
                 .and(dsl::payment_id.eq(payment_id.to_owned())),
         )
         .await
+    }
+}
+
+#[cfg(feature = "v1")]
+impl payment_intent::PaymentIntentUpdate {
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        payment_id: common_utils::id_type::PaymentId,
+        processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_with_predicate::<<PaymentIntent as HasTable>::Table, _, _>(
+            conn,
+            dsl::payment_id
+                .eq(payment_id)
+                .and(dsl::processor_merchant_id.eq(processor_merchant_id)),
+            payment_intent::PaymentIntentUpdateInternal::from(self),
+        )
+        .await
+    }
+}
+
+#[cfg(feature = "v2")]
+impl payment_intent::PaymentIntentUpdateInternal {
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        id: common_utils::id_type::GlobalPaymentId,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_by_id::<<PaymentIntent as HasTable>::Table, _, _>(conn, id, self)
+            .await
     }
 }

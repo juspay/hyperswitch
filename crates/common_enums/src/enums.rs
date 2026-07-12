@@ -791,6 +791,32 @@ pub enum ConnectorType {
     VaultProcessor,
 }
 
+/// Strategy for applying external surcharge
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SurchargeStrategy {
+    /// Apply the calculated surcharge to the payment (default)
+    #[default]
+    Apply,
+    /// Do not apply the surcharge; return the amount only
+    Waive,
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum PaymentAction {
     PSync,
@@ -1734,6 +1760,26 @@ impl Currency {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EventRecipient {
+    Merchant,
+    Connector,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
@@ -1787,8 +1833,13 @@ impl EventClass {
                 EventType::PaymentCaptured,
                 EventType::PaymentExpired,
                 EventType::ActionRequired,
+                EventType::SurchargePaymentSucceeded,
             ]),
-            Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
+            Self::Refunds => HashSet::from([
+                EventType::RefundSucceeded,
+                EventType::RefundFailed,
+                EventType::SurchargeRefundSucceeded,
+            ]),
             Self::Disputes => HashSet::from([
                 EventType::DisputeOpened,
                 EventType::DisputeExpired,
@@ -1870,6 +1921,24 @@ pub enum EventType {
     #[cfg(feature = "payouts")]
     PayoutReversed,
     InvoicePaid,
+    SurchargePaymentSucceeded,
+    SurchargeRefundSucceeded,
+}
+
+/// Maps primary payment/refund events to their corresponding surcharge events
+pub trait SurchargeEventMapper {
+    /// Returns the surcharge event type corresponding to this primary event
+    fn to_surcharge_event(&self) -> Option<EventType>;
+}
+
+impl SurchargeEventMapper for EventType {
+    fn to_surcharge_event(&self) -> Option<Self> {
+        match self {
+            Self::PaymentSucceeded => Some(Self::SurchargePaymentSucceeded),
+            Self::RefundSucceeded => Some(Self::SurchargeRefundSucceeded),
+            _ => None,
+        }
+    }
 }
 
 #[derive(
@@ -2420,6 +2489,7 @@ pub enum PaymentMethodType {
     Pix,
     PixKey,
     PixEmv,
+    PixQr,
     PixAutomaticoQr,
     PixAutomaticoPush,
     PaySafeCard,
@@ -2467,19 +2537,29 @@ pub enum PaymentMethodType {
     NetworkToken,
 }
 
+/// Indicates whether a wallet token is decrypted .
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WalletDecryptedToken {
+    ApplePay,
+    GooglePay,
+    /// No wallet decryption occurred.
+    None,
+}
+
 impl PaymentMethodType {
+    /// - True : then fetch the saved payment method and update the last used, skip locker id creation
+    /// - False : For applepay and googlepay decrypted tokens create a new payment method according to locker fingerprint
     pub fn should_check_for_customer_saved_payment_method_type(
         self,
-        is_apple_pay_decrypt: bool,
+        decrypted_token: WalletDecryptedToken,
     ) -> bool {
-        if is_apple_pay_decrypt {
-            // return false if the payment method is Apple Pay and the decryption is successful, else exhibit the existing behaviour
-            !matches!(self, Self::ApplePay)
-        } else {
-            matches!(
+        match decrypted_token {
+            WalletDecryptedToken::ApplePay => !matches!(self, Self::ApplePay),
+            WalletDecryptedToken::GooglePay => !matches!(self, Self::GooglePay),
+            WalletDecryptedToken::None => matches!(
                 self,
                 Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
-            )
+            ),
         }
     }
     pub fn to_display_name(&self) -> String {
@@ -2566,6 +2646,7 @@ impl PaymentMethodType {
             Self::Pix => "Pix",
             Self::PixKey => "Pix Key",
             Self::PixEmv => "Pix EMV",
+            Self::PixQr => "Pix QR",
             Self::PixAutomaticoQr => "Pix Automático QR",
             Self::PixAutomaticoPush => "Pix Automático Push",
             Self::PaySafeCard => "PaySafeCard",
@@ -2840,6 +2921,33 @@ pub enum ExecutionMode {
     NotApplicable,
 }
 
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+/// Whether a connector event is the real call or a shadow mirror.
+pub enum EventExecutionMode {
+    Primary,
+    Shadow,
+}
+
+impl From<ExecutionMode> for EventExecutionMode {
+    fn from(mode: ExecutionMode) -> Self {
+        match mode {
+            ExecutionMode::Shadow => Self::Shadow,
+            ExecutionMode::Primary | ExecutionMode::NotApplicable => Self::Primary,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+/// Where a connector event's call was sent.
+pub enum EventDestination {
+    /// A direct call to the connector.
+    Connector,
+    /// A call to the Unified Connector Service.
+    UnifiedConnectorService,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -3097,6 +3205,7 @@ pub enum RelayType {
     Capture,
     IncrementalAuthorization,
     Void,
+    UnreferencedRefund,
 }
 
 #[derive(
@@ -9593,9 +9702,15 @@ pub enum PermissionGroup {
     UsersManage,
     AccountView,
     AccountManage,
-    InternalManage,
+    WebhooksView,
+    WebhooksManage,
+    ApiKeysView,
+    ApiKeysManage,
+    CloneConnectorManage,
     ThemeView,
     ThemeManage,
+    ConfigurationsView,
+    ConfigurationsManage,
     ReconSourcesView,
     ReconSourcesManage,
     ReconExceptionsView,
@@ -9616,8 +9731,11 @@ pub enum ParentGroup {
     Analytics,
     Users,
     Account,
-    Internal,
+    Webhook,
+    ApiKeys,
+    CloneConnector,
     Theme,
+    Configurations,
     ReconSources,
     ReconExceptions,
     ReconTransactions,
@@ -9645,7 +9763,7 @@ pub enum Resource {
     Report,
     RevenueRecovery,
     Subscription,
-    InternalConnector,
+    CloneConnector,
     Theme,
     ReconIngestion,
     ReconTransformation,
@@ -9653,6 +9771,7 @@ pub enum Resource {
     ReconStagingEntry,
     ReconTransaction,
     ReconRule,
+    SuperpositionConfig,
 }
 
 #[derive(
@@ -10732,6 +10851,7 @@ pub enum ProcessTrackerStatus {
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum ProcessTrackerRunner {
     PaymentsSyncWorkflow,
+    PaymentsPostCaptureVoidSyncWorkflow,
     RefundWorkflowRouter,
     DeleteTokenizeDataWorkflow,
     ApiKeyExpiryWorkflow,
@@ -11319,6 +11439,27 @@ pub enum WebhookRegistrationStatus {
     #[default]
     Success,
     // Webhook registration has failed
+    Failure,
+}
+
+/// The status of HMAC key generation for a connector webhook
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum WebhookSecretGenerationStatus {
+    /// HMAC key generation is successful
+    Success,
+    /// HMAC key generation has failed
     Failure,
 }
 
