@@ -1123,6 +1123,9 @@ jobs:
           # in the replay log alongside cassette hits/misses (logging only).
           CYPRESS_PROXY_ADMIN_URL: "http://127.0.0.1:8001"
           CYPRESS_CAPTURE_DIR: "${{ github.workspace }}/cypress-tests/mitm-proxy/captures"
+          CYPRESS_SUPERPOSITION_URL: "http://localhost:8081"
+          CYPRESS_SUPERPOSITION_WORKSPACE_ID: "dev"
+          CYPRESS_SUPERPOSITION_ORG_ID: "localorg"
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
