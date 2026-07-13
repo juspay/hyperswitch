@@ -17628,14 +17628,31 @@
         }
       },
       "ConnectorWebhookResponse": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/LegacyConnectorWebhookResponse"
+        "type": "object",
+        "required": [
+          "connector_webhook_id"
+        ],
+        "properties": {
+          "connector_webhook_id": {
+            "type": "string"
           },
-          {
-            "$ref": "#/components/schemas/ScopeBasedConnectorWebhookResponse"
+          "event_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWebhookEventType"
+              }
+            ],
+            "nullable": true
+          },
+          "scope": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWebhookScope"
+              }
+            ],
+            "nullable": true
           }
-        ]
+        }
       },
       "ConnectorWebhookScope": {
         "oneOf": [
@@ -24345,25 +24362,6 @@
             "minimum": 0
           },
           "mca_id": {
-            "type": "string"
-          }
-        }
-      },
-      "LegacyConnectorWebhookResponse": {
-        "type": "object",
-        "required": [
-          "connector_webhook_id"
-        ],
-        "properties": {
-          "event_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorWebhookEventType"
-              }
-            ],
-            "nullable": true
-          },
-          "connector_webhook_id": {
             "type": "string"
           }
         }
@@ -42277,21 +42275,6 @@
         "description": "The scope of webhook registration.\nDetermines which entities the connector should register webhooks for.",
         "discriminator": {
           "propertyName": "type"
-        }
-      },
-      "ScopeBasedConnectorWebhookResponse": {
-        "type": "object",
-        "required": [
-          "connector_webhook_id",
-          "scope"
-        ],
-        "properties": {
-          "connector_webhook_id": {
-            "type": "string"
-          },
-          "scope": {
-            "$ref": "#/components/schemas/ConnectorWebhookScope"
-          }
         }
       },
       "ScopeIdentifier": {
