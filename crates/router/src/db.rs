@@ -163,7 +163,6 @@ pub trait StorageInterface:
     fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState);
 }
 
-
 #[cfg(feature = "deja")]
 #[async_trait::async_trait]
 pub trait GlobalStorageInterface:
