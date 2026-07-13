@@ -74,13 +74,19 @@ describe("Card - Implicit Customer Update flow test", () => {
               "ImplicitCustomerUpdate"
             ];
 
-          // Pin to the primary merchant connector so spec 42's secondary
-          // stripe connector (added for auto-retry tests) does not get
+          // Pin to the primary merchant connector via straight-through routing so
+          // spec 42's secondary stripe connector on the same profile does not get
           // selected by the router's routing algorithm.
           const body = JSON.parse(
             JSON.stringify(fixtures.createConfirmPaymentBody)
           );
-          body.merchant_connector_id = globalState.get("merchantConnectorId");
+          body.routing = {
+            type: "single",
+            data: {
+              connector: Cypress.env("CONNECTOR"),
+              merchant_connector_id: globalState.get("merchantConnectorId"),
+            },
+          };
 
           cy.createConfirmPaymentTest(
             body,
@@ -136,7 +142,13 @@ describe("Card - Implicit Customer Update flow test", () => {
           const body = JSON.parse(
             JSON.stringify(fixtures.createConfirmPaymentBody)
           );
-          body.merchant_connector_id = globalState.get("merchantConnectorId");
+          body.routing = {
+            type: "single",
+            data: {
+              connector: Cypress.env("CONNECTOR"),
+              merchant_connector_id: globalState.get("merchantConnectorId"),
+            },
+          };
 
           cy.createConfirmPaymentTest(
             body,
