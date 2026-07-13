@@ -399,7 +399,42 @@ def main():
          for tag in tags[1:] for k in new_covered_per_tag[tag]],
     )
     conn.commit()
+
+    # ------------------------------------------------------------------ #
+    # Propagate manual overrides to the latest tag                        #
+    #                                                                      #
+    # When a tag is scanned for the FIRST time there are no prior          #
+    # tag_snapshots rows for it, so the override-preservation logic        #
+    # above has nothing to restore.  However, the issues table retains    #
+    # cypress_status='covered' from manual overrides applied to older     #
+    # tags.  This step propagates those overrides into ONLY the latest    #
+    # tag's tag_snapshots so coverage numbers stay consistent.            #
+    #                                                                      #
+    # We only touch the latest tag (not historical tags) so that the      #
+    # historical timeline remains accurate — an item that gained cypress   #
+    # coverage in tag Y should show is_covered=0 in tags before Y.         #
+    # ------------------------------------------------------------------ #
+    latest_tag = tags[-1]
+    propagated = conn.execute("""
+        UPDATE tag_snapshots
+        SET is_covered = 1
+        WHERE tag = ?
+          AND is_covered = 0
+          AND (bucket, connector, pm, pmt, feature) IN (
+              SELECT bucket, connector, pm, pmt, feature
+              FROM issues
+              WHERE cypress_status = 'covered'
+          )
+    """, (latest_tag,)).rowcount
+
+    # Enforce invariant: covered items cannot be bug-blocked
+    conn.execute("UPDATE tag_snapshots SET is_blocked_by_bug = 0 WHERE is_covered = 1")
+
+    conn.commit()
     conn.close()
+    if propagated:
+        print(f"  Propagated {propagated} manual covered override(s) to tag_snapshots",
+              file=sys.stderr)
 
     # ------------------------------------------------------------------ #
     # Sync issues table from the latest tag's tag_snapshots               #
