@@ -4,6 +4,57 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.13.0
+
+### Features
+
+- **connector:** Forward JPMorgan merchant metadata to UCS + route JPMorgan via UCS ([#13178](https://github.com/juspay/hyperswitch/pull/13178)) ([`a594ab8`](https://github.com/juspay/hyperswitch/commit/a594ab8dc1cb5f16d25eecb6443b94f7f05cd73e))
+
+### Bug Fixes
+
+- **connector:** [Fiuu] Fix Fiuu refund webhook parsing for numeric IDs ([#13257](https://github.com/juspay/hyperswitch/pull/13257)) ([`4897964`](https://github.com/juspay/hyperswitch/commit/48979643a80f6e1231d5a78ac119d9e9061bb85f))
+- **nmi:** Harden connector against unknown enum variants and non-JSON error bodies ([#13251](https://github.com/juspay/hyperswitch/pull/13251)) ([`d121626`](https://github.com/juspay/hyperswitch/commit/d121626b444bef8355ac8f59869d159e1a8693c1))
+- **novalnet:** Add connector response deserialization resilience ([#13214](https://github.com/juspay/hyperswitch/pull/13214)) ([`b25ea11`](https://github.com/juspay/hyperswitch/commit/b25ea115fd6078e7552b14a13d3428e58c9066fb))
+- **payload:** Harden connector against unknown enum variants and non-JSON error bodies ([#13256](https://github.com/juspay/hyperswitch/pull/13256)) ([`276de22`](https://github.com/juspay/hyperswitch/commit/276de225f426544de919e360cc099d076b07b550))
+- **router:** Add config to close idle DB connections ([#13194](https://github.com/juspay/hyperswitch/pull/13194)) ([`0439e76`](https://github.com/juspay/hyperswitch/commit/0439e7619dae9660cbf4f0e64259d5f2189d3507))
+- **ucs:** Map authentication_data into cybersource SetupMandate request ([#12872](https://github.com/juspay/hyperswitch/pull/12872)) ([`fda1d81`](https://github.com/juspay/hyperswitch/commit/fda1d81624419ae5caf7aabc1ebab53a98a2fdd7))
+
+### Refactors
+
+- **connector:** [Checkout] gracefully handle unknown response enum variants and missing optional fields ([#13261](https://github.com/juspay/hyperswitch/pull/13261)) ([`53c257f`](https://github.com/juspay/hyperswitch/commit/53c257fc6c21eaf6b31140bfd9d305e2d288fe9d))
+
+### Testing
+
+- **cypress:**
+  - Add Placetopay connector payment config ([#13184](https://github.com/juspay/hyperswitch/pull/13184)) ([`8c24483`](https://github.com/juspay/hyperswitch/commit/8c2448303fa9b93cebeb6ef3712b8287dfab9259))
+  - Add payjustnowinstore connector test cases ([#13195](https://github.com/juspay/hyperswitch/pull/13195)) ([`cd6de27`](https://github.com/juspay/hyperswitch/commit/cd6de272fbe81ce9e424ee533b69944812adf47d))
+  - Add requires_cvv coverage for bankofamerica ([#12407](https://github.com/juspay/hyperswitch/pull/12407)) ([`1e6fe94`](https://github.com/juspay/hyperswitch/commit/1e6fe94c610e19efab8285e08496672f97f1f16c))
+
+**Full Changelog:** [`2026.07.10.0...2026.07.13.0`](https://github.com/juspay/hyperswitch/compare/2026.07.10.0...2026.07.13.0)
+
+- - -
+
+## 2026.07.10.0
+
+### Bug Fixes
+
+- **connector:**
+  - [noon] gracefully handle unknown response enum variants and missing optional fields ([#13228](https://github.com/juspay/hyperswitch/pull/13228)) ([`3c4fee8`](https://github.com/juspay/hyperswitch/commit/3c4fee8eb3b3a66071a80495f305e4a8680e5e4b))
+  - [worldpayxml] gracefully handle unknown response enum variants and missing optional fields ([#13245](https://github.com/juspay/hyperswitch/pull/13245)) ([`c9e8b89`](https://github.com/juspay/hyperswitch/commit/c9e8b89ca7976ed730e02ebdef2cfbd1153201a9))
+- **connectors:** [stripe] gracefully handle unknown response enum variants and missing optional fields ([#13218](https://github.com/juspay/hyperswitch/pull/13218)) ([`a874f08`](https://github.com/juspay/hyperswitch/commit/a874f08ecf555872cb207ca8a6a2c8c084276ad8))
+- **payouts:** Route merchant-authentication (access-token) calls through the payout connector ([#13150](https://github.com/juspay/hyperswitch/pull/13150)) ([`f02f42c`](https://github.com/juspay/hyperswitch/commit/f02f42c45dcb6668b764733b0b5797e4ac7c564e))
+- **worldpayxml:** Allow hyphenated ids in DDC redirect regex ([#13217](https://github.com/juspay/hyperswitch/pull/13217)) ([`d738889`](https://github.com/juspay/hyperswitch/commit/d738889b43e7e52cf1ad985ad06af067b5fe123e))
+
+### Refactors
+
+- **connector:** [Paypal] gracefully handle unknown response enum variants and missing optional fields ([#13240](https://github.com/juspay/hyperswitch/pull/13240)) ([`e0f0081`](https://github.com/juspay/hyperswitch/commit/e0f0081e5f04785a6735eb01f35f50cca852e0b6))
+- **core:** Add support for disabling surcharge calculation if MCA is disabled ([#13224](https://github.com/juspay/hyperswitch/pull/13224)) ([`6382781`](https://github.com/juspay/hyperswitch/commit/638278140589fa92b4dbf3a8ff83d33d1677236e))
+- **storage_impl:** Move Conversion impl for business_profile to storage_impl crate ([#11806](https://github.com/juspay/hyperswitch/pull/11806)) ([`e5199cf`](https://github.com/juspay/hyperswitch/commit/e5199cff27ea463dbb71812f0aa35a9be1a39584))
+
+**Full Changelog:** [`2026.07.09.1...2026.07.10.0`](https://github.com/juspay/hyperswitch/compare/2026.07.09.1...2026.07.10.0)
+
+- - -
+
 ## 2026.07.09.1
 
 ### Bug Fixes
