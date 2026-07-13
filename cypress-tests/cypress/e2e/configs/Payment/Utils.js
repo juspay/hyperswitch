@@ -19,6 +19,7 @@ import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
 import { connectorDetails as calidaConnectorDetails } from "./Calida.js";
 import { connectorDetails as cashtocodeConnectorDetails } from "./Cashtocode.js";
+import { connectorDetails as chargebeeConnectorDetails } from "./Chargebee.js";
 import { connectorDetails as celeroConnectorDetails } from "./Celero.js";
 import { connectorDetails as checkbookConnectorDetails } from "./Checkbook.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
@@ -102,6 +103,7 @@ const connectorDetails = {
   braintree: braintreeConnectorDetails,
   calida: calidaConnectorDetails,
   cashtocode: cashtocodeConnectorDetails,
+  chargebee: chargebeeConnectorDetails,
   celero: celeroConnectorDetails,
   checkout: checkoutConnectorDetails,
   checkbook: checkbookConnectorDetails,

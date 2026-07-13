@@ -2006,24 +2006,18 @@ export const connectorDetails = {
   subscription_pm: {
     // These configs define the request/response expectations for subscription tests.
     // customer_id is dynamically populated by the createSubscriptionTest command from globalState.
-    // TODO: Remove TRIGGER_SKIP (and revert Response.status from 500 back to 200)
-    // once STRIPE_TEST_PRICE_ID env var is set with a valid Stripe test price.
-    // The skip is a known limitation — Create returns 500 when the price ID does
-    // not exist in the Stripe account.
     Create: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
-        customer_id: "", // Populated from globalState.get("customerId") in createSubscriptionTest
         item_price_id: stripeTestPriceId,
         payment_details: {
           return_url: "https://example.com/subscription/return",
-          payment_method_id: "", // Populated at runtime from globalState.get("paymentMethodId") by createSubscriptionTest command. Do NOT hardcode a value here.
         },
       },
       Response: {
-        status: 500,
+        status: 200,
+        body: {
+          status: "active",
+        },
       },
     }),
     CreateInvalidCustomer: getCustomExchange({
@@ -2032,7 +2026,6 @@ export const connectorDetails = {
         item_price_id: stripeTestPriceId,
         payment_details: {
           return_url: "https://example.com/subscription/return",
-          payment_method_id: "",
         },
       },
       Response: {
@@ -2048,6 +2041,7 @@ export const connectorDetails = {
     }),
     CreateMissingFields: getCustomExchange({
       Request: {
+        skip_dynamic_fields: true,
         description: "Test subscription missing required fields",
       },
       Response: {
@@ -2081,6 +2075,7 @@ export const connectorDetails = {
     }),
     Update: getCustomExchange({
       Request: {
+        plan_id: stripeTestPriceId,
         item_price_id: stripeTestPriceId,
       },
       Response: {
