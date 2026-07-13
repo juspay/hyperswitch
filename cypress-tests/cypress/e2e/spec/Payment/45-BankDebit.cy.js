@@ -5,8 +5,34 @@ import getConnectorDetails, {
   shouldIncludeConnector,
 } from "../../configs/Payment/Utils";
 import * as utils from "../../configs/Payment/Utils";
+import { isLocalhost } from "../../../utils/RequestBodyUtils";
 
 let globalState;
+
+function isVaultMarkedAvailable() {
+  const vaultAvailable = Cypress.env("VAULT_AVAILABLE");
+  return vaultAvailable === true || vaultAvailable === "true";
+}
+
+function skipIfLocalVaultUnavailable(testContext, testName, data) {
+  const connectorId = globalState.get("connectorId");
+  const baseUrl = globalState.get("baseUrl");
+  const localVaultRequired = data?.Configs?.LOCAL_VAULT_REQUIRED === true;
+
+  if (
+    !localVaultRequired ||
+    !isLocalhost(baseUrl) ||
+    isVaultMarkedAvailable()
+  ) {
+    return;
+  }
+
+  cy.task(
+    "cli_log",
+    `Skipping ${testName} for ${connectorId} on localhost. Set CYPRESS_VAULT_AVAILABLE=true when vault is available locally.`
+  );
+  testContext.skip();
+}
 
 describe("Bank Debit tests", () => {
   before("seed global state", function () {
@@ -66,7 +92,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm SEPA Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          cy.task("cli_log", "Skipping step: Confirm SEPA Bank Debit");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -112,6 +138,13 @@ describe("Bank Debit tests", () => {
   });
 
   context("ACH Bank Debit Create and Confirm flow test", () => {
+    before(function () {
+      const achData = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_debit_pm"
+      ]["Ach"];
+      skipIfLocalVaultUnavailable(this, "ACH Bank Debit tests", achData);
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm ACH Bank Debit -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -141,7 +174,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm ACH Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          cy.task("cli_log", "Skipping step: Confirm ACH Bank Debit");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -175,15 +208,32 @@ describe("Bank Debit tests", () => {
   });
 
   context("BECS Bank Debit Create and Confirm flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm BECS Bank Debit -> Retrieve Payment", () => {
+    before(function () {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_debit_pm"
+      ]["Becs"];
+      if (!utils.should_continue_further(data)) {
+        this.skip();
+      }
+    });
+
+    it("Create and Confirm BECS Bank Debit -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent for BECS", () => {
+      cy.step("Create and Confirm BECS Bank Debit", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
-        ]["PaymentIntent"]("Becs");
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+        ]["Becs"];
+        if (!utils.should_continue_further(data)) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Create and Confirm BECS Bank Debit"
+          );
+          shouldContinue = false;
+          return;
+        }
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
           data,
           "no_three_ds",
           "automatic",
@@ -194,45 +244,15 @@ describe("Bank Debit tests", () => {
         }
       });
 
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
-        cy.paymentMethodsCallTest(globalState);
-      });
-
-      cy.step("Confirm BECS Bank Debit", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "bank_debit_pm"
-        ]["Becs"];
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
-      });
-
       cy.step("Retrieve Payment", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["Becs"];
-        cy.retrievePaymentCallTest({ globalState, data: confirmData });
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
+        cy.retrievePaymentCallTest({ globalState, data: data });
       });
     });
   });
@@ -267,7 +287,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm BACS Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          cy.task("cli_log", "Skipping step: Confirm BACS Bank Debit");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -296,6 +316,245 @@ describe("Bank Debit tests", () => {
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
+      });
+    });
+  });
+
+  context("SEPA Bank Debit Mandate flow test", () => {
+    it("CIT mandate creation -> MIT mandate reuse for SEPA", () => {
+      let shouldContinue = true;
+
+      cy.step("CIT mandate creation for SEPA", () => {
+        // citForMandatesCallTest params: requestBody, data, amount, confirm, capture_method, payment_type, globalState
+        // data contains connector-specific Request (amount, currency, bank details) and Response (expected status)
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MandateSingleUseSepa"];
+        if (!utils.should_continue_further(data)) {
+          cy.task("cli_log", "Skipping step: CIT mandate creation for SEPA");
+          shouldContinue = false;
+          return;
+        }
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          data.Request.amount,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("MIT mandate reuse for SEPA", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: MIT mandate reuse for SEPA");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MITAutoCaptureSepa"];
+        cy.mitForMandatesCallTest(
+          fixtures.mitConfirmBody,
+          data,
+          data.Request.amount,
+          true,
+          "automatic",
+          globalState
+        );
+      });
+    });
+  });
+
+  context("BECS Bank Debit Mandate flow test", () => {
+    before(function () {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_debit_pm"
+      ]["MandateSingleUseBecs"];
+      if (!utils.should_continue_further(data)) {
+        this.skip();
+      }
+    });
+
+    it("CIT mandate creation -> MIT mandate reuse for BECS", () => {
+      let shouldContinue = true;
+
+      cy.step("CIT mandate creation for BECS", () => {
+        // citForMandatesCallTest parameter mapping:
+        // 1. fixtures.citConfirmBody -> requestBody (base template with default mandate fields)
+        // 2. data -> data object from connector config containing Request and Response
+        // 3. data.Request.amount -> amount (payment amount in cents, e.g., 8000 = $80.00)
+        // 4. true -> confirm (whether to confirm payment immediately)
+        // 5. "automatic" -> capture_method (how to capture funds: automatic/manual)
+        // 6. "new_mandate" -> payment_type (creates new mandate for bank debit)
+        // 7. globalState -> globalState (shared state to store payment_id, mandate_id)
+        //
+        // data structure comes from Adyen.js/Stripe.js bank_debit_pm config:
+        // data.Request: {payment_method, payment_method_type, payment_method_data, billing, mandate_data, ...}
+        // data.Response: {status: "processing"} - expected API response status
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MandateSingleUseBecs"];
+        if (!utils.should_continue_further(data)) {
+          cy.task("cli_log", "Skipping step: CIT mandate creation for BECS");
+          shouldContinue = false;
+          return;
+        }
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          data.Request.amount,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("MIT mandate reuse for BECS", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: MIT mandate reuse for BECS");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MITAutoCaptureBecs"];
+        cy.mitForMandatesCallTest(
+          fixtures.mitConfirmBody,
+          data,
+          data.Request.amount,
+          true,
+          "automatic",
+          globalState
+        );
+      });
+    });
+  });
+
+  context("ACH Bank Debit Mandate flow test", () => {
+    before(function () {
+      const mandateData = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_debit_pm"
+      ]["MandateSingleUseAch"];
+      skipIfLocalVaultUnavailable(
+        this,
+        "ACH Bank Debit Mandate tests",
+        mandateData
+      );
+    });
+
+    it("CIT mandate creation -> MIT mandate reuse for ACH", () => {
+      let shouldContinue = true;
+
+      cy.step("CIT mandate creation for ACH", () => {
+        // citForMandatesCallTest params: requestBody, data, amount, confirm, capture_method, payment_type, globalState
+        // data contains connector-specific Request (amount, currency, bank details) and Response (expected status)
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MandateSingleUseAch"];
+        if (!utils.should_continue_further(data)) {
+          cy.task("cli_log", "Skipping step: CIT mandate creation for ACH");
+          shouldContinue = false;
+          return;
+        }
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          data.Request.amount,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Verify ACH microdeposits for mandate", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Verify ACH microdeposits for mandate"
+          );
+          return;
+        }
+        cy.verifyAchMicrodepositCallTest(globalState);
+      });
+
+      cy.step("MIT mandate reuse for ACH", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: MIT mandate reuse for ACH");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MITAutoCaptureAch"];
+        cy.mitForMandatesCallTest(
+          fixtures.mitConfirmBody,
+          data,
+          data.Request.amount,
+          true,
+          "automatic",
+          globalState
+        );
+      });
+    });
+  });
+
+  context("BACS Bank Debit Mandate flow test", () => {
+    it("CIT mandate creation -> MIT mandate reuse for BACS", () => {
+      let shouldContinue = true;
+
+      cy.step("CIT mandate creation for BACS", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MandateSingleUseBacs"];
+        if (!utils.should_continue_further(data)) {
+          cy.task("cli_log", "Skipping step: CIT mandate creation for BACS");
+          shouldContinue = false;
+          return;
+        }
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          data.Request.amount,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("MIT mandate reuse for BACS", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: MIT mandate reuse for BACS");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MITAutoCaptureBacs"];
+        if (!utils.should_continue_further(data)) {
+          cy.task("cli_log", "Skipping step: MIT mandate reuse for BACS");
+          return;
+        }
+        cy.mitForMandatesCallTest(
+          fixtures.mitConfirmBody,
+          data,
+          data.Request.amount,
+          true,
+          "automatic",
+          globalState
+        );
       });
     });
   });

@@ -669,6 +669,20 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    /// Check if connector should be called for UpdatePostConfirm
+    fn should_call_connector_for_update_post_confirm(
+        &self,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+        intent_status: common_enums::IntentStatus,
+    ) -> bool {
+        match self {
+            Self::Old(connector) => connector
+                .should_call_connector_for_update_post_confirm(payment_method_type, intent_status),
+            Self::New(connector) => connector
+                .should_call_connector_for_update_post_confirm(payment_method_type, intent_status),
+        }
+    }
+
     /// Check if connector supports authentication token
     fn authentication_token_for_token_creation(&self) -> bool {
         match self {
@@ -842,6 +856,17 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.get_api_webhook_config(),
             Self::New(connector) => connector.get_api_webhook_config(),
+        }
+    }
+}
+
+impl ConnectorEnum {
+    /// Whether the connector requires a separate HMAC generation call after registering the
+    /// webhook. Defaults to `false` for connectors that don't override it.
+    pub fn requires_webhook_secret_generation(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.requires_webhook_secret_generation(),
+            Self::New(connector) => connector.requires_webhook_secret_generation(),
         }
     }
 }

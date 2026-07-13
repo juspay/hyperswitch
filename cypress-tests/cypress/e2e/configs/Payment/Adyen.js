@@ -2016,9 +2016,493 @@ export const connectorDetails = {
         },
       },
     }),
+    AutoCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "automatic",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    ManualCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "manual",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+        capture_method: "manual",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Refund: getCustomExchange({
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    }),
+    PartialRefund: getCustomExchange({
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    }),
+    SyncRefund: getCustomExchange({}),
     Capture: getCustomExchange({
       Request: {
         amount_to_capture: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          amount: 6000,
+          amount_capturable: 6000,
+          amount_received: null,
+        },
+      },
+    }),
+    AtomeAutoCapture: getCustomExchange({
+      Request: {
+        currency: "SGD",
+        capture_method: "automatic",
+        customer_acceptance: {
+          acceptance_type: "online",
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+        billing: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Unit 4",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "91234567",
+            country_code: "+65",
+          },
+          email: "test@test.com",
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Unit 4",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Atome: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "atome",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            atome_redirect: {},
+          },
+        },
+        customer_acceptance: {
+          acceptance_type: "online",
+        },
+        billing: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Unit 4",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "91234567",
+            country_code: "+65",
+          },
+          email: "test@test.com",
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Unit 4",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    AfterpayClearpayAutoCapture: getCustomExchange({
+      Request: {
+        currency: "GBP",
+        capture_method: "automatic",
+        billing: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Test City",
+            zip: "12345",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@test.com",
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    AfterpayClearpay: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "afterpay_clearpay",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            afterpay_clearpay_redirect: {},
+          },
+        },
+        currency: "GBP",
+        billing: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Test City",
+            zip: "12345",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@test.com",
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    AlmaAutoCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "automatic",
+        billing: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Test City",
+            zip: "12345",
+            country: "FR",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@test.com",
+          phone: {
+            number: "612345678",
+            country_code: "+33",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Alma: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "alma",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            alma_redirect: {},
+          },
+        },
+        currency: "EUR",
+        billing: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Test City",
+            zip: "12345",
+            country: "FR",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@test.com",
+          phone: {
+            number: "612345678",
+            country_code: "+33",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    WalleyAutoCapture: getCustomExchange({
+      Request: {
+        currency: "SEK",
+        capture_method: "automatic",
+        billing: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Test City",
+            zip: "12345",
+            country: "SE",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@test.com",
+          phone: {
+            number: "9123456789",
+            country_code: "+46",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Walley: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "walley",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            walley_redirect: {},
+          },
+        },
+        currency: "SEK",
+        billing: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Test City",
+            zip: "12345",
+            country: "SE",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@test.com",
+          phone: {
+            number: "9123456789",
+            country_code: "+46",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    CaptureOnWrongStatus: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially_captured_and_capturable, processing",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    ConfirmWithoutPmData: getCustomExchange({
+      Request: {
+        payment_method: undefined,
+        payment_method_type: undefined,
+        payment_experience: undefined,
+        payment_method_data: undefined,
+        order_details: undefined,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_06",
+          },
+        },
       },
     }),
   },
@@ -2718,44 +3202,16 @@ export const connectorDetails = {
 
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
-      if (paymentMethodType === "Ach") {
-        return {
-          Configs: {
-            TRIGGER_SKIP: true,
-          },
-          Request: {
-            currency: "USD",
-            setup_future_usage: "off_session",
-          },
-          Response: {
-            status: 200,
-            body: {
-              status: "requires_payment_method",
-            },
-          },
-        };
-      }
-      if (paymentMethodType === "Sepa") {
-        return {
-          Request: {
-            currency: "EUR",
-          },
-          Response: {
-            status: 200,
-            body: {
-              status: "requires_payment_method",
-            },
-          },
-        };
-      }
-      const currencyMap = {
-        Becs: "AUD",
-        Bacs: "GBP",
-      };
+      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
       return {
+        ...(paymentMethodType === "Ach"
+          ? { Configs: { TRIGGER_SKIP: true } }
+          : {}),
         Request: {
           currency: currencyMap[paymentMethodType] || "USD",
-          setup_future_usage: "off_session",
+          ...(paymentMethodType !== "Sepa"
+            ? { setup_future_usage: "off_session" }
+            : {}),
         },
         Response: {
           status: 200,
@@ -2789,6 +3245,7 @@ export const connectorDetails = {
             first_name: "John",
             last_name: "Doe",
           },
+          email: "test@example.com",
         },
         customer_acceptance: customerAcceptance,
       },
@@ -2799,18 +3256,61 @@ export const connectorDetails = {
         },
       },
     },
-    Ach: {
-      Configs: {
-        TRIGGER_SKIP: true,
+    SepaMandate: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "John Doe",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Amsterdam",
+            state: "North Holland",
+            zip: "1012",
+            country: "NL",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        customer_acceptance: customerAcceptance,
+        setup_future_usage: "off_session",
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "EUR",
+            },
+          },
+        },
+        payment_type: "new_mandate",
+        currency: "EUR",
       },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    Ach: {
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "ach",
         payment_method_data: {
           bank_debit: {
             ach_bank_debit: {
-              account_number: "000123456789",
-              routing_number: "121000358",
+              account_number: "1234567890",
+              routing_number: "011000138",
               bank_type: "checking",
               bank_account_holder_name: "John Doe",
             },
@@ -2822,24 +3322,16 @@ export const connectorDetails = {
             line2: "Harrison Street",
             line3: "Harrison Street",
             city: "San Francisco",
-            state: "California",
+            state: "CA",
             zip: "94122",
             country: "US",
             first_name: "John",
             last_name: "Doe",
           },
+          email: "test@example.com",
         },
         customer_acceptance: customerAcceptance,
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            multi_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
-        payment_type: "new_mandate",
+        currency: "USD",
       },
       Response: {
         status: 200,
@@ -2873,6 +3365,7 @@ export const connectorDetails = {
             first_name: "John",
             last_name: "Doe",
           },
+          email: "test@example.com",
         },
         customer_acceptance: customerAcceptance,
         mandate_data: {
@@ -2885,6 +3378,7 @@ export const connectorDetails = {
           },
         },
         payment_type: "new_mandate",
+        currency: "GBP",
       },
       Response: {
         status: 200,
@@ -2921,6 +3415,18 @@ export const connectorDetails = {
             message: "Selected payment method through Adyen is not implemented",
             code: "IR_00",
           },
+        },
+      },
+    },
+    BankdebitMIT: {
+      Request: {
+        currency: "EUR",
+        off_session: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },

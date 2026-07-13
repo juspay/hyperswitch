@@ -1,0 +1,158 @@
+use async_trait::async_trait;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
+
+use super::ConstructFlowSpecificData;
+use crate::{
+    core::{
+        errors::{ConnectorErrorExt, RouterResult},
+        payments::{self, access_token, helpers, transformers, Feature, PaymentData},
+    },
+    routes::SessionState,
+    services,
+    types::{self, api, domain},
+};
+
+#[async_trait]
+impl
+    ConstructFlowSpecificData<
+        api::UpdatePostConfirm,
+        types::PaymentsUpdatePostConfirmData,
+        types::PaymentsResponseData,
+    > for PaymentData<api::UpdatePostConfirm>
+{
+    #[cfg(feature = "v1")]
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        processor: &domain::Processor,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _merchant_recipient_data: Option<types::MerchantRecipientData>,
+        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _payment_method: Option<common_enums::PaymentMethod>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
+    ) -> RouterResult<types::PaymentsUpdatePostConfirmRouterData> {
+        Box::pin(
+            transformers::construct_payment_router_data_for_update_post_confirm(
+                state,
+                self.clone(),
+                connector_id,
+                processor,
+                merchant_connector_account,
+            ),
+        )
+        .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        processor: &domain::Processor,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<types::PaymentsUpdatePostConfirmRouterData> {
+        todo!()
+    }
+}
+
+#[async_trait]
+impl Feature<api::UpdatePostConfirm, types::PaymentsUpdatePostConfirmData>
+    for types::RouterData<
+        api::UpdatePostConfirm,
+        types::PaymentsUpdatePostConfirmData,
+        types::PaymentsResponseData,
+    >
+{
+    async fn decide_flows<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        call_connector_action: payments::CallConnectorAction,
+        connector_request: Option<services::Request>,
+        _business_profile: &domain::Profile,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        return_raw_connector_response: Option<bool>,
+        _gateway_context: payments::gateway::context::RouterGatewayContext,
+    ) -> RouterResult<Self> {
+        let should_call_connector = connector
+            .connector
+            .should_call_connector_for_update_post_confirm(
+                self.payment_method_type,
+                self.status.into(),
+            );
+
+        if !should_call_connector {
+            return Ok(self);
+        }
+
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+            api::UpdatePostConfirm,
+            types::PaymentsUpdatePostConfirmData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &self,
+            call_connector_action,
+            connector_request,
+            return_raw_connector_response,
+        )
+        .await
+        .to_payment_failed_response()?;
+        Ok(resp)
+    }
+
+    async fn add_access_token<'a>(
+        &self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        _processor: &domain::Processor,
+        creds_identifier: Option<&str>,
+        gateway_context: &payments::gateway::context::RouterGatewayContext,
+    ) -> RouterResult<types::AddAccessTokenResult> {
+        let current_flow = Some(
+            hyperswitch_interfaces::api::CurrentFlowInfo::UpdatePostConfirm {
+                request_data: Box::new(self.request.clone()),
+            },
+        );
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            self,
+            creds_identifier,
+            gateway_context,
+            current_flow,
+        ))
+        .await
+    }
+
+    async fn build_flow_specific_connector_request(
+        &mut self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        call_connector_action: payments::CallConnectorAction,
+    ) -> RouterResult<(Option<services::Request>, bool)> {
+        let request = match call_connector_action {
+            payments::CallConnectorAction::Trigger => {
+                let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+                    api::UpdatePostConfirm,
+                    types::PaymentsUpdatePostConfirmData,
+                    types::PaymentsResponseData,
+                > = connector.connector.get_connector_integration();
+
+                connector_integration
+                    .build_request(self, &state.conf.connectors)
+                    .to_payment_failed_response()?
+            }
+            _ => None,
+        };
+
+        Ok((request, true))
+    }
+}

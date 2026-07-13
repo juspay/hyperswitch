@@ -15,13 +15,13 @@ use common_utils::{
     ext_traits::Encode,
     types::{self, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
-use diesel_models::enums as storage_enums;
+use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
     mandates,
     mandates::{MandateData, MandateDataType},
-    router_data::{AccessToken, ErrorResponse, RouterData},
+    router_data::{AccessToken, ErrorResponse, L2L3Data, RouterData},
     router_flow_types::{
         payments::{Authorize, Capture, PSync, PreAuthorizeVoid, SetupMandate},
         refunds::{Execute, RSync},
@@ -35,8 +35,10 @@ use hyperswitch_domain_models::{
         SetupMandateRequestData, SyncRequestType,
     },
     router_response_types::{
-        PaymentsResponseData, PayoutsResponseData, RedirectForm, RefundsResponseData,
+        NotifyConnectorResponseData, PaymentsResponseData, PayoutsResponseData, RedirectForm,
+        RefundsResponseData,
     },
+    ApiModelToDieselModelConvertor,
 };
 pub use hyperswitch_interfaces::{
     helpers::ForeignTryFrom,
@@ -62,6 +64,130 @@ use crate::{
 const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
+
+impl ForeignFrom<common_enums::ProductType> for payments_grpc::ProductType {
+    fn foreign_from(product_type: common_enums::ProductType) -> Self {
+        match product_type {
+            common_enums::ProductType::Physical => Self::Physical,
+            common_enums::ProductType::Digital => Self::Digital,
+            common_enums::ProductType::Travel => Self::Travel,
+            common_enums::ProductType::Ride => Self::Ride,
+            common_enums::ProductType::Event => Self::Event,
+            common_enums::ProductType::Accommodation => Self::Accommodation,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::TaxStatus> for payments_grpc::TaxStatus {
+    fn foreign_from(tax_status: common_enums::TaxStatus) -> Self {
+        match tax_status {
+            common_enums::TaxStatus::Taxable => Self::Taxable,
+            common_enums::TaxStatus::Exempt => Self::Exempt,
+        }
+    }
+}
+
+fn build_ucs_order_details(
+    order_details: Option<&[OrderDetailsWithAmount]>,
+) -> Vec<payments_grpc::OrderDetailsWithAmount> {
+    order_details
+        .map(|details| {
+            details
+                .iter()
+                .map(|detail| payments_grpc::OrderDetailsWithAmount {
+                    product_name: detail.product_name.clone(),
+                    quantity: u32::from(detail.quantity),
+                    amount: detail.amount.get_amount_as_i64(),
+                    tax_rate: detail.tax_rate,
+                    total_tax_amount: detail
+                        .total_tax_amount
+                        .map(|amount| amount.get_amount_as_i64()),
+                    requires_shipping: detail.requires_shipping,
+                    product_img_link: detail.product_img_link.clone(),
+                    product_id: detail.product_id.clone(),
+                    category: detail.category.clone(),
+                    sub_category: detail.sub_category.clone(),
+                    brand: detail.brand.clone(),
+                    description: detail.description.clone(),
+                    unit_of_measure: detail.unit_of_measure.clone(),
+                    product_type: detail.product_type.clone().map(|product_type| {
+                        payments_grpc::ProductType::foreign_from(product_type).into()
+                    }),
+                    product_tax_code: detail.product_tax_code.clone(),
+                    sku: detail.sku.clone(),
+                    upc: detail.upc.clone(),
+                    commodity_code: detail.commodity_code.clone(),
+                    unit_discount_amount: detail
+                        .unit_discount_amount
+                        .map(|amount| amount.get_amount_as_i64()),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::L2l3Data> {
+    let order_details = l2_l3_data
+        .and_then(|data| data.get_order_details())
+        .map(|details| {
+            let order_details = details
+                .into_iter()
+                .map(OrderDetailsWithAmount::convert_from)
+                .collect::<Vec<_>>();
+            build_ucs_order_details(Some(order_details.as_slice()))
+        })
+        .unwrap_or_default();
+    let merchant_order_reference_id =
+        l2_l3_data.and_then(|data| data.get_merchant_order_reference_id());
+    let order_date = l2_l3_data
+        .and_then(|data| data.get_order_date())
+        .map(|date| date.assume_utc().unix_timestamp());
+    let discount_amount = l2_l3_data.and_then(|data| data.get_discount_amount());
+    let shipping_cost = l2_l3_data.and_then(|data| data.get_shipping_cost());
+    let duty_amount = l2_l3_data.and_then(|data| data.get_duty_amount());
+    let shipping_amount_tax = l2_l3_data.and_then(|data| data.get_shipping_amount_tax());
+    let tax_status = l2_l3_data.and_then(|data| data.get_tax_status());
+    let order_tax_amount = l2_l3_data.and_then(|data| data.get_order_tax_amount());
+    let customer_tax_registration_id = l2_l3_data
+        .and_then(|data| data.get_customer_tax_registration_id())
+        .map(|tax_id| tax_id.peek().to_owned().into());
+    let merchant_tax_registration_id = l2_l3_data
+        .and_then(|data| data.get_merchant_tax_registration_id())
+        .map(|tax_id| tax_id.peek().to_owned().into());
+
+    let order_info = l2_l3_data
+        .and_then(|data| data.order_info.as_ref())
+        .is_some_and(|order_info| !order_info.is_empty())
+        .then_some(payments_grpc::OrderInfo {
+            order_date,
+            order_details,
+            merchant_order_reference_id,
+            discount_amount: discount_amount.map(|amount| amount.get_amount_as_i64()),
+            shipping_cost: shipping_cost.map(|amount| amount.get_amount_as_i64()),
+            duty_amount: duty_amount.map(|amount| amount.get_amount_as_i64()),
+        });
+
+    let tax_info = l2_l3_data
+        .and_then(|data| data.tax_info.as_ref())
+        .is_some_and(|tax_info| !tax_info.is_empty())
+        .then_some(payments_grpc::TaxInfo {
+            tax_status: tax_status
+                .map(|tax_status| payments_grpc::TaxStatus::foreign_from(tax_status).into()),
+            customer_tax_registration_id,
+            merchant_tax_registration_id,
+            shipping_amount_tax: shipping_amount_tax.map(|amount| amount.get_amount_as_i64()),
+            order_tax_amount: order_tax_amount.map(|tax| tax.get_amount_as_i64()),
+        });
+
+    if order_info.is_none() && tax_info.is_none() {
+        None
+    } else {
+        Some(payments_grpc::L2l3Data {
+            order_info,
+            tax_info,
+        })
+    }
+}
 
 pub fn build_upi_wait_screen_data(
 ) -> Result<serde_json::Value, error_stack::Report<UnifiedConnectorServiceError>> {
@@ -295,7 +421,8 @@ impl
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
-
+        let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
+        let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
             split_payments: router_data
                 .request
@@ -387,7 +514,7 @@ impl
                 .billing_descriptor
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
-            order_details: vec![],
+            order_details,
             enable_partial_authorization: router_data
                 .request
                 .enable_partial_authorization
@@ -414,7 +541,7 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
-            l2_l3_data: None,
+            l2_l3_data,
             merchant_request_id: None,
             partner_merchant_identifier_details: router_data
                 .request
@@ -608,7 +735,17 @@ impl
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
             order_details: vec![],
-            connector_feature_data: None,
+            // Forward the connector metadata stored at Authorize (which holds the
+            // Paysafe paymentHandleToken) so CompleteAuthorize can settle the handle.
+            // Mirrors the PSync request builder.
+            connector_feature_data: router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                .map(|s| s.into()),
             enable_partial_authorization: None,
             payment_channel: None,
             billing_descriptor: None,
@@ -826,6 +963,68 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 .map(payments_grpc::PaymentMethodType::foreign_try_from)
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
+            mandate_reference: Option::<payments_grpc::ConnectorMandateReferenceId>::foreign_from(
+                router_data,
+            ),
+        })
+    }
+}
+
+impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
+    for payments_grpc::ConnectorMandateReferenceId
+{
+    fn foreign_from(value: &mandates::ConnectorMandateReferenceId) -> Self {
+        Self {
+            connector_mandate_id: value.get_connector_mandate_id(),
+            payment_method_id: value.get_payment_method_id(),
+            connector_mandate_request_reference_id: value
+                .get_connector_mandate_request_reference_id(),
+            mandate_metadata: value.get_mandate_metadata().map(|mandate_metadata| {
+                Secret::new(serde_json::to_string(&mandate_metadata.expose()).unwrap_or_default())
+            }),
+        }
+    }
+}
+
+impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
+    for Option<payments_grpc::ConnectorMandateReferenceId>
+{
+    fn foreign_from(
+        router_data: &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+    ) -> Self {
+        let structured = router_data.request.mandate_id.as_ref().and_then(|m| {
+            match m.mandate_reference_id.as_ref()? {
+                mandates::MandateReferenceId::ConnectorMandateId(r) => Some(r),
+                _ => None,
+            }
+        });
+
+        let connector_mandate_id = structured
+            .and_then(|r| r.get_connector_mandate_id())
+            .or_else(|| router_data.connector_mandate_request_reference_id.clone());
+        let payment_method_id = structured.and_then(|r| r.get_payment_method_id());
+        let connector_mandate_request_reference_id =
+            structured.and_then(|r| r.get_connector_mandate_request_reference_id());
+
+        if connector_mandate_id.is_none()
+            && payment_method_id.is_none()
+            && connector_mandate_request_reference_id.is_none()
+        {
+            return None;
+        }
+        Some(payments_grpc::ConnectorMandateReferenceId {
+            connector_mandate_id,
+            payment_method_id,
+            connector_mandate_request_reference_id,
+            mandate_metadata: structured
+                .and_then(|connector_mandate_reference_id| {
+                    connector_mandate_reference_id.get_mandate_metadata()
+                })
+                .map(|mandate_metadata| {
+                    Secret::new(
+                        serde_json::to_string(&mandate_metadata.expose()).unwrap_or_default(),
+                    )
+                }),
         })
     }
 }
@@ -1003,6 +1202,8 @@ impl
                 .transpose()?,
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
+            webhook_url: None,
+            domain_data: None,
         })
     }
 }
@@ -1187,6 +1388,7 @@ impl
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
+            merchant_transaction_id: None,
         })
     }
 }
@@ -1259,7 +1461,17 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
-            order_tax_amount: None,
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsDetails::foreign_from),
+            order_tax_amount: router_data.request.order_tax_amount.map(|amount| {
+                payments_grpc::Money {
+                    minor_amount: amount.get_amount_as_i64(),
+                    currency: currency.into(),
+                }
+            }),
         })
     }
 }
@@ -1483,7 +1695,8 @@ impl
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
-
+        let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
+        let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
             split_payments: router_data
                 .request
@@ -1574,7 +1787,7 @@ impl
                 .billing_descriptor
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
-            order_details: vec![],
+            order_details,
             connector_feature_data: None,
             enable_partial_authorization: router_data
                 .request
@@ -1602,7 +1815,7 @@ impl
             redirection_response: None,
             continue_redirection_url: None,
             connector_order_id: None,
-            l2_l3_data: None,
+            l2_l3_data,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
         })
@@ -1869,7 +2082,12 @@ impl
             address: Some(address),
             auth_type: auth_type.into(),
             enrolled_for_3ds: false,
-            authentication_data: None,
+            authentication_data: router_data
+                .request
+                .authentication_data
+                .clone()
+                .map(payments_grpc::AuthenticationData::foreign_try_from)
+                .transpose()?,
             metadata: router_data
                 .request
                 .metadata
@@ -1972,6 +2190,14 @@ impl
                                     payment_method_id: connector_mandate_id.get_payment_method_id(),
                                     connector_mandate_request_reference_id: connector_mandate_id
                                         .get_connector_mandate_request_reference_id(),
+                                    mandate_metadata: connector_mandate_id
+                                        .get_mandate_metadata()
+                                        .map(|mandate_metadata| {
+                                            Secret::new(
+                                                serde_json::to_string(&mandate_metadata.expose())
+                                                    .unwrap_or_default(),
+                                            )
+                                        }),
                                 },
                             ),
                         ),
@@ -1981,7 +2207,14 @@ impl
                     Some(payments_grpc::MandateReference {
                         mandate_id_type: Some(
                             payments_grpc::mandate_reference::MandateIdType::NetworkMandateId(
-                                network_mandate_id.network_transaction_id.clone(),
+                                payments_grpc::NetworkMandateId {
+                                    network_transaction_id: network_mandate_id
+                                        .network_transaction_id
+                                        .clone(),
+                                    transaction_link_id: network_mandate_id
+                                        .transaction_link_id
+                                        .clone(),
+                                },
                             ),
                         ),
                     })
@@ -2002,6 +2235,9 @@ impl
                                         .token_exp_year
                                         .clone()
                                         .map(|exp| exp.expose().into()),
+                                    transaction_link_id: network_token_with_nti
+                                        .transaction_link_id
+                                        .clone(),
                                 },
                             ),
                         ),
@@ -2057,6 +2293,9 @@ impl
             .map(|additional_payment_data| {
                 payments_grpc::AdditionalPaymentData::foreign_from(additional_payment_data)
             });
+
+        let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)?;
+
         Ok(Self {
             split_payments: router_data
                 .request
@@ -2178,6 +2417,7 @@ impl
                         }
                     }),
                 }),
+            auth_type: Some(auth_type.into()),
         })
     }
 }
@@ -2604,7 +2844,7 @@ impl
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(redirection_data),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
@@ -2711,7 +2951,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: None,
                     network_txn_link_id: None,
@@ -2905,7 +3145,7 @@ impl
                             .map(RedirectForm::foreign_try_from)
                             .transpose()?,
                     ),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id,
                     network_txn_link_id: None,
@@ -3021,7 +3261,7 @@ impl
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: None,
@@ -3127,147 +3367,6 @@ impl transformers::ForeignTryFrom<common_enums::Currency> for payments_grpc::Cur
             )
             .into()
         })
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::PaymentChargeType>
-    for common_enums::PaymentChargeType
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        charge_type: payments_grpc::PaymentChargeType,
-    ) -> Result<Self, Self::Error> {
-        match charge_type {
-            payments_grpc::PaymentChargeType::StripeDirect => {
-                Ok(Self::Stripe(common_enums::StripeChargeType::Direct))
-            }
-            payments_grpc::PaymentChargeType::StripeDestination => {
-                Ok(Self::Stripe(common_enums::StripeChargeType::Destination))
-            }
-            payments_grpc::PaymentChargeType::Unspecified => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::ParsingFailed,
-            )
-            .attach_printable("Received unspecified PaymentChargeType from gRPC")),
-        }
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::AdyenSplitType> for common_enums::AdyenSplitType {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(split_type: payments_grpc::AdyenSplitType) -> Result<Self, Self::Error> {
-        match split_type {
-            payments_grpc::AdyenSplitType::Unspecified => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::ParsingFailed,
-            )
-            .attach_printable("Received unspecified AdyenSplitType from gRPC")),
-            payments_grpc::AdyenSplitType::BalanceAccount => Ok(Self::BalanceAccount),
-            payments_grpc::AdyenSplitType::AcquiringFees => Ok(Self::AcquiringFees),
-            payments_grpc::AdyenSplitType::PaymentFee => Ok(Self::PaymentFee),
-            payments_grpc::AdyenSplitType::AdyenFees => Ok(Self::AdyenFees),
-            payments_grpc::AdyenSplitType::AdyenCommission => Ok(Self::AdyenCommission),
-            payments_grpc::AdyenSplitType::AdyenMarkup => Ok(Self::AdyenMarkup),
-            payments_grpc::AdyenSplitType::Interchange => Ok(Self::Interchange),
-            payments_grpc::AdyenSplitType::SchemeFee => Ok(Self::SchemeFee),
-            payments_grpc::AdyenSplitType::Commission => Ok(Self::Commission),
-            payments_grpc::AdyenSplitType::TopUp => Ok(Self::TopUp),
-            payments_grpc::AdyenSplitType::Vat => Ok(Self::Vat),
-        }
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::AdyenSplitItem>
-    for common_types::domain::AdyenSplitItem
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(item: payments_grpc::AdyenSplitItem) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.map(MinorUnit::new),
-            split_type: common_enums::AdyenSplitType::foreign_try_from(
-                payments_grpc::AdyenSplitType::try_from(item.split_type).map_err(|_| {
-                    error_stack::Report::new(UnifiedConnectorServiceError::ParsingFailed)
-                        .attach_printable(format!(
-                            "Invalid AdyenSplitType value: {}",
-                            item.split_type
-                        ))
-                })?,
-            )?,
-            account: item.account,
-            reference: item.reference,
-            description: item.description,
-        })
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::AdyenSplitData>
-    for common_types::domain::AdyenSplitData
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(data: payments_grpc::AdyenSplitData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            store: data.store,
-            split_items: data
-                .split_items
-                .into_iter()
-                .map(common_types::domain::AdyenSplitItem::foreign_try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-        })
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::StripeSplitResponseData>
-    for common_types::payments::StripeChargeResponseData
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        stripe: payments_grpc::StripeSplitResponseData,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            charge_id: stripe.charge_id,
-            charge_type: common_enums::PaymentChargeType::foreign_try_from(
-                payments_grpc::PaymentChargeType::try_from(stripe.charge_type).map_err(|_| {
-                    error_stack::Report::new(UnifiedConnectorServiceError::ParsingFailed)
-                        .attach_printable(format!(
-                            "Invalid PaymentChargeType value: {:?}",
-                            stripe.charge_type
-                        ))
-                })?,
-            )?,
-            application_fees: stripe.application_fees.map(MinorUnit::new),
-            transfer_account_id: stripe.transfer_account_id,
-            on_behalf_of: stripe.on_behalf_of,
-        })
-    }
-}
-
-impl transformers::ForeignTryFrom<payments_grpc::ConnectorSplitResponseData>
-    for common_types::payments::ConnectorChargeResponseData
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        split_data: payments_grpc::ConnectorSplitResponseData,
-    ) -> Result<Self, Self::Error> {
-        match split_data.split_response_type {
-            Some(payments_grpc::connector_split_response_data::SplitResponseType::StripeSplitResponse(stripe)) => {
-                Ok(Self::StripeSplitPayment(
-                    common_types::payments::StripeChargeResponseData::foreign_try_from(stripe)?,
-                ))
-            }
-            Some(payments_grpc::connector_split_response_data::SplitResponseType::AdyenSplitResponse(adyen)) => {
-                Ok(Self::AdyenSplitPayment(
-                    common_types::domain::AdyenSplitData::foreign_try_from(adyen)?,
-                ))
-            }
-            None => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::ParsingFailed,
-            )
-            .attach_printable("ConnectorSplitResponseData has no split_response_type")),
-        }
     }
 }
 
@@ -3403,6 +3502,7 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::RevolutPay => Ok(Self::RevolutPay),
             common_enums::PaymentMethodType::NetworkToken => Ok(Self::NetworkToken),
             common_enums::PaymentMethodType::OpenBanking => Ok(Self::OpenBanking),
+            common_enums::PaymentMethodType::Skrill => Ok(Self::Skrill),
             _ => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Payment Method Type not yet supported".to_string(),
@@ -4347,7 +4447,10 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
                 .message_version
                 .map(|message_version| message_version.to_string()),
             ds_transaction_id: authentication_data.ds_trans_id,
-            trans_status: None,
+            trans_status: authentication_data
+                .transaction_status
+                .map(payments_grpc::TransactionStatus::foreign_from)
+                .map(i32::from),
             acs_transaction_id: authentication_data.acs_trans_id,
             connector_transaction_id: None,
             ucaf_collection_indicator: None,
@@ -4359,6 +4462,17 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
                 .cb_network_params
                 .map(payments_grpc::NetworkParams::foreign_try_from)
                 .transpose()?,
+            created_at: Some(authentication_data.created_at.assume_utc().unix_timestamp()),
+            challenge_code: authentication_data.challenge_code,
+            challenge_cancel: authentication_data.challenge_cancel,
+            challenge_code_reason: authentication_data.challenge_code_reason,
+            message_extension: authentication_data
+                .message_extension
+                .map(|message_extension| message_extension.expose().to_string()),
+            authentication_type: authentication_data
+                .authentication_type
+                .map(payments_grpc::DecoupledAuthenticationType::foreign_from)
+                .map(i32::from),
         })
     }
 }
@@ -4388,6 +4502,12 @@ impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
             ucaf_collection_indicator: authentication_data.ucaf_collection_indicator,
             exemption_indicator: None,
             network_params: None,
+            created_at: None,
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+            authentication_type: None,
         })
     }
 }
@@ -4571,6 +4691,12 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             ucaf_collection_indicator,
             exemption_indicator: _,
             network_params: _,
+            created_at: _,
+            challenge_code: _,
+            challenge_cancel: _,
+            challenge_code_reason: _,
+            message_extension: _,
+            authentication_type: _,
         } = response;
         let trans_status = trans_status
             .map(payments_grpc::TransactionStatus::try_from)
@@ -4639,6 +4765,17 @@ impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::Transaction
                 Self::ChallengeRequiredDecoupledAuthentication
             }
             common_enums::TransactionStatus::InformationOnly => Self::InformationOnly,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::DecoupledAuthenticationType>
+    for payments_grpc::DecoupledAuthenticationType
+{
+    fn foreign_from(value: common_enums::DecoupledAuthenticationType) -> Self {
+        match value {
+            common_enums::DecoupledAuthenticationType::Challenge => Self::Challenge,
+            common_enums::DecoupledAuthenticationType::Frictionless => Self::Frictionless,
         }
     }
 }
@@ -5817,50 +5954,101 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
         let mandate_type = mandate_data
             .mandate_type
             .as_ref()
-            .map(|domain_mandate_type| match domain_mandate_type {
-                MandateDataType::SingleUse(amount_data) => payments_grpc::MandateType {
-                    mandate_type: Some(payments_grpc::mandate_type::MandateType::SingleUse(
-                        payments_grpc::MandateAmountData {
-                            amount: amount_data.amount.get_amount_as_i64(),
-                            amount_type: None,
-                            frequency: None,
-                            currency: payments_grpc::Currency::foreign_try_from(
-                                amount_data.currency,
-                            )
-                            .unwrap_or(payments_grpc::Currency::Unspecified)
-                            .into(),
-                            start_date: amount_data.start_date.map(
-                                |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
+            .map(|domain_mandate_type|
+                     -> Result<_, error_stack::Report<UnifiedConnectorServiceError>> {
+                match domain_mandate_type {
+                    MandateDataType::SingleUse(amount_data) => {
+                        let currency =
+                            payments_grpc::Currency::foreign_try_from(amount_data.currency)?;
+                        Ok(payments_grpc::MandateType {
+                            mandate_type: Some(
+                                payments_grpc::mandate_type::MandateType::SingleUse(
+                                    #[allow(deprecated)]
+                                    payments_grpc::MandateAmountData {
+                                        amount: amount_data.amount.get_amount_as_i64(),
+                                        amount_type: None,
+                                        amount_money: Some(payments_grpc::Money {
+                                            minor_amount: amount_data
+                                                .amount
+                                                .get_amount_as_i64(),
+                                            currency: currency.into(),
+                                        }),
+                                        frequency: None,
+                                        currency: currency.into(),
+                                        start_date: amount_data.start_date.map(
+                                            |dt: time::PrimitiveDateTime| {
+                                                dt.assume_utc().unix_timestamp()
+                                            },
+                                        ),
+                                        end_date: amount_data.end_date.map(
+                                            |dt: time::PrimitiveDateTime| {
+                                                dt.assume_utc().unix_timestamp()
+                                            },
+                                        ),
+                                        initial_billing_amount: None,
+                                        external_subscription_id: None,
+                                        billing_cycle: None,
+                                        description: None,
+                                        next_billing_date: None,
+                                        // Hyperswitch setup-mandate requests do not carry mandate status.
+                                        mandate_status: payments_grpc::MandateStatus::Unspecified
+                                            .into(),
+                                    },
+                                ),
                             ),
-                            end_date: amount_data.end_date.map(|dt: time::PrimitiveDateTime| {
-                                dt.assume_utc().unix_timestamp()
-                            }),
-                        },
-                    )),
-                },
-                MandateDataType::MultiUse(amount_data_opt) => payments_grpc::MandateType {
-                    mandate_type: amount_data_opt.as_ref().map(|amount_data| {
-                        payments_grpc::mandate_type::MandateType::MultiUse(
-                            payments_grpc::MandateAmountData {
-                                amount: amount_data.amount.get_amount_as_i64(),
-                                amount_type: None,
-                                frequency: None,
-                                currency: payments_grpc::Currency::foreign_try_from(
+                        })
+                    }
+                    MandateDataType::MultiUse(amount_data_opt) => {
+                        let mandate_type_inner = amount_data_opt
+                            .as_ref()
+                            .map(|amount_data| {
+                                let currency = payments_grpc::Currency::foreign_try_from(
                                     amount_data.currency,
+                                )?;
+                                Ok::<_, error_stack::Report<UnifiedConnectorServiceError>>(
+                                    payments_grpc::mandate_type::MandateType::MultiUse(
+                                        #[allow(deprecated)]
+                                        payments_grpc::MandateAmountData {
+                                            amount: amount_data.amount.get_amount_as_i64(),
+                                            amount_type: None,
+                                            amount_money: Some(payments_grpc::Money {
+                                                minor_amount: amount_data
+                                                    .amount
+                                                    .get_amount_as_i64(),
+                                                currency: currency.into(),
+                                            }),
+                                            frequency: None,
+                                            currency: currency.into(),
+                                            start_date: amount_data.start_date.map(
+                                                |dt: time::PrimitiveDateTime| {
+                                                    dt.assume_utc().unix_timestamp()
+                                                },
+                                            ),
+                                            end_date: amount_data.end_date.map(
+                                                |dt: time::PrimitiveDateTime| {
+                                                    dt.assume_utc().unix_timestamp()
+                                                },
+                                            ),
+                                            initial_billing_amount: None,
+                                            external_subscription_id: None,
+                                            billing_cycle: None,
+                                            description: None,
+                                            next_billing_date: None,
+                                            // Hyperswitch setup-mandate requests do not carry mandate status.
+                                            mandate_status:
+                                                payments_grpc::MandateStatus::Unspecified.into(),
+                                        },
+                                    ),
                                 )
-                                .unwrap_or(payments_grpc::Currency::Unspecified)
-                                .into(),
-                                start_date: amount_data.start_date.map(
-                                    |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
-                                ),
-                                end_date: amount_data.end_date.map(
-                                    |dt: time::PrimitiveDateTime| dt.assume_utc().unix_timestamp(),
-                                ),
-                            },
-                        )
-                    }),
-                },
-            });
+                            })
+                            .transpose()?;
+                        Ok(payments_grpc::MandateType {
+                            mandate_type: mandate_type_inner,
+                        })
+                    }
+                }
+            })
+            .transpose()?;
 
         Ok(Self {
             update_mandate_id: mandate_data.update_mandate_id.clone(),
@@ -6396,6 +6584,11 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsDetails::foreign_from),
         })
     }
 }
@@ -6422,6 +6615,7 @@ impl
         Ok(Self {
             merchant_void_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
+            split_payments: None,
             connector_feature_data: router_data
                 .request
                 .connector_meta
@@ -6557,7 +6751,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: None,
                     network_txn_link_id: None,
@@ -8001,5 +8195,33 @@ impl ForeignFrom<&common_types::payments::StripeSplitPaymentRequest>
             transfer_account_id: stripe.transfer_account_id.clone(),
             on_behalf_of: stripe.on_behalf_of.clone(),
         }
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::NotifyConnectorResponse>
+    for NotifyConnectorResponseData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        grpc_response: payments_grpc::NotifyConnectorResponse,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status_code: u16::try_from(grpc_response.status_code)
+                .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                .attach_printable("Failed to parse status code from UCS response")?,
+            error_code: grpc_response.error.as_ref().and_then(|error_info| {
+                error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.code.clone())
+            }),
+            error_message: grpc_response.error.as_ref().and_then(|error_info| {
+                error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.message.clone())
+            }),
+        })
     }
 }

@@ -995,7 +995,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
             }
             Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
             | Some(mandates::MandateReferenceId::NetworkMandateId(_))
-            | Some(mandates::MandateReferenceId::CardWithLimitedData) => {
+            | Some(mandates::MandateReferenceId::CardWithLimitedData(_)) => {
                 Err(errors::ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("nexixpay"),
                 )
