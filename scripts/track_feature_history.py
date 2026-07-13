@@ -344,6 +344,23 @@ def main():
 
     for tag, feats in tag_features.items():
         covered = tag_covered[tag]
+
+        # Save manual overrides before DELETE so they survive re-scan.
+        # A "manual override" is any row where is_covered=1 or is_blocked_by_bug=1
+        # that the spec-walk would NOT have set (i.e., not in the auto-covered set
+        # and not in the blocked_map).  These represent human decisions that must
+        # persist across re-scans.
+        overrides = {}
+        for b, c, pm, pmt, f, ic, blk in conn.execute(
+            "SELECT bucket, connector, pm, pmt, feature, is_covered, is_blocked_by_bug "
+            "FROM tag_snapshots WHERE tag = ?", (tag,)
+        ):
+            key = (b, c or '', pm or '', pmt or '', f)
+            auto_covered = key in covered
+            auto_blocked = blocked_map.get(key, 0) == 1
+            if (ic == 1 and not auto_covered) or (blk == 1 and not auto_blocked):
+                overrides[key] = (ic, blk)
+
         conn.execute("DELETE FROM tag_snapshots WHERE tag = ?", (tag,))
         conn.executemany(
             "INSERT OR REPLACE INTO tag_snapshots VALUES (?,?,?,?,?,?,?,?)",
@@ -355,8 +372,13 @@ def main():
                     f[2],
                     f[3],
                     f[4],
-                    1 if f in covered else 0,
-                    blocked_map.get((f[0], f[1] or '', f[2] or '', f[3] or '', f[4]), 0),
+                    1 if f in covered else overrides.get((f[0], f[1] or '', f[2] or '', f[3] or '', f[4]), (0, 0))[0],
+                    0  # is_blocked_by_bug: forced to 0 when covered (invariant: covered items cannot be bug-blocked)
+                    if (f in covered or overrides.get((f[0], f[1] or '', f[2] or '', f[3] or '', f[4]), (0, 0))[0])
+                    else max(
+                        blocked_map.get((f[0], f[1] or '', f[2] or '', f[3] or '', f[4]), 0),
+                        overrides.get((f[0], f[1] or '', f[2] or '', f[3] or '', f[4]), (0, 0))[1],
+                    ),
                 )
                 for f in feats
             ],
