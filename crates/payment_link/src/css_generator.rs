@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::admin::PaymentLinkConfig;
-use error_stack::{Result, ResultExt};
+use error_stack::Result;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PaymentLinkError {
@@ -103,67 +103,46 @@ fn generate_dynamic_css(
         let mut css_string = String::new();
         css_string.push_str("/* Dynamically Injected UI Rules */\n");
 
-        rules
-            .iter()
-            .try_for_each(|(selector, styles_map)| {
-                let selector = selector.trim();
-                if selector.is_empty() {
-                    Err(PaymentLinkError::InvalidCssSelector(
-                        "CSS selector cannot be empty.".to_string(),
-                    ))
-                    .attach_printable("Empty CSS selector found in payment_link_ui_rules")
-                } else if !is_safe_css_token(selector) {
-                    Err(PaymentLinkError::InvalidCssSelector(format!(
-                        "Unsafe CSS selector: {}",
-                        selector
-                    )))
-                    .attach_printable("Unsafe CSS selector found in payment_link_ui_rules")
-                } else {
-                    css_string.push_str(selector);
-                    css_string.push_str(" {\n");
+        rules.iter().for_each(|(selector, styles_map)| {
+            let selector = selector.trim();
+            // Drop the entire rule if the selector itself is empty or unsafe.
+            if selector.is_empty() || !is_safe_css_token(selector) {
+                return;
+            }
 
-                    let inner_res =
-                        styles_map
-                            .iter()
-                            .try_for_each(|(prop_camel_case, css_value)| {
-                                let css_property = camel_to_kebab(prop_camel_case);
+            let mut rule_block = String::new();
+            let mut has_safe_declaration = false;
 
-                                // Property names allowlisted to lowercase ascii and dash
-                                if !css_property
-                                    .chars()
-                                    .all(|c| c.is_ascii_lowercase() || c == '-')
-                                {
-                                    Err(PaymentLinkError::InvalidCssProperty(format!(
-                                        "Unsafe CSS property: {}",
-                                        css_property
-                                    )))
-                                    .attach_printable(
-                                        "Unsafe CSS property found in payment_link_ui_rules",
-                                    )
-                                } else if !is_safe_css_token(css_value) {
-                                    Err(PaymentLinkError::InvalidCssValue(format!(
-                                        "Unsafe CSS value: {}",
-                                        css_value
-                                    )))
-                                    .attach_printable(
-                                        "Unsafe CSS value found in payment_link_ui_rules",
-                                    )
-                                } else {
-                                    css_string.push_str("  ");
-                                    css_string.push_str(&css_property);
-                                    css_string.push_str(": ");
-                                    css_string.push_str(css_value);
-                                    css_string.push_str(";\n");
-                                    Ok(())
-                                }
-                            });
+            styles_map.iter().for_each(|(prop_camel_case, css_value)| {
+                let css_property = camel_to_kebab(prop_camel_case);
 
-                    inner_res.map(|_| {
-                        css_string.push_str("}\n");
-                    })
+                // Keep only declarations whose normalized property name and value are both safe.
+                let is_safe_property = css_property
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c == '-');
+
+                // Only serialize declarations that pass both checks so unsafe entries are
+                // silently dropped while valid styles continue to be emitted.
+                if is_safe_property && is_safe_css_token(css_value) {
+                    rule_block.push_str("  ");
+                    rule_block.push_str(&css_property);
+                    rule_block.push_str(": ");
+                    rule_block.push_str(css_value);
+                    rule_block.push_str(";\n");
+                    has_safe_declaration = true;
                 }
-            })
-            .map(|_| css_string)
+            });
+
+            // Emit the selector only if at least one declaration survived sanitization.
+            if has_safe_declaration {
+                css_string.push_str(selector);
+                css_string.push_str(" {\n");
+                css_string.push_str(&rule_block);
+                css_string.push_str("}\n");
+            }
+        });
+
+        Ok(css_string)
     }
 }
 
@@ -259,6 +238,36 @@ mod tests {
         );
         rules.insert("body".to_string(), styles);
 
-        assert!(generate_dynamic_css(&rules).is_err());
+        let css = generate_dynamic_css(&rules).unwrap();
+        assert_eq!(css, "/* Dynamically Injected UI Rules */\n");
+    }
+
+    #[test]
+    fn test_generate_dynamic_css_sanitizes_unsafe_value_and_keeps_safe_value() {
+        let mut rules = HashMap::new();
+        let mut styles = HashMap::new();
+        styles.insert(
+            "backgroundImage".to_string(),
+            "javascript:confirm(1)".to_string(),
+        );
+        styles.insert("color".to_string(), "#4E6ADD".to_string());
+        rules.insert(".safe-selector".to_string(), styles);
+
+        let css = generate_dynamic_css(&rules).unwrap();
+        assert!(css.contains(".safe-selector {"));
+        assert!(css.contains("color: #4E6ADD;"));
+        assert!(!css.contains("background-image"));
+        assert!(!css.contains("javascript:confirm(1)"));
+    }
+
+    #[test]
+    fn test_generate_dynamic_css_skips_unsafe_selector() {
+        let mut rules = HashMap::new();
+        let mut styles = HashMap::new();
+        styles.insert("color".to_string(), "#4E6ADD".to_string());
+        rules.insert("</style><script>".to_string(), styles);
+
+        let css = generate_dynamic_css(&rules).unwrap();
+        assert_eq!(css, "/* Dynamically Injected UI Rules */\n");
     }
 }
