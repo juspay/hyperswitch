@@ -52,6 +52,12 @@ impl LockingInput {
 }
 
 impl LockAction {
+    // deja: NO boundary here. `perform_locking_action` is just a redis SETNX-and-get
+    // retry loop (`set_multiple_keys_if_not_exists_and_get_values`) — it is not an
+    // independent source of nondeterminism. Once the redis boundary is hermetic, the
+    // lock outcome replays deterministically from the recorded redis reply, so a
+    // separate `deja::lock` boundary would only double-record (and substituting it
+    // would skip — and thus omit — the inner redis call). Leave it un-instrumented.
     #[instrument(skip_all)]
     pub async fn perform_locking_action<A>(
         self,
@@ -168,6 +174,10 @@ impl LockAction {
         }
     }
 
+    // deja: NO boundary here either — like perform_locking_action, releasing a lock
+    // is just redis (delete_key on the lock key). The inner redis delete is hermetic,
+    // so the release replays deterministically; a separate lock boundary would only
+    // double-record.
     #[instrument(skip_all)]
     pub async fn free_lock_action<A>(
         self,
