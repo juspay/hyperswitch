@@ -2144,6 +2144,26 @@ export const connectorDetails = {
         billing: standardBillingAddress,
       },
     }),
+    Qris: getCustomExchange({
+      Request: {
+        payment_method: "real_time_payment",
+        payment_method_type: "qris",
+        payment_method_data: {
+          real_time_payment: {
+            qris: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
+    QrisRetrieve: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
   },
   card_pm: {
     PaymentIntent: getCustomExchange({
