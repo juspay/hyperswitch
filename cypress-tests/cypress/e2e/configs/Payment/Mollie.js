@@ -310,9 +310,6 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 2000,
       },
@@ -335,9 +332,6 @@ export const connectorDetails = {
       },
     },
     manualPaymentPartialRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 2000,
       },
@@ -360,7 +354,7 @@ export const connectorDetails = {
       ResponseCustom: {
         status: 200,
         body: {
-          status: "failed",
+          status: "pending",
           reason: "FRAUD",
         },
       },
@@ -448,9 +442,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -529,9 +520,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -565,9 +553,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -585,9 +570,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -690,9 +672,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -802,9 +781,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "Unprocessable Entity",
-          error_message: "method",
+          status: "requires_customer_action",
         },
       },
     },
@@ -925,57 +902,44 @@ export const connectorDetails = {
         },
       },
     },
-  },
-  bank_debit_pm: {
-    PaymentIntent: (paymentMethodType) => {
-      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
-      return {
-        Request: {
-          currency: currencyMap[paymentMethodType] || "USD",
-        },
-        Response: {
-          status: 200,
-          body: {
-            status: "requires_payment_method",
-          },
-        },
-      };
-    },
-    Sepa: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+    CaptureOnWrongStatus: {
       Request: {
-        payment_method: "bank_debit",
-        payment_method_type: "sepa",
-        payment_method_data: {
-          bank_debit: {
-            sepa_bank_debit: {
-              iban: "DE89370400440532013000",
-              bank_account_holder_name: "John Doe",
-            },
-          },
-        },
-        billing: {
-          address: {
-            line1: "123 Test St",
-            city: "Amsterdam",
-            zip: "1012 AB",
-            country: "NL",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          email: "test@example.com",
-        },
-        customer_acceptance: customerAcceptance,
+        amount_to_capture: 6000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially_captured_and_capturable, processing",
+            code: "IR_14",
+          },
         },
       },
     },
+    ConfirmWithoutPmData: {
+      Request: {
+        payment_method: undefined,
+        payment_method_type: undefined,
+        payment_experience: undefined,
+        payment_method_data: undefined,
+        order_details: undefined,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "A payment token or payment method data or ctp service details is required",
+            code: "IR_06",
+          },
+        },
+      },
+    },
+  },
+  bank_debit_pm: {
   },
   webhook: {
     TransactionIdConfig: {

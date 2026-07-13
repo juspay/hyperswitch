@@ -4001,7 +4001,22 @@ Cypress.Commands.add(
       storeRequestId(response.headers["x-request-id"], globalState);
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
-        if (response.body.capture_method !== undefined) {
+        if (response.status !== 200 || response.body.error) {
+          const responseError =
+            typeof response.body.error === "object"
+              ? response.body.error
+              : response.body;
+          const expectedError =
+            typeof resData.body.error === "object"
+              ? resData.body.error
+              : resData.body;
+
+          expect(response.status).to.equal(resData.status);
+          for (const key in expectedError) {
+            expect(responseError[key], key).to.equal(expectedError[key]);
+          }
+          return;
+        } else if (response.body.capture_method !== undefined) {
           expect(response.body.payment_id).to.equal(paymentId);
           for (const key in resData.body) {
             expect(resData.body[key]).to.equal(response.body[key]);

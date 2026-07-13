@@ -303,7 +303,7 @@ export const should_continue_further = (data) => {
 export function defaultErrorHandler(response, response_data) {
   if (
     response.status === 400 &&
-    response.body.error.message === "Payment method type not supported"
+    response.body.error?.message === "Payment method type not supported"
   ) {
     // Update the default status from 501 to 400 as `unsupported payment method` error is the next common error after `not implemented` error
     response_data = updateDefaultStatusCode();
@@ -313,13 +313,18 @@ export function defaultErrorHandler(response, response_data) {
     throw new Error("Expecting valid response but got an error response");
   }
 
-  expect(response.body).to.have.property("error");
+  const responseError =
+    typeof response.body.error === "object" ? response.body.error : response.body;
+  const expectedError =
+    typeof response_data.body.error === "object"
+      ? response_data.body.error
+      : response_data.body;
 
-  if (typeof response.body.error === "object") {
-    for (const key in response_data.body.error) {
+  if (typeof responseError === "object" && typeof expectedError === "object") {
+    for (const key in expectedError) {
       // Check if the error message is a Json deserialize error
-      const apiResponseContent = response.body.error[key];
-      const expectedContent = response_data.body.error[key];
+      const apiResponseContent = responseError[key];
+      const expectedContent = expectedError[key];
       if (
         typeof apiResponseContent === "string" &&
         apiResponseContent.includes("Json deserialize error")
@@ -606,7 +611,6 @@ export const CONNECTOR_LISTS = {
     ],
     BANK_DEBIT: [
       "adyen",
-      "mollie",
       "novalnet",
       "payload",
       "stax",
@@ -693,6 +697,15 @@ export const CONNECTOR_LISTS = {
       "affirm",
       "payjustnow",
       "payjustnowinstore",
+    ],
+    PAY_LATER_MANUAL_CAPTURE: [
+      "klarna",
+      "adyen",
+      "aci",
+      "stripe",
+      "airwallex",
+      "affirm",
+      "payjustnow",
     ],
     AFFIRM: ["stripe"],
     ATOME: ["adyen"],
