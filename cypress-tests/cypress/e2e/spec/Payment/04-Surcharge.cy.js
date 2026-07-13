@@ -25,14 +25,6 @@ describe("Surcharge payment flow test", () => {
       cy.createSurchargeDSLConfig(dslData.Request, dslData, globalState);
     });
 
-    after("delete surcharge DSL config", () => {
-      const dslData =
-        routingUtils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Delete"
-        ];
-      cy.deleteSurchargeDSLConfig(dslData, globalState);
-    });
-
     it("surcharge DSL configuration created", () => {
       cy.log("Surcharge DSL configuration created");
     });
@@ -60,14 +52,6 @@ describe("Surcharge payment flow test", () => {
           shouldContinue = false;
         }
       });
-    });
-
-    after("cleanup surcharge DSL", () => {
-      const dslData =
-        routingUtils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Delete"
-        ];
-      cy.deleteSurchargeDSLConfig(dslData, globalState);
     });
 
     beforeEach(function () {
