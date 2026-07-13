@@ -27,7 +27,6 @@ pub async fn connector_events_core(
     }
     .switch()?;
 
-    // Shadow events are internal comparison traffic, not the merchant's call.
     Ok(data
         .into_iter()
         .filter(|event| !event.is_shadow())

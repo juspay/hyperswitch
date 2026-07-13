@@ -94,14 +94,11 @@ pub struct ConnectorEventsResult {
     pub created_at: PrimitiveDateTime,
     pub method: Option<String>,
     pub destination: Option<String>,
-    /// Read to filter shadow-mode events out of the response; never surfaced to the caller.
     #[serde(skip_serializing)]
     pub execution_mode: Option<String>,
 }
 
 impl ConnectorEventsResult {
-    /// An absent, null or unrecognised execution_mode is treated as primary, so that a value the
-    /// reader does not know about cannot hide a connector call from the log.
     pub fn is_shadow(&self) -> bool {
         self.execution_mode
             .as_deref()
