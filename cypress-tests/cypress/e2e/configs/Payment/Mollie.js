@@ -939,8 +939,7 @@ export const connectorDetails = {
       },
     },
   },
-  bank_debit_pm: {
-  },
+  bank_debit_pm: {},
   webhook: {
     TransactionIdConfig: {
       path: "id",

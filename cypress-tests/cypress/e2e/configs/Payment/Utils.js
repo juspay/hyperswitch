@@ -314,7 +314,9 @@ export function defaultErrorHandler(response, response_data) {
   }
 
   const responseError =
-    typeof response.body.error === "object" ? response.body.error : response.body;
+    typeof response.body.error === "object"
+      ? response.body.error
+      : response.body;
   const expectedError =
     typeof response_data.body.error === "object"
       ? response_data.body.error
