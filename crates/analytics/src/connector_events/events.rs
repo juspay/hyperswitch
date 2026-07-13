@@ -93,10 +93,5 @@ pub struct ConnectorEventsResult {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     pub method: Option<String>,
-    #[serde(default = "default_connector_event_destination")]
-    pub destination: common_enums::EventDestination,
-}
-
-fn default_connector_event_destination() -> common_enums::EventDestination {
-    common_enums::EventDestination::Connector
+    pub destination: Option<String>,
 }
