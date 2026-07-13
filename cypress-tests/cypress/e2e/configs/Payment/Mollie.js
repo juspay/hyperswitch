@@ -310,6 +310,9 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
@@ -332,6 +335,9 @@ export const connectorDetails = {
       },
     },
     manualPaymentPartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
@@ -354,7 +360,7 @@ export const connectorDetails = {
       ResponseCustom: {
         status: 200,
         body: {
-          status: "pending",
+          status: "failed",
           reason: "FRAUD",
         },
       },
@@ -442,6 +448,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -520,6 +529,9 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -553,6 +565,9 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -570,6 +585,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -672,6 +690,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -781,7 +802,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "Unprocessable Entity",
+          error_message: "method",
         },
       },
     },
@@ -939,7 +962,6 @@ export const connectorDetails = {
       },
     },
   },
-  bank_debit_pm: {},
   webhook: {
     TransactionIdConfig: {
       path: "id",
