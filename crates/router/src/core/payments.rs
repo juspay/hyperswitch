@@ -797,8 +797,15 @@ where
         .apply_three_ds_authentication_strategy(state, &mut payment_data, &business_profile)
         .await;
 
-    // Must run before choose_connector so the routing DSL sees `surcharge_amount`.
-    preload_external_surcharge_for_routing(state, &business_profile, &mut payment_data).await?;
+    // Must run before choose_connector so the routing DSL sees `surcharge_amount`
+    // (CIT: from Redis; MIT: computed inline via UCS).
+    populate_external_surcharge_details(
+        state,
+        platform.get_processor(),
+        &business_profile,
+        &mut payment_data,
+    )
+    .await?;
 
     let connector = choose_connector(
         &operation,
@@ -1139,6 +1146,7 @@ where
                             routable_connectors,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             &business_profile,
+                            &dimensions.without_profile_id(),
                         )
                         .await?;
 
@@ -1363,6 +1371,7 @@ where
                             routable_connectors,
                             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                             &business_profile,
+                            &dimensions.without_profile_id(),
                         )
                         .await?;
 
@@ -1755,6 +1764,7 @@ where
             routable_connectors,
             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
             &business_profile,
+            &dimensions.without_profile_id(),
         )
         .await?;
 
@@ -2276,53 +2286,31 @@ where
     todo!()
 }
 
-// Reads the external surcharge cached by /eligibility from Redis into the payment attempt
-// so routing DSL can condition on `surcharge_amount`. Runs only for external-surcharge CIT.
+// True when the profile uses external surcharge and the attempt hasn't been populated yet
+// (retry safety). Gates preload_external_surcharge_for_routing so both CIT and MIT share
+// one entry check.
 #[cfg(feature = "v1")]
-#[instrument(skip_all)]
-pub async fn preload_external_surcharge_for_routing<F, D>(
-    state: &SessionState,
-    business_profile: &domain::Profile,
-    payment_data: &mut D,
-) -> RouterResult<()>
+fn is_external_surcharge_pending<F, D>(business_profile: &domain::Profile, payment_data: &D) -> bool
 where
     F: Send + Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
+    D: OperationSessionGetters<F>,
 {
-    let is_external_cit = payment_data
+    payment_data
         .get_payment_intent()
         .get_surcharge_mode(business_profile)
         == Some(domain_payments::SurchargeMode::External)
-        && payment_data.get_payment_intent().off_session != Some(true)
         && payment_data
             .get_payment_attempt()
             .external_surcharge_details
-            .is_none();
-
-    if is_external_cit {
-        match resolve_external_surcharge(state, payment_data).await {
-            Some(external_surcharge_details) => {
-                let external_surcharge_details = common_types::payments::ExternalSurchargeDetails {
-                    external_surcharge_id: external_surcharge_details.external_surcharge_id,
-                    external_surcharge_amount: external_surcharge_details.surcharge_amount,
-                    sale_notified: false,
-                };
-                let mut attempt = payment_data.get_payment_attempt().clone();
-                attempt.net_amount.set_external_surcharge_amount(Some(
-                    external_surcharge_details.external_surcharge_amount,
-                ));
-                attempt.external_surcharge_details = Some(external_surcharge_details);
-                payment_data.set_payment_attempt(attempt);
-            }
-            None => logger::debug!("external surcharge not found in redis at pre-routing preload"),
-        }
-    }
-    Ok(())
+            .is_none()
 }
 
+// Populates payment_attempt.external_surcharge_details before choose_connector so the routing
+// DSL can condition on `surcharge_amount`. CIT reads from Redis (cached by /eligibility);
+// MIT computes inline via UCS.
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn populate_surcharge_details<F, D>(
+pub async fn populate_external_surcharge_details<F, D>(
     state: &SessionState,
     processor: &domain::Processor,
     business_profile: &domain::Profile,
@@ -2332,70 +2320,73 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
 {
-    let surcharge_mode = payment_data
-        .get_payment_intent()
-        .get_surcharge_mode(business_profile);
+    if is_external_surcharge_pending(business_profile, payment_data) {
+        let is_mit = payment_data.get_payment_intent().off_session == Some(true);
 
-    // If a pre-routing preload already populated external surcharge for CIT, skip
-    // the external branch here to avoid duplicate Redis reads / writes.
-    if surcharge_mode == Some(domain_payments::SurchargeMode::External)
-        && payment_data
-            .get_payment_attempt()
-            .external_surcharge_details
-            .is_some()
+        let external_surcharge_details = if is_mit {
+            compute_mit_external_surcharge(state, processor, business_profile, payment_data).await
+        } else {
+            resolve_external_surcharge(state, payment_data)
+                .await
+                .map(|cached| common_types::payments::ExternalSurchargeDetails {
+                    external_surcharge_id: cached.external_surcharge_id,
+                    external_surcharge_amount: cached.surcharge_amount,
+                    sale_notified: false,
+                })
+        };
+
+        if let Some(external_surcharge_details) = external_surcharge_details {
+            let mut attempt = payment_data.get_payment_attempt().clone();
+            attempt.net_amount.set_external_surcharge_amount(Some(
+                external_surcharge_details.external_surcharge_amount,
+            ));
+            attempt.external_surcharge_details = Some(external_surcharge_details);
+            payment_data.set_payment_attempt(attempt);
+        } else {
+            logger::debug!(
+                is_mit,
+                "external surcharge not populated at pre-routing preload; routing DSL will see 0"
+            );
+        }
+    }
+    Ok(())
+}
+
+// Populates internal surcharge on the payment attempt. External surcharge (both CIT and MIT)
+// is owned by preload_external_surcharge_for_routing, which runs before choose_connector.
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn populate_surcharge_details<F, D>(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    payment_data: &mut D,
+) -> RouterResult<()>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
+{
+    if payment_data
+        .get_payment_intent()
+        .get_surcharge_mode(business_profile)
+        != Some(domain_payments::SurchargeMode::Internal)
     {
         return Ok(());
     }
 
-    if surcharge_mode == Some(domain_payments::SurchargeMode::Internal) {
-        if let Some(attempt_surcharge) = payment_data.get_payment_attempt().get_surcharge_details()
-        {
-            let surcharge_details = types::SurchargeDetails::from((
-                &attempt_surcharge,
-                payment_data.get_payment_attempt(),
-            ));
-            payment_data.set_surcharge_details(Some(surcharge_details));
-            return Ok(());
-        }
+    if let Some(attempt_surcharge) = payment_data.get_payment_attempt().get_surcharge_details() {
+        let surcharge_details =
+            types::SurchargeDetails::from((&attempt_surcharge, payment_data.get_payment_attempt()));
+        payment_data.set_surcharge_details(Some(surcharge_details));
+        return Ok(());
     }
 
-    match surcharge_mode {
-        Some(domain_payments::SurchargeMode::Internal) => {
-            let surcharge_details =
-                resolve_internal_surcharge_from_dss(state, payment_data).await?;
-            let mut attempt = payment_data.get_payment_attempt().clone();
-            attempt
-                .net_amount
-                .set_surcharge_details(surcharge_details.clone());
-            payment_data.set_payment_attempt(attempt);
-            payment_data.set_surcharge_details(surcharge_details);
-        }
-        Some(domain_payments::SurchargeMode::External) => {
-            // MIT off-session computes inline; CIT reads what /eligibility cached in Redis.
-            let external_surcharge_details =
-                if payment_data.get_payment_intent().off_session == Some(true) {
-                    compute_mit_external_surcharge(state, processor, business_profile, payment_data)
-                        .await
-                } else {
-                    resolve_external_surcharge(state, payment_data)
-                        .await
-                        .map(|cached| common_types::payments::ExternalSurchargeDetails {
-                            external_surcharge_id: cached.external_surcharge_id,
-                            external_surcharge_amount: cached.surcharge_amount,
-                            sale_notified: false,
-                        })
-                };
-            let mut attempt = payment_data.get_payment_attempt().clone();
-            attempt.net_amount.set_external_surcharge_amount(
-                external_surcharge_details
-                    .as_ref()
-                    .map(|external| external.external_surcharge_amount),
-            );
-            attempt.external_surcharge_details = external_surcharge_details;
-            payment_data.set_payment_attempt(attempt);
-        }
-        None => {}
-    }
+    let surcharge_details = resolve_internal_surcharge_from_dss(state, payment_data).await?;
+    let mut attempt = payment_data.get_payment_attempt().clone();
+    attempt
+        .net_amount
+        .set_surcharge_details(surcharge_details.clone());
+    payment_data.set_payment_attempt(attempt);
+    payment_data.set_surcharge_details(surcharge_details);
     Ok(())
 }
 
@@ -3246,6 +3237,7 @@ where
             routable_connectors,
             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
             &business_profile,
+            &dimensions.without_profile_id(),
         )
         .await?;
 
@@ -3859,8 +3851,7 @@ pub async fn record_attempt_core(
             },
             CallConnectorAction::Trigger,
             HeaderPayload::default(),
-            None,
-        ))
+            None,))
         .await
         {
             Ok((data, _, _, _)) => data,
@@ -5467,7 +5458,19 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    if is_operation_confirm(operation)
+    // The wallet predecrypt must run whenever this call will reach the connector:
+    // the standalone Confirm operation, and equally a one-shot PaymentCreate with
+    // confirm=true (which otherwise ships the still-encrypted wallet token to the
+    // connector tokenization step).
+    let is_confirm_operation = is_operation_confirm(operation)
+        || matches!(
+            (
+                format!("{operation:?}").as_str(),
+                payment_data.get_payment_attempt().confirm,
+            ),
+            ("PaymentCreate", true)
+        );
+    if is_confirm_operation
         && payment_data.get_payment_attempt().payment_method
             == Some(storage_enums::PaymentMethod::Wallet)
         && payment_data.get_payment_method_data().is_some()
@@ -6031,14 +6034,8 @@ where
         )
         .await?;
 
-    // Unified external-surcharge population for CIT and MIT.
-    populate_surcharge_details(
-        state,
-        platform.get_processor(),
-        business_profile,
-        payment_data,
-    )
-    .await?;
+    // Internal surcharge only; external surcharge is populated by preload_external_surcharge_for_routing.
+    populate_surcharge_details(state, business_profile, payment_data).await?;
 
     let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
         state,
@@ -9537,6 +9534,22 @@ pub struct MandateConnectorDetails {
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
+/// Fields extracted from a payment-update request payload that are needed to
+/// compute the delta between the stored payment intent and the incoming update.
+#[derive(Clone, Debug)]
+pub struct PaymentDataUpdateRequestFields {
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub amount: Option<MinorUnit>,
+    pub connector_attempt_metadata: Option<serde_json::Value>,
+    pub connector_transaction_id: String,
+    pub description: Option<String>,
+    pub billing_descriptor: Option<common_payments_types::BillingDescriptor>,
+    pub billing_address: Option<api_models::payments::AddressDetails>,
+    pub metadata: Option<serde_json::Value>,
+    pub merchant_order_reference_id: Option<String>,
+    pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
+}
+
 #[derive(Clone)]
 pub struct PaymentData<F>
 where
@@ -9595,6 +9608,9 @@ where
     pub client_session_id: Option<id_type::ClientSessionId>,
     pub external_vault_pmd:
         Option<hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData>,
+    /// Fields from the update request payload used to compare against
+    /// the stored payment intent. Populated only for the payment-update flow.
+    pub update_request_fields: Option<PaymentDataUpdateRequestFields>,
 }
 
 #[cfg(feature = "v1")]
@@ -10072,6 +10088,12 @@ where
         "PaymentSessionUpdate" => true,
         "PaymentPostSessionTokens" => true,
         "PaymentUpdateMetadata" => true,
+        "PaymentUpdate" => {
+            matches!(
+                payment_data.get_payment_intent().status,
+                storage_enums::IntentStatus::RequiresCustomerAction
+            )
+        }
         "PaymentExtendAuthorization" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture
@@ -13092,6 +13114,7 @@ pub async fn payments_manual_update(
         error_reason,
         connector_transaction_id,
         amount_capturable,
+        update_amount_captured,
     } = req;
     let key_store = state
         .store
@@ -13146,6 +13169,47 @@ pub async fn payments_manual_update(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
 
+    let calculated_amount_captured = if update_amount_captured == Some(true) {
+        if amount_capturable.is_some() {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "amount_capturable cannot be provided when update_amount_captured is true"
+                    .to_string(),
+            }
+            .into());
+        }
+
+        if let Some(status) = attempt_status {
+            utils::when(
+                !matches!(
+                    status,
+                    enums::AttemptStatus::Charged
+                        | enums::AttemptStatus::PartialCharged
+                        | enums::AttemptStatus::PartialChargedAndChargeable
+                        | enums::AttemptStatus::Voided
+                        | enums::AttemptStatus::VoidedPostCharge
+                ),
+                || {
+                    Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "update_amount_captured can only be used for terminal statuses with captured funds: Charged, PartialCharged, PartialChargedAndChargeable, Voided, VoidedPostCharge".to_string(),
+                    })
+                },
+            )?;
+        }
+        if let Some(existing_captured) = payment_intent.amount_captured {
+            if existing_captured > MinorUnit::zero() {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Cannot update amount_captured: payment intent already has amount_captured > 0".to_string(),
+                }.into());
+            }
+        }
+        let new_captured_amount = payment_attempt
+            .amount_to_capture
+            .unwrap_or(payment_attempt.net_amount.get_total_amount());
+        Some(new_captured_amount)
+    } else {
+        None
+    };
+
     let option_gsm = if let Some(((code, message), connector_name)) = error_code
         .as_ref()
         .zip(error_message.as_ref())
@@ -13191,24 +13255,29 @@ pub async fn payments_manual_update(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while updating the payment_attempt")?;
     // If the payment_attempt is active attempt for an intent, update the intent status
-    if payment_intent.active_attempt.get_id() == payment_attempt.attempt_id {
-        let intent_status = enums::IntentStatus::foreign_from(updated_payment_attempt.status);
-        let payment_intent_update = storage::PaymentIntentUpdate::ManualUpdate {
-            status: Some(intent_status),
-            updated_by: merchant_account.storage_scheme.to_string(),
+    let updated_amount_captured =
+        if payment_intent.active_attempt.get_id() == payment_attempt.attempt_id {
+            let intent_status = enums::IntentStatus::foreign_from(updated_payment_attempt.status);
+            let payment_intent_update = storage::PaymentIntentUpdate::ManualUpdate {
+                status: Some(intent_status),
+                updated_by: merchant_account.storage_scheme.to_string(),
+                amount_captured: calculated_amount_captured,
+            };
+            state
+                .store
+                .update_payment_intent(
+                    payment_intent,
+                    payment_intent_update,
+                    &key_store,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+                .attach_printable("Error while updating payment_intent")?
+                .amount_captured
+        } else {
+            None
         };
-        state
-            .store
-            .update_payment_intent(
-                payment_intent,
-                payment_intent_update,
-                &key_store,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            .attach_printable("Error while updating payment_intent")?;
-    }
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsManualUpdateResponse {
             payment_id: updated_payment_attempt.payment_id,
@@ -13220,6 +13289,7 @@ pub async fn payments_manual_update(
             error_reason: updated_payment_attempt.error_reason,
             connector_transaction_id: updated_payment_attempt.connector_transaction_id,
             amount_capturable: Some(updated_payment_attempt.amount_capturable),
+            amount_captured: updated_amount_captured,
         },
     ))
 }
@@ -13326,6 +13396,7 @@ pub async fn payments_manual_status_update(
     let intent_update = storage::PaymentIntentUpdate::ManualUpdate {
         status: Some(intent_status),
         updated_by: merchant_account.storage_scheme.to_string(),
+        amount_captured: None,
     };
 
     state
@@ -13787,19 +13858,29 @@ async fn calculate_external_surcharge(
     payment_intent: storage::PaymentIntent,
     inputs: SurchargeCalculationInputs,
 ) -> RouterResult<Option<api_models::payment_methods::SurchargeDetailsResponse>> {
-    let surcharge_details = match (
-        surcharge_connector_id,
-        inputs.card_iin.clone(),
-        inputs.currency,
-    ) {
-        (Some(surcharge_connector_id), Some(card_iin), Some(currency)) => {
-            let processor = platform.get_processor();
+    let processor = platform.get_processor();
+    // Fetch + disabled-gate up front; a disabled MCA yields `None` and the tuple
+    // match below falls through to the no-op arm without any early return.
+    let surcharge_mca = match surcharge_connector_id.as_ref() {
+        Some(id) => {
+            helpers::fetch_active_surcharge_mca(
+                state,
+                processor.get_account().get_id(),
+                processor.get_key_store(),
+                id,
+            )
+            .await?
+        }
+        None => None,
+    };
+    let surcharge_details = match (surcharge_mca, inputs.card_iin.clone(), inputs.currency) {
+        (Some(surcharge_mca), Some(card_iin), Some(currency)) => {
             match run_external_surcharge_ucs(
                 state,
                 processor,
                 payment_id,
                 profile_id,
-                &surcharge_connector_id,
+                surcharge_mca,
                 card_iin,
                 currency,
                 &inputs,
@@ -13851,7 +13932,10 @@ async fn calculate_external_surcharge(
     Ok(surcharge_details)
 }
 
-// Shared UCS surcharge call for /eligibility and MIT /confirm.
+// Fire the UCS `surcharge_calculate` gRPC for `payment_id` using the given
+// surcharge MCA and return the connector's surcharge amount + id. Best-effort:
+// any UCS error is swallowed and returned as `Ok(None)` so the caller can
+// proceed without a surcharge.
 #[cfg(all(feature = "oltp", feature = "v1"))]
 #[allow(clippy::too_many_arguments)]
 async fn run_external_surcharge_ucs(
@@ -13859,7 +13943,7 @@ async fn run_external_surcharge_ucs(
     processor: &domain::Processor,
     payment_id: &id_type::PaymentId,
     profile_id: &id_type::ProfileId,
-    surcharge_connector_id: &id_type::MerchantConnectorAccountId,
+    surcharge_mca: domain::MerchantConnectorAccount,
     card_iin: String,
     currency: storage_enums::Currency,
     inputs: &SurchargeCalculationInputs,
@@ -13869,18 +13953,6 @@ async fn run_external_surcharge_ucs(
     let merchant_id = processor.get_account().get_id().clone();
     let storage_scheme = processor.get_account().storage_scheme;
     let key_store = processor.get_key_store();
-
-    let surcharge_mca = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &merchant_id,
-            surcharge_connector_id,
-            key_store,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: surcharge_connector_id.get_string_repr().to_string(),
-        })?;
 
     let previous_connector_surcharge_id = previous_connector_surcharge_id(
         state,
@@ -13974,15 +14046,36 @@ async fn calculate_mit_external_surcharge(
     let payment_method_type = payment_attempt.payment_method_type;
     let profile_id = payment_intent.profile_id.clone();
 
+    // Fetch + disabled-gate up front. A missing id, a disabled MCA, or a fetch
+    // error all collapse to `None` so the tuple match below handles them via
+    // the no-op arm — no early returns from inside the arm.
+    let surcharge_mca = match surcharge_connector_id.as_ref() {
+        Some(id) => helpers::fetch_active_surcharge_mca(
+            state,
+            processor.get_account().get_id(),
+            processor.get_key_store(),
+            id,
+        )
+        .await
+        .unwrap_or_else(|err| {
+            logger::warn!(
+                error=?err,
+                "MIT confirm: failed to fetch surcharge MCA; proceeding without surcharge"
+            );
+            None
+        }),
+        None => None,
+    };
+
     match (
-        surcharge_connector_id,
+        surcharge_mca,
         card_iin,
         currency,
         payment_method,
         profile_id,
     ) {
         (
-            Some(surcharge_connector_id),
+            Some(surcharge_mca),
             Some(card_iin),
             Some(currency),
             Some(payment_method),
@@ -14024,7 +14117,7 @@ async fn calculate_mit_external_surcharge(
                 processor,
                 &payment_attempt.payment_id,
                 &profile_id,
-                &surcharge_connector_id,
+                surcharge_mca,
                 card_iin,
                 currency,
                 &inputs,
@@ -14099,7 +14192,7 @@ pub async fn payments_submit_eligibility(
     let surcharge_details = match sdk_next_action.next_action {
         api_models::payments::NextActionCall::Deny { .. } => None,
         _ => {
-            calculate_external_surcharge(
+            Box::pin(calculate_external_surcharge(
                 &state_for_surcharge,
                 &platform_for_surcharge,
                 &payment_id,
@@ -14107,7 +14200,7 @@ pub async fn payments_submit_eligibility(
                 surcharge_connector_id,
                 payment_intent_for_surcharge,
                 surcharge_inputs,
-            )
+            ))
             .await?
         }
     };
