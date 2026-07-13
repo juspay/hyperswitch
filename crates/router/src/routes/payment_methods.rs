@@ -59,7 +59,7 @@ pub async fn create_payment_method_api(
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
             Box::pin(async move {
-                validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                validate_legacy_endpoint_access(&state, &auth.platform, false).await?;
                 cards::get_client_secret_or_add_payment_method(
                     &state,
                     req,
@@ -645,7 +645,7 @@ pub async fn save_payment_method_api(
         move |state, auth: auth::AuthenticationData, mut req, _| {
             let pm_id = pm_id.clone();
             Box::pin(async move {
-                validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                validate_legacy_endpoint_access(&state, &auth.platform, false).await?;
                 if let Some(client_secret) = auth.client_secret {
                     req.client_secret = Some(client_secret);
                 }
@@ -753,7 +753,7 @@ pub async fn list_customer_payment_method_api(
         move |state, auth: auth::AuthenticationData, mut req, _| {
             let customer_id = customer_id.clone();
             Box::pin(async move {
-                validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                validate_legacy_endpoint_access(&state, &auth.platform, false).await?;
                 if let Some(client_secret) = auth.client_secret {
                     req.client_secret = Some(client_secret);
                 }
@@ -1095,7 +1095,7 @@ pub async fn payment_method_retrieve_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, pm, _| async move {
-            validate_legacy_endpoint_access(&state, &auth.platform).await?;
+            validate_legacy_endpoint_access(&state, &auth.platform, false).await?;
             cards::PmCards {
                 state: &state,
                 provider: auth.platform.get_provider(),
@@ -1141,7 +1141,7 @@ pub async fn payment_method_update_api(
         move |state, auth: auth::AuthenticationData, mut req, _| {
             let payment_method_id = payment_method_id.clone();
             Box::pin(async move {
-                validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                validate_legacy_endpoint_access(&state, &auth.platform, false).await?;
                 if let Some(client_secret) = auth.client_secret {
                     req.client_secret = Some(client_secret);
                 }
@@ -1190,7 +1190,7 @@ pub async fn payment_method_delete_api(
         &req,
         pm,
         |state, auth: auth::AuthenticationData, req, _| async move {
-            validate_legacy_endpoint_access(&state, &auth.platform).await?;
+            validate_legacy_endpoint_access(&state, &auth.platform, false).await?;
             cards::PmCards {
                 state: &state,
                 provider: auth.platform.get_provider(),

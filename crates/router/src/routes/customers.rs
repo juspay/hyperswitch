@@ -61,6 +61,7 @@ pub async fn customers_create(
     json_payload: web::Json<customers::CustomerRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomersCreate;
+    let is_jwt = auth::is_jwt_auth(req.headers());
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -68,7 +69,7 @@ pub async fn customers_create(
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
             Box::pin(async move {
-                core_utils::validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                core_utils::validate_legacy_endpoint_access(&state, &auth.platform, is_jwt).await?;
                 create_customer(
                     state,
                     auth.platform.get_provider().clone(),
@@ -107,7 +108,8 @@ pub async fn customers_retrieve(
 
     let customer_id = path.into_inner();
 
-    let auth = if auth::is_jwt_auth(req.headers()) {
+    let is_jwt = auth::is_jwt_auth(req.headers());
+    let auth = if is_jwt {
         Box::new(auth::JWTAuth {
             permission: Permission::MerchantCustomerRead,
             allow_connected: true,
@@ -131,7 +133,7 @@ pub async fn customers_retrieve(
         customer_id,
         move |state, auth: auth::AuthenticationData, customer_id, _| {
             Box::pin(async move {
-                core_utils::validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                core_utils::validate_legacy_endpoint_access(&state, &auth.platform, is_jwt).await?;
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 retrieve_customer(
                     state,
@@ -387,6 +389,7 @@ pub async fn customers_update(
         customer_id,
         request,
     };
+    let is_jwt = auth::is_jwt_auth(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -395,7 +398,7 @@ pub async fn customers_update(
         request_internal,
         |state, auth: auth::AuthenticationData, request_internal, _| {
             Box::pin(async move {
-                core_utils::validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                core_utils::validate_legacy_endpoint_access(&state, &auth.platform, is_jwt).await?;
                 update_customer(
                     state,
                     auth.platform.get_provider().clone(),
@@ -509,6 +512,7 @@ pub async fn customers_delete(
 ) -> impl Responder {
     let flow = Flow::CustomersDelete;
     let customer_id = path.into_inner();
+    let is_jwt = auth::is_jwt_auth(req.headers());
 
     Box::pin(api::server_wrap(
         flow,
@@ -517,7 +521,7 @@ pub async fn customers_delete(
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
             Box::pin(async move {
-                core_utils::validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                core_utils::validate_legacy_endpoint_access(&state, &auth.platform, is_jwt).await?;
                 delete_customer(
                     state,
                     auth.platform.get_provider().clone(),
