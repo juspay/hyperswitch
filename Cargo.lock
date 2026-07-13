@@ -2179,6 +2179,7 @@ dependencies = [
  "blake3",
  "bytes 1.10.1",
  "common_enums",
+ "deja",
  "diesel",
  "error-stack 0.4.1",
  "fake",
@@ -2771,6 +2772,63 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
 
 [[package]]
+name = "deja"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=075a614324897b8b6a878af36d7ac243fbec5d33#075a614324897b8b6a878af36d7ac243fbec5d33"
+dependencies = [
+ "deja-context",
+ "deja-core",
+ "deja-derive",
+ "deja-runtime",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "deja-context"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=075a614324897b8b6a878af36d7ac243fbec5d33#075a614324897b8b6a878af36d7ac243fbec5d33"
+dependencies = [
+ "pin-project-lite",
+]
+
+[[package]]
+name = "deja-core"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=075a614324897b8b6a878af36d7ac243fbec5d33#075a614324897b8b6a878af36d7ac243fbec5d33"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "deja-derive"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=075a614324897b8b6a878af36d7ac243fbec5d33#075a614324897b8b6a878af36d7ac243fbec5d33"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
+name = "deja-runtime"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=075a614324897b8b6a878af36d7ac243fbec5d33#075a614324897b8b6a878af36d7ac243fbec5d33"
+dependencies = [
+ "async-trait",
+ "deja-context",
+ "deja-core",
+ "deja-derive",
+ "serde",
+ "serde_json",
+ "tokio 1.48.0",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "der"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2955,6 +3013,7 @@ dependencies = [
  "common_enums",
  "common_types",
  "common_utils",
+ "deja",
  "diesel",
  "error-stack 0.4.1",
  "hyperswitch_masking",
@@ -3380,8 +3439,10 @@ dependencies = [
  "aws-smithy-runtime-api",
  "aws-smithy-types",
  "base64 0.22.1",
+ "bytes 1.10.1",
  "common_enums",
  "common_utils",
+ "deja",
  "dyn-clone",
  "error-stack 0.4.1",
  "hex",
@@ -7690,12 +7751,14 @@ name = "redis_interface"
 version = "0.1.0"
 dependencies = [
  "common_utils",
+ "deja",
  "error-stack 0.4.1",
  "fred",
  "futures 0.3.31",
  "redis",
  "router_env",
  "serde",
+ "serde_json",
  "thiserror 1.0.69",
  "tokio 1.48.0",
  "tokio-stream",
@@ -8018,6 +8081,8 @@ dependencies = [
  "cookie 0.18.1",
  "csv",
  "currency_conversion",
+ "deja",
+ "deja-core",
  "derive_deref",
  "diesel",
  "diesel_models",
@@ -8123,8 +8188,11 @@ name = "router_env"
 version = "0.1.0"
 dependencies = [
  "actix-web",
+ "bytes 1.10.1",
  "cargo_metadata 0.18.1",
  "config",
+ "deja",
+ "deja-core",
  "error-stack 0.4.1",
  "gethostname",
  "opentelemetry",
@@ -9440,6 +9508,7 @@ dependencies = [
  "common_utils",
  "config",
  "crc32fast",
+ "deja",
  "diesel",
  "diesel_models",
  "dyn-clone",
