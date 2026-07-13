@@ -94,6 +94,7 @@ pub struct ConnectorEventsResult {
     pub created_at: PrimitiveDateTime,
     pub method: Option<String>,
     pub destination: Option<String>,
+    /// Read to filter shadow-mode events out of the response; never surfaced to the caller.
     #[serde(skip_serializing)]
     pub execution_mode: Option<String>,
 }
