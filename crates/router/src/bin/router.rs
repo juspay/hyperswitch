@@ -24,6 +24,11 @@ async fn main() -> ApplicationResult<()> {
         println!("Starting router (Version: {})", router_env::git_tag!());
     }
 
+    #[cfg(feature = "deja")]
+    let deja_install_report = router::deja_boot::install(&conf.deja).map_err(|message| {
+        error_stack::report!(ApplicationError::ConfigurationError).attach_printable(message)
+    })?;
+
     let _guard = router_env::setup(
         &conf.log,
         router_env::service_name!(),
@@ -38,6 +43,15 @@ async fn main() -> ApplicationResult<()> {
     .change_context(ApplicationError::ConfigurationError)?;
 
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
+
+    #[cfg(feature = "deja")]
+    router_env::tracing::info!(
+        target: "deja",
+        mode = deja_install_report.mode,
+        run_id = ?deja_install_report.run_id,
+        detail = ?deja_install_report.detail,
+        "deja runtime hook initialized"
+    );
 
     // Spawn a thread for collecting metrics at fixed intervals
     metrics::bg_metrics_collector::spawn_metrics_collector(
