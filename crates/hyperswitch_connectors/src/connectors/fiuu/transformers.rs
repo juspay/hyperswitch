@@ -263,7 +263,10 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuMandateReque
             .router_data
             .request
             .get_card_holder_name_from_additional_payment_method_data()?;
-        let email = item.router_data.get_billing_email()?;
+        let email = item
+            .router_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
         let token = Secret::new(item.router_data.request.get_connector_mandate_id()?);
         let verify_key = auth.verify_key;
         let recurring_request = FiuuRecurringRequest {
@@ -664,7 +667,10 @@ impl TryFrom<(&Card, &PaymentsAuthorizeRouterData)> for FiuuPaymentMethodData {
     ) -> Result<Self, Self::Error> {
         let (mps_token_status, customer_email) =
             if item.request.is_customer_initiated_mandate_payment() {
-                (Some(1), Some(item.get_billing_email()?))
+                (
+                    Some(1),
+                    Some(item.get_billing_email().or(item.request.get_email())?),
+                )
             } else {
                 (Some(3), None)
             };
@@ -1885,7 +1891,10 @@ pub enum FiuuRefundSyncResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct RefundData {
-    #[serde(rename = "RefundID")]
+    #[serde(
+        rename = "RefundID",
+        deserialize_with = "deserialize_string_from_number_or_string"
+    )]
     refund_id: String,
     status: RefundStatus,
 }
@@ -2053,13 +2062,36 @@ pub struct FiuuWebhooksRefundResponse {
     pub merchant_id: Secret<String>,
     #[serde(rename = "RefID")]
     pub ref_id: String,
-    #[serde(rename = "RefundID")]
+    #[serde(
+        rename = "RefundID",
+        deserialize_with = "deserialize_string_from_number_or_string"
+    )]
     pub refund_id: String,
-    #[serde(rename = "TxnID")]
+    #[serde(
+        rename = "TxnID",
+        deserialize_with = "deserialize_string_from_number_or_string"
+    )]
     pub txn_id: String,
     pub amount: StringMajorUnit,
     pub status: FiuuRefundsWebhookStatus,
     pub signature: Secret<String>,
+}
+
+fn deserialize_string_from_number_or_string<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrNumber {
+        String(String),
+        Number(serde_json::Number),
+    }
+
+    match StringOrNumber::deserialize(deserializer)? {
+        StringOrNumber::String(value) => Ok(value),
+        StringOrNumber::Number(value) => Ok(value.to_string()),
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, strum::Display)]
