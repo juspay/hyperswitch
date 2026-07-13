@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 
 use api_models::merchant_connector_webhook_management::{
-    ConnectorWebhookRegisterRequest as ApiConnectorWebhookRegisterRequest, ConnectorWebhookScope,
-    LegacyConnectorWebhookResponse, RegisterConnectorWebhookResponse, Scope,
-    ScopeBasedConnectorWebhookResponse, ScopeIdentifier, ScopeType, WebhookRegistrationResult,
+    ConnectorWebhookRegisterRequest as ApiConnectorWebhookRegisterRequest,
+    ConnectorWebhookResponse, ConnectorWebhookScope, RegisterConnectorWebhookResponse, Scope,
+    ScopeIdentifier, ScopeType, WebhookRegistrationResult,
 };
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::{ensure, Report, ResultExt};
@@ -512,8 +512,7 @@ enum StoredConnectorWebhookEntry {
 #[allow(deprecated)]
 pub fn get_connector_webhook_list_response(
     register_webhook_response: &Option<serde_json::Value>,
-) -> RouterResult<Vec<api_models::merchant_connector_webhook_management::ConnectorWebhookResponse>>
-{
+) -> RouterResult<Vec<ConnectorWebhookResponse>> {
     use std::collections::HashMap;
 
     let webhook_map: HashMap<String, StoredConnectorWebhookEntry> = match register_webhook_response
@@ -527,20 +526,10 @@ pub fn get_connector_webhook_list_response(
         .into_iter()
         .map(|(connector_webhook_id, entry)| match entry {
             StoredConnectorWebhookEntry::Legacy(legacy) => {
-                api_models::merchant_connector_webhook_management::ConnectorWebhookResponse::Legacy(
-                    LegacyConnectorWebhookResponse {
-                        event_type: Some(legacy.event_type),
-                        connector_webhook_id,
-                    },
-                )
+                ConnectorWebhookResponse::legacy(connector_webhook_id, legacy.event_type)
             }
             StoredConnectorWebhookEntry::New(scope) => {
-                api_models::merchant_connector_webhook_management::ConnectorWebhookResponse::ScopeBased(
-                    ScopeBasedConnectorWebhookResponse {
-                        connector_webhook_id,
-                        scope,
-                    },
-                )
+                ConnectorWebhookResponse::scope_based(connector_webhook_id, scope)
             }
         })
         .collect();

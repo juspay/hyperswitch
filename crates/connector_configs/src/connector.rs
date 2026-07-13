@@ -7,6 +7,7 @@ use api_models::{
         AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors,
         SurchargeConnectors, TaxConnectors,
     },
+    merchant_connector_webhook_management::ScopeType,
     payments,
 };
 use serde::{Deserialize, Serialize};
@@ -219,6 +220,7 @@ pub struct ConnectorWalletDetailsConfig {
 pub struct ConnectorWebhookRegisterDetailsConfig {
     pub label: String,
     pub webhook_auto_configuration_supported: bool,
+    pub scope_type: Option<ScopeType>,
     pub payment_method_types: Option<Vec<String>>,
     pub event_types: Option<Vec<String>>,
 }

@@ -416,6 +416,7 @@ type = "Text"
 [adyen.connector_webhook_register_details]
 label="Webhook Registration"
 webhook_auto_configuration_supported=true 
+scope_type="not_specific"
 
 [airwallex]
 [[airwallex.credit]]
@@ -6536,6 +6537,7 @@ type="Text"
 [santander.connector_webhook_register_details]
 label="Webhook Registration & Workspace Creation"
 webhook_auto_configuration_supported=true 
+scope_type="payment_method_type"
 payment_method_types=["pix_emv", "pix_automatico_push", "pix_automatico_qr", "boleto"]
 
 [blackhawknetwork]
@@ -6599,6 +6601,7 @@ event_types=[
     "payout_cancelled",
     "payout_reversed"
 ]
+scope_type="event_type"
 
 [silverflow]
 [[silverflow.credit]]

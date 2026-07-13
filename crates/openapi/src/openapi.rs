@@ -388,8 +388,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         api_models::merchant_connector_webhook_management::WebhookSecretErrorDetails,
         api_models::merchant_connector_webhook_management::RegisterConnectorWebhookResponse,
-        api_models::merchant_connector_webhook_management::LegacyConnectorWebhookResponse,
-        api_models::merchant_connector_webhook_management::ScopeBasedConnectorWebhookResponse,
         api_models::merchant_connector_webhook_management::ConnectorWebhookResponse,
         api_models::merchant_connector_webhook_management::ConnectorWebhookListResponse,
         api_models::merchant_connector_webhook_management::Scope,

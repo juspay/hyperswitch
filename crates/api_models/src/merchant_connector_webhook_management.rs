@@ -21,7 +21,7 @@ pub enum Scope {
 }
 
 /// Discriminator for the scope type in the response
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ScopeType {
     NotSpecific,
@@ -195,7 +195,7 @@ pub struct ConnectorWebhookListResponse {
 }
 
 /// Scope of a single registered connector webhook.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ConnectorWebhookScope {
     NotSpecific,
@@ -204,22 +204,65 @@ pub enum ConnectorWebhookScope {
 }
 
 #[allow(deprecated)]
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct LegacyConnectorWebhookResponse {
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ConnectorWebhookResponse {
+    pub connector_webhook_id: String,
+    /// Present for legacy registrations that used `event_type`.
     #[schema(value_type = Option<ConnectorWebhookEventType>, deprecated)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub event_type: Option<ConnectorWebhookEventType>,
-    pub connector_webhook_id: String,
+    /// Present for scope-based registrations.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scope: Option<ConnectorWebhookScope>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct ScopeBasedConnectorWebhookResponse {
-    pub connector_webhook_id: String,
-    pub scope: ConnectorWebhookScope,
+impl ConnectorWebhookResponse {
+    /// Build the legacy response shape.
+    pub fn legacy(connector_webhook_id: String, event_type: ConnectorWebhookEventType) -> Self {
+        Self {
+            connector_webhook_id,
+            event_type: Some(event_type),
+            scope: None,
+        }
+    }
+
+    /// Build the scope-based response shape.
+    pub fn scope_based(connector_webhook_id: String, scope: ConnectorWebhookScope) -> Self {
+        Self {
+            connector_webhook_id,
+            event_type: None,
+            scope: Some(scope),
+        }
+    }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(untagged)]
-pub enum ConnectorWebhookResponse {
-    Legacy(LegacyConnectorWebhookResponse),
-    ScopeBased(ScopeBasedConnectorWebhookResponse),
+impl<'de> Deserialize<'de> for ConnectorWebhookResponse {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct RawConnectorWebhookResponse {
+            connector_webhook_id: String,
+            #[allow(deprecated)]
+            #[serde(default)]
+            event_type: Option<ConnectorWebhookEventType>,
+            #[serde(default)]
+            scope: Option<ConnectorWebhookScope>,
+        }
+
+        let raw = RawConnectorWebhookResponse::deserialize(deserializer)?;
+
+        match (&raw.event_type, &raw.scope) {
+            (Some(_), Some(_)) => Err(serde::de::Error::custom(
+                "fields `event_type` and `scope` are mutually exclusive",
+            )),
+            (None, None) => Err(serde::de::Error::custom(
+                "either `event_type` or `scope` must be provided",
+            )),
+            _ => Ok(Self {
+                connector_webhook_id: raw.connector_webhook_id,
+                event_type: raw.event_type,
+                scope: raw.scope,
+            }),
+        }
+    }
 }
