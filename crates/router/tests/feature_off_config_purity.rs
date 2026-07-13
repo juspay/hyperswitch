@@ -83,7 +83,7 @@ shutdown_flush_ms = 1
 "#;
 
 fn is_debug_block_close(trimmed: &str) -> bool {
-    trimmed.starts_with('}') || trimmed.starts_with(']')
+    trimmed.starts_with('}') || trimmed.starts_with(']') || trimmed.starts_with(')')
 }
 
 fn canonicalize_debug_block(lines: &[&str], index: &mut usize, sort_entries: bool) -> Vec<String> {
@@ -94,8 +94,14 @@ fn canonicalize_debug_block(lines: &[&str], index: &mut usize, sort_entries: boo
         let line = (*line).to_owned();
         let trimmed = line.trim();
         let is_block_close = is_debug_block_close(trimmed);
-        let opens_child_block = trimmed.ends_with('{') || trimmed.ends_with('[');
-        let child_sorts_map_entries = trimmed.ends_with(": {");
+        let opens_child_block =
+            trimmed.ends_with('{') || trimmed.ends_with('[') || trimmed.ends_with('(');
+        // Sort the entries of any `{ ... }` block (maps/sets are unordered, and
+        // sorting a struct's fields is harmless because it is applied to both
+        // sides). Newtype `( ... )` and array `[ ... ]` blocks preserve order.
+        // This makes the comparison independent of HashMap iteration order,
+        // which otherwise leaks through fields like `supported_payment_methods`.
+        let child_sorts_map_entries = trimmed.ends_with('{');
         *index += 1;
 
         if is_block_close {
