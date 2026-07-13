@@ -469,15 +469,24 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
     }
 }
 
-impl From<responses::PayloadPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: responses::PayloadPaymentStatus) -> Self {
-        match item {
-            responses::PayloadPaymentStatus::Authorized => Self::Authorized,
-            responses::PayloadPaymentStatus::Processed => Self::Charged,
-            responses::PayloadPaymentStatus::Processing => Self::Pending,
-            responses::PayloadPaymentStatus::Rejected
-            | responses::PayloadPaymentStatus::Declined => Self::Failure,
-            responses::PayloadPaymentStatus::Voided => Self::Voided,
+fn get_payload_attempt_status(
+    status: responses::PayloadPaymentStatus,
+    prev_status: common_enums::AttemptStatus,
+) -> common_enums::AttemptStatus {
+    match status {
+        responses::PayloadPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
+        responses::PayloadPaymentStatus::Processed => common_enums::AttemptStatus::Charged,
+        responses::PayloadPaymentStatus::Processing => common_enums::AttemptStatus::Pending,
+        responses::PayloadPaymentStatus::Rejected | responses::PayloadPaymentStatus::Declined => {
+            common_enums::AttemptStatus::Failure
+        }
+        responses::PayloadPaymentStatus::Voided => common_enums::AttemptStatus::Voided,
+        responses::PayloadPaymentStatus::Unknown => {
+            router_env::logger::warn!(
+                "Payload returned unknown payment status; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
         }
     }
 }
@@ -519,7 +528,7 @@ where
                     (true, responses::PayloadPaymentStatus::Authorized) => {
                         enums::AttemptStatus::Pending
                     }
-                    _ => enums::AttemptStatus::from(response.status),
+                    _ => get_payload_attempt_status(response.status, item.data.status),
                 };
 
                 let mandate_reference = is_mandate_payment
@@ -681,6 +690,12 @@ impl
             | responses::PayloadPaymentStatus::Processed => {
                 common_enums::PostCaptureVoidStatus::Failed
             }
+            responses::PayloadPaymentStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Payload returned unknown payment status for post-capture-void; defaulting to pending"
+                );
+                common_enums::PostCaptureVoidStatus::Pending
+            }
         };
 
         let description = post_capture_void_status
@@ -725,12 +740,22 @@ impl<F> TryFrom<&PayloadRouterData<&RefundsRouterData<F>>> for requests::Payload
     }
 }
 
-impl From<responses::RefundStatus> for enums::RefundStatus {
-    fn from(item: responses::RefundStatus) -> Self {
-        match item {
-            responses::RefundStatus::Processed => Self::Success,
-            responses::RefundStatus::Processing => Self::Pending,
-            responses::RefundStatus::Declined | responses::RefundStatus::Rejected => Self::Failure,
+fn get_payload_refund_status(
+    status: responses::RefundStatus,
+    prev_refund_status: enums::RefundStatus,
+) -> enums::RefundStatus {
+    match status {
+        responses::RefundStatus::Processed => enums::RefundStatus::Success,
+        responses::RefundStatus::Processing => enums::RefundStatus::Pending,
+        responses::RefundStatus::Declined | responses::RefundStatus::Rejected => {
+            enums::RefundStatus::Failure
+        }
+        responses::RefundStatus::Unknown => {
+            router_env::logger::warn!(
+                "Payload returned unknown refund status; retaining previous refund status {:?}",
+                prev_refund_status
+            );
+            prev_refund_status
         }
     }
 }
@@ -742,10 +767,12 @@ impl TryFrom<RefundsResponseRouterData<Execute, responses::PayloadRefundResponse
     fn try_from(
         item: RefundsResponseRouterData<Execute, responses::PayloadRefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_status =
+            get_payload_refund_status(item.response.status, item.data.request.refund_status);
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status,
             }),
             ..item.data
         })
@@ -759,10 +786,12 @@ impl TryFrom<RefundsResponseRouterData<RSync, responses::PayloadRefundResponse>>
     fn try_from(
         item: RefundsResponseRouterData<RSync, responses::PayloadRefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_status =
+            get_payload_refund_status(item.response.status, item.data.request.refund_status);
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status,
             }),
             ..item.data
         })
@@ -802,6 +831,12 @@ impl From<responses::PayloadWebhooksTrigger> for IncomingWebhookEvent {
             | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
                 Self::EventNotSupported
             }
+            responses::PayloadWebhooksTrigger::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown payload webhook trigger received; acknowledging without processing"
+                );
+                Self::EventNotSupported
+            }
         }
     }
 }
@@ -837,7 +872,8 @@ impl TryFrom<responses::PayloadWebhooksTrigger> for responses::PayloadPaymentSta
             | responses::PayloadWebhooksTrigger::PaymentLinkStatus
             | responses::PayloadWebhooksTrigger::ProcessingStatus
             | responses::PayloadWebhooksTrigger::TransactionOperation
-            | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
+            | responses::PayloadWebhooksTrigger::TransactionOperationClear
+            | responses::PayloadWebhooksTrigger::Unknown => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
         }

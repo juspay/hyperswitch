@@ -41,6 +41,7 @@ use hyperswitch_interfaces::{
         ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::{
@@ -123,27 +124,55 @@ impl ConnectorCommon for Nmi {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: nmi::StandardResponse = res
-            .response
-            .parse_struct("StandardResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        let response: Result<nmi::StandardResponse, _> =
+            res.response.parse_struct("StandardResponse");
 
-        Ok(ErrorResponse {
-            message: response.responsetext.to_owned(),
-            status_code: res.status_code,
-            reason: Some(response.responsetext),
-            code: response.response_code,
-            attempt_status: None,
-            connector_transaction_id: Some(response.transactionid),
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    message: response.responsetext.to_owned(),
+                    status_code: res.status_code,
+                    reason: Some(response.responsetext),
+                    code: response.response_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(response.transactionid),
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                if let Some(event) = event_builder {
+                    event.set_error(serde_json::json!({
+                        "error": "Error response parsing failed",
+                        "status_code": res.status_code
+                    }));
+                }
+                router_env::logger::error!(deserialization_error =? error_msg);
+                crate::utils::handle_json_response_deserialization_failure(res, "nmi")
+            }
+        }
     }
 }
 
@@ -1015,6 +1044,10 @@ impl IncomingWebhook for Nmi {
         request: &IncomingWebhookRequestDetails<'_>,
         _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
+        if request.body.is_empty() {
+            return Ok(IncomingWebhookEvent::EventNotSupported);
+        }
+
         let event_type_body: nmi::NmiWebhookEventBody = request
             .body
             .parse_struct("nmi NmiWebhookEventType")
@@ -1043,6 +1076,7 @@ impl IncomingWebhook for Nmi {
                 Ok(Box::new(nmi::SyncResponse::try_from(&webhook_body)?))
             }
             nmi::NmiActionType::Refund => Ok(Box::new(webhook_body)),
+            nmi::NmiActionType::Unknown => Err(ConnectorError::WebhooksNotImplemented)?,
         }
     }
 }

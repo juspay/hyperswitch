@@ -1486,11 +1486,12 @@ function bankRedirectRedirection(
 
     verifyUrl = false;
   } else if (
-    connectorId === "payjustnow" &&
+    (connectorId === "payjustnow" || connectorId === "payjustnowinstore") &&
     paymentMethodType === "payjustnow"
   ) {
-    // PayJustNow is handled outside handleFlow for the same reason as Adyen/Airwallex
-    // iDEAL: cy.origin cannot be nested (https://github.com/cypress-io/cypress/issues/20718).
+    // PayJustNow (both online and in-store variants) is handled outside
+    // handleFlow for the same reason as Adyen/Airwallex iDEAL: cy.origin
+    // cannot be nested (https://github.com/cypress-io/cypress/issues/20718).
     // The flow crosses THREE origins sequentially:
     //   1. sandbox-app.payjustnow.com  — login → checkout → PIN
     //   2. sandbox-app.payjustnow.com  — optional /confirm-card OTP
@@ -2476,7 +2477,8 @@ function bankRedirectRedirection(
             }
             break;
 
-          // payjustnow is handled in its own else-if branch above (before handleFlow)
+          // payjustnow and payjustnowinstore are handled in their own
+          // else-if branch above (before handleFlow)
           // using two sequential cy.origin() calls, because cy.origin cannot be nested.
 
           default:
