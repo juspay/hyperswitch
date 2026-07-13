@@ -32,17 +32,202 @@ use crate::{
     },
 };
 
+#[cfg(feature = "deja")]
+#[derive(serde::Serialize, serde::Deserialize)]
+enum DejaRedisValue {
+    Null,
+    Int(i64),
+    BulkString(Vec<u8>),
+    Array(Vec<Self>),
+    SimpleString(String),
+    Okay,
+    Map(Vec<(Self, Self)>),
+    Attribute {
+        data: Box<Self>,
+        attributes: Vec<(Self, Self)>,
+    },
+    Set(Vec<Self>),
+    Double(f64),
+    Boolean(bool),
+    VerbatimString {
+        format: String,
+        text: String,
+    },
+    Push {
+        kind: String,
+        data: Vec<Self>,
+    },
+    UnsupportedSuccessfulValue {
+        variant: String,
+    },
+}
+
+#[cfg(feature = "deja")]
+impl From<redis::Value> for DejaRedisValue {
+    fn from(value: redis::Value) -> Self {
+        match value {
+            redis::Value::Nil => Self::Null,
+            redis::Value::Int(value) => Self::Int(value),
+            redis::Value::BulkString(value) => Self::BulkString(value),
+            redis::Value::Array(values) => {
+                Self::Array(values.into_iter().map(Self::from).collect())
+            }
+            redis::Value::SimpleString(value) => Self::SimpleString(value),
+            redis::Value::Okay => Self::Okay,
+            redis::Value::Map(values) => Self::Map(
+                values
+                    .into_iter()
+                    .map(|(key, value)| (Self::from(key), Self::from(value)))
+                    .collect(),
+            ),
+            redis::Value::Attribute { data, attributes } => Self::Attribute {
+                data: Box::new(Self::from(*data)),
+                attributes: attributes
+                    .into_iter()
+                    .map(|(key, value)| (Self::from(key), Self::from(value)))
+                    .collect(),
+            },
+            redis::Value::Set(values) => Self::Set(values.into_iter().map(Self::from).collect()),
+            redis::Value::Double(value) => Self::Double(value),
+            redis::Value::Boolean(value) => Self::Boolean(value),
+            redis::Value::VerbatimString { format, text } => Self::VerbatimString {
+                format: format.to_string(),
+                text,
+            },
+            redis::Value::Push { kind, data } => Self::Push {
+                kind: kind.to_string(),
+                data: data.into_iter().map(Self::from).collect(),
+            },
+            redis::Value::BigNumber(_) => Self::UnsupportedSuccessfulValue {
+                variant: "BigNumber".to_string(),
+            },
+            redis::Value::ServerError(error) => Self::UnsupportedSuccessfulValue {
+                variant: match error.details() {
+                    Some(details) => format!("ServerError({}: {details})", error.code()),
+                    None => format!("ServerError({})", error.code()),
+                },
+            },
+            _ => Self::UnsupportedSuccessfulValue {
+                variant: "unknown non-exhaustive redis::Value variant".to_string(),
+            },
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+impl DejaRedisValue {
+    fn into_supported_redis_value(self) -> Result<redis::Value, redis::RedisError> {
+        match self {
+            Self::Null => Ok(redis::Value::Nil),
+            Self::Int(value) => Ok(redis::Value::Int(value)),
+            Self::BulkString(value) => Ok(redis::Value::BulkString(value)),
+            Self::Array(values) => Ok(redis::Value::Array(
+                values
+                    .into_iter()
+                    .map(Self::into_supported_redis_value)
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            Self::SimpleString(value) => Ok(redis::Value::SimpleString(value)),
+            Self::Okay => Ok(redis::Value::Okay),
+            Self::Map(values) => Ok(redis::Value::Map(
+                values
+                    .into_iter()
+                    .map(|(key, value)| {
+                        Ok((
+                            key.into_supported_redis_value()?,
+                            value.into_supported_redis_value()?,
+                        ))
+                    })
+                    .collect::<Result<Vec<_>, redis::RedisError>>()?,
+            )),
+            Self::Attribute { data, attributes } => Ok(redis::Value::Attribute {
+                data: Box::new(data.into_supported_redis_value()?),
+                attributes: attributes
+                    .into_iter()
+                    .map(|(key, value)| {
+                        Ok((
+                            key.into_supported_redis_value()?,
+                            value.into_supported_redis_value()?,
+                        ))
+                    })
+                    .collect::<Result<Vec<_>, redis::RedisError>>()?,
+            }),
+            Self::Set(values) => Ok(redis::Value::Set(
+                values
+                    .into_iter()
+                    .map(Self::into_supported_redis_value)
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            Self::Double(value) => Ok(redis::Value::Double(value)),
+            Self::Boolean(value) => Ok(redis::Value::Boolean(value)),
+            Self::VerbatimString { format, text } => Ok(redis::Value::VerbatimString {
+                format: match format.as_str() {
+                    "mkd" => redis::VerbatimFormat::Markdown,
+                    "txt" => redis::VerbatimFormat::Text,
+                    other => redis::VerbatimFormat::Unknown(other.to_string()),
+                },
+                text,
+            }),
+            Self::Push { kind, data } => Ok(redis::Value::Push {
+                kind: match kind.as_str() {
+                    "disconnection" => redis::PushKind::Disconnection,
+                    "invalidate" => redis::PushKind::Invalidate,
+                    "message" => redis::PushKind::Message,
+                    "pmessage" => redis::PushKind::PMessage,
+                    "smessage" => redis::PushKind::SMessage,
+                    "unsubscribe" => redis::PushKind::Unsubscribe,
+                    "punsubscribe" => redis::PushKind::PUnsubscribe,
+                    "sunsubscribe" => redis::PushKind::SUnsubscribe,
+                    "subscribe" => redis::PushKind::Subscribe,
+                    "psubscribe" => redis::PushKind::PSubscribe,
+                    "ssubscribe" => redis::PushKind::SSubscribe,
+                    other => redis::PushKind::Other(other.to_string()),
+                },
+                data: data
+                    .into_iter()
+                    .map(Self::into_supported_redis_value)
+                    .collect::<Result<Vec<_>, _>>()?,
+            }),
+            Self::UnsupportedSuccessfulValue { variant } => Err((
+                redis::ErrorKind::UnexpectedReturnType,
+                "unsupported Redis value variant recorded by Deja replay",
+                variant,
+            )
+                .into()),
+        }
+    }
+}
+
 impl super::RedisConnectionPool {
     pub fn add_prefix(&self, key: &str) -> String {
-        if self.key_prefix.is_empty() {
+        let physical = if self.key_prefix.is_empty() {
             key.to_string()
         } else {
             format!("{}:{}", self.key_prefix, key)
+        };
+        #[cfg(feature = "deja")]
+        if let Some(corr) = deja::replay_key_namespace() {
+            return format!("{corr}:{physical}");
         }
+        physical
     }
 
     // ─── Key Commands ────────────────────────────────────────────────────────
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_key",
+            codec = ResultOkCodec,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SET",
+                    "has_ttl": true,
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key<V>(&self, key: &RedisKey, value: V) -> CustomResult<(), errors::RedisError>
     where
@@ -60,6 +245,19 @@ impl super::RedisConnectionPool {
         Ok(())
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_key_without_modifying_ttl",
+            codec = ResultOkCodec,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SET_KEEP_TTL",
+                })
+            },
+        )
+    )]
     pub async fn set_key_without_modifying_ttl<V>(
         &self,
         key: &RedisKey,
@@ -160,33 +358,54 @@ impl super::RedisConnectionPool {
             .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
-        let mut conn = self.pool.clone();
-        let options = SetOptions::default().with_expiration(SetExpiry::EX(
-            u64::try_from(seconds).change_context(errors::RedisError::SetExFailed)?,
-        ));
-        let _: Option<String> = track_redis_call(
-            RedisOperation::SerializeAndSetKeyWithExpiry,
-            conn.set_options(key.tenant_aware_key(self), serialized.as_slice(), options),
-        )
-        .await
-        .change_context(errors::RedisError::SetExFailed)?;
-        Ok(())
+        #[cfg(feature = "deja")]
+        {
+            self.set_key_with_expiry(key, serialized.as_slice(), seconds)
+                .await
+        }
+
+        #[cfg(not(feature = "deja"))]
+        {
+            let mut conn = self.pool.clone();
+            let options = SetOptions::default().with_expiration(SetExpiry::EX(
+                u64::try_from(seconds).change_context(errors::RedisError::SetExFailed)?,
+            ));
+            let _: Option<String> = track_redis_call(
+                RedisOperation::SerializeAndSetKeyWithExpiry,
+                conn.set_options(key.tenant_aware_key(self), serialized.as_slice(), options),
+            )
+            .await
+            .change_context(errors::RedisError::SetExFailed)?;
+            Ok(())
+        }
     }
 
+    #[cfg(feature = "deja")]
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn get_key<V>(&self, key: &RedisKey) -> CustomResult<V, errors::RedisError>
-    where
-        V: FromRedisValue + Send + 'static,
-    {
+    #[deja::redis(
+        operation = "get_key",
+        codec = ResultOkCodec,
+        state_read = key.tenant_aware_key(self),
+        args = {
+            serde_json::json!({
+                "key": key.as_str(),
+                "command": "GET",
+            })
+        },
+    )]
+    async fn get_key_raw(
+        &self,
+        key: &RedisKey,
+    ) -> CustomResult<DejaRedisValue, errors::RedisError> {
         let mut conn = self.pool.clone();
         match track_redis_call(
             RedisOperation::GetKey,
-            conn.get::<_, V>(key.tenant_aware_key(self)),
+            conn.get::<_, redis::Value>(key.tenant_aware_key(self)),
         )
         .await
         .change_context(errors::RedisError::GetFailed)
         {
-            Ok(v) => Ok(v),
+            Ok(value) => Ok(DejaRedisValue::from(value)),
             Err(_err) => {
                 #[cfg(not(feature = "multitenancy_fallback"))]
                 {
@@ -197,10 +416,58 @@ impl super::RedisConnectionPool {
                 {
                     track_redis_call(
                         RedisOperation::GetKey,
-                        conn.get::<_, V>(key.tenant_unaware_key(self)),
+                        conn.get::<_, redis::Value>(key.tenant_unaware_key(self)),
                     )
                     .await
+                    .map(DejaRedisValue::from)
                     .change_context(errors::RedisError::GetFailed)
+                }
+            }
+        }
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn get_key<V>(&self, key: &RedisKey) -> CustomResult<V, errors::RedisError>
+    where
+        V: FromRedisValue + Send + 'static,
+    {
+        #[cfg(feature = "deja")]
+        {
+            let raw_value = self
+                .get_key_raw(key)
+                .await?
+                .into_supported_redis_value()
+                .map_err(|err| report!(err).change_context(errors::RedisError::GetFailed))?;
+            return V::from_redis_value(raw_value)
+                .map_err(|err| report!(err).change_context(errors::RedisError::GetFailed));
+        }
+
+        #[cfg(not(feature = "deja"))]
+        {
+            let mut conn = self.pool.clone();
+            match track_redis_call(
+                RedisOperation::GetKey,
+                conn.get::<_, V>(key.tenant_aware_key(self)),
+            )
+            .await
+            .change_context(errors::RedisError::GetFailed)
+            {
+                Ok(v) => Ok(v),
+                Err(_err) => {
+                    #[cfg(not(feature = "multitenancy_fallback"))]
+                    {
+                        Err(_err)
+                    }
+
+                    #[cfg(feature = "multitenancy_fallback")]
+                    {
+                        track_redis_call(
+                            RedisOperation::GetKey,
+                            conn.get::<_, V>(key.tenant_unaware_key(self)),
+                        )
+                        .await
+                        .change_context(errors::RedisError::GetFailed)
+                    }
                 }
             }
         }
@@ -278,6 +545,29 @@ impl super::RedisConnectionPool {
         }
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "get_multiple_keys",
+            read_set = keys.iter().map(|key| key.tenant_aware_key(self)).collect::<Vec<_>>(),
+            args = {
+                serde_json::json!({
+                    "key_count": keys.len(),
+                    "keys": keys.iter().map(|key| key.as_str()).collect::<Vec<_>>(),
+                    "command": "MGET",
+                })
+            },
+            result = {
+                (
+                    match &__deja_result {
+                        Ok(_) => serde_json::json!({"ok": true}),
+                        Err(e) => serde_json::json!({"ok": false, "error": format!("{:?}", e)}),
+                    },
+                    __deja_result.is_err(),
+                )
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_multiple_keys<V>(
         &self,
@@ -391,6 +681,19 @@ impl super::RedisConnectionPool {
         Ok(results)
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "delete_key",
+            codec = ResultOkCodec,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "DEL",
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_key(&self, key: &RedisKey) -> CustomResult<DelReply, errors::RedisError> {
         let mut conn = self.pool.clone();
@@ -448,6 +751,20 @@ impl super::RedisConnectionPool {
         Ok(del_result)
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_key_with_expiry",
+            codec = ResultOkCodec,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SETEX",
+                    "ttl_seconds": seconds,
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key_with_expiry<V>(
         &self,
@@ -471,6 +788,21 @@ impl super::RedisConnectionPool {
         Ok(())
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_key_if_not_exists_with_expiry",
+            codec = ResultOkCodec,
+            state_write = key.tenant_aware_key(self),
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SETNX",
+                    "ttl_seconds": seconds,
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key_if_not_exists_with_expiry<V>(
         &self,
@@ -920,6 +1252,21 @@ impl super::RedisConnectionPool {
 
     // ─── Set Commands ────────────────────────────────────────────────────────
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "sadd",
+            codec = ResultOkCodec,
+            state_write = key.tenant_aware_key(self),
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SADD",
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn sadd<V>(
         &self,
