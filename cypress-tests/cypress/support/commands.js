@@ -11207,13 +11207,6 @@ Cypress.Commands.add(
     cy.deleteSuperpositionContext(globalState, context);
   }
 );
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-
-  }
-);
 
 Cypress.Commands.add("resetRedirectReadCount", (testIdHash) => {
   resetMitmRedirectSeq(testIdHash);
