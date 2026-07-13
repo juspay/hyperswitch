@@ -54,8 +54,11 @@ pub struct RazorpayOrderRequest {
     pub amount: MinorUnit,
     pub currency: enums::Currency,
     pub receipt: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub partial_payment: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub first_payment_min_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<RazorpayNotes>,
 }
 
