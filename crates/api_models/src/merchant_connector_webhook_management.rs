@@ -9,7 +9,6 @@ use crate::enums::{
 /// Determines which entities the connector should register webhooks for.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "values", rename_all = "snake_case")]
-#[non_exhaustive]
 pub enum Scope {
     /// Connector does not scope webhooks to any specific entity
     /// Single registration call

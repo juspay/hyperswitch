@@ -385,7 +385,6 @@ pub fn determine_scope_type(scope: &Scope) -> ScopeType {
         Scope::NotSpecific => ScopeType::NotSpecific,
         Scope::PaymentMethodTypes(_) => ScopeType::PaymentMethodType,
         Scope::EventTypes(_) => ScopeType::EventType,
-        _ => ScopeType::NotSpecific,
     }
 }
 
@@ -400,7 +399,6 @@ pub fn extract_requested_identifiers(scope: &Scope) -> Vec<ScopeIdentifier> {
             .iter()
             .map(|evt| ScopeIdentifier::EventType(*evt))
             .collect(),
-        _ => vec![ScopeIdentifier::NotSpecific],
     }
 }
 
