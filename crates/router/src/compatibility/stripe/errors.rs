@@ -713,6 +713,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::SubscriptionError { operation } => {
                 Self::SubscriptionError { operation }
             }
+            errors::ApiErrorResponse::PaymentSessionExpired => Self::PaymentNotFound,
         }
     }
 }

@@ -148,6 +148,7 @@ pub struct SingleUseMandate {
     serde::Deserialize,
 )]
 #[diesel(table_name = mandate)]
+#[router_derive::apply_changeset(target = Mandate)]
 pub struct MandateUpdateInternal {
     mandate_status: Option<storage_enums::MandateStatus>,
     amount_captured: Option<i64>,
@@ -197,31 +198,6 @@ impl From<MandateUpdate> for MandateUpdateInternal {
                 original_payment_id,
                 ..Default::default()
             },
-        }
-    }
-}
-
-impl MandateUpdateInternal {
-    pub fn apply_changeset(self, source: Mandate) -> Mandate {
-        let Self {
-            mandate_status,
-            amount_captured,
-            connector_mandate_ids,
-            connector_mandate_id,
-            payment_method_id,
-            original_payment_id,
-            updated_by,
-        } = self;
-
-        Mandate {
-            mandate_status: mandate_status.unwrap_or(source.mandate_status),
-            amount_captured: amount_captured.map_or(source.amount_captured, Some),
-            connector_mandate_ids: connector_mandate_ids.map_or(source.connector_mandate_ids, Some),
-            connector_mandate_id: connector_mandate_id.map_or(source.connector_mandate_id, Some),
-            payment_method_id: payment_method_id.unwrap_or(source.payment_method_id),
-            original_payment_id: original_payment_id.map_or(source.original_payment_id, Some),
-            updated_by: updated_by.map_or(source.updated_by, Some),
-            ..source
         }
     }
 }

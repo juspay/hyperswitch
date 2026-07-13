@@ -17,7 +17,9 @@ use hyperswitch_domain_models::{
         dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateSurcharge, CalculateTax, Capture,
             CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
@@ -25,7 +27,7 @@ use hyperswitch_domain_models::{
             IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid,
             PostCaptureVoidSync, PostProcessing, PostSessionTokens, PreAuthorizeVoid,
             PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
-            SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
+            SettlementSplitCreate, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{
@@ -38,7 +40,9 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication,
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -56,13 +60,15 @@ use hyperswitch_domain_models::{
         PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData,
         PaymentsRejectData, PaymentsSessionData, PaymentsSurchargeCalculationData,
         PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
-        PushNotificationRequestData, RefundsData, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsUpdatePostConfirmData, PushNotificationRequestData, RefundsData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
@@ -116,9 +122,7 @@ use hyperswitch_interfaces::{
             SubmitEvidenceV2,
         },
         files_v2::{FileUploadV2, RetrieveFileV2, UploadFileV2},
-        merchant_connector_webhook_management_v2::{
-            ConfigureConnectorWebhookV2, WebhookRegisterV2,
-        },
+        merchant_connector_webhook_management_v2::{WebhookGenerateSecretV2, WebhookRegisterV2},
         payments_v2::{
             CompleteRefundSurchrgeV2, CompleteSurchargeV2, ConnectorCustomerV2,
             ExternalVaultProxyPaymentsCreate, MandateSetupV2, PaymentApproveV2,
@@ -126,11 +130,12 @@ use hyperswitch_interfaces::{
             PaymentCreateOrderV2, PaymentExtendAuthorizationV2, PaymentIncrementalAuthorizationV2,
             PaymentPostCaptureVoidSyncV2, PaymentPostCaptureVoidV2, PaymentPostSessionTokensV2,
             PaymentPreAuthorizeVoidV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
-            PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2,
-            PaymentsAuthenticateV2, PaymentsCompleteAuthorizeV2, PaymentsGenerateQrV2,
-            PaymentsGiftCardBalanceCheckV2, PaymentsPostAuthenticateV2, PaymentsPostProcessingV2,
-            PaymentsPreAuthenticateV2, PaymentsPreProcessingV2, PaymentsPushNotificationV2,
-            PaymentsSettlementSplitCreate, SurchargeCalculationV2, TaxCalculationV2,
+            PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentUpdatePostConfirmV2,
+            PaymentV2, PaymentVoidV2, PaymentsAuthenticateV2, PaymentsCompleteAuthorizeV2,
+            PaymentsGenerateQrV2, PaymentsGiftCardBalanceCheckV2, PaymentsPostAuthenticateV2,
+            PaymentsPostProcessingV2, PaymentsPreAuthenticateV2, PaymentsPreProcessingV2,
+            PaymentsPushNotificationV2, PaymentsSettlementSplitCreate, SurchargeCalculationV2,
+            TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         revenue_recovery_v2::{
@@ -186,6 +191,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentSessionUpdateV2 for $path::$connector{}
             impl PaymentPostSessionTokensV2 for $path::$connector{}
             impl PaymentUpdateMetadataV2 for $path::$connector{}
+            impl PaymentUpdatePostConfirmV2 for $path::$connector{}
             impl PaymentCreateOrderV2 for $path::$connector{}
             impl ExternalVaultV2 for $path::$connector{}
             impl
@@ -346,6 +352,13 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             PaymentsUpdateMetadataData,
             PaymentsResponseData,
             > for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<
+            UpdatePostConfirm,
+            PaymentFlowData,
+            PaymentsUpdatePostConfirmData,
+            PaymentsResponseData,
+            > for $path::$connector{}
         impl ConnectorIntegrationV2<CreateOrder, PaymentFlowData, CreateOrderRequestData, PaymentsResponseData>
             for $path::$connector{}
         impl ConnectorIntegrationV2<
@@ -480,6 +493,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -645,6 +659,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -799,6 +814,7 @@ default_imp_for_new_connector_integration_connector_authentication_token!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -958,6 +974,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -1123,6 +1140,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -1288,6 +1306,7 @@ default_imp_for_new_connector_integration_fetch_disputes!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -1454,6 +1473,7 @@ default_imp_for_new_connector_integration_dispute_sync!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -1620,6 +1640,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -1784,6 +1805,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -1959,6 +1981,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2126,6 +2149,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2293,6 +2317,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2460,6 +2485,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2627,6 +2653,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2794,6 +2821,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2961,6 +2989,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3128,6 +3157,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3295,6 +3325,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3460,6 +3491,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3627,6 +3659,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3794,6 +3827,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3961,6 +3995,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4128,6 +4163,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4295,6 +4331,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4458,6 +4495,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4592,6 +4630,7 @@ default_imp_for_new_connector_integration_frm!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4754,6 +4793,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4908,6 +4948,7 @@ default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Razorpay,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -5097,6 +5138,7 @@ default_imp_for_new_connector_integration_external_vault!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -5261,6 +5303,7 @@ default_imp_for_new_connector_integration_external_vault_proxy!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -5303,14 +5346,22 @@ default_imp_for_new_connector_integration_external_vault_proxy!(
 macro_rules! default_imp_for_new_connector_integration_webhook_register {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl ConfigureConnectorWebhookV2 for $path::$connector {}
             impl WebhookRegisterV2 for $path::$connector {}
+            impl WebhookGenerateSecretV2 for $path::$connector {}
             impl
                 ConnectorIntegrationV2<
                 ConnectorWebhookRegister,
                 ConnectorWebhookConfigurationFlowData,
                 ConnectorWebhookRegisterRequest,
                 ConnectorWebhookRegisterResponse,
+            > for $path::$connector
+            {}
+            impl
+                ConnectorIntegrationV2<
+                ConnectorWebhookGenerateSecret,
+                ConnectorWebhookConfigurationFlowData,
+                ConnectorWebhookGenerateSecretRequest,
+                ConnectorWebhookGenerateSecretResponse,
             > for $path::$connector
             {}
         )*
@@ -5429,6 +5480,7 @@ default_imp_for_new_connector_integration_webhook_register!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
+    connectors::TsysTransit,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,

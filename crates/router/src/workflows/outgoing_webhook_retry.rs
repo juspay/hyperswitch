@@ -26,7 +26,10 @@ use crate::core::payouts;
 use crate::{
     core::{
         payments,
-        webhooks::{self as webhooks_core, types::OutgoingWebhookTrackingData},
+        webhooks::{
+            self as webhooks_core,
+            types::{OutgoingWebhookTrackingData, WebhookRecipientData},
+        },
     },
     db::StorageInterface,
     errors, logger,
@@ -66,6 +69,12 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             .processor_merchant_id
             .clone()
             .unwrap_or_else(|| tracking_data.merchant_id.clone());
+
+        let recipient_data = tracking_data.recipient_data.clone().unwrap_or_else(|| {
+            WebhookRecipientData::Merchant {
+                merchant_id: processor_merchant_id.clone(),
+            }
+        });
 
         let webhook_key_store = db
             .get_merchant_key_store_by_merchant_id(&webhook_recipient_merchant_id, master_key)
@@ -124,6 +133,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             initiator_merchant_id: initial_event
                 .initiator_merchant_id
                 .or(Some(webhook_key_store.merchant_id.clone())),
+            recipient: initial_event.recipient,
         };
 
         let event = db
@@ -147,16 +157,16 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     provider_merchant_id,
                     processor_merchant_id,
                     event,
-                    request_content,
+                    Some(request_content),
                     delivery_attempt,
                     None,
                     Some(process),
+                    recipient_data,
                 ))
                 .await;
             }
 
-            // Event inserted by old version of application, fetch current information about
-            // resource
+            // Event inserted by an older version of the application, or event created when sending webhooks to a connector
             None => {
                 // Fetch provider merchant account and keystore
                 let provider_key_store = db
@@ -196,25 +206,34 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                 );
 
                 // TODO: Add request state for the PT flows as well
-                let (content, event_type) = Box::pin(get_outgoing_webhook_content_and_event_type(
-                    state.clone(),
-                    state.get_req_state(),
-                    &platform,
-                    &tracking_data,
-                ))
-                .await?;
+                // Fetch the current resource information
+                let (content, event_type) =
+                    if let WebhookRecipientData::Merchant { .. } = recipient_data.clone() {
+                        let (content, event_type) =
+                            Box::pin(get_outgoing_webhook_content_and_event_type(
+                                state.clone(),
+                                state.get_req_state(),
+                                &platform,
+                                &tracking_data,
+                            ))
+                            .await?;
+
+                        (Some(content), event_type)
+                    } else {
+                        (None, None)
+                    };
 
                 match event_type {
                     // Resource status is same as the event type of the current event
                     Some(event_type) if event_type == tracking_data.event_type => {
-                        let outgoing_webhook = OutgoingWebhook {
+                        let outgoing_webhook = content.as_ref().map(|content| OutgoingWebhook {
                             merchant_id: provider_merchant_id.clone(),
                             event_id: event.event_id.clone(),
                             event_type,
                             content: content.clone(),
                             timestamp: event.created_at,
                             processor_merchant_id: Some(processor_merchant_id.clone()),
-                        };
+                        });
 
                         // Use the webhook recipient's merchant account for request construction.
                         // If the recipient is the provider, use the provider account (platform-initiated);
@@ -226,18 +245,22 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                                 platform.get_processor().get_account()
                             };
 
-                        let request_content = webhooks_core::get_outgoing_webhook_request(
-                            webhook_recipient_account,
-                            outgoing_webhook,
-                            &business_profile,
-                        )
-                        .map_err(|error| {
-                            logger::error!(
-                                ?error,
-                                "Failed to obtain outgoing webhook request content"
-                            );
-                            errors::ProcessTrackerError::EApiErrorResponse
-                        })?;
+                        let request_content = outgoing_webhook
+                            .map(|outgoing_webhook_data| {
+                                webhooks_core::get_outgoing_webhook_request(
+                                    webhook_recipient_account,
+                                    outgoing_webhook_data,
+                                    &business_profile,
+                                )
+                            })
+                            .transpose()
+                            .map_err(|error| {
+                                logger::error!(
+                                    ?error,
+                                    "Failed to obtain outgoing webhook request content"
+                                );
+                                errors::ProcessTrackerError::EApiErrorResponse
+                            })?;
 
                         Box::pin(webhooks_core::trigger_webhook_and_raise_event(
                             state.clone(),
@@ -248,8 +271,9 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                             event,
                             request_content,
                             delivery_attempt,
-                            Some(content),
+                            content,
                             Some(process),
+                            recipient_data,
                         ))
                         .await;
                     }
@@ -333,24 +357,65 @@ pub(crate) async fn get_webhook_delivery_retry_schedule_time(
     scheduler_utils::get_time_from_delta(time_delta)
 }
 
+/// This configuration value represents:
+/// - `default_mapping.start_after`: The first retry attempt should happen after 60 seconds by
+///   default.
+/// - `default_mapping.frequency` and `count`: The next 5 retries should have an interval of 300
+///   seconds between them by default.
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub(crate) async fn get_connector_webhook_delivery_retry_schedule_time(
+    db: &dyn StorageInterface,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    retry_count: i32,
+) -> Option<time::PrimitiveDateTime> {
+    let mapping = dimensions
+        .get_pt_mapping_outgoing_connector_webhooks(db, superposition_client, None)
+        .await;
+
+    let time_delta =
+        scheduler_utils::get_outgoing_webhook_retry_schedule_time(mapping, retry_count);
+
+    scheduler_utils::get_time_from_delta(time_delta)
+}
+
 /// Schedule the webhook delivery task for retry
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub(crate) async fn retry_webhook_delivery_task(
     db: &dyn StorageInterface,
-    superposition_client: &external_services::superposition::SuperpositionClient,
     merchant_id: &id_type::MerchantId,
+    superposition_client: &external_services::superposition::SuperpositionClient,
     process: storage::ProcessTracker,
+    recipient_data: WebhookRecipientData,
 ) -> errors::CustomResult<(), errors::StorageError> {
-    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
-        .with_processor_merchant_id(merchant_id.clone().into());
-    let schedule_time = get_webhook_delivery_retry_schedule_time(
-        db,
-        superposition_client,
-        &dimensions,
-        process.retry_count + 1,
-    )
-    .await;
+    let schedule_time = match recipient_data {
+        WebhookRecipientData::Merchant { merchant_id } => {
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(merchant_id.clone().into());
+            get_webhook_delivery_retry_schedule_time(
+                db,
+                superposition_client,
+                &dimensions,
+                process.retry_count + 1,
+            )
+            .await
+        }
+        WebhookRecipientData::Connector { connector, .. } => {
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(merchant_id.clone().into())
+                .with_connector(connector);
+
+            get_connector_webhook_delivery_retry_schedule_time(
+                db,
+                superposition_client,
+                &dimensions,
+                process.retry_count + 1,
+            )
+            .await
+        }
+    };
 
     match schedule_time {
         Some(schedule_time) => {

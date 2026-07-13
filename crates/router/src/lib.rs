@@ -90,11 +90,10 @@ pub mod headers {
     pub const X_APP_ID: &str = "x-app-id";
     pub const X_REDIRECT_URI: &str = "x-redirect-uri";
     pub const X_TENANT_ID: &str = "x-tenant-id";
+    pub const X_FINGERPRINT_ID: &str = "x-fingerprint-id";
     pub const X_CLIENT_SECRET: &str = "X-Client-Secret";
     pub const X_CUSTOMER_ID: &str = "X-Customer-Id";
     pub const X_CONNECTED_MERCHANT_ID: &str = "x-connected-merchant-id";
-    pub const CLIENT_SECRET: &str = "client-secret";
-    pub const SDK_AUTHORIZATION: &str = "sdk-authorization";
     // Header value for X_CONNECTOR_HTTP_STATUS_CODE differs by version.
     // Constant name is kept the same for consistency across versions.
     #[cfg(feature = "v1")]
@@ -185,7 +184,8 @@ pub fn mk_app(
                 .service(routes::Refunds::server(state.clone()))
                 .service(routes::Mandates::server(state.clone()))
                 .service(routes::Authentication::server(state.clone()))
-                .service(routes::SdkConfig::server(state.clone()));
+                .service(routes::SdkConfig::server(state.clone()))
+                .service(routes::SuperpositionProxy::server(state.clone()));
         }
     }
 
