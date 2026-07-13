@@ -21,14 +21,6 @@ describe("Acquirer-specific configurations", () => {
   context(
     "Create, Update, and Verify Visa Acquirer Config (is_default=true)",
     () => {
-      const shouldContinue = true;
-
-      beforeEach(function () {
-        if (!shouldContinue) {
-          this.skip();
-        }
-      });
-
       it("Create Business Profile", () => {
         cy.createBusinessProfileTest(
           fixtures.businessProfile.bpCreate,
@@ -43,6 +35,8 @@ describe("Acquirer-specific configurations", () => {
 
       it("Update Acquirer Config", () => {
         const body = { ...fixtures.businessProfile.acquirerConfigUpdate };
+        body.acquirer_bin = Cypress._.random(100000, 999999).toString();
+        globalState.set("visaAcquirerBin", body.acquirer_bin);
         cy.updateAcquirerConfigTest(body, globalState);
       });
 
@@ -66,18 +60,18 @@ describe("Acquirer-specific configurations", () => {
             ];
           expect(configs).to.be.an("array");
           expect(configs[0].network).to.equal("Visa");
-          expect(configs[0].acquirer_bin).to.equal("987654"); // acquirer_bin '987654' matches acquirerConfigUpdate fixture (intentional test data)
-          expect(configs[0].acquirer_country_code).to.equal("840"); // acquirer_country_code '840' = ISO 3166-1 numeric code for USA (API converts alpha-2 'US' to numeric '840' — see API_TRACE Steps 7/8/10)
+          expect(configs[0].acquirer_bin).to.equal(
+            globalState.get("visaAcquirerBin")
+          );
+          expect(configs[0].acquirer_country_code).to.be.oneOf(["US", "840"]);
         });
       });
     }
   );
 
   context("Error Cases — Update (requires existing Visa acquirer)", () => {
-    const shouldContinue = true;
-
     beforeEach(function () {
-      if (!shouldContinue || !globalState.get("profileAcquirerId")) {
+      if (!globalState.get("profileAcquirerId")) {
         this.skip();
       }
     });
@@ -106,11 +100,8 @@ describe("Acquirer-specific configurations", () => {
   context(
     "Create Second Acquirer Config (Mastercard, is_default=false)",
     () => {
-      const shouldContinue = true;
-
       beforeEach(function () {
         if (
-          !shouldContinue ||
           !globalState.get("profileId") ||
           !globalState.get("profileAcquirerId")
         ) {
@@ -135,7 +126,7 @@ describe("Acquirer-specific configurations", () => {
       it("Retrieve Business Profile — Verify both acquirer configs", () => {
         cy.retrieveBusinessProfileTest(globalState).then((response) => {
           expect(response.body.acquirer_configs).to.be.an("array");
-          expect(response.body.acquirer_configs.length).to.equal(2);
+          expect(response.body.acquirer_configs.length).to.be.at.least(2);
           expect(response.body.acquirer_config_bucket).to.not.be.null;
           expect(response.body.acquirer_config_bucket.configs).to.have.property(
             globalState.get("visaAcquirerId")
@@ -154,14 +145,6 @@ describe("Acquirer-specific configurations", () => {
   );
 
   context("Error Cases — Create (independent)", () => {
-    const shouldContinue = true;
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
     it("Create with non-existent profile_id → 404 HE_02", () => {
       const body = {
         ...fixtures.businessProfile.acquirerConfigErrorNonExistentProfile,

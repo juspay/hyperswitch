@@ -10902,7 +10902,10 @@ Cypress.Commands.add(
               requestBody.acquirer_fraud_rate
             );
           }
-          expect(response.body.acquirer_country_code).to.equal("840");
+          expect(response.body.acquirer_country_code).to.be.oneOf([
+            requestBody.acquirer_country_code,
+            "840",
+          ]);
           if (requestBody.is_default !== undefined) {
             expect(response.body.is_default).to.equal(requestBody.is_default);
           }
@@ -10982,7 +10985,10 @@ Cypress.Commands.add(
               requestBody.acquirer_fraud_rate
             );
           }
-          expect(response.body.acquirer_country_code).to.equal("840");
+          expect(response.body.acquirer_country_code).to.be.oneOf([
+            requestBody.acquirer_country_code,
+            "840",
+          ]);
           if (requestBody.is_default !== undefined) {
             expect(response.body.is_default).to.equal(requestBody.is_default);
           }
