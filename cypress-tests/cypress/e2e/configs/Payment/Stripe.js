@@ -91,6 +91,22 @@ const idealBaseRequest = {
   },
 };
 
+const mandateSingleUseFields = {
+  currency: "EUR",
+  customer_acceptance: customerAcceptance,
+  mandate_data: {
+    customer_acceptance: customerAcceptance,
+    mandate_type: {
+      single_use: {
+        amount: 8000,
+        currency: "EUR",
+      },
+    },
+  },
+  setup_future_usage: "off_session",
+  payment_type: "new_mandate",
+};
+
 const connectorCredential = (connectorIndex) => ({
   value: `connector_${connectorIndex}`,
 });
@@ -1108,19 +1124,7 @@ export const connectorDetails = {
             ...idealBaseRequest.billing,
             email: "joseph.Doe@example.com",
           },
-          currency: "EUR",
-          customer_acceptance: customerAcceptance,
-          mandate_data: {
-            customer_acceptance: customerAcceptance,
-            mandate_type: {
-              single_use: {
-                amount: 8000,
-                currency: "EUR",
-              },
-            },
-          },
-          setup_future_usage: "off_session",
-          payment_type: "new_mandate",
+          ...mandateSingleUseFields,
         },
         Response: {
           status: 200,
