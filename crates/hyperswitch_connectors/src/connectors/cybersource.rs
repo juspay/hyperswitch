@@ -486,6 +486,12 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             Some(reason) => match reason {
                 transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
                 transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
+                transformers::Reason::Unknown => {
+                    router_env::logger::warn!(
+                        "Received unknown reason from cybersource 5xx error response"
+                    );
+                    None
+                }
             },
             None => None,
         };
@@ -1324,6 +1330,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             Some(reason) => match reason {
                 transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
                 transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
+                transformers::Reason::Unknown => {
+                    router_env::logger::warn!(
+                        "Received unknown reason from cybersource 5xx error response"
+                    );
+                    None
+                }
             },
             None => None,
         };
@@ -1448,6 +1460,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             Some(reason) => match reason {
                 transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
                 transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
+                transformers::Reason::Unknown => {
+                    router_env::logger::warn!(
+                        "Received unknown reason from cybersource 5xx error response"
+                    );
+                    None
+                }
             },
             None => None,
         };
@@ -1567,6 +1585,12 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Cyber
             Some(reason) => match reason {
                 transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
                 transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
+                transformers::Reason::Unknown => {
+                    router_env::logger::warn!(
+                        "Received unknown reason from cybersource 5xx error response"
+                    );
+                    None
+                }
             },
             None => None,
         };
@@ -1694,6 +1718,12 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             Some(reason) => match reason {
                 transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
                 transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
+                transformers::Reason::Unknown => {
+                    router_env::logger::warn!(
+                        "Received unknown reason from cybersource 5xx error response"
+                    );
+                    None
+                }
             },
             None => None,
         };

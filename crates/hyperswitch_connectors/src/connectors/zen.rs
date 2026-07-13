@@ -665,11 +665,23 @@ impl IncomingWebhook for Zen {
             ZenWebhookTxnType::TrtPurchase => match &details.status {
                 ZenPaymentStatus::Rejected => IncomingWebhookEvent::PaymentIntentFailure,
                 ZenPaymentStatus::Accepted => IncomingWebhookEvent::PaymentIntentSuccess,
+                ZenPaymentStatus::Unknown => {
+                    router_env::logger::warn!(
+                        "Unknown Zen payment status in webhook, ignoring event"
+                    );
+                    IncomingWebhookEvent::EventNotSupported
+                }
                 _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
             },
             ZenWebhookTxnType::TrtRefund => match &details.status {
                 ZenPaymentStatus::Rejected => IncomingWebhookEvent::RefundFailure,
                 ZenPaymentStatus::Accepted => IncomingWebhookEvent::RefundSuccess,
+                ZenPaymentStatus::Unknown => {
+                    router_env::logger::warn!(
+                        "Unknown Zen payment status in webhook, ignoring event"
+                    );
+                    IncomingWebhookEvent::EventNotSupported
+                }
                 _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
             },
             ZenWebhookTxnType::Unknown => IncomingWebhookEvent::EventNotSupported,

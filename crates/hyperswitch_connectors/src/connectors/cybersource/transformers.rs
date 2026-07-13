@@ -3147,6 +3147,8 @@ pub enum CybersourcePaymentStatus {
     Accepted,
     Cancelled,
     StatusNotReceived,
+    #[serde(other)]
+    Unknown,
     //PartialAuthorized, not being consumed yet.
 }
 
@@ -3156,6 +3158,8 @@ pub enum CybersourceIncrementalAuthorizationStatus {
     Authorized,
     Declined,
     AuthorizedPendingReview,
+    #[serde(other)]
+    Unknown,
 }
 
 pub fn map_cybersource_attempt_status(
@@ -3191,7 +3195,14 @@ pub fn map_cybersource_attempt_status(
         | CybersourcePaymentStatus::Challenge
         | CybersourcePaymentStatus::Accepted
         | CybersourcePaymentStatus::Pending
-        | CybersourcePaymentStatus::AuthorizedPendingReview => enums::AttemptStatus::Pending,
+        | CybersourcePaymentStatus::AuthorizedPendingReview
+        | CybersourcePaymentStatus::Unknown => {
+            router_env::logger::warn!(
+                "Received unknown or pending-like payment status from cybersource: {:?}",
+                status
+            );
+            enums::AttemptStatus::Pending
+        }
     }
 }
 impl From<CybersourceIncrementalAuthorizationStatus> for common_enums::AuthorizationStatus {
@@ -3200,6 +3211,12 @@ impl From<CybersourceIncrementalAuthorizationStatus> for common_enums::Authoriza
             CybersourceIncrementalAuthorizationStatus::Authorized => Self::Success,
             CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => Self::Processing,
             CybersourceIncrementalAuthorizationStatus::Declined => Self::Failure,
+            CybersourceIncrementalAuthorizationStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Received unknown incremental authorization status from cybersource"
+                );
+                Self::Processing
+            }
         }
     }
 }
@@ -3984,6 +4001,8 @@ pub enum CybersourceAuthEnrollmentStatus {
     PendingAuthentication,
     AuthenticationSuccessful,
     AuthenticationFailed,
+    #[serde(other)]
+    Unknown,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -4067,6 +4086,12 @@ impl From<CybersourceAuthEnrollmentStatus> for enums::AttemptStatus {
                 Self::AuthenticationSuccessful
             }
             CybersourceAuthEnrollmentStatus::AuthenticationFailed => Self::AuthenticationFailed,
+            CybersourceAuthEnrollmentStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Received unknown auth enrollment status from cybersource"
+                );
+                Self::AuthenticationPending
+            }
         }
     }
 }
@@ -4925,6 +4950,12 @@ impl From<CybersourceRefundStatus> for enums::RefundStatus {
             | CybersourceRefundStatus::Failed
             | CybersourceRefundStatus::Voided => Self::Failure,
             CybersourceRefundStatus::Pending => Self::Pending,
+            CybersourceRefundStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Received unknown refund status from cybersource, preserving as pending"
+                );
+                Self::Pending
+            }
         }
     }
 }
@@ -4938,6 +4969,8 @@ pub enum CybersourceRefundStatus {
     Pending,
     Voided,
     Cancelled,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
