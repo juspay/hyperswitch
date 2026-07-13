@@ -2294,7 +2294,8 @@ impl
                 payments_grpc::AdditionalPaymentData::foreign_from(additional_payment_data)
             });
 
-        let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)?;
+        let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)
+            .attach_printable("Failed to convert authentication type")?;
 
         Ok(Self {
             split_payments: router_data
