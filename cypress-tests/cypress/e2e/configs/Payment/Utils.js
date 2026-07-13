@@ -693,6 +693,7 @@ export const CONNECTOR_LISTS = {
       "payjustnow",
       "payjustnowinstore",
     ],
+    PAY_LATER_KLARNA_MANDATE: ["adyen"],
     AFFIRM: ["stripe"],
     ATOME: ["adyen"],
     PAYJUSTNOW: ["payjustnow"],
