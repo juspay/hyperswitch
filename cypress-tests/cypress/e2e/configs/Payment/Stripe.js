@@ -62,6 +62,35 @@ const onlineCustomerAcceptance = {
   acceptance_type: "online",
 };
 
+const idealBaseRequest = {
+  payment_method: "bank_redirect",
+  payment_method_type: "ideal",
+  payment_method_data: {
+    bank_redirect: {
+      ideal: {
+        bank_name: "ing",
+      },
+    },
+  },
+  billing: {
+    address: {
+      line1: "1467",
+      line2: "Harrison Street",
+      line3: "Harrison Street",
+      city: "San Fransico",
+      state: "California",
+      zip: "94122",
+      country: "NL",
+      first_name: "joseph",
+      last_name: "Doe",
+    },
+    phone: {
+      number: "9123456789",
+      country_code: "+91",
+    },
+  },
+};
+
 const connectorCredential = (connectorIndex) => ({
   value: `connector_${connectorIndex}`,
 });
@@ -1064,32 +1093,7 @@ export const connectorDetails = {
   bank_redirect_pm: {
     Ideal: {
       Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "ideal",
-        payment_method_data: {
-          bank_redirect: {
-            ideal: {
-              bank_name: "ing",
-            },
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "NL",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9123456789",
-            country_code: "+91",
-          },
-        },
+        ...idealBaseRequest,
       },
       Response: {
         status: 200,
@@ -1099,32 +1103,10 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
-          payment_method: "bank_redirect",
-          payment_method_type: "ideal",
-          payment_method_data: {
-            bank_redirect: {
-              ideal: {
-                bank_name: "ing",
-              },
-            },
-          },
+          ...idealBaseRequest,
           billing: {
+            ...idealBaseRequest.billing,
             email: "joseph.Doe@example.com",
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            phone: {
-              number: "9123456789",
-              country_code: "+91",
-            },
           },
           currency: "EUR",
           customer_acceptance: customerAcceptance,
