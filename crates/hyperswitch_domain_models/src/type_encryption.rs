@@ -1309,6 +1309,8 @@ pub enum CryptoOutput<T: Clone, S: hyperswitch_masking::Strategy<T>> {
     BatchOperation(FxHashMap<String, crypto::Encryptable<Secret<T, S>>>),
 }
 
+// deja: intentionally NOT a boundary — see `docs/design/deja-non-boundaries.md`.
+//
 // Do not remove the `skip_all` as the key would be logged otherwise
 #[instrument(skip_all, fields(table = table_name))]
 pub async fn crypto_operation<T: Clone + Send, S: hyperswitch_masking::Strategy<T>>(
