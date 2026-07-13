@@ -17652,7 +17652,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "ConnectorWebhookScope": {
         "oneOf": [
