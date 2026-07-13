@@ -6953,10 +6953,9 @@ pub async fn get_apple_pay_retryable_connectors(
     )? {
         let merchant_connector_account_list = state
             .store
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
                 processor.get_account().get_id(),
                 false,
-                processor.get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
@@ -8820,6 +8819,39 @@ pub fn get_external_surcharge_redis_key(payment_id: &id_type::PaymentId) -> Stri
     format!("{}_external_surcharge", payment_id.get_string_repr())
 }
 
+// Fetch the surcharge MCA and gate on its `disabled` flag. The profile-level
+// `surcharge_connector_details` is not cleared when the MCA is disabled, so the
+// disabled flag on the MCA row itself is the source of truth. Returns `Ok(None)`
+// when the MCA is disabled so callers can short-circuit before any pre-work.
+#[cfg(feature = "v1")]
+pub async fn fetch_active_surcharge_mca(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    key_store: &domain::MerchantKeyStore,
+    surcharge_connector_id: &id_type::MerchantConnectorAccountId,
+) -> RouterResult<Option<domain::MerchantConnectorAccount>> {
+    let surcharge_mca = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            merchant_id,
+            surcharge_connector_id,
+            key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: surcharge_connector_id.get_string_repr().to_string(),
+        })?;
+    if surcharge_mca.disabled.unwrap_or(false) {
+        logger::warn!(
+            surcharge_connector_id = %surcharge_connector_id.get_string_repr(),
+            "Surcharge MCA is disabled; skipping external surcharge calculation"
+        );
+        Ok(None)
+    } else {
+        Ok(Some(surcharge_mca))
+    }
+}
+
 pub fn check_integrity_based_on_flow<T, Request>(
     request: &Request,
     payment_response_data: &Result<PaymentsResponseData, ErrorResponse>,
@@ -8935,24 +8967,23 @@ pub async fn validate_routing_id_with_profile_id(
 #[cfg(feature = "v1")]
 pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+    _key_store: &domain::MerchantKeyStore,
     connector_mandate_details: &api_models::payment_methods::CommonMandateReference,
     merchant_id: &id_type::MerchantId,
     card_network: Option<api_enums::CardNetwork>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let db = &*state.store;
     let merchant_connector_account_list = db
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             merchant_id,
             true,
-            key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
     let merchant_connector_account_details_hash_map: std::collections::HashMap<
         id_type::MerchantConnectorAccountId,
-        domain::MerchantConnectorAccount,
+        domain::MerchantConnectorAccountWithoutEncrypted,
     > = merchant_connector_account_list
         .iter()
         .map(|merchant_connector_account| {
@@ -9251,10 +9282,9 @@ pub async fn validate_allowed_payment_method_types_request(
     if let Some(allowed_payment_method_types) = allowed_payment_method_types {
         let db = &*state.store;
         let all_connector_accounts = db
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
                 processor.get_account().get_id(),
                 false,
-                processor.get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
