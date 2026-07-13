@@ -1424,6 +1424,217 @@ fn truncate_string(state: &Secret<String>, max_len: usize) -> Secret<String> {
     Secret::new(truncated.to_string())
 }
 
+fn should_skip_administrative_area(country: Option<enums::CountryAlpha2>) -> bool {
+    matches!(
+        country,
+        Some(
+            enums::CountryAlpha2::AD
+                | enums::CountryAlpha2::AE
+                | enums::CountryAlpha2::AF
+                | enums::CountryAlpha2::AG
+                | enums::CountryAlpha2::AI
+                | enums::CountryAlpha2::AL
+                | enums::CountryAlpha2::AM
+                | enums::CountryAlpha2::AO
+                | enums::CountryAlpha2::AQ
+                | enums::CountryAlpha2::AS
+                | enums::CountryAlpha2::AT
+                | enums::CountryAlpha2::AW
+                | enums::CountryAlpha2::AX
+                | enums::CountryAlpha2::AZ
+                | enums::CountryAlpha2::BA
+                | enums::CountryAlpha2::BB
+                | enums::CountryAlpha2::BD
+                | enums::CountryAlpha2::BE
+                | enums::CountryAlpha2::BF
+                | enums::CountryAlpha2::BG
+                | enums::CountryAlpha2::BH
+                | enums::CountryAlpha2::BI
+                | enums::CountryAlpha2::BJ
+                | enums::CountryAlpha2::BL
+                | enums::CountryAlpha2::BM
+                | enums::CountryAlpha2::BN
+                | enums::CountryAlpha2::BO
+                | enums::CountryAlpha2::BQ
+                | enums::CountryAlpha2::BS
+                | enums::CountryAlpha2::BT
+                | enums::CountryAlpha2::BV
+                | enums::CountryAlpha2::BW
+                | enums::CountryAlpha2::CC
+                | enums::CountryAlpha2::CD
+                | enums::CountryAlpha2::CF
+                | enums::CountryAlpha2::CG
+                | enums::CountryAlpha2::CH
+                | enums::CountryAlpha2::CI
+                | enums::CountryAlpha2::CK
+                | enums::CountryAlpha2::CM
+                | enums::CountryAlpha2::CR
+                | enums::CountryAlpha2::CU
+                | enums::CountryAlpha2::CV
+                | enums::CountryAlpha2::CW
+                | enums::CountryAlpha2::CX
+                | enums::CountryAlpha2::CY
+                | enums::CountryAlpha2::CZ
+                | enums::CountryAlpha2::DE
+                | enums::CountryAlpha2::DJ
+                | enums::CountryAlpha2::DK
+                | enums::CountryAlpha2::DM
+                | enums::CountryAlpha2::DO
+                | enums::CountryAlpha2::DZ
+                | enums::CountryAlpha2::EC
+                | enums::CountryAlpha2::EE
+                | enums::CountryAlpha2::EH
+                | enums::CountryAlpha2::ER
+                | enums::CountryAlpha2::ET
+                | enums::CountryAlpha2::FI
+                | enums::CountryAlpha2::FJ
+                | enums::CountryAlpha2::FK
+                | enums::CountryAlpha2::FO
+                | enums::CountryAlpha2::FR
+                | enums::CountryAlpha2::GA
+                | enums::CountryAlpha2::GD
+                | enums::CountryAlpha2::GE
+                | enums::CountryAlpha2::GF
+                | enums::CountryAlpha2::GG
+                | enums::CountryAlpha2::GH
+                | enums::CountryAlpha2::GI
+                | enums::CountryAlpha2::GL
+                | enums::CountryAlpha2::GM
+                | enums::CountryAlpha2::GN
+                | enums::CountryAlpha2::GP
+                | enums::CountryAlpha2::GQ
+                | enums::CountryAlpha2::GR
+                | enums::CountryAlpha2::GS
+                | enums::CountryAlpha2::GT
+                | enums::CountryAlpha2::GU
+                | enums::CountryAlpha2::GW
+                | enums::CountryAlpha2::GY
+                | enums::CountryAlpha2::HM
+                | enums::CountryAlpha2::HR
+                | enums::CountryAlpha2::HT
+                | enums::CountryAlpha2::HU
+                | enums::CountryAlpha2::IE
+                | enums::CountryAlpha2::IL
+                | enums::CountryAlpha2::IM
+                | enums::CountryAlpha2::IO
+                | enums::CountryAlpha2::IQ
+                | enums::CountryAlpha2::IR
+                | enums::CountryAlpha2::IS
+                | enums::CountryAlpha2::JE
+                | enums::CountryAlpha2::JM
+                | enums::CountryAlpha2::JO
+                | enums::CountryAlpha2::KE
+                | enums::CountryAlpha2::KG
+                | enums::CountryAlpha2::KH
+                | enums::CountryAlpha2::KI
+                | enums::CountryAlpha2::KM
+                | enums::CountryAlpha2::KN
+                | enums::CountryAlpha2::KY
+                | enums::CountryAlpha2::LA
+                | enums::CountryAlpha2::LB
+                | enums::CountryAlpha2::LC
+                | enums::CountryAlpha2::LI
+                | enums::CountryAlpha2::LK
+                | enums::CountryAlpha2::LR
+                | enums::CountryAlpha2::LS
+                | enums::CountryAlpha2::LT
+                | enums::CountryAlpha2::LU
+                | enums::CountryAlpha2::LV
+                | enums::CountryAlpha2::LY
+                | enums::CountryAlpha2::MA
+                | enums::CountryAlpha2::MC
+                | enums::CountryAlpha2::MD
+                | enums::CountryAlpha2::ME
+                | enums::CountryAlpha2::MF
+                | enums::CountryAlpha2::MG
+                | enums::CountryAlpha2::MH
+                | enums::CountryAlpha2::MK
+                | enums::CountryAlpha2::ML
+                | enums::CountryAlpha2::MM
+                | enums::CountryAlpha2::MN
+                | enums::CountryAlpha2::MO
+                | enums::CountryAlpha2::MP
+                | enums::CountryAlpha2::MQ
+                | enums::CountryAlpha2::MR
+                | enums::CountryAlpha2::MS
+                | enums::CountryAlpha2::MT
+                | enums::CountryAlpha2::MU
+                | enums::CountryAlpha2::MV
+                | enums::CountryAlpha2::MW
+                | enums::CountryAlpha2::NA
+                | enums::CountryAlpha2::NC
+                | enums::CountryAlpha2::NE
+                | enums::CountryAlpha2::NF
+                | enums::CountryAlpha2::NI
+                | enums::CountryAlpha2::NL
+                | enums::CountryAlpha2::NO
+                | enums::CountryAlpha2::NP
+                | enums::CountryAlpha2::NR
+                | enums::CountryAlpha2::NU
+                | enums::CountryAlpha2::NZ
+                | enums::CountryAlpha2::PE
+                | enums::CountryAlpha2::PF
+                | enums::CountryAlpha2::PH
+                | enums::CountryAlpha2::PK
+                | enums::CountryAlpha2::PL
+                | enums::CountryAlpha2::PM
+                | enums::CountryAlpha2::PN
+                | enums::CountryAlpha2::PS
+                | enums::CountryAlpha2::PT
+                | enums::CountryAlpha2::PY
+                | enums::CountryAlpha2::QA
+                | enums::CountryAlpha2::RE
+                | enums::CountryAlpha2::RO
+                | enums::CountryAlpha2::RS
+                | enums::CountryAlpha2::RW
+                | enums::CountryAlpha2::SA
+                | enums::CountryAlpha2::SB
+                | enums::CountryAlpha2::SC
+                | enums::CountryAlpha2::SD
+                | enums::CountryAlpha2::SE
+                | enums::CountryAlpha2::SG
+                | enums::CountryAlpha2::SH
+                | enums::CountryAlpha2::SI
+                | enums::CountryAlpha2::SJ
+                | enums::CountryAlpha2::SK
+                | enums::CountryAlpha2::SL
+                | enums::CountryAlpha2::SN
+                | enums::CountryAlpha2::SO
+                | enums::CountryAlpha2::SS
+                | enums::CountryAlpha2::ST
+                | enums::CountryAlpha2::SX
+                | enums::CountryAlpha2::SY
+                | enums::CountryAlpha2::SZ
+                | enums::CountryAlpha2::TC
+                | enums::CountryAlpha2::TD
+                | enums::CountryAlpha2::TF
+                | enums::CountryAlpha2::TG
+                | enums::CountryAlpha2::TJ
+                | enums::CountryAlpha2::TK
+                | enums::CountryAlpha2::TL
+                | enums::CountryAlpha2::TM
+                | enums::CountryAlpha2::TN
+                | enums::CountryAlpha2::TO
+                | enums::CountryAlpha2::TT
+                | enums::CountryAlpha2::TV
+                | enums::CountryAlpha2::TZ
+                | enums::CountryAlpha2::UG
+                | enums::CountryAlpha2::UM
+                | enums::CountryAlpha2::UZ
+                | enums::CountryAlpha2::VA
+                | enums::CountryAlpha2::VC
+                | enums::CountryAlpha2::VG
+                | enums::CountryAlpha2::VU
+                | enums::CountryAlpha2::WF
+                | enums::CountryAlpha2::WS
+                | enums::CountryAlpha2::YE
+                | enums::CountryAlpha2::YT
+                | enums::CountryAlpha2::ZM
+                | enums::CountryAlpha2::ZW
+        )
+    )
+}
+
 fn build_bill_to(
     address_details: Option<&hyperswitch_domain_models::address::Address>,
     email: pii::Email,
@@ -1445,18 +1656,70 @@ fn build_bill_to(
                 last_name: addr.last_name.remove_new_line(),
                 address1: addr.line1.remove_new_line(),
                 locality: addr.city.remove_new_line(),
-                administrative_area: addr.to_state_code_as_optional().unwrap_or_else(|_| {
-                    addr.state
-                        .remove_new_line()
-                        .as_ref()
-                        .map(|state| truncate_string(state, 20)) //NOTE: Cybersource connector throws error if billing state exceeds 20 characters, so truncation is done to avoid payment failure
-                }),
+                administrative_area: if should_skip_administrative_area(addr.country) {
+                    None
+                } else {
+                    addr.to_state_code_as_optional().unwrap_or_else(|_| {
+                        addr.state
+                            .remove_new_line()
+                            .as_ref()
+                            .map(|state| truncate_string(state, 20)) //NOTE: Cybersource connector throws error if billing state exceeds 20 characters, so truncation is done to avoid payment failure
+                    })
+                },
                 postal_code: addr.zip.remove_new_line(),
                 country: addr.country,
                 email,
             })
         })
         .unwrap_or(default_address))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use common_utils::pii::Email;
+    use hyperswitch_domain_models::address::{Address, AddressDetails};
+    use hyperswitch_masking::Secret;
+
+    use super::*;
+
+    fn billing_address(country: enums::CountryAlpha2) -> Address {
+        Address {
+            address: Some(AddressDetails {
+                state: Some(Secret::new("California".to_string())),
+                country: Some(country),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn should_not_serialize_administrative_area_for_countries_without_state() {
+        let bill_to = build_bill_to(
+            Some(&billing_address(enums::CountryAlpha2::DE)),
+            Email::from_str("customer@example.com").unwrap(),
+        )
+        .unwrap();
+
+        let bill_to_value = serde_json::to_value(bill_to).unwrap();
+
+        assert!(bill_to_value.get("administrativeArea").is_none());
+    }
+
+    #[test]
+    fn should_serialize_administrative_area_for_countries_with_state() {
+        let bill_to = build_bill_to(
+            Some(&billing_address(enums::CountryAlpha2::US)),
+            Email::from_str("customer@example.com").unwrap(),
+        )
+        .unwrap();
+
+        let bill_to_value = serde_json::to_value(bill_to).unwrap();
+
+        assert_eq!(bill_to_value.get("administrativeArea").unwrap(), "CA");
+    }
 }
 
 fn convert_metadata_to_merchant_defined_info(
