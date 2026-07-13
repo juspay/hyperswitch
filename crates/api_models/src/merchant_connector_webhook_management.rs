@@ -204,7 +204,8 @@ pub enum ConnectorWebhookScope {
 }
 
 #[allow(deprecated)]
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ConnectorWebhookResponse {
     pub connector_webhook_id: String,
     /// Present for legacy registrations that used `event_type`.
@@ -232,37 +233,6 @@ impl ConnectorWebhookResponse {
             connector_webhook_id,
             event_type: None,
             scope: Some(scope),
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for ConnectorWebhookResponse {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        #[derive(Deserialize)]
-        #[serde(deny_unknown_fields)]
-        struct RawConnectorWebhookResponse {
-            connector_webhook_id: String,
-            #[allow(deprecated)]
-            #[serde(default)]
-            event_type: Option<ConnectorWebhookEventType>,
-            #[serde(default)]
-            scope: Option<ConnectorWebhookScope>,
-        }
-
-        let raw = RawConnectorWebhookResponse::deserialize(deserializer)?;
-
-        match (&raw.event_type, &raw.scope) {
-            (Some(_), Some(_)) => Err(serde::de::Error::custom(
-                "fields `event_type` and `scope` are mutually exclusive",
-            )),
-            (None, None) => Err(serde::de::Error::custom(
-                "either `event_type` or `scope` must be provided",
-            )),
-            _ => Ok(Self {
-                connector_webhook_id: raw.connector_webhook_id,
-                event_type: raw.event_type,
-                scope: raw.scope,
-            }),
         }
     }
 }
