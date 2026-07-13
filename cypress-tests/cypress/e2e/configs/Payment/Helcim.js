@@ -119,27 +119,38 @@ const card_pm = {
       body: {},
     },
   }),
+  // Helcim's sandbox transactions never settle into a closed card batch
+  // (same root cause as the refund limitation documented below), so a
+  // manual-capture payment intent stays stuck in "processing" and never
+  // reaches "requires_capture" — no amount of waiting resolves it. The
+  // router then rejects the capture with IR_14 ("expected manual_multiple")
+  // since the intent isn't in a capturable state. Tests assert this actual
+  // error instead of an unreachable success.
   Capture: getCustomExchange({
     Request: { amount_to_capture: 6000 },
     Response: {
-      status: 200,
+      status: 400,
       body: {
-        status: "succeeded",
-        amount: 6000,
-        amount_capturable: 0,
-        amount_received: 6000,
+        error: {
+          type: "invalid_request",
+          message:
+            "This Payment could not be captured because it has a capture_method of manual. The expected state is manual_multiple",
+          code: "IR_14",
+        },
       },
     },
   }),
   PartialCapture: getCustomExchange({
     Request: { amount_to_capture: 2000 },
     Response: {
-      status: 200,
+      status: 400,
       body: {
-        status: "partially_captured",
-        amount: 6000,
-        amount_capturable: 0,
-        amount_received: 2000,
+        error: {
+          type: "invalid_request",
+          message:
+            "This Payment could not be captured because it has a capture_method of manual. The expected state is manual_multiple",
+          code: "IR_14",
+        },
       },
     },
   }),
@@ -241,13 +252,27 @@ const card_pm = {
       },
     },
   },
+  // Helcim isn't in mandates.supported_payment_methods, so off_session
+  // mandate creation gets silently downgraded to on_session by the router
+  // (authorize_flow.rs). We request on_session explicitly here rather than
+  // relying on the downgrade, so the CIT actually runs (instead of being
+  // skipped) and asserts the real "succeeded"/"requires_capture" outcome.
+  // payment_method_id isn't asserted: the router only saves the payment
+  // method synchronously (before the response returns) when
+  // setup_future_usage is off_session; for on_session it saves via a
+  // fire-and-forget async task, so PMID is null in this response.
+  // MIT flows below stay skipped since no reusable connector mandate is
+  // ever created for a subsequent off-session charge.
   MandateSingleUseNo3DSAutoCapture: {
-    Configs: { TRIGGER_SKIP: true },
+    // Helcim's sandbox settles asynchronously; without this delay the
+    // status is sometimes still "processing" when the response is checked.
+    Configs: { DELAY: { STATUS: true, TIMEOUT: 10000 }, ALLOW_PROCESSING_STATUS: true },
     Request: {
       payment_method: "card",
       payment_method_data: { card: successfulNo3DSCardDetails },
       currency: "USD",
       mandate_data: singleUseMandateData,
+      setup_future_usage: "on_session",
     },
     Response: {
       status: 200,
@@ -255,12 +280,13 @@ const card_pm = {
     },
   },
   MandateSingleUseNo3DSManualCapture: {
-    Configs: { TRIGGER_SKIP: true },
+    Configs: { DELAY: { STATUS: true, TIMEOUT: 10000 }, ALLOW_PROCESSING_STATUS: true },
     Request: {
       payment_method: "card",
       payment_method_data: { card: successfulNo3DSCardDetails },
       currency: "USD",
       mandate_data: singleUseMandateData,
+      setup_future_usage: "on_session",
     },
     Response: {
       status: 200,
@@ -268,15 +294,14 @@ const card_pm = {
     },
   },
   PaymentMethodIdMandateNo3DSAutoCapture: {
-    Configs: {
-      TRIGGER_SKIP: true,
-    },
+    Configs: { DELAY: { STATUS: true, TIMEOUT: 10000 }, ALLOW_PROCESSING_STATUS: true },
     Request: {
       payment_method: "card",
       payment_method_data: { card: successfulNo3DSCardDetails },
       currency: "USD",
       mandate_data: null,
       customer_acceptance: customerAcceptance,
+      setup_future_usage: "on_session",
     },
     Response: {
       status: 200,
@@ -286,15 +311,14 @@ const card_pm = {
     },
   },
   PaymentMethodIdMandateNo3DSManualCapture: {
-    Configs: {
-      TRIGGER_SKIP: true,
-    },
+    Configs: { DELAY: { STATUS: true, TIMEOUT: 10000 }, ALLOW_PROCESSING_STATUS: true },
     Request: {
       payment_method: "card",
       payment_method_data: { card: successfulNo3DSCardDetails },
       currency: "USD",
       mandate_data: null,
       customer_acceptance: customerAcceptance,
+      setup_future_usage: "on_session",
     },
     Response: {
       status: 200,
@@ -348,12 +372,13 @@ const card_pm = {
     },
   },
   MandateMultiUseNo3DSAutoCapture: {
-    Configs: { TRIGGER_SKIP: true },
+    Configs: { DELAY: { STATUS: true, TIMEOUT: 10000 }, ALLOW_PROCESSING_STATUS: true },
     Request: {
       payment_method: "card",
       payment_method_data: { card: successfulNo3DSCardDetails },
       currency: "USD",
       mandate_data: multiUseMandateData,
+      setup_future_usage: "on_session",
     },
     Response: {
       status: 200,
@@ -361,12 +386,13 @@ const card_pm = {
     },
   },
   MandateMultiUseNo3DSManualCapture: {
-    Configs: { TRIGGER_SKIP: true },
+    Configs: { DELAY: { STATUS: true, TIMEOUT: 10000 }, ALLOW_PROCESSING_STATUS: true },
     Request: {
       payment_method: "card",
       payment_method_data: { card: successfulNo3DSCardDetails },
       currency: "USD",
       mandate_data: multiUseMandateData,
+      setup_future_usage: "on_session",
     },
     Response: {
       status: 200,
