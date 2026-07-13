@@ -101,8 +101,8 @@ where
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut auth_header);
         Ok(header)
     }
 }
@@ -130,7 +130,7 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
     fn get_auth_header(&self, auth_type:&ConnectorAuthType)-> CustomResult<Vec<(String,hyperswitch_masking::Maskable<String>)>,errors::ConnectorError> {
         let auth =  {{project-name | downcase}}::{{project-name | downcase | pascal_case}}AuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key.expose().into_masked())])
+        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key.into_masked())])
     }
 
     fn build_error_response(
