@@ -68,9 +68,7 @@ pub fn setup(
     // Deja graph + correlation layers are added only under the feature, so a
     // feature-off subscriber is byte-identical to before this change.
     #[cfg(feature = "deja")]
-    let subscriber = subscriber
-        .with(deja_layer())
-        .with(deja_correlation_layer());
+    let subscriber = subscriber.with(deja_layer()).with(deja_correlation_layer());
     let subscriber = subscriber.with(file_writer);
 
     // Setup console logging
