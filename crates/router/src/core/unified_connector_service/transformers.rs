@@ -496,7 +496,7 @@ impl
             metadata,
             test_mode: router_data.test_mode,
             state,
-            connector_order_id: None,
+            connector_order_id: router_data.request.order_id.clone(),
             description: router_data.description.clone(),
             setup_mandate_details: router_data
                 .request
@@ -760,7 +760,11 @@ impl
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
             l2_l3_data: None,
-            connector_order_id: None,
+            // Two-step connectors (e.g. airwallex) finish 3DS on the same payment intent via a
+            // confirm-continue call, whose URL needs the intent id. On the CompleteAuthorize leg
+            // that id lives in CompleteAuthorizeData.connector_transaction_id — forward it as
+            // connector_order_id (mirrors the Authorize builders) so UCS can address the intent.
+            connector_order_id: router_data.request.connector_transaction_id.clone(),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
         })
@@ -859,7 +863,13 @@ impl
             phone_number: router_data.request.phone.clone(),
             address: Some(address),
             metadata: None,
-            connector_feature_data: None,
+            // Airwallex (and other two-legged-auth connectors) need the Bearer access token on the
+            // connector-customer call, but CustomerServiceCreateRequest has no `state` field. Forward
+            // the already-fetched token via connector_feature_data — the UCS airwallex customer flow
+            // reads connector_feature_data["access_token"] as its auth fallback.
+            connector_feature_data: router_data.access_token.as_ref().map(|at| {
+                Secret::new(serde_json::json!({ "access_token": at.token.peek() }).to_string())
+            }),
             test_mode: router_data.test_mode,
         })
     }
@@ -1803,7 +1813,7 @@ impl
             threeds_completion_indicator: None,
             redirection_response: None,
             continue_redirection_url: None,
-            connector_order_id: None,
+            connector_order_id: router_data.request.order_id.clone(),
             l2_l3_data,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
@@ -1976,7 +1986,7 @@ impl
             threeds_completion_indicator: None,
             redirection_response: None,
             continue_redirection_url: None,
-            connector_order_id: None,
+            connector_order_id: router_data.request.order_id.clone(),
             l2_l3_data: None,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
@@ -3482,6 +3492,11 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::RevolutPay => Ok(Self::RevolutPay),
             common_enums::PaymentMethodType::NetworkToken => Ok(Self::NetworkToken),
             common_enums::PaymentMethodType::OpenBanking => Ok(Self::OpenBanking),
+            // The rust-grpc-client PaymentMethodType enum has no Klarna variant. CreateOrder does
+            // not require an exact payment_method_type (native airwallex sends none on the intent),
+            // so send Unspecified; the Authorize leg carries the actual method via the
+            // payment_method oneof (PaymentMethod::Klarna), which the connector handles.
+            common_enums::PaymentMethodType::Klarna => Ok(Self::Unspecified),
             _ => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Payment Method Type not yet supported".to_string(),
