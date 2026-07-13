@@ -58,6 +58,7 @@ import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as nuveiConnectorDetails } from "./Nuvei.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as payjustnowConnectorDetails } from "./Payjustnow.js";
+import { connectorDetails as payjustnowinstoreConnectorDetails } from "./Payjustnowinstore.js";
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
@@ -140,6 +141,7 @@ const connectorDetails = {
   nuvei: nuveiConnectorDetails,
   paybox: payboxConnectorDetails,
   payjustnow: payjustnowConnectorDetails,
+  payjustnowinstore: payjustnowinstoreConnectorDetails,
   payload: payloadConnectorDetails,
   paypal: paypalConnectorDetails,
   paysafe: paysafeConnectorDetails,
@@ -689,10 +691,12 @@ export const CONNECTOR_LISTS = {
       "mollie",
       "affirm",
       "payjustnow",
+      "payjustnowinstore",
     ],
     AFFIRM: ["stripe"],
     ATOME: ["adyen"],
     PAYJUSTNOW: ["payjustnow"],
+    PAYJUSTNOWINSTORE: ["payjustnowinstore"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
@@ -745,6 +749,7 @@ export const CONNECTOR_LISTS = {
     PAYOUT_PRIORITY: ["adyenplatform"],
     DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
+    REQUIRES_CVV: ["bankofamerica"],
     // Add more inclusion lists
   },
 };
