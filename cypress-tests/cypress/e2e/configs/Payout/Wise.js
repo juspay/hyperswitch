@@ -164,12 +164,9 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "failed",
+            status: "requires_fulfillment",
             payout_type: "bank",
           },
-        },
-        Configs: {
-          TRIGGER_SKIP: true,
         },
       },
       Fulfill: {
@@ -191,7 +188,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "failed",
+            status: "initiated",
             payout_type: "bank",
           },
         },
