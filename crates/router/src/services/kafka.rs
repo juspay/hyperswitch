@@ -17,6 +17,8 @@ use diesel_models::fraud_check::FraudCheck;
 use crate::{events::EventType, services::kafka::fraud_check_event::KafkaFraudCheckEvent};
 mod authentication;
 mod authentication_event;
+#[cfg(feature = "deja")]
+pub mod deja_record_sink;
 mod dispute;
 mod dispute_event;
 mod fraud_check;
