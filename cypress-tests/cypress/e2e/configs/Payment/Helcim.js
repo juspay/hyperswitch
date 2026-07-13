@@ -266,7 +266,10 @@ const card_pm = {
   MandateSingleUseNo3DSAutoCapture: {
     // Helcim's sandbox settles asynchronously; without this delay the
     // status is sometimes still "processing" when the response is checked.
-    Configs: { DELAY: { STATUS: true, TIMEOUT: 10000 }, ALLOW_PROCESSING_STATUS: true },
+    Configs: {
+      DELAY: { STATUS: true, TIMEOUT: 10000 },
+      ALLOW_PROCESSING_STATUS: true,
+    },
     Request: {
       payment_method: "card",
       payment_method_data: { card: successfulNo3DSCardDetails },
@@ -280,7 +283,10 @@ const card_pm = {
     },
   },
   MandateSingleUseNo3DSManualCapture: {
-    Configs: { DELAY: { STATUS: true, TIMEOUT: 10000 }, ALLOW_PROCESSING_STATUS: true },
+    Configs: {
+      DELAY: { STATUS: true, TIMEOUT: 10000 },
+      ALLOW_PROCESSING_STATUS: true,
+    },
     Request: {
       payment_method: "card",
       payment_method_data: { card: successfulNo3DSCardDetails },
@@ -294,7 +300,10 @@ const card_pm = {
     },
   },
   PaymentMethodIdMandateNo3DSAutoCapture: {
-    Configs: { DELAY: { STATUS: true, TIMEOUT: 10000 }, ALLOW_PROCESSING_STATUS: true },
+    Configs: {
+      DELAY: { STATUS: true, TIMEOUT: 10000 },
+      ALLOW_PROCESSING_STATUS: true,
+    },
     Request: {
       payment_method: "card",
       payment_method_data: { card: successfulNo3DSCardDetails },
@@ -311,7 +320,10 @@ const card_pm = {
     },
   },
   PaymentMethodIdMandateNo3DSManualCapture: {
-    Configs: { DELAY: { STATUS: true, TIMEOUT: 10000 }, ALLOW_PROCESSING_STATUS: true },
+    Configs: {
+      DELAY: { STATUS: true, TIMEOUT: 10000 },
+      ALLOW_PROCESSING_STATUS: true,
+    },
     Request: {
       payment_method: "card",
       payment_method_data: { card: successfulNo3DSCardDetails },
@@ -372,7 +384,10 @@ const card_pm = {
     },
   },
   MandateMultiUseNo3DSAutoCapture: {
-    Configs: { DELAY: { STATUS: true, TIMEOUT: 10000 }, ALLOW_PROCESSING_STATUS: true },
+    Configs: {
+      DELAY: { STATUS: true, TIMEOUT: 10000 },
+      ALLOW_PROCESSING_STATUS: true,
+    },
     Request: {
       payment_method: "card",
       payment_method_data: { card: successfulNo3DSCardDetails },
@@ -386,7 +401,10 @@ const card_pm = {
     },
   },
   MandateMultiUseNo3DSManualCapture: {
-    Configs: { DELAY: { STATUS: true, TIMEOUT: 10000 }, ALLOW_PROCESSING_STATUS: true },
+    Configs: {
+      DELAY: { STATUS: true, TIMEOUT: 10000 },
+      ALLOW_PROCESSING_STATUS: true,
+    },
     Request: {
       payment_method: "card",
       payment_method_data: { card: successfulNo3DSCardDetails },
