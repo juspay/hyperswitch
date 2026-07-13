@@ -64,8 +64,14 @@ pub fn setup(
 
     let subscriber = tracing_subscriber::registry()
         .with(traces_layer)
-        .with(StorageSubscription)
-        .with(file_writer);
+        .with(StorageSubscription);
+    // Deja graph + correlation layers are added only under the feature, so a
+    // feature-off subscriber is byte-identical to before this change.
+    #[cfg(feature = "deja")]
+    let subscriber = subscriber
+        .with(deja_layer())
+        .with(deja_correlation_layer());
+    let subscriber = subscriber.with(file_writer);
 
     // Setup console logging
     if config.console.enabled {
@@ -117,6 +123,53 @@ pub fn setup(
     Ok(TelemetryGuard {
         _log_guards: guards,
     })
+}
+
+#[cfg(feature = "deja")]
+struct RuntimeHookGraphSink(std::sync::Arc<deja::RuntimeHook>);
+
+#[cfg(feature = "deja")]
+impl deja::GraphNodeSink for RuntimeHookGraphSink {
+    fn graph_node(&self, node: deja_core::ExecutionGraphNode) {
+        match self.0.as_ref() {
+            deja::RuntimeHook::Recording(hook) => {
+                deja::GraphNodeSink::graph_node(hook.as_ref(), node)
+            }
+            deja::RuntimeHook::LookupReplay(hook) => deja::GraphNodeSink::graph_node(hook, node),
+            _ => {}
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+fn deja_layer() -> Option<deja::ExecutionGraphLayer> {
+    if !deja::graph_recording_enabled() {
+        return None;
+    }
+    // Graph nodes ride the installed mode's record stream — there is no file
+    // side-channel, so without a recording or replay hook there is no layer.
+    let hook = deja::installed_runtime_hook()?;
+    match hook.as_ref() {
+        deja::RuntimeHook::Recording(_) | deja::RuntimeHook::LookupReplay(_) => Some(
+            deja::ExecutionGraphLayer::new(std::sync::Arc::new(RuntimeHookGraphSink(hook))),
+        ),
+        _ => None,
+    }
+}
+
+/// Correlation-propagation layer: mirrors the ingress `request_id` span field into
+/// deja-context so boundary events fired from spawned tasks (which escape the
+/// middleware's `scope_correlation` future wrapper but carry the span via
+/// `.in_current_span()`) inherit the request correlation instead of recording
+/// uncorrelated. Only installed while recording or replaying — in normal
+/// operation it is `None`, adding zero per-span overhead.
+#[cfg(feature = "deja")]
+fn deja_correlation_layer() -> Option<deja::DejaCorrelationLayer> {
+    if deja::runtime_mode().consumes_args() {
+        Some(deja::DejaCorrelationLayer::new())
+    } else {
+        None
+    }
 }
 
 fn get_opentelemetry_exporter_config(
