@@ -16,6 +16,9 @@ const retries = process.env.CYPRESS_MOCK_SERVER === "true" ? 0 : 2;
 const timeoutMultiplier = getTimeoutMultiplier();
 
 export default defineConfig({
+  env: {
+    STRIPE_TEST_PRICE_ID: process.env.STRIPE_TEST_PRICE_ID || "price_test_placeholder",
+  },
   e2e: {
     setupNodeEvents(on, config) {
       mochawesome(on);
