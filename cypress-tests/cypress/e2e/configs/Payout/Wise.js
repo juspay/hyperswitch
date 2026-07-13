@@ -228,8 +228,6 @@ export const connectorDetails = {
         },
       },
       // RecurringTrue/False/Default test the recurring flag field behaviour.
-      // Wise returns status:"failed" for create+confirm bank transfer payouts
-      // (CAPABILITY_GAP — connector does not support bank transfer fulfillment).
       RecurringTrue: {
         Request: {
           currency: "EUR",
@@ -250,7 +248,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "failed",
+            status: "requires_fulfillment",
             payout_type: "bank",
             recurring: true,
           },
@@ -276,7 +274,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "failed",
+            status: "requires_fulfillment",
             payout_type: "bank",
             recurring: false,
           },
@@ -301,7 +299,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "failed",
+            status: "requires_fulfillment",
             payout_type: "bank",
             recurring: false,
           },
@@ -327,9 +325,8 @@ export const connectorDetails = {
           },
         },
       },
-      // The payout_method_id reuse flow is now testable end-to-end. The
-      // payout_method_id is saved from a prior RecurringTrue payout and
-      // injected from globalState at test runtime.
+      // The payout_method_id is saved by SavePayoutMethod and injected
+      // from globalState at test runtime.
       RecurringUseMethod: {
         Request: {
           currency: "EUR",
@@ -339,8 +336,9 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "failed",
+            status: "requires_fulfillment",
             payout_type: "bank",
+            recurring: true,
           },
         },
       },

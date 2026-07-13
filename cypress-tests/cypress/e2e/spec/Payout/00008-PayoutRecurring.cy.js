@@ -4,6 +4,8 @@ import * as utils from "../../configs/Payout/Utils";
 
 let globalState;
 
+const getPayoutBody = () => Cypress._.cloneDeep(fixtures.createPayoutBody);
+
 describe("[Payout] Recurring", () => {
   let shouldContinue = true;
 
@@ -32,6 +34,13 @@ describe("[Payout] Recurring", () => {
     }
   });
 
+  it("create customer", () => {
+    cy.createCustomerCallTest(
+      Cypress._.cloneDeep(fixtures.customerCreateBody),
+      globalState
+    );
+  });
+
   context("Create payout with recurring=true", () => {
     let shouldContinue = true;
 
@@ -42,15 +51,17 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-recurring-true", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["RecurringTrue"];
+      const data = Cypress._.cloneDeep(
+        utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["sepa_bank_transfer"]["RecurringTrue"]
+      );
       if (!utils.should_continue_further(data)) {
         shouldContinue = false;
         return;
       }
       cy.createConfirmPayoutTest(
-        fixtures.createPayoutBody,
+        getPayoutBody(),
         data,
         true,
         false,
@@ -64,23 +75,28 @@ describe("[Payout] Recurring", () => {
     });
 
     it("save-payout-method-for-recurring", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["SavePayoutMethod"];
+      const data = Cypress._.cloneDeep(
+        utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["sepa_bank_transfer"]["SavePayoutMethod"]
+      );
       cy.createPaymentMethodTest(globalState, data);
     });
 
     it("create-recurring-payout-using-saved-method", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["RecurringUseMethod"];
+      const data = Cypress._.cloneDeep(
+        utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["sepa_bank_transfer"]["RecurringUseMethod"]
+      );
       if (!utils.should_continue_further(data)) {
         shouldContinue = false;
         return;
       }
+      data.Request.recurring = true;
       data.Request.payout_method_id = globalState.get("paymentMethodId");
       cy.createConfirmPayoutTest(
-        fixtures.createPayoutBody,
+        getPayoutBody(),
         data,
         true,
         false,
@@ -108,15 +124,17 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-recurring-false", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["RecurringFalse"];
+      const data = Cypress._.cloneDeep(
+        utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["sepa_bank_transfer"]["RecurringFalse"]
+      );
       if (!utils.should_continue_further(data)) {
         shouldContinue = false;
         return;
       }
       cy.createConfirmPayoutTest(
-        fixtures.createPayoutBody,
+        getPayoutBody(),
         data,
         true,
         false,
@@ -144,15 +162,19 @@ describe("[Payout] Recurring", () => {
     });
 
     it("create-payout-with-recurring-omitted", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["RecurringDefault"];
+      const data = Cypress._.cloneDeep(
+        utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["sepa_bank_transfer"]["RecurringDefault"]
+      );
       if (!utils.should_continue_further(data)) {
         shouldContinue = false;
         return;
       }
+      const payoutBody = getPayoutBody();
+      delete payoutBody.recurring;
       cy.createConfirmPayoutTest(
-        fixtures.createPayoutBody,
+        payoutBody,
         data,
         true,
         false,
@@ -180,19 +202,23 @@ describe("[Payout] Recurring", () => {
     });
 
     it("save-payout-method-for-validation", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["SavePayoutMethod"];
+      const data = Cypress._.cloneDeep(
+        utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["sepa_bank_transfer"]["SavePayoutMethod"]
+      );
       cy.createPaymentMethodTest(globalState, data);
     });
 
     it("attempt-payout-without-confirm-should-fail", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["RecurringInvalidConfirm"];
+      const data = Cypress._.cloneDeep(
+        utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["sepa_bank_transfer"]["RecurringInvalidConfirm"]
+      );
       data.Request.payout_method_id = globalState.get("paymentMethodId");
       cy.createConfirmPayoutTest(
-        fixtures.createPayoutBody,
+        getPayoutBody(),
         data,
         false,
         false,
