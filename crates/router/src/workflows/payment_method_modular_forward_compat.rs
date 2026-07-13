@@ -200,6 +200,7 @@ impl ForwardCompatWorkflowBuilder<ForwardContextLoaded> {
 impl ForwardCompatWorkflowBuilder<ForwardPaymentMethodLoaded> {
     fn is_complete(&self) -> errors::RouterResult<bool> {
         let payment_method = self.payment_method()?;
+        // TODO: Revisit the version check once payment method version follows customer version.
         Ok(payment_method.version == common_enums::ApiVersion::V2
             && payment_method.compatibility_updated_at == Some(payment_method.last_modified))
     }
@@ -419,7 +420,7 @@ impl ForwardCompatWorkflowBuilder<ForwardDbCompatPrepared> {
             customer_id,
             data.clone(),
             state.conf.locker.ttl_for_storage_in_secs,
-            Some(vault_id),
+            Some(vault_id.clone()),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to add payment method in generic locker in compatibility PT")?;
@@ -435,11 +436,22 @@ impl ForwardCompatWorkflowBuilder<ForwardDbCompatPrepared> {
                 "Failed to add payment method in generic locker in compatibility PT",
             )?;
 
-        let _vault_id = cards::parse_add_vault_response(should_trigger_fingerprint_migration, resp)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Failed to add payment method in generic locker in compatibility PT",
-            )?;
+        let returned_vault_id =
+            cards::parse_add_vault_response(should_trigger_fingerprint_migration, resp)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to add payment method in generic locker in compatibility PT",
+                )?;
+
+        if returned_vault_id.get_string_repr() != vault_id.get_string_repr() {
+            Err(errors::ApiErrorResponse::InternalServerError).attach_printable_lazy(|| {
+                format!(
+                    "Generic locker returned vault ID {} for requested vault ID {}",
+                    returned_vault_id.get_string_repr(),
+                    vault_id.get_string_repr()
+                )
+            })?;
+        }
 
         Ok(())
     }

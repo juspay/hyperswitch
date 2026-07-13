@@ -560,6 +560,24 @@ pub fn payment_method_modular_backward_compat_action(
 }
 
 #[cfg(feature = "v1")]
+pub async fn payment_method_modular_compat_action(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    customer_id: Option<&id_type::CustomerId>,
+) -> Option<domain::PaymentMethodCompatAction> {
+    payment_method_modular_forward_compat_action(state, merchant_id, customer_id).await
+}
+
+#[cfg(feature = "v2")]
+pub async fn payment_method_modular_compat_action(
+    state: &SessionState,
+    _merchant_id: &id_type::MerchantId,
+    _customer_id: Option<&id_type::GlobalCustomerId>,
+) -> Option<domain::PaymentMethodCompatAction> {
+    Some(payment_method_modular_backward_compat_action(state))
+}
+
+#[cfg(feature = "v1")]
 pub async fn add_payment_method_status_update_task(
     db: &dyn StorageInterface,
     payment_method: &domain::PaymentMethod,
