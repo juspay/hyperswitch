@@ -163,6 +163,25 @@ pub trait StorageInterface:
     fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState);
 }
 
+
+#[cfg(feature = "deja")]
+#[async_trait::async_trait]
+pub trait GlobalStorageInterface:
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + user::UserInterface
+    + user_role::UserRoleInterface
+    + user_key_store::UserKeyStoreInterface
+    + role::RoleInterface
+    + RedisConnInterface
+    + RequestIdStore
+    + 'static
+{
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
+}
+
+#[cfg(not(feature = "deja"))]
 #[async_trait::async_trait]
 pub trait GlobalStorageInterface:
     Send
@@ -178,6 +197,24 @@ pub trait GlobalStorageInterface:
     fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
 }
 
+#[cfg(feature = "deja")]
+#[async_trait::async_trait]
+pub trait AccountsStorageInterface:
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + OrganizationInterface
+    + merchant_account::MerchantAccountInterface<Error = StorageError>
+    + business_profile::ProfileInterface<Error = StorageError>
+    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
+    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
+    + dashboard_metadata::DashboardMetadataInterface
+    + RequestIdStore
+    + 'static
+{
+}
+
+#[cfg(not(feature = "deja"))]
 #[async_trait::async_trait]
 pub trait AccountsStorageInterface:
     Send
@@ -306,6 +343,12 @@ impl RequestIdStore for MockDb {}
 
 impl RequestIdStore for Store {
     fn add_request_id(&mut self, request_id: String) {
+        // During deja replay, also stamp the inner RouterStore in KV builds because
+        // PostgresOnly-delegated operations route through it.
+        #[cfg(all(feature = "kv_store", feature = "deja"))]
+        {
+            self.router_store.request_id = Some(request_id.clone());
+        }
         self.request_id = Some(request_id.clone());
         self.update_key_manager_request_id(request_id);
     }
