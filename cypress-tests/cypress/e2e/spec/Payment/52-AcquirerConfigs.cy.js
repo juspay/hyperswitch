@@ -3,6 +3,54 @@ import State from "../../../utils/State";
 
 let globalState;
 
+const acquirerConfigCreateVisa = {
+  acquirer_assigned_merchant_id: "M123456789",
+  merchant_name: "NewAge Retailer",
+  network: "Visa",
+  acquirer_bin: "456789",
+  acquirer_ica: "401288",
+  acquirer_fraud_rate: 0.01,
+  acquirer_country_code: "US",
+  is_default: true,
+};
+
+const acquirerConfigCreateMastercard = {
+  acquirer_assigned_merchant_id: "M555444333",
+  merchant_name: "Mastercard Retailer",
+  network: "Mastercard",
+  acquirer_bin: "555555",
+  acquirer_country_code: "US",
+  is_default: false,
+};
+
+const acquirerConfigUpdate = {
+  network: "Visa",
+  acquirer_assigned_merchant_id: "M987654321",
+  merchant_name: "Updated Retailer",
+  acquirer_bin: "987654",
+  acquirer_ica: "501288",
+  acquirer_fraud_rate: 0.02,
+  acquirer_country_code: "US",
+  is_default: true,
+};
+
+const acquirerConfigErrorNonExistentProfile = {
+  profile_id: "pro_nonexistent_12345",
+  acquirer_assigned_merchant_id: "M999999999",
+  merchant_name: "Invalid Profile",
+  network: "Visa",
+  acquirer_bin: "999999",
+};
+
+const acquirerConfigErrorUpdateNonExistentId = {
+  network: "Visa",
+  acquirer_bin: "111111",
+};
+
+const acquirerConfigErrorNoNetwork = {
+  acquirer_bin: "222222",
+};
+
 describe("Acquirer-specific configurations", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -29,42 +77,23 @@ describe("Acquirer-specific configurations", () => {
       });
 
       it("Create Acquirer Config (Visa, is_default=true)", () => {
-        const body = { ...fixtures.businessProfile.acquirerConfigCreateVisa };
+        const body = { ...acquirerConfigCreateVisa };
         cy.createAcquirerConfigTest(body, globalState);
       });
 
       it("Update Acquirer Config", () => {
-        const body = { ...fixtures.businessProfile.acquirerConfigUpdate };
+        const body = { ...acquirerConfigUpdate };
         body.acquirer_bin = Cypress._.random(100000, 999999).toString();
         globalState.set("visaAcquirerBin", body.acquirer_bin);
         cy.updateAcquirerConfigTest(body, globalState);
       });
 
       it("Retrieve Business Profile — Verify acquirer_config_bucket populated", () => {
-        cy.retrieveBusinessProfileTest(globalState).then((response) => {
-          expect(response.body.acquirer_configs).to.be.an("array");
-          expect(response.body.acquirer_configs.length).to.be.greaterThan(0);
-          expect(response.body.acquirer_config_bucket).to.not.be.null;
-          expect(response.body.acquirer_config_bucket).to.have.property(
-            "default_acquirer_config"
-          );
-          expect(response.body.acquirer_config_bucket).to.have.property(
-            "configs"
-          );
-          expect(
-            response.body.acquirer_config_bucket.default_acquirer_config
-          ).to.equal(globalState.get("profileAcquirerId"));
-          const configs =
-            response.body.acquirer_config_bucket.configs[
-              globalState.get("profileAcquirerId")
-            ];
-          expect(configs).to.be.an("array");
-          expect(configs[0].network).to.equal("Visa");
-          expect(configs[0].acquirer_bin).to.equal(
-            globalState.get("visaAcquirerBin")
-          );
-          expect(configs[0].acquirer_country_code).to.be.oneOf(["US", "840"]);
-        });
+        cy.retrieveBusinessProfileTest(
+          globalState,
+          "profile",
+          "verifyVisaAcquirerConfig"
+        );
       });
     }
   );
@@ -78,7 +107,7 @@ describe("Acquirer-specific configurations", () => {
 
     it("Update with non-existent profile_acquirer_id → 404 HE_02", () => {
       const body = {
-        ...fixtures.businessProfile.acquirerConfigErrorUpdateNonExistentId,
+        ...acquirerConfigErrorUpdateNonExistentId,
       };
       cy.updateAcquirerConfigTest(
         body,
@@ -91,7 +120,7 @@ describe("Acquirer-specific configurations", () => {
 
     it("Update without network field → 422 IR_06", () => {
       const body = {
-        ...fixtures.businessProfile.acquirerConfigErrorNoNetwork,
+        ...acquirerConfigErrorNoNetwork,
       };
       cy.updateAcquirerConfigTest(body, globalState, 422);
     });
@@ -111,9 +140,7 @@ describe("Acquirer-specific configurations", () => {
 
       it("Create Acquirer Config (Mastercard)", () => {
         globalState.set("visaAcquirerId", globalState.get("profileAcquirerId"));
-        const body = {
-          ...fixtures.businessProfile.acquirerConfigCreateMastercard,
-        };
+        const body = { ...acquirerConfigCreateMastercard };
         cy.createAcquirerConfigTest(
           body,
           globalState,
@@ -124,22 +151,11 @@ describe("Acquirer-specific configurations", () => {
       });
 
       it("Retrieve Business Profile — Verify both acquirer configs", () => {
-        cy.retrieveBusinessProfileTest(globalState).then((response) => {
-          expect(response.body.acquirer_configs).to.be.an("array");
-          expect(response.body.acquirer_configs.length).to.be.at.least(2);
-          expect(response.body.acquirer_config_bucket).to.not.be.null;
-          expect(response.body.acquirer_config_bucket.configs).to.have.property(
-            globalState.get("visaAcquirerId")
-          );
-          expect(response.body.acquirer_config_bucket.configs).to.have.property(
-            globalState.get("mastercardAcquirerId")
-          );
-          const networks = response.body.acquirer_configs.map(
-            (config) => config.network
-          );
-          expect(networks).to.include("Visa");
-          expect(networks).to.include("Mastercard");
-        });
+        cy.retrieveBusinessProfileTest(
+          globalState,
+          "profile",
+          "verifyMultipleAcquirerConfigs"
+        );
       });
     }
   );
@@ -147,7 +163,7 @@ describe("Acquirer-specific configurations", () => {
   context("Error Cases — Create (independent)", () => {
     it("Create with non-existent profile_id → 404 HE_02", () => {
       const body = {
-        ...fixtures.businessProfile.acquirerConfigErrorNonExistentProfile,
+        ...acquirerConfigErrorNonExistentProfile,
       };
       cy.createAcquirerConfigTest(body, globalState, 404);
     });

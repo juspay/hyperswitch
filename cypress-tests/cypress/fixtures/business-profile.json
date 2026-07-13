@@ -9,53 +9,5 @@
     "collect_billing_details_from_wallet_connector": true,
     "always_collect_billing_details_from_wallet_connector": true,
     "always_collect_shipping_details_from_wallet_connector": true
-  },
-
-  "acquirerConfigCreateVisa": {
-    "acquirer_assigned_merchant_id": "M123456789",
-    "merchant_name": "NewAge Retailer",
-    "network": "Visa",
-    "acquirer_bin": "456789",
-    "acquirer_ica": "401288",
-    "acquirer_fraud_rate": 0.01,
-    "acquirer_country_code": "US",
-    "is_default": true
-  },
-
-  "acquirerConfigCreateMastercard": {
-    "acquirer_assigned_merchant_id": "M555444333",
-    "merchant_name": "Mastercard Retailer",
-    "network": "Mastercard",
-    "acquirer_bin": "555555",
-    "acquirer_country_code": "US",
-    "is_default": false
-  },
-
-  "acquirerConfigUpdate": {
-    "network": "Visa",
-    "acquirer_assigned_merchant_id": "M987654321",
-    "merchant_name": "Updated Retailer",
-    "acquirer_bin": "987654",
-    "acquirer_ica": "501288",
-    "acquirer_fraud_rate": 0.02,
-    "acquirer_country_code": "US",
-    "is_default": true
-  },
-
-  "acquirerConfigErrorNonExistentProfile": {
-    "profile_id": "pro_nonexistent_12345",
-    "acquirer_assigned_merchant_id": "M999999999",
-    "merchant_name": "Invalid Profile",
-    "network": "Visa",
-    "acquirer_bin": "999999"
-  },
-
-  "acquirerConfigErrorUpdateNonExistentId": {
-    "network": "Visa",
-    "acquirer_bin": "111111"
-  },
-
-  "acquirerConfigErrorNoNetwork": {
-    "acquirer_bin": "222222"
   }
 }
