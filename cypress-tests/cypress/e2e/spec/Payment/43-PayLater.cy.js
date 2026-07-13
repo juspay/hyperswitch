@@ -6,6 +6,7 @@ import getConnectorDetails, {
 } from "../../configs/Payment/Utils";
 import * as utils from "../../configs/Payment/Utils";
 
+
 let globalState;
 
 describe("PayLater tests", () => {
@@ -187,6 +188,77 @@ describe("PayLater tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["Klarna"];
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+    });
+  });
+
+  context("Klarna PayLater - Mandate AutoCapture flow test (CIT only)", () => {
+    before(function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.PAY_LATER_KLARNA_MANDATE
+        )
+      ) {
+        this.skip();
+      }
+    });
+
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm with Customer Acceptance (off_session) -> Retrieve Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["AutoCapture"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment with Customer Acceptance (off_session)", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["KlarnaMandateAutoCapture"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["KlarnaMandateAutoCapture"];
         cy.retrievePaymentCallTest({ globalState, data });
       });
     });

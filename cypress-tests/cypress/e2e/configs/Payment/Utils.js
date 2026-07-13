@@ -571,6 +571,7 @@ export const CONNECTOR_LISTS = {
     GIFT_CARD: ["adyen"],
     RELAY_OPERATIONS: ["bankofamerica"],
     PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie"],
+    PAY_LATER_KLARNA_MANDATE: ["adyen"],
     AFFIRM: ["stripe"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource", "barclaycard"],
