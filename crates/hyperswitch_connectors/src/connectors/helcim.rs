@@ -247,20 +247,25 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     }
     fn build_request(
         &self,
-        req: &SetupMandateRouterData,
-        connectors: &Connectors,
+        _req: &SetupMandateRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-                .set_body(types::SetupMandateType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Helcim".to_string())
+                .into(),
+        )
+
+        // Ok(Some(
+        //     RequestBuilder::new()
+        //         .method(Method::Post)
+        //         .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+        //         .attach_default_headers()
+        //         .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+        //         .set_body(types::SetupMandateType::get_request_body(
+        //             self, req, connectors,
+        //         )?)
+        //         .build(),
+        // ))
     }
     fn handle_response(
         &self,
