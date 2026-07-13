@@ -74,8 +74,14 @@ describe("Card - Implicit Customer Update flow test", () => {
               "ImplicitCustomerUpdate"
             ];
 
+          // Pin to the primary merchant connector so spec 42's secondary
+          // stripe connector (added for auto-retry tests) does not get
+          // selected by the router's routing algorithm.
+          const body = JSON.parse(JSON.stringify(fixtures.createConfirmPaymentBody));
+          body.merchant_connector_id = globalState.get("merchantConnectorId");
+
           cy.createConfirmPaymentTest(
-            JSON.parse(JSON.stringify(fixtures.createConfirmPaymentBody)),
+            body,
             data,
             "no_three_ds",
             "automatic",
@@ -125,8 +131,11 @@ describe("Card - Implicit Customer Update flow test", () => {
               "ImplicitCustomerUpdatePartial"
             ];
 
+          const body = JSON.parse(JSON.stringify(fixtures.createConfirmPaymentBody));
+          body.merchant_connector_id = globalState.get("merchantConnectorId");
+
           cy.createConfirmPaymentTest(
-            JSON.parse(JSON.stringify(fixtures.createConfirmPaymentBody)),
+            body,
             data,
             "no_three_ds",
             "automatic",
