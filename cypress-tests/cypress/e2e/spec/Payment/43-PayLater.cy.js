@@ -12,8 +12,8 @@ let globalState;
 // returns 403 Forbidden on confirm-payment when the server's return_url is a
 // localhost HTTP URL.
 //
-// Tracking issue: PAYA-129 — "Re-enable PayJustNow redirect-dependent tests
-// when sandbox supports localhost"
+// Tracking issue: PAYA-1 — "Add PayJustNow PayLater connector"
+// Re-enable these tests once the sandbox supports public HTTPS redirect URLs.
 //
 // Root cause:
 //   The PayJustNow sandbox validates the return_url passed in the confirm request.
@@ -934,10 +934,24 @@ describe("PayLater tests", () => {
 
   context("PayJustNow PayLater - Create and Confirm flow test", () => {
     before("skip PayJustNow redirect-dependent tests", function () {
-      // Skip: PayJustNow sandbox returns 403 on localhost redirects (requires public HTTPS)
-      // Sandbox: PayJustNow test environment
-      // Expected URL format: https://*.ngrok-free.app
-      // Tracking: PAYA-129 - Re-enable when sandbox environment supports localhost redirects
+      // Skip reason: PayJustNow sandbox returns 403 Forbidden when the server's
+      // return_url is a localhost HTTP URL (http://localhost:8080/payments/completion).
+      // The sandbox validates the return_url and requires a publicly accessible HTTPS URL.
+      //
+      // Expected URL format: https://*.ngrok-free.app/payments/completion
+      //   (or any public HTTPS endpoint forwarding to local server port 8080)
+      //
+      // Planned infra fix:
+      //   1. Start ngrok tunnel: `ngrok http 8080`
+      //   2. Update development.toml [multitenancy.tenants.public] base_url to
+      //      the ngrok HTTPS URL so the server constructs a public return_url
+      //   3. Restart Hyperswitch server
+      //   4. Remove this this.skip() call to re-enable the test
+      //
+      // Sandbox env: payjustnow connector, BodyKey auth (api_key=merchant_account_id,
+      //   key1=signing_key), currency ZAR, country ZA
+      //
+      // Tracking issue: PAYA-1 — re-enable when sandbox supports public HTTPS redirects
       this.skip();
     });
 
@@ -1017,10 +1031,24 @@ describe("PayLater tests", () => {
 
   context("PayJustNow PayLater - Full Refund flow test", () => {
     before("skip PayJustNow redirect-dependent tests", function () {
-      // Skip: PayJustNow sandbox returns 403 on localhost redirects (requires public HTTPS)
-      // Sandbox: PayJustNow test environment
-      // Expected URL format: https://*.ngrok-free.app
-      // Tracking: PAYA-129 - Re-enable when sandbox environment supports localhost redirects
+      // Skip reason: PayJustNow sandbox returns 403 Forbidden when the server's
+      // return_url is a localhost HTTP URL (http://localhost:8080/payments/completion).
+      // The sandbox validates the return_url and requires a publicly accessible HTTPS URL.
+      //
+      // Expected URL format: https://*.ngrok-free.app/payments/completion
+      //   (or any public HTTPS endpoint forwarding to local server port 8080)
+      //
+      // Planned infra fix:
+      //   1. Start ngrok tunnel: `ngrok http 8080`
+      //   2. Update development.toml [multitenancy.tenants.public] base_url to
+      //      the ngrok HTTPS URL so the server constructs a public return_url
+      //   3. Restart Hyperswitch server
+      //   4. Remove this this.skip() call to re-enable the test
+      //
+      // Sandbox env: payjustnow connector, BodyKey auth (api_key=merchant_account_id,
+      //   key1=signing_key), currency ZAR, country ZA
+      //
+      // Tracking issue: PAYA-1 — re-enable when sandbox supports public HTTPS redirects
       this.skip();
     });
 
@@ -1128,10 +1156,24 @@ describe("PayLater tests", () => {
 
   context("PayJustNow PayLater - Partial Refund flow test", () => {
     before("skip PayJustNow redirect-dependent tests", function () {
-      // Skip: PayJustNow sandbox returns 403 on localhost redirects (requires public HTTPS)
-      // Sandbox: PayJustNow test environment
-      // Expected URL format: https://*.ngrok-free.app
-      // Tracking: PAYA-129 - Re-enable when sandbox environment supports localhost redirects
+      // Skip reason: PayJustNow sandbox returns 403 Forbidden when the server's
+      // return_url is a localhost HTTP URL (http://localhost:8080/payments/completion).
+      // The sandbox validates the return_url and requires a publicly accessible HTTPS URL.
+      //
+      // Expected URL format: https://*.ngrok-free.app/payments/completion
+      //   (or any public HTTPS endpoint forwarding to local server port 8080)
+      //
+      // Planned infra fix:
+      //   1. Start ngrok tunnel: `ngrok http 8080`
+      //   2. Update development.toml [multitenancy.tenants.public] base_url to
+      //      the ngrok HTTPS URL so the server constructs a public return_url
+      //   3. Restart Hyperswitch server
+      //   4. Remove this this.skip() call to re-enable the test
+      //
+      // Sandbox env: payjustnow connector, BodyKey auth (api_key=merchant_account_id,
+      //   key1=signing_key), currency ZAR, country ZA
+      //
+      // Tracking issue: PAYA-1 — re-enable when sandbox supports public HTTPS redirects
       this.skip();
     });
 
