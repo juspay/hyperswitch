@@ -95,10 +95,10 @@ const mandateSingleUseFields = {
   currency: "EUR",
   customer_acceptance: customerAcceptance,
   mandate_data: {
-    customer_acceptance: customerAcceptance,
+    ...singleUseMandateData,
     mandate_type: {
       single_use: {
-        amount: 8000,
+        ...singleUseMandateData.mandate_type.single_use,
         currency: "EUR",
       },
     },
