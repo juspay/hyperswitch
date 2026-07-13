@@ -10847,6 +10847,72 @@ Cypress.Commands.add("resetRedirectReadCount", (testIdHash) => {
 // Subscription Management Commands
 // ============================================
 
+function getSubscriptionRequest(data) {
+  return Cypress._.cloneDeep(data.Request?.body || data.Request || {});
+}
+
+function getRequiredSubscriptionId(globalState) {
+  const subscriptionId = globalState.get("subscriptionId");
+  if (!subscriptionId) {
+    throw new Error(
+      "subscriptionId missing from globalState - createSubscriptionTest must succeed before this step"
+    );
+  }
+  return subscriptionId;
+}
+
+function getRequiredSubscriptionPriceId() {
+  const priceId = Cypress.env("STRIPE_TEST_PRICE_ID");
+  if (!priceId) {
+    throw new Error(
+      "STRIPE_TEST_PRICE_ID missing from Cypress env - subscription price id is required"
+    );
+  }
+  return priceId;
+}
+
+function fillSubscriptionDynamicFields(subscriptionBody, globalState) {
+  if (subscriptionBody.skip_dynamic_fields) {
+    delete subscriptionBody.skip_dynamic_fields;
+    return subscriptionBody;
+  }
+
+  if (!subscriptionBody.customer_id) {
+    const customerId = globalState.get("customerId");
+    if (!customerId) {
+      throw new Error(
+        "customerId missing from globalState - prerequisites failed"
+      );
+    }
+    subscriptionBody.customer_id = customerId;
+  }
+
+  if (!subscriptionBody.item_price_id) {
+    subscriptionBody.item_price_id = getRequiredSubscriptionPriceId();
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(subscriptionBody, "plan_id") &&
+    !subscriptionBody.plan_id
+  ) {
+    subscriptionBody.plan_id = getRequiredSubscriptionPriceId();
+  }
+
+  if (subscriptionBody.payment_details) {
+    if (!subscriptionBody.payment_details.payment_method_id) {
+      const paymentMethodId = globalState.get("paymentMethodId");
+      if (!paymentMethodId) {
+        throw new Error(
+          "payment_method_id missing from globalState - prerequisites failed"
+        );
+      }
+      subscriptionBody.payment_details.payment_method_id = paymentMethodId;
+    }
+  }
+
+  return subscriptionBody;
+}
+
 Cypress.Commands.add(
   "createSubscriptionTest",
   (createSubscriptionBody, data, globalState) => {
@@ -10864,36 +10930,25 @@ Cypress.Commands.add(
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
 
-    // Merge request body with any connector-specific Request fields
-    const subscriptionBody = {
+    // Merge request body with connector-specific fields. payment_details is
+    // merged separately so connector overrides do not drop shared fields.
+    const requestBody = getSubscriptionRequest(data);
+    const requestPaymentDetails = requestBody.payment_details;
+    const fixturePaymentDetails = createSubscriptionBody.payment_details;
+    const mergedSubscriptionBody = {
       ...createSubscriptionBody,
-      ...data.Request,
+      ...requestBody,
     };
-
-    // Substitute dynamic values — only for the "" placeholder pattern.
-    // When a field is absent (undefined), the test intentionally omits it
-    // (e.g. negative "missing fields" test) and the guard must NOT fire.
-    if (subscriptionBody.customer_id === "") {
-      subscriptionBody.customer_id = globalState.get("customerId");
-      if (!subscriptionBody.customer_id) {
-        throw new Error(
-          "customerId missing from globalState - prerequisites failed"
-        );
-      }
+    if (fixturePaymentDetails || requestPaymentDetails) {
+      mergedSubscriptionBody.payment_details = {
+        ...(fixturePaymentDetails || {}),
+        ...(requestPaymentDetails || {}),
+      };
     }
-
-    if (
-      subscriptionBody.payment_details &&
-      subscriptionBody.payment_details.payment_method_id === ""
-    ) {
-      subscriptionBody.payment_details.payment_method_id =
-        globalState.get("paymentMethodId");
-      if (!subscriptionBody.payment_details.payment_method_id) {
-        throw new Error(
-          "payment_method_id missing from globalState - prerequisites failed"
-        );
-      }
-    }
+    const subscriptionBody = fillSubscriptionDynamicFields(
+      mergedSubscriptionBody,
+      globalState
+    );
 
     const headers = {
       "Content-Type": "application/json",
@@ -10914,8 +10969,10 @@ Cypress.Commands.add(
       cy.wrap(response).then(() => {
         expect(response.status, "status_code").to.equal(resData.status);
 
-        if (response.status === 200 && response.body.id) {
-          globalState.set("subscriptionId", response.body.id);
+        const subscriptionId =
+          response.body.id || response.body.subscription_id;
+        if (response.status === 200 && subscriptionId) {
+          globalState.set("subscriptionId", subscriptionId);
         }
 
         if (response.status !== 200) {
@@ -10936,7 +10993,7 @@ Cypress.Commands.add("retrieveSubscriptionTest", (data, globalState) => {
 
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
-  const subscriptionId = globalState.get("subscriptionId");
+  const subscriptionId = getRequiredSubscriptionId(globalState);
 
   const headers = {
     "Content-Type": "application/json",
@@ -10975,12 +11032,17 @@ Cypress.Commands.add(
 
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
-    const subscriptionId = globalState.get("subscriptionId");
+    const subscriptionId = getRequiredSubscriptionId(globalState);
+    const requestBody = getSubscriptionRequest(data);
 
-    const subscriptionBody = {
+    const mergedSubscriptionBody = {
       ...updateSubscriptionBody,
-      ...data.Request,
+      ...requestBody,
     };
+    const subscriptionBody = fillSubscriptionDynamicFields(
+      mergedSubscriptionBody,
+      globalState
+    );
 
     const headers = {
       "Content-Type": "application/json",
@@ -11019,10 +11081,10 @@ Cypress.Commands.add("cancelSubscriptionTest", (data, globalState) => {
 
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
-  const subscriptionId = globalState.get("subscriptionId");
+  const subscriptionId = getRequiredSubscriptionId(globalState);
 
   const subscriptionBody = {
-    ...(data.Request || {}),
+    ...getSubscriptionRequest(data),
   };
 
   const headers = {
@@ -11061,7 +11123,7 @@ Cypress.Commands.add("resumeSubscriptionTest", (data, globalState) => {
 
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
-  const subscriptionId = globalState.get("subscriptionId");
+  const subscriptionId = getRequiredSubscriptionId(globalState);
 
   const headers = {
     "Content-Type": "application/json",

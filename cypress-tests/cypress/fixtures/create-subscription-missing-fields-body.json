@@ -1,3 +1,4 @@
 {
+  "skip_dynamic_fields": true,
   "description": "Test subscription missing required fields"
 }
