@@ -1385,6 +1385,18 @@ export const connectorDetails = {
           billing: standardBillingAddress,
         },
       }),
+      MandateSingleUseAutoCapture: getCustomExchange({
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      }),
     },
   },
   bank_debit_pm: {
