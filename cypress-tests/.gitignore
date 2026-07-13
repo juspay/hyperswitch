@@ -1,9 +1,6 @@
 # Mac OS files
 .DS_Store
 
-# Dependencies
-node_modules
-
 # Output files
 reports/
 screenshots/
