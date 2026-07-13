@@ -661,7 +661,7 @@ mod storage {
 
                     let field = format!(
                         "pa_{}_ref_{}",
-                        &created_refund.attempt_id, &created_refund.refund_id
+                        created_refund.attempt_id, created_refund.refund_id
                     );
 
                     let mut reverse_lookups = vec![
@@ -844,7 +844,7 @@ mod storage {
                 merchant_id: &merchant_id,
                 payment_id: &payment_id,
             };
-            let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
+            let field = format!("pa_{}_ref_{}", this.attempt_id, this.refund_id);
             let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_refund::Refund>(
                 self,
                 storage_scheme,
