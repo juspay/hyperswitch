@@ -676,57 +676,60 @@ pub struct RedirectPayload {
     payment_id: Option<String>,
 }
 
-impl TryFrom<&PaymentsPreProcessingRouterData> for NexixpayRedirectRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        let redirect_response = item.request.redirect_response.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
-            },
-        )?;
+impl NexixpayRedirectRequest {
+    // Build the 3-step validation payload from the customer's return-from-3DS
+    // redirect body. If either `PaRes` or `paymentId` is absent — which is what
+    // happens when the customer abandons or fails to complete the ACS challenge —
+    // fail here rather than forwarding null values to Nexi (which would surface
+    // as opaque `GW0001`).
+    fn from_redirect_response(
+        redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+    ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
         let redirect_payload = redirect_response
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "redirect_response",
+            })?
             .payload
             .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
                 field_name: "request.redirect_response.payload",
             })?
             .expose();
         let customer_details_encrypted: RedirectPayload =
-            serde_json::from_value::<RedirectPayload>(redirect_payload.clone()).change_context(
+            serde_json::from_value::<RedirectPayload>(redirect_payload).change_context(
                 errors::ConnectorError::MissingConnectorRedirectionPayload {
                     field_name: "redirection_payload",
                 },
             )?;
+
+        let three_d_s_auth_response = customer_details_encrypted.pa_res.ok_or(
+            errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "PaRes",
+            },
+        )?;
+        let operation_id = customer_details_encrypted.payment_id.ok_or(
+            errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "paymentId",
+            },
+        )?;
+
         Ok(Self {
-            operation_id: customer_details_encrypted.payment_id,
-            three_d_s_auth_response: customer_details_encrypted.pa_res,
+            operation_id: Some(operation_id),
+            three_d_s_auth_response: Some(three_d_s_auth_response),
         })
+    }
+}
+
+impl TryFrom<&PaymentsPreProcessingRouterData> for NexixpayRedirectRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+        Self::from_redirect_response(item.request.redirect_response.clone())
     }
 }
 
 impl TryFrom<&PaymentsPostAuthenticateRouterData> for NexixpayRedirectRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsPostAuthenticateRouterData) -> Result<Self, Self::Error> {
-        let redirect_response = item.request.redirect_response.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
-            },
-        )?;
-        let redirect_payload = redirect_response
-            .payload
-            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.redirect_response.payload",
-            })?
-            .expose();
-        let customer_details_encrypted: RedirectPayload =
-            serde_json::from_value::<RedirectPayload>(redirect_payload.clone()).change_context(
-                errors::ConnectorError::MissingConnectorRedirectionPayload {
-                    field_name: "redirection_payload",
-                },
-            )?;
-        Ok(Self {
-            operation_id: customer_details_encrypted.payment_id,
-            three_d_s_auth_response: customer_details_encrypted.pa_res,
-        })
+        Self::from_redirect_response(item.request.redirect_response.clone())
     }
 }
 
