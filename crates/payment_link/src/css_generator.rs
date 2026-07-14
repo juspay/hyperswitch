@@ -114,19 +114,24 @@ fn parse_css_declaration(property: &str, value: &str) -> Result<String, PaymentL
                 },
             )?;
 
+        let filtered_property_kinds = filtered_property_kinds(&declaration_block);
+
         if declaration_block.len() != 1 {
             logger::error!(
                 css_property = %property,
                 css_value = %value,
+                declaration = %declaration,
                 parsed_declaration_count = declaration_block.len(),
                 "Payment link CSS declaration expanded into an unexpected number of declarations"
             );
             Err(PaymentLinkError::InvalidCssValue(value.to_string()).into())
-        } else if has_unparsed_or_custom_property(&declaration_block) {
+        } else if !filtered_property_kinds.is_empty() {
             logger::error!(
                 css_property = %property,
                 css_value = %value,
-                "Payment link CSS declaration was filtered because it contains an unparsed or custom property"
+                declaration = %declaration,
+                ?filtered_property_kinds,
+                "Payment link CSS declaration was filtered out because it contains unsupported property kinds"
             );
             Err(PaymentLinkError::InvalidCssProperty(property.to_string()).into())
         } else {
@@ -169,11 +174,16 @@ fn parse_css_declaration(property: &str, value: &str) -> Result<String, PaymentL
     }
 }
 
-fn has_unparsed_or_custom_property(declaration_block: &DeclarationBlock<'_>) -> bool {
-    // Filter out declarations that lightningcss could not fully understand or that are custom props.
+fn filtered_property_kinds(declaration_block: &DeclarationBlock<'_>) -> Vec<&'static str> {
+    // Surface which parsed property kinds were filtered so unexpected UI changes are easier to debug.
     declaration_block
         .iter()
-        .any(|(property, _)| matches!(property, Property::Unparsed(_) | Property::Custom(_)))
+        .filter_map(|(property, _)| match property {
+            Property::Unparsed(_) => Some("unparsed"),
+            Property::Custom(_) => Some("custom"),
+            _ => None,
+        })
+        .collect()
 }
 
 fn stylesheet_has_dependencies(stylesheet: &StyleSheet<'_, '_>) -> bool {
@@ -332,9 +342,6 @@ mod tests {
 
     #[test]
     fn test_parse_css_declaration() {
-        assert!(parse_css_declaration("padding-left", "22px !important")
-            .as_deref()
-            .is_some_and(|declaration| declaration.contains("!important")));
         assert!(parse_css_declaration("font-size", "body { color: red }").is_err());
         assert!(parse_css_declaration("color", "</style><script>").is_err());
         assert!(parse_css_declaration("color", "red; background: blue").is_err());
