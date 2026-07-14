@@ -266,31 +266,32 @@ pub enum CardNetworkLowercase {
     Pulse,
     Accel,
     Nyce,
+    Prop,
+    PrivateLabel,
+    Dinacard,
 }
 
-impl CardNetworkLowercase {
-    /// Maps a Hyperswitch card network to the peachpayments scheme, returning `None` for networks
-    /// peachpayments does not model (so the `scheme` field is simply omitted).
-    fn from_card_network(value: common_enums::CardNetwork) -> Option<Self> {
+impl From<common_enums::CardNetwork> for CardNetworkLowercase {
+    fn from(value: common_enums::CardNetwork) -> Self {
         match value {
-            common_enums::CardNetwork::Visa => Some(Self::Visa),
-            common_enums::CardNetwork::Mastercard => Some(Self::Mastercard),
-            common_enums::CardNetwork::AmericanExpress => Some(Self::Amex),
-            common_enums::CardNetwork::Discover => Some(Self::Discover),
-            common_enums::CardNetwork::JCB => Some(Self::Jcb),
-            common_enums::CardNetwork::DinersClub => Some(Self::Diners),
-            common_enums::CardNetwork::CartesBancaires => Some(Self::CartesBancaires),
-            common_enums::CardNetwork::UnionPay => Some(Self::UnionPay),
-            common_enums::CardNetwork::Interac => Some(Self::Interac),
-            common_enums::CardNetwork::RuPay => Some(Self::RuPay),
-            common_enums::CardNetwork::Maestro => Some(Self::Maestro),
-            common_enums::CardNetwork::Star => Some(Self::Star),
-            common_enums::CardNetwork::Pulse => Some(Self::Pulse),
-            common_enums::CardNetwork::Accel => Some(Self::Accel),
-            common_enums::CardNetwork::Nyce => Some(Self::Nyce),
-            common_enums::CardNetwork::Prop
-            | common_enums::CardNetwork::PrivateLabel
-            | common_enums::CardNetwork::Dinacard => None,
+            common_enums::CardNetwork::Visa => Self::Visa,
+            common_enums::CardNetwork::Mastercard => Self::Mastercard,
+            common_enums::CardNetwork::AmericanExpress => Self::Amex,
+            common_enums::CardNetwork::Discover => Self::Discover,
+            common_enums::CardNetwork::JCB => Self::Jcb,
+            common_enums::CardNetwork::DinersClub => Self::Diners,
+            common_enums::CardNetwork::CartesBancaires => Self::CartesBancaires,
+            common_enums::CardNetwork::UnionPay => Self::UnionPay,
+            common_enums::CardNetwork::Interac => Self::Interac,
+            common_enums::CardNetwork::RuPay => Self::RuPay,
+            common_enums::CardNetwork::Maestro => Self::Maestro,
+            common_enums::CardNetwork::Star => Self::Star,
+            common_enums::CardNetwork::Pulse => Self::Pulse,
+            common_enums::CardNetwork::Accel => Self::Accel,
+            common_enums::CardNetwork::Nyce => Self::Nyce,
+            common_enums::CardNetwork::Prop => Self::Prop,
+            common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
+            common_enums::CardNetwork::Dinacard => Self::Dinacard,
         }
     }
 }
@@ -503,13 +504,13 @@ impl
             expiry_month: token_data.get_network_token_expiry_month(),
             cryptogram: token_data.get_cryptogram(),
             eci: token_data.eci.clone(),
-            scheme: CardNetworkLowercase::from_card_network(
+            scheme: Some(CardNetworkLowercase::from(
                 token_data.card_network.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "card_network",
                     },
                 )?,
-            ),
+            )),
         };
 
         let peachpayments_data = get_peachpayments_data(item);
@@ -792,13 +793,13 @@ impl
             expiry_month: token_details.get_network_token_expiry_month(),
             cryptogram: token_details.get_cryptogram(),
             eci: token_details.eci.clone(),
-            scheme: CardNetworkLowercase::from_card_network(
+            scheme: Some(CardNetworkLowercase::from(
                 token_details.card_network.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "card_network",
                     },
                 )?,
-            ),
+            )),
         };
 
         let trace_id = item
