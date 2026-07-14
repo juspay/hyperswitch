@@ -103,7 +103,7 @@ fn parse_css_declaration(property: &str, value: &str) -> Option<String> {
         let declaration = format!("{property}: {value};");
         let declaration_block =
             DeclarationBlock::parse_string(&declaration, ParserOptions::default())
-                .map_err(|error| {
+                .inspect_err(|error| {
                     logger::error!(
                         ?error,
                         css_property = %property,
@@ -136,7 +136,7 @@ fn parse_css_declaration(property: &str, value: &str) -> Option<String> {
         } else {
             let serialized_declaration = declaration_block
                 .to_css_string(PrinterOptions::default())
-                .map_err(|error| {
+                .inspect_err(|error| {
                     logger::error!(
                         ?error,
                         css_property = %property,
@@ -147,7 +147,7 @@ fn parse_css_declaration(property: &str, value: &str) -> Option<String> {
                 .ok()?;
             let probe_rule = format!(":root {{ {serialized_declaration} }}");
             let probe_stylesheet = StyleSheet::parse(&probe_rule, ParserOptions::default())
-                .map_err(|error| {
+                .inspect_err(|error| {
                     logger::error!(
                         ?error,
                         css_property = %property,
@@ -211,7 +211,7 @@ fn parse_css_rule(selector: &str, declarations: &[String]) -> Option<String> {
     } else {
         let rule_css = format!("{selector} {{ {} }}", declarations.join("; "));
         let stylesheet = StyleSheet::parse(&rule_css, ParserOptions::default())
-            .map_err(|error| {
+            .inspect_err(|error| {
                 logger::error!(
                     ?error,
                     css_selector = %selector,
@@ -237,7 +237,7 @@ fn parse_css_rule(selector: &str, declarations: &[String]) -> Option<String> {
             stylesheet
                 .to_css(PrinterOptions::default())
                 .map(|result| result.code)
-                .map_err(|error| {
+                .inspect_err(|error| {
                     logger::error!(
                         ?error,
                         css_selector = %selector,
