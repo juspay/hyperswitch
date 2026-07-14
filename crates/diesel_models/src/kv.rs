@@ -11,8 +11,8 @@ use diesel::{
     pg::Pg,
     query_builder::{
         bind_collector::RawBytesBindCollector, AsChangeset, AsQuery, CollectedQuery,
-        DeleteStatement, InsertStatement, IntoUpdateTarget, MoveableBindCollector, QueryBuilder,
-        QueryFragment, UpdateStatement,
+        InsertStatement, IntoUpdateTarget, MoveableBindCollector, QueryBuilder, QueryFragment,
+        UpdateStatement,
     },
     query_dsl::methods::{ExecuteDsl, FilterDsl, FindDsl},
     query_source::Table,
@@ -56,7 +56,6 @@ pub struct SerializableQuery {
 pub enum DatabaseOperation {
     Insert,
     Update,
-    Delete,
 }
 
 impl SerializableQuery {
