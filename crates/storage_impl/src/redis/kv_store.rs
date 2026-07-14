@@ -119,9 +119,7 @@ impl std::fmt::Display for PartitionKey<'_> {
 }
 
 pub trait RedisConnInterface {
-    fn get_redis_conn(
-        &self,
-    ) -> error_stack::Result<Arc<redis_interface::RedisConnectionPool>, RedisError>;
+    fn get_redis_conn(&self) -> error_stack::Result<redis_interface::RedisConnection, RedisError>;
 }
 
 /// An enum to represent what operation to do on

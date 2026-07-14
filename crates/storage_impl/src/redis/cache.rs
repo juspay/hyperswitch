@@ -12,17 +12,13 @@ use common_utils::{
 use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
 use moka::future::Cache as MokaCache;
-use redis_interface::{errors::RedisError, RedisConnectionPool, RedisValue};
+use redis_interface::{errors::RedisError, RedisConnection, RedisValue};
 use router_env::{
     logger,
     tracing::{self, instrument},
 };
 
-use crate::{
-    errors::StorageError,
-    metrics,
-    redis::{PubSubInterface, RedisConnInterface},
-};
+use crate::{errors::StorageError, metrics, redis::RedisConnInterface};
 
 /// Redis channel name used for publishing invalidation messages
 pub const IMC_INVALIDATION_CHANNEL: &str = "hyperswitch_invalidate";
@@ -304,7 +300,7 @@ impl Cache {
 
 #[instrument(skip_all)]
 pub async fn get_or_populate_redis<T, F, Fut>(
-    redis: &Arc<RedisConnectionPool>,
+    redis: &RedisConnection,
     key: impl AsRef<str>,
     fun: F,
 ) -> CustomResult<T, StorageError>
@@ -413,12 +409,21 @@ pub async fn redact_from_redis_and_publish<
 
     logger::debug!(redis_deletion_result=?deletion_result);
 
-    let futures = keys.into_iter().map(|key| async {
-        redis_conn
-            .clone()
-            .publish(IMC_INVALIDATION_CHANNEL, key)
-            .await
-            .change_context(StorageError::KVError)
+    let redis_conn = &redis_conn;
+    let futures = keys.into_iter().map(move |key| {
+        let key = CacheRedact {
+            kind: key,
+            tenant: redis_conn.key_prefix.clone(),
+        };
+        async move {
+            redis_conn
+                .publish(
+                    IMC_INVALIDATION_CHANNEL,
+                    RedisValue::try_from(key).change_context(RedisError::PublishError)?,
+                )
+                .await
+                .change_context(StorageError::KVError)
+        }
     });
 
     Ok(futures::future::try_join_all(futures)

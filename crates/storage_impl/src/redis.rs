@@ -4,6 +4,7 @@ pub mod pub_sub;
 
 use std::sync::{atomic, Arc};
 
+use common_utils::external_service::{ExternalServiceEventEmitter, NoOpEventEmitter};
 use router_env::tracing::Instrument;
 
 use self::{kv_store::RedisConnInterface, pub_sub::PubSubInterface};
@@ -26,8 +27,18 @@ impl RedisStore {
     pub async fn new(
         conf: &redis_interface::RedisSettings,
     ) -> error_stack::Result<Self, redis_interface::errors::RedisError> {
+        Self::new_with_event_emitter(conf, Arc::new(NoOpEventEmitter)).await
+    }
+
+    pub async fn new_with_event_emitter(
+        conf: &redis_interface::RedisSettings,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+    ) -> error_stack::Result<Self, redis_interface::errors::RedisError> {
         Ok(Self {
-            redis_conn: Arc::new(redis_interface::RedisConnectionPool::new(conf).await?),
+            redis_conn: Arc::new(
+                redis_interface::RedisConnectionPool::new_with_event_emitter(conf, event_emitter)
+                    .await?,
+            ),
         })
     }
 
@@ -40,10 +51,8 @@ impl RedisStore {
             .in_current_span(),
         );
     }
-}
 
-impl RedisConnInterface for RedisStore {
-    fn get_redis_conn(
+    pub fn get_redis_pool(
         &self,
     ) -> error_stack::Result<
         Arc<redis_interface::RedisConnectionPool>,
@@ -58,5 +67,14 @@ impl RedisConnInterface for RedisStore {
         } else {
             Err(redis_interface::errors::RedisError::RedisConnectionError.into())
         }
+    }
+}
+
+impl RedisConnInterface for RedisStore {
+    fn get_redis_conn(
+        &self,
+    ) -> error_stack::Result<redis_interface::RedisConnection, redis_interface::errors::RedisError>
+    {
+        Ok(self.get_redis_pool()?.get_connection())
     }
 }

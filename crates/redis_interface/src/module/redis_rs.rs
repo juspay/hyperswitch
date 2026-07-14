@@ -8,7 +8,11 @@ pub mod types;
 
 use std::sync::{atomic, Arc};
 
-use common_utils::errors::CustomResult;
+use common_utils::{
+    errors::CustomResult,
+    execution_context::ExecutionContext,
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+};
 use error_stack::ResultExt;
 use redis::AsyncCommands;
 use tracing::Instrument;
@@ -357,12 +361,31 @@ pub struct RedisConnectionPool {
     pub subscriber: Arc<SubscriberClient>,
     pub publisher: Arc<PublisherClient>,
     pub is_redis_available: Arc<atomic::AtomicBool>,
+    pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+}
+
+#[derive(Clone)]
+pub struct RedisConnection {
+    pub pool: RedisConn,
+    pub key_prefix: String,
+    pub config: Arc<RedisConfig>,
+    pub subscriber: Arc<SubscriberClient>,
+    pub publisher: Arc<PublisherClient>,
+    pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+    pub request_id: Option<String>,
 }
 
 impl RedisConnectionPool {
     /// Create a new Redis connection
     pub async fn new(
         conf: &crate::types::RedisSettings,
+    ) -> CustomResult<Self, crate::errors::RedisError> {
+        Self::new_with_event_emitter(conf, Arc::new(NoOpEventEmitter)).await
+    }
+
+    pub async fn new_with_event_emitter(
+        conf: &crate::types::RedisSettings,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> CustomResult<Self, crate::errors::RedisError> {
         let (pool, subscriber, publisher) = match conf.cluster_enabled {
             true => {
@@ -488,6 +511,7 @@ impl RedisConnectionPool {
             subscriber,
             publisher,
             key_prefix: String::default(),
+            event_emitter,
         })
     }
 
@@ -499,6 +523,31 @@ impl RedisConnectionPool {
             subscriber: Arc::clone(&self.subscriber),
             publisher: Arc::clone(&self.publisher),
             is_redis_available: Arc::clone(&self.is_redis_available),
+            event_emitter: Arc::clone(&self.event_emitter),
+        }
+    }
+
+    pub fn get_connection(&self) -> RedisConnection {
+        RedisConnection {
+            pool: self.pool.clone(),
+            key_prefix: self.key_prefix.clone(),
+            config: Arc::clone(&self.config),
+            subscriber: Arc::clone(&self.subscriber),
+            publisher: Arc::clone(&self.publisher),
+            event_emitter: Arc::clone(&self.event_emitter),
+            request_id: None,
+        }
+    }
+
+    pub fn get_connection_with_context(&self, context: &dyn ExecutionContext) -> RedisConnection {
+        RedisConnection {
+            pool: self.pool.clone(),
+            key_prefix: self.key_prefix.clone(),
+            config: Arc::clone(&self.config),
+            subscriber: Arc::clone(&self.subscriber),
+            publisher: Arc::clone(&self.publisher),
+            event_emitter: Arc::clone(&self.event_emitter),
+            request_id: context.request_id().map(str::to_owned),
         }
     }
 

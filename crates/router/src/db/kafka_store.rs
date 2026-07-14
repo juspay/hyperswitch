@@ -3709,7 +3709,7 @@ impl UserInterface for KafkaStore {
 }
 
 impl RedisConnInterface for KafkaStore {
-    fn get_redis_conn(&self) -> CustomResult<Arc<RedisConnectionPool>, RedisError> {
+    fn get_redis_conn(&self) -> CustomResult<redis_interface::RedisConnection, RedisError> {
         self.diesel_store.get_redis_conn()
     }
 }

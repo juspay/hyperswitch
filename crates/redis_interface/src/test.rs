@@ -14,12 +14,20 @@
 use std::collections::HashMap;
 
 use crate::{
-    ConsumerGroupDestroyReply, DelReply, HsetnxReply, MsetnxReply, RedisConnectionPool,
-    RedisEntryId, RedisKey, RedisSettings, RedisValue, SaddReply, SetGetReply, SetnxReply,
-    StreamCapKind, StreamCapTrim, StreamTrimConfig,
+    ConsumerGroupDestroyReply, DelReply, HsetnxReply, MsetnxReply, RedisConnection,
+    RedisConnectionPool, RedisEntryId, RedisKey, RedisSettings, RedisValue, SaddReply, SetGetReply,
+    SetnxReply, StreamCapKind, StreamCapTrim, StreamTrimConfig,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async fn test_connection(
+    settings: &RedisSettings,
+) -> error_stack::Result<RedisConnection, crate::errors::RedisError> {
+    RedisConnectionPool::new(settings)
+        .await
+        .map(|pool| pool.get_connection())
+}
 
 /// Generate a unique ID for test key isolation.
 /// Uses PID + nanoseconds + counter for global uniqueness across parallel runs.
@@ -43,7 +51,7 @@ fn redis_value_to_option_string(v: &RedisValue) -> Option<String> {
 
 /// Create a cluster `RedisConnectionPool` if `REDIS_CLUSTER_URLS` env var is set.
 /// Returns `None` if no cluster is configured (test should skip, not fail).
-async fn cluster_pool() -> Option<RedisConnectionPool> {
+async fn cluster_pool() -> Option<RedisConnection> {
     let cluster_urls_str = std::env::var("REDIS_CLUSTER_URLS").ok()?;
     let cluster_urls: Vec<String> = cluster_urls_str
         .split(',')
@@ -79,11 +87,11 @@ async fn cluster_pool() -> Option<RedisConnectionPool> {
         ..RedisSettings::default()
     };
 
-    RedisConnectionPool::new(&settings).await.ok()
+    test_connection(&settings).await.ok()
 }
 
 /// Helper: get a cluster pool or skip the test.
-async fn get_cluster_pool_or_skip() -> Option<RedisConnectionPool> {
+async fn get_cluster_pool_or_skip() -> Option<RedisConnection> {
     let pool = cluster_pool().await;
     if pool.is_none() {
         tracing::warn!(
@@ -94,7 +102,7 @@ async fn get_cluster_pool_or_skip() -> Option<RedisConnectionPool> {
     pool
 }
 
-async fn get_cluster_pool_with_uid() -> Option<(RedisConnectionPool, String)> {
+async fn get_cluster_pool_with_uid() -> Option<(RedisConnection, String)> {
     let pool = get_cluster_pool_or_skip().await?;
     let unique_id = unique_test_id();
     Some((pool, unique_id))
@@ -106,7 +114,7 @@ async fn get_cluster_pool_with_uid() -> Option<(RedisConnectionPool, String)> {
 async fn test_consumer_group_create() {
     let is_invalid_redis_entry_error = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let redis_conn = RedisConnectionPool::new(&RedisSettings::default())
+            let redis_conn = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
 
@@ -136,7 +144,7 @@ async fn test_consumer_group_create() {
 async fn test_delete_existing_key_success() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let _ = pool.set_key(&"key".into(), "value".to_string()).await;
@@ -153,7 +161,7 @@ async fn test_delete_existing_key_success() {
 async fn test_delete_non_existing_key_success() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             pool.delete_key(&"key not exists".into()).await.is_ok()
@@ -169,7 +177,7 @@ async fn test_delete_non_existing_key_success() {
 async fn test_delete_key_returns_correct_reply() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -195,7 +203,7 @@ async fn test_delete_key_returns_correct_reply() {
 async fn test_delete_key_reply_semantics() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -221,7 +229,7 @@ async fn test_delete_key_reply_semantics() {
 async fn test_delete_multiple_keys() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -255,7 +263,7 @@ async fn test_delete_multiple_keys() {
 async fn test_exists_key() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -280,7 +288,7 @@ async fn test_exists_key() {
 async fn test_set_key_with_expiry() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let key: RedisKey = format!("test_set_expiry_{}", unique_test_id()).into();
@@ -299,7 +307,7 @@ async fn test_set_key_with_expiry() {
 async fn test_set_key_without_modifying_ttl() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let key: RedisKey = format!("test_keepttl_{}", unique_test_id()).into();
@@ -323,7 +331,7 @@ async fn test_set_key_without_modifying_ttl() {
 async fn test_set_key_if_not_exists_with_expiry_new_key() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let key: RedisKey = format!("test_setnx_new_{}", unique_test_id()).into();
@@ -346,7 +354,7 @@ async fn test_set_key_if_not_exists_with_expiry_new_key() {
 async fn test_set_key_if_not_exists_with_expiry_existing_key() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let key: RedisKey = format!("test_setnx_exist_{}", unique_test_id()).into();
@@ -371,7 +379,7 @@ async fn test_set_key_if_not_exists_with_expiry_existing_key() {
 async fn test_set_key_if_not_exists_and_get_value_new_key() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let key: RedisKey = format!("test_new_key_string_{}", unique_test_id()).into();
@@ -397,7 +405,7 @@ async fn test_set_key_if_not_exists_and_get_value_new_key() {
 async fn test_set_key_if_not_exists_and_get_value_existing_key() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let key: RedisKey = format!("test_existing_key_string_{}", unique_test_id()).into();
@@ -426,7 +434,7 @@ async fn test_set_key_if_not_exists_and_get_value_existing_key() {
 async fn test_set_key_if_not_exists_and_get_value_with_default_ttl() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let key: RedisKey = format!("test_default_ttl_key_string_{}", unique_test_id()).into();
@@ -452,7 +460,7 @@ async fn test_set_key_if_not_exists_and_get_value_with_default_ttl() {
 async fn test_set_key_if_not_exists_and_get_value_concurrent_access() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let key_name = &format!("test_concurrent_key_string_{}", unique_test_id());
@@ -487,7 +495,7 @@ async fn test_set_key_if_not_exists_and_get_value_concurrent_access() {
 async fn test_resp3_set_and_get() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let key: RedisKey = format!("test_resp3_{}", unique_test_id()).into();
@@ -515,7 +523,7 @@ async fn test_connection_with_custom_config() {
                 ..RedisSettings::default()
             };
 
-            let pool = RedisConnectionPool::new(&settings)
+            let pool = test_connection(&settings)
                 .await
                 .expect("failed to create redis connection pool with custom config");
 
@@ -538,7 +546,7 @@ async fn test_connection_with_custom_config() {
 async fn test_get_multiple_keys_success() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
 
@@ -576,7 +584,7 @@ async fn test_get_multiple_keys_success() {
 async fn test_get_multiple_keys_with_missing_keys() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
 
@@ -624,7 +632,7 @@ async fn test_get_multiple_keys_with_missing_keys() {
 async fn test_get_multiple_keys_empty_input() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
 
@@ -647,7 +655,7 @@ async fn test_get_multiple_keys_empty_input() {
 async fn test_get_and_deserialize_key() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -678,7 +686,7 @@ async fn test_get_and_deserialize_key() {
 async fn test_get_and_deserialize_key_not_found() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let key: RedisKey = "nonexistent_deser_key".into();
@@ -697,7 +705,7 @@ async fn test_get_and_deserialize_key_not_found() {
 async fn test_get_and_deserialize_multiple_keys() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
 
@@ -757,7 +765,7 @@ async fn test_get_and_deserialize_multiple_keys() {
 async fn test_serialize_and_set_key_if_not_exist() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -794,7 +802,7 @@ async fn test_serialize_and_set_key_if_not_exist() {
 async fn test_serialize_and_set_key_with_expiry() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -831,7 +839,7 @@ async fn test_serialize_and_set_key_with_expiry() {
 async fn test_serialize_and_set_key_without_modifying_ttl() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -870,7 +878,7 @@ async fn test_serialize_and_set_key_without_modifying_ttl() {
 async fn test_set_expiry_and_get_ttl() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -897,7 +905,7 @@ async fn test_set_expiry_and_get_ttl() {
 async fn test_set_expire_at_and_get_ttl() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -934,7 +942,7 @@ async fn test_set_expire_at_and_get_ttl() {
 async fn test_set_hash_fields() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let key: RedisKey = format!("test_hash_{}", unique_test_id()).into();
@@ -957,7 +965,7 @@ async fn test_set_hash_fields() {
 async fn test_set_hash_field_if_not_exist_and_get() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -993,7 +1001,7 @@ async fn test_set_hash_field_if_not_exist_and_get() {
 async fn test_increment_fields_in_hash() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1022,7 +1030,7 @@ async fn test_increment_fields_in_hash() {
 async fn test_hscan_returns_values() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1057,7 +1065,7 @@ async fn test_hscan_returns_values() {
 async fn test_hscan_and_deserialize() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1094,7 +1102,7 @@ async fn test_hscan_and_deserialize() {
 async fn test_sadd_and_get_hash_field_and_deserialize() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1137,7 +1145,7 @@ async fn test_sadd_and_get_hash_field_and_deserialize() {
 async fn test_serialize_and_set_multiple_hash_field_if_not_exist() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1179,7 +1187,7 @@ async fn test_serialize_and_set_multiple_hash_field_if_not_exist() {
 async fn test_set_multiple_keys_if_not_exist_msetnx() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1206,7 +1214,7 @@ async fn test_set_multiple_keys_if_not_exist_msetnx() {
 async fn test_set_multiple_keys_if_not_exist_with_existing_key() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1235,7 +1243,7 @@ async fn test_set_multiple_keys_if_not_exist_with_existing_key() {
 async fn test_set_multiple_keys_if_not_exists_and_get_values() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1271,7 +1279,7 @@ async fn test_set_multiple_keys_if_not_exists_and_get_values() {
 async fn test_stream_append_and_get_length() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let stream: RedisKey = format!("test_stream_append_{}", unique_test_id()).into();
@@ -1296,7 +1304,7 @@ async fn test_stream_append_and_get_length() {
 async fn test_stream_read_entries_xread() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1339,7 +1347,7 @@ async fn test_stream_read_entries_xread() {
 async fn test_stream_read_entries() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1380,7 +1388,7 @@ async fn test_stream_read_entries() {
 async fn test_stream_read_with_options_xreadgroup() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1441,7 +1449,7 @@ async fn test_stream_read_with_options_xreadgroup() {
 async fn test_stream_acknowledge_entries() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let stream: RedisKey = format!("test_stream_ack_{}", unique_test_id()).into();
@@ -1479,7 +1487,7 @@ async fn test_stream_acknowledge_entries() {
 async fn test_stream_delete_entries() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1521,7 +1529,7 @@ async fn test_stream_delete_entries() {
 async fn test_stream_trim_entries() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1589,7 +1597,7 @@ async fn test_stream_trim_entries() {
 async fn test_consumer_group_operations() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1625,7 +1633,7 @@ async fn test_consumer_group_operations() {
 async fn test_consumer_group_destroy() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1662,7 +1670,7 @@ async fn test_consumer_group_destroy() {
 async fn test_consumer_group_delete_consumer() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1712,7 +1720,7 @@ async fn test_consumer_group_delete_consumer() {
 async fn test_consumer_group_set_last_id() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1760,7 +1768,7 @@ async fn test_consumer_group_set_last_id() {
 async fn test_list_operations() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1795,7 +1803,7 @@ async fn test_list_operations() {
 async fn test_setting_keys_using_scripts() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let lua_script = r#"
@@ -1830,7 +1838,7 @@ async fn test_setting_keys_using_scripts() {
 async fn test_getting_keys_using_scripts() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
 
@@ -1870,7 +1878,7 @@ async fn test_getting_keys_using_scripts() {
 async fn test_scan_returns_matching_keys() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let uid = unique_test_id();
@@ -1909,7 +1917,7 @@ async fn test_scan_returns_matching_keys() {
 async fn test_pubsub_standalone_publish_and_receive() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let channel = "test_pubsub_channel";
@@ -1951,7 +1959,7 @@ async fn test_pubsub_standalone_publish_and_receive() {
 async fn test_subscriber_unsubscribe() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {
-            let pool = RedisConnectionPool::new(&RedisSettings::default())
+            let pool = test_connection(&RedisSettings::default())
                 .await
                 .expect("failed to create redis connection pool");
             let channel = "test_unsub_channel";
@@ -1986,7 +1994,7 @@ async fn test_on_error_triggers_shutdown_when_redis_unreachable() {
         ..RedisSettings::default()
     };
 
-    let pool = RedisConnectionPool::new(&settings).await;
+    let pool = test_connection(&settings).await;
     let pool = match pool {
         Ok(pool) => pool,
         Err(_) => return, // If connection fails entirely, skip
@@ -2008,7 +2016,7 @@ async fn test_on_error_triggers_shutdown_when_redis_unreachable() {
 
 #[tokio::test]
 async fn test_on_error_keeps_redis_available_when_healthy() {
-    let pool = RedisConnectionPool::new(&RedisSettings::default())
+    let pool = test_connection(&RedisSettings::default())
         .await
         .expect("failed to create redis connection pool");
 
@@ -2039,7 +2047,7 @@ async fn test_on_error_marks_unavailable_after_threshold() {
         ..RedisSettings::default()
     };
 
-    let pool = RedisConnectionPool::new(&settings).await;
+    let pool = test_connection(&settings).await;
     let pool = match pool {
         Ok(pool) => pool,
         Err(_) => return,
