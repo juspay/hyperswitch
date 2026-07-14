@@ -1,7 +1,6 @@
 //! OpenTelemetry metrics for Redis operations, gated behind the `metrics` feature.
 
 use common_utils::external_service::{ExternalServiceCall, ExternalServiceEventEmitter};
-
 #[cfg(feature = "metrics")]
 use router_env::{global_meter, histogram_metric_f64};
 
