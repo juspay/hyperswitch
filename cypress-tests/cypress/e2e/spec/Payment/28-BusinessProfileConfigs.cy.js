@@ -488,11 +488,12 @@ describe("Config Tests", () => {
   });
 
   context("Connector Webhook Registration and Retrieval", () => {
-    let shouldContinue = true;
+    const shouldContinue = true;
 
     beforeEach(function () {
       const connectorId = globalState.get("connectorId");
-      const webhookConfigConnectors = utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG;
+      const webhookConfigConnectors =
+        utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG;
 
       // Skip if:
       // 1. Previous test failed (shouldContinue = false), OR
@@ -542,7 +543,8 @@ describe("Config Tests", () => {
   context("Webhook Config Disabled Events — Negative Cases", () => {
     beforeEach(function () {
       const connectorId = globalState.get("connectorId");
-      const webhookConfigConnectors = utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG;
+      const webhookConfigConnectors =
+        utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG;
 
       // Skip if connector is NOT in the webhook config list
       const shouldSkip =
