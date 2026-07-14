@@ -10,6 +10,7 @@ use lightningcss::{
     stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
     traits::ToCss,
 };
+use router_env::logger;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PaymentLinkError {
@@ -89,36 +90,82 @@ fn sanitize_color(value: &str) -> Option<String> {
     }
 }
 
-fn parse_css_declaration(property: &str, value: &str) -> Option<String> {
-    // Normalize the raw inputs first so surrounding whitespace does not affect parsing.
+fn parse_css_declaration(property: &str, value: &str) -> Result<String, PaymentLinkError> {
     let property = property.trim();
     let value = value.trim();
-    if property.is_empty() || value.is_empty() {
-        return None;
-    }
-
-    // Parse the declaration through lightningcss instead of trusting the raw string.
-    let declaration = format!("{property}: {value};");
-    let declaration_block =
-        DeclarationBlock::parse_string(&declaration, ParserOptions::default()).ok()?;
-
-    // Accept only a single fully parsed standard property declaration.
-    if declaration_block.len() != 1 || has_unparsed_or_custom_property(&declaration_block) {
-        return None;
-    }
-
-    // Re-serialize the parsed declaration and validate it again inside a stylesheet context.
-    let serialized_declaration = declaration_block
-        .to_css_string(PrinterOptions::default())
-        .ok()?;
-    let probe_rule = format!(":root {{ {serialized_declaration} }}");
-    let probe_stylesheet = StyleSheet::parse(&probe_rule, ParserOptions::default()).ok()?;
-
-    // Reject declarations that require dependency expansion such as vendor-specific rewrites.
-    if stylesheet_has_dependencies(&probe_stylesheet) {
-        None
+    if property.is_empty() {
+        logger::error!("Payment link CSS property is empty");
+        Err(PaymentLinkError::InvalidCssProperty(property.to_string()).into())
+    } else if value.is_empty() {
+        logger::error!(css_property = %property, "Payment link CSS value is empty");
+        Err(PaymentLinkError::InvalidCssValue(value.to_string()).into())
     } else {
-        Some(serialized_declaration)
+        let declaration = format!("{property}: {value};");
+        let declaration_block =
+            DeclarationBlock::parse_string(&declaration, ParserOptions::default()).map_err(
+                |error| {
+                    logger::error!(
+                        ?error,
+                        css_property = %property,
+                        css_value = %value,
+                        "Failed to parse payment link CSS declaration"
+                    );
+                    PaymentLinkError::InvalidCssValue(value.to_string())
+                },
+            )?;
+
+        if declaration_block.len() != 1 {
+            logger::error!(
+                css_property = %property,
+                css_value = %value,
+                parsed_declaration_count = declaration_block.len(),
+                "Payment link CSS declaration expanded into an unexpected number of declarations"
+            );
+            Err(PaymentLinkError::InvalidCssValue(value.to_string()).into())
+        } else if has_unparsed_or_custom_property(&declaration_block) {
+            logger::error!(
+                css_property = %property,
+                css_value = %value,
+                "Payment link CSS declaration was filtered because it contains an unparsed or custom property"
+            );
+            Err(PaymentLinkError::InvalidCssProperty(property.to_string()).into())
+        } else {
+            let serialized_declaration = declaration_block
+                .to_css_string(PrinterOptions::default())
+                .map_err(|error| {
+                    logger::error!(
+                        ?error,
+                        css_property = %property,
+                        css_value = %value,
+                        "Failed to serialize payment link CSS declaration"
+                    );
+                    PaymentLinkError::InvalidCssValue(value.to_string())
+                })?;
+            let probe_rule = format!(":root {{ {serialized_declaration} }}");
+            let probe_stylesheet = StyleSheet::parse(&probe_rule, ParserOptions::default())
+                .map_err(|error| {
+                    logger::error!(
+                        ?error,
+                        css_property = %property,
+                        css_value = %value,
+                        serialized_declaration = %serialized_declaration,
+                        "Failed to validate serialized payment link CSS declaration"
+                    );
+                    PaymentLinkError::InvalidCssValue(value.to_string())
+                })?;
+
+            if stylesheet_has_dependencies(&probe_stylesheet) {
+                logger::error!(
+                    css_property = %property,
+                    css_value = %value,
+                    serialized_declaration = %serialized_declaration,
+                    "Payment link CSS declaration was rejected because it generated stylesheet dependencies"
+                );
+                Err(PaymentLinkError::InvalidCssValue(value.to_string()).into())
+            } else {
+                Ok(serialized_declaration)
+            }
+        }
     }
 }
 
@@ -129,50 +176,84 @@ fn has_unparsed_or_custom_property(declaration_block: &DeclarationBlock<'_>) -> 
         .any(|(property, _)| matches!(property, Property::Unparsed(_) | Property::Custom(_)))
 }
 
-fn dependency_printer_options() -> PrinterOptions<'static> {
-    // Turn on dependency analysis so stylesheet serialization reports generated side artifacts.
-    PrinterOptions {
-        analyze_dependencies: Some(DependencyOptions::default()),
-        ..PrinterOptions::default()
-    }
-}
-
 fn stylesheet_has_dependencies(stylesheet: &StyleSheet<'_, '_>) -> bool {
-    // Treat serialization failures as unsafe, otherwise inspect whether printing produced dependencies.
-    let Ok(result) = stylesheet.to_css(dependency_printer_options()) else {
-        return true;
-    };
-
-    matches!(result.dependencies.as_ref(), Some(dependencies) if !dependencies.is_empty())
+    stylesheet
+        .to_css(PrinterOptions {
+            analyze_dependencies: Some(DependencyOptions::default()),
+            ..PrinterOptions::default()
+        })
+        .map(|result| {
+            matches!(
+                result.dependencies.as_ref(),
+                Some(dependencies) if !dependencies.is_empty()
+            )
+        })
+        .unwrap_or(true)
 }
 
-fn parse_css_rule(selector: &str, declarations: &[String]) -> Option<String> {
-    // Clean up the selector input and require at least one already-validated declaration.
+fn parse_css_rule(selector: &str, declarations: &[String]) -> Result<String, PaymentLinkError> {
     let selector = selector.trim();
-    if selector.is_empty() || declarations.is_empty() {
-        return None;
-    }
-
-    // Parse the full rule and ensure it resolves to exactly one plain style rule.
-    let rule_css = format!("{selector} {{ {} }}", declarations.join("; "));
-    let stylesheet = StyleSheet::parse(&rule_css, ParserOptions::default()).ok()?;
-    let style_rule = match stylesheet.rules.0.as_slice() {
-        [CssRule::Style(style_rule)] => style_rule,
-        _ => return None,
-    };
-
-    // Reject nested rules, declaration loss, and rules that trigger dependency generation.
-    if style_rule.rules.0.is_empty()
-        && style_rule.declarations.len() == declarations.len()
-        && !stylesheet_has_dependencies(&stylesheet)
-    {
-        // Return the canonical serialized CSS so downstream injection uses normalized output.
-        stylesheet
-            .to_css(PrinterOptions::default())
-            .ok()
-            .map(|result| result.code)
+    if selector.is_empty() {
+        logger::error!("Payment link CSS selector is empty");
+        Err(PaymentLinkError::InvalidCssSelector(selector.to_string()).into())
+    } else if declarations.is_empty() {
+        logger::error!(css_selector = %selector, "Payment link CSS selector has no declarations");
+        Err(
+            PaymentLinkError::InvalidCssValue("No valid CSS declarations provided".to_string())
+                .into(),
+        )
     } else {
-        None
+        let rule_css = format!("{selector} {{ {} }}", declarations.join("; "));
+        let stylesheet =
+            StyleSheet::parse(&rule_css, ParserOptions::default()).map_err(|error| {
+                logger::error!(
+                    ?error,
+                    css_selector = %selector,
+                    rule_css = %rule_css,
+                    "Failed to parse payment link CSS rule"
+                );
+                PaymentLinkError::InvalidCssSelector(selector.to_string())
+            })?;
+
+        match stylesheet.rules.0.as_slice() {
+            [CssRule::Style(style_rule)]
+                if style_rule.rules.0.is_empty()
+                    && style_rule.declarations.len() == declarations.len()
+                    && !stylesheet_has_dependencies(&stylesheet) =>
+            {
+                Ok(stylesheet
+                    .to_css(PrinterOptions::default())
+                    .map(|result| result.code)
+                    .map_err(|error| {
+                        logger::error!(
+                            ?error,
+                            css_selector = %selector,
+                            rule_css = %rule_css,
+                            "Failed to serialize payment link CSS rule"
+                        );
+                        PaymentLinkError::InvalidCssSelector(selector.to_string())
+                    })?)
+            }
+            [CssRule::Style(style_rule)] => {
+                logger::error!(
+                    css_selector = %selector,
+                    has_nested_rules = !style_rule.rules.0.is_empty(),
+                    declaration_count = style_rule.declarations.len(),
+                    expected_declaration_count = declarations.len(),
+                    has_dependencies = stylesheet_has_dependencies(&stylesheet),
+                    "Payment link CSS rule was rejected after validation"
+                );
+                Err(PaymentLinkError::InvalidCssSelector(selector.to_string()).into())
+            }
+            _ => {
+                logger::error!(
+                    css_selector = %selector,
+                    parsed_rule_count = stylesheet.rules.0.len(),
+                    "Payment link CSS selector did not resolve to exactly one style rule"
+                );
+                Err(PaymentLinkError::InvalidCssSelector(selector.to_string()).into())
+            }
+        }
     }
 }
 
@@ -185,22 +266,19 @@ fn generate_dynamic_css(
         let mut css_string = String::new();
         css_string.push_str("/* Dynamically Injected UI Rules */\n");
 
-        rules.iter().for_each(|(selector, styles_map)| {
-            let declarations = styles_map
-                .iter()
-                .filter_map(|(prop_camel_case, css_value)| {
-                    let css_property = camel_to_kebab(prop_camel_case);
-                    parse_css_declaration(&css_property, css_value)
-                })
-                .collect::<Vec<_>>();
-
-            if let Some(rule_css) = parse_css_rule(selector, &declarations) {
-                css_string.push_str(&rule_css);
-                if !rule_css.ends_with('\n') {
-                    css_string.push('\n');
-                }
+        for (selector, styles_map) in rules {
+            let mut declarations = Vec::with_capacity(styles_map.len());
+            for (prop_camel_case, css_value) in styles_map {
+                let css_property = camel_to_kebab(prop_camel_case);
+                declarations.push(parse_css_declaration(&css_property, css_value)?);
             }
-        });
+
+            let rule_css = parse_css_rule(selector, &declarations)?;
+            css_string.push_str(&rule_css);
+            if !rule_css.ends_with('\n') {
+                css_string.push('\n');
+            }
+        }
 
         Ok(css_string)
     }
@@ -236,136 +314,35 @@ fn camel_to_kebab(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn parse_csv_quoted_json(line: &str) -> String {
-        let trimmed = line.trim();
-        trimmed
-            .strip_prefix('"')
-            .and_then(|value| value.strip_suffix('"'))
-            .unwrap_or(trimmed)
-            .replace("\"\"", "\"")
-    }
-
-    fn assert_payment_link_ui_rules_parse(
-        config: &serde_json::Value,
-        context: &str,
-        rule_block_count: &mut usize,
-        selector_count: &mut usize,
-        declaration_count: &mut usize,
-        accepted_declaration_count: &mut usize,
-    ) {
-        if let Some(rules) = config
-            .get("payment_link_ui_rules")
-            .and_then(serde_json::Value::as_object)
-        {
-            *rule_block_count += 1;
-
-            for (selector, styles) in rules {
-                *selector_count += 1;
-                let selector_probe_declaration = parse_css_declaration("color", "red").unwrap();
-                assert!(
-                    parse_css_rule(selector, &[selector_probe_declaration]).is_some(),
-                    "payment_link_ui_rules selector failed to parse at {context}: {selector}"
-                );
-
-                let styles_object = styles.as_object().unwrap_or_else(|| {
-                    panic!(
-                        "payment_link_ui_rules styles must be an object at {context}: {selector}"
-                    )
-                });
-                let declarations = styles_object
-                    .iter()
-                    .filter_map(|(property, value)| {
-                        let css_value = value
-                            .as_str()
-                            .unwrap_or_else(|| panic!("payment_link_ui_rules style value must be a string at {context}: {selector}.{property}"));
-                        let css_property = camel_to_kebab(property);
-                        parse_css_declaration(&css_property, css_value)
-                    })
-                    .collect::<Vec<_>>();
-                *declaration_count += styles_object.len();
-                *accepted_declaration_count += declarations.len();
-
-                if declarations.is_empty() {
-                    continue;
-                }
-
-                let style_map = styles_object
-                    .iter()
-                    .map(|(property, value)| {
-                        (
-                            property.clone(),
-                            value
-                                .as_str()
-                                .unwrap_or_else(|| panic!("payment_link_ui_rules style value must be a string at {context}: {selector}.{property}"))
-                                .to_string(),
-                        )
-                    })
-                    .collect::<HashMap<_, _>>();
-                let rules = HashMap::from([(selector.clone(), style_map)]);
-                let css = generate_dynamic_css(&rules).unwrap();
-                assert!(
-                    css != "/* Dynamically Injected UI Rules */\n",
-                    "payment_link_ui_rules selector was parsed but not emitted at {context}: {selector}"
-                );
-            }
-        }
-
-        if let Some(business_configs) = config
-            .get("business_specific_configs")
-            .and_then(serde_json::Value::as_object)
-        {
-            for (business_key, business_config) in business_configs {
-                let nested_context = format!("{context}.business_specific_configs.{business_key}");
-                assert_payment_link_ui_rules_parse(
-                    business_config,
-                    &nested_context,
-                    rule_block_count,
-                    selector_count,
-                    declaration_count,
-                    accepted_declaration_count,
-                );
-            }
-        }
-    }
-
     #[test]
     fn test_parse_css_rule() {
         let declaration = parse_css_declaration("color", "#4E6ADD").unwrap();
         let declarations = [declaration];
 
-        assert!(parse_css_rule("body", &declarations).is_some());
-        assert!(parse_css_rule(".class-name", &declarations).is_some());
-        assert!(parse_css_rule("#id-name", &declarations).is_some());
-        assert!(parse_css_rule("#some-parent > .Input--invalid", &declarations).is_some());
-        assert!(parse_css_rule(":has(> .TermsTextLabel)", &declarations).is_some());
+        assert!(parse_css_rule("body", &declarations).is_ok());
+        assert!(parse_css_rule(".class-name", &declarations).is_ok());
+        assert!(parse_css_rule("#id-name", &declarations).is_ok());
+        assert!(parse_css_rule("#some-parent > .Input--invalid", &declarations).is_ok());
+        assert!(parse_css_rule(":has(> .TermsTextLabel)", &declarations).is_ok());
 
-        assert!(parse_css_rule("body { color: red }", &declarations).is_none());
-        assert!(parse_css_rule("</style><script>", &declarations).is_none());
-        assert!(parse_css_rule("@media screen", &declarations).is_none());
+        assert!(parse_css_rule("body { color: red }", &declarations).is_err());
+        assert!(parse_css_rule("</style><script>", &declarations).is_err());
+        assert!(parse_css_rule("@media screen", &declarations).is_err());
     }
 
     #[test]
     fn test_parse_css_declaration() {
-        assert_eq!(
-            parse_css_declaration("font-size", "14px").as_deref(),
-            Some("font-size: 14px")
-        );
-        assert_eq!(
-            parse_css_declaration("border-style", "solid").as_deref(),
-            Some("border-style: solid")
-        );
         assert!(parse_css_declaration("padding-left", "22px !important")
             .as_deref()
             .is_some_and(|declaration| declaration.contains("!important")));
-        assert!(parse_css_declaration("font-size", "body { color: red }").is_none());
-        assert!(parse_css_declaration("color", "</style><script>").is_none());
-        assert!(parse_css_declaration("color", "red; background: blue").is_none());
-        assert!(parse_css_declaration("content", "' *'").is_none());
-        assert!(parse_css_declaration("width", "expression(alert(1))").is_none());
-        assert!(parse_css_declaration("-ms-overflow-style", "none").is_none());
-        assert!(parse_css_declaration("background-image", "javascript:alert(1)").is_none());
-        assert!(parse_css_declaration("background-image", "url(javascript:alert)").is_none());
+        assert!(parse_css_declaration("font-size", "body { color: red }").is_err());
+        assert!(parse_css_declaration("color", "</style><script>").is_err());
+        assert!(parse_css_declaration("color", "red; background: blue").is_err());
+        assert!(parse_css_declaration("content", "' *'").is_err());
+        assert!(parse_css_declaration("width", "expression(alert(1))").is_err());
+        assert!(parse_css_declaration("-ms-overflow-style", "none").is_err());
+        assert!(parse_css_declaration("background-image", "javascript:alert(1)").is_err());
+        assert!(parse_css_declaration("background-image", "url(javascript:alert)").is_err());
     }
 
     #[test]
@@ -425,12 +402,11 @@ mod tests {
         );
         rules.insert("body".to_string(), styles);
 
-        let css = generate_dynamic_css(&rules).unwrap();
-        assert_eq!(css, "/* Dynamically Injected UI Rules */\n");
+        assert!(generate_dynamic_css(&rules).is_err());
     }
 
     #[test]
-    fn test_generate_dynamic_css_drops_url_dependency_and_keeps_safe_value() {
+    fn test_generate_dynamic_css_rejects_url_dependency() {
         let mut rules = HashMap::new();
         let mut styles = HashMap::new();
         styles.insert(
@@ -440,21 +416,16 @@ mod tests {
         styles.insert("color".to_string(), "#4E6ADD".to_string());
         rules.insert(".safe-selector".to_string(), styles);
 
-        let css = generate_dynamic_css(&rules).unwrap();
-        assert!(css.contains(".safe-selector {"));
-        assert!(css.contains("color: #4e6add;"));
-        assert!(!css.contains("background-image"));
-        assert!(!css.contains("javascript:confirm(1)"));
+        assert!(generate_dynamic_css(&rules).is_err());
     }
 
     #[test]
-    fn test_generate_dynamic_css_skips_unsafe_selector() {
+    fn test_generate_dynamic_css_rejects_unsafe_selector() {
         let mut rules = HashMap::new();
         let mut styles = HashMap::new();
         styles.insert("color".to_string(), "#4E6ADD".to_string());
         rules.insert("</style><script>".to_string(), styles);
 
-        let css = generate_dynamic_css(&rules).unwrap();
-        assert_eq!(css, "/* Dynamically Injected UI Rules */\n");
+        assert!(generate_dynamic_css(&rules).is_err());
     }
 }
