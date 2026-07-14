@@ -409,7 +409,7 @@ where
                 };
 
                 let execution_mode =
-                    resolve_execution_mode(state, execution_mode, &ucs_availability);
+                    resolve_execution_mode(state, execution_mode, ucs_availability);
 
                 decide_execution_path(connector_integration_type, previous_gateway, execution_mode)?
             }
@@ -484,7 +484,7 @@ fn create_updated_session_state_with_proxy(
 fn resolve_execution_mode(
     state: &SessionState,
     execution_mode: ExecutionMode,
-    ucs_availability: &UcsAvailability,
+    ucs_availability: UcsAvailability,
 ) -> ExecutionMode {
     let default_mode = state
         .conf
@@ -504,7 +504,8 @@ fn resolve_execution_mode(
         default_mode
     };
 
-    if execution_mode == ExecutionMode::Shadow && *ucs_availability == UcsAvailability::ShadowKilled
+    if execution_mode == ExecutionMode::Shadow
+        && ucs_availability == UcsAvailability::ShadowKilled
     {
         router_env::logger::info!(
             ?default_mode,
@@ -833,7 +834,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         let execution_mode = resolve_execution_mode(
             state,
             rollout_result.rollout_execution_result.execution_mode,
-            &ucs_availability,
+            ucs_availability,
         );
 
         decide_execution_path(connector_integration_type, previous_gateway, execution_mode)?
