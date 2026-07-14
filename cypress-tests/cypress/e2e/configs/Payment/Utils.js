@@ -67,6 +67,7 @@ import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as rapydConnectorDetails } from "./Rapyd.js";
+import { connectorDetails as razorpayConnectorDetails } from "./Razorpay.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
 import { connectorDetails as signifydConnectorDetails } from "../FRM/Signifyd.js";
@@ -150,6 +151,7 @@ const connectorDetails = {
   peachpayments: peachpaymentsConnectorDetails,
   powertranz: powertranzConnectorDetails,
   rapyd: rapydConnectorDetails,
+  razorpay: razorpayConnectorDetails,
   redsys: redsysConnectorDetails,
   shift4: shift4ConnectorDetails,
   signifyd: signifydConnectorDetails,

@@ -3922,6 +3922,11 @@ export const connectorDetails = {
         },
       },
     }),
+    Refund: getCustomExchange({
+      Request: {
+        amount: 6540,
+      },
+    }),
   },
   reward_pm: {
     PaymentIntentUSD: getCustomExchange({
