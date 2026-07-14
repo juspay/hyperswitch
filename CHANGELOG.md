@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.14.0
+
+### Bug Fixes
+
+- **analytics:** Tolerate null destination and exclude shadow events from connector event logs ([#13284](https://github.com/juspay/hyperswitch/pull/13284)) ([`9ea5a74`](https://github.com/juspay/hyperswitch/commit/9ea5a74ff8364d448b8891cb19f05898366b68d2))
+- **cashtocode:** Add connector response deserialization resilience ([#13272](https://github.com/juspay/hyperswitch/pull/13272)) ([`c698172`](https://github.com/juspay/hyperswitch/commit/c69817268cdb72661e6e132fefbd5b77929e1b41))
+- **cypress:** Accept 422 status for invalid currency in forex convert tests ([#13262](https://github.com/juspay/hyperswitch/pull/13262)) ([`2cde774`](https://github.com/juspay/hyperswitch/commit/2cde77444cedd4f6397687053cfcb810cfc4a465))
+
+**Full Changelog:** [`2026.07.13.1...2026.07.14.0`](https://github.com/juspay/hyperswitch/compare/2026.07.13.1...2026.07.14.0)
+
+- - -
+
 ## 2026.07.13.1
 
 ### Bug Fixes
