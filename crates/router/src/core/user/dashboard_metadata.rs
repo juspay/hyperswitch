@@ -274,10 +274,10 @@ fn into_response(
                     d.views
                         .into_iter()
                         .map(|v| {
-                            let data = match v.version {
-                                api::PaymentAdvancedViewVersion::V1 => {
+                            let data = match v.filters {
+                                types::PaymentAdvancedViewFilters::V1(filters) => {
                                     api::PaymentAdvancedViewFilters::V1(
-                                        api::PaymentAdvancedViewFiltersV1::PaymentViews(v.filters),
+                                        api::PaymentAdvancedViewFiltersV1::PaymentViews(filters),
                                     )
                                 }
                             };

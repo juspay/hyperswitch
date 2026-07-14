@@ -95,11 +95,18 @@ pub struct PaymentViewsValue {
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum PaymentAdvancedViewFilters {
+    V1(api::PaymentAdvancedViewFilterConstraints),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaymentAdvancedView {
     pub version: api::PaymentAdvancedViewVersion,
     pub view_id: String,
     pub view_name: String,
-    pub filters: api::PaymentAdvancedViewFilterConstraints,
+    pub filters: PaymentAdvancedViewFilters,
     pub created_at: String,
     pub updated_at: String,
 }

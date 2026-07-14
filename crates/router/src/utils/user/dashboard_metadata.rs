@@ -10,9 +10,9 @@ use api_models::{
     payments,
     user::dashboard_metadata::{
         CreatePaymentAdvancedViewRequest, CreateSavedViewRequest, PaymentAdvancedViewFilters,
-        PaymentAdvancedViewFiltersV1, PaymentAdvancedViewOperation, PaymentListFilterConstraintsV1,
-        SavedViewFilters, SavedViewFiltersV1, SavedViewOperation, UpdatePaymentAdvancedViewRequest,
-        UpdateSavedViewRequest,
+        PaymentAdvancedViewFiltersV1, PaymentAdvancedViewOperation, PaymentAdvancedViewVersion,
+        PaymentListFilterConstraintsV1, SavedViewFilters, SavedViewFiltersV1, SavedViewOperation,
+        UpdatePaymentAdvancedViewRequest, UpdateSavedViewRequest,
     },
 };
 use common_enums::EntityType;
@@ -779,17 +779,14 @@ async fn delete_saved_view(
 fn get_payment_advanced_view_filters(
     data: PaymentAdvancedViewFilters,
 ) -> (
-    api_models::user::dashboard_metadata::PaymentAdvancedViewVersion,
-    api_models::user::dashboard_metadata::PaymentAdvancedViewFilterConstraints,
+    PaymentAdvancedViewVersion,
+    types::PaymentAdvancedViewFilters,
 ) {
     match data {
-        PaymentAdvancedViewFilters::V1(filters) => {
-            let PaymentAdvancedViewFiltersV1::PaymentViews(filters) = filters;
-            (
-                api_models::user::dashboard_metadata::PaymentAdvancedViewVersion::V1,
-                filters,
-            )
-        }
+        PaymentAdvancedViewFilters::V1(PaymentAdvancedViewFiltersV1::PaymentViews(filters)) => (
+            PaymentAdvancedViewVersion::V1,
+            types::PaymentAdvancedViewFilters::V1(filters),
+        ),
     }
 }
 
