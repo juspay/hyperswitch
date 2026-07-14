@@ -133,6 +133,7 @@ jobs:
             echo "run-checks=true" >> "${GITHUB_OUTPUT}"
           else
             echo "run-checks=false" >> "${GITHUB_OUTPUT}"
+            exit 1
           fi
 
   build-hyperswitch:
