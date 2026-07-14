@@ -502,10 +502,15 @@ where
         }
 
         Ok(ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
+            let mut headers = HashSet::new();
+            headers.insert((
+                "content-security-policy",
+                "default-src 'self' http: https:; script-src 'self' 'unsafe-inline' http: https:; style-src 'self' 'unsafe-inline' http: https:; img-src * data: blob:; font-src * data:; connect-src *; frame-src *; object-src 'none';".to_string(),
+            ));
             match *boxed_payment_link_data {
                 PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
                     match build_payment_link_html(payment_link_data) {
-                        Ok(rendered_html) => http_response_html_data(rendered_html, None),
+                        Ok(rendered_html) => http_response_html_data(rendered_html, Some(headers)),
                         Err(_) => http_response_err(
                             r#"{
                                 "error": {
@@ -517,7 +522,7 @@ where
                 }
                 PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
                     match get_payment_link_status(payment_link_data) {
-                        Ok(rendered_html) => http_response_html_data(rendered_html, None),
+                        Ok(rendered_html) => http_response_html_data(rendered_html, Some(headers)),
                         Err(_) => http_response_err(
                             r#"{
                                 "error": {
@@ -1689,7 +1694,7 @@ pub fn build_redirection_form(
                                     var data = JSON.parse(event.data);
                                     var responseForm = document.createElement('form');
                                     responseForm.action=window.location.pathname.replace(
-                                        new RegExp("payments/redirect/(\\w+)/(\\w+)/\\w+"),
+                                        new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
                                         "payments/$1/$2/redirect/complete/worldpayxml"
                                     );
                                     responseForm.method='POST';
@@ -1711,7 +1716,7 @@ pub fn build_redirection_form(
                                 }} catch (e) {{
                                     var responseForm = document.createElement('form');
                                     responseForm.action=window.location.pathname.replace(
-                                        new RegExp("payments/redirect/(\\w+)/(\\w+)/\\w+"),
+                                        new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
                                         "payments/$1/$2/redirect/complete/worldpayxml"
                                     );
                                     responseForm.method='POST';

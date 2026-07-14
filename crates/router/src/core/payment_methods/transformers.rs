@@ -2069,7 +2069,7 @@ pub async fn create_payment_method_in_modular_service(
     payment_method_type: Option<common_enums::PaymentMethodType>,
     payment_method_data: domain::PaymentMethodData,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
-    customer_id: id_type::CustomerId,
+    customer_id: id_type::GlobalCustomerId,
     is_network_tokenization_enabled: bool,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let payment_method_request = CreatePaymentMethodV1Request {
@@ -2116,7 +2116,7 @@ pub async fn create_proxy_card_payment_method_in_modular_service(
     payment_method_type: Option<common_enums::PaymentMethodType>,
     vault_card: hyperswitch_domain_models::payment_method_data::ExternalVaultCard,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
-    customer_id: id_type::CustomerId,
+    customer_id: id_type::GlobalCustomerId,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     // Proxy flow: the card comes from `proxy_card_data`, so `payment_method_data` is None.
     let payment_method_request = CreatePaymentMethodV1Request {
@@ -2214,7 +2214,7 @@ pub async fn list_customer_payment_methods_from_modular_service(
     state: &routes::SessionState,
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
-    customer_id: id_type::CustomerId,
+    customer_id: id_type::GlobalCustomerId,
 ) -> CustomResult<Vec<payment_methods::types::PaymentMethodResponseItemV1>, errors::ApiErrorResponse>
 {
     let internal_api_key = &state

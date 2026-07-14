@@ -190,7 +190,7 @@ pub async fn validate_create_request(
                         .clone()
                         .get_required_value("customer_id")?;
 
-                    utils::when(pm_customer_id != customer.customer_id, || {
+                    utils::when(pm_customer_id != *customer.get_id(), || {
                         Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                         message: "Payment method does not belong to this customer_id".to_string(),
                     })
@@ -221,7 +221,7 @@ pub async fn validate_create_request(
                 state,
                 req.payout_method_data.as_ref(),
                 Some(payout_token),
-                &customer.customer_id,
+                customer.get_id(),
                 platform.get_processor().get_account().get_id(),
                 req.payout_type,
                 platform.get_processor().get_key_store(),

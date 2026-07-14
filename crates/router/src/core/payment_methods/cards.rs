@@ -1023,7 +1023,7 @@ impl PaymentMethodsController for PmCards<'_> {
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequest")?;
 
-        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None)
+        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None, None)
             .await
             .change_context(errors::VaultError::VaultAPIError)
             .attach_printable("Call to vault failed")?;
@@ -1081,7 +1081,7 @@ impl PaymentMethodsController for PmCards<'_> {
             let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
 
             let resp =
-                vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params)
+                vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params, None)
                     .await
                     .change_context(errors::VaultError::VaultAPIError)
                     .attach_printable("Call to vault failed")?;
@@ -1321,7 +1321,7 @@ impl PaymentMethodsController for PmCards<'_> {
             },
         )?;
 
-        let customer_id = customer.customer_id.clone();
+        let customer_id = customer.get_id().clone();
 
         let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
             default_payment_method_id: Some(Some(payment_method_id.to_owned())),
@@ -1892,13 +1892,17 @@ impl PaymentMethodsController for PmCards<'_> {
             api_enums::PaymentMethod::BankDebit => match req.payment_method_data.clone() {
                 Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
                     bank_debit_data,
-                )) => Box::pin(self.add_bank_debit_to_locker(
-                    req.clone(),
-                    bank_debit_data,
-                    self.provider.get_key_store(),
-                    &customer_id,
-                    customer_obj.get_global_customer_id().clone(),
-                ))
+                )) => Box::pin(
+                    self.add_bank_debit_to_locker(
+                        req.clone(),
+                        bank_debit_data,
+                        self.provider.get_key_store(),
+                        &customer_id,
+                        customer_obj
+                            .get_global_id()
+                            .map(|id| id.get_string_repr().to_owned()),
+                    ),
+                )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Add BankDebit Failed"),
@@ -4218,10 +4222,9 @@ pub async fn build_merchant_enabled_pms_context(
 
     // --- Load all MCAs and filter by profile + connector type ---
     let all_mcas = db
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             platform.get_processor().get_account().get_id(),
             false,
-            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -4856,11 +4859,31 @@ pub async fn build_merchant_enabled_pms_context(
     };
 
     // ---- sdk_next_action ----
-    let has_surcharge_processor = business_profile
+    // Gate on the surcharge MCA `disabled` flag via the shared helper. Fetch is
+    // skipped entirely when no surcharge connector is configured on the profile.
+    let has_surcharge_processor = match business_profile
         .surcharge_connector_details
         .as_ref()
         .and_then(|details| details.surcharge_connector_id.as_ref())
-        .is_some();
+    {
+        Some(surcharge_connector_id) => helpers::fetch_active_surcharge_mca(
+            state,
+            platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_key_store(),
+            surcharge_connector_id,
+        )
+        .await
+        .unwrap_or_else(|err| {
+            logger::warn!(
+                error=?err,
+                surcharge_connector_id = %surcharge_connector_id.get_string_repr(),
+                "Failed to fetch surcharge MCA for PML; treating as absent"
+            );
+            None
+        })
+        .is_some(),
+        None => false,
+    };
 
     let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
         state,
@@ -5289,6 +5312,7 @@ pub async fn list_payment_methods(
                 pms_ctx.connector_supports_installments,
                 extra,
                 &business_profile,
+                customer.as_ref(),
             )
         })
         .transpose()
@@ -5997,10 +6021,9 @@ pub async fn list_customer_payment_method(
 
     let merchant_connector_accounts = state
         .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             platform.get_processor().get_account().get_id(),
             true,
-            platform.get_processor().get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -6223,7 +6246,7 @@ pub async fn get_pm_list_context(
     // The three params below are only used for the BankRedirect arm; all other callers
     // (e.g. the payouts validator) can pass `None` for each.
     bank_redirect_profile_id: Option<&id_type::ProfileId>,
-    bank_redirect_mcas: Option<&domain::MerchantConnectorAccounts>,
+    bank_redirect_mcas: Option<&domain::MerchantConnectorAccountsWithoutEncrypted>,
     bank_redirect_pre_routing: Option<
         &HashMap<api_enums::PaymentMethodType, storage::PreRoutingConnectorChoice>,
     >,
@@ -6402,7 +6425,7 @@ pub async fn get_mca_status(
     is_connector_agnostic_mit_enabled: bool,
     connector_mandate_details: Option<CommonMandateReference>,
     network_transaction_id: Option<&String>,
-    merchant_connector_accounts: &domain::MerchantConnectorAccounts,
+    merchant_connector_accounts: &domain::MerchantConnectorAccountsWithoutEncrypted,
 ) -> errors::RouterResult<bool> {
     let agnostic_mit = is_connector_agnostic_mit_enabled && network_transaction_id.is_some();
 
@@ -6420,7 +6443,7 @@ pub async fn get_mca_status(
 pub fn is_eligible_for_saved_flow(
     pm: &domain::PaymentMethod,
     profile_id: Option<&id_type::ProfileId>,
-    merchant_connector_accounts: &domain::MerchantConnectorAccounts,
+    merchant_connector_accounts: &domain::MerchantConnectorAccountsWithoutEncrypted,
     pre_routing_results: Option<
         &HashMap<api_enums::PaymentMethodType, storage::PreRoutingConnectorChoice>,
     >,
@@ -6775,7 +6798,7 @@ pub async fn get_pm_list_context_for_bank_redirect(
     pm: &domain::PaymentMethod,
     is_payment_associated: bool,
     profile_id: Option<&id_type::ProfileId>,
-    merchant_connector_accounts: Option<&domain::MerchantConnectorAccounts>,
+    merchant_connector_accounts: Option<&domain::MerchantConnectorAccountsWithoutEncrypted>,
     pre_routing_results: Option<
         &HashMap<api_enums::PaymentMethodType, storage::PreRoutingConnectorChoice>,
     >,
@@ -6994,7 +7017,7 @@ pub async fn get_bank_redirect_from_hs_locker(
         .attach_printable("Failed to encode VaultRetrieveRequest")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None, None)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")

@@ -247,6 +247,7 @@ pub async fn construct_relay_capture_router_data(
             split_payments: None,
             minor_payment_amount: relay_capture_data.authorized_amount,
             minor_amount_to_capture: relay_capture_data.amount_to_capture,
+            order_tax_amount: None,
             integrity_object: None,
             webhook_url,
             merchant_order_reference_id: None,

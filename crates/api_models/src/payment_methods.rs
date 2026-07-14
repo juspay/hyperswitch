@@ -2910,6 +2910,10 @@ pub struct PaymentMethodListIntentData {
     #[schema(value_type = Option<Address>)]
     pub shipping: Option<payments::Address>,
 
+    /// The email associated with the payment
+    #[schema(value_type = Option<String>)]
+    pub email: Option<pii::Email>,
+
     /// Additional metadata
     #[schema(value_type = Option<Object>)]
     pub metadata: Option<pii::SecretSerdeValue>,

@@ -17241,6 +17241,7 @@
           "trustpay",
           "trustpayments",
           "tsys",
+          "tsys_transit",
           "vgs",
           "volt",
           "wellsfargo",
@@ -21264,6 +21265,14 @@
             "type": "boolean",
             "description": "Filter all events by `is_overall_delivery_successful` field of the event.",
             "nullable": true
+          },
+          "recipient": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventRecipient"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -21335,6 +21344,13 @@
             "example": "2022-09-10T10:11:12Z"
           }
         }
+      },
+      "EventRecipient": {
+        "type": "string",
+        "enum": [
+          "merchant",
+          "connector"
+        ]
       },
       "EventRetrieveResponse": {
         "allOf": [
@@ -30544,6 +30560,11 @@
             ],
             "nullable": true
           },
+          "email": {
+            "type": "string",
+            "description": "The email associated with the payment",
+            "nullable": true
+          },
           "metadata": {
             "type": "object",
             "description": "Additional metadata",
@@ -35220,8 +35241,7 @@
       "PaymentsUpdateMetadataResponse": {
         "type": "object",
         "required": [
-          "payment_id",
-          "status"
+          "payment_id"
         ],
         "properties": {
           "payment_id": {
@@ -35239,7 +35259,8 @@
                 "$ref": "#/components/schemas/IntentStatus"
               }
             ],
-            "default": "requires_confirmation"
+            "default": "requires_confirmation",
+            "nullable": true
           },
           "feature_metadata": {
             "allOf": [
@@ -37706,12 +37727,29 @@
           }
         }
       },
+      "PeachpaymentsCardOnFileTransactionType": {
+        "type": "string",
+        "enum": [
+          "one_off",
+          "customer_initiated_transaction",
+          "merchant_initiated_mandate",
+          "merchant_initiated_transaction"
+        ]
+      },
       "PeachpaymentsData": {
         "type": "object",
         "properties": {
           "rrn": {
             "type": "string",
             "description": "A numeric reference number supplied by the system retaining the original source information and used to assist in locating that information or a copy thereof.",
+            "nullable": true
+          },
+          "card_on_file_transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PeachpaymentsCardOnFileTransactionType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -41308,6 +41346,7 @@
           "trustpayments",
           "tokenio",
           "tsys",
+          "tsys_transit",
           "volt",
           "wellsfargo",
           "wise",

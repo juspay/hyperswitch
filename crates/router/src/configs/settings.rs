@@ -83,6 +83,7 @@ pub struct Settings<S: SecretState> {
     pub proxy: Proxy,
     pub env: Env,
     pub chat: SecretStateContainer<ChatSettings, S>,
+    pub sage: SecretStateContainer<SageSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
@@ -241,6 +242,15 @@ pub struct ChatSettings {
     pub enabled: bool,
     pub hyperswitch_ai_host: String,
     pub encryption_key: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct SageSettings {
+    pub enabled: bool,
+    pub base_url: String,
+    pub mint_path: String,
+    pub infra_key: Secret<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -855,11 +865,14 @@ pub struct Database {
     pub host: String,
     pub port: u16,
     pub dbname: String,
-    pub pool_size: u32,
+    #[serde(alias = "pool_size")]
+    pub max_pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: QueueStrategy,
-    pub min_idle: Option<u32>,
-    pub max_lifetime: Option<u64>,
+    #[serde(alias = "min_idle")]
+    pub min_idle_pool_size: u32,
+    pub max_lifetime: u64,
+    pub idle_timeout: u64,
 }
 
 impl From<Database> for storage_impl::config::Database {
@@ -870,11 +883,12 @@ impl From<Database> for storage_impl::config::Database {
             host: val.host,
             port: val.port,
             dbname: val.dbname,
-            pool_size: val.pool_size,
+            max_pool_size: val.max_pool_size,
             connection_timeout: val.connection_timeout,
             queue_strategy: val.queue_strategy,
-            min_idle: val.min_idle,
+            min_idle_pool_size: val.min_idle_pool_size,
             max_lifetime: val.max_lifetime,
+            idle_timeout: val.idle_timeout,
         }
     }
 }
@@ -1214,6 +1228,7 @@ impl Settings<SecuredSecret> {
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
         self.chat.get_inner().validate()?;
+        self.sage.get_inner().validate()?;
         self.cors.validate()?;
 
         self.scheduler
@@ -1375,27 +1390,11 @@ pub struct ServerTls {
     pub certificate: PathBuf,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct CellInformation {
     pub id: id_type::CellId,
 }
 
-#[cfg(feature = "v1")]
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-pub struct CellInformation {
-    pub id: String,
-}
-#[cfg(feature = "v1")]
-impl Default for CellInformation {
-    fn default() -> Self {
-        Self {
-            id: String::from("00"),
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
 impl Default for CellInformation {
     fn default() -> Self {
         // We provide a static default cell id for constructing application settings.
