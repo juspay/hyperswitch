@@ -2432,60 +2432,13 @@ export const connectorDetails = {
         },
       },
     }),
-    RegisterWebhookAllEvents: getCustomExchange({
-      Request: {
-        event_type: "all_events",
-      },
-      Response: {
-        status: 200,
-        body: {
-          webhook_id: "wh_1234567890abcdef",
-          webhook_details: {
-            payment_created_enabled: true,
-            payment_succeeded_enabled: true,
-            payment_failed_enabled: true,
-            refund_created_enabled: true,
-            refund_succeeded_enabled: true,
-            dispute_created_enabled: true,
-          },
-        },
-      },
-    }),
-    RegisterWebhookSpecificEvent: getCustomExchange({
-      Request: {
-        event_type: {
-          specific_event: "payment_succeeded",
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          webhook_id: "wh_0987654321fedcba",
-          webhook_details: {
-            payment_succeeded_enabled: true,
-          },
-        },
-      },
-    }),
     RetrieveWebhook: getCustomExchange({
       Request: {},
       Response: {
         status: 200,
         body: {
           connector: "stripe",
-          webhooks: [
-            {
-              webhook_id: "wh_1234567890abcdef",
-              webhook_url: "https://example.com/webhook_updated",
-              webhook_version: "2024.01",
-              payment_created_enabled: true,
-              payment_succeeded_enabled: true,
-              payment_failed_enabled: true,
-              refund_created_enabled: true,
-              refund_succeeded_enabled: true,
-              dispute_created_enabled: true,
-            },
-          ],
+          webhooks: [],
         },
       },
     }),

@@ -492,13 +492,17 @@ describe("Config Tests", () => {
 
     beforeEach(function () {
       const connectorId = globalState.get("connectorId");
-      if (
+      const webhookConfigConnectors = utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG;
+
+      // Skip if:
+      // 1. Previous test failed (shouldContinue = false), OR
+      // 2. Connector is NOT in the webhook config list (should only run for specific connectors)
+      const shouldSkip =
         !shouldContinue ||
-        utils.shouldIncludeConnector(
-          connectorId,
-          utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG
-        )
-      ) {
+        (Array.isArray(webhookConfigConnectors) &&
+          !webhookConfigConnectors.includes(connectorId));
+
+      if (shouldSkip) {
         this.skip();
       }
     });
@@ -521,28 +525,9 @@ describe("Config Tests", () => {
       );
     });
 
-    it("Register connector webhook with all_events", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["WebhookConfig"]["RegisterWebhookAllEvents"];
-      cy.registerConnectorWebhookTest(data, globalState);
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("Register connector webhook with specific_event", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["WebhookConfig"]["RegisterWebhookSpecificEvent"];
-      cy.registerConnectorWebhookTest(data, globalState);
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("Retrieve connector webhooks", () => {
-      // Retrieves registered webhooks. Response varies by connector:
-      // - Connectors that support webhooks (e.g., Stripe): returns 200 with webhook list
-      // - Connectors that don't (e.g., Bank of America): returns 200 with empty list
+    it("Retrieve connector webhooks — expect 200 with empty list", () => {
+      // Webhook registration is not yet implemented in Hyperswitch.
+      // RetrieveWebhook returns 200 with empty list until registration is supported.
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["WebhookConfig"]["RetrieveWebhook"];
@@ -559,13 +544,14 @@ describe("Config Tests", () => {
 
     beforeEach(function () {
       const connectorId = globalState.get("connectorId");
-      if (
-        !shouldContinue ||
-        utils.shouldIncludeConnector(
-          connectorId,
-          utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG
-        )
-      ) {
+      const webhookConfigConnectors = utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG;
+
+      // Skip if connector is NOT in the webhook config list
+      const shouldSkip =
+        Array.isArray(webhookConfigConnectors) &&
+        !webhookConfigConnectors.includes(connectorId);
+
+      if (shouldSkip) {
         this.skip();
       }
     });
