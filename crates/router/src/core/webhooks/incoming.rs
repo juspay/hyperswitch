@@ -2891,6 +2891,12 @@ async fn update_connector_mandate_details(
                     .map(|webhook_network_transaction_id| webhook_network_transaction_id.get_id().clone()),
                 last_modified_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()).map(|last_modified_by| last_modified_by.to_string()),
             };
+            let compat_action = payment_methods::payment_method_modular_compat_action(
+                state,
+                &payment_method_info.merchant_id,
+                payment_method_info.customer_id.as_ref(),
+            )
+            .await;
 
             state
                 .store
@@ -2899,6 +2905,7 @@ async fn update_connector_mandate_details(
                     payment_method_info,
                     pm_update,
                     platform.get_provider().get_account().storage_scheme,
+                    compat_action,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
