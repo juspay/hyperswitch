@@ -662,7 +662,7 @@ fn transform_redirection_response_for_authenticate_flow(
 > {
     match (connector, &response_data) {
         (
-            connector_enums::Connector::Cybersource,
+            connector_enums::Connector::Cybersource | connector_enums::Connector::Barclaycard,
             router_response_types::RedirectForm::Form {
                 endpoint,
                 method: _,
@@ -675,12 +675,21 @@ fn transform_redirection_response_for_authenticate_flow(
                 },
             )?;
             let step_up_url = form_fields.get("step_up_url").unwrap_or(endpoint).clone();
-            Ok(
-                router_response_types::RedirectForm::CybersourceConsumerAuth {
-                    access_token,
-                    step_up_url,
-                },
-            )
+            match connector {
+                connector_enums::Connector::Barclaycard => Ok(
+                    router_response_types::RedirectForm::BarclaycardConsumerAuth {
+                        access_token,
+                        step_up_url,
+                    },
+                ),
+                connector_enums::Connector::Cybersource => Ok(
+                    router_response_types::RedirectForm::CybersourceConsumerAuth {
+                        access_token,
+                        step_up_url,
+                    },
+                ),
+                _ => Ok(response_data),
+            }
         }
         _ => Ok(response_data),
     }
@@ -694,7 +703,7 @@ fn transform_response_for_authenticate_flow(
 > {
     match (connector, response_data.clone()) {
         (
-            connector_enums::Connector::Cybersource,
+            connector_enums::Connector::Cybersource | connector_enums::Connector::Barclaycard,
             router_response_types::PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
@@ -992,6 +1001,7 @@ impl<F>
             capture_method: item.request.capture_method,
             minor_payment_amount: item.request.minor_amount,
             minor_amount_to_capture: item.request.minor_amount,
+            order_tax_amount: None,
             integrity_object: None,
             split_payments: None,
             webhook_url: None,
