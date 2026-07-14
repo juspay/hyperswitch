@@ -2326,6 +2326,9 @@ impl
             description: router_data.description.clone(),
             connector_customer_id: router_data.connector_customer.clone(),
             address: Some(address),
+            auth_type: Some(
+                payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)?.into(),
+            ),
             off_session: router_data.request.off_session,
             enable_partial_authorization: router_data
                 .request
@@ -4450,6 +4453,7 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
                 .cb_network_params
                 .map(payments_grpc::NetworkParams::foreign_try_from)
                 .transpose()?,
+            ..Default::default()
         })
     }
 }
@@ -4479,6 +4483,7 @@ impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
             ucaf_collection_indicator: authentication_data.ucaf_collection_indicator,
             exemption_indicator: None,
             network_params: None,
+            ..Default::default()
         })
     }
 }
@@ -4662,6 +4667,7 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             ucaf_collection_indicator,
             exemption_indicator: _,
             network_params: _,
+            ..
         } = response;
         let trans_status = trans_status
             .map(payments_grpc::TransactionStatus::try_from)
@@ -7039,6 +7045,12 @@ impl
             .map(|b| payments_grpc::BrowserInformation::foreign_try_from(b.clone()))
             .transpose()?;
 
+        let connector_feature_data = router_data
+            .request
+            .payout_connector_metadata
+            .clone()
+            .map(|secret| Secret::new(secret.expose().to_string()));
+
         Ok(Self {
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
@@ -7048,6 +7060,7 @@ impl
             access_token: router_data.access_token.clone().map(|at| at.token),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             payout_method_data,
+            connector_feature_data,
             connector_quote_id: router_data.quote_id.clone(),
             priority: router_data
                 .request
@@ -7279,6 +7292,26 @@ impl
 #[cfg(feature = "payouts")]
 macro_rules! impl_ucs_payout_response_transformation {
     ($response_type:ty, $merchant_id_field:ident) => {
+        impl_ucs_payout_response_transformation!(
+            @inner $response_type, $merchant_id_field, |_response: &$response_type| None
+        );
+    };
+    // `with_connector_metadata`: for response types carrying connector metadata (e.g. a
+    // staged-payout token) that later flows must echo back to the connector service.
+    ($response_type:ty, $merchant_id_field:ident, with_connector_metadata) => {
+        impl_ucs_payout_response_transformation!(
+            @inner $response_type, $merchant_id_field, |response: &$response_type| {
+                response
+                    .connector_metadata
+                    .as_ref()
+                    .and_then(|metadata| {
+                        serde_json::from_str::<serde_json::Value>(metadata.peek()).ok()
+                    })
+                    .map(Secret::new)
+            }
+        );
+    };
+    (@inner $response_type:ty, $merchant_id_field:ident, $extract_metadata:expr) => {
         impl transformers::ForeignTryFrom<($response_type, common_enums::PayoutStatus)>
             for Result<PayoutsResponseData, ErrorResponse>
         {
@@ -7290,6 +7323,7 @@ macro_rules! impl_ucs_payout_response_transformation {
                 let status_code = convert_connector_service_status_code(response.status_code)?;
                 let status = common_enums::PayoutStatus::foreign_try_from(response.payout_status())
                     .unwrap_or(prev_status);
+                let payout_connector_metadata = ($extract_metadata)(&response);
 
                 let router_response = if let Some(error_info) = response.error {
                     Err(ErrorResponse {
@@ -7348,7 +7382,7 @@ macro_rules! impl_ucs_payout_response_transformation {
                         should_add_next_step_to_process_tracker: false,
                         error_code: None,
                         error_message: None,
-                        payout_connector_metadata: None,
+                        payout_connector_metadata,
                     })
                 };
 
@@ -7381,7 +7415,8 @@ impl_ucs_payout_response_transformation!(
 #[cfg(feature = "payouts")]
 impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceStageResponse,
-    merchant_payout_id
+    merchant_payout_id,
+    with_connector_metadata
 );
 #[cfg(feature = "payouts")]
 impl_ucs_payout_response_transformation!(

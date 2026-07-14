@@ -2086,7 +2086,10 @@ async fn complete_payout_quote_steps_if_required<F>(
         match router_data_resp.response.to_owned() {
             Ok(resp) => {
                 router_data.quote_id = resp.connector_payout_id;
-                router_data.connector_meta_data = resp.payout_connector_metadata;
+                router_data.connector_meta_data = resp.payout_connector_metadata.clone();
+                // Keep the request-side copy in sync as well — the unified connector
+                // service create request reads it from here.
+                router_data.request.payout_connector_metadata = resp.payout_connector_metadata;
             }
             Err(_err) => {
                 router_data.response = router_data_resp.response;
