@@ -521,7 +521,7 @@ describe("Config Tests", () => {
       );
     });
 
-    it("Register connector webhook with all_events — expect 400 IR_20", () => {
+    it("Register connector webhook with all_events", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["WebhookConfig"]["RegisterWebhookAllEvents"];
@@ -530,7 +530,7 @@ describe("Config Tests", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("Register connector webhook with specific_event — expect 400 IR_20", () => {
+    it("Register connector webhook with specific_event", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["WebhookConfig"]["RegisterWebhookSpecificEvent"];
@@ -539,11 +539,10 @@ describe("Config Tests", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("Retrieve connector webhooks — expect 200 with empty list", () => {
-      // RetrieveWebhook returns an empty array because webhook registration is
-      // unsupported for this connector (RegisterWebhook returns 400 IR_20 above).
-      // This test validates the retrieval endpoint responds correctly — it does
-      // NOT assert a webhook was registered.
+    it("Retrieve connector webhooks", () => {
+      // Retrieves registered webhooks. Response varies by connector:
+      // - Connectors that support webhooks (e.g., Stripe): returns 200 with webhook list
+      // - Connectors that don't (e.g., Bank of America): returns 200 with empty list
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["WebhookConfig"]["RetrieveWebhook"];
