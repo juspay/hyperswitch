@@ -5208,6 +5208,19 @@ export const connectorDetails = {
       },
     },
   },
+  card_redirect_pm: {
+    CardRedirect: getCustomExchange({
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "card_redirect",
+        payment_method_data: {
+          card_redirect: {
+            card_redirect: {},
+          },
+        },
+      },
+    }),
+  },
   step_up_auth: {
     PaymentIntentOnly: getCustomExchange({
       Request: {
