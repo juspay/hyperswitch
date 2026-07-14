@@ -120,11 +120,9 @@ pub struct PaymentAdvancedViewsValue {
 impl From<PaymentAdvancedView> for api::PaymentAdvancedViewResponse {
     fn from(v: PaymentAdvancedView) -> Self {
         let data = match v.filters {
-            PaymentAdvancedViewFilters::V1(filters) => {
-                api::PaymentAdvancedViewFilters::V1(api::PaymentAdvancedViewFiltersV1::PaymentViews(
-                    filters,
-                ))
-            }
+            PaymentAdvancedViewFilters::V1(filters) => api::PaymentAdvancedViewFilters::V1(
+                api::PaymentAdvancedViewFiltersV1::PaymentViews(filters),
+            ),
         };
         api::PaymentAdvancedViewResponse {
             view_id: v.view_id,
