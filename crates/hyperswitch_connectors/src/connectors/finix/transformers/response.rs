@@ -23,7 +23,7 @@ pub struct FinixPaymentsResponse {
     pub messages: Option<Vec<String>>,
     pub failure_message: Option<String>,
     pub transfer: Option<String>,
-    pub tags: FinixTags,
+    pub tags: Option<FinixTags>,
     #[serde(rename = "type")]
     pub payment_type: Option<FinixPaymentType>,
     // pub trace_id: String,
@@ -131,7 +131,7 @@ pub struct FinixDisputes {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
     pub message: Option<String>,
-    pub tags: FinixTags,
+    pub tags: Option<FinixTags>,
     pub occurred_at: Option<String>,
     pub dispute_details: Option<FinixDisputeDetails>,
     pub transfer: String,
