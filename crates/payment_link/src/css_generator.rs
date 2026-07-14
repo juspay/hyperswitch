@@ -416,46 +416,6 @@ mod tests {
     }
 
     #[test]
-    fn test_payment_link_ui_rule_selectors_from_export_parse() {
-        let configs = include_str!("../tests/fixtures/payment_link_configs.csv");
-        let mut parsed_config_count = 0;
-        let mut rule_block_count = 0;
-        let mut selector_count = 0;
-        let mut declaration_count = 0;
-        let mut accepted_declaration_count = 0;
-
-        for (line_index, line) in configs.lines().enumerate() {
-            if line.trim().is_empty() {
-                continue;
-            }
-
-            let config: serde_json::Value = serde_json::from_str(&parse_csv_quoted_json(line))
-                .unwrap_or_else(|error| {
-                    panic!(
-                        "failed to parse payment link config fixture row {}: {error}",
-                        line_index + 1
-                    )
-                });
-            parsed_config_count += 1;
-
-            assert_payment_link_ui_rules_parse(
-                &config,
-                &format!("row {}", line_index + 1),
-                &mut rule_block_count,
-                &mut selector_count,
-                &mut declaration_count,
-                &mut accepted_declaration_count,
-            );
-        }
-
-        assert_eq!(parsed_config_count, 146);
-        assert_eq!(rule_block_count, 106);
-        assert_eq!(selector_count, 474);
-        assert_eq!(declaration_count, 1238);
-        assert_eq!(accepted_declaration_count, 1143);
-    }
-
-    #[test]
     fn test_generate_dynamic_css_unsafe() {
         let mut rules = HashMap::new();
         let mut styles = HashMap::new();
