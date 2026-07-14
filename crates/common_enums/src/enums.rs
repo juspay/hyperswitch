@@ -2939,7 +2939,7 @@ impl From<ExecutionMode> for EventExecutionMode {
     }
 }
 
-#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 /// Where a connector event's call was sent.
 pub enum EventDestination {

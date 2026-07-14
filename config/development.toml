@@ -25,9 +25,11 @@ password = "db_pass"
 host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
-pool_size = 5
+max_pool_size = 5
+min_idle_pool_size = 2
 connection_timeout = 10
-min_idle = 2
+idle_timeout = 300
+max_lifetime = 1800
 
 [replica_database]
 username = "db_user"
@@ -35,8 +37,11 @@ password = "db_pass"
 host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
-pool_size = 5
+max_pool_size = 5
+min_idle_pool_size = 2
 connection_timeout = 10
+idle_timeout = 300
+max_lifetime = 1800
 
 [redis]
 host = "127.0.0.1"
@@ -1377,9 +1382,12 @@ password = "db_pass"
 host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
-pool_size = 5
+max_pool_size = 5
+min_idle_pool_size = 2
 connection_timeout = 10
 queue_strategy = "Fifo"
+idle_timeout = 300
+max_lifetime = 1800
 
 [connector_onboarding.paypal]
 client_id = ""
@@ -1493,7 +1501,7 @@ enabled = "true"
 base_url = "http://localhost:8000"
 connection_timeout = 10
 request_timeout = 35
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 default_execution_mode = "not_applicable"    # Default execution mode when no rollout config matches (not_applicable, primary, shadow)
 

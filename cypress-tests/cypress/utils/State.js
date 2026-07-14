@@ -18,6 +18,13 @@ class State {
     this.data["proxyHttps"] = Cypress.env("PROXY_HTTPS");
     this.data["methodFlow"] = Cypress.env("METHOD_FLOW");
     this.data["validationServiceUrl"] = Cypress.env("VALIDATION_SERVICE_URL");
+    this.data["superpositionBaseUrl"] = Cypress.env("SUPERPOSITION_BASE_URL");
+    this.data["superpositionSecret"] = Cypress.env("SUPERPOSITION_SECRET");
+    this.data["superpositionApiKey"] = Cypress.env("SUPERPOSITION_API_KEY");
+    this.data["superpositionOrgId"] = Cypress.env("SUPERPOSITION_ORG_ID");
+    this.data["superpositionWorkspaceId"] = Cypress.env(
+      "SUPERPOSITION_WORKSPACE_ID"
+    );
   }
 
   set(key, val) {

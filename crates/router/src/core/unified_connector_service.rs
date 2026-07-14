@@ -1394,31 +1394,45 @@ pub fn build_unified_connector_service_payment_method(
                 }),
                 hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(
                     apple_pay_wallet_data
-                ) => {
-                    let apple_pay_payment_data = get_apple_pay_payment_data(
-                        &apple_pay_wallet_data.payment_data,
-                        payment_method_token,
-                    );
+                ) => match payment_method_token {
+                    // A connector token minted by the PaymentMethodToken pre-step (e.g. a
+                    // Paysafe payment handle) supersedes the wallet payload: the settle
+                    // leg must reference the handle, not re-send the PKPaymentToken.
+                    // Mirrors the Card arm above.
+                    Some(PaymentMethodToken::Token(token)) => {
+                        let token_payment_method = payments_grpc::TokenPaymentMethodType {
+                            token: Some(token.clone()),
+                        };
+                        Ok(payments_grpc::PaymentMethod {
+                            payment_method: Some(PaymentMethod::Token(token_payment_method)),
+                        })
+                    }
+                    _ => {
+                        let apple_pay_payment_data = get_apple_pay_payment_data(
+                            &apple_pay_wallet_data.payment_data,
+                            payment_method_token,
+                        );
 
-                    let payment_data =
-                        payments_grpc::apple_wallet::payment_data::PaymentData::foreign_try_from(
-                            &apple_pay_payment_data,
-                        )?;
+                        let payment_data =
+                            payments_grpc::apple_wallet::payment_data::PaymentData::foreign_try_from(
+                                &apple_pay_payment_data,
+                            )?;
 
-                    Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::ApplePaySdk(payments_grpc::AppleWallet {
-                            payment_data: Some(payments_grpc::apple_wallet::PaymentData {
-                                payment_data: Some(payment_data),
-                            }),
-                            payment_method: Some(payments_grpc::apple_wallet::PaymentMethod {
-                                display_name: apple_pay_wallet_data.payment_method.display_name,
-                                network: apple_pay_wallet_data.payment_method.network,
-                                r#type: apple_pay_wallet_data.payment_method.pm_type,
-                            }),
-                            transaction_identifier: apple_pay_wallet_data.transaction_identifier,
-                        })),
-                    })
-                }
+                        Ok(payments_grpc::PaymentMethod {
+                            payment_method: Some(PaymentMethod::ApplePaySdk(payments_grpc::AppleWallet {
+                                payment_data: Some(payments_grpc::apple_wallet::PaymentData {
+                                    payment_data: Some(payment_data),
+                                }),
+                                payment_method: Some(payments_grpc::apple_wallet::PaymentMethod {
+                                    display_name: apple_pay_wallet_data.payment_method.display_name,
+                                    network: apple_pay_wallet_data.payment_method.network,
+                                    r#type: apple_pay_wallet_data.payment_method.pm_type,
+                                }),
+                                transaction_identifier: apple_pay_wallet_data.transaction_identifier,
+                            })),
+                        })
+                    }
+                },
                 hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
                     google_pay_wallet_data,
                 ) => {
@@ -1546,6 +1560,13 @@ pub fn build_unified_connector_service_payment_method(
                     Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::GcashRedirect(
                             payments_grpc::GcashRedirectWallet {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::WalletData::Skrill(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::SkrillRedirect(
+                            payments_grpc::SkrillRedirectWallet {},
                         )),
                     })
                 }
@@ -1791,6 +1812,21 @@ pub fn build_unified_connector_service_payment_method(
             .into()),
             }
         }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::GiftCard(
+            gift_card_data,
+        ) => match *gift_card_data {
+            hyperswitch_domain_models::payment_method_data::GiftCardData::PaySafeCard {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::PaySafeCard(
+                        payments_grpc::PaySafeCard {},
+                    )),
+                })
+            }
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented payment method subtype: {payment_method_type:?}"
+            ))
+            .into()),
+        },
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
             "Unimplemented payment method: {payment_method_data:?}"
         ))
