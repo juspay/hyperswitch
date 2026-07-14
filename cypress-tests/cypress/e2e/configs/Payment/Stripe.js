@@ -91,6 +91,34 @@ const idealBaseRequest = {
   },
 };
 
+const bancontactBaseRequest = {
+  payment_method: "bank_redirect",
+  payment_method_type: "bancontact_card",
+  payment_method_data: {
+    bank_redirect: {
+      bancontact_card: {},
+    },
+  },
+  billing: {
+    email: "joseph.Doe@example.com",
+    address: {
+      line1: "1467",
+      line2: "Harrison Street",
+      line3: "Harrison Street",
+      city: "San Fransico",
+      state: "California",
+      zip: "94122",
+      country: "BE",
+      first_name: "joseph",
+      last_name: "Doe",
+    },
+    phone: {
+      number: "9123456789",
+      country_code: "+91",
+    },
+  },
+};
+
 const mandateSingleUseFields = {
   currency: "EUR",
   customer_acceptance: customerAcceptance,
@@ -1251,44 +1279,8 @@ export const connectorDetails = {
     BancontactCard: {
       MandateSingleUse: {
         Request: {
-          payment_method: "bank_redirect",
-          payment_method_type: "bancontact_card",
-          payment_method_data: {
-            bank_redirect: {
-              bancontact_card: {},
-            },
-          },
-          billing: {
-            email: "joseph.Doe@example.com",
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "BE",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            phone: {
-              number: "9123456789",
-              country_code: "+91",
-            },
-          },
-          currency: "EUR",
-          customer_acceptance: customerAcceptance,
-          mandate_data: {
-            customer_acceptance: customerAcceptance,
-            mandate_type: {
-              single_use: {
-                amount: 8000,
-                currency: "EUR",
-              },
-            },
-          },
-          setup_future_usage: "off_session",
-          payment_type: "new_mandate",
+          ...bancontactBaseRequest,
+          ...mandateSingleUseFields,
         },
         Response: {
           status: 200,
@@ -1299,44 +1291,8 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
-          payment_method: "bank_redirect",
-          payment_method_type: "bancontact_card",
-          payment_method_data: {
-            bank_redirect: {
-              bancontact_card: {},
-            },
-          },
-          billing: {
-            email: "joseph.Doe@example.com",
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "BE",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            phone: {
-              number: "9123456789",
-              country_code: "+91",
-            },
-          },
-          currency: "EUR",
-          customer_acceptance: customerAcceptance,
-          mandate_data: {
-            customer_acceptance: customerAcceptance,
-            mandate_type: {
-              single_use: {
-                amount: 8000,
-                currency: "EUR",
-              },
-            },
-          },
-          setup_future_usage: "off_session",
-          payment_type: "new_mandate",
+          ...bancontactBaseRequest,
+          ...mandateSingleUseFields,
         },
         Response: {
           status: 200,
