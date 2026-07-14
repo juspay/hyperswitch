@@ -540,8 +540,6 @@ describe("Config Tests", () => {
   });
 
   context("Webhook Config Disabled Events — Negative Cases", () => {
-    const shouldContinue = true;
-
     beforeEach(function () {
       const connectorId = globalState.get("connectorId");
       const webhookConfigConnectors = utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG;
