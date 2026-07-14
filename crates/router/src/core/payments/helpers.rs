@@ -2477,11 +2477,7 @@ pub async fn get_ucs_enabled_mode(state: &SessionState, config_key: &str) -> Ucs
     // Try superposition first
     match state
         .superposition_service
-        .get_config_value::<String>(
-            consts::superposition::UCS_ENABLED,
-            None,
-            None,
-        )
+        .get_config_value::<String>(consts::superposition::UCS_ENABLED, None, None)
         .await
     {
         Ok(value) => {
