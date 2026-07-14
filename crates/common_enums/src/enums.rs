@@ -3307,6 +3307,12 @@ pub enum CardNetwork {
     Accel,
     #[serde(alias = "NYCE")]
     Nyce,
+    #[serde(alias = "PROP")]
+    Prop,
+    #[serde(alias = "PRIVATE LABEL")]
+    PrivateLabel,
+    #[serde(alias = "DINACARD")]
+    Dinacard,
 }
 
 #[derive(
@@ -3794,7 +3800,10 @@ impl CardNetwork {
             | Self::Discover
             | Self::UnionPay
             | Self::RuPay
-            | Self::Maestro => true,
+            | Self::Maestro
+            | Self::Prop
+            | Self::PrivateLabel
+            | Self::Dinacard => true,
         }
     }
 
@@ -3811,7 +3820,10 @@ impl CardNetwork {
             | Self::Discover
             | Self::UnionPay
             | Self::RuPay
-            | Self::Maestro => false,
+            | Self::Maestro
+            | Self::Prop
+            | Self::PrivateLabel
+            | Self::Dinacard => false,
         }
     }
 }
