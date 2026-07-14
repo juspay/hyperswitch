@@ -12,7 +12,7 @@ async-trait = "0.1.88"
 bytes = "1.10.1"
 csv = "1.3.1"
 dyn-clone = "1.0.19"
-error-stack = "0.4.1"
+error-stack = "0.5.0"
 hyperswitch_masking = "0.0.1"
 rdkafka = "0.36.2"
 serde = { version = "1.0.219", features = ["derive"] }
