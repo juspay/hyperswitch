@@ -1045,7 +1045,7 @@ jobs:
 
       - name: Install uv
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: astral-sh/setup-uv@v8.1.0
+        uses: astral-sh/setup-uv@v8.3.2
 
       - name: Install mitmproxy dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
