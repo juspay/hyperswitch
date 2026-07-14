@@ -93,7 +93,7 @@ export const cardCreditEnabled = [
   },
 ];
 
-const successfulNo3DSCardDetails = {
+export const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
   card_exp_year: "30",
@@ -206,6 +206,38 @@ export const fullNameRequiredField = {
 };
 
 export const billingRequiredField = {};
+
+// Bank debit specific billing addresses - derived from standardBillingAddress
+export const sepaBillingAddress = {
+  address: {
+    ...standardBillingAddress.address,
+    city: "Amsterdam",
+    state: "North Holland",
+    zip: "1012",
+    country: "NL",
+  },
+  email: "test@example.com",
+};
+
+export const achBillingAddress = {
+  address: {
+    ...standardBillingAddress.address,
+    city: "San Francisco",
+    state: "California",
+  },
+  email: "test@example.com",
+};
+
+export const bacsBillingAddress = {
+  address: {
+    ...standardBillingAddress.address,
+    city: "London",
+    state: "England",
+    zip: "SW1A 1AA",
+    country: "GB",
+  },
+  email: "test@example.com",
+};
 
 export const payment_methods_enabled = [
   {
@@ -875,6 +907,23 @@ export const payment_methods_enabled = [
         installment_payment_enabled: false,
       },
       {
+        payment_method_type: "payjustnow",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: {
+          type: "enable_only",
+          list: ["ZAR"],
+        },
+        accepted_countries: {
+          type: "enable_only",
+          list: ["ZA"],
+        },
+        minimum_amount: 100,
+        maximum_amount: 100000000,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
         payment_method_type: "affirm",
         payment_experience: "redirect_to_url",
         card_networks: null,
@@ -1433,18 +1482,56 @@ export const connectorDetails = {
         },
       },
     }),
-    BankdebitMIT: {
+    get MandateSingleUseSepa() {
+      return this.Sepa;
+    },
+    get MandateSingleUseBecs() {
+      return this.Becs;
+    },
+    get MandateSingleUseAch() {
+      return this.Ach;
+    },
+    get MandateSingleUseBacs() {
+      return this.Bacs;
+    },
+    MITAutoCaptureSepa: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "EUR",
+      },
+    }),
+    MITAutoCaptureBecs: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "AUD",
+      },
+    }),
+    MITAutoCaptureAch: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "USD",
+      },
+    }),
+    MITAutoCaptureBacs: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "GBP",
+      },
+    }),
+    BankdebitMIT: getCustomExchange({
       Request: {
         currency: "EUR",
         off_session: true,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
+    }),
     SepaMandate: getCustomExchange({
       Request: {
         payment_method: "bank_debit",
@@ -1767,6 +1854,56 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
+    Payjustnow: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "payjustnow",
+        payment_method_data: {
+          pay_later: {
+            payjustnow_redirect: {},
+          },
+        },
+        billing: {
+          email: "customer@payjustnow.co.za",
+          address: {
+            line1: "123 Main Street",
+            line2: "",
+            line3: "",
+            city: "Johannesburg",
+            state: "Gauteng",
+            zip: "2001",
+            country: "ZA",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+        },
+      },
+    }),
+    Payjustnowinstore: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "payjustnow",
+        payment_method_data: {
+          pay_later: {
+            payjustnow_redirect: {},
+          },
+        },
+        billing: {
+          email: "customer@payjustnow.co.za",
+          address: {
+            line1: "123 Main Street",
+            line2: "",
+            line3: "",
+            city: "Johannesburg",
+            state: "Gauteng",
+            zip: "2001",
+            country: "ZA",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+        },
+      },
+    }),
     SyncRefundScheduled: getCustomExchange({}),
     AfterpayClearpay: getCustomExchange({
       Request: {
