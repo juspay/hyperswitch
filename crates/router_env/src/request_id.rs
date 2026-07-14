@@ -68,6 +68,7 @@ pub(crate) mod semantic_boundary {
     };
     use bytes::Bytes;
     use deja::DejaHook;
+    use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
     use serde_json::json;
 
     static HOOK: OnceLock<Option<Arc<deja::RuntimeHook>>> = OnceLock::new();
@@ -90,8 +91,8 @@ pub(crate) mod semantic_boundary {
     pub(super) fn record_id_generation(
         method_name: &'static str,
         caller: &'static Location<'static>,
-        request: serde_json::Value,
-        response: serde_json::Value,
+        request: Secret<serde_json::Value>,
+        response: Secret<serde_json::Value>,
     ) {
         let Some(hook) = hook() else {
             return;
@@ -99,15 +100,18 @@ pub(crate) mod semantic_boundary {
         if !hook.mode().is_record() {
             return;
         }
+        // Expose only at the deja recording boundary — `EventBuilder` takes a raw
+        // `serde_json::Value`. The payloads stay `Secret` everywhere else so they
+        // are redacted in Debug/logs.
         let event = deja::EventBuilder::start(
             hook.as_ref(),
             "id_generation",
             "router_env::request_id",
             method_name,
             caller,
-            request,
+            request.expose(),
         );
-        event.finish(hook.as_ref(), response, false);
+        event.finish(hook.as_ref(), response.expose(), false);
     }
 
     /// Replay substitution for id generation.
@@ -124,7 +128,7 @@ pub(crate) mod semantic_boundary {
     pub(super) fn replay_id_generation(
         method_name: &'static str,
         caller: &'static Location<'static>,
-        request: &serde_json::Value,
+        request: &Secret<serde_json::Value>,
     ) -> Option<String> {
         let hook = hook()?;
         if !hook.is_active() {
@@ -134,7 +138,7 @@ pub(crate) mod semantic_boundary {
             boundary: "id_generation",
             trait_name: "router_env::request_id",
             method_name,
-            args: request,
+            args: request.peek(),
             callsite_identity: None,
             caller_location: Some(caller),
         })?;
@@ -144,16 +148,19 @@ pub(crate) mod semantic_boundary {
             .map(ToOwned::to_owned)
     }
 
+    // `headers` and `request_body` can carry auth tokens / cardholder data / PII,
+    // so they are `Secret`: the derived `Debug` redacts them, and the raw value is
+    // exposed only at the deja recording boundary (`args`).
     #[derive(Debug)]
     pub(super) struct IncomingHttpRecord {
         method: String,
         path: String,
         query: String,
         request_id: String,
-        headers: serde_json::Value,
+        headers: Secret<serde_json::Value>,
         content_type: Option<String>,
         content_length: Option<u64>,
-        request_body: serde_json::Value,
+        request_body: Secret<serde_json::Value>,
     }
 
     impl IncomingHttpRecord {
@@ -163,10 +170,10 @@ pub(crate) mod semantic_boundary {
                 "path": self.path.as_str(),
                 "query": self.query.as_str(),
                 "request_id": self.request_id.as_str(),
-                "headers": self.headers.clone(),
+                "headers": self.headers.peek().clone(),
                 "content_type": self.content_type.as_deref(),
                 "content_length": self.content_length,
-                "request_body": self.request_body.clone(),
+                "request_body": self.request_body.peek().clone(),
             })
         }
     }
@@ -207,10 +214,10 @@ pub(crate) mod semantic_boundary {
             path,
             query,
             request_id: request_id.to_string(),
-            headers,
+            headers: Secret::new(headers),
             content_type,
             content_length,
-            request_body,
+            request_body: Secret::new(request_body),
         };
         (request, record)
     }
@@ -532,7 +539,8 @@ fn generate_uuid_v7() -> String {
         // it into `http_incoming` by generating it live without recording.
         if deja::__private::current_correlation_id().is_some() {
             let caller = std::panic::Location::caller();
-            let request = serde_json::json!({ "source": "uuid_v7" });
+            let request =
+                hyperswitch_masking::Secret::new(serde_json::json!({ "source": "uuid_v7" }));
 
             // REPLAY: serve the recorded id for this call site (correlated, so it
             // matches robustly). A miss falls through to live generation.
@@ -548,7 +556,9 @@ fn generate_uuid_v7() -> String {
                 "generate_uuid_v7",
                 caller,
                 request,
-                serde_json::json!({ "generated_value": generated_value.clone() }),
+                hyperswitch_masking::Secret::new(
+                    serde_json::json!({ "generated_value": generated_value.clone() }),
+                ),
             );
             return generated_value;
         }

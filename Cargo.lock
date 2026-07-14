@@ -8391,6 +8391,7 @@ dependencies = [
  "deja-core",
  "error-stack 0.4.1",
  "gethostname",
+ "hyperswitch_masking",
  "opentelemetry",
  "opentelemetry-aws",
  "opentelemetry-otlp",
