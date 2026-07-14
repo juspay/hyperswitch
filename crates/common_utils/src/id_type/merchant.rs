@@ -95,11 +95,6 @@ impl From<MerchantId> for keymanager::Identifier {
 
 /// All the keys that can be formed from merchant id
 impl MerchantId {
-    /// get step up enabled key
-    pub fn get_step_up_enabled_key(&self) -> String {
-        format!("step_up_enabled_{}", self.get_string_repr())
-    }
-
     /// get_max_auto_retries_enabled key
     pub fn get_max_auto_retries_enabled(&self) -> String {
         format!("max_auto_retries_enabled_{}", self.get_string_repr())
@@ -155,11 +150,6 @@ impl MerchantId {
         format!("poll_{}_{unique_id}", self.get_string_repr())
     }
 
-    /// get_skip_saving_wallet_at_connector_key
-    pub fn get_skip_saving_wallet_at_connector_key(&self) -> String {
-        format!("skip_saving_wallet_at_connector_{}", self.get_string_repr())
-    }
-
     /// get_payment_config_routing_id
     pub fn get_payment_config_routing_id(&self) -> String {
         format!("payment_config_id_{}", self.get_string_repr())
@@ -212,14 +202,6 @@ impl MerchantId {
     pub fn get_authentication_service_eligible_key(&self) -> String {
         format!("authentication_service_eligible_{}", self.get_string_repr())
     }
-    /// allow payment update via client auth default should be false
-    pub fn get_payment_update_enabled_for_client_auth_key(&self) -> String {
-        format!(
-            "payment_update_enabled_for_client_auth_{}",
-            self.get_string_repr()
-        )
-    }
-
     /// Get should perform eligibility check key for payment
     pub fn get_should_perform_eligibility_check_key(&self) -> String {
         format!("should_perform_eligibility_{}", self.get_string_repr())

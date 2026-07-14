@@ -87,11 +87,7 @@ use crate::{
         },
         payments::{
             helpers,
-            routing::{
-                self,
-                utils::{load_skip_pre_routing_config, perform_pre_routing},
-                SessionFlowRoutingInput,
-            },
+            routing::{self, utils::perform_pre_routing, SessionFlowRoutingInput},
         },
         utils as core_utils,
     },
@@ -4109,14 +4105,24 @@ pub async fn build_merchant_enabled_pms_context(
     if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.as_ref())
     {
-        let pre_routing_disabled_pm_pmt_key = &platform
-            .get_processor()
-            .get_account()
-            .get_id()
-            .get_pre_routing_disabled_pm_pmt_key();
+        let pre_routing_config = dimensions
+            .without_provider_merchant_id()
+            .without_profile_id()
+            .get_pre_routing_disabled_pm_pmt(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                customer.map(|c| c.get_id()),
+            )
+            .await;
 
-        let skip_pre_routing =
-            load_skip_pre_routing_config(state, pre_routing_disabled_pm_pmt_key.to_string()).await;
+        let mut skip_pre_routing: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>> =
+            HashMap::new();
+        for rule in pre_routing_config.skip_rules.iter() {
+            skip_pre_routing
+                .entry(rule.payment_method)
+                .or_default()
+                .extend(rule.payment_method_types.iter().copied());
+        }
 
         let routing_enabled_pms = &router_consts::ROUTING_ENABLED_PAYMENT_METHODS;
         let routing_enabled_pm_types = &router_consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;

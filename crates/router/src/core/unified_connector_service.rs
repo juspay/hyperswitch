@@ -236,7 +236,7 @@ type UnifiedConnectorServiceCreateOrderResult = CustomResult<
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
 
-    let is_enabled = is_ucs_enabled(state, consts::UCS_ENABLED).await;
+    let is_enabled = is_ucs_enabled(state).await;
 
     match (is_client_available, is_enabled) {
         (true, true) => {

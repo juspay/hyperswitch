@@ -283,3 +283,48 @@ value = false
 schema = { type = "boolean" }
 description = "Whether to save wallet decrypted data"
 change_reason = "Initial setup"
+
+[default-configs.authentication_service_eligible]
+value = false
+schema = { type = "boolean" }
+description = "Whether the merchant/organization is eligible for authentication service"
+change_reason = "Initial setup"
+
+[default-configs.pre_routing_disabled_pm_pmt]
+schema = { type = "object" }
+description = "Pre-routing disabled payment methods and types per merchant"
+change_reason = "Initial setup"
+
+[default-configs.pre_routing_disabled_pm_pmt.value]
+skip_rules = []
+
+[default-configs.blocklist_guard]
+value = false
+schema = { type = "boolean" }
+description = "Whether blocklist guard is enabled for the merchant"
+change_reason = "Initial setup"
+
+[default-configs.ucs_enabled]
+value = false
+schema = { type = "boolean" }
+description = "Whether Unified Connector Service (UCS) is enabled"
+change_reason = "Initial setup"
+
+[default-configs.skip_saving_wallet_at_connector]
+value = false
+schema = { type = "boolean" }
+description = "Whether saving the wallet at the connector should be skipped per merchant and payment method type"
+change_reason = "Initial setup"
+
+[default-configs.connector_api_version]
+value = ""
+schema = { type = "string" }
+description = "Connector-specific API version to use, keyed by the connector dimension (e.g. sdk_api for braintree)"
+change_reason = "Initial setup"
+
+[default-configs.payment_update_enabled_for_client_auth]
+value = false
+schema = { type = "boolean" }
+description = "Whether payment update via client auth is enabled for the merchant"
+change_reason = "Initial setup"
+
