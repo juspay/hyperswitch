@@ -197,6 +197,7 @@ const CURRENCY_MAP = {
   OpenBankingUk: "GBP", // Great British Pound payment method
   OnlineBankingFpx: "MYR", // Malaysian payment methods
   Interac: "CAD", // Canadian payment method
+  Eft: "USD", // EFT bank redirect (Paystack/Ozow)
   AliPayHk: "HKD", // Hong Kong payment method
   Payjustnow: "ZAR", // South African BNPL
   Affirm: "USD", // US BNPL payment method
