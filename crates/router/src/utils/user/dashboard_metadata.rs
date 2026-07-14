@@ -10,9 +10,9 @@ use api_models::{
     payments,
     user::dashboard_metadata::{
         CreatePaymentAdvancedViewRequest, CreateSavedViewRequest, PaymentAdvancedViewFilters,
-        PaymentAdvancedViewFiltersV1, PaymentAdvancedViewOperation, PaymentAdvancedViewVersion,
-        PaymentListFilterConstraintsV1, SavedViewFilters, SavedViewFiltersV1, SavedViewOperation,
-        UpdatePaymentAdvancedViewRequest, UpdateSavedViewRequest,
+        PaymentAdvancedViewFiltersV1, PaymentAdvancedViewOperation, PaymentListFilterConstraintsV1,
+        SavedViewFilters, SavedViewFiltersV1, SavedViewOperation, UpdatePaymentAdvancedViewRequest,
+        UpdateSavedViewRequest,
     },
 };
 use common_enums::EntityType;
@@ -778,15 +778,11 @@ async fn delete_saved_view(
 #[cfg(feature = "v1")]
 fn get_payment_advanced_view_filters(
     data: PaymentAdvancedViewFilters,
-) -> (
-    PaymentAdvancedViewVersion,
-    types::PaymentAdvancedViewFilters,
-) {
+) -> types::PaymentAdvancedViewFilters {
     match data {
-        PaymentAdvancedViewFilters::V1(PaymentAdvancedViewFiltersV1::PaymentViews(filters)) => (
-            PaymentAdvancedViewVersion::V1,
-            types::PaymentAdvancedViewFilters::V1(filters),
-        ),
+        PaymentAdvancedViewFilters::V1(PaymentAdvancedViewFiltersV1::PaymentViews(filters)) => {
+            types::PaymentAdvancedViewFilters::V1(filters)
+        }
     }
 }
 
@@ -848,9 +844,8 @@ async fn create_payment_advanced_view(
 
     let now = common_utils::date_time::now();
     let view_id = common_utils::generate_id(common_utils::consts::ID_LENGTH, "view");
-    let (version, filters) = get_payment_advanced_view_filters(request.data);
+    let filters = get_payment_advanced_view_filters(request.data);
     let new_view_domain = types::PaymentAdvancedView {
-        version,
         view_id,
         view_name: request.view_name.clone(),
         filters,
@@ -935,11 +930,10 @@ async fn update_payment_advanced_view(
                 .find(|v| v.view_id == request.view_id)
                 .ok_or(report!(UserErrors::SavedViewNotFound))?;
 
-            let (version, filters) = get_payment_advanced_view_filters(request.data);
+            let filters = get_payment_advanced_view_filters(request.data);
             if let Some(new_name) = request.view_name {
                 view.view_name = new_name;
             }
-            view.version = version;
             view.filters = filters;
             view.updated_at = common_utils::date_time::now().to_string();
 

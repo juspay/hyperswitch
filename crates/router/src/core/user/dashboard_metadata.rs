@@ -269,29 +269,9 @@ fn into_response(
         DBEnum::PaymentAdvancedViews => {
             let resp: Option<types::PaymentAdvancedViewsValue> =
                 utils::deserialize_to_response(data)?;
-            Ok(api::GetMetaDataResponse::PaymentAdvancedViews(resp.map(
-                |d| {
-                    d.views
-                        .into_iter()
-                        .map(|v| {
-                            let data = match v.filters {
-                                types::PaymentAdvancedViewFilters::V1(filters) => {
-                                    api::PaymentAdvancedViewFilters::V1(
-                                        api::PaymentAdvancedViewFiltersV1::PaymentViews(filters),
-                                    )
-                                }
-                            };
-                            api::PaymentAdvancedViewResponse {
-                                view_id: v.view_id,
-                                view_name: v.view_name,
-                                data,
-                                created_at: v.created_at,
-                                updated_at: v.updated_at,
-                            }
-                        })
-                        .collect()
-                },
-            )))
+            Ok(api::GetMetaDataResponse::PaymentAdvancedViews(
+                resp.map(|d| d.views.into_iter().map(Into::into).collect()),
+            ))
         }
     }
 }

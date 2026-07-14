@@ -103,7 +103,6 @@ pub enum PaymentAdvancedViewFilters {
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaymentAdvancedView {
-    pub version: api::PaymentAdvancedViewVersion,
     pub view_id: String,
     pub view_name: String,
     pub filters: PaymentAdvancedViewFilters,
@@ -115,4 +114,24 @@ pub struct PaymentAdvancedView {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaymentAdvancedViewsValue {
     pub views: Vec<PaymentAdvancedView>,
+}
+
+#[cfg(feature = "v1")]
+impl From<PaymentAdvancedView> for api::PaymentAdvancedViewResponse {
+    fn from(v: PaymentAdvancedView) -> Self {
+        let data = match v.filters {
+            PaymentAdvancedViewFilters::V1(filters) => {
+                api::PaymentAdvancedViewFilters::V1(api::PaymentAdvancedViewFiltersV1::PaymentViews(
+                    filters,
+                ))
+            }
+        };
+        api::PaymentAdvancedViewResponse {
+            view_id: v.view_id,
+            view_name: v.view_name,
+            data,
+            created_at: v.created_at,
+            updated_at: v.updated_at,
+        }
+    }
 }
