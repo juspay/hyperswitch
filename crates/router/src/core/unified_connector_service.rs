@@ -504,8 +504,7 @@ fn resolve_execution_mode(
         default_mode
     };
 
-    if execution_mode == ExecutionMode::Shadow
-        && ucs_availability == UcsAvailability::ShadowKilled
+    if execution_mode == ExecutionMode::Shadow && ucs_availability == UcsAvailability::ShadowKilled
     {
         router_env::logger::info!(
             ?default_mode,
