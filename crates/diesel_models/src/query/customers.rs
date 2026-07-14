@@ -5,7 +5,8 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 #[cfg(feature = "v2")]
 use diesel::{NullableExpressionMethods, QueryDsl};
 #[cfg(feature = "v2")]
-use error_stack::{report, ResultExt};
+use error_stack::report;
+use error_stack::ResultExt;
 
 use super::generics;
 #[cfg(feature = "v2")]
@@ -28,7 +29,9 @@ impl CustomerNew {
         self,
         conn: &mut PgPooledConn,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for customer")
     }
 }
 
@@ -423,6 +426,7 @@ impl CustomerUpdateInternal {
             self,
         )
         .await
+        .attach_printable("Failed to generate update query for customer")
     }
 
     #[cfg(feature = "v2")]
@@ -431,6 +435,8 @@ impl CustomerUpdateInternal {
         conn: &mut PgPooledConn,
         id: id_type::GlobalCustomerId,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_update_query_by_id::<<Customer as HasTable>::Table, _, _>(conn, id, self).await
+        kv::generate_update_query_by_id::<<Customer as HasTable>::Table, _, _>(conn, id, self)
+            .await
+            .attach_printable("Failed to generate update query for customer")
     }
 }

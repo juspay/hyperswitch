@@ -1,5 +1,6 @@
 use common_utils::types::ConnectorTransactionIdTrait;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use error_stack::ResultExt;
 
 use super::generics;
 use crate::{
@@ -18,7 +19,9 @@ impl CaptureNew {
         self,
         conn: &mut PgPooledConn,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for capture")
     }
 }
 
@@ -107,5 +110,6 @@ impl CaptureUpdate {
             CaptureUpdateInternal::from(self),
         )
         .await
+        .attach_printable("Failed to generate update query for capture")
     }
 }

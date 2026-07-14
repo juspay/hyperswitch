@@ -114,7 +114,17 @@ pub struct PaymentIntent {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Identifiable,
+    Queryable,
+    Serialize,
+    Deserialize,
+    Selectable,
+    router_derive::FromNew,
+)]
 #[diesel(table_name = payment_intent, primary_key(payment_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentIntent {
     pub payment_id: common_utils::id_type::PaymentId,
