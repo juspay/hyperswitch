@@ -369,6 +369,7 @@ pub struct CheckoutPhoneDetails {
 #[derive(Debug, Default, Serialize)]
 pub struct CheckoutProcessing {
     pub order_id: Option<String>,
+    pub scheme_transaction_link_id: Option<String>,
     pub tax_amount: Option<MinorUnit>,
     pub discount_amount: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
@@ -988,7 +989,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
         let metadata = build_metadata(item);
-        let (customer, processing, shipping, items) = if let Some(l2l3_data) =
+        let (customer, mut processing, shipping, items) = if let Some(l2l3_data) =
             &item.router_data.l2_l3_data
         {
             (
@@ -1003,6 +1004,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 }),
                 l2l3_data.order_info.as_ref().map(|_| CheckoutProcessing {
                     order_id: l2l3_data.get_merchant_order_reference_id(),
+                    scheme_transaction_link_id: None,
                     tax_amount: l2l3_data.get_order_tax_amount(),
                     discount_amount: l2l3_data.get_discount_amount(),
                     duty_amount: l2l3_data.get_duty_amount(),
@@ -1041,6 +1043,14 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         } else {
             (None, None, None, None)
         };
+
+        if let Some(transaction_link_id) =
+            item.router_data.request.get_optional_transaction_link_id()
+        {
+            processing
+                .get_or_insert_default()
+                .scheme_transaction_link_id = Some(transaction_link_id);
+        }
 
         let partial_authorization = item.router_data.request.enable_partial_authorization.map(
             |enable_partial_authorization| CheckoutPartialAuthorization {
