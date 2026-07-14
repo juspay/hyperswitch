@@ -178,12 +178,12 @@ describe("Acquirer-specific configurations", () => {
             expect(response.body.acquirer_configs).to.be.an("array");
             expect(response.body.acquirer_configs.length).to.be.at.least(2);
             expect(response.body.acquirer_config_bucket).to.not.be.null;
-            expect(response.body.acquirer_config_bucket.configs).to.have.property(
-              globalState.get("visaAcquirerId")
-            );
-            expect(response.body.acquirer_config_bucket.configs).to.have.property(
-              globalState.get("mastercardAcquirerId")
-            );
+            expect(
+              response.body.acquirer_config_bucket.configs
+            ).to.have.property(globalState.get("visaAcquirerId"));
+            expect(
+              response.body.acquirer_config_bucket.configs
+            ).to.have.property(globalState.get("mastercardAcquirerId"));
 
             const networks = response.body.acquirer_configs.map(
               (config) => config.network
