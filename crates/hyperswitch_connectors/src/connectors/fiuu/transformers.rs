@@ -614,6 +614,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::StoredCardForNetworkTransactionId(_)
                 | PaymentMethodData::CardWithOptionalCVC(_)
                 | PaymentMethodData::CardWithNetworkTokenDetails(_)
                 | PaymentMethodData::CardWithLimitedDetails(_)
@@ -631,6 +632,25 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                     PaymentMethodData::CardDetailsForNetworkTransactionId(ref raw_card_details) => {
                         FiuuPaymentMethodData::try_from((
                             raw_card_details,
+                            network_transaction_id.network_transaction_id.clone(),
+                        ))
+                    }
+                    PaymentMethodData::StoredCardForNetworkTransactionId(ref stored) => {
+                        let raw_card_details = CardDetailsForNetworkTransactionId {
+                            card_number: stored.card_number.clone(),
+                            card_exp_month: stored.card_exp_month.clone(),
+                            card_exp_year: stored.card_exp_year.clone(),
+                            card_issuer: stored.card_issuer.clone(),
+                            card_network: stored.card_network.clone(),
+                            card_type: stored.card_type.clone(),
+                            card_issuing_country: stored.card_issuing_country.clone(),
+                            card_issuing_country_code: stored.card_issuing_country_code.clone(),
+                            bank_code: stored.bank_code.clone(),
+                            nick_name: stored.nick_name.clone(),
+                            card_holder_name: stored.card_holder_name.clone(),
+                        };
+                        FiuuPaymentMethodData::try_from((
+                            &raw_card_details,
                             network_transaction_id.network_transaction_id.clone(),
                         ))
                     }

@@ -3668,6 +3668,45 @@ impl
     }
 }
 
+impl
+    transformers::ForeignTryFrom<
+        hyperswitch_domain_models::payment_method_data::StoredCardForNetworkTransactionId,
+    > for payments_grpc::StoredCardForNetworkTransactionId
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        stored_card: hyperswitch_domain_models::payment_method_data::StoredCardForNetworkTransactionId,
+    ) -> Result<Self, Self::Error> {
+        let card_network = stored_card
+            .card_network
+            .clone()
+            .map(payments_grpc::CardNetwork::foreign_from);
+
+        Ok(Self {
+            card_number: Some(
+                CardNumber::from_str(&stored_card.card_number.get_card_no()).change_context(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Failed to parse card number".to_string(),
+                    ),
+                )?,
+            ),
+            card_exp_month: Some(stored_card.card_exp_month.expose().into()),
+            card_exp_year: Some(stored_card.card_exp_year.expose().into()),
+            card_issuer: stored_card.card_issuer.clone(),
+            card_network: card_network.map(|card_network| card_network.into()),
+            card_type: stored_card.card_type.clone(),
+            card_issuing_country: stored_card.card_issuing_country.clone(),
+            bank_code: stored_card.bank_code.clone(),
+            nick_name: stored_card.nick_name.map(|n| n.expose().into()),
+            card_holder_name: stored_card.card_holder_name.map(|name| name.expose().into()),
+            network_transaction_id: stored_card
+                .network_transaction_id
+                .map(|nti| nti.expose().into()),
+        })
+    }
+}
+
 impl ForeignFrom<common_types::payments::TokenSource> for payments_grpc::TokenSource {
     fn foreign_from(token_source: common_types::payments::TokenSource) -> Self {
         match token_source {

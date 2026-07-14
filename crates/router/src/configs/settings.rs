@@ -124,6 +124,8 @@ pub struct Settings<S: SecretState> {
     pub installment_config: InstallmentConfig,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub card_only_mit_supported_connectors: CardOnlyMitSupportedConnectors,
+    #[serde(default)]
+    pub pmid_mit_supported_connectors: PmidMitSupportedConnectors,
     pub notify_iframe_exit_and_redirect: NotifyIframeExitAndRedirectConnectors,
     pub list_dispute_supported_connectors: ListDiputeSupportedConnectors,
     pub required_fields: RequiredFields,
@@ -598,6 +600,15 @@ pub struct NetworkTransactionIdSupportedConnectors {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct CardOnlyMitSupportedConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
+/// Connectors that, for a `payment_method_id` MIT, should receive the locker card
+/// as the dedicated `StoredCardForNetworkTransactionId` payment method (instead of
+/// `CardDetailsForNetworkTransactionId`).
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PmidMitSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
 }

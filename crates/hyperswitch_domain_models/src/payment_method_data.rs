@@ -33,6 +33,7 @@ pub enum PaymentMethodData {
     CardWithOptionalCVC(CardWithOptionalCVC),
     CardWithNetworkTokenDetails(Box<CardWithNetworkTokenDetails>),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
+    StoredCardForNetworkTransactionId(StoredCardForNetworkTransactionId),
     CardWithLimitedDetails(CardWithLimitedDetails),
     NetworkTokenDetailsForNetworkTransactionId(NetworkTokenDetailsForNetworkTransactionId),
     DecryptedWalletTokenDetailsForNetworkTransactionId(
@@ -275,6 +276,7 @@ impl PaymentMethodData {
             | Self::CardWithNetworkTokenDetails(_)
             | Self::NetworkToken(_)
             | Self::CardDetailsForNetworkTransactionId(_)
+            | Self::StoredCardForNetworkTransactionId(_)
             | Self::NetworkTokenDetailsForNetworkTransactionId(_)
             | Self::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | Self::CardWithLimitedDetails(_) => Some(common_enums::PaymentMethod::Card),
@@ -565,6 +567,27 @@ pub struct CardDetailsForNetworkTransactionId {
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
+}
+
+/// Locker-sourced (payment_method_id) card details for a network-transaction-id
+/// MIT. Mirrors [`CardDetailsForNetworkTransactionId`] but additionally carries
+/// the `network_transaction_id`, and is produced only when the card is pulled
+/// from the card locker via a stored `payment_method_id` — letting a connector
+/// distinguish a stored-credential replay from an inline card + NTI.
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct StoredCardForNetworkTransactionId {
+    pub card_number: cards::CardNumber,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub card_issuing_country_code: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub network_transaction_id: Option<Secret<String>>,
 }
 
 impl CardDetailsForNetworkTransactionId {
@@ -2255,6 +2278,7 @@ impl From<PaymentMethodData> for EligibilityPaymentMethodData {
             PaymentMethodData::CardWithOptionalCVC(card) => Self::Card(card.into()),
             PaymentMethodData::CardWithNetworkTokenDetails(card) => Self::Card(card.into()),
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::StoredCardForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {

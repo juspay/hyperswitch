@@ -566,6 +566,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::StoredCardForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
             | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
@@ -876,6 +877,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::StoredCardForNetworkTransactionId(_)
                     | PaymentMethodData::CardWithOptionalCVC(_)
                     | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
@@ -933,6 +935,27 @@ impl
                     })
                 }
                 PaymentMethodData::CardDetailsForNetworkTransactionId(ref card_details) => {
+                    PaymentDetails::CreditCard(CreditCardDetails {
+                        card_number: (*card_details.card_number).clone(),
+                        expiration_date: card_details.get_expiry_date_as_yyyymm("-"),
+                        card_code: None,
+                    })
+                }
+                PaymentMethodData::StoredCardForNetworkTransactionId(ref stored) => {
+                    let card_details =
+                        hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
+                            card_number: stored.card_number.clone(),
+                            card_exp_month: stored.card_exp_month.clone(),
+                            card_exp_year: stored.card_exp_year.clone(),
+                            card_issuer: stored.card_issuer.clone(),
+                            card_network: stored.card_network.clone(),
+                            card_type: stored.card_type.clone(),
+                            card_issuing_country: stored.card_issuing_country.clone(),
+                            card_issuing_country_code: stored.card_issuing_country_code.clone(),
+                            bank_code: stored.bank_code.clone(),
+                            nick_name: stored.nick_name.clone(),
+                            card_holder_name: stored.card_holder_name.clone(),
+                        };
                     PaymentDetails::CreditCard(CreditCardDetails {
                         card_number: (*card_details.card_number).clone(),
                         expiration_date: card_details.get_expiry_date_as_yyyymm("-"),
