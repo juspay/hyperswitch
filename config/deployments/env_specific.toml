@@ -22,9 +22,12 @@ password = "db_pass"      # Analytics DB Password
 host = "localhost"        # Analytics DB Host
 port = 5432               # Analytics DB Port
 dbname = "hyperswitch_db" # Name of Database
-pool_size = 5             # Number of connections to keep open
+max_pool_size = 5         # Maximum number of connections in the pool
+min_idle_pool_size = 2    # Minimum number of idle connections to maintain in the pool
 connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
+idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
+max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
 
 [api_keys]
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" # API key hashing key.
@@ -219,9 +222,12 @@ password = "db_pass"      # DB Password. Use base-64 encoded kms encrypted value
 host = "localhost"        # DB Host
 port = 5432               # DB Port
 dbname = "hyperswitch_db" # Name of Database
-pool_size = 5             # Number of connections to keep open
+max_pool_size = 5         # Maximum number of connections in the pool
+min_idle_pool_size = 2    # Minimum number of idle connections to maintain in the pool
 connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
+idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
+max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
 
 [generic_link]
 [generic_link.payment_method_collect]
@@ -290,9 +296,12 @@ password = "db_pass"      # DB Password. Use base-64 encoded kms encrypted value
 host = "localhost"        # DB Host
 port = 5432               # DB Port
 dbname = "hyperswitch_db" # Name of Database
-pool_size = 5             # Number of connections to keep open
+max_pool_size = 5          # Maximum number of connections in the pool
+min_idle_pool_size = 2    # Minimum number of idle connections to maintain in the pool
 connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
+idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
+max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
 
 [report_download_config]
 dispute_function = "report_download_config_dispute_function" # Config to download dispute report
@@ -455,7 +464,7 @@ payment_method = "payment_method_types" # <payment_method> = comma-separated clo
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
 request_timeout = 35                    # Per-RPC Request Timeout in Seconds
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]

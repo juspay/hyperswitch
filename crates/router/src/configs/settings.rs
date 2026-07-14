@@ -1049,11 +1049,14 @@ pub struct Database {
     pub host: String,
     pub port: u16,
     pub dbname: String,
-    pub pool_size: u32,
+    #[serde(alias = "pool_size")]
+    pub max_pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: QueueStrategy,
-    pub min_idle: Option<u32>,
-    pub max_lifetime: Option<u64>,
+    #[serde(alias = "min_idle")]
+    pub min_idle_pool_size: u32,
+    pub max_lifetime: u64,
+    pub idle_timeout: u64,
 }
 
 impl From<Database> for storage_impl::config::Database {
@@ -1064,11 +1067,12 @@ impl From<Database> for storage_impl::config::Database {
             host: val.host,
             port: val.port,
             dbname: val.dbname,
-            pool_size: val.pool_size,
+            max_pool_size: val.max_pool_size,
             connection_timeout: val.connection_timeout,
             queue_strategy: val.queue_strategy,
-            min_idle: val.min_idle,
+            min_idle_pool_size: val.min_idle_pool_size,
             max_lifetime: val.max_lifetime,
+            idle_timeout: val.idle_timeout,
         }
     }
 }

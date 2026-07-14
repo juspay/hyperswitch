@@ -2265,7 +2265,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.07.02.1#a070ef74a8d36aeca23f8e90d4d8bb0cc4db77ca"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.10.1#51237c677236384f806534e9e0105cc3deedc566"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4043,7 +4043,7 @@ checksum = "32619942b8be646939eaf3db0602b39f5229b74575b67efc897811ded1db4e57"
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.07.02.1#a070ef74a8d36aeca23f8e90d4d8bb0cc4db77ca"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.10.1#51237c677236384f806534e9e0105cc3deedc566"
 dependencies = [
  "axum 0.8.4",
  "bytes 1.10.1",
@@ -6897,7 +6897,7 @@ dependencies = [
  "regex-cache",
  "serde",
  "serde_derive",
- "strum 0.26.3",
+ "strum 0.25.0",
  "thiserror 1.0.69",
 ]
 
@@ -8246,7 +8246,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.07.02.1#a070ef74a8d36aeca23f8e90d4d8bb0cc4db77ca"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.10.1#51237c677236384f806534e9e0105cc3deedc566"
 dependencies = [
  "grpc-api-types",
 ]
@@ -9505,6 +9505,7 @@ dependencies = [
  "bb8",
  "bytes 1.10.1",
  "common_enums",
+ "common_types",
  "common_utils",
  "config",
  "crc32fast",
@@ -11081,7 +11082,7 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.07.02.1#a070ef74a8d36aeca23f8e90d4d8bb0cc4db77ca"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.10.1#51237c677236384f806534e9e0105cc3deedc566"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
@@ -11097,7 +11098,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.07.02.1#a070ef74a8d36aeca23f8e90d4d8bb0cc4db77ca"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.10.1#51237c677236384f806534e9e0105cc3deedc566"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -11108,7 +11109,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.07.02.1#a070ef74a8d36aeca23f8e90d4d8bb0cc4db77ca"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.10.1#51237c677236384f806534e9e0105cc3deedc566"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
