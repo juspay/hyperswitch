@@ -31,6 +31,8 @@ pub enum MetaData {
     ReconStatus(api::ReconStatus),
     #[cfg(feature = "v1")]
     PaymentViews(Box<api::SavedViewOperation>),
+    #[cfg(feature = "v1")]
+    PaymentAdvancedViews(Box<api::PaymentAdvancedViewOperation>),
 }
 
 impl From<&MetaData> for DBEnum {
@@ -62,6 +64,8 @@ impl From<&MetaData> for DBEnum {
             MetaData::ReconStatus(_) => Self::ReconStatus,
             #[cfg(feature = "v1")]
             MetaData::PaymentViews(_) => Self::PaymentViews,
+            #[cfg(feature = "v1")]
+            MetaData::PaymentAdvancedViews(_) => Self::PaymentAdvancedViews,
         }
     }
 }
@@ -87,4 +91,21 @@ pub struct SavedViewV1 {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaymentViewsValue {
     pub views: Vec<SavedViewV1>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct PaymentAdvancedView {
+    pub version: api::PaymentAdvancedViewVersion,
+    pub view_id: String,
+    pub view_name: String,
+    pub filters: api::PaymentAdvancedViewFilterConstraints,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct PaymentAdvancedViewsValue {
+    pub views: Vec<PaymentAdvancedView>,
 }
