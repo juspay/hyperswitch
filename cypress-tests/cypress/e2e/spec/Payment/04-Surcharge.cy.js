@@ -33,25 +33,15 @@ describe("Surcharge payment flow test", () => {
   context("Surcharge payment flow test Create and confirm", () => {
     let shouldContinue = true;
 
-    before("setup surcharge DSL and check inclusion", () => {
-      cy.task("getGlobalState").then((state) => {
-        globalState = new State(state);
-
-        const dslData =
-          routingUtils.getConnectorDetails("common")[
-            "SurchargeDecisionManager"
-          ]["Create"];
-        cy.createSurchargeDSLConfig(dslData.Request, dslData, globalState);
-
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.SURCHARGE
-          )
-        ) {
-          shouldContinue = false;
-        }
-      });
+    before("check surcharge inclusion", () => {
+      if (
+        utils.shouldIncludeConnector(
+          globalState.get("connectorId"),
+          utils.CONNECTOR_LISTS.INCLUDE.SURCHARGE
+        )
+      ) {
+        shouldContinue = false;
+      }
     });
 
     beforeEach(function () {
