@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use common_enums::connector_enums::Connector;
+use common_enums::{connector_enums::Connector, enums::ExecutionMode};
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
 pub use hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError;
@@ -70,6 +70,17 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Set of connectors for which psync is disabled in unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
+
+    /// Default execution mode when no rollout config is found.
+    /// Controls what happens when UCS is enabled but no specific rollout config matches.
+    /// Defaults to NotApplicable (direct HS path). Can be set to "primary" to make UCS
+    /// the default path, using rollout overrides to exclude specific connectors/merchants.
+    #[serde(default = "default_execution_mode")]
+    pub default_execution_mode: ExecutionMode,
+}
+
+fn default_execution_mode() -> ExecutionMode {
+    ExecutionMode::NotApplicable
 }
 
 /// Connection timeout for the Unified Connector Service in seconds.
