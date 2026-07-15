@@ -1,7 +1,11 @@
 mod transformers;
-use api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest as ApiConnectorWebhookRegisterRequest;
+use api_models::merchant_connector_webhook_management::{
+    ConnectorWebhookRegisterRequest as ApiConnectorWebhookRegisterRequest, ScopeIdentifier,
+    WebhookRegistrationResult,
+};
 use common_utils::id_type;
 use error_stack::{Report, ResultExt};
+use futures::future::join_all;
 use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccountUpdate,
     router_request_types::{
@@ -221,145 +225,179 @@ pub async fn register_connector_webhook(
     let scope_type = configure_connector_webhook_flow::determine_scope_type(scope);
     let requested = configure_connector_webhook_flow::extract_requested_identifiers(scope);
 
-    let mut results = Vec::new();
+    type RegistrationOutcome = (
+        ScopeIdentifier,
+        WebhookRegistrationResult,
+        Option<common_utils::pii::SecretSerdeValue>,
+        Option<String>,
+    );
+
+    let registration_futures = registration_plan.into_iter().map(|(identifier, base_url)| {
+        let state = &state;
+        let connector_data = &connector_data;
+        let mca = &mca;
+
+        async move {
+            router_env::logger::info!(
+                flow = "ConnectorWebhookRegister",
+                connector = %connector_data.connector_name,
+                scope = ?identifier,
+                "Initiating connector webhook registration"
+            );
+
+            let merchant_connector_id = mca.merchant_connector_id.get_string_repr();
+            let webhook_url = helpers::create_webhook_url(
+                &state.base_url,
+                &mca.merchant_id,
+                merchant_connector_id,
+            );
+            let scoped_request = ConnectorWebhookRegisterRequest {
+                scope: identifier.clone(),
+                base_url: base_url
+                    .parse::<url::Url>()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Invalid base_url in webhook registration plan")?,
+                webhook_url: webhook_url
+                    .parse::<url::Url>()
+                    .map(hyperswitch_masking::Secret::new)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Invalid webhook_url for connector registration")?,
+            };
+
+            let connector_integration: services::BoxedConnectorWebhookConfigurationInterface<
+                api::ConnectorWebhookRegister,
+                ConnectorWebhookRegisterRequest,
+                ConnectorWebhookRegisterResponse,
+            > = connector_data.connector.get_connector_integration();
+
+            let mut router_data =
+                configure_connector_webhook_flow::construct_webhook_register_router_data(
+                    state,
+                    mca,
+                    scoped_request,
+                )
+                .await?;
+
+            let current_flow_info = Some(CurrentFlowInfo::ConnectorWebhookRegister {
+                request_data: Box::new(router_data.request.clone()),
+            });
+
+            match fetch_access_token_for_webhook(
+                state,
+                connector_data,
+                &router_data,
+                current_flow_info,
+            )
+            .await
+            {
+                Ok(Some(token)) => router_data.access_token = Some(token),
+                Ok(None) => {}
+                Err(err) => {
+                    return Ok((
+                        identifier.clone(),
+                        WebhookRegistrationResult {
+                            identifier: identifier.clone(),
+                            status: common_enums::WebhookRegistrationStatus::Failure,
+                            connector_webhook_id: None,
+                            error: Some(
+                                api_models::merchant_connector_webhook_management::WebhookRegistrationError {
+                                    code: err.code,
+                                    message: err.message,
+                                },
+                            ),
+                        },
+                        None,
+                        None,
+                    ));
+                }
+            }
+
+            let response = match services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &router_data,
+                common_enums::CallConnectorAction::Trigger,
+                None,
+                None,
+            )
+            .await
+            {
+                Ok(resp) => resp,
+                Err(err) => {
+                    router_env::logger::error!(
+                        error=?err,
+                        connector=%connector_data.connector_name,
+                        scope=?identifier,
+                        "Connector webhook registration call failed; continuing with next item"
+                    );
+                    return Ok((
+                        identifier.clone(),
+                        WebhookRegistrationResult {
+                            identifier: identifier.clone(),
+                            status: common_enums::WebhookRegistrationStatus::Failure,
+                            connector_webhook_id: None,
+                            error: Some(
+                                api_models::merchant_connector_webhook_management::WebhookRegistrationError {
+                                    code: "CONNECTOR_EXECUTION_ERROR".to_string(),
+                                    message: err.to_string(),
+                                },
+                            ),
+                        },
+                        None,
+                        None,
+                    ));
+                }
+            };
+
+            let (result, metadata) = match response.response {
+                Ok(success) => {
+                    let result = WebhookRegistrationResult {
+                        identifier: identifier.clone(),
+                        status: success.status,
+                        connector_webhook_id: success.connector_webhook_id,
+                        error: None,
+                    };
+                    (result, success.metadata)
+                }
+                Err(err) => (
+                    WebhookRegistrationResult {
+                        identifier: identifier.clone(),
+                        status: common_enums::WebhookRegistrationStatus::Failure,
+                        connector_webhook_id: None,
+                        error: Some(api_models::merchant_connector_webhook_management::WebhookRegistrationError {
+                            code: err.code,
+                            message: err.message,
+                        }),
+                    },
+                    None,
+                ),
+            };
+
+            let connector_webhook_id = result.connector_webhook_id.clone();
+
+            Ok((identifier, result, metadata, connector_webhook_id))
+        }
+    });
+
+    let registration_outcomes = join_all(registration_futures)
+        .await
+        .into_iter()
+        .collect::<errors::RouterResult<Vec<RegistrationOutcome>>>()?;
+    let mut results = Vec::with_capacity(registration_outcomes.len());
     let mut registration_entries = Vec::new();
     let mut metadata_patches = Vec::new();
     let mut first_successful_webhook_id = None;
 
-    for (identifier, base_url) in registration_plan {
-        router_env::logger::info!(
-            flow = "ConnectorWebhookRegister",
-            connector = %connector_data.connector_name,
-            scope = ?identifier,
-            "Initiating connector webhook registration"
-        );
-
-        let merchant_connector_id = mca.merchant_connector_id.get_string_repr();
-        let webhook_url =
-            helpers::create_webhook_url(&state.base_url, &mca.merchant_id, merchant_connector_id);
-        let scoped_request = ConnectorWebhookRegisterRequest {
-            scope: identifier.clone(),
-            base_url: base_url
-                .parse::<url::Url>()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Invalid base_url in webhook registration plan")?,
-            webhook_url: webhook_url
-                .parse::<url::Url>()
-                .map(hyperswitch_masking::Secret::new)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Invalid webhook_url for connector registration")?,
-        };
-
-        let connector_integration: services::BoxedConnectorWebhookConfigurationInterface<
-            api::ConnectorWebhookRegister,
-            ConnectorWebhookRegisterRequest,
-            ConnectorWebhookRegisterResponse,
-        > = connector_data.connector.get_connector_integration();
-
-        let mut router_data =
-            configure_connector_webhook_flow::construct_webhook_register_router_data(
-                &state,
-                &mca,
-                scoped_request,
-            )
-            .await?;
-
-        let current_flow_info = Some(CurrentFlowInfo::ConnectorWebhookRegister {
-            request_data: Box::new(router_data.request.clone()),
-        });
-
-        match fetch_access_token_for_webhook(
-            &state,
-            &connector_data,
-            &router_data,
-            current_flow_info,
-        )
-        .await
-        {
-            Ok(Some(token)) => router_data.access_token = Some(token),
-            Ok(None) => {}
-            Err(err) => {
-                results.push(
-                    api_models::merchant_connector_webhook_management::WebhookRegistrationResult {
-                        identifier: identifier.clone(),
-                        status: common_enums::WebhookRegistrationStatus::Failure,
-                        connector_webhook_id: None,
-                        error: Some(
-                            api_models::merchant_connector_webhook_management::WebhookRegistrationError {
-                                code: err.code,
-                                message: err.message,
-                            },
-                        ),
-                    },
-                );
-                continue;
-            }
+    for (identifier, result, metadata, connector_webhook_id) in registration_outcomes {
+        if let Some(metadata) = metadata {
+            metadata_patches.push(metadata);
         }
 
-        let response = match services::execute_connector_processing_step(
-            &state,
-            connector_integration,
-            &router_data,
-            common_enums::CallConnectorAction::Trigger,
-            None,
-            None,
-        )
-        .await
-        {
-            Ok(resp) => resp,
-            Err(err) => {
-                router_env::logger::error!(
-                    error=?err,
-                    connector=%connector_data.connector_name,
-                    scope=?identifier,
-                    "Connector webhook registration call failed; continuing with next item"
-                );
-                results.push(
-                    api_models::merchant_connector_webhook_management::WebhookRegistrationResult {
-                        identifier: identifier.clone(),
-                        status: common_enums::WebhookRegistrationStatus::Failure,
-                        connector_webhook_id: None,
-                        error: Some(
-                            api_models::merchant_connector_webhook_management::WebhookRegistrationError {
-                                code: "CONNECTOR_EXECUTION_ERROR".to_string(),
-                                message: err.to_string(),
-                            },
-                        ),
-                    },
-                );
-                continue;
-            }
-        };
-
-        let result = match response.response {
-            Ok(success) => {
-                if let Some(metadata) = success.metadata {
-                    metadata_patches.push(metadata);
-                }
-
-                api_models::merchant_connector_webhook_management::WebhookRegistrationResult {
-                    identifier: identifier.clone(),
-                    status: success.status,
-                    connector_webhook_id: success.connector_webhook_id,
-                    error: None,
-                }
-            }
-            Err(err) => api_models::merchant_connector_webhook_management::WebhookRegistrationResult {
-                identifier: identifier.clone(),
-                status: common_enums::WebhookRegistrationStatus::Failure,
-                connector_webhook_id: None,
-                error: Some(api_models::merchant_connector_webhook_management::WebhookRegistrationError {
-                    code: err.code,
-                    message: err.message,
-                }),
-            },
-        };
-
-        if let Some(ref webhook_id) = result.connector_webhook_id {
+        if let Some(webhook_id) = connector_webhook_id {
             if first_successful_webhook_id.is_none() {
                 first_successful_webhook_id = Some(webhook_id.clone());
             }
-            registration_entries.push((webhook_id.clone(), identifier.clone()));
+            registration_entries.push((webhook_id, identifier));
         }
 
         results.push(result);
