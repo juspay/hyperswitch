@@ -6,7 +6,7 @@
     post,
     path = "/accounts",
     request_body(
-        content = MerchantAccountCreate,
+        content = api_models::admin::MerchantAccountCreate,
         examples(
             (
                 "Create a merchant account with minimal fields" = (
@@ -33,7 +33,7 @@
 
     ),
     responses(
-        (status = 200, description = "Merchant Account Created", body = MerchantAccountResponse),
+        (status = 200, description = "Merchant Account Created", body = api_models::admin::MerchantAccountResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Merchant Account",
@@ -59,7 +59,7 @@ pub async fn merchant_account_create() {}
       ),
     ),
     request_body(
-        content = MerchantAccountCreate,
+        content = api_models::admin::MerchantAccountCreate,
         examples(
             (
                 "Create a merchant account with minimal fields" = (
@@ -95,7 +95,7 @@ pub async fn merchant_account_create() {}
 
     ),
     responses(
-        (status = 200, description = "Merchant Account Created", body = MerchantAccountResponse),
+        (status = 200, description = "Merchant Account Created", body = api_models::admin::MerchantAccountResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Merchant Account",
@@ -113,7 +113,7 @@ pub async fn merchant_account_create() {}
     path = "/accounts/{account_id}",
     params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
-        (status = 200, description = "Merchant Account Retrieved", body = MerchantAccountResponse),
+        (status = 200, description = "Merchant Account Retrieved", body = api_models::admin::MerchantAccountResponse),
         (status = 404, description = "Merchant account not found")
     ),
     tag = "Merchant Account",
@@ -131,7 +131,7 @@ pub async fn retrieve_merchant_account() {}
     path = "/v2/merchant-accounts/{id}",
     params (("id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
-        (status = 200, description = "Merchant Account Retrieved", body = MerchantAccountResponse),
+        (status = 200, description = "Merchant Account Retrieved", body = api_models::admin::MerchantAccountResponse),
         (status = 404, description = "Merchant account not found")
     ),
     tag = "Merchant Account",
@@ -148,7 +148,7 @@ pub async fn merchant_account_retrieve() {}
     post,
     path = "/accounts/{account_id}",
     request_body (
-        content = MerchantAccountUpdate,
+        content = api_models::admin::MerchantAccountUpdate,
         examples(
             (
             "Update merchant name" = (
@@ -175,7 +175,7 @@ pub async fn merchant_account_retrieve() {}
             )))),
     params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
-        (status = 200, description = "Merchant Account Updated", body = MerchantAccountResponse),
+        (status = 200, description = "Merchant Account Updated", body = api_models::admin::MerchantAccountResponse),
         (status = 404, description = "Merchant account not found")
     ),
     tag = "Merchant Account",
@@ -192,7 +192,7 @@ pub async fn update_merchant_account() {}
     put,
     path = "/v2/merchant-accounts/{id}",
     request_body (
-        content = MerchantAccountUpdate,
+        content = api_models::admin::MerchantAccountUpdate,
         examples(
             (
             "Update merchant name" = (
@@ -214,7 +214,7 @@ pub async fn update_merchant_account() {}
             )),
     params (("id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
-        (status = 200, description = "Merchant Account Updated", body = MerchantAccountResponse),
+        (status = 200, description = "Merchant Account Updated", body = api_models::admin::MerchantAccountResponse),
         (status = 404, description = "Merchant account not found")
     ),
     tag = "Merchant Account",
@@ -232,7 +232,7 @@ pub async fn merchant_account_update() {}
     path = "/accounts/{account_id}",
     params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
-        (status = 200, description = "Merchant Account Deleted", body = MerchantAccountDeleteResponse),
+        (status = 200, description = "Merchant Account Deleted", body = api_models::admin::MerchantAccountDeleteResponse),
         (status = 404, description = "Merchant account not found")
     ),
     tag = "Merchant Account",
@@ -249,7 +249,7 @@ pub async fn delete_merchant_account() {}
     post,
     path = "/accounts/{account_id}/kv",
     request_body (
-        content = ToggleKVRequest,
+        content = api_models::admin::ToggleKVRequest,
         examples (
             ("Enable KV for Merchant" = (
                 value = json!({
@@ -264,7 +264,7 @@ pub async fn delete_merchant_account() {}
     ),
     params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
-        (status = 200, description = "KV mode is enabled/disabled for Merchant Account", body = ToggleKVResponse),
+        (status = 200, description = "KV mode is enabled/disabled for Merchant Account", body = api_models::admin::ToggleKVResponse),
         (status = 400, description = "Invalid data"),
         (status = 404, description = "Merchant account not found")
     ),
@@ -284,7 +284,7 @@ pub async fn merchant_account_kv_status() {}
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
     ),
     responses(
-        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnectorResponse>),
+        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<api_models::admin::MerchantConnectorResponse>),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),
@@ -303,7 +303,7 @@ pub async fn payment_connector_list_profile() {}
     path = "/v2/merchant-accounts/{id}/profiles",
     params (("id" = String, Path, description = "The unique identifier for the Merchant")),
     responses(
-        (status = 200, description = "profile list retrieved successfully", body = Vec<ProfileResponse>),
+        (status = 200, description = "profile list retrieved successfully", body = Vec<api_models::admin::ProfileResponse>),
         (status = 400, description = "Invalid data")
     ),
     tag = "Merchant Account",

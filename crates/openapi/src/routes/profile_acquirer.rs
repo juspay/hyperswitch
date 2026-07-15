@@ -5,9 +5,9 @@
 #[utoipa::path(
     post,
     path = "/profile_acquirers",
-    request_body = ProfileAcquirerCreate,
+    request_body = api_models::profile_acquirer::ProfileAcquirerCreate,
     responses(
-        (status = 200, description = "Profile Acquirer created", body = ProfileAcquirerResponse),
+        (status = 200, description = "Profile Acquirer created", body = api_models::profile_acquirer::ProfileAcquirerResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Profile Acquirer",
@@ -28,9 +28,9 @@ pub async fn profile_acquirer_create() { /* … */
         ("profile_id" = String, Path, description = "The unique identifier for the Profile"),
         ("profile_acquirer_id" = String, Path, description = "The unique identifier for the Profile Acquirer")
     ),
-    request_body = ProfileAcquirerUpdate,
+    request_body = api_models::profile_acquirer::ProfileAcquirerUpdate,
     responses(
-        (status = 200, description = "Profile Acquirer updated", body = ProfileAcquirerResponse),
+        (status = 200, description = "Profile Acquirer updated", body = api_models::profile_acquirer::ProfileAcquirerResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Profile Acquirer",

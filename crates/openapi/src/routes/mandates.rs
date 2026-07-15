@@ -8,7 +8,7 @@
         ("mandate_id" = String, Path, description = "The identifier for mandate")
     ),
     responses(
-        (status = 200, description = "The mandate was retrieved successfully", body = MandateResponse),
+        (status = 200, description = "The mandate was retrieved successfully", body = api_models::mandates::MandateResponse),
         (status = 404, description = "Mandate does not exist in our records")
     ),
     tag = "Mandates",
@@ -27,7 +27,7 @@ pub async fn get_mandate() {}
         ("mandate_id" = String, Path, description = "The identifier for a mandate")
     ),
     responses(
-        (status = 200, description = "The mandate was revoked successfully", body = MandateRevokedResponse),
+        (status = 200, description = "The mandate was revoked successfully", body = api_models::mandates::MandateRevokedResponse),
         (status = 400, description = "Mandate does not exist in our records")
     ),
     tag = "Mandates",
@@ -42,7 +42,7 @@ pub async fn revoke_mandate() {}
     path = "/mandates/list",
     params(
         ("limit" = Option<i64>, Query, description = "The maximum number of Mandate Objects to include in the response"),
-        ("mandate_status" = Option<MandateStatus>, Query, description = "The status of mandate"),
+        ("mandate_status" = Option<api_models::enums::MandateStatus>, Query, description = "The status of mandate"),
         ("connector" = Option<String>, Query, description = "The connector linked to mandate"),
         ("created_time" = Option<PrimitiveDateTime>, Query, description = "The time at which mandate is created"),
         ("created_time.lt" = Option<PrimitiveDateTime>, Query, description = "Time less than the mandate created time"),
@@ -51,7 +51,7 @@ pub async fn revoke_mandate() {}
         ("created_time.gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the mandate created time"),
     ),
     responses(
-        (status = 200, description = "The mandate list was retrieved successfully", body = Vec<MandateResponse>),
+        (status = 200, description = "The mandate list was retrieved successfully", body = Vec<api_models::mandates::MandateResponse>),
         (status = 401, description = "Unauthorized request")
     ),
     tag = "Mandates",
@@ -70,7 +70,7 @@ pub async fn retrieve_mandates_list() {}
         ("customer_id" = String, Path, description = "The unique identifier for the customer")
     ),
     responses(
-        (status = 200, description = "List of retrieved mandates for a customer", body = Vec<MandateResponse>),
+        (status = 200, description = "List of retrieved mandates for a customer", body = Vec<api_models::mandates::MandateResponse>),
         (status = 400, description = "Invalid Data"),
     ),
     tag = "Mandates",

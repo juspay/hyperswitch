@@ -5,7 +5,7 @@
     post,
     path = "/refunds",
     request_body(
-        content = RefundRequest,
+        content = api_models::refunds::RefundRequest,
         examples(
             (
                 "Create an instant refund to refund the whole amount" = (
@@ -37,8 +37,8 @@
         )
     ),
     responses(
-        (status = 200, description = "Refund created", body = RefundResponse),
-        (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Refund created", body = api_models::refunds::RefundResponse),
+        (status = 400, description = "Missing Mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Refunds",
     operation_id = "Create a Refund",
@@ -57,7 +57,7 @@ pub async fn refunds_create() {}
         ("refund_id" = String, Path, description = "The identifier for refund")
     ),
     responses(
-        (status = 200, description = "Refund retrieved", body = RefundResponse),
+        (status = 200, description = "Refund retrieved", body = api_models::refunds::RefundResponse),
         (status = 404, description = "Refund does not exist in our records")
     ),
     tag = "Refunds",
@@ -74,7 +74,7 @@ pub async fn refunds_retrieve() {}
     get,
     path = "/refunds/sync",
     responses(
-        (status = 200, description = "Refund retrieved", body = RefundResponse),
+        (status = 200, description = "Refund retrieved", body = api_models::refunds::RefundResponse),
         (status = 404, description = "Refund does not exist in our records")
     ),
     tag = "Refunds",
@@ -93,7 +93,7 @@ pub async fn refunds_retrieve_with_body() {}
         ("refund_id" = String, Path, description = "The identifier for refund")
     ),
     request_body(
-        content = RefundUpdateRequest,
+        content = api_models::refunds::RefundUpdateRequest,
         examples(
             (
                 "Update refund reason" = (
@@ -105,8 +105,8 @@ pub async fn refunds_retrieve_with_body() {}
         )
     ),
     responses(
-        (status = 200, description = "Refund updated", body = RefundResponse),
-        (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Refund updated", body = api_models::refunds::RefundResponse),
+        (status = 400, description = "Missing Mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Refunds",
     operation_id = "Update a Refund",
@@ -121,9 +121,9 @@ pub async fn refunds_update() {}
 #[utoipa::path(
     post,
     path = "/refunds/list",
-    request_body=RefundListRequest,
+    request_body=api_models::refunds::RefundListRequest,
     responses(
-        (status = 200, description = "List of refunds", body = RefundListResponse),
+        (status = 200, description = "List of refunds", body = api_models::refunds::RefundListResponse),
     ),
     tag = "Refunds",
     operation_id = "List all Refunds",
@@ -138,9 +138,9 @@ pub fn refunds_list() {}
 #[utoipa::path(
     post,
     path = "/refunds/profile/list",
-    request_body=RefundListRequest,
+    request_body=api_models::refunds::RefundListRequest,
     responses(
-        (status = 200, description = "List of refunds", body = RefundListResponse),
+        (status = 200, description = "List of refunds", body = api_models::refunds::RefundListResponse),
     ),
     tag = "Refunds",
     operation_id = "List all Refunds for the given Profiles",
@@ -154,9 +154,9 @@ pub fn refunds_list_profile() {}
 #[utoipa::path(
     post,
     path = "/refunds/filter",
-    request_body=TimeRange,
+    request_body=common_utils::types::TimeRange,
     responses(
-        (status = 200, description = "List of filters", body = RefundListMetaData),
+        (status = 200, description = "List of filters", body = api_models::refunds::RefundListMetaData),
     ),
     tag = "Refunds",
     operation_id = "List all filters for Refunds",
@@ -171,7 +171,7 @@ pub async fn refunds_filter_list() {}
     post,
     path = "/v2/refunds",
     request_body(
-        content = RefundsCreateRequest,
+        content = api_models::refunds::RefundsCreateRequest,
         examples(
             (
                 "Create an instant refund to refund the whole amount" = (
@@ -206,8 +206,8 @@ pub async fn refunds_filter_list() {}
         )
     ),
     responses(
-        (status = 200, description = "Refund created", body = RefundResponse),
-        (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Refund created", body = api_models::refunds::RefundResponse),
+        (status = 400, description = "Missing Mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Refunds",
     operation_id = "Create a Refund",
@@ -226,7 +226,7 @@ pub async fn refunds_create() {}
         ("id" = String, Path, description = "The identifier for refund")
     ),
     request_body(
-        content = RefundMetadataUpdateRequest,
+        content = api_models::refunds::RefundMetadataUpdateRequest,
         examples(
             (
                 "Update refund reason" = (
@@ -238,8 +238,8 @@ pub async fn refunds_create() {}
         )
     ),
     responses(
-        (status = 200, description = "Refund updated", body = RefundResponse),
-        (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Refund updated", body = api_models::refunds::RefundResponse),
+        (status = 400, description = "Missing Mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Refunds",
     operation_id = "Update Refund Metadata and Reason",
@@ -258,7 +258,7 @@ pub async fn refunds_metadata_update() {}
         ("id" = String, Path, description = "The identifier for refund")
     ),
     responses(
-        (status = 200, description = "Refund retrieved", body = RefundResponse),
+        (status = 200, description = "Refund retrieved", body = api_models::refunds::RefundResponse),
         (status = 404, description = "Refund does not exist in our records")
     ),
     tag = "Refunds",
@@ -274,9 +274,9 @@ pub async fn refunds_retrieve() {}
 #[utoipa::path(
     post,
     path = "/v2/refunds/list",
-    request_body=RefundListRequest,
+    request_body=api_models::refunds::RefundListRequest,
     responses(
-        (status = 200, description = "List of refunds", body = RefundListResponse),
+        (status = 200, description = "List of refunds", body = api_models::refunds::RefundListResponse),
     ),
     tag = "Refunds",
     operation_id = "List all Refunds",

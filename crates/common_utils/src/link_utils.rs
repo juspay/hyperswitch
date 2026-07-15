@@ -151,8 +151,10 @@ pub struct PayoutLinkData {
     /// Identifier for the payouts resource
     pub payout_id: id_type::PayoutId,
     /// Link to render the payout link
+    #[schema(value_type = String)]
     pub link: url::Url,
     /// Client secret generated for authenticating frontend APIs
+    #[schema(value_type = String)]
     pub client_secret: Secret<String>,
     /// Expiry in seconds from the time it was created
     pub session_expiry: u32,
@@ -211,11 +213,11 @@ pub struct GenericLinkUiConfigFormData {
 #[derive(Clone, Debug, Serialize, serde::Deserialize, ToSchema)]
 pub struct EnabledPaymentMethod {
     /// Payment method (banks, cards, wallets) enabled for the operation
-    #[schema(value_type = PaymentMethod)]
+    #[schema(value_type = enums::PaymentMethod)]
     pub payment_method: enums::PaymentMethod,
 
     /// An array of associated payment method types
-    #[schema(value_type = HashSet<PaymentMethodType>)]
+    #[schema(value_type = HashSet<enums::PaymentMethodType>)]
     pub payment_method_types: HashSet<enums::PaymentMethodType>,
 }
 

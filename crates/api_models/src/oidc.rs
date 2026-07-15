@@ -126,27 +126,35 @@ pub struct OidcDiscoveryResponse {
     pub jwks_uri: String,
 
     /// List of OAuth 2.0 response_type values supported
+    #[schema(value_type = Vec<String>)]
     pub response_types_supported: Vec<ResponseType>,
 
     /// List of OAuth 2.0 response_mode values supported
+    #[schema(value_type = Vec<String>)]
     pub response_modes_supported: Vec<ResponseMode>,
 
     /// List of Subject Identifier types supported
+    #[schema(value_type = Vec<String>)]
     pub subject_types_supported: Vec<SubjectType>,
 
     /// List of JWS signing algorithms supported for ID Tokens
+    #[schema(value_type = Vec<String>)]
     pub id_token_signing_alg_values_supported: Vec<SigningAlgorithm>,
 
     /// List of OAuth 2.0 grant type values supported
+    #[schema(value_type = Vec<String>)]
     pub grant_types_supported: Vec<GrantType>,
 
     /// List of OAuth 2.0 scope values supported
+    #[schema(value_type = Vec<String>)]
     pub scopes_supported: Vec<Scope>,
 
     /// List of Client Authentication methods supported by the token endpoint
+    #[schema(value_type = Vec<String>)]
     pub token_endpoint_auth_methods_supported: Vec<TokenAuthMethod>,
 
     /// List of Claim Names supported
+    #[schema(value_type = Vec<String>)]
     pub claims_supported: Vec<Claim>,
 
     /// Whether the claims parameter is supported
@@ -202,6 +210,7 @@ pub struct JwksResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Jwk {
     /// Key type
+    #[schema(value_type = String)]
     pub kty: KeyType,
 
     /// Key ID
@@ -210,9 +219,11 @@ pub struct Jwk {
 
     /// Public key use
     #[serde(rename = "use")]
+    #[schema(value_type = String)]
     pub key_use: KeyUse,
 
     /// Algorithm
+    #[schema(value_type = String)]
     pub alg: SigningAlgorithm,
 
     /// RSA public key modulus
@@ -242,6 +253,7 @@ where
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct OidcAuthorizeQuery {
     /// OAuth 2.0 Response Type value
+    #[schema(value_type = String)]
     pub response_type: ResponseType,
 
     /// OAuth 2.0 Client Identifier
@@ -254,6 +266,7 @@ pub struct OidcAuthorizeQuery {
 
     /// OpenID Connect scope values
     #[serde(deserialize_with = "deserialize_scope_vec")]
+    #[schema(value_type = Vec<String>)]
     pub scope: Vec<Scope>,
 
     /// Opaque value used to maintain state between request and callback
@@ -269,6 +282,7 @@ pub struct OidcAuthorizeQuery {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct OidcTokenRequest {
     /// OAuth 2.0 Grant Type value
+    #[schema(value_type = String)]
     pub grant_type: GrantType,
 
     /// Authorization code received from the authorization server

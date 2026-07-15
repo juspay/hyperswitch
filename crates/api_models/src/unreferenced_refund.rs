@@ -15,7 +15,7 @@ pub struct UnreferencedRefundRequest {
     pub amount: MinorUnit,
 
     /// Currency
-    #[schema(value_type = Currency, example = "USD")]
+    #[schema(value_type = api_enums::Currency, example = "USD")]
     pub currency: api_enums::Currency,
 
     /// Identifier of the connector ( merchant connector account ) which was chosen to make the refund
@@ -76,7 +76,7 @@ pub struct UnreferencedRefundResponse {
     pub id: common_utils::id_type::RelayId,
 
     /// The status of the relay request
-    #[schema(value_type = RelayStatus)]
+    #[schema(value_type = api_enums::RelayStatus)]
     pub status: api_enums::RelayStatus,
 
     /// Connector name for which the relay was processed
@@ -103,6 +103,7 @@ pub struct UnreferencedRefundResponse {
     pub error: Option<RelayError>,
 
     /// Raw response from connector
+    #[schema(value_type = Option<Object>)]
     pub raw_connector_response: Option<Secret<serde_json::Value>>,
 }
 

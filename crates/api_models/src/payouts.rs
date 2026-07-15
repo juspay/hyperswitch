@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
-use common_enums::CardNetwork;
+use common_enums::{CardNetwork, Currency};
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
 use common_utils::{
@@ -66,17 +66,17 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<Currency>, example = "USD")]
     #[mandatory_in(PayoutsCreateRequest = Currency)]
     #[remove_in(PayoutsConfirmRequest)]
-    pub currency: Option<api_enums::Currency>,
+    pub currency: Option<Currency>,
 
     /// Specifies routing algorithm for selecting a connector
-    #[schema(value_type = Option<StaticRoutingAlgorithm>, example = json!({
+    #[schema(value_type = Option<crate::routing::StaticRoutingAlgorithm>, example = json!({
         "type": "single",
         "data": "adyen"
     }))]
     pub routing: Option<serde_json::Value>,
 
     /// This field allows the merchant to manually select a connector with which the payout can go through.
-    #[schema(value_type = Option<Vec<PayoutConnectors>>, max_length = 255, example = json!(["wise", "adyen"]))]
+    #[schema(value_type = Option<Vec<api_enums::PayoutConnectors>>, max_length = 255, example = json!(["wise", "adyen"]))]
     pub connector: Option<Vec<api_enums::PayoutConnectors>>,
 
     /// This field is used when merchant wants to confirm the payout, thus useful for the payout _Confirm_ request. Ideally merchants should _Create_ a payout, _Update_ it (if required), then _Confirm_ it.
@@ -85,7 +85,7 @@ pub struct PayoutCreateRequest {
     pub confirm: Option<bool>,
 
     /// The payout_type of the payout request can be specified here, this is a mandatory field to _Confirm_ the payout, i.e., should be passed in _Create_ request, if not then should be updated in the payout _Update_ request, then only it can be confirmed.
-    #[schema(value_type = Option<PayoutType>, example = "card")]
+    #[schema(value_type = Option<api_enums::PayoutType>, example = "card")]
     pub payout_type: Option<api_enums::PayoutType>,
 
     /// The payout method information required for carrying out a payout
@@ -97,7 +97,7 @@ pub struct PayoutCreateRequest {
     pub source_bank_data: Option<BankTransfer>,
 
     /// The billing address for the payout
-    #[schema(value_type = Option<Address>, example = json!(r#"{
+    #[schema(value_type = Option<payments::Address>, example = json!(r#"{
         "address": {
             "line1": "1467",
             "line2": "Harrison Street",
@@ -122,7 +122,7 @@ pub struct PayoutCreateRequest {
     pub customer_id: Option<id_type::CustomerId>,
 
     /// Passing this object creates a new customer or attaches an existing customer to the payout
-    #[schema(value_type = Option<CustomerDetails>)]
+    #[schema(value_type = Option<payments::CustomerDetails>)]
     pub customer: Option<payments::CustomerDetails>,
 
     /// It's a token used for client side verification.
@@ -136,7 +136,7 @@ pub struct PayoutCreateRequest {
     pub return_url: Option<String>,
 
     /// Business country of the merchant for this payout. _Deprecated: Use profile_id instead._
-    #[schema(deprecated, example = "US", value_type = Option<CountryAlpha2>)]
+    #[schema(deprecated, example = "US", value_type = Option<api_enums::CountryAlpha2>)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// Business label of the merchant for this payout. _Deprecated: Use profile_id instead._
@@ -148,7 +148,7 @@ pub struct PayoutCreateRequest {
     pub description: Option<String>,
 
     /// Type of entity to whom the payout is being carried out to, select from the given list of options
-    #[schema(value_type = Option<PayoutEntityType>, example = "Individual")]
+    #[schema(value_type = Option<api_enums::PayoutEntityType>, example = "Individual")]
     pub entity_type: Option<api_enums::PayoutEntityType>,
 
     /// Specifies whether or not the payout request is recurring
@@ -168,7 +168,7 @@ pub struct PayoutCreateRequest {
     pub profile_id: Option<id_type::ProfileId>,
 
     /// The send method which will be required for processing payouts, check options for better understanding.
-    #[schema(value_type = Option<PayoutSendPriority>, example = "instant")]
+    #[schema(value_type = Option<api_enums::PayoutSendPriority>, example = "instant")]
     pub priority: Option<api_enums::PayoutSendPriority>,
 
     /// Whether to get the payout link (if applicable). Merchant need to specify this during the Payout _Create_, this field can not be updated during Payout _Update_.
@@ -225,15 +225,15 @@ pub struct PayoutCreatePayoutLinkConfig {
     pub payout_link_id: Option<String>,
 
     #[serde(flatten)]
-    #[schema(value_type = Option<GenericLinkUiConfig>)]
+    #[schema(value_type = Option<link_utils::GenericLinkUiConfig>)]
     pub ui_config: Option<link_utils::GenericLinkUiConfig>,
 
     /// List of payout methods shown on collect UI
-    #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
+    #[schema(value_type = Option<Vec<link_utils::EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
     pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
 
     /// Form layout of the payout link
-    #[schema(value_type = Option<UIWidgetFormLayout>, max_length = 255, example = "tabs")]
+    #[schema(value_type = Option<api_enums::UIWidgetFormLayout>, max_length = 255, example = "tabs")]
     pub form_layout: Option<api_enums::UIWidgetFormLayout>,
 
     /// `test_mode` allows for opening payout links without any restrictions. This removes
@@ -411,7 +411,7 @@ pub struct AchBankTransfer {
     pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<api_enums::CountryAlpha2>, example = "US")]
     pub bank_country_code: Option<api_enums::CountryAlpha2>,
 
     /// Bank city
@@ -438,7 +438,7 @@ pub struct BacsBankTransfer {
     pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<api_enums::CountryAlpha2>, example = "US")]
     pub bank_country_code: Option<api_enums::CountryAlpha2>,
 
     /// Bank city
@@ -466,7 +466,7 @@ pub struct SepaBankTransfer {
     pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<api_enums::CountryAlpha2>, example = "US")]
     pub bank_country_code: Option<api_enums::CountryAlpha2>,
 
     /// Bank city
@@ -603,7 +603,7 @@ pub struct TrustlyBankTransfer {
     #[schema(value_type = String, example = "token_12345")]
     pub iban: Option<Secret<String>>,
     /// country code of the customer's bank account.
-    #[schema(value_type = CountryAlpha2, example = "US")]
+    #[schema(value_type = api_enums::CountryAlpha2, example = "US")]
     pub country_code: api_enums::CountryAlpha2,
     /// The account number, identifying the end-user's account in the bank.
     #[schema(value_type = String, example = "69706212")]
@@ -619,7 +619,7 @@ pub struct TrustlyBankTransferData {
     #[schema(value_type = String, example = "token_12345")]
     pub iban: Option<Secret<String>>,
     /// country code of the customer's bank account.
-    #[schema(value_type = CountryAlpha2, example = "US")]
+    #[schema(value_type = api_enums::CountryAlpha2, example = "US")]
     pub bank_country_code: api_enums::CountryAlpha2,
     /// The account number, identifying the end-user's account in the bank.
     #[schema(value_type = String, example = "69706212")]
@@ -641,7 +641,7 @@ pub struct Passthrough {
     pub psp_customer_id: Option<Secret<String>>,
 
     /// Payout method type of the token
-    #[schema(value_type = PaymentMethodType, example = "paypal")]
+    #[schema(value_type = api_enums::PaymentMethodType, example = "paypal")]
     pub token_type: api_enums::PaymentMethodType,
 }
 
@@ -741,14 +741,14 @@ pub struct PayoutCreateResponse {
 
     /// Recipient's currency for the payout request
     #[schema(value_type = Currency, example = "USD")]
-    pub currency: api_enums::Currency,
+    pub currency: Currency,
 
     /// The connector used for the payout
     #[schema(example = "wise")]
     pub connector: Option<String>,
 
     /// The payout method that is to be used
-    #[schema(value_type = Option<PayoutType>, example = "bank")]
+    #[schema(value_type = Option<api_enums::PayoutType>, example = "bank")]
     pub payout_type: Option<api_enums::PayoutType>,
 
     /// The payout method details for the payout
@@ -783,7 +783,7 @@ pub struct PayoutCreateResponse {
     pub source_bank_data: Option<payout_method_utils::BankAdditionalData>,
 
     /// The billing address for the payout
-    #[schema(value_type = Option<Address>, example = json!(r#"{
+    #[schema(value_type = Option<payments::Address>, example = json!(r#"{
         "address": {
             "line1": "1467",
             "line2": "Harrison Street",
@@ -808,7 +808,7 @@ pub struct PayoutCreateResponse {
     pub customer_id: Option<id_type::CustomerId>,
 
     /// Passing this object creates a new customer or attaches an existing customer to the payout
-    #[schema(value_type = Option<CustomerDetailsResponse>)]
+    #[schema(value_type = Option<payments::CustomerDetailsResponse>)]
     pub customer: Option<payments::CustomerDetailsResponse>,
 
     /// It's a token used for client side verification.
@@ -820,7 +820,7 @@ pub struct PayoutCreateResponse {
     pub return_url: Option<String>,
 
     /// Business country of the merchant for this payout. _Deprecated: Use profile_id instead._
-    #[schema(deprecated, example = "US", value_type = CountryAlpha2)]
+    #[schema(deprecated, example = "US", value_type = api_enums::CountryAlpha2)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// Business label of the merchant for this payout. _Deprecated: Use profile_id instead._
@@ -832,7 +832,7 @@ pub struct PayoutCreateResponse {
     pub description: Option<String>,
 
     /// Type of entity to whom the payout is being carried out to
-    #[schema(value_type = PayoutEntityType, example = "Individual")]
+    #[schema(value_type = api_enums::PayoutEntityType, example = "Individual")]
     pub entity_type: api_enums::PayoutEntityType,
 
     /// Specifies whether or not the payout request is recurring
@@ -848,7 +848,7 @@ pub struct PayoutCreateResponse {
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Current status of the Payout
-    #[schema(value_type = PayoutStatus, example = RequiresConfirmation)]
+    #[schema(value_type = api_enums::PayoutStatus, example = RequiresConfirmation)]
     pub status: api_enums::PayoutStatus,
 
     /// If there was an error while calling the connector the error message is received here
@@ -873,7 +873,7 @@ pub struct PayoutCreateResponse {
     pub connector_transaction_id: Option<String>,
 
     /// Payout's send priority (if applicable)
-    #[schema(value_type = Option<PayoutSendPriority>, example = "instant")]
+    #[schema(value_type = Option<api_enums::PayoutSendPriority>, example = "instant")]
     pub priority: Option<api_enums::PayoutSendPriority>,
 
     /// List of attempts
@@ -921,15 +921,15 @@ pub struct PayoutCreateResponse {
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PayoutMethodDataResponse {
-    #[schema(value_type = CardAdditionalData)]
+    #[schema(value_type = payout_method_utils::CardAdditionalData)]
     Card(Box<payout_method_utils::CardAdditionalData>),
-    #[schema(value_type = BankAdditionalData)]
+    #[schema(value_type = payout_method_utils::BankAdditionalData)]
     Bank(Box<payout_method_utils::BankAdditionalData>),
-    #[schema(value_type = WalletAdditionalData)]
+    #[schema(value_type = payout_method_utils::WalletAdditionalData)]
     Wallet(Box<payout_method_utils::WalletAdditionalData>),
-    #[schema(value_type = BankRedirectAdditionalData)]
+    #[schema(value_type = payout_method_utils::BankRedirectAdditionalData)]
     BankRedirect(Box<payout_method_utils::BankRedirectAdditionalData>),
-    #[schema(value_type = PassthroughAdditionalData)]
+    #[schema(value_type = payout_method_utils::PassthroughAdditionalData)]
     Passthrough(Box<payout_method_utils::PassthroughAdditionalData>),
 }
 
@@ -940,14 +940,14 @@ pub struct PayoutAttemptResponse {
     /// Unique identifier for the attempt
     pub attempt_id: String,
     /// The status of the attempt
-    #[schema(value_type = PayoutStatus, example = "failed")]
+    #[schema(value_type = api_enums::PayoutStatus, example = "failed")]
     pub status: api_enums::PayoutStatus,
     /// The payout attempt amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = i64, example = 6583)]
     pub amount: common_utils::types::MinorUnit,
     /// The currency of the amount of the payout attempt
     #[schema(value_type = Option<Currency>, example = "USD")]
-    pub currency: Option<api_enums::Currency>,
+    pub currency: Option<Currency>,
     /// The connector used for the payout
     pub connector: Option<String>,
     /// Connector's error code in case of failures
@@ -955,10 +955,10 @@ pub struct PayoutAttemptResponse {
     /// Connector's error message in case of failures
     pub error_message: Option<String>,
     /// The payout method that was used
-    #[schema(value_type = Option<PayoutType>, example = "bank")]
+    #[schema(value_type = Option<api_enums::PayoutType>, example = "bank")]
     pub payment_method: Option<api_enums::PayoutType>,
     /// Payment Method Type
-    #[schema(value_type = Option<PaymentMethodType>, example = "bacs")]
+    #[schema(value_type = Option<api_enums::PaymentMethodType>, example = "bacs")]
     pub payout_method_type: Option<api_enums::PaymentMethodType>,
     /// A unique identifier for a payout provided by the connector
     pub connector_transaction_id: Option<String>,
@@ -1036,13 +1036,21 @@ pub struct PayoutVendorDetails {
     pub business_type: String,
     pub business_profile_mcc: Option<i32>,
     pub business_profile_url: Option<String>,
+    #[schema(value_type = Option<String>)]
     pub business_profile_name: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub company_address_line1: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub company_address_line2: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub company_address_postal_code: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub company_address_city: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub company_address_state: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub company_phone: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub company_tax_id: Option<Secret<String>>,
     pub company_owners_provided: Option<bool>,
     pub capabilities_card_payments: Option<bool>,
@@ -1052,11 +1060,17 @@ pub struct PayoutVendorDetails {
 #[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
 pub struct PayoutIndividualDetails {
     pub tos_acceptance_date: Option<i64>,
+    #[schema(value_type = Option<String>)]
     pub tos_acceptance_ip: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub individual_dob_day: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub individual_dob_month: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub individual_dob_year: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub individual_id_number: Option<Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub individual_ssn_last_4: Option<Secret<String>>,
     pub external_account_account_holder_type: Option<String>,
 }
@@ -1088,7 +1102,7 @@ pub struct PayoutListConstraints {
 
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
-    #[schema(value_type = Option<TimeRange>)]
+    #[schema(value_type = Option<common_utils::types::TimeRange>)]
     pub time_range: Option<common_utils::types::TimeRange>,
 }
 
@@ -1119,22 +1133,22 @@ pub struct PayoutListFilterConstraints {
     pub offset: Option<u32>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
-    #[schema(value_type = Option<TimeRange>)]
+    #[schema(value_type = Option<common_utils::types::TimeRange>)]
     pub time_range: Option<common_utils::types::TimeRange>,
     /// The list of connectors to filter payouts list
-    #[schema(value_type = Option<Vec<PayoutConnectors>>, max_length = 255, example = json!(["wise", "adyen"]))]
+    #[schema(value_type = Option<Vec<api_enums::PayoutConnectors>>, max_length = 255, example = json!(["wise", "adyen"]))]
     pub connector: Option<Vec<api_enums::PayoutConnectors>>,
     /// The list of currencies to filter payouts list
     #[schema(value_type = Currency, example = "USD")]
-    pub currency: Option<Vec<api_enums::Currency>>,
+    pub currency: Option<Vec<Currency>>,
     /// The list of payout status to filter payouts list
-    #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["pending", "failed"]))]
+    #[schema(value_type = Option<Vec<api_enums::PayoutStatus>>, example = json!(["pending", "failed"]))]
     pub status: Option<Vec<api_enums::PayoutStatus>>,
     /// The list of payout methods to filter payouts list
-    #[schema(value_type = Option<Vec<PayoutType>>, example = json!(["bank", "card"]))]
+    #[schema(value_type = Option<Vec<api_enums::PayoutType>>, example = json!(["bank", "card"]))]
     pub payout_method: Option<Vec<common_enums::PayoutType>>,
     /// Type of recipient
-    #[schema(value_type = PayoutEntityType, example = "Individual")]
+    #[schema(value_type = api_enums::PayoutEntityType, example = "Individual")]
     pub entity_type: Option<common_enums::PayoutEntityType>,
 }
 
@@ -1152,32 +1166,32 @@ pub struct PayoutListResponse {
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PayoutListFilters {
     /// The list of available connector filters
-    #[schema(value_type = Vec<PayoutConnectors>)]
+    #[schema(value_type = Vec<api_enums::PayoutConnectors>)]
     pub connector: Vec<api_enums::PayoutConnectors>,
     /// The list of available currency filters
     #[schema(value_type = Vec<Currency>)]
-    pub currency: Vec<common_enums::Currency>,
+    pub currency: Vec<Currency>,
     /// The list of available payout status filters
-    #[schema(value_type = Vec<PayoutStatus>)]
+    #[schema(value_type = Vec<api_enums::PayoutStatus>)]
     pub status: Vec<common_enums::PayoutStatus>,
     /// The list of available payout method filters
-    #[schema(value_type = Vec<PayoutType>)]
+    #[schema(value_type = Vec<api_enums::PayoutType>)]
     pub payout_method: Vec<common_enums::PayoutType>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PayoutListFiltersV2 {
     /// The list of available connector filters
-    #[schema(value_type = Vec<PayoutConnectors>)]
+    #[schema(value_type = Vec<api_enums::PayoutConnectors>)]
     pub connector: HashMap<String, Vec<admin::MerchantConnectorInfo>>,
     /// The list of available currency filters
     #[schema(value_type = Vec<Currency>)]
-    pub currency: Vec<common_enums::Currency>,
+    pub currency: Vec<Currency>,
     /// The list of available payout status filters
-    #[schema(value_type = Vec<PayoutStatus>)]
+    #[schema(value_type = Vec<api_enums::PayoutStatus>)]
     pub status: Vec<common_enums::PayoutStatus>,
     /// The list of available payout method filters
-    #[schema(value_type = Vec<PayoutType>)]
+    #[schema(value_type = Vec<api_enums::PayoutType>)]
     pub payout_method: Vec<common_enums::PayoutType>,
 }
 
@@ -1211,7 +1225,7 @@ pub struct PayoutLinkDetails {
     pub enabled_payment_methods: Vec<link_utils::EnabledPaymentMethod>,
     pub enabled_payment_methods_with_required_fields: Vec<PayoutEnabledPaymentMethodsInfo>,
     pub amount: common_utils::types::StringMajorUnit,
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
     pub locale: String,
     pub form_layout: Option<common_enums::UIWidgetFormLayout>,
     pub test_mode: bool,
@@ -1588,7 +1602,7 @@ pub struct PayoutsManualUpdateRequest {
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
     /// The status of the payout attempt
-    #[schema(value_type = Option<PayoutStatus>)]
+    #[schema(value_type = Option<api_enums::PayoutStatus>)]
     pub status: Option<api_enums::PayoutStatus>,
     /// Error code of the connector
     pub error_code: Option<String>,
@@ -1618,7 +1632,7 @@ pub struct PayoutsManualUpdateResponse {
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
     /// The status of the payout attempt
-    #[schema(value_type = PayoutStatus)]
+    #[schema(value_type = api_enums::PayoutStatus)]
     pub attempt_status: api_enums::PayoutStatus,
     /// Error code of the connector
     pub error_code: Option<String>,

@@ -14,7 +14,7 @@ pub struct RelayRequest {
     pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
     /// The type of relay request
     #[serde(rename = "type")]
-    #[schema(value_type = RelayType)]
+    #[schema(value_type = api_enums::RelayType)]
     pub relay_type: api_enums::RelayType,
     /// The data that is associated with the relay request
     pub data: Option<RelayData>,
@@ -35,11 +35,11 @@ pub enum RelayData {
 pub struct RelayUnreferencedRefundData {
     #[schema(value_type = i64, example = 6540)]
     pub amount: MinorUnit,
-    #[schema(value_type = Currency)]
+    #[schema(value_type = api_enums::Currency)]
     pub currency: api_enums::Currency,
     #[schema(value_type = String)]
     pub customer_id: Option<String>,
-    #[schema(value_type = RecipientPaymentMethodData)]
+    #[schema(value_type = unreferenced_refund::RecipientPaymentMethodData)]
     pub recipient_payment_method_data: Option<unreferenced_refund::RecipientPaymentMethodData>,
 }
 
@@ -49,7 +49,7 @@ pub struct RelayRefundRequestData {
     #[schema(value_type = i64 , example = 6540)]
     pub amount: MinorUnit,
     /// The currency in which the amount is being refunded
-    #[schema(value_type = Currency)]
+    #[schema(value_type = api_enums::Currency)]
     pub currency: api_enums::Currency,
     /// The reason for the refund
     #[schema(max_length = 255, example = "Customer returned the product")]
@@ -65,10 +65,10 @@ pub struct RelayCaptureRequestData {
     #[schema(value_type = i64 , example = 6540)]
     pub amount_to_capture: MinorUnit,
     /// The currency in which the amount is being captured
-    #[schema(value_type = Currency)]
+    #[schema(value_type = api_enums::Currency)]
     pub currency: api_enums::Currency,
     /// type of capture for the relay
-    #[schema(value_type = Option<CaptureMethod>)]
+    #[schema(value_type = Option<api_enums::CaptureMethod>)]
     pub capture_method: Option<api_enums::CaptureMethod>,
 }
 
@@ -81,7 +81,7 @@ pub struct RelayIncrementalAuthorizationRequestData {
     #[schema(value_type = i64 , example = 6540)]
     pub additional_amount: MinorUnit,
     /// The currency in which the amount is being captured
-    #[schema(value_type = Currency)]
+    #[schema(value_type = api_enums::Currency)]
     pub currency: api_enums::Currency,
 }
 
@@ -91,7 +91,7 @@ pub struct RelayVoidRequestData {
     #[schema(value_type = i64 , example = 6540)]
     pub amount: Option<MinorUnit>,
     /// The currency in which the amount is being voided
-    #[schema(value_type = Option<Currency>)]
+    #[schema(value_type = Option<api_enums::Currency>)]
     pub currency: Option<api_enums::Currency>,
     /// The cancellation reason for voiding the transaction
     #[schema(example = "Requested by merchant")]
@@ -104,7 +104,7 @@ pub struct RelayResponse {
     #[schema(example = "relay_mbabizu24mvu3mela5njyhpit4", value_type = String)]
     pub id: common_utils::id_type::RelayId,
     /// The status of the relay request
-    #[schema(value_type = RelayStatus)]
+    #[schema(value_type = api_enums::RelayStatus)]
     pub status: api_enums::RelayStatus,
     /// The identifier that is associated to a resource at the connector reference to which the relay request is being made
     #[schema(example = "pi_3MKEivSFNglxLpam0ZaL98q9")]
@@ -122,7 +122,7 @@ pub struct RelayResponse {
     pub profile_id: common_utils::id_type::ProfileId,
     /// The type of relay request
     #[serde(rename = "type")]
-    #[schema(value_type = RelayType)]
+    #[schema(value_type = api_enums::RelayType)]
     pub relay_type: api_enums::RelayType,
     /// The data that is associated with the relay request
     pub data: Option<RelayData>,

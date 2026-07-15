@@ -9,7 +9,7 @@
         ("recovery_recovery_id" = String, Path, description = "The payment intent id"),
     ),
     responses(
-        (status = 200, description = "Revenue Recovery Info Retrieved Successfully", body = RevenueRecoveryResponse),
+        (status = 200, description = "Revenue Recovery Info Retrieved Successfully", body = api_models::process_tracker::revenue_recovery::RevenueRecoveryResponse),
         (status = 500, description = "Internal server error"),
         (status = 404, description = "Resource missing"),
         (status = 422, description = "Unprocessable request"),

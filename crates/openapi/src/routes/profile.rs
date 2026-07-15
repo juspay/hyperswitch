@@ -11,7 +11,7 @@
         ("account_id" = String, Path, description = "The unique identifier for the merchant account")
     ),
     request_body(
-        content = ProfileCreate,
+        content = api_models::admin::ProfileCreate,
         examples(
             (
                 "Create a profile with minimal fields" = (
@@ -28,7 +28,7 @@
         )
     ),
     responses(
-        (status = 200, description = "Profile Created", body = ProfileResponse),
+        (status = 200, description = "Profile Created", body = api_models::admin::ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Profile",
@@ -49,7 +49,7 @@ pub async fn profile_create() {}
         ("profile_id" = String, Path, description = "The unique identifier for the profile")
     ),
     request_body(
-        content = ProfileCreate,
+        content = api_models::admin::ProfileCreate,
         examples(
             (
                 "Update profile with profile name fields" = (
@@ -60,7 +60,7 @@ pub async fn profile_create() {}
             )
     )),
     responses(
-        (status = 200, description = "Profile Updated", body = ProfileResponse),
+        (status = 200, description = "Profile Updated", body = api_models::admin::ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Profile",
@@ -81,7 +81,7 @@ pub async fn profile_update() {}
         ("profile_id" = String, Path, description = "The unique identifier for the profile")
     ),
     responses(
-        (status = 200, description = "Profile Updated", body = ProfileResponse),
+        (status = 200, description = "Profile Updated", body = api_models::admin::ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Profile",
@@ -122,7 +122,7 @@ pub async fn profile_delete() {}
         ("account_id" = String, Path, description = "Merchant Identifier"),
     ),
     responses(
-        (status = 200, description = "Profiles Retrieved", body = Vec<ProfileResponse>)
+        (status = 200, description = "Profiles Retrieved", body = Vec<api_models::admin::ProfileResponse>)
     ),
     tag = "Profile",
     operation_id = "List Profiles",
@@ -147,7 +147,7 @@ pub async fn profile_list() {}
         ),
     ),
     request_body(
-        content = ProfileCreate,
+        content = api_models::admin::ProfileCreate,
         examples(
             (
                 "Create a profile with profile name" = (
@@ -159,7 +159,7 @@ pub async fn profile_list() {}
         )
     ),
     responses(
-        (status = 200, description = "Account Created", body = ProfileResponse),
+        (status = 200, description = "Account Created", body = api_models::admin::ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Profile",
@@ -184,7 +184,7 @@ pub async fn profile_create() {}
         ),
     ),
     request_body(
-        content = ProfileCreate,
+        content = api_models::admin::ProfileCreate,
         examples(
             (
                 "Update profile with profile name fields" = (
@@ -195,7 +195,7 @@ pub async fn profile_create() {}
             )
     )),
     responses(
-        (status = 200, description = "Profile Updated", body = ProfileResponse),
+        (status = 200, description = "Profile Updated", body = api_models::admin::ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Profile",
@@ -211,7 +211,7 @@ pub async fn profile_update() {}
 #[utoipa::path(
     patch,
     path = "/v2/profiles/{id}/activate-routing-algorithm",
-    request_body ( content = RoutingAlgorithmId,
+    request_body ( content = api_models::routing::RoutingAlgorithmId,
       examples(  (
             "Activate a routing algorithm" = (
                 value = json!({
@@ -223,7 +223,7 @@ pub async fn profile_update() {}
         ("id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
-        (status = 200, description = "Routing Algorithm is activated", body = RoutingDictionaryRecord),
+        (status = 200, description = "Routing Algorithm is activated", body = api_models::routing::RoutingDictionaryRecord),
         (status = 500, description = "Internal server error"),
         (status = 404, description = "Resource missing"),
         (status = 400, description = "Bad request")
@@ -245,7 +245,7 @@ pub async fn routing_link_config() {}
         ("id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
-        (status = 200, description = "Successfully deactivated routing config", body = RoutingDictionaryRecord),
+        (status = 200, description = "Successfully deactivated routing config", body = api_models::routing::RoutingDictionaryRecord),
         (status = 500, description = "Internal server error"),
         (status = 400, description = "Malformed request"),
         (status = 403, description = "Malformed request"),
@@ -264,12 +264,12 @@ pub async fn routing_unlink_config() {}
 #[utoipa::path(
     patch,
     path = "/v2/profiles/{id}/fallback-routing",
-    request_body = Vec<RoutableConnectorChoice>,
+    request_body = Vec<api_models::routing::RoutableConnectorChoice>,
     params(
         ("id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
-        (status = 200, description = "Successfully updated the default fallback routing algorithm", body = Vec<RoutableConnectorChoice>),
+        (status = 200, description = "Successfully updated the default fallback routing algorithm", body = Vec<api_models::routing::RoutableConnectorChoice>),
         (status = 500, description = "Internal server error"),
         (status = 400, description = "Malformed request"),
         (status = 422, description = "Unprocessable request")
@@ -296,7 +296,7 @@ pub async fn routing_update_default_config() {}
         ),
     ),
     responses(
-        (status = 200, description = "Profile Updated", body = ProfileResponse),
+        (status = 200, description = "Profile Updated", body = api_models::admin::ProfileResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Profile",
@@ -317,7 +317,7 @@ pub async fn profile_retrieve() {}
         ("limit" = Option<u16>, Query, description = "The number of records of the algorithms to be returned"),
         ("offset" = Option<u8>, Query, description = "The record offset of the algorithm from which to start gathering the results")),
     responses(
-        (status = 200, description = "Successfully retrieved active config", body = LinkedRoutingConfigRetrieveResponse),
+        (status = 200, description = "Successfully retrieved active config", body = api_models::routing::LinkedRoutingConfigRetrieveResponse),
         (status = 500, description = "Internal server error"),
         (status = 404, description = "Resource missing"),
         (status = 403, description = "Forbidden")
@@ -339,7 +339,7 @@ pub async fn routing_retrieve_linked_config() {}
         ("id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
-        (status = 200, description = "Successfully retrieved default fallback routing algorithm", body = Vec<RoutableConnectorChoice>),
+        (status = 200, description = "Successfully retrieved default fallback routing algorithm", body = Vec<api_models::routing::RoutableConnectorChoice>),
         (status = 500, description = "Internal server error")
     ),
    tag = "Profile",
@@ -363,7 +363,7 @@ pub async fn routing_retrieve_default_config() {}
         ),
     ),
     responses(
-        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnectorResponse>),
+        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<api_models::admin::MerchantConnectorResponse>),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),

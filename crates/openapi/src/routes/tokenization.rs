@@ -9,7 +9,7 @@ use utoipa::OpenApi;
     post,
     path = "/v2/tokenize",
     request_body(
-        content = GenericTokenizationRequest,
+        content = api_models::tokenization::GenericTokenizationRequest,
         examples(("Create a token with customer_id" = (
             value = json!({
                 "customer_id": "0a_cus_0196d94b9c207333a297cbcf31f2e8c8",
@@ -24,7 +24,7 @@ use utoipa::OpenApi;
         )))
     ),
     responses(
-        (status = 200, description = "Token created successfully", body = GenericTokenizationResponse),
+        (status = 200, description = "Token created successfully", body = api_models::tokenization::GenericTokenizationResponse),
         (status = 400, description = "Invalid request"),
         (status = 401, description = "Unauthorized"),
         (status = 500, description = "Internal server error")
@@ -43,7 +43,7 @@ pub async fn create_token_vault_api() {}
     delete,
     path = "/v2/tokenize/{id}",
     request_body(
-        content = DeleteTokenDataRequest,
+        content = api_models::tokenization::DeleteTokenDataRequest,
         examples(("Delete a token entry with customer_id and session_id" = (
             value = json!({
                 "customer_id": "0a_cus_0196d94b9c207333a297cbcf31f2e8c8",
@@ -52,7 +52,7 @@ pub async fn create_token_vault_api() {}
         )))
     ),
     responses(
-        (status = 200, description = "Token deleted successfully", body = DeleteTokenDataResponse),
+        (status = 200, description = "Token deleted successfully", body = api_models::tokenization::DeleteTokenDataResponse),
         (status = 400, description = "Invalid request"),
         (status = 401, description = "Unauthorized"),
         (status = 500, description = "Internal server error")

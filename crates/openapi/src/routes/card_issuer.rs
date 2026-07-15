@@ -5,10 +5,10 @@
     post,
     path = "/card_issuers",
     request_body(
-        content = CardIssuerRequest,
+        content = api_models::card_issuer::CardIssuerRequest,
     ),
     responses(
-        (status = 200, description = "Card issuer created", body = CardIssuerResponse),
+        (status = 200, description = "Card issuer created", body = api_models::card_issuer::CardIssuerResponse),
         (status = 400, description = "Missing or invalid fields"),
         (status = 409, description = "Card issuer already exists"),
     ),
@@ -28,10 +28,10 @@ pub async fn add_card_issuer() {}
         ("id" = String, Path, description = "The unique identifier for the card issuer"),
     ),
     request_body(
-        content = CardIssuerUpdateRequest,
+        content = api_models::card_issuer::CardIssuerUpdateRequest,
     ),
     responses(
-        (status = 200, description = "Card issuer updated", body = CardIssuerResponse),
+        (status = 200, description = "Card issuer updated", body = api_models::card_issuer::CardIssuerResponse),
         (status = 404, description = "Card issuer not found"),
         (status = 409, description = "Card issuer with this name already exists"),
     ),
@@ -51,7 +51,7 @@ pub async fn update_card_issuer() {}
         ("id" = String, Path, description = "The unique identifier for the card issuer"),
     ),
     responses(
-        (status = 200, description = "Card issuer deleted", body = CardIssuerDeleteResponse),
+        (status = 200, description = "Card issuer deleted", body = api_models::card_issuer::CardIssuerDeleteResponse),
         (status = 404, description = "Card issuer not found"),
     ),
     tag = "Card Issuer",
@@ -71,7 +71,7 @@ pub async fn delete_card_issuer() {}
         ("limit" = Option<u8>, Query, description = "Maximum number of results to return"),
     ),
     responses(
-        (status = 200, description = "Card issuers listed", body = CardIssuerListResponse),
+        (status = 200, description = "Card issuers listed", body = api_models::card_issuer::CardIssuerListResponse),
     ),
     tag = "Card Issuer",
     operation_id = "List Card Issuers",

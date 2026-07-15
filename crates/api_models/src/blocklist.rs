@@ -16,7 +16,9 @@ pub enum BlocklistRequest {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GenerateFingerprintRequest {
+    #[schema(value_type = String)]
     pub data: StrongSecret<String>,
+    #[schema(value_type = String)]
     pub key: StrongSecret<String>,
 }
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -29,7 +31,7 @@ pub type DeleteFromBlocklistRequest = BlocklistRequest;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BlocklistResponse {
     pub fingerprint_id: String,
-    #[schema(value_type = BlocklistDataKind)]
+    #[schema(value_type = enums::BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
@@ -60,7 +62,7 @@ pub struct ListBlocklistResponse {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ListBlocklistQuery {
-    #[schema(value_type = BlocklistDataKind)]
+    #[schema(value_type = enums::BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
     #[serde(default = "default_list_limit")]
     pub limit: u16,
@@ -75,7 +77,7 @@ fn default_list_limit() -> u16 {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ToggleBlocklistQuery {
-    #[schema(value_type = BlocklistDataKind)]
+    #[schema(value_type = enums::BlocklistDataKind)]
     pub status: bool,
 }
 
@@ -96,7 +98,7 @@ impl ApiEventMetric for Card {}
 pub struct BlocklistRowError {
     /// 0-based row index in the CSV (excluding header).
     pub row_index: usize,
-    #[schema(value_type = BlocklistDataKind)]
+    #[schema(value_type = enums::BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
     pub data: String,
     pub reason: String,
@@ -107,7 +109,7 @@ pub struct BlocklistRowError {
 pub struct BatchBlocklistUploadResponse {
     pub job_id: String,
     pub total_rows: u32,
-    #[schema(value_type = BatchBlocklistJobStatus)]
+    #[schema(value_type = enums::BatchBlocklistJobStatus)]
     pub status: enums::BatchBlocklistJobStatus,
 }
 
@@ -116,7 +118,7 @@ pub struct BatchBlocklistUploadResponse {
 pub struct BatchBlocklistJobStatusResponse {
     pub job_id: String,
     pub merchant_id: String,
-    #[schema(value_type = BatchBlocklistJobStatus)]
+    #[schema(value_type = enums::BatchBlocklistJobStatus)]
     pub status: enums::BatchBlocklistJobStatus,
     pub total_rows: u32,
     pub succeeded_rows: u32,

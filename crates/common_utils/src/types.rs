@@ -714,6 +714,7 @@ impl StringMajorUnit {
     PartialOrd,
 )]
 #[diesel(sql_type = sql_types::Text)]
+#[schema(value_type = String)]
 /// This domain type can be used for any url
 pub struct Url(url::Url);
 

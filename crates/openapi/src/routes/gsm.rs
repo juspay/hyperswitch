@@ -5,10 +5,10 @@
     post,
     path = "/gsm",
     request_body(
-        content = GsmCreateRequest,
+        content = api_models::gsm::GsmCreateRequest,
     ),
     responses(
-        (status = 200, description = "Gsm created", body = GsmResponse),
+        (status = 200, description = "Gsm created", body = api_models::gsm::GsmResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Gsm",
@@ -24,10 +24,10 @@ pub async fn create_gsm_rule() {}
     post,
     path = "/gsm/get",
     request_body(
-        content = GsmRetrieveRequest,
+        content = api_models::gsm::GsmRetrieveRequest,
     ),
     responses(
-        (status = 200, description = "Gsm retrieved", body = GsmResponse),
+        (status = 200, description = "Gsm retrieved", body = api_models::gsm::GsmResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Gsm",
@@ -43,10 +43,10 @@ pub async fn get_gsm_rule() {}
     post,
     path = "/gsm/update",
     request_body(
-        content = GsmUpdateRequest,
+        content = api_models::gsm::GsmUpdateRequest,
     ),
     responses(
-        (status = 200, description = "Gsm updated", body = GsmResponse),
+        (status = 200, description = "Gsm updated", body = api_models::gsm::GsmResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Gsm",
@@ -62,10 +62,10 @@ pub async fn update_gsm_rule() {}
     post,
     path = "/gsm/delete",
     request_body(
-        content = GsmDeleteRequest,
+        content = api_models::gsm::GsmDeleteRequest,
     ),
     responses(
-        (status = 200, description = "Gsm deleted", body = GsmDeleteResponse),
+        (status = 200, description = "Gsm deleted", body = api_models::gsm::GsmDeleteResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Gsm",

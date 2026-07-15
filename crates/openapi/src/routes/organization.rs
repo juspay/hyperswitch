@@ -6,7 +6,7 @@
     post,
     path = "/organization",
     request_body(
-        content = OrganizationCreateRequest,
+        content = api_models::organization::OrganizationCreateRequest,
         examples(
             (
                 "Create an organization with organization_name" = (
@@ -16,7 +16,7 @@
         )
     ),
     responses(
-        (status = 200, description = "Organization Created", body =OrganizationResponse),
+        (status = 200, description = "Organization Created", body = api_models::organization::OrganizationResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Organization",
@@ -34,7 +34,7 @@ pub async fn organization_create() {}
     path = "/organization/{id}",
     params (("id" = String, Path, description = "The unique identifier for the Organization")),
     responses(
-        (status = 200, description = "Organization Created", body =OrganizationResponse),
+        (status = 200, description = "Organization Created", body = api_models::organization::OrganizationResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Organization",
@@ -51,7 +51,7 @@ pub async fn organization_retrieve() {}
     put,
     path = "/organization/{id}",
     request_body(
-        content = OrganizationUpdateRequest,
+        content = api_models::organization::OrganizationUpdateRequest,
         examples(
             (
                 "Update organization_name of the organization" = (
@@ -62,7 +62,7 @@ pub async fn organization_retrieve() {}
     ),
     params (("id" = String, Path, description = "The unique identifier for the Organization")),
     responses(
-        (status = 200, description = "Organization Created", body =OrganizationResponse),
+        (status = 200, description = "Organization Created", body = api_models::organization::OrganizationResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Organization",
@@ -79,7 +79,7 @@ pub async fn organization_update() {}
     post,
     path = "/v2/organizations",
     request_body(
-        content = OrganizationCreateRequest,
+        content = api_models::organization::OrganizationCreateRequest,
         examples(
             (
                 "Create an organization with organization_name" = (
@@ -89,7 +89,7 @@ pub async fn organization_update() {}
         )
     ),
     responses(
-        (status = 200, description = "Organization Created", body =OrganizationResponse),
+        (status = 200, description = "Organization Created", body = api_models::organization::OrganizationResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Organization",
@@ -107,7 +107,7 @@ pub async fn organization_create() {}
     path = "/v2/organizations/{id}",
     params (("id" = String, Path, description = "The unique identifier for the Organization")),
     responses(
-        (status = 200, description = "Organization Created", body =OrganizationResponse),
+        (status = 200, description = "Organization Created", body = api_models::organization::OrganizationResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Organization",
@@ -124,7 +124,7 @@ pub async fn organization_retrieve() {}
     put,
     path = "/v2/organizations/{id}",
     request_body(
-        content = OrganizationUpdateRequest,
+        content = api_models::organization::OrganizationUpdateRequest,
         examples(
             (
                 "Update organization_name of the organization" = (
@@ -135,7 +135,7 @@ pub async fn organization_retrieve() {}
     ),
     params (("id" = String, Path, description = "The unique identifier for the Organization")),
     responses(
-        (status = 200, description = "Organization Created", body =OrganizationResponse),
+        (status = 200, description = "Organization Created", body = api_models::organization::OrganizationResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Organization",
@@ -153,7 +153,7 @@ pub async fn organization_update() {}
     path = "/v2/organizations/{id}/merchant-accounts",
     params (("id" = String, Path, description = "The unique identifier for the Organization")),
     responses(
-        (status = 200, description = "Merchant Account list retrieved successfully", body = Vec<MerchantAccountResponse>),
+        (status = 200, description = "Merchant Account list retrieved successfully", body = Vec<api_models::admin::MerchantAccountResponse>),
         (status = 400, description = "Invalid data")
     ),
     tag = "Organization",

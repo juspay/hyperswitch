@@ -6,7 +6,7 @@
     post,
     path = "/user/create_platform",
     request_body(
-        content = PlatformAccountCreateRequest,
+        content = api_models::user::PlatformAccountCreateRequest,
         description = "Create a platform account with organization_name",
         examples(
             (
@@ -20,7 +20,7 @@
         (
             status = 200,
             description = "Platform Account Created",
-            body = PlatformAccountCreateResponse,
+            body = api_models::user::PlatformAccountCreateResponse,
             examples(
                 (
                     "Successful Platform Account Creation" = (

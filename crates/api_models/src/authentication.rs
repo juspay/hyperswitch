@@ -29,7 +29,7 @@ pub struct AuthenticationCreateRequest {
     pub profile_id: Option<id_type::ProfileId>,
 
     /// The amount for the transaction, required.
-    #[schema(value_type = MinorUnit, example = 1000)]
+    #[schema(value_type = common_utils::types::MinorUnit, example = 1000)]
     pub amount: common_utils::types::MinorUnit,
 
     /// The connector to be used for authentication, if known.
@@ -37,7 +37,7 @@ pub struct AuthenticationCreateRequest {
     pub authentication_connector: Option<AuthenticationConnectors>,
 
     /// The currency for the transaction, required.
-    #[schema(value_type = Currency)]
+    #[schema(value_type = enums::Currency)]
     pub currency: common_enums::Currency,
 
     /// The URL to which the user should be redirected after authentication.
@@ -49,7 +49,7 @@ pub struct AuthenticationCreateRequest {
     pub force_3ds_challenge: Option<bool>,
 
     /// Choose what kind of sca exemption is required for this payment
-    #[schema(value_type = Option<ScaExemptionType>)]
+    #[schema(value_type = Option<enums::ScaExemptionType>)]
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 
     /// Profile Acquirer ID get from profile acquirer configuration
@@ -90,7 +90,7 @@ pub struct AuthenticationResponse {
     pub merchant_id: id_type::MerchantId,
 
     /// The current status of the authentication (e.g., Started).
-    #[schema(value_type = AuthenticationStatus)]
+    #[schema(value_type = enums::AuthenticationStatus)]
     pub status: common_enums::AuthenticationStatus,
 
     /// The client secret for this authentication, to be used for client-side operations.
@@ -98,11 +98,11 @@ pub struct AuthenticationResponse {
     pub client_secret: Option<hyperswitch_masking::Secret<String>>,
 
     /// The amount for the transaction.
-    #[schema(value_type = MinorUnit, example = 1000)]
+    #[schema(value_type = common_utils::types::MinorUnit, example = 1000)]
     pub amount: common_utils::types::MinorUnit,
 
     /// The currency for the transaction.
-    #[schema(value_type = Currency)]
+    #[schema(value_type = enums::Currency)]
     pub currency: enums::Currency,
 
     /// The connector to be used for authentication, if known.
@@ -131,7 +131,7 @@ pub struct AuthenticationResponse {
     pub profile_id: Option<id_type::ProfileId>,
 
     /// Choose what kind of sca exemption is required for this payment
-    #[schema(value_type = Option<ScaExemptionType>)]
+    #[schema(value_type = Option<enums::ScaExemptionType>)]
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 
     /// Acquirer details information
@@ -211,11 +211,11 @@ pub struct AuthenticationEligibilityRequest {
 
     /// Enum representing the type of payment method being used
     /// (e.g., Card, Wallet, UPI, BankTransfer, etc.).
-    #[schema(value_type = PaymentMethod)]
+    #[schema(value_type = enums::PaymentMethod)]
     pub payment_method: common_enums::PaymentMethod,
 
     /// Can be used to specify the Payment Method Type
-    #[schema(value_type = Option<PaymentMethodType>, example = "debit")]
+    #[schema(value_type = Option<enums::PaymentMethodType>, example = "debit")]
     pub payment_method_type: Option<enums::PaymentMethodType>,
 
     /// Optional secret value used to identify and authorize the client making the request.
@@ -286,7 +286,7 @@ pub struct AuthenticationEligibilityResponse {
     #[schema(value_type = NextAction)]
     pub next_action: NextAction,
     /// The current status of the authentication (e.g., Started).
-    #[schema(value_type = AuthenticationStatus)]
+    #[schema(value_type = enums::AuthenticationStatus)]
     pub status: common_enums::AuthenticationStatus,
     /// The 3DS data for this authentication.
     #[schema(value_type = Option<EligibilityResponseParams>)]
@@ -500,7 +500,7 @@ pub struct NextAction {
     #[schema(value_type = String)]
     pub url: url::Url,
     /// The HTTP method to use for the request.
-    #[schema(value_type = Method)]
+    #[schema(value_type = common_utils::request::Method)]
     pub http_method: common_utils::request::Method,
 }
 
@@ -548,7 +548,7 @@ impl ApiEventMetric for AuthenticationAuthenticateRequest {
 pub struct AuthenticationAuthenticateResponse {
     /// Indicates the transaction status
     #[serde(rename = "trans_status")]
-    #[schema(value_type = Option<TransactionStatus>)]
+    #[schema(value_type = Option<enums::TransactionStatus>)]
     pub transaction_status: Option<common_enums::TransactionStatus>,
     /// Access Server URL to be used for challenge submission
     #[schema(value_type = String, example = "https://example.com/redirect")]
@@ -579,7 +579,7 @@ pub struct AuthenticationAuthenticateResponse {
     pub authentication_value: Option<hyperswitch_masking::Secret<String>>,
 
     /// The current status of the authentication (e.g., Started).
-    #[schema(value_type = AuthenticationStatus)]
+    #[schema(value_type = enums::AuthenticationStatus)]
     pub status: common_enums::AuthenticationStatus,
 
     /// The connector to be used for authentication, if known.
@@ -587,7 +587,7 @@ pub struct AuthenticationAuthenticateResponse {
     pub authentication_connector: Option<AuthenticationConnectors>,
 
     /// The unique identifier for this authentication.
-    #[schema(value_type = AuthenticationId, example = "auth_mbabizu24mvu3mela5njyhpit4")]
+    #[schema(value_type = id_type::AuthenticationId, example = "auth_mbabizu24mvu3mela5njyhpit4")]
     pub authentication_id: id_type::AuthenticationId,
 
     /// The ECI value for this authentication.
@@ -620,7 +620,7 @@ pub struct AuthenticationSyncResponse {
     pub merchant_id: id_type::MerchantId,
 
     /// The current status of the authentication.
-    #[schema(value_type = AuthenticationStatus)]
+    #[schema(value_type = enums::AuthenticationStatus)]
     pub status: common_enums::AuthenticationStatus,
 
     /// The client secret for this authentication.
@@ -628,11 +628,11 @@ pub struct AuthenticationSyncResponse {
     pub client_secret: Option<hyperswitch_masking::Secret<String>>,
 
     /// The amount for the transaction.
-    #[schema(value_type = MinorUnit, example = 1000)]
+    #[schema(value_type = common_utils::types::MinorUnit, example = 1000)]
     pub amount: common_utils::types::MinorUnit,
 
     /// The currency for the transaction.
-    #[schema(value_type = Currency)]
+    #[schema(value_type = enums::Currency)]
     pub currency: enums::Currency,
 
     /// The connector used for authentication.
@@ -654,7 +654,7 @@ pub struct AuthenticationSyncResponse {
     pub profile_id: id_type::ProfileId,
 
     /// SCA exemption type for this authentication.
-    #[schema(value_type = Option<ScaExemptionType>)]
+    #[schema(value_type = Option<enums::ScaExemptionType>)]
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 
     /// Acquirer details information.
@@ -721,7 +721,7 @@ pub struct AuthenticationSyncResponse {
 
     /// Indicates the transaction status.
     #[serde(rename = "trans_status")]
-    #[schema(value_type = Option<TransactionStatus>)]
+    #[schema(value_type = Option<enums::TransactionStatus>)]
     pub transaction_status: Option<common_enums::TransactionStatus>,
 
     /// Access Server URL for challenge submission.
@@ -783,7 +783,7 @@ pub struct ExternalThreeDsData {
     #[schema(value_type = Option<String>)]
     pub eci: Option<String>,
     /// Indicates the transaction status from the 3DS authentication flow.
-    #[schema(value_type = TransactionStatus)]
+    #[schema(value_type = enums::TransactionStatus)]
     pub transaction_status: common_enums::TransactionStatus,
 }
 
@@ -927,7 +927,7 @@ pub struct ClickToPayDetails {
     /// session transaction flow id
     pub x_src_flow_id: Option<String>,
     /// provider Eg: Visa, Mastercard
-    #[schema(value_type = Option<CtpServiceProvider>)]
+    #[schema(value_type = Option<super::enums::CtpServiceProvider>)]
     pub provider: Option<super::enums::CtpServiceProvider>,
     /// Encrypted payload
     #[schema(value_type = Option<String>)]

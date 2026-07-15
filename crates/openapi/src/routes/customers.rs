@@ -6,7 +6,7 @@
     post,
     path = "/customers",
     request_body  (
-        content = CustomerRequest,
+        content = api_models::customers::CustomerRequest,
         examples  (( "Update name and email of a customer" =(
         value =json!( {
             "email": "guest@example.com",
@@ -15,7 +15,7 @@
         )))
     ),
     responses(
-        (status = 200, description = "Customer Created", body = CustomerResponse),
+        (status = 200, description = "Customer Created", body = api_models::customers::CustomerResponse),
         (status = 400, description = "Invalid data")
 
     ),
@@ -34,7 +34,7 @@ pub async fn customers_create() {}
     path = "/customers/{customer_id}",
     params (("customer_id" = String, Path, description = "The unique identifier for the Customer")),
     responses(
-        (status = 200, description = "Customer Retrieved", body = CustomerResponse),
+        (status = 200, description = "Customer Retrieved", body = api_models::customers::CustomerResponse),
         (status = 404, description = "Customer was not found")
     ),
     tag = "Customers",
@@ -51,7 +51,7 @@ pub async fn customers_retrieve() {}
     post,
     path = "/customers/{customer_id}",
     request_body (
-        content = CustomerUpdateRequest,
+        content = api_models::customers::CustomerUpdateRequest,
         examples  (( "Update name and email of a customer" =(
         value =json!( {
             "email": "guest@example.com",
@@ -61,7 +61,7 @@ pub async fn customers_retrieve() {}
     ),
     params (("customer_id" = String, Path, description = "The unique identifier for the Customer")),
     responses(
-        (status = 200, description = "Customer was Updated", body = CustomerResponse),
+        (status = 200, description = "Customer was Updated", body = api_models::customers::CustomerResponse),
         (status = 404, description = "Customer was not found")
     ),
     tag = "Customers",
@@ -79,7 +79,7 @@ pub async fn customers_update() {}
     path = "/customers/{customer_id}",
     params (("customer_id" = String, Path, description = "The unique identifier for the Customer")),
     responses(
-        (status = 200, description = "Customer was Deleted", body = CustomerDeleteResponse),
+        (status = 200, description = "Customer was Deleted", body = api_models::customers::CustomerDeleteResponse),
         (status = 404, description = "Customer was not found")
     ),
     tag = "Customers",
@@ -98,7 +98,7 @@ pub async fn customers_delete() {}
     params (("offset" = Option<u32>, Query, description = "Offset for pagination"),
     ("limit" = Option<u16>, Query, description = "Limit for pagination")),
     responses(
-        (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
+        (status = 200, description = "Customers retrieved", body = Vec<api_models::customers::CustomerResponse>),
         (status = 400, description = "Invalid Data"),
     ),
     tag = "Customers",
@@ -123,7 +123,7 @@ pub async fn customers_list() {}
         )
     ),
     request_body  (
-        content = CustomerRequest,
+        content = api_models::customers::CustomerRequest,
         examples  (( "Create a customer with name and email" =(
         value =json!( {
             "email": "guest@example.com",
@@ -132,7 +132,7 @@ pub async fn customers_list() {}
         )))
     ),
     responses(
-        (status = 200, description = "Customer Created", body = CustomerResponse),
+        (status = 200, description = "Customer Created", body = api_models::customers::CustomerResponse),
         (status = 400, description = "Invalid data")
 
     ),
@@ -158,7 +158,7 @@ pub async fn customers_create() {}
         )
     ),
     request_body  (
-        content = CustomerRequest,
+        content = api_models::customers::CustomerRequest,
         examples  (( "Create a customer with name and email" =(
         value =json!( {
             "email": "guest@example.com",
@@ -167,7 +167,7 @@ pub async fn customers_create() {}
         )))
     ),
     responses(
-        (status = 200, description = "Customer Created", body = CustomerResponse),
+        (status = 200, description = "Customer Created", body = api_models::customers::CustomerResponse),
         (status = 400, description = "Invalid data")
 
     ),
@@ -192,7 +192,7 @@ pub async fn customers_create_v1() {}
         )
     ),
     responses(
-        (status = 200, description = "Customer Retrieved", body = CustomerResponse),
+        (status = 200, description = "Customer Retrieved", body = api_models::customers::CustomerResponse),
         (status = 404, description = "Customer was not found")
     ),
     tag = "Customers",
@@ -217,7 +217,7 @@ pub async fn customers_retrieve() {}
         )
     ),
     responses(
-        (status = 200, description = "Customer Retrieved", body = CustomerResponse),
+        (status = 200, description = "Customer Retrieved", body = api_models::customers::CustomerResponse),
         (status = 404, description = "Customer was not found")
     ),
     tag = "Customers",
@@ -234,7 +234,7 @@ pub async fn customers_retrieve_v1() {}
     put,
     path = "/v2/customers/{id}",
     request_body (
-        content = CustomerUpdateRequest,
+        content = api_models::customers::CustomerUpdateRequest,
         examples  (( "Update name and email of a customer" =(
         value =json!( {
             "email": "guest@example.com",
@@ -251,7 +251,7 @@ pub async fn customers_retrieve_v1() {}
         )
     ),
     responses(
-        (status = 200, description = "Customer was Updated", body = CustomerResponse),
+        (status = 200, description = "Customer was Updated", body = api_models::customers::CustomerResponse),
         (status = 404, description = "Customer was not found")
     ),
     tag = "Customers",
@@ -268,7 +268,7 @@ pub async fn customers_update() {}
     put,
     path = "/v1/customers/{id}",
     request_body (
-        content = CustomerUpdateRequest,
+        content = api_models::customers::CustomerUpdateRequest,
         examples  (( "Update name and email of a customer" =(
         value =json!( {
             "email": "guest@example.com",
@@ -285,7 +285,7 @@ pub async fn customers_update() {}
         )
     ),
     responses(
-        (status = 200, description = "Customer was Updated", body = CustomerResponse),
+        (status = 200, description = "Customer was Updated", body = api_models::customers::CustomerResponse),
         (status = 404, description = "Customer was not found")
     ),
     tag = "Customers",
@@ -310,7 +310,7 @@ pub async fn customers_update_v1() {}
         )
     ),
     responses(
-        (status = 200, description = "Customer was Deleted", body = CustomerDeleteResponse),
+        (status = 200, description = "Customer was Deleted", body = api_models::customers::CustomerDeleteResponse),
         (status = 404, description = "Customer was not found")
     ),
     tag = "Customers",
@@ -335,7 +335,7 @@ pub async fn customers_delete() {}
         )
     ),
     responses(
-        (status = 200, description = "Customer was Deleted", body = CustomerDeleteResponse),
+        (status = 200, description = "Customer was Deleted", body = api_models::customers::CustomerDeleteResponse),
         (status = 404, description = "Customer was not found")
     ),
     tag = "Customers",
@@ -358,7 +358,7 @@ pub async fn customers_delete_v1() {}
         )
     ),
     responses(
-        (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
+        (status = 200, description = "Customers retrieved", body = Vec<api_models::customers::CustomerResponse>),
         (status = 400, description = "Invalid Data"),
     ),
     tag = "Customers",
@@ -382,7 +382,7 @@ pub async fn customers_list() {}
         )
     ),
     responses(
-        (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
+        (status = 200, description = "Customers retrieved", body = Vec<api_models::customers::CustomerResponse>),
         (status = 400, description = "Invalid Data"),
     ),
     tag = "Customers",

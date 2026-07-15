@@ -40,7 +40,7 @@ pub struct CardAdditionalData {
     pub card_issuer: Option<String>,
 
     /// Card network of the card
-    #[schema(value_type = Option<CardNetwork>)]
+    #[schema(value_type = Option<common_enums::CardNetwork>)]
     pub card_network: Option<common_enums::CardNetwork>,
 
     /// Card type, can be either `credit` or `debit`
@@ -112,11 +112,11 @@ pub struct AchBankTransferAdditionalData {
     pub bank_routing_number: MaskedRoutingNumber,
 
     /// Name of the bank
-    #[schema(value_type = Option<BankNames>, example = "Deutsche Bank")]
+    #[schema(value_type = Option<common_enums::BankNames>, example = "Deutsche Bank")]
     pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<common_enums::CountryAlpha2>, example = "US")]
     pub bank_country_code: Option<common_enums::CountryAlpha2>,
 
     /// Bank city
@@ -147,7 +147,7 @@ pub struct BacsBankTransferAdditionalData {
     pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<common_enums::CountryAlpha2>, example = "US")]
     pub bank_country_code: Option<common_enums::CountryAlpha2>,
 
     /// Bank city
@@ -174,7 +174,7 @@ pub struct SepaBankTransferAdditionalData {
     pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<common_enums::CountryAlpha2>, example = "US")]
     pub bank_country_code: Option<common_enums::CountryAlpha2>,
 
     /// Bank city
@@ -235,7 +235,7 @@ pub struct TrustlyBankTransferAdditionalData {
     #[schema(value_type = String, example = "token_12345")]
     pub iban: Option<Secret<String>>,
     /// country code of the customer's bank account.
-    #[schema(value_type = CountryAlpha2, example = "US")]
+    #[schema(value_type = common_enums::CountryAlpha2, example = "US")]
     pub country_code: common_enums::CountryAlpha2,
     /// The account number, identifying the end-user's account in the bank.
     #[schema(value_type = String, example = "69706212")]
@@ -401,7 +401,7 @@ pub struct PassthroughAdditionalData {
     #[schema(value_type = String, example = "token_12345")]
     pub psp_token: MaskedPspToken,
     /// token_type of the passthrough flow
-    #[schema(value_type = PaymentMethodType, example = "paypal")]
+    #[schema(value_type = common_enums::PaymentMethodType, example = "paypal")]
     pub token_type: common_enums::PaymentMethodType,
 }
 

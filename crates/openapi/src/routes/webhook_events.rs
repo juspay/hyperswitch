@@ -12,7 +12,7 @@
         ),
     ),
     request_body(
-        content = EventListConstraints,
+        content = api_models::webhook_events::EventListConstraints,
         description = "The constraints that can be applied when listing Events.",
         examples (
             ("example" = (
@@ -31,7 +31,7 @@
         )
     ),
     responses(
-        (status = 200, description = "List of Events retrieved successfully", body = TotalEventsResponse),
+        (status = 200, description = "List of Events retrieved successfully", body = api_models::webhook_events::TotalEventsResponse),
     ),
     tag = "Event",
     operation_id = "List all Events associated with a Merchant Account or Profile",
@@ -46,7 +46,7 @@ pub fn list_initial_webhook_delivery_attempts() {}
     post,
     path = "/events/profile/list",
     request_body(
-        content = EventListConstraints,
+        content = api_models::webhook_events::EventListConstraints,
         description = "The constraints that can be applied when listing Events.",
         examples (
             ("example" = (
@@ -65,7 +65,7 @@ pub fn list_initial_webhook_delivery_attempts() {}
         )
     ),
     responses(
-        (status = 200, description = "List of Events retrieved successfully", body = TotalEventsResponse),
+        (status = 200, description = "List of Events retrieved successfully", body = api_models::webhook_events::TotalEventsResponse),
     ),
     tag = "Event",
     operation_id = "List all Events associated with a Profile",
@@ -84,7 +84,7 @@ pub fn list_initial_webhook_delivery_attempts_with_jwtauth() {}
         ("event_id" = String, Path, description = "The unique identifier for the Event"),
     ),
     responses(
-        (status = 200, description = "List of delivery attempts retrieved successfully", body = Vec<EventRetrieveResponse>),
+        (status = 200, description = "List of delivery attempts retrieved successfully", body = Vec<api_models::webhook_events::EventRetrieveResponse>),
     ),
     tag = "Event",
     operation_id = "List all delivery attempts for an Event",
@@ -107,7 +107,7 @@ pub fn list_webhook_delivery_attempts() {}
             status = 200,
             description = "The delivery of the Event was attempted. \
                            Check the `response` field in the response payload to identify the status of the delivery attempt.",
-            body = EventRetrieveResponse
+            body = api_models::webhook_events::EventRetrieveResponse
         ),
     ),
     tag = "Event",

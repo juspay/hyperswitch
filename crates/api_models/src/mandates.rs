@@ -19,7 +19,7 @@ pub struct MandateRevokedResponse {
     #[smithy(value_type = "String")]
     pub mandate_id: String,
     /// The status for mandates
-    #[schema(value_type = MandateStatus)]
+    #[schema(value_type = api_enums::MandateStatus)]
     #[smithy(value_type = "MandateStatus")]
     pub status: api_enums::MandateStatus,
     /// If there was an error while calling the connectors the code is received here
@@ -39,7 +39,7 @@ pub struct MandateResponse {
     #[smithy(value_type = "String")]
     pub mandate_id: String,
     /// The status for mandates
-    #[schema(value_type = MandateStatus)]
+    #[schema(value_type = api_enums::MandateStatus)]
     #[smithy(value_type = "MandateStatus")]
     pub status: api_enums::MandateStatus,
     /// The identifier for payment method
@@ -55,7 +55,7 @@ pub struct MandateResponse {
     #[smithy(value_type = "Option<MandateCardDetails>")]
     pub card: Option<MandateCardDetails>,
     /// Details about the customer’s acceptance
-    #[schema(value_type = Option<CustomerAcceptance>)]
+    #[schema(value_type = Option<common_payments_types::CustomerAcceptance>)]
     #[smithy(value_type = "Option<CustomerAcceptance>")]
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 }
@@ -99,7 +99,7 @@ pub struct MandateCardDetails {
     #[smithy(value_type = "Option<String>")]
     pub card_issuer: Option<String>,
     /// The network that facilitates payment card transactions
-    #[schema(value_type = Option<CardNetwork>)]
+    #[schema(value_type = Option<api_enums::CardNetwork>)]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
     /// The type of the payment card
@@ -181,7 +181,7 @@ pub enum RecurringDetails {
     /// is not stored in the application
     /// Applicable for wallet tokens such as Apple Pay and Google Pay.
     #[smithy(value_type = "NetworkTransactionIdAndDecryptedWalletTokenDetails")]
-    #[schema(value_type = NetworkTransactionIdAndDecryptedWalletTokenDetails)]
+    #[schema(value_type = common_payments_types::NetworkTransactionIdAndDecryptedWalletTokenDetails)]
     NetworkTransactionIdAndDecryptedWalletTokenDetails(
         Box<common_payments_types::NetworkTransactionIdAndDecryptedWalletTokenDetails>,
     ),
@@ -237,7 +237,7 @@ pub struct NetworkTransactionIdAndCardDetails {
     pub card_issuer: Option<String>,
 
     /// The card network for the card
-    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[schema(value_type = Option<api_enums::CardNetwork>, example = "Visa")]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
 
@@ -327,7 +327,7 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     pub token_exp_year: Secret<String>,
 
     /// The card network for the card
-    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[schema(value_type = Option<api_enums::CardNetwork>, example = "Visa")]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
 

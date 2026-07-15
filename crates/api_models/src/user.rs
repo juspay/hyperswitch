@@ -183,11 +183,11 @@ pub struct PlatformAccountCreateResponse {
     #[schema(value_type = Option<String>, example = "organization_abc")]
     pub org_name: Option<String>,
 
-    #[schema(value_type = OrganizationType, example = "standard")]
+    #[schema(value_type = common_enums::OrganizationType, example = "standard")]
     pub org_type: common_enums::OrganizationType,
     #[schema(value_type = String, example = "merchant_abc")]
     pub merchant_id: id_type::MerchantId,
-    #[schema(value_type = MerchantAccountType, example = "standard")]
+    #[schema(value_type = common_enums::MerchantAccountType, example = "standard")]
     pub merchant_account_type: common_enums::MerchantAccountType,
 }
 

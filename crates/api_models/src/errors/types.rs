@@ -70,11 +70,12 @@ impl From<&ApiErrorResponse> for ErrorResponse {
     }
 }
 
-#[derive(Debug, serde::Serialize, Default, Clone)]
+#[derive(Debug, serde::Serialize, Default, Clone, ToSchema)]
 pub struct Extra {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_id: Option<common_utils::id_type::PaymentId>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
     pub data: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub connector: Option<String>,

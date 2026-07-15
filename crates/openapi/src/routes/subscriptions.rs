@@ -7,7 +7,7 @@ use serde_json::json;
     post,
     path = "/subscriptions",
     request_body(
-        content = CreateAndConfirmSubscriptionRequest,
+        content = api_models::subscription::CreateAndConfirmSubscriptionRequest,
         examples((
             "Create and confirm subscription" = (
                 value = json!({
@@ -80,7 +80,7 @@ use serde_json::json;
         ))
     ),
     responses(
-        (status = 200, description = "Subscription created and confirmed successfully", body = SubscriptionResponse),
+        (status = 200, description = "Subscription created and confirmed successfully", body = api_models::subscription::SubscriptionResponse),
         (status = 400, description = "Invalid subscription data"),
         (status = 404, description = "Customer or plan not found")
     ),
@@ -100,7 +100,7 @@ pub async fn create_and_confirm_subscription() {}
     post,
     path = "/subscriptions/create",
     request_body(
-        content = CreateSubscriptionRequest,
+        content = api_models::subscription::CreateSubscriptionRequest,
         examples((
             "Create subscription" = (
                 value = json!({
@@ -117,7 +117,7 @@ pub async fn create_and_confirm_subscription() {}
         ))
     ),
     responses(
-        (status = 200, description = "Subscription created successfully", body = SubscriptionResponse),
+        (status = 200, description = "Subscription created successfully", body = api_models::subscription::SubscriptionResponse),
         (status = 400, description = "Invalid subscription data"),
         (status = 404, description = "Customer or plan not found")
     ),
@@ -141,7 +141,7 @@ pub async fn create_subscription() {}
         ("X-Profile-Id" = String, Header, description = "Profile ID for authentication")
     ),
     request_body(
-        content = ConfirmSubscriptionRequest,
+        content = api_models::subscription::ConfirmSubscriptionRequest,
         examples((
             "Confirm subscription" = (
                 value = json!({
@@ -205,7 +205,7 @@ pub async fn create_subscription() {}
         ))
     ),
     responses(
-        (status = 200, description = "Subscription confirmed successfully", body = SubscriptionResponse),
+        (status = 200, description = "Subscription confirmed successfully", body = api_models::subscription::SubscriptionResponse),
         (status = 400, description = "Invalid confirmation data"),
         (status = 404, description = "Subscription not found"),
         (status = 409, description = "Subscription already confirmed")
@@ -227,7 +227,7 @@ pub async fn confirm_subscription() {}
         ("X-Profile-Id" = String, Header, description = "Profile ID for authentication")
     ),
     responses(
-        (status = 200, description = "Subscription retrieved successfully", body = SubscriptionResponse),
+        (status = 200, description = "Subscription retrieved successfully", body = api_models::subscription::SubscriptionResponse),
         (status = 404, description = "Subscription not found")
     ),
     tag = "Subscriptions",
@@ -247,7 +247,7 @@ pub async fn get_subscription() {}
         ("X-Profile-Id" = String, Header, description = "Profile ID for authentication")
     ),
     request_body(
-        content = UpdateSubscriptionRequest,
+        content = api_models::subscription::UpdateSubscriptionRequest,
         examples((
             "Update subscription" = (
                 value = json!({
@@ -258,7 +258,7 @@ pub async fn get_subscription() {}
         ))
     ),
     responses(
-        (status = 200, description = "Subscription updated successfully", body = SubscriptionResponse),
+        (status = 200, description = "Subscription updated successfully", body = api_models::subscription::SubscriptionResponse),
         (status = 400, description = "Invalid update data"),
         (status = 404, description = "Subscription not found")
     ),
@@ -279,10 +279,10 @@ pub async fn update_subscription() {}
         ("limit" = Option<u32>, Query, description = "Number of items to retrieve"),
         ("offset" = Option<u32>, Query, description = "Number of items to skip"),
         ("product_id" = Option<String>, Query, description = "Filter by product ID"),
-        ("item_type" = SubscriptionItemType, Query, description = "Filter by subscription item type plan or addon")
+        ("item_type" = api_models::subscription::SubscriptionItemType, Query, description = "Filter by subscription item type plan or addon")
     ),
     responses(
-        (status = 200, description = "List of available subscription items", body = Vec<GetSubscriptionItemsResponse>),
+        (status = 200, description = "List of available subscription items", body = Vec<api_models::subscription::GetSubscriptionItemsResponse>),
         (status = 400, description = "Invalid query parameters")
     ),
     tag = "Subscriptions",
@@ -305,7 +305,7 @@ pub async fn get_subscription_items() {}
         ("trial_days" = Option<u32>, Query, description = "Number of trial days")
     ),
     responses(
-        (status = 200, description = "Estimate retrieved successfully", body = EstimateSubscriptionResponse),
+        (status = 200, description = "Estimate retrieved successfully", body = api_models::subscription::EstimateSubscriptionResponse),
         (status = 400, description = "Invalid estimation parameters"),
         (status = 404, description = "Plan not found")
     ),
@@ -326,7 +326,7 @@ pub async fn get_estimate() {}
         ("X-Profile-Id" = String, Header, description = "Profile ID for authentication")
     ),
     request_body(
-        content = PauseSubscriptionRequest,
+        content = api_models::subscription::PauseSubscriptionRequest,
         examples((
             "Pause subscription" = (
                 value = json!({
@@ -336,7 +336,7 @@ pub async fn get_estimate() {}
         ))
     ),
     responses(
-        (status = 200, description = "Subscription paused successfully", body = PauseSubscriptionResponse),
+        (status = 200, description = "Subscription paused successfully", body = api_models::subscription::PauseSubscriptionResponse),
         (status = 400, description = "Invalid pause data"),
         (status = 404, description = "Subscription not found")
     ),
@@ -357,7 +357,7 @@ pub async fn pause_subscription() {}
         ("X-Profile-Id" = String, Header, description = "Profile ID for authentication")
     ),
     request_body(
-        content = ResumeSubscriptionRequest,
+        content = api_models::subscription::ResumeSubscriptionRequest,
         examples((
             "Resume subscription" = (
                 value = json!({
@@ -368,7 +368,7 @@ pub async fn pause_subscription() {}
         ))
     ),
     responses(
-        (status = 200, description = "Subscription resumed successfully", body = ResumeSubscriptionResponse),
+        (status = 200, description = "Subscription resumed successfully", body = api_models::subscription::ResumeSubscriptionResponse),
         (status = 400, description = "Invalid resume data"),
         (status = 404, description = "Subscription not found")
     ),
@@ -389,7 +389,7 @@ pub async fn resume_subscription() {}
         ("X-Profile-Id" = String, Header, description = "Profile ID for authentication")
     ),
     request_body(
-        content = CancelSubscriptionRequest,
+        content = api_models::subscription::CancelSubscriptionRequest,
         examples((
             "Cancel subscription" = (
                 value = json!({
@@ -402,7 +402,7 @@ pub async fn resume_subscription() {}
         ))
     ),
     responses(
-        (status = 200, description = "Subscription cancelled successfully", body = CancelSubscriptionResponse),
+        (status = 200, description = "Subscription cancelled successfully", body = api_models::subscription::CancelSubscriptionResponse),
         (status = 400, description = "Invalid cancel data"),
         (status = 404, description = "Subscription not found")
     ),

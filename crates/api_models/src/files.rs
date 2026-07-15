@@ -1,5 +1,13 @@
 use utoipa::ToSchema;
 
+/// A multipart/form-data request containing a file upload
+#[derive(Debug, ToSchema)]
+pub struct MultipartRequestWithFile {
+    /// The file to upload
+    #[schema(value_type = String, format = Binary)]
+    pub file: Vec<u8>,
+}
+
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CreateFileResponse {
     /// ID of the file created

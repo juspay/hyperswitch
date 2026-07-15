@@ -7,7 +7,7 @@
     post,
     path = "/payments",
     request_body(
-        content = PaymentsCreateRequest,
+        content = api_models::payments::PaymentsCreateRequest,
         examples(
             (
                 "01. Create a payment with minimal fields" = (
@@ -274,7 +274,7 @@
         ),
     ),
     responses(
-        (status = 200, description = "Payment created", body = PaymentsCreateResponseOpenApi,
+        (status = 200, description = "Payment created", body = api_models::payments::PaymentsCreateResponseOpenApi,
             examples(
                 ("01. Response for minimal payment creation (requires payment method)" = (
                     value = json!({
@@ -556,12 +556,13 @@
             ))
             )
         ),
-        (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi),
+        (status = 400, description = "Missing Mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi),
     ),
     tag = "Payments",
     operation_id = "Create a Payment",
     security(("api_key" = [])),
 )]
+#[cfg(feature = "v1")]
 pub fn payments_create() {}
 
 /// Payments - Retrieve
@@ -578,7 +579,7 @@ pub fn payments_create() {}
         ("expand_captures" = Option<bool>, Query, description = "If enabled provides list of captures linked to latest attempt"),
     ),
     responses(
-        (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
+        (status = 200, description = "Gets the payment with final status", body = api_models::payments::PaymentsResponse),
         (status = 404, description = "No payment found")
     ),
     tag = "Payments",
@@ -597,7 +598,7 @@ pub fn payments_retrieve() {}
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
    request_body(
-     content = PaymentsUpdateRequest,
+     content = api_models::payments::PaymentsUpdateRequest,
      examples(
       (
         "Update the payment amount" = (
@@ -635,13 +636,14 @@ pub fn payments_retrieve() {}
      )
     ),
     responses(
-        (status = 200, description = "Payment updated", body = PaymentsCreateResponseOpenApi),
-        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Payment updated", body = api_models::payments::PaymentsCreateResponseOpenApi),
+        (status = 400, description = "Missing mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Update a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub fn payments_update() {}
 
 /// Payments - Confirm
@@ -659,7 +661,7 @@ pub fn payments_update() {}
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
     request_body(
-     content = PaymentsConfirmRequest,
+     content = api_models::payments::PaymentsConfirmRequest,
      examples(
       (
         "Confirm a payment with payment method data" = (
@@ -690,13 +692,14 @@ pub fn payments_update() {}
      )
     ),
     responses(
-        (status = 200, description = "Payment confirmed", body = PaymentsCreateResponseOpenApi),
-        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Payment confirmed", body = api_models::payments::PaymentsCreateResponseOpenApi),
+        (status = 400, description = "Missing mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Confirm a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub fn payments_confirm() {}
 
 /// Payments - Capture
@@ -715,7 +718,7 @@ pub fn payments_confirm() {}
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
     request_body (
-        content = PaymentsCaptureRequest,
+        content = api_models::payments::PaymentsCaptureRequest,
         examples(
             (
                 "Capture the full amount" = (
@@ -730,8 +733,8 @@ pub fn payments_confirm() {}
         )
     ),
     responses(
-        (status = 200, description = "Payment captured", body = PaymentsResponse),
-        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Payment captured", body = api_models::payments::PaymentsResponse),
+        (status = 400, description = "Missing mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Capture a Payment",
@@ -746,10 +749,10 @@ pub fn payments_capture() {}
 #[utoipa::path(
   post,
   path = "/payments/session_tokens",
-  request_body=PaymentsSessionRequest,
+  request_body=api_models::payments::PaymentsSessionRequest,
   responses(
-      (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
-      (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+      (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = api_models::payments::PaymentsSessionResponse),
+      (status = 400, description = "Missing mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
   operation_id = "Create Session tokens for a Payment",
@@ -767,10 +770,10 @@ pub fn payments_connector_session() {}
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
-    request_body=PaymentsSessionRequest,
+    request_body=api_models::payments::PaymentsSessionRequest,
     responses(
-        (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
-        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = api_models::payments::PaymentsSessionResponse),
+        (status = 400, description = "Missing mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Create V2 Session tokens for a Payment",
@@ -785,7 +788,7 @@ pub fn payments_connector_session() {}
     post,
     path = "/payments/{payment_id}/cancel",
     request_body (
-        content = PaymentsCancelRequest,
+        content = api_models::payments::PaymentsCancelRequest,
         examples(
             (
                 "Cancel the payment with minimal fields" = (
@@ -804,7 +807,7 @@ pub fn payments_connector_session() {}
     ),
     responses(
         (status = 200, description = "Payment canceled"),
-        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 400, description = "Missing mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Cancel a Payment",
@@ -819,7 +822,7 @@ pub fn payments_cancel() {}
     post,
     path = "/payments/{payment_id}/cancel_post_capture",
     request_body (
-        content = PaymentsCancelPostCaptureRequest,
+        content = api_models::payments::PaymentsCancelPostCaptureRequest,
         examples(
             (
                 "Cancel the payment post capture with minimal fields" = (
@@ -837,8 +840,8 @@ pub fn payments_cancel() {}
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
     responses(
-        (status = 200, description = "Payment canceled post capture", body = PaymentsResponse),
-        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Payment canceled post capture", body = api_models::payments::PaymentsResponse),
+        (status = 400, description = "Missing mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Cancel a Payment Post Capture",
@@ -856,8 +859,8 @@ pub fn payments_cancel_post_capture() {}
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
     responses(
-        (status = 200, description = "Payment canceled post capture", body = PaymentsResponse),
-        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Payment canceled post capture", body = api_models::payments::PaymentsResponse),
+        (status = 400, description = "Missing mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Cancel a Payment Post Capture Retrieve",
@@ -884,7 +887,7 @@ pub fn payments_cancel_post_capture_retrieve() {}
         ("created_gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the payment created time")
     ),
     responses(
-        (status = 200, description = "Successfully retrieved a payment list", body = Vec<PaymentListResponse>),
+        (status = 200, description = "Successfully retrieved a payment list", body = Vec<api_models::payments::PaymentListResponse>),
         (status = 404, description = "No payments found")
     ),
     tag = "Payments",
@@ -926,13 +929,13 @@ pub async fn profile_payments_list() {}
 #[utoipa::path(
   post,
   path = "/payments/{payment_id}/incremental_authorization",
-  request_body=PaymentsIncrementalAuthorizationRequest,
+  request_body=api_models::payments::PaymentsIncrementalAuthorizationRequest,
   params(
       ("payment_id" = String, Path, description = "The identifier for payment")
   ),
   responses(
-      (status = 200, description = "Payment authorized amount incremented", body = PaymentsResponse),
-      (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+      (status = 200, description = "Payment authorized amount incremented", body = api_models::payments::PaymentsResponse),
+      (status = 400, description = "Missing mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
   operation_id = "Increment authorized amount for a Payment",
@@ -952,7 +955,7 @@ pub fn payments_incremental_authorization() {}
     ),
     responses(
         (status = 200, description = "Extended authorization for the payment"),
-        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 400, description = "Missing mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Extend authorization period for a Payment",
@@ -966,13 +969,13 @@ pub fn payments_extend_authorization() {}
 #[utoipa::path(
   post,
   path = "/payments/{payment_id}/3ds/authentication",
-  request_body=PaymentsExternalAuthenticationRequest,
+  request_body=api_models::payments::PaymentsExternalAuthenticationRequest,
   params(
       ("payment_id" = String, Path, description = "The identifier for payment")
   ),
   responses(
-      (status = 200, description = "Authentication created", body = PaymentsExternalAuthenticationResponse),
-      (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+      (status = 200, description = "Authentication created", body = api_models::payments::PaymentsExternalAuthenticationResponse),
+      (status = 400, description = "Missing mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
   operation_id = "Initiate external authentication for a Payment",
@@ -984,13 +987,13 @@ pub fn payments_external_authentication() {}
 #[utoipa::path(
   post,
   path = "/payments/{payment_id}/complete_authorize",
-  request_body=PaymentsCompleteAuthorizeRequest,
+  request_body=api_models::payments::PaymentsCompleteAuthorizeRequest,
   params(
     ("payment_id" =String, Path, description =  "The identifier for payment")
   ),
  responses(
-      (status = 200, description = "Payments Complete Authorize Success", body = PaymentsResponse),
-      (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+      (status = 200, description = "Payments Complete Authorize Success", body = api_models::payments::PaymentsResponse),
+      (status = 400, description = "Missing mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
   operation_id = "Complete Authorize a Payment",
@@ -1002,10 +1005,10 @@ pub fn payments_complete_authorize() {}
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/calculate_tax",
-    request_body=PaymentsDynamicTaxCalculationRequest,
+    request_body=api_models::payments::PaymentsDynamicTaxCalculationRequest,
     responses(
-        (status = 200, description = "Tax Calculation is done", body = PaymentsDynamicTaxCalculationResponse),
-        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Tax Calculation is done", body = api_models::payments::PaymentsDynamicTaxCalculationResponse),
+        (status = 400, description = "Missing mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Create Tax Calculation for a Payment",
@@ -1021,10 +1024,10 @@ pub fn payments_dynamic_tax_calculation() {}
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
-    request_body=PaymentsPostSessionTokensRequest,
+    request_body=api_models::payments::PaymentsPostSessionTokensRequest,
     responses(
-        (status = 200, description = "Post Session Token is done", body = PaymentsPostSessionTokensResponse),
-        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Post Session Token is done", body = api_models::payments::PaymentsPostSessionTokensResponse),
+        (status = 400, description = "Missing mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Create Post Session Tokens for a Payment",
@@ -1040,10 +1043,10 @@ pub fn payments_post_session_tokens() {}
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
-    request_body=PaymentsUpdateMetadataRequest,
+    request_body=api_models::payments::PaymentsUpdateMetadataRequest,
     responses(
-        (status = 200, description = "Metadata updated successfully", body = PaymentsUpdateMetadataResponse),
-        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Metadata updated successfully", body = api_models::payments::PaymentsUpdateMetadataResponse),
+        (status = 400, description = "Missing mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Update Metadata for a Payment",
@@ -1058,15 +1061,16 @@ pub fn payments_update_metadata() {}
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
-    request_body=PaymentsEligibilityCheckRequest,
+    request_body=api_models::payments::PaymentsEligibilityCheckRequest,
     responses(
-        (status = 200, description = "Eligibility Check submit is successful", body = PaymentsEligibilityCheckResponse),
-        (status = 400, description = "Bad Request", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Eligibility Check submit is successful", body = api_models::payments::PaymentsEligibilityCheckResponse),
+        (status = 400, description = "Bad Request", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Submit Eligibility Check data for a Payment",
     security(("publishable_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub fn payments_submit_eligibility_check() {}
 
 /// Payments - Submit Eligibility Data
@@ -1084,16 +1088,17 @@ pub fn payments_submit_eligibility_check() {}
     params(
         ("payment_id" = String, Path, description = "The identifier for the payment")
     ),
-    request_body = PaymentsEligibilityRequest,
+    request_body = api_models::payments::PaymentsEligibilityRequest,
     responses(
-        (status = 200, description = "Eligibility and surcharge checks successful", body = PaymentsEligibilityResponse),
-        (status = 400, description = "Bad Request", body = GenericErrorResponseOpenApi),
-        (status = 404, description = "Payment not found", body = GenericErrorResponseOpenApi)
+        (status = 200, description = "Eligibility and surcharge checks successful", body = api_models::payments::PaymentsEligibilityResponse),
+        (status = 400, description = "Bad Request", body = api_models::errors::types::GenericErrorResponseOpenApi),
+        (status = 404, description = "Payment not found", body = api_models::errors::types::GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Submit Eligibility data for a Payment",
     security(("publishable_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub fn payments_submit_eligibility() {}
 
 /// Payments - Create Intent
@@ -1105,7 +1110,7 @@ pub fn payments_submit_eligibility() {}
   post,
   path = "/v2/payments/create-intent",
   request_body(
-      content = PaymentsCreateIntentRequest,
+      content = api_models::payments::PaymentsCreateIntentRequest,
       examples(
           (
               "Create a payment intent with minimal fields" = (
@@ -1115,8 +1120,8 @@ pub fn payments_submit_eligibility() {}
       ),
   ),
   responses(
-      (status = 200, description = "Payment created", body = PaymentsIntentResponse),
-      (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi)
+      (status = 200, description = "Payment created", body = api_models::payments::PaymentsIntentResponse),
+      (status = 400, description = "Missing Mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
   operation_id = "Create a Payment Intent",
@@ -1135,7 +1140,7 @@ pub fn payments_create_intent() {}
   path = "/v2/payments/{id}/get-intent",
   params (("id" = String, Path, description = "The unique identifier for the Payment Intent")),
   responses(
-      (status = 200, description = "Payment Intent", body = PaymentsIntentResponse),
+      (status = 200, description = "Payment Intent", body = api_models::payments::PaymentsIntentResponse),
       (status = 404, description = "Payment Intent not found")
   ),
   tag = "Payments",
@@ -1161,7 +1166,7 @@ pub fn payments_get_intent() {}
       ),
     ),
   request_body(
-      content = PaymentsUpdateIntentRequest,
+      content = api_models::payments::PaymentsUpdateIntentRequest,
       examples(
           (
               "Update a payment intent with minimal fields" = (
@@ -1171,7 +1176,7 @@ pub fn payments_get_intent() {}
       ),
   ),
   responses(
-      (status = 200, description = "Payment Intent Updated", body = PaymentsIntentResponse),
+      (status = 200, description = "Payment Intent Updated", body = api_models::payments::PaymentsIntentResponse),
       (status = 404, description = "Payment Intent Not Found")
   ),
   tag = "Payments",
@@ -1197,7 +1202,7 @@ pub fn payments_update_intent() {}
       )
     ),
   request_body(
-      content = PaymentsConfirmIntentRequest,
+      content = api_models::payments::PaymentsConfirmIntentRequest,
       examples(
           (
               "Confirm the payment intent with card details" = (
@@ -1219,8 +1224,8 @@ pub fn payments_update_intent() {}
       ),
   ),
   responses(
-      (status = 200, description = "Payment created", body = PaymentsResponse),
-      (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi)
+      (status = 200, description = "Payment created", body = api_models::payments::PaymentsResponse),
+      (status = 400, description = "Missing Mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
   operation_id = "Confirm Payment Intent",
@@ -1240,7 +1245,7 @@ pub fn payments_confirm_intent() {}
         ("force_sync" = ForceSync, Query, description = "A boolean to indicate whether to force sync the payment status. Value can be true or false")
     ),
     responses(
-        (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
+        (status = 200, description = "Gets the payment with final status", body = api_models::payments::PaymentsResponse),
         (status = 404, description = "No payment found with the given id")
     ),
     tag = "Payments",
@@ -1266,7 +1271,7 @@ pub fn payment_status() {}
       )
     ),
   request_body(
-      content = PaymentsRequest,
+      content = api_models::payments::PaymentsRequest,
       examples(
           (
               "Create and confirm the payment intent with amount and card details" = (
@@ -1292,8 +1297,8 @@ pub fn payment_status() {}
       ),
   ),
   responses(
-      (status = 200, description = "Payment created", body = PaymentsResponse),
-      (status = 400, description = "Missing Mandatory fields", body = GenericErrorResponseOpenApi)
+      (status = 200, description = "Payment created", body = api_models::payments::PaymentsResponse),
+      (status = 400, description = "Missing Mandatory fields", body = api_models::errors::types::GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
   operation_id = "Create and Confirm Payment Intent",
@@ -1326,7 +1331,7 @@ pub(crate) enum ForceSync {
         ),
     ),
     responses(
-        (status = 200, description = "Get the payment methods", body = PaymentMethodListResponseForPayments),
+        (status = 200, description = "Get the payment methods", body = api_models::payments::PaymentMethodListResponseForPayments),
         (status = 404, description = "No payment found with the given id")
     ),
     tag = "Payments",
@@ -1344,7 +1349,7 @@ pub fn list_payment_methods() {}
     path = "/v2/payments/list",
     params(api_models::payments::PaymentListConstraints),
     responses(
-        (status = 200, description = "Successfully retrieved a payment list", body = PaymentListResponse),
+        (status = 200, description = "Successfully retrieved a payment list", body = api_models::payments::PaymentListResponse),
         (status = 404, description = "No payments found")
     ),
     tag = "Payments",
@@ -1369,10 +1374,10 @@ pub fn payments_list() {}
         ),
     ),
     request_body(
-      content = ApplyPaymentMethodDataRequest,
+      content = api_models::payments::ApplyPaymentMethodDataRequest,
     ),
     responses(
-        (status = 200, description = "Apply the Payment Method Data", body = CheckAndApplyPaymentMethodDataResponse),
+        (status = 200, description = "Apply the Payment Method Data", body = api_models::payments::CheckAndApplyPaymentMethodDataResponse),
     ),
     tag = "Payments",
     operation_id = "Apply Payment Method Data",

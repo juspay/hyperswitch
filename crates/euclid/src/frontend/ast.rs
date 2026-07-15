@@ -120,6 +120,7 @@ pub type IfCondition = Vec<Comparison>;
 pub struct IfStatement {
     #[schema(value_type=Vec<Comparison>)]
     pub condition: IfCondition,
+    #[schema(no_recursion)]
     pub nested: Option<Vec<Self>>,
 }
 
@@ -139,7 +140,6 @@ pub struct IfStatement {
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-#[aliases(RuleConnectorSelection = Rule<ConnectorSelection>)]
 pub struct Rule<O> {
     pub name: String,
     #[serde(alias = "routingOutput")]
@@ -151,7 +151,6 @@ pub struct Rule<O> {
 /// a bunch of rules. Also can hold arbitrary metadata.
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-#[aliases(ProgramConnectorSelection = Program<ConnectorSelection>)]
 pub struct Program<O> {
     pub default_selection: O,
     #[schema(value_type=RuleConnectorSelection)]
@@ -160,11 +159,19 @@ pub struct Program<O> {
     pub metadata: Metadata,
 }
 
+// utoipa 5 removed the `#[aliases(...)]` derive attribute; generic schema
+// aliases are now plain type aliases that utoipa's native generics resolve.
+/// A routing rule whose connector selection is a concrete `ConnectorSelection`.
+pub type RuleConnectorSelection = Rule<ConnectorSelection>;
+/// A routing program whose connector selection is a concrete `ConnectorSelection`.
+pub type ProgramConnectorSelection = Program<ConnectorSelection>;
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RoutableConnectorChoice {
     #[serde(skip)]
     pub choice_kind: RoutableChoiceKind,
     pub connector: RoutableConnectors,
+    #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 

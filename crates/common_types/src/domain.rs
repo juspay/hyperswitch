@@ -59,7 +59,7 @@ pub struct AdyenSplitItem {
     #[smithy(value_type = "Option<i64>")]
     pub amount: Option<MinorUnit>,
     /// Defines type of split item
-    #[schema(value_type = AdyenSplitType, example = "BalanceAccount")]
+    #[schema(value_type = enums::AdyenSplitType, example = "BalanceAccount")]
     #[smithy(value_type = "AdyenSplitType")]
     pub split_type: enums::AdyenSplitType,
     /// The unique identifier of the account to which the split amount is allocated.
@@ -153,7 +153,7 @@ impl_to_sql_from_sql_json!(AcquirerConfigBucket);
 #[cfg(feature = "v2")]
 pub struct MerchantConnectorAuthDetails {
     /// The connector used for the payment
-    #[schema(value_type = Connector)]
+    #[schema(value_type = common_enums::connector_enums::Connector)]
     pub connector_name: common_enums::connector_enums::Connector,
 
     /// The merchant connector credentials used for the payment
@@ -196,7 +196,7 @@ pub struct RetryFeatureData {
     /// indicates if retry with alternate network possible
     pub alternate_network_possible: bool,
     /// decision to be taken for auto retries flow
-    #[schema(value_type = GsmDecision)]
+    #[schema(value_type = common_enums::GsmDecision)]
     pub decision: common_enums::GsmDecision,
 }
 

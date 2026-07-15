@@ -6,7 +6,7 @@
     post,
     path = "/v2/proxy",
     request_body(
-        content = ProxyRequest,
+        content = api_models::proxy::ProxyRequest,
         examples((
             "Create a proxy request" = (
                 value = json!({
@@ -40,7 +40,7 @@
         ))
     ),
     responses(
-        (status = 200, description = "Proxy request", body = ProxyResponse),
+        (status = 200, description = "Proxy request", body = api_models::proxy::ProxyResponse),
         (status = 400, description = "Invalid data")
     ),
     params(
@@ -60,7 +60,7 @@ pub async fn proxy_core() {}
     post,
     path = "/v1/proxy",
     request_body(
-        content = ProxyRequest,
+        content = api_models::proxy::ProxyRequest,
         examples((
             "Create a proxy request" = (
                 value = json!({
@@ -94,7 +94,7 @@ pub async fn proxy_core() {}
         ))
     ),
     responses(
-        (status = 200, description = "Proxy request", body = ProxyResponse),
+        (status = 200, description = "Proxy request", body = api_models::proxy::ProxyResponse),
         (status = 400, description = "Invalid data")
     ),
     params(

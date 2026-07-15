@@ -5,7 +5,7 @@
     post,
     path = "/relay",
     request_body(
-        content = RelayRequest,
+        content = api_models::relay::RelayRequest,
         examples((
             "Create a relay request" = (
                 value = json!({
@@ -23,7 +23,7 @@
         ))
     ),
     responses(
-        (status = 200, description = "Relay request", body = RelayResponse),
+        (status = 200, description = "Relay request", body = api_models::relay::RelayResponse),
         (status = 400, description = "Invalid data")
     ),
     params(
@@ -45,7 +45,7 @@ pub async fn relay() {}
     path = "/relay/{relay_id}",
     params (("relay_id" = String, Path, description = "The unique identifier for the Relay"), ("X-Profile-Id" = String, Header, description = "Profile ID for authentication")),
     responses(
-        (status = 200, description = "Relay Retrieved", body = RelayResponse),
+        (status = 200, description = "Relay Retrieved", body = api_models::relay::RelayResponse),
         (status = 404, description = "Relay details was not found")
     ),
     tag = "Relay",

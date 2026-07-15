@@ -48,17 +48,17 @@ pub struct AchBankDebitAdditionalData {
     pub bank_account_holder_name: Option<Secret<String>>,
 
     /// Name of the bank
-    #[schema(value_type = Option<BankNames>, example = "ach")]
+    #[schema(value_type = Option<api_enums::BankNames>, example = "ach")]
     #[smithy(value_type = "Option<BankNames>")]
     pub bank_name: Option<common_enums::BankNames>,
 
     /// Bank account type
-    #[schema(value_type = Option<BankType>, example = "checking")]
+    #[schema(value_type = Option<api_enums::BankType>, example = "checking")]
     #[smithy(value_type = "Option<BankType>")]
     pub bank_type: Option<common_enums::BankType>,
 
     /// Bank holder entity type
-    #[schema(value_type = Option<BankHolderType>, example = "personal")]
+    #[schema(value_type = Option<api_enums::BankHolderType>, example = "personal")]
     #[smithy(value_type = "Option<BankHolderType>")]
     pub bank_holder_type: Option<common_enums::BankHolderType>,
 }
@@ -142,12 +142,12 @@ pub struct EftDebitOrderAdditionalData {
     pub bank_account_holder_name: Option<Secret<String>>,
 
     /// Name of the bank
-    #[schema(value_type = Option<BankNames>, example = "absa")]
+    #[schema(value_type = Option<api_enums::BankNames>, example = "absa")]
     #[smithy(value_type = "Option<BankNames>")]
     pub bank_name: Option<common_enums::BankNames>,
 
     /// Bank account type
-    #[schema(value_type = Option<BankType>, example = "savings")]
+    #[schema(value_type = Option<api_enums::BankType>, example = "savings")]
     #[smithy(value_type = "Option<BankType>")]
     pub bank_type: Option<common_enums::BankType>,
 }
@@ -217,7 +217,7 @@ pub struct GiropayBankRedirectAdditionalData {
     pub iban: Option<MaskedIban>,
 
     /// Country for bank payment
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<api_enums::CountryAlpha2>, example = "US")]
     #[smithy(value_type = "Option<CountryAlpha2>")]
     pub country: Option<api_enums::CountryAlpha2>,
 }
@@ -295,7 +295,7 @@ pub enum BankTransferAdditionalData {
     InstantBankTransferPoland {},
     #[smithy(nested_value_type)]
     IndonesianBankTransfer {
-        #[schema(value_type = Option<BankNames>, example = "bri")]
+        #[schema(value_type = Option<api_enums::BankNames>, example = "bri")]
         #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
     },
@@ -414,10 +414,10 @@ pub struct CardTokenAdditionalData {
 pub enum UpiAdditionalData {
     #[smithy(value_type = "UpiCollectAdditionalData")]
     UpiCollect(Box<UpiCollectAdditionalData>),
-    #[schema(value_type = UpiIntentData)]
+    #[schema(value_type = payments::UpiIntentData)]
     #[smithy(value_type = "UpiIntentData")]
     UpiIntent(Box<super::UpiIntentData>),
-    #[schema(value_type = UpiQrData)]
+    #[schema(value_type = payments::UpiQrData)]
     UpiQr(Box<super::UpiQrData>),
 }
 
@@ -430,7 +430,7 @@ pub struct UpiCollectAdditionalData {
     #[schema(value_type = Option<String>, example = "ab********@okhdfcbank")]
     #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<MaskedUpiVpaId>,
-    #[schema(value_type = Option<UpiSource>)]
+    #[schema(value_type = Option<payments::UpiSource>)]
     #[smithy(value_type = "Option<UpiSource>")]
     pub upi_source: Option<payments::UpiSource>,
 }

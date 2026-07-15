@@ -50,7 +50,7 @@ pub struct CustomerRequest {
     #[smithy(value_type = "Option<String>")]
     pub phone_country_code: Option<String>,
     /// The address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
+    #[schema(value_type = Option<payments::AddressDetails>)]
     #[smithy(value_type = "Option<AddressDetails>")]
     pub address: Option<payments::AddressDetails>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
@@ -89,7 +89,7 @@ pub struct CustomerListRequestWithConstraints {
     #[schema(example = 32)]
     pub offset: Option<u32>,
     /// Limit
-    #[schema(example = 32)]
+    #[schema(example = 32, value_type = Option<u16>)]
     pub limit: Option<CustomerListLimit>,
     /// Unique identifier for a customer
     pub customer_id: Option<id_type::CustomerId>,
@@ -147,10 +147,10 @@ pub struct CustomerRequest {
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
     /// The default billing address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
+    #[schema(value_type = Option<payments::AddressDetails>)]
     pub default_billing_address: Option<payments::AddressDetails>,
     /// The default shipping address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
+    #[schema(value_type = Option<payments::AddressDetails>)]
     pub default_shipping_address: Option<payments::AddressDetails>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
     /// characters long. Metadata is useful for storing additional, structured information on an
@@ -213,7 +213,7 @@ pub struct CustomerResponse {
     #[smithy(value_type = "Option<String>")]
     pub description: Option<Description>,
     /// The address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
+    #[schema(value_type = Option<payments::AddressDetails>)]
     #[smithy(value_type = "Option<AddressDetails>")]
     pub address: Option<payments::AddressDetails>,
     ///  A timestamp (ISO 8601 code) that determines when the customer was created
@@ -281,10 +281,10 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, example = "First Customer", value_type = Option<String>)]
     pub description: Option<Description>,
     /// The default billing address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
+    #[schema(value_type = Option<payments::AddressDetails>)]
     pub default_billing_address: Option<payments::AddressDetails>,
     /// The default shipping address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
+    #[schema(value_type = Option<payments::AddressDetails>)]
     pub default_shipping_address: Option<payments::AddressDetails>,
     ///  A timestamp (ISO 8601 code) that determines when the customer was created
     #[schema(value_type = PrimitiveDateTime,example = "2023-01-18T11:04:09.922Z")]
@@ -390,7 +390,7 @@ pub struct CustomerUpdateRequest {
     #[smithy(value_type = "Option<String>")]
     pub phone_country_code: Option<String>,
     /// The address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
+    #[schema(value_type = Option<payments::AddressDetails>)]
     #[smithy(value_type = "Option<AddressDetails>")]
     pub address: Option<payments::AddressDetails>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
@@ -436,10 +436,10 @@ pub struct CustomerUpdateRequest {
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
     /// The default billing address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
+    #[schema(value_type = Option<payments::AddressDetails>)]
     pub default_billing_address: Option<payments::AddressDetails>,
     /// The default shipping address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
+    #[schema(value_type = Option<payments::AddressDetails>)]
     pub default_shipping_address: Option<payments::AddressDetails>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
     /// characters long. Metadata is useful for storing additional, structured information on an

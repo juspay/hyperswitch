@@ -2,9 +2,9 @@
 #[utoipa::path(
     post,
     path = "/payouts/create",
-    request_body=PayoutsCreateRequest,
+    request_body=api_models::payouts::PayoutsCreateRequest,
     responses(
-        (status = 200, description = "Payout created", body = PayoutCreateResponse),
+        (status = 200, description = "Payout created", body = api_models::payouts::PayoutCreateResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Payouts",
@@ -22,7 +22,7 @@ pub async fn payouts_create() {}
         ("force_sync" = Option<bool>, Query, description = "Sync with the connector to get the payout details (defaults to false)")
     ),
     responses(
-        (status = 200, description = "Payout retrieved", body = PayoutCreateResponse),
+        (status = 200, description = "Payout retrieved", body = api_models::payouts::PayoutCreateResponse),
         (status = 404, description = "Payout does not exist in our records")
     ),
     tag = "Payouts",
@@ -38,9 +38,9 @@ pub async fn payouts_retrieve() {}
     params(
         ("payout_id" = String, Path, description = "The identifier for payout")
     ),
-    request_body=PayoutUpdateRequest,
+    request_body=api_models::payouts::PayoutUpdateRequest,
     responses(
-        (status = 200, description = "Payout updated", body = PayoutCreateResponse),
+        (status = 200, description = "Payout updated", body = api_models::payouts::PayoutCreateResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Payouts",
@@ -56,9 +56,9 @@ pub async fn payouts_update() {}
     params(
         ("payout_id" = String, Path, description = "The identifier for payout")
     ),
-    request_body=PayoutCancelRequest,
+    request_body=api_models::payouts::PayoutCancelRequest,
     responses(
-        (status = 200, description = "Payout cancelled", body = PayoutCreateResponse),
+        (status = 200, description = "Payout cancelled", body = api_models::payouts::PayoutCreateResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Payouts",
@@ -74,9 +74,9 @@ pub async fn payouts_cancel() {}
     params(
         ("payout_id" = String, Path, description = "The identifier for payout")
     ),
-    request_body=PayoutFulfillRequest,
+    request_body=api_models::payouts::PayoutFulfillRequest,
     responses(
-        (status = 200, description = "Payout fulfilled", body = PayoutCreateResponse),
+        (status = 200, description = "Payout fulfilled", body = api_models::payouts::PayoutCreateResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Payouts",
@@ -98,7 +98,7 @@ pub async fn payouts_fulfill() {}
         ("time_range" = String, Query, description = "The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).")
     ),
     responses(
-        (status = 200, description = "Payouts listed", body = PayoutListResponse),
+        (status = 200, description = "Payouts listed", body = api_models::payouts::PayoutListResponse),
         (status = 404, description = "Payout not found")
     ),
     tag = "Payouts",
@@ -120,7 +120,7 @@ pub async fn payouts_list() {}
         ("time_range" = String, Query, description = "The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).")
     ),
     responses(
-        (status = 200, description = "Payouts listed", body = PayoutListResponse),
+        (status = 200, description = "Payouts listed", body = api_models::payouts::PayoutListResponse),
         (status = 404, description = "Payout not found")
     ),
     tag = "Payouts",
@@ -133,9 +133,9 @@ pub async fn payouts_list_profile() {}
 #[utoipa::path(
     post,
     path = "/payouts/filter",
-    request_body=TimeRange,
+    request_body=common_utils::types::TimeRange,
     responses(
-        (status = 200, description = "Filters listed", body = PayoutListFilters)
+        (status = 200, description = "Filters listed", body = api_models::payouts::PayoutListFilters)
     ),
     tag = "Payouts",
     operation_id = "List available payout filters",
@@ -147,9 +147,9 @@ pub async fn payouts_list_filters() {}
 #[utoipa::path(
     post,
     path = "/payouts/list",
-    request_body=PayoutListFilterConstraints,
+    request_body=api_models::payouts::PayoutListFilterConstraints,
     responses(
-        (status = 200, description = "Payouts filtered", body = PayoutListResponse),
+        (status = 200, description = "Payouts filtered", body = api_models::payouts::PayoutListResponse),
         (status = 404, description = "Payout not found")
     ),
     tag = "Payouts",
@@ -162,9 +162,9 @@ pub async fn payouts_list_by_filter() {}
 #[utoipa::path(
     post,
     path = "/payouts/list",
-    request_body=PayoutListFilterConstraints,
+    request_body=api_models::payouts::PayoutListFilterConstraints,
     responses(
-        (status = 200, description = "Payouts filtered", body = PayoutListResponse),
+        (status = 200, description = "Payouts filtered", body = api_models::payouts::PayoutListResponse),
         (status = 404, description = "Payout not found")
     ),
     tag = "Payouts",
@@ -180,9 +180,9 @@ pub async fn payouts_list_by_filter_profile() {}
     params(
         ("payout_id" = String, Path, description = "The identifier for payout")
     ),
-    request_body=PayoutConfirmRequest,
+    request_body=api_models::payouts::PayoutConfirmRequest,
     responses(
-        (status = 200, description = "Payout updated", body = PayoutCreateResponse),
+        (status = 200, description = "Payout updated", body = api_models::payouts::PayoutCreateResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Payouts",

@@ -25,7 +25,6 @@ use hyperswitch_masking::{PeekInterface, Secret};
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
-use utoipa::ToSchema;
 
 use crate::{
     types::{
@@ -750,7 +749,7 @@ impl TryFrom<&SignifydRouterData<&FrmCheckoutRouterData>> for SignifydPaymentsCh
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "camelCase")]
@@ -760,7 +759,7 @@ pub struct FrmFulfillmentSignifydRequest {
     pub fulfillments: Vec<Fulfillments>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "camelCase")]
@@ -771,7 +770,7 @@ pub enum FulfillmentStatus {
     CANCELED,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "camelCase")]
 pub struct Fulfillments {
@@ -786,7 +785,7 @@ pub struct Fulfillments {
     pub shipped_at: Option<String>,
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize)]
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "camelCase")]
 pub struct Product {
@@ -880,7 +879,7 @@ impl From<fraud_check::Address> for Address {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde_with::skip_serializing_none]
 #[serde(rename_all = "camelCase")]
 pub struct FrmFulfillmentSignifydApiResponse {

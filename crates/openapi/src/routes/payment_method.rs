@@ -6,7 +6,7 @@
     post,
     path = "/payment_methods",
     request_body (
-        content = PaymentMethodCreate,
+        content = api_models::payment_methods::PaymentMethodCreate,
         examples  (( "Save a card" =(
         value =json!( {
             "payment_method": "card",
@@ -23,7 +23,7 @@
         )))
     ),
     responses(
-        (status = 200, description = "Payment Method Created", body = PaymentMethodResponse),
+        (status = 200, description = "Payment Method Created", body = api_models::payment_methods::PaymentMethodResponse),
         (status = 400, description = "Invalid Data")
 
     ),
@@ -43,16 +43,16 @@ pub async fn create_payment_method_api() {}
     path = "/account/payment_methods",
     params (
         ("client_secret" = Option<String>, Query, description = "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"),
-        ("accepted_countries" = Option<Vec<CountryAlpha2>>, Query, description = "The two-letter ISO currency code"),
-        ("accepted_currencies" = Option<Vec<Currency>>, Query, description = "The three-letter ISO currency code"),
+        ("accepted_countries" = Option<Vec<api_models::enums::CountryAlpha2>>, Query, description = "The two-letter ISO currency code"),
+        ("accepted_currencies" = Option<Vec<api_models::enums::Currency>>, Query, description = "The three-letter ISO currency code"),
         ("amount" = Option<i64>, Query, description = "The amount accepted for processing by the particular payment method."),
         ("recurring_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
         ("installment_payment_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for installment payments"),
         ("limit" = Option<i64>, Query, description = "Indicates the limit of last used payment methods"),
-        ("card_networks" = Option<Vec<CardNetwork>>, Query, description = "Indicates whether the payment method is eligible for card netwotks"),
+        ("card_networks" = Option<Vec<api_models::enums::CardNetwork>>, Query, description = "Indicates whether the payment method is eligible for card netwotks"),
     ),
     responses(
-        (status = 200, description = "Payment Methods retrieved", body = PaymentMethodListResponse),
+        (status = 200, description = "Payment Methods retrieved", body = api_models::payment_methods::PaymentMethodListResponse),
         (status = 400, description = "Invalid Data"),
         (status = 404, description = "Payment Methods does not exist in records")
     ),
@@ -60,6 +60,7 @@ pub async fn create_payment_method_api() {}
     operation_id = "List all Payment Methods for a Merchant",
     security(("api_key" = []), ("publishable_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn list_payment_method_api() {}
 
 /// List payment methods for a Customer
@@ -71,16 +72,16 @@ pub async fn list_payment_method_api() {}
     params (
         ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
         ("client_secret" = Option<String>, Query, description = "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"),
-        ("accepted_countries" = Option<Vec<CountryAlpha2>>, Query, description = "The two-letter ISO currency code"),
-        ("accepted_currencies" = Option<Vec<Currency>>, Query, description = "The three-letter ISO currency code"),
+        ("accepted_countries" = Option<Vec<api_models::enums::CountryAlpha2>>, Query, description = "The two-letter ISO currency code"),
+        ("accepted_currencies" = Option<Vec<api_models::enums::Currency>>, Query, description = "The three-letter ISO currency code"),
         ("amount" = Option<i64>, Query, description = "The amount accepted for processing by the particular payment method."),
         ("recurring_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
         ("installment_payment_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for installment payments"),
         ("limit" = Option<i64>, Query, description = "Indicates the limit of last used payment methods"),
-        ("card_networks" = Option<Vec<CardNetwork>>, Query, description = "Indicates whether the payment method is eligible for card netwotks"),
+        ("card_networks" = Option<Vec<api_models::enums::CardNetwork>>, Query, description = "Indicates whether the payment method is eligible for card netwotks"),
     ),
     responses(
-        (status = 200, description = "Payment Methods retrieved", body = CustomerPaymentMethodsListResponse),
+        (status = 200, description = "Payment Methods retrieved", body = api_models::payment_methods::CustomerPaymentMethodsListResponse),
         (status = 400, description = "Invalid Data"),
         (status = 404, description = "Payment Methods does not exist in records")
     ),
@@ -99,16 +100,16 @@ pub async fn list_customer_payment_method_api() {}
     path = "/customers/payment_methods",
     params (
         ("client_secret" = Option<String>, Query, description = "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"),
-        ("accepted_countries" = Option<Vec<CountryAlpha2>>, Query, description = "The two-letter ISO currency code"),
-        ("accepted_currencies" = Option<Vec<Currency>>, Query, description = "The three-letter ISO currency code"),
+        ("accepted_countries" = Option<Vec<api_models::enums::CountryAlpha2>>, Query, description = "The two-letter ISO currency code"),
+        ("accepted_currencies" = Option<Vec<api_models::enums::Currency>>, Query, description = "The three-letter ISO currency code"),
         ("amount" = Option<i64>, Query, description = "The amount accepted for processing by the particular payment method."),
         ("recurring_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
         ("installment_payment_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for installment payments"),
         ("limit" = Option<i64>, Query, description = "Indicates the limit of last used payment methods"),
-        ("card_networks" = Option<Vec<CardNetwork>>, Query, description = "Indicates whether the payment method is eligible for card netwotks"),
+        ("card_networks" = Option<Vec<api_models::enums::CardNetwork>>, Query, description = "Indicates whether the payment method is eligible for card netwotks"),
     ),
     responses(
-        (status = 200, description = "Payment Methods retrieved for customer tied to its respective client-secret passed in the param", body = CustomerPaymentMethodsListResponse),
+        (status = 200, description = "Payment Methods retrieved for customer tied to its respective client-secret passed in the param", body = api_models::payment_methods::CustomerPaymentMethodsListResponse),
         (status = 400, description = "Invalid Data"),
         (status = 404, description = "Payment Methods does not exist in records")
     ),
@@ -128,7 +129,7 @@ pub async fn list_customer_payment_method_api_client() {}
         ("method_id" = String, Path, description = "The unique identifier for the Payment Method"),
     ),
     responses(
-        (status = 200, description = "Payment Method retrieved", body = PaymentMethodResponse),
+        (status = 200, description = "Payment Method retrieved", body = api_models::payment_methods::PaymentMethodResponse),
         (status = 404, description = "Payment Method does not exist in records")
     ),
     tag = "Payment Methods",
@@ -148,9 +149,9 @@ pub async fn payment_method_retrieve_api() {}
     params (
         ("method_id" = String, Path, description = "The unique identifier for the Payment Method"),
     ),
-    request_body = PaymentMethodUpdate,
+    request_body = api_models::payment_methods::PaymentMethodUpdate,
     responses(
-        (status = 200, description = "Payment Method updated", body = PaymentMethodResponse),
+        (status = 200, description = "Payment Method updated", body = api_models::payment_methods::PaymentMethodResponse),
         (status = 404, description = "Payment Method does not exist in records")
     ),
     tag = "Payment Methods",
@@ -170,7 +171,7 @@ pub async fn payment_method_update_api() {}
         ("method_id" = String, Path, description = "The unique identifier for the Payment Method"),
     ),
     responses(
-        (status = 200, description = "Payment Method deleted", body = PaymentMethodDeleteResponse),
+        (status = 200, description = "Payment Method deleted", body = api_models::payment_methods::PaymentMethodDeleteResponse),
         (status = 404, description = "Payment Method does not exist in records")
     ),
     tag = "Payment Methods",
@@ -191,7 +192,7 @@ pub async fn payment_method_delete_api() {}
         ("payment_method_id" = String,Path, description = "The unique identifier for the Payment Method"),
     ),
     responses(
-        (status = 200, description = "Payment Method has been set as default", body =CustomerDefaultPaymentMethodResponse ),
+        (status = 200, description = "Payment Method has been set as default", body =api_models::payment_methods::CustomerDefaultPaymentMethodResponse ),
         (status = 400, description = "Payment Method has already been set as default for that customer"),
         (status = 404, description = "Payment Method not found for the customer")
     ),
@@ -213,7 +214,7 @@ pub async fn default_payment_method_set_api() {}
         ("payment_method_id" = String,Path, description = "The unique identifier for the Payment Method"),
     ),
     responses(
-        (status = 200, description = "Payment Method has been set as default", body =CustomerDefaultPaymentMethodResponse ),
+        (status = 200, description = "Payment Method has been set as default", body =api_models::payment_methods::CustomerDefaultPaymentMethodResponse ),
         (status = 400, description = "Payment Method has already been set as default for that customer"),
         (status = 404, description = "Payment Method not found for the customer")
     ),
@@ -239,11 +240,11 @@ pub async fn default_payment_method_set_api() {}
         )
     ),
     request_body(
-    content = PaymentMethodIntentCreate,
+    content = api_models::payment_methods::PaymentMethodIntentCreate,
     // TODO: Add examples
     ),
     responses(
-        (status = 200, description = "Payment Method Intent Created", body = PaymentMethodResponse),
+        (status = 200, description = "Payment Method Intent Created", body = api_models::payment_methods::PaymentMethodResponse),
         (status = 400, description = "Invalid Data"),
     ),
     tag = "Payment Methods",
@@ -267,11 +268,11 @@ pub async fn create_payment_method_intent_api() {}
         )
     ),
     request_body(
-    content = PaymentMethodIntentConfirm,
+    content = api_models::payment_methods::PaymentMethodIntentConfirm,
     // TODO: Add examples
     ),
     responses(
-        (status = 200, description = "Payment Method Intent Confirmed", body = PaymentMethodResponse),
+        (status = 200, description = "Payment Method Intent Confirmed", body = api_models::payment_methods::PaymentMethodResponse),
         (status = 400, description = "Invalid Data"),
     ),
     tag = "Payment Methods",
@@ -294,11 +295,11 @@ pub async fn confirm_payment_method_intent_api() {}
         )
     ),
     request_body(
-    content = PaymentMethodCreate,
+    content = api_models::payment_methods::PaymentMethodCreate,
     // TODO: Add examples
     ),
     responses(
-        (status = 200, description = "Payment Method Created", body = PaymentMethodResponse),
+        (status = 200, description = "Payment Method Created", body = api_models::payment_methods::PaymentMethodResponse),
         (status = 400, description = "Invalid Data"),
     ),
     tag = "Payment Methods",
@@ -322,11 +323,11 @@ pub async fn create_payment_method_api() {}
         )
     ),
     request_body(
-    content = PaymentMethodCreate,
+    content = api_models::payment_methods::PaymentMethodCreate,
     // TODO: Add examples
     ),
     responses(
-        (status = 200, description = "Payment Method Created", body = PaymentMethodResponse),
+        (status = 200, description = "Payment Method Created", body = api_models::payment_methods::PaymentMethodResponse),
         (status = 400, description = "Invalid Data"),
     ),
     tag = "Payment Methods",
@@ -351,7 +352,7 @@ pub async fn create_payment_method_api_v1() {}
         )
     ),
     responses(
-        (status = 200, description = "Payment Method Retrieved", body = PaymentMethodResponse),
+        (status = 200, description = "Payment Method Retrieved", body = api_models::payment_methods::PaymentMethodResponse),
         (status = 404, description = "Payment Method Not Found"),
     ),
     tag = "Payment Methods",
@@ -373,7 +374,7 @@ pub async fn payment_method_retrieve_api() {}
         )
       ),
     responses(
-        (status = 200, description = "Payment Method Retrieved", body = PaymentMethodResponse),
+        (status = 200, description = "Payment Method Retrieved", body = api_models::payment_methods::PaymentMethodResponse),
         (status = 404, description = "Payment Method Not Found"),
     ),
     tag = "Payment Methods",
@@ -397,11 +398,11 @@ pub async fn payment_method_retrieve_api_v1() {}
         )
     ),
     request_body(
-    content = PaymentMethodUpdate,
+    content = api_models::payment_methods::PaymentMethodUpdate,
     // TODO: Add examples
     ),
     responses(
-        (status = 200, description = "Payment Method Update", body = PaymentMethodResponse),
+        (status = 200, description = "Payment Method Update", body = api_models::payment_methods::PaymentMethodResponse),
         (status = 400, description = "Invalid Data"),
     ),
     tag = "Payment Methods",
@@ -425,11 +426,11 @@ pub async fn payment_method_update_api() {}
         )
     ),
     request_body(
-    content = PaymentMethodUpdate,
+    content = api_models::payment_methods::PaymentMethodUpdate,
     // TODO: Add examples
     ),
     responses(
-        (status = 200, description = "Payment Method Update", body = PaymentMethodResponse),
+        (status = 200, description = "Payment Method Update", body = api_models::payment_methods::PaymentMethodResponse),
         (status = 400, description = "Invalid Data"),
     ),
     tag = "Payment Methods",
@@ -453,7 +454,7 @@ pub async fn payment_method_update_api_v1() {}
         )
     ),
     responses(
-        (status = 200, description = "Payment Method Retrieved", body = PaymentMethodDeleteResponse),
+        (status = 200, description = "Payment Method Retrieved", body = api_models::payment_methods::PaymentMethodDeleteResponse),
         (status = 404, description = "Payment Method Not Found"),
     ),
     tag = "Payment Methods",
@@ -478,7 +479,7 @@ pub async fn payment_method_delete_api() {}
         )
     ),
     responses(
-        (status = 200, description = "Payment Method Retrieved", body = PaymentMethodDeleteResponse),
+        (status = 200, description = "Payment Method Retrieved", body = api_models::payment_methods::PaymentMethodDeleteResponse),
         (status = 404, description = "Payment Method Not Found"),
     ),
     tag = "Payment Methods",
@@ -498,7 +499,7 @@ pub async fn payment_method_delete_api_v1() {}
         ("payment_method_id" = String, Path, description = "The unique identifier for the Payment Method"),
     ),
     responses(
-        (status = 200, description = "Network Token Status Retrieved", body = NetworkTokenStatusCheckResponse),
+        (status = 200, description = "Network Token Status Retrieved", body = api_models::payment_methods::NetworkTokenStatusCheckResponse),
         (status = 404, description = "Payment Method Not Found"),
     ),
     tag = "Payment Methods",
@@ -522,7 +523,7 @@ pub async fn network_token_status_check_api() {}
         )
     ),
     responses(
-        (status = 200, description = "Payment Method Token Data Retrieved", body = PaymentMethodGetTokenDetailsResponse),
+        (status = 200, description = "Payment Method Token Data Retrieved", body = api_models::payment_methods::PaymentMethodGetTokenDetailsResponse),
         (status = 404, description = "Payment Method Not Found | Payment method token either expired or does not exist"),
     ),
     tag = "Payment Methods",
@@ -547,7 +548,7 @@ pub async fn payment_method_get_token_details_api() {}
         )
     ),
     responses(
-        (status = 200, description = "Payment Method Token Data Retrieved", body = PaymentMethodGetTokenDetailsResponse),
+        (status = 200, description = "Payment Method Token Data Retrieved", body = api_models::payment_methods::PaymentMethodGetTokenDetailsResponse),
         (status = 404, description = "Payment Method Not Found | Payment method token either expired or does not exist"),
     ),
     tag = "Payment Methods",
@@ -571,7 +572,7 @@ pub async fn payment_method_get_token_details_api_v1() {}
         )
     ),
     responses(
-        (status = 200, description = "Payment Methods Retrieved", body = CustomerPaymentMethodsListResponse),
+        (status = 200, description = "Payment Methods Retrieved", body = api_models::payment_methods::CustomerPaymentMethodsListResponse),
         (status = 404, description = "Customer Not Found"),
     ),
     tag = "Payment Methods",
@@ -596,7 +597,7 @@ pub async fn list_customer_payment_method_api() {}
         )
     ),
     responses(
-        (status = 200, description = "Payment Methods Retrieved", body = CustomerPaymentMethodsListResponse),
+        (status = 200, description = "Payment Methods Retrieved", body = api_models::payment_methods::CustomerPaymentMethodsListResponse),
         (status = 404, description = "Customer Not Found"),
     ),
     tag = "Payment Methods",
@@ -622,7 +623,7 @@ pub async fn list_customer_payment_method_api_v1() {}
         )
     ),
     request_body(
-    content = PaymentMethodSessionRequest,
+    content = api_models::payment_methods::PaymentMethodSessionRequest,
         examples  (( "Create a payment method session with customer_id" = (
         value =json!( {
             "customer_id": "0a_cus_abcdefghijklmnopqrstuvwxyz"
@@ -630,7 +631,7 @@ pub async fn list_customer_payment_method_api_v1() {}
         )))
     ),
     responses(
-        (status = 200, description = "Create the payment method session", body = PaymentMethodSessionResponse),
+        (status = 200, description = "Create the payment method session", body = api_models::payment_methods::PaymentMethodSessionResponse),
         (status = 400, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
@@ -656,7 +657,7 @@ pub fn payment_method_session_create() {}
         )
     ),
     request_body(
-    content = PaymentMethodSessionRequest,
+    content = api_models::payment_methods::PaymentMethodSessionRequest,
         examples  (( "Create a payment method session with customer_id" = (
         value =json!( {
             "customer_id": "0a_cus_abcdefghijklmnopqrstuvwxyz"
@@ -664,7 +665,7 @@ pub fn payment_method_session_create() {}
         )))
     ),
     responses(
-        (status = 200, description = "Create the payment method session", body = PaymentMethodSessionResponse),
+        (status = 200, description = "Create the payment method session", body = api_models::payment_methods::PaymentMethodSessionResponse),
         (status = 400, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
@@ -689,7 +690,7 @@ pub fn payment_method_session_create_v1() {}
         )
     ),
     responses(
-        (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodSessionResponse),
+        (status = 200, description = "The payment method session is retrieved successfully", body = api_models::payment_methods::PaymentMethodSessionResponse),
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
@@ -714,7 +715,7 @@ pub fn payment_method_session_retrieve() {}
         )
     ),
     responses(
-        (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodSessionResponse),
+        (status = 200, description = "The payment method session is retrieved successfully", body = api_models::payment_methods::PaymentMethodSessionResponse),
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
@@ -740,7 +741,7 @@ pub fn payment_method_session_retrieve_v1() {}
         )
     ),
     responses(
-        (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodListResponseForSession),
+        (status = 200, description = "The payment method session is retrieved successfully", body = api_models::payment_methods::PaymentMethodListResponseForSession),
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
@@ -766,7 +767,7 @@ pub fn payment_method_session_list_payment_methods() {}
         )
     ),
     responses(
-        (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodListResponseForSession),
+        (status = 200, description = "The payment method session is retrieved successfully", body = api_models::payment_methods::PaymentMethodListResponseForSession),
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
@@ -791,7 +792,7 @@ pub fn payment_method_session_list_payment_methods_v1() {}
         )
     ),
     request_body(
-        content = PaymentMethodSessionUpdateSavedPaymentMethod,
+        content = api_models::payment_methods::PaymentMethodSessionUpdateSavedPaymentMethod,
             examples(( "Update the card holder name" = (
                 value =json!( {
                     "payment_method_token": "token_9wcXDRVkfEtLEsSnYKgQ",
@@ -806,7 +807,7 @@ pub fn payment_method_session_list_payment_methods_v1() {}
         )))
     ),
     responses(
-        (status = 200, description = "The payment method has been updated successfully", body = PaymentMethodSessionResponse),
+        (status = 200, description = "The payment method has been updated successfully", body = api_models::payment_methods::PaymentMethodSessionResponse),
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
@@ -831,7 +832,7 @@ pub fn payment_method_session_update_saved_payment_method() {}
         )
     ),
     request_body(
-        content = PaymentMethodSessionUpdateSavedPaymentMethod,
+        content = api_models::payment_methods::PaymentMethodSessionUpdateSavedPaymentMethod,
             examples(( "Update the card holder name" = (
                 value =json!( {
                     "payment_method_token": "token_9wcXDRVkfEtLEsSnYKgQ",
@@ -846,7 +847,7 @@ pub fn payment_method_session_update_saved_payment_method() {}
         )))
     ),
     responses(
-        (status = 200, description = "The payment method has been updated successfully", body = PaymentMethodSessionResponse),
+        (status = 200, description = "The payment method has been updated successfully", body = api_models::payment_methods::PaymentMethodSessionResponse),
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
@@ -871,7 +872,7 @@ pub fn payment_method_session_update_saved_payment_method_v1() {}
         )
     ),
     request_body(
-        content = PaymentMethodSessionDeleteSavedPaymentMethod,
+        content = api_models::payment_methods::PaymentMethodSessionDeleteSavedPaymentMethod,
             examples(( "Update the card holder name" = (
                 value =json!( {
                     "payment_method_token": "token_9wcXDRVkfEtLEsSnYKgQ",
@@ -880,7 +881,7 @@ pub fn payment_method_session_update_saved_payment_method_v1() {}
         )))
     ),
     responses(
-        (status = 200, description = "The payment method has been deleted successfully", body = PaymentMethodDeleteSessionResponse),
+        (status = 200, description = "The payment method has been deleted successfully", body = api_models::payment_methods::PaymentMethodDeleteSessionResponse),
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
@@ -905,7 +906,7 @@ pub fn payment_method_session_delete_saved_payment_method() {}
         )
     ),
     request_body(
-        content = PaymentMethodSessionDeleteSavedPaymentMethod,
+        content = api_models::payment_methods::PaymentMethodSessionDeleteSavedPaymentMethod,
             examples(( "Update the card holder name" = (
                 value =json!( {
                     "payment_method_token": "token_9wcXDRVkfEtLEsSnYKgQ",
@@ -914,7 +915,7 @@ pub fn payment_method_session_delete_saved_payment_method() {}
         )))
     ),
     responses(
-        (status = 200, description = "The payment method has been deleted successfully", body = PaymentMethodDeleteSessionResponse),
+        (status = 200, description = "The payment method has been deleted successfully", body = api_models::payment_methods::PaymentMethodDeleteSessionResponse),
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
@@ -929,9 +930,9 @@ pub fn payment_method_session_delete_saved_payment_method_v1() {}
 #[utoipa::path(
     post,
     path = "/payment_methods/tokenize-card",
-    request_body = CardNetworkTokenizeRequest,
+    request_body = api_models::payment_methods::CardNetworkTokenizeRequest,
     responses(
-        (status = 200, description = "Payment Method Created", body = CardNetworkTokenizeResponse),
+        (status = 200, description = "Payment Method Created", body = api_models::payment_methods::CardNetworkTokenizeResponse),
         (status = 404, description = "Customer not found"),
     ),
     tag = "Payment Methods",
@@ -947,12 +948,12 @@ pub async fn tokenize_card_api() {}
 #[utoipa::path(
     post,
     path = "/payment_methods/{id}/tokenize-card",
-    request_body = CardNetworkTokenizeRequest,
+    request_body = api_models::payment_methods::CardNetworkTokenizeRequest,
     params (
         ("id" = String, Path, description = "The unique identifier for the Payment Method"),
     ),
     responses(
-        (status = 200, description = "Payment Method Updated", body = CardNetworkTokenizeResponse),
+        (status = 200, description = "Payment Method Updated", body = api_models::payment_methods::CardNetworkTokenizeResponse),
         (status = 404, description = "Customer not found"),
     ),
     tag = "Payment Methods",
@@ -975,7 +976,7 @@ pub async fn tokenize_card_using_pm_api() {}
       )
     ),
   request_body(
-      content = PaymentMethodSessionConfirmRequest,
+      content = api_models::payment_methods::PaymentMethodSessionConfirmRequest,
       examples(
           (
               "Confirm the payment method session with card details" = (
@@ -996,7 +997,7 @@ pub async fn tokenize_card_using_pm_api() {}
       ),
   ),
   responses(
-      (status = 200, description = "Payment Method created", body = PaymentMethodSessionResponse),
+      (status = 200, description = "Payment Method created", body = api_models::payment_methods::PaymentMethodSessionResponse),
       (status = 400, description = "Missing Mandatory fields")
   ),
   tag = "Payment Method Session",
@@ -1020,7 +1021,7 @@ pub fn payment_method_session_confirm() {}
       )
     ),
   request_body(
-      content = PaymentMethodSessionConfirmRequest,
+      content = api_models::payment_methods::PaymentMethodSessionConfirmRequest,
       examples(
           (
               "Confirm the payment method session with card details" = (
@@ -1041,7 +1042,7 @@ pub fn payment_method_session_confirm() {}
       ),
   ),
   responses(
-      (status = 200, description = "Payment Method created", body = PaymentMethodSessionResponse),
+      (status = 200, description = "Payment Method created", body = api_models::payment_methods::PaymentMethodSessionResponse),
       (status = 400, description = "Missing Mandatory fields")
   ),
   tag = "Payment Method Session",

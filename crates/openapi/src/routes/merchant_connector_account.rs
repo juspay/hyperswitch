@@ -9,7 +9,7 @@
         ("account_id" = String, Path, description = "The unique identifier for the merchant account")
     ),
     request_body(
-        content = MerchantConnectorCreate,
+        content = api_models::admin::MerchantConnectorCreate,
         examples(
             (
                 "Create a merchant connector account with minimal fields" = (
@@ -55,7 +55,7 @@
         )
     ),
     responses(
-        (status = 200, description = "Merchant Connector Created", body = MerchantConnectorResponse),
+        (status = 200, description = "Merchant Connector Created", body = api_models::admin::MerchantConnectorResponse),
         (status = 400, description = "Missing Mandatory fields"),
     ),
     tag = "Merchant Connector Account",
@@ -72,7 +72,7 @@ pub async fn connector_create() {}
     post,
     path = "/v2/connector-accounts",
     request_body(
-        content = MerchantConnectorCreate,
+        content = api_models::admin::MerchantConnectorCreate,
         examples(
             (
                 "Create a merchant connector account with minimal fields" = (
@@ -118,7 +118,7 @@ pub async fn connector_create() {}
         )
     ),
     responses(
-        (status = 200, description = "Merchant Connector Created", body = MerchantConnectorResponse),
+        (status = 200, description = "Merchant Connector Created", body = api_models::admin::MerchantConnectorResponse),
         (status = 400, description = "Missing Mandatory fields"),
     ),
     tag = "Merchant Connector Account",
@@ -139,7 +139,7 @@ pub async fn connector_create() {}
         ("merchant_connector_id" = String, Path, description = "The unique identifier for the Merchant Connector")
     ),
     responses(
-        (status = 200, description = "Merchant Connector retrieved successfully", body = MerchantConnectorResponse),
+        (status = 200, description = "Merchant Connector retrieved successfully", body = api_models::admin::MerchantConnectorResponse),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),
@@ -160,7 +160,7 @@ pub async fn connector_retrieve() {}
         ("id" = i32, Path, description = "The unique identifier for the Merchant Connector")
     ),
     responses(
-        (status = 200, description = "Merchant Connector retrieved successfully", body = MerchantConnectorResponse),
+        (status = 200, description = "Merchant Connector retrieved successfully", body = api_models::admin::MerchantConnectorResponse),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),
@@ -180,7 +180,7 @@ pub async fn connector_retrieve() {}
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
     ),
     responses(
-        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnectorListResponse>),
+        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<api_models::admin::MerchantConnectorListResponse>),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),
@@ -198,7 +198,7 @@ pub async fn connector_list() {}
     post,
     path = "/account/{account_id}/connectors/{merchant_connector_id}",
     request_body(
-        content = MerchantConnectorUpdate,
+        content = api_models::admin::MerchantConnectorUpdate,
         examples(
             (
                 "Enable card payment method" = (
@@ -228,7 +228,7 @@ pub async fn connector_list() {}
         ("merchant_connector_id" = String, Path, description = "The unique identifier for the Merchant Connector")
     ),
     responses(
-        (status = 200, description = "Merchant Connector Updated", body = MerchantConnectorResponse),
+        (status = 200, description = "Merchant Connector Updated", body = api_models::admin::MerchantConnectorResponse),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),
@@ -246,7 +246,7 @@ pub async fn connector_update() {}
     put,
     path = "/v2/connector-accounts/{id}",
     request_body(
-        content = MerchantConnectorUpdate,
+        content = api_models::admin::MerchantConnectorUpdate,
         examples(
             (
                 "Enable card payment method" = (
@@ -275,7 +275,7 @@ pub async fn connector_update() {}
         ("id" = i32, Path, description = "The unique identifier for the Merchant Connector")
     ),
     responses(
-        (status = 200, description = "Merchant Connector Updated", body = MerchantConnectorResponse),
+        (status = 200, description = "Merchant Connector Updated", body = api_models::admin::MerchantConnectorResponse),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),
@@ -297,7 +297,7 @@ pub async fn connector_update() {}
         ("merchant_connector_id" = String, Path, description = "The unique identifier for the Merchant Connector")
     ),
     responses(
-        (status = 200, description = "Merchant Connector Deleted", body = MerchantConnectorDeleteResponse),
+        (status = 200, description = "Merchant Connector Deleted", body = api_models::admin::MerchantConnectorDeleteResponse),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),
@@ -318,7 +318,7 @@ pub async fn connector_delete() {}
         ("id" = i32, Path, description = "The unique identifier for the Merchant Connector")
     ),
     responses(
-        (status = 200, description = "Merchant Connector Deleted", body = MerchantConnectorDeleteResponse),
+        (status = 200, description = "Merchant Connector Deleted", body = api_models::admin::MerchantConnectorDeleteResponse),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),
@@ -336,7 +336,7 @@ pub async fn connector_delete() {}
     post,
     path = "/account/{account_id}/webhooks/{merchant_connector_id}",
     request_body(
-        content = ConnectorWebhookRegisterRequest,
+        content = api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         examples(
             (
                 "Register a standard webhook" = (
@@ -361,7 +361,7 @@ pub async fn connector_delete() {}
         ("merchant_connector_id" = String, Path, description = "The unique identifier for the Merchant Connector")
     ),
     responses(
-        (status = 200, description = "Connector Webhook Registered", body = RegisterConnectorWebhookResponse),
+        (status = 200, description = "Connector Webhook Registered", body = api_models::merchant_connector_webhook_management::RegisterConnectorWebhookResponse),
         (status = 401, description = "Unauthorized request")
     ),
     tag = "Merchant Connector Account",
@@ -382,7 +382,7 @@ pub async fn connector_webhook_register() {}
         ("merchant_connector_id" = String, Path, description = "The unique identifier for the Merchant Connector")
     ),
       responses(
-        (status = 200, description = "List of webhooks configured with hyperswitch at the connector", body = ConnectorWebhookListResponse),
+        (status = 200, description = "List of webhooks configured with hyperswitch at the connector", body = api_models::merchant_connector_webhook_management::ConnectorWebhookListResponse),
         (status = 401, description = "Unauthorized request")
     ),
     tag = "Merchant Connector Account",

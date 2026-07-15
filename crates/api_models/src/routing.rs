@@ -612,7 +612,7 @@ pub enum StaticRoutingAlgorithm {
     Single(Box<RoutableConnectorChoice>),
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
-    #[schema(value_type=ProgramConnectorSelection)]
+    #[schema(value_type=ast::ProgramConnectorSelection)]
     Advanced(Program<ConnectorSelection>),
     #[schema(value_type=ProgramThreeDsDecisionRule)]
     ThreeDsDecisionRule(Program<ThreeDSDecisionRule>),
@@ -633,7 +633,7 @@ pub struct ProgramThreeDsDecisionRule {
 pub struct RuleThreeDsDecisionRule {
     pub name: String,
     pub connector_selection: ThreeDSDecision,
-    #[schema(value_type = Vec<IfStatement>)]
+    #[schema(value_type = Vec<ast::IfStatement>)]
     pub statements: Vec<ast::IfStatement>,
 }
 
@@ -1338,7 +1338,7 @@ pub struct EliminationRoutingConfig {
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
     #[schema(deprecated)]
     pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
-    #[schema(value_type = DecisionEngineEliminationData)]
+    #[schema(value_type = open_router::DecisionEngineEliminationData)]
     pub decision_engine_configs: Option<open_router::DecisionEngineEliminationData>,
 }
 
@@ -1435,7 +1435,7 @@ pub struct SuccessBasedRoutingConfig {
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
     #[schema(deprecated)]
     pub config: Option<SuccessBasedRoutingConfigBody>,
-    #[schema(value_type = DecisionEngineSuccessRateData)]
+    #[schema(value_type = open_router::DecisionEngineSuccessRateData)]
     pub decision_engine_configs: Option<open_router::DecisionEngineSuccessRateData>,
 }
 

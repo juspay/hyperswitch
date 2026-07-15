@@ -484,7 +484,7 @@ dependencies = [
  "tempfile",
  "time 0.3.41",
  "url 2.5.4",
- "utoipa",
+ "utoipa 5.5.0",
 ]
 
 [[package]]
@@ -1550,7 +1550,7 @@ dependencies = [
  "bitflags 2.9.0",
  "cexpr",
  "clang-sys",
- "itertools 0.10.5",
+ "itertools 0.11.0",
  "log 0.4.27",
  "prettyplease",
  "proc-macro2",
@@ -2144,7 +2144,7 @@ dependencies = [
  "smithy-core",
  "strum 0.26.3",
  "thiserror 1.0.69",
- "utoipa",
+ "utoipa 5.5.0",
 ]
 
 [[package]]
@@ -2165,7 +2165,7 @@ dependencies = [
  "smithy",
  "smithy-core",
  "time 0.3.41",
- "utoipa",
+ "utoipa 5.5.0",
 ]
 
 [[package]]
@@ -2217,7 +2217,7 @@ dependencies = [
  "tokio 1.48.0",
  "url 2.5.4",
  "urlencoding",
- "utoipa",
+ "utoipa 5.5.0",
  "uuid",
 ]
 
@@ -2281,7 +2281,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "toml 0.8.22",
- "utoipa",
+ "utoipa 5.5.0",
 ]
 
 [[package]]
@@ -3297,7 +3297,7 @@ dependencies = [
  "serde_json",
  "strum 0.26.3",
  "thiserror 1.0.69",
- "utoipa",
+ "utoipa 5.5.0",
 ]
 
 [[package]]
@@ -4557,7 +4557,7 @@ dependencies = [
  "unidecode",
  "url 2.5.4",
  "urlencoding",
- "utoipa",
+ "utoipa 5.5.0",
  "uuid",
 ]
 
@@ -4600,7 +4600,7 @@ dependencies = [
  "serde_with",
  "time 0.3.41",
  "url 2.5.4",
- "utoipa",
+ "utoipa 5.5.0",
 ]
 
 [[package]]
@@ -6205,7 +6205,7 @@ dependencies = [
  "euclid",
  "router_env",
  "serde_json",
- "utoipa",
+ "utoipa 5.5.0",
 ]
 
 [[package]]
@@ -6835,7 +6835,7 @@ dependencies = [
  "regex-cache",
  "serde",
  "serde_derive",
- "strum 0.25.0",
+ "strum 0.26.3",
  "thiserror 1.0.69",
 ]
 
@@ -7156,8 +7156,8 @@ version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "343d3bd7056eda839b03204e68deff7d1b13aba7af2b2fd16890697274262ee7"
 dependencies = [
- "heck 0.4.1",
- "itertools 0.10.5",
+ "heck 0.5.0",
+ "itertools 0.11.0",
  "log 0.4.27",
  "multimap",
  "petgraph",
@@ -7178,7 +7178,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.10.5",
+ "itertools 0.11.0",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -7191,7 +7191,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27c6023962132f4b30eb4c172c91ce92d933da334c59c23cddee82358ddafb0b"
 dependencies = [
  "anyhow",
- "itertools 0.10.5",
+ "itertools 0.11.0",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -8091,7 +8091,7 @@ dependencies = [
  "unicode-segmentation",
  "url 2.5.4",
  "urlencoding",
- "utoipa",
+ "utoipa 5.5.0",
  "uuid",
  "validator",
  "wiremock",
@@ -8113,7 +8113,7 @@ dependencies = [
  "strum 0.26.3",
  "syn 2.0.101",
  "url 2.5.4",
- "utoipa",
+ "utoipa 5.5.0",
 ]
 
 [[package]]
@@ -11031,7 +11031,7 @@ dependencies = [
  "serde",
  "strum 0.26.3",
  "thiserror 1.0.69",
- "utoipa",
+ "utoipa 4.2.3",
 ]
 
 [[package]]
@@ -11072,7 +11072,7 @@ dependencies = [
  "tracing",
  "ucs_common_enums",
  "url 2.5.4",
- "utoipa",
+ "utoipa 4.2.3",
  "uuid",
 ]
 
@@ -11411,7 +11411,19 @@ dependencies = [
  "indexmap 2.9.0",
  "serde",
  "serde_json",
- "utoipa-gen",
+ "utoipa-gen 4.3.1",
+]
+
+[[package]]
+name = "utoipa"
+version = "5.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8bde15df68e80b16c7d16b9616e80770ad158988daa56a27dccd1e55558b0160"
+dependencies = [
+ "indexmap 2.9.0",
+ "serde",
+ "serde_json",
+ "utoipa-gen 5.5.0",
 ]
 
 [[package]]
@@ -11421,6 +11433,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20c24e8ab68ff9ee746aad22d39b5535601e6416d1b0feeabf78be986a5c4392"
 dependencies = [
  "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
+name = "utoipa-gen"
+version = "5.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ba0b99ee52df3028635d93840c797102da61f8a7bb3cf751032455895b52ef8"
+dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.101",

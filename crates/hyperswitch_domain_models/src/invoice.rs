@@ -26,6 +26,7 @@ pub struct Invoice {
     pub currency: String,
     pub status: common_enums::connector_enums::InvoiceStatus,
     pub provider_name: common_enums::connector_enums::Connector,
+    #[schema(value_type = Option<Object>)]
     pub metadata: Option<SecretSerdeValue>,
     pub connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
 }

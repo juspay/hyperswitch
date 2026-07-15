@@ -232,28 +232,30 @@ mod never {
     }
 }
 
-impl<'a> ToSchema<'a> for ApiKeyExpiration {
-    fn schema() -> (
-        &'a str,
-        utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
-    ) {
-        use utoipa::openapi::{KnownFormat, ObjectBuilder, OneOfBuilder, SchemaFormat, SchemaType};
+impl utoipa::PartialSchema for ApiKeyExpiration {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        use utoipa::openapi::schema::{
+            KnownFormat, ObjectBuilder, OneOfBuilder, SchemaFormat, Type,
+        };
 
-        (
-            "ApiKeyExpiration",
-            OneOfBuilder::new()
-                .item(
-                    ObjectBuilder::new()
-                        .schema_type(SchemaType::String)
-                        .enum_values(Some(["never"])),
-                )
-                .item(
-                    ObjectBuilder::new()
-                        .schema_type(SchemaType::String)
-                        .format(Some(SchemaFormat::KnownFormat(KnownFormat::DateTime))),
-                )
-                .into(),
-        )
+        OneOfBuilder::new()
+            .item(
+                ObjectBuilder::new()
+                    .schema_type(Type::String)
+                    .enum_values(Some(["never"])),
+            )
+            .item(
+                ObjectBuilder::new()
+                    .schema_type(Type::String)
+                    .format(Some(SchemaFormat::KnownFormat(KnownFormat::DateTime))),
+            )
+            .into()
+    }
+}
+
+impl ToSchema for ApiKeyExpiration {
+    fn name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("ApiKeyExpiration")
     }
 }
 

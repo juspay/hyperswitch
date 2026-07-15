@@ -79,7 +79,7 @@ impl_to_sql_from_sql_json!(SplitPaymentsRequest);
 /// Fee information for Split Payments to be charged on the payment being collected for Stripe
 pub struct StripeSplitPaymentRequest {
     /// Stripe's charge type
-    #[schema(value_type = PaymentChargeType, example = "direct")]
+    #[schema(value_type = enums::PaymentChargeType, example = "direct")]
     #[smithy(value_type = "PaymentChargeType")]
     pub charge_type: enums::PaymentChargeType,
 
@@ -362,7 +362,7 @@ pub struct StripeChargeResponseData {
     pub charge_id: Option<String>,
 
     /// Type of charge (connector specific)
-    #[schema(value_type = PaymentChargeType, example = "direct")]
+    #[schema(value_type = enums::PaymentChargeType, example = "direct")]
     #[smithy(value_type = "PaymentChargeType")]
     pub charge_type: enums::PaymentChargeType,
 
@@ -437,7 +437,7 @@ pub struct XenditSplitRoute {
     #[smithy(value_type = "Option<i64>")]
     pub percent_amount: Option<i64>,
     /// Currency code
-    #[schema(value_type = Currency, example = "USD")]
+    #[schema(value_type = common_enums::Currency, example = "USD")]
     #[smithy(value_type = "Currency")]
     pub currency: enums::Currency,
     ///  ID of the destination account where the amount will be routed to
@@ -899,7 +899,7 @@ impl ApplePayPredecryptData {
 }
 
 /// type of action that needs to taken after consuming recovery payload
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RecoveryAction {
     /// Stops the process tracker and update the payment intent.
@@ -1020,7 +1020,7 @@ pub struct PaymentIntentStateMetadata {
 #[diesel(sql_type = Jsonb)]
 pub struct PostCaptureVoidResponse {
     /// Status of post capture void
-    #[schema(value_type = PostCaptureVoidStatus)]
+    #[schema(value_type = enums::PostCaptureVoidStatus)]
     pub status: enums::PostCaptureVoidStatus,
     /// Connector reference id for post capture void
     pub connector_reference_id: Option<String>,
@@ -1106,29 +1106,27 @@ common_utils::impl_to_sql_from_sql_json!(PaymentIntentStateMetadata);
 
 /// List of custom T&C messages grouped by payment method
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
-pub struct PaymentMethodsConfig(
-    #[schema(example = json!([
-        {
-            "payment_method": "card",
-            "payment_method_types": [
-                {
-                    "payment_method_type": "credit",
-                    "message": {
-                        "value": "I authorize this payment",
-                        "display_mode": "default_sdk_message"
-                    }
+#[schema(example = json!([
+    {
+        "payment_method": "card",
+        "payment_method_types": [
+            {
+                "payment_method_type": "credit",
+                "message": {
+                    "value": "I authorize this payment",
+                    "display_mode": "default_sdk_message"
                 }
-            ]
-        }
-    ]))]
-    pub Vec<PaymentMethodConfig>,
-);
+            }
+        ]
+    }
+]))]
+pub struct PaymentMethodsConfig(pub Vec<PaymentMethodConfig>);
 
 /// Custom T&C messages for a specific payment method
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct PaymentMethodConfig {
     /// Payment Method
-    #[schema(value_type = PaymentMethod, example = "card")]
+    #[schema(value_type = common_enums::PaymentMethod, example = "card")]
     pub payment_method: common_enums::PaymentMethod,
 
     /// Payment Method Types
@@ -1149,7 +1147,7 @@ pub struct PaymentMethodConfig {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct CustomTerms {
     /// Payment Method Type
-    #[schema(value_type = PaymentMethodType, example = "sepa")]
+    #[schema(value_type = common_enums::PaymentMethodType, example = "sepa")]
     pub payment_method_type: common_enums::PaymentMethodType,
 
     /// The message to be shown
@@ -1271,7 +1269,7 @@ pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
     pub token_source: Option<TokenSource>,
 
     /// The network that facilitates payment card transactions
-    #[schema(value_type = Option<CardNetwork>)]
+    #[schema(value_type = Option<common_enums::CardNetwork>)]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<enums::CardNetwork>,
 }
@@ -1517,7 +1515,7 @@ impl IntoIterator for InstallmentEntries {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
 pub struct InstallmentOption {
     /// Payment method for which these installment plans apply (e.g., "card")
-    #[schema(value_type = PaymentMethod)]
+    #[schema(value_type = common_enums::PaymentMethod)]
     pub payment_method: common_enums::PaymentMethod,
     /// List of available installment configurations
     #[schema(value_type = Vec<InstallmentOptionData>)]

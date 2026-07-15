@@ -18,7 +18,7 @@ use crate::{
     path = "/cards/{bin}",
     params(("bin" = String, Path, description = "The first 6 or 9 digits of card")),
     responses(
-        (status = 200, description = "Card iin data found", body = CardInfoResponse),
+        (status = 200, description = "Card iin data found", body = api_models::cards_info::CardInfoResponse),
         (status = 404, description = "Card iin data not found")
     ),
     operation_id = "Retrieve card information",

@@ -22,7 +22,7 @@ use crate::{
         ("dispute_id" = String, Path, description = "The identifier for dispute")
     ),
     responses(
-        (status = 200, description = "The dispute was retrieved successfully", body = DisputeResponse),
+        (status = 200, description = "The dispute was retrieved successfully", body = api_models::disputes::DisputeResponse),
         (status = 404, description = "Dispute does not exist in our records")
     ),
     tag = "Disputes",
@@ -111,8 +111,8 @@ pub async fn fetch_disputes(
     path = "/disputes/list",
     params(
         ("limit" = Option<i64>, Query, description = "The maximum number of Dispute Objects to include in the response"),
-        ("dispute_status" = Option<DisputeStatus>, Query, description = "The status of dispute"),
-        ("dispute_stage" = Option<DisputeStage>, Query, description = "The stage of dispute"),
+        ("dispute_status" = Option<api_models::enums::DisputeStatus>, Query, description = "The status of dispute"),
+        ("dispute_stage" = Option<api_models::enums::DisputeStage>, Query, description = "The stage of dispute"),
         ("reason" = Option<String>, Query, description = "The reason for dispute"),
         ("connector" = Option<String>, Query, description = "The connector linked to dispute"),
         ("received_time" = Option<PrimitiveDateTime>, Query, description = "The time at which dispute is received"),
@@ -122,7 +122,7 @@ pub async fn fetch_disputes(
         ("received_time.gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the dispute received time"),
     ),
     responses(
-        (status = 200, description = "The dispute list was retrieved successfully", body = Vec<DisputeResponse>),
+        (status = 200, description = "The dispute list was retrieved successfully", body = Vec<api_models::disputes::DisputeResponse>),
         (status = 401, description = "Unauthorized request")
     ),
     tag = "Disputes",
@@ -174,8 +174,8 @@ pub async fn retrieve_disputes_list(
     path = "/disputes/profile/list",
     params(
         ("limit" = Option<i64>, Query, description = "The maximum number of Dispute Objects to include in the response"),
-        ("dispute_status" = Option<DisputeStatus>, Query, description = "The status of dispute"),
-        ("dispute_stage" = Option<DisputeStage>, Query, description = "The stage of dispute"),
+        ("dispute_status" = Option<api_models::enums::DisputeStatus>, Query, description = "The status of dispute"),
+        ("dispute_stage" = Option<api_models::enums::DisputeStage>, Query, description = "The stage of dispute"),
         ("reason" = Option<String>, Query, description = "The reason for dispute"),
         ("connector" = Option<String>, Query, description = "The connector linked to dispute"),
         ("received_time" = Option<PrimitiveDateTime>, Query, description = "The time at which dispute is received"),
@@ -185,7 +185,7 @@ pub async fn retrieve_disputes_list(
         ("received_time.gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the dispute received time"),
     ),
     responses(
-        (status = 200, description = "The dispute list was retrieved successfully", body = Vec<DisputeResponse>),
+        (status = 200, description = "The dispute list was retrieved successfully", body = Vec<api_models::disputes::DisputeResponse>),
         (status = 401, description = "Unauthorized request")
     ),
     tag = "Disputes",
@@ -236,7 +236,7 @@ pub async fn retrieve_disputes_list_profile(
     get,
     path = "/disputes/filter",
     responses(
-        (status = 200, description = "List of filters", body = DisputeListFilters),
+        (status = 200, description = "List of filters", body = api_models::disputes::DisputeListFilters),
     ),
     tag = "Disputes",
     operation_id = "List all filters for disputes",
@@ -276,7 +276,7 @@ pub async fn get_disputes_filters(state: web::Data<AppState>, req: HttpRequest) 
     get,
     path = "/disputes/profile/filter",
     responses(
-        (status = 200, description = "List of filters", body = DisputeListFilters),
+        (status = 200, description = "List of filters", body = api_models::disputes::DisputeListFilters),
     ),
     tag = "Disputes",
     operation_id = "List all filters for disputes",
@@ -326,7 +326,7 @@ pub async fn get_disputes_filters_profile(
         ("dispute_id" = String, Path, description = "The identifier for dispute")
     ),
     responses(
-        (status = 200, description = "The dispute was accepted successfully", body = DisputeResponse),
+        (status = 200, description = "The dispute was accepted successfully", body = api_models::disputes::DisputeResponse),
         (status = 404, description = "Dispute does not exist in our records")
     ),
     tag = "Disputes",
@@ -379,9 +379,9 @@ pub async fn accept_dispute(
 #[utoipa::path(
     post,
     path = "/disputes/evidence",
-    request_body=AcceptDisputeRequestData,
+    request_body=api_models::disputes::SubmitEvidenceRequest,
     responses(
-        (status = 200, description = "The dispute evidence submitted successfully", body = AcceptDisputeResponse),
+        (status = 200, description = "The dispute evidence submitted successfully", body = api_models::disputes::DisputeResponse),
         (status = 404, description = "Dispute does not exist in our records")
     ),
     tag = "Disputes",
@@ -432,9 +432,9 @@ pub async fn submit_dispute_evidence(
 #[utoipa::path(
     put,
     path = "/disputes/evidence",
-    request_body=MultipartRequestWithFile,
+    request_body=api_models::files::MultipartRequestWithFile,
     responses(
-        (status = 200, description = "Evidence attached to dispute", body = CreateFileResponse),
+        (status = 200, description = "Evidence attached to dispute", body = api_models::files::CreateFileResponse),
         (status = 400, description = "Bad Request")
     ),
     tag = "Disputes",
@@ -489,7 +489,7 @@ pub async fn attach_dispute_evidence(
         ("dispute_id" = String, Path, description = "The identifier for dispute")
     ),
     responses(
-        (status = 200, description = "The dispute evidence was retrieved successfully", body = DisputeResponse),
+        (status = 200, description = "The dispute evidence was retrieved successfully", body = api_models::disputes::DisputeResponse),
         (status = 404, description = "Dispute does not exist in our records")
     ),
     tag = "Disputes",
@@ -543,7 +543,7 @@ pub async fn retrieve_dispute_evidence(
 #[utoipa::path(
     put,
     path = "/disputes/evidence",
-    request_body=DeleteEvidenceRequest,
+    request_body=api_models::disputes::DeleteEvidenceRequest,
     responses(
         (status = 200, description = "Evidence deleted from a dispute"),
         (status = 400, description = "Bad Request")

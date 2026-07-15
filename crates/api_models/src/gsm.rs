@@ -5,7 +5,7 @@ use crate::enums as api_enums;
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GsmCreateRequest {
     /// The connector through which payment has gone through
-    #[schema(value_type = Connector)]
+    #[schema(value_type = api_enums::Connector)]
     pub connector: api_enums::Connector,
     /// The flow in which the code and message occurred for a connector
     pub flow: String,
@@ -22,7 +22,7 @@ pub struct GsmCreateRequest {
     /// decision to be taken for auto retries flow
     /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
     #[schema(deprecated)]
-    #[schema(value_type = GsmDecision)]
+    #[schema(value_type = api_enums::GsmDecision)]
     pub decision: api_enums::GsmDecision,
     /// indicates if step_up retry is possible
     /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
@@ -33,7 +33,7 @@ pub struct GsmCreateRequest {
     /// error message unified across the connectors
     pub unified_message: Option<String>,
     /// category in which error belongs to
-    #[schema(value_type = Option<ErrorCategory>)]
+    #[schema(value_type = Option<api_enums::ErrorCategory>)]
     pub error_category: Option<api_enums::ErrorCategory>,
     /// indicates if retry with pan is possible
     /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
@@ -41,15 +41,15 @@ pub struct GsmCreateRequest {
     pub clear_pan_possible: bool,
     /// Indicates the GSM feature associated with the request,
     /// such as retry mechanisms or other specific functionalities provided by the system.
-    #[schema(value_type = Option<GsmFeature>)]
+    #[schema(value_type = Option<api_enums::GsmFeature>)]
     pub feature: Option<api_enums::GsmFeature>,
     /// Contains the data relevant to the specified GSM feature, if applicable.
     /// For example, if the `feature` is `Retry`, this will include configuration
     /// details specific to the retry behavior.
-    #[schema(value_type = Option<GsmFeatureData>)]
+    #[schema(value_type = Option<common_types::domain::GsmFeatureData>)]
     pub feature_data: Option<common_types::domain::GsmFeatureData>,
     /// Code that identifies the specific cause for a failure within a broader error category such as `INVALID_EXPIRY_DATE`, `INVALID_CARD_NUMBER`, or `INSUFFICIENT_FUNDS`.
-    #[schema(value_type = Option<StandardisedCode>)]
+    #[schema(value_type = Option<api_enums::StandardisedCode>)]
     pub standardised_code: Option<api_enums::StandardisedCode>,
     /// A detailed description of the error intended for debugging, analytics, and support teams.  
     pub description: Option<String>,
@@ -62,7 +62,7 @@ pub struct GsmCreateRequest {
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GsmRetrieveRequest {
     /// The connector through which payment has gone through
-    #[schema(value_type = Connector)]
+    #[schema(value_type = api_enums::Connector)]
     pub connector: api_enums::Connector,
     /// The flow in which the code and message occurred for a connector
     pub flow: String,
@@ -93,7 +93,7 @@ pub struct GsmUpdateRequest {
     /// decision to be taken for auto retries flow
     /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
     #[schema(deprecated)]
-    #[schema(value_type = Option<GsmDecision>)]
+    #[schema(value_type = Option<api_enums::GsmDecision>)]
     pub decision: Option<api_enums::GsmDecision>,
     /// indicates if step_up retry is possible
     /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
@@ -104,7 +104,7 @@ pub struct GsmUpdateRequest {
     /// error message unified across the connectors
     pub unified_message: Option<String>,
     /// category in which error belongs to
-    #[schema(value_type = Option<ErrorCategory>)]
+    #[schema(value_type = Option<api_enums::ErrorCategory>)]
     pub error_category: Option<api_enums::ErrorCategory>,
     /// indicates if retry with pan is possible
     /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
@@ -112,15 +112,15 @@ pub struct GsmUpdateRequest {
     pub clear_pan_possible: Option<bool>,
     /// Indicates the GSM feature associated with the request,
     /// such as retry mechanisms or other specific functionalities provided by the system.
-    #[schema(value_type = Option<GsmFeature>)]
+    #[schema(value_type = Option<api_enums::GsmFeature>)]
     pub feature: Option<api_enums::GsmFeature>,
     /// Contains the data relevant to the specified GSM feature, if applicable.
     /// For example, if the `feature` is `Retry`, this will include configuration
     /// details specific to the retry behavior.
-    #[schema(value_type = Option<GsmFeatureData>)]
+    #[schema(value_type = Option<common_types::domain::GsmFeatureData>)]
     pub feature_data: Option<common_types::domain::GsmFeatureData>,
     /// Code that identifies the specific cause for a failure within a broader error category such as `INVALID_EXPIRY_DATE`, `INVALID_CARD_NUMBER`, or `INSUFFICIENT_FUNDS`.
-    #[schema(value_type = Option<StandardisedCode>)]
+    #[schema(value_type = Option<api_enums::StandardisedCode>)]
     pub standardised_code: Option<api_enums::StandardisedCode>,
     /// A detailed description of the error intended for debugging, analytics, and support teams.  
     pub description: Option<String>,
@@ -176,7 +176,7 @@ pub struct GsmResponse {
     /// decision to be taken for auto retries flow
     /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
     #[schema(deprecated)]
-    #[schema(value_type = GsmDecision)]
+    #[schema(value_type = api_enums::GsmDecision)]
     pub decision: api_enums::GsmDecision,
     /// indicates if step_up retry is possible
     /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
@@ -187,7 +187,7 @@ pub struct GsmResponse {
     /// error message unified across the connectors
     pub unified_message: Option<String>,
     /// category in which error belongs to
-    #[schema(value_type = Option<ErrorCategory>)]
+    #[schema(value_type = Option<api_enums::ErrorCategory>)]
     pub error_category: Option<api_enums::ErrorCategory>,
     /// indicates if retry with pan is possible
     /// **Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.
@@ -195,15 +195,15 @@ pub struct GsmResponse {
     pub clear_pan_possible: bool,
     /// Indicates the GSM feature associated with the request,
     /// such as retry mechanisms or other specific functionalities provided by the system.
-    #[schema(value_type = GsmFeature)]
+    #[schema(value_type = api_enums::GsmFeature)]
     pub feature: api_enums::GsmFeature,
     /// Contains the data relevant to the specified GSM feature, if applicable.
     /// For example, if the `feature` is `Retry`, this will include configuration
     /// details specific to the retry behavior.
-    #[schema(value_type = GsmFeatureData)]
+    #[schema(value_type = Option<common_types::domain::GsmFeatureData>)]
     pub feature_data: Option<common_types::domain::GsmFeatureData>,
     /// Code that identifies the specific cause for a failure within a broader error category such as `INVALID_EXPIRY_DATE`, `INVALID_CARD_NUMBER`, or `INSUFFICIENT_FUNDS`.
-    #[schema(value_type = Option<StandardisedCode>)]
+    #[schema(value_type = Option<api_enums::StandardisedCode>)]
     pub standardised_code: Option<api_enums::StandardisedCode>,
     /// A detailed description of the error intended for debugging, analytics, and support teams.  
     pub description: Option<String>,

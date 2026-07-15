@@ -2,9 +2,9 @@
 #[utoipa::path(
     post,
     path = "/three_ds_decision/execute",
-    request_body = ThreeDsDecisionRuleExecuteRequest,
+    request_body = api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteRequest,
     responses(
-        (status = 200, description = "3DS Decision Rule Executed Successfully", body = ThreeDsDecisionRuleExecuteResponse),
+        (status = 200, description = "3DS Decision Rule Executed Successfully", body = api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteResponse),
         (status = 400, description = "Bad Request")
     ),
     tag = "3DS Decision Rule",

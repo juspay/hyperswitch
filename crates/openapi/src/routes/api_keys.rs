@@ -7,9 +7,9 @@
     post,
     path = "/api_keys/{merchant_id}",
     params(("merchant_id" = String, Path, description = "The unique identifier for the merchant account")),
-    request_body= CreateApiKeyRequest,
+    request_body= api_models::api_keys::CreateApiKeyRequest,
     responses(
-        (status = 200, description = "API Key created", body = CreateApiKeyResponse),
+        (status = 200, description = "API Key created", body = api_models::api_keys::CreateApiKeyResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "API Key",
@@ -26,9 +26,9 @@ pub async fn api_key_create() {}
 #[utoipa::path(
     post,
     path = "/v2/api-keys",
-    request_body= CreateApiKeyRequest,
+    request_body= api_models::api_keys::CreateApiKeyRequest,
     responses(
-        (status = 200, description = "API Key created", body = CreateApiKeyResponse),
+        (status = 200, description = "API Key created", body = api_models::api_keys::CreateApiKeyResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "API Key",
@@ -49,7 +49,7 @@ pub async fn api_key_create() {}
         ("key_id" = String, Path, description = "The unique identifier for the API Key")
     ),
     responses(
-        (status = 200, description = "API Key retrieved", body = RetrieveApiKeyResponse),
+        (status = 200, description = "API Key retrieved", body = api_models::api_keys::RetrieveApiKeyResponse),
         (status = 404, description = "API Key not found")
     ),
     tag = "API Key",
@@ -69,7 +69,7 @@ pub async fn api_key_retrieve() {}
         ("id" = String, Path, description = "The unique identifier for the API Key")
     ),
     responses(
-        (status = 200, description = "API Key retrieved", body = RetrieveApiKeyResponse),
+        (status = 200, description = "API Key retrieved", body = api_models::api_keys::RetrieveApiKeyResponse),
         (status = 404, description = "API Key not found")
     ),
     tag = "API Key",
@@ -85,13 +85,13 @@ pub async fn api_key_retrieve() {}
 #[utoipa::path(
     post,
     path = "/api_keys/{merchant_id}/{key_id}",
-    request_body = UpdateApiKeyRequest,
+    request_body = api_models::api_keys::UpdateApiKeyRequest,
     params (
         ("merchant_id" = String, Path, description = "The unique identifier for the merchant account"),
         ("key_id" = String, Path, description = "The unique identifier for the API Key")
     ),
     responses(
-        (status = 200, description = "API Key updated", body = RetrieveApiKeyResponse),
+        (status = 200, description = "API Key updated", body = api_models::api_keys::RetrieveApiKeyResponse),
         (status = 404, description = "API Key not found")
     ),
     tag = "API Key",
@@ -107,12 +107,12 @@ pub async fn api_key_update() {}
 #[utoipa::path(
     put,
     path = "/v2/api-keys/{id}",
-    request_body = UpdateApiKeyRequest,
+    request_body = api_models::api_keys::UpdateApiKeyRequest,
     params (
         ("id" = String, Path, description = "The unique identifier for the API Key")
     ),
     responses(
-        (status = 200, description = "API Key updated", body = RetrieveApiKeyResponse),
+        (status = 200, description = "API Key updated", body = api_models::api_keys::RetrieveApiKeyResponse),
         (status = 404, description = "API Key not found")
     ),
     tag = "API Key",
@@ -134,7 +134,7 @@ pub async fn api_key_update() {}
         ("key_id" = String, Path, description = "The unique identifier for the API Key")
     ),
     responses(
-        (status = 200, description = "API Key revoked", body = RevokeApiKeyResponse),
+        (status = 200, description = "API Key revoked", body = api_models::api_keys::RevokeApiKeyResponse),
         (status = 404, description = "API Key not found")
     ),
     tag = "API Key",
@@ -155,7 +155,7 @@ pub async fn api_key_revoke() {}
         ("id" = String, Path, description = "The unique identifier for the API Key")
     ),
     responses(
-        (status = 200, description = "API Key revoked", body = RevokeApiKeyResponse),
+        (status = 200, description = "API Key revoked", body = api_models::api_keys::RevokeApiKeyResponse),
         (status = 404, description = "API Key not found")
     ),
     tag = "API Key",
@@ -177,7 +177,7 @@ pub async fn api_key_revoke() {}
         ("skip" = Option<i64>, Query, description = "The number of API Keys to skip when retrieving the list of API keys."),
     ),
     responses(
-        (status = 200, description = "List of API Keys retrieved successfully", body = Vec<RetrieveApiKeyResponse>),
+        (status = 200, description = "List of API Keys retrieved successfully", body = Vec<api_models::api_keys::RetrieveApiKeyResponse>),
     ),
     tag = "API Key",
     operation_id = "List all API Keys associated with a merchant account",
@@ -197,7 +197,7 @@ pub async fn api_key_list() {}
         ("skip" = Option<i64>, Query, description = "The number of API Keys to skip when retrieving the list of API keys."),
     ),
     responses(
-        (status = 200, description = "List of API Keys retrieved successfully", body = Vec<RetrieveApiKeyResponse>),
+        (status = 200, description = "List of API Keys retrieved successfully", body = Vec<api_models::api_keys::RetrieveApiKeyResponse>),
     ),
     tag = "API Key",
     operation_id = "List all API Keys associated with a merchant account",

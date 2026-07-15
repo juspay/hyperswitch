@@ -14,13 +14,14 @@ pub struct RevenueRecoveryResponse {
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub schedule_time_for_psync: Option<PrimitiveDateTime>,
-    #[schema(value_type = ProcessTrackerStatus, example = "finish")]
+    #[schema(value_type = enums::ProcessTrackerStatus, example = "finish")]
     pub status: enums::ProcessTrackerStatus,
     pub business_status: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RevenueRecoveryId {
+    #[schema(value_type = String)]
     pub revenue_recovery_id: id_type::GlobalPaymentId,
 }
 

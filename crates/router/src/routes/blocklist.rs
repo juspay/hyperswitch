@@ -13,9 +13,9 @@ use crate::{
 #[utoipa::path(
     post,
     path = "/blocklist",
-    request_body = BlocklistRequest,
+    request_body = api_models::blocklist::BlocklistRequest,
     responses(
-        (status = 200, description = "Fingerprint Blocked", body = BlocklistResponse),
+        (status = 200, description = "Fingerprint Blocked", body = api_models::blocklist::BlocklistResponse),
         (status = 400, description = "Invalid Data")
     ),
     tag = "Blocklist",
@@ -56,9 +56,9 @@ pub async fn add_entry_to_blocklist(
 #[utoipa::path(
     delete,
     path = "/blocklist",
-    request_body = BlocklistRequest,
+    request_body = api_models::blocklist::BlocklistRequest,
     responses(
-        (status = 200, description = "Fingerprint Unblocked", body = BlocklistResponse),
+        (status = 200, description = "Fingerprint Unblocked", body = api_models::blocklist::BlocklistResponse),
         (status = 400, description = "Invalid Data")
     ),
     tag = "Blocklist",
@@ -104,10 +104,10 @@ pub async fn remove_entry_from_blocklist(
     get,
     path = "/blocklist",
     params (
-        ("data_kind" = BlocklistDataKind, Query, description = "Kind of the fingerprint list requested"),
+        ("data_kind" = api_models::enums::BlocklistDataKind, Query, description = "Kind of the fingerprint list requested"),
     ),
     responses(
-        (status = 200, description = "Blocked Fingerprints", body = ListBlocklistResponse),
+        (status = 200, description = "Blocked Fingerprints", body = api_models::blocklist::ListBlocklistResponse),
         (status = 400, description = "Invalid Data")
     ),
     tag = "Blocklist",
@@ -166,7 +166,7 @@ pub async fn list_blocked_payment_methods(
         ("status" = bool, Query, description = "Boolean value to enable/disable blocklist"),
     ),
     responses(
-        (status = 200, description = "Blocklist guard enabled/disabled", body = ToggleBlocklistResponse),
+        (status = 200, description = "Blocklist guard enabled/disabled", body = api_models::blocklist::ToggleBlocklistResponse),
         (status = 400, description = "Invalid Data")
     ),
     tag = "Blocklist",
@@ -225,7 +225,7 @@ pub struct BatchBlocklistUploadForm {
             Maximum 100,000 data rows.",
     ),
     responses(
-        (status = 202, description = "Batch blocklist job initiated", body = BatchBlocklistUploadResponse),
+        (status = 202, description = "Batch blocklist job initiated", body = api_models::blocklist::BatchBlocklistUploadResponse),
         (status = 400, description = "CSV validation error or file exceeds 5 MB limit"),
     ),
     tag = "Blocklist",
@@ -273,7 +273,7 @@ pub async fn upload_batch_blocklist(
         ("job_id" = String, Path, description = "The job ID returned by the batch upload endpoint"),
     ),
     responses(
-        (status = 200, description = "Batch blocklist job status", body = BatchBlocklistJobStatusResponse),
+        (status = 200, description = "Batch blocklist job status", body = api_models::blocklist::BatchBlocklistJobStatusResponse),
         (status = 404, description = "Job not found"),
     ),
     tag = "Blocklist",
@@ -320,7 +320,7 @@ pub async fn get_batch_blocklist_job_status(
         ("offset" = Option<u32>, Query, description = "Zero-based offset for pagination (default 0)"),
     ),
     responses(
-        (status = 200, description = "List of batch blocklist jobs", body = ListBatchBlocklistJobsResponse),
+        (status = 200, description = "List of batch blocklist jobs", body = api_models::blocklist::ListBatchBlocklistJobsResponse),
     ),
     tag = "Blocklist",
     operation_id = "List batch blocklist jobs",

@@ -9,7 +9,7 @@
         ("client_secret" = Option<String>, Query, description = "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"),
     ),
     responses(
-        (status = 200, description = "Gets details regarding payment link", body = RetrievePaymentLinkResponse),
+        (status = 200, description = "Gets details regarding payment link", body = api_models::payments::RetrievePaymentLinkResponse),
         (status = 404, description = "No payment link found")
     ),
     tag = "Payments",

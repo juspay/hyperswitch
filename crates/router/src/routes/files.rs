@@ -20,9 +20,9 @@ use crate::{
 #[utoipa::path(
     post,
     path = "/files",
-    request_body=MultipartRequestWithFile,
+    request_body=api_models::files::MultipartRequestWithFile,
     responses(
-        (status = 200, description = "File created", body = CreateFileResponse),
+        (status = 200, description = "File created", body = api_models::files::CreateFileResponse),
         (status = 400, description = "Bad Request")
     ),
     tag = "Files",

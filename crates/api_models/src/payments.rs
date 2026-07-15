@@ -9,7 +9,7 @@ pub mod trait_impls;
 use cards::{CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
-use common_enums::{self, GooglePayCardFundingSource, ProductType};
+use common_enums::{self, Currency, GooglePayCardFundingSource, ProductType};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -117,7 +117,7 @@ pub struct ConnectorCode {
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct BankCodeResponse {
-    #[schema(value_type = Vec<BankNames>)]
+    #[schema(value_type = Vec<api_enums::BankNames>)]
     pub bank_name: Vec<common_enums::BankNames>,
     pub eligible_connectors: Vec<String>,
 }
@@ -253,10 +253,10 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<String>)]
     pub routing_algorithm_id: Option<id_type::RoutingId>,
 
-    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    #[schema(value_type = Option<api_enums::CaptureMethod>, example = "automatic")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
-    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
+    #[schema(value_type = Option<api_enums::AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The billing details of the payment. This address will be used for invoicing.
@@ -275,7 +275,7 @@ pub struct PaymentsCreateIntentRequest {
     pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
-    #[schema(example = "present", value_type = Option<PresenceOfCustomerDuringPayment>)]
+    #[schema(example = "present", value_type = Option<common_enums::PresenceOfCustomerDuringPayment>)]
     pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
 
     /// A description for the payment
@@ -286,11 +286,11 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
     pub return_url: Option<common_utils::types::Url>,
 
-    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    #[schema(value_type = Option<api_enums::FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
 
     /// Apply MIT exemption for a payment
-    #[schema(value_type = Option<MitExemptionRequest>)]
+    #[schema(value_type = Option<common_enums::MitExemptionRequest>)]
     pub apply_mit_exemption: Option<common_enums::MitExemptionRequest>,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
@@ -307,7 +307,7 @@ pub struct PaymentsCreateIntentRequest {
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
 
     /// Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent
-    #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    #[schema(value_type = Option<Vec<api_enums::PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
@@ -321,15 +321,15 @@ pub struct PaymentsCreateIntentRequest {
     pub feature_metadata: Option<FeatureMetadata>,
 
     /// Whether to generate the payment link for this payment or not (if applicable)
-    #[schema(value_type = Option<EnablePaymentLinkRequest>)]
+    #[schema(value_type = Option<common_enums::EnablePaymentLinkRequest>)]
     pub payment_link_enabled: Option<common_enums::EnablePaymentLinkRequest>,
 
     /// Configure a custom payment link for the particular payment
-    #[schema(value_type = Option<PaymentLinkConfigRequest>)]
+    #[schema(value_type = Option<admin::PaymentLinkConfigRequest>)]
     pub payment_link_config: Option<admin::PaymentLinkConfigRequest>,
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
-    #[schema(value_type = Option<RequestIncrementalAuthorization>)]
+    #[schema(value_type = Option<common_enums::RequestIncrementalAuthorization>)]
     pub request_incremental_authorization: Option<common_enums::RequestIncrementalAuthorization>,
 
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config
@@ -342,7 +342,7 @@ pub struct PaymentsCreateIntentRequest {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// Whether to perform external authentication (if applicable)
-    #[schema(value_type = Option<External3dsAuthenticationRequest>)]
+    #[schema(value_type = Option<common_enums::External3dsAuthenticationRequest>)]
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
 
@@ -350,7 +350,7 @@ pub struct PaymentsCreateIntentRequest {
     pub force_3ds_challenge: Option<bool>,
 
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    #[schema(value_type = Option<common_types::domain::MerchantConnectorAuthDetails>)]
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 
     /// Allow partial authorization for this payment
@@ -447,10 +447,10 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<String>)]
     pub routing_algorithm_id: Option<id_type::RoutingId>,
 
-    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    #[schema(value_type = Option<api_enums::CaptureMethod>, example = "automatic")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
-    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
+    #[schema(value_type = Option<api_enums::AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The billing details of the payment. This address will be used for invoicing.
@@ -460,7 +460,7 @@ pub struct PaymentsUpdateIntentRequest {
     pub shipping: Option<Address>,
 
     /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
-    #[schema(example = "present", value_type = Option<PresenceOfCustomerDuringPayment>)]
+    #[schema(example = "present", value_type = Option<common_enums::PresenceOfCustomerDuringPayment>)]
     pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
 
     /// A description for the payment
@@ -471,11 +471,11 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
     pub return_url: Option<common_utils::types::Url>,
 
-    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    #[schema(value_type = Option<api_enums::FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
 
     /// Apply MIT exemption for a payment
-    #[schema(value_type = Option<MitExemptionRequest>)]
+    #[schema(value_type = Option<common_enums::MitExemptionRequest>)]
     pub apply_mit_exemption: Option<common_enums::MitExemptionRequest>,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
@@ -492,7 +492,7 @@ pub struct PaymentsUpdateIntentRequest {
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
 
     /// Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent
-    #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    #[schema(value_type = Option<Vec<api_enums::PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
     /// Metadata is useful for storing additional, unstructured information on an object. This metadata will override the metadata that was passed in payments
@@ -508,11 +508,11 @@ pub struct PaymentsUpdateIntentRequest {
     pub feature_metadata: Option<FeatureMetadata>,
 
     /// Configure a custom payment link for the particular payment
-    #[schema(value_type = Option<PaymentLinkConfigRequest>)]
+    #[schema(value_type = Option<admin::PaymentLinkConfigRequest>)]
     pub payment_link_config: Option<admin::PaymentLinkConfigRequest>,
 
     /// Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
-    #[schema(value_type = Option<RequestIncrementalAuthorization>)]
+    #[schema(value_type = Option<common_enums::RequestIncrementalAuthorization>)]
     pub request_incremental_authorization: Option<common_enums::RequestIncrementalAuthorization>,
 
     /// Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config
@@ -525,11 +525,11 @@ pub struct PaymentsUpdateIntentRequest {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// Whether to perform external authentication (if applicable)
-    #[schema(value_type = Option<External3dsAuthenticationRequest>)]
+    #[schema(value_type = Option<common_enums::External3dsAuthenticationRequest>)]
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
 
-    #[schema(value_type = Option<UpdateActiveAttempt>)]
+    #[schema(value_type = Option<api_enums::UpdateActiveAttempt>)]
     /// Whether to set / unset the active attempt id
     pub set_active_attempt_id: Option<api_enums::UpdateActiveAttempt>,
 
@@ -582,7 +582,7 @@ pub struct PaymentsIntentResponse {
     pub id: id_type::GlobalPaymentId,
 
     /// The status of the payment
-    #[schema(value_type = IntentStatus, example = "succeeded")]
+    #[schema(value_type = api_enums::IntentStatus, example = "succeeded")]
     pub status: common_enums::IntentStatus,
 
     /// The amount details for the payment
@@ -610,11 +610,11 @@ pub struct PaymentsIntentResponse {
     #[schema(value_type = Option<String>)]
     pub routing_algorithm_id: Option<id_type::RoutingId>,
 
-    #[schema(value_type = CaptureMethod, example = "automatic")]
+    #[schema(value_type = api_enums::CaptureMethod, example = "automatic")]
     pub capture_method: api_enums::CaptureMethod,
 
     /// The authentication type for the payment
-    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds")]
+    #[schema(value_type = Option<api_enums::AuthenticationType>, example = "no_three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The billing details of the payment. This address will be used for invoicing.
@@ -635,7 +635,7 @@ pub struct PaymentsIntentResponse {
     pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
-    #[schema(example = "present", value_type = PresenceOfCustomerDuringPayment)]
+    #[schema(example = "present", value_type = common_enums::PresenceOfCustomerDuringPayment)]
     pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
 
     /// A description for the payment
@@ -646,11 +646,11 @@ pub struct PaymentsIntentResponse {
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
     pub return_url: Option<common_utils::types::Url>,
 
-    #[schema(value_type = FutureUsage, example = "off_session")]
+    #[schema(value_type = api_enums::FutureUsage, example = "off_session")]
     pub setup_future_usage: api_enums::FutureUsage,
 
     /// Apply MIT exemption for a payment
-    #[schema(value_type = MitExemptionRequest)]
+    #[schema(value_type = common_enums::MitExemptionRequest)]
     pub apply_mit_exemption: common_enums::MitExemptionRequest,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
@@ -667,7 +667,7 @@ pub struct PaymentsIntentResponse {
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
 
     /// Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent
-    #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    #[schema(value_type = Option<Vec<api_enums::PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
@@ -683,19 +683,19 @@ pub struct PaymentsIntentResponse {
     pub feature_metadata: Option<FeatureMetadata>,
 
     /// Whether to generate the payment link for this payment or not (if applicable)
-    #[schema(value_type = EnablePaymentLinkRequest)]
+    #[schema(value_type = common_enums::EnablePaymentLinkRequest)]
     pub payment_link_enabled: common_enums::EnablePaymentLinkRequest,
 
     /// Configure a custom payment link for the particular payment
-    #[schema(value_type = Option<PaymentLinkConfigRequest>)]
+    #[schema(value_type = Option<admin::PaymentLinkConfigRequest>)]
     pub payment_link_config: Option<admin::PaymentLinkConfigRequest>,
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
-    #[schema(value_type = RequestIncrementalAuthorization)]
+    #[schema(value_type = common_enums::RequestIncrementalAuthorization)]
     pub request_incremental_authorization: common_enums::RequestIncrementalAuthorization,
 
     /// Enable split payments, i.e., split the amount between multiple payment methods
-    #[schema(value_type = SplitTxnsEnabled, default = "skip")]
+    #[schema(value_type = common_enums::SplitTxnsEnabled, default = "skip")]
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
 
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
@@ -707,11 +707,11 @@ pub struct PaymentsIntentResponse {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// Whether to perform external authentication (if applicable)
-    #[schema(value_type = External3dsAuthenticationRequest)]
+    #[schema(value_type = common_enums::External3dsAuthenticationRequest)]
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
 
     /// The type of the payment that differentiates between normal and various types of mandate payments
-    #[schema(value_type = PaymentType)]
+    #[schema(value_type = api_enums::PaymentType)]
     pub payment_type: api_enums::PaymentType,
 
     /// Allow partial authorization for this payment
@@ -728,7 +728,7 @@ pub struct RevenueRecoveryGetIntentResponse {
     pub id: id_type::GlobalPaymentId,
 
     /// The recovery status of the payment
-    #[schema(value_type = RecoveryStatus, example = "scheduled")]
+    #[schema(value_type = common_enums::RecoveryStatus, example = "scheduled")]
     pub status: common_enums::RecoveryStatus,
 
     /// The amount details for the payment
@@ -756,11 +756,11 @@ pub struct RevenueRecoveryGetIntentResponse {
     #[schema(value_type = Option<String>)]
     pub routing_algorithm_id: Option<id_type::RoutingId>,
 
-    #[schema(value_type = CaptureMethod, example = "automatic")]
+    #[schema(value_type = api_enums::CaptureMethod, example = "automatic")]
     pub capture_method: api_enums::CaptureMethod,
 
     /// The authentication type for the payment
-    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds")]
+    #[schema(value_type = Option<api_enums::AuthenticationType>, example = "no_three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The billing details of the payment. This address will be used for invoicing.
@@ -781,7 +781,7 @@ pub struct RevenueRecoveryGetIntentResponse {
     pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
-    #[schema(example = "present", value_type = PresenceOfCustomerDuringPayment)]
+    #[schema(example = "present", value_type = common_enums::PresenceOfCustomerDuringPayment)]
     pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
 
     /// A description for the payment
@@ -792,11 +792,11 @@ pub struct RevenueRecoveryGetIntentResponse {
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
     pub return_url: Option<common_utils::types::Url>,
 
-    #[schema(value_type = FutureUsage, example = "off_session")]
+    #[schema(value_type = api_enums::FutureUsage, example = "off_session")]
     pub setup_future_usage: api_enums::FutureUsage,
 
     /// Apply MIT exemption for a payment
-    #[schema(value_type = MitExemptionRequest)]
+    #[schema(value_type = common_enums::MitExemptionRequest)]
     pub apply_mit_exemption: common_enums::MitExemptionRequest,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
@@ -813,7 +813,7 @@ pub struct RevenueRecoveryGetIntentResponse {
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
 
     /// Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent
-    #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    #[schema(value_type = Option<Vec<api_enums::PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
@@ -829,19 +829,19 @@ pub struct RevenueRecoveryGetIntentResponse {
     pub feature_metadata: Option<FeatureMetadata>,
 
     /// Whether to generate the payment link for this payment or not (if applicable)
-    #[schema(value_type = EnablePaymentLinkRequest)]
+    #[schema(value_type = common_enums::EnablePaymentLinkRequest)]
     pub payment_link_enabled: common_enums::EnablePaymentLinkRequest,
 
     /// Configure a custom payment link for the particular payment
-    #[schema(value_type = Option<PaymentLinkConfigRequest>)]
+    #[schema(value_type = Option<admin::PaymentLinkConfigRequest>)]
     pub payment_link_config: Option<admin::PaymentLinkConfigRequest>,
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
-    #[schema(value_type = RequestIncrementalAuthorization)]
+    #[schema(value_type = common_enums::RequestIncrementalAuthorization)]
     pub request_incremental_authorization: common_enums::RequestIncrementalAuthorization,
 
     /// Enable split payments, i.e., split the amount between multiple payment methods
-    #[schema(value_type = SplitTxnsEnabled, default = "skip")]
+    #[schema(value_type = common_enums::SplitTxnsEnabled, default = "skip")]
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
 
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
@@ -853,7 +853,7 @@ pub struct RevenueRecoveryGetIntentResponse {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// Whether to perform external authentication (if applicable)
-    #[schema(value_type = External3dsAuthenticationRequest)]
+    #[schema(value_type = common_enums::External3dsAuthenticationRequest)]
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
 
     /// Allow partial authorization for this payment
@@ -874,18 +874,18 @@ pub struct AmountDetails {
     order_amount: Amount,
     /// The currency of the order
     #[schema(example = "USD", value_type = Currency)]
-    currency: common_enums::Currency,
+    currency: Currency,
     /// The shipping cost of the order. This has to be collected from the merchant
     shipping_cost: Option<MinorUnit>,
     /// Tax amount related to the order. This will be calculated by the external tax provider
     order_tax_amount: Option<MinorUnit>,
     /// The action to whether calculate tax by calling external tax provider or not
     #[serde(default)]
-    #[schema(value_type = TaxCalculationOverride)]
+    #[schema(value_type = common_enums::TaxCalculationOverride)]
     skip_external_tax_calculation: common_enums::TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
     #[serde(default)]
-    #[schema(value_type = SurchargeCalculationOverride)]
+    #[schema(value_type = common_enums::SurchargeCalculationOverride)]
     skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
     /// The surcharge amount to be added to the order, collected from the merchant
     surcharge_amount: Option<MinorUnit>,
@@ -895,7 +895,7 @@ pub struct AmountDetails {
 
 #[cfg(feature = "v2")]
 impl AmountDetails {
-    pub fn new_for_zero_auth_payment(currency: common_enums::Currency) -> Self {
+    pub fn new_for_zero_auth_payment(currency: Currency) -> Self {
         Self {
             order_amount: Amount::Zero,
             currency,
@@ -918,16 +918,16 @@ pub struct AmountDetailsUpdate {
     order_amount: Option<Amount>,
     /// The currency of the order
     #[schema(example = "USD", value_type = Option<Currency>)]
-    currency: Option<common_enums::Currency>,
+    currency: Option<Currency>,
     /// The shipping cost of the order. This has to be collected from the merchant
     shipping_cost: Option<MinorUnit>,
     /// Tax amount related to the order. This will be calculated by the external tax provider
     order_tax_amount: Option<MinorUnit>,
     /// The action to whether calculate tax by calling external tax provider or not
-    #[schema(value_type = Option<TaxCalculationOverride>)]
+    #[schema(value_type = Option<common_enums::TaxCalculationOverride>)]
     skip_external_tax_calculation: Option<common_enums::TaxCalculationOverride>,
     /// The action to whether calculate surcharge or not
-    #[schema(value_type = Option<SurchargeCalculationOverride>)]
+    #[schema(value_type = Option<common_enums::SurchargeCalculationOverride>)]
     skip_surcharge_calculation: Option<common_enums::SurchargeCalculationOverride>,
     /// The surcharge amount to be added to the order, collected from the merchant
     surcharge_amount: Option<MinorUnit>,
@@ -938,7 +938,7 @@ pub struct AmountDetailsUpdate {
 #[cfg(feature = "v2")]
 pub struct AmountDetailsSetter {
     pub order_amount: Amount,
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
@@ -955,16 +955,16 @@ pub struct AmountDetailsResponse {
     pub order_amount: MinorUnit,
     /// The currency of the order
     #[schema(example = "USD", value_type = Currency)]
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
     /// The shipping cost of the order. This has to be collected from the merchant
     pub shipping_cost: Option<MinorUnit>,
     /// Tax amount related to the order. This will be calculated by the external tax provider
     pub order_tax_amount: Option<MinorUnit>,
     /// The action to whether calculate tax by calling external tax provider or not
-    #[schema(value_type = TaxCalculationOverride)]
+    #[schema(value_type = common_enums::TaxCalculationOverride)]
     pub external_tax_calculation: common_enums::TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
-    #[schema(value_type = SurchargeCalculationOverride)]
+    #[schema(value_type = common_enums::SurchargeCalculationOverride)]
     pub surcharge_calculation: common_enums::SurchargeCalculationOverride,
     /// The surcharge amount to be added to the order, collected from the merchant
     pub surcharge_amount: Option<MinorUnit>,
@@ -984,16 +984,16 @@ pub struct PaymentAmountDetailsResponse {
     pub order_amount: MinorUnit,
     /// The currency of the order
     #[schema(example = "USD", value_type = Currency)]
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
     /// The shipping cost of the order. This has to be collected from the merchant
     pub shipping_cost: Option<MinorUnit>,
     /// Tax amount related to the order. This will be calculated by the external tax provider
     pub order_tax_amount: Option<MinorUnit>,
     /// The action to whether calculate tax by calling external tax provider or not
-    #[schema(value_type = TaxCalculationOverride)]
+    #[schema(value_type = common_enums::TaxCalculationOverride)]
     pub external_tax_calculation: common_enums::TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
-    #[schema(value_type = SurchargeCalculationOverride)]
+    #[schema(value_type = common_enums::SurchargeCalculationOverride)]
     pub surcharge_calculation: common_enums::SurchargeCalculationOverride,
     /// The surcharge amount to be added to the order, collected from the merchant
     pub surcharge_amount: Option<MinorUnit>,
@@ -1053,7 +1053,7 @@ impl AmountDetails {
     pub fn order_amount(&self) -> Amount {
         self.order_amount
     }
-    pub fn currency(&self) -> common_enums::Currency {
+    pub fn currency(&self) -> Currency {
         self.currency
     }
     pub fn shipping_cost(&self) -> Option<MinorUnit> {
@@ -1081,7 +1081,7 @@ impl AmountDetailsUpdate {
     pub fn order_amount(&self) -> Option<Amount> {
         self.order_amount
     }
-    pub fn currency(&self) -> Option<common_enums::Currency> {
+    pub fn currency(&self) -> Option<Currency> {
         self.currency
     }
     pub fn shipping_cost(&self) -> Option<MinorUnit> {
@@ -1112,7 +1112,7 @@ pub struct InstallmentRequest {
     #[schema(value_type = u8)]
     pub number_of_installments: NonZeroU8,
     /// Billing frequency for the chosen installment plan
-    #[schema(value_type = BillingFrequency)]
+    #[schema(value_type = common_payments_types::BillingFrequency)]
     pub billing_frequency: common_payments_types::BillingFrequency,
 }
 
@@ -1159,7 +1159,7 @@ pub struct PaymentsRequest {
     #[schema(example = "USD", value_type = Option<Currency>)]
     #[mandatory_in(PaymentsCreateRequest = Currency)]
     #[smithy(value_type = "Option<Currency>")]
-    pub currency: Option<api_enums::Currency>,
+    pub currency: Option<Currency>,
 
     /// The amount to be captured from the user's payment method, in the lowest denomination. If not provided, and `capture_method` is `automatic`, the full payment `amount` will be captured. If `capture_method` is `manual`, this can be specified in the `/capture` call. Must be less than or equal to the authorized amount.
     #[schema(value_type = Option<i64>, example = 6540)]
@@ -1189,7 +1189,7 @@ pub struct PaymentsRequest {
     pub merchant_id: Option<id_type::MerchantId>,
 
     /// Details of the routing configuration for that payment
-    #[schema(value_type = Option<StraightThroughAlgorithm>, example = json!({
+    #[schema(value_type = Option<crate::routing::StraightThroughAlgorithm>, example = json!({
         "type": "single",
         "data": {"connector": "stripe", "merchant_connector_id": "mca_123"}
     }))]
@@ -1197,15 +1197,15 @@ pub struct PaymentsRequest {
     pub routing: Option<serde_json::Value>,
 
     /// This allows to manually select a connector with which the payment can go through.
-    #[schema(value_type = Option<Vec<Connector>>, max_length = 255, example = json!(["stripe", "adyen"]))]
+    #[schema(value_type = Option<Vec<api_enums::Connector>>, max_length = 255, example = json!(["stripe", "adyen"]))]
     #[smithy(value_type = "Option<Vec<Connector>>")]
     pub connector: Option<Vec<api_enums::Connector>>,
 
-    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    #[schema(value_type = Option<api_enums::CaptureMethod>, example = "automatic")]
     #[smithy(value_type = "Option<CaptureMethod>")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
-    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
+    #[schema(value_type = Option<api_enums::AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     #[smithy(value_type = "Option<AuthenticationType>")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
@@ -1273,7 +1273,7 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<String>")]
     pub return_url: Option<Url>,
 
-    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    #[schema(value_type = Option<api_enums::FutureUsage>, example = "off_session")]
     #[smithy(value_type = "Option<FutureUsage>")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
 
@@ -1282,7 +1282,7 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<PaymentMethodDataRequest>")]
     pub payment_method_data: Option<PaymentMethodDataRequest>,
 
-    #[schema(value_type = Option<PaymentMethod>, example = "card")]
+    #[schema(value_type = Option<api_enums::PaymentMethod>, example = "card")]
     #[smithy(value_type = "Option<PaymentMethod>")]
     pub payment_method: Option<api_enums::PaymentMethod>,
 
@@ -1332,7 +1332,7 @@ pub struct PaymentsRequest {
     pub mandate_data: Option<MandateData>,
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
-    #[schema(value_type = Option<CustomerAcceptance>)]
+    #[schema(value_type = Option<common_payments_types::CustomerAcceptance>)]
     #[smithy(value_type = "Option<CustomerAcceptance>")]
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 
@@ -1358,18 +1358,18 @@ pub struct PaymentsRequest {
     pub browser_info: Option<serde_json::Value>,
 
     /// To indicate the type of payment experience that the payment method would go through
-    #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
+    #[schema(value_type = Option<api_enums::PaymentExperience>, example = "redirect_to_url")]
     #[smithy(value_type = "Option<PaymentExperience>")]
     pub payment_experience: Option<api_enums::PaymentExperience>,
 
     /// Can be used to specify the Payment Method Type
-    #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
+    #[schema(value_type = Option<api_enums::PaymentMethodType>, example = "google_pay")]
     #[smithy(value_type = "Option<PaymentMethodType>")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// Business country of the merchant for this payment.
     /// To be deprecated soon. Pass the profile_id instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
+    #[schema(value_type = Option<api_enums::CountryAlpha2>, example = "US", deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     #[smithy(value_type = "Option<CountryAlpha2>")]
     pub business_country: Option<api_enums::CountryAlpha2>,
@@ -1381,12 +1381,12 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<String>")]
     pub business_label: Option<String>,
 
-    #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
+    #[schema(value_type = Option<admin::MerchantConnectorDetailsWrap>)]
     #[smithy(value_type = "Option<MerchantConnectorDetailsWrap>")]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 
     /// Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent
-    #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    #[schema(value_type = Option<Vec<api_enums::PaymentMethodType>>)]
     #[smithy(value_type = "Option<Vec<PaymentMethodType>>")]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
@@ -1396,7 +1396,7 @@ pub struct PaymentsRequest {
     pub business_sub_label: Option<String>,
 
     /// Denotes the retry action
-    #[schema(value_type = Option<RetryAction>)]
+    #[schema(value_type = Option<api_enums::RetryAction>)]
     #[remove_in(PaymentsCreateRequest)]
     #[smithy(value_type = "Option<RetryAction>")]
     pub retry_action: Option<api_enums::RetryAction>,
@@ -1438,7 +1438,7 @@ pub struct PaymentsRequest {
     pub surcharge_details: Option<RequestSurchargeDetails>,
 
     /// The type of the payment that differentiates between normal and various types of mandate payments
-    #[schema(value_type = Option<PaymentType>)]
+    #[schema(value_type = Option<api_enums::PaymentType>)]
     #[smithy(value_type = "Option<PaymentType>")]
     pub payment_type: Option<api_enums::PaymentType>,
 
@@ -1470,7 +1470,7 @@ pub struct PaymentsRequest {
     pub recurring_details: Option<RecurringDetails>,
 
     /// Fee information to be charged on the payment being collected
-    #[schema(value_type = Option<SplitPaymentsRequest>)]
+    #[schema(value_type = Option<common_types::payments::SplitPaymentsRequest>)]
     #[smithy(value_type = "Option<SplitPaymentsRequest>")]
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
@@ -1495,7 +1495,7 @@ pub struct PaymentsRequest {
     pub skip_external_tax_calculation: Option<bool>,
 
     /// Choose what kind of sca exemption is required for this payment
-    #[schema(value_type = Option<ScaExemptionType>)]
+    #[schema(value_type = Option<api_enums::ScaExemptionType>)]
     #[smithy(value_type = "Option<ScaExemptionType>")]
     pub psd2_sca_exemption_type: Option<api_enums::ScaExemptionType>,
 
@@ -1527,12 +1527,12 @@ pub struct PaymentsRequest {
     pub is_payment_id_from_merchant: bool,
 
     /// Indicates how the payment was initiated (e.g., ecommerce, mail, or telephone).
-    #[schema(value_type = Option<PaymentChannel>)]
+    #[schema(value_type = Option<api_enums::PaymentChannel>)]
     #[smithy(value_type = "Option<PaymentChannel>")]
     pub payment_channel: Option<common_enums::PaymentChannel>,
 
     /// Your tax status for this order or transaction.
-    #[schema(value_type = Option<TaxStatus>)]
+    #[schema(value_type = Option<api_enums::TaxStatus>)]
     #[smithy(value_type = "Option<TaxStatus>")]
     pub tax_status: Option<api_enums::TaxStatus>,
 
@@ -1570,25 +1570,25 @@ pub struct PaymentsRequest {
     pub is_stored_credential: Option<bool>,
 
     /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
-    #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    #[schema(value_type = Option<api_enums::MitCategory>, example = "recurring")]
     #[smithy(value_type = "Option<MitCategory>")]
     pub mit_category: Option<api_enums::MitCategory>,
 
     /// Billing descriptor information for the payment
-    #[schema(value_type = Option<BillingDescriptor>)]
+    #[schema(value_type = Option<common_types::payments::BillingDescriptor>)]
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
-    #[schema(value_type = Option<Tokenization>, example = "tokenize_at_psp")]
+    #[schema(value_type = Option<api_enums::Tokenization>, example = "tokenize_at_psp")]
     pub tokenization: Option<enums::Tokenization>,
 
     /// Information identifying partner and merchant details
-    #[schema(value_type = Option<PartnerMerchantIdentifierDetails>)]
+    #[schema(value_type = Option<common_types::payments::PartnerMerchantIdentifierDetails>)]
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 
     /// Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.
-    #[schema(value_type = Option<Vec<InstallmentOption>>)]
+    #[schema(value_type = Option<Vec<common_types::payments::InstallmentOption>>)]
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 
     /// Installment data selected by the customer during payment confirmation. This is used to specify the chosen number of installments and billing frequency.
@@ -1599,7 +1599,7 @@ pub struct PaymentsRequest {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 
     /// The strategy to use when applying surcharge for this payment.
-    #[schema(value_type = Option<SurchargeStrategy>)]
+    #[schema(value_type = Option<api_enums::SurchargeStrategy>)]
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
@@ -1616,7 +1616,7 @@ pub struct CtpServiceDetails {
     #[smithy(value_type = "Option<String>")]
     pub x_src_flow_id: Option<String>,
     /// provider Eg: Visa, Mastercard
-    #[schema(value_type = Option<CtpServiceProvider>)]
+    #[schema(value_type = Option<api_enums::CtpServiceProvider>)]
     #[smithy(value_type = "Option<CtpServiceProvider>")]
     pub provider: Option<api_enums::CtpServiceProvider>,
     /// Encrypted payload
@@ -2020,7 +2020,7 @@ pub struct PaymentAttemptResponse {
     #[smithy(value_type = "String")]
     pub attempt_id: String,
     /// The status of the attempt
-    #[schema(value_type = AttemptStatus, example = "charged")]
+    #[schema(value_type = api_enums::AttemptStatus, example = "charged")]
     #[smithy(value_type = "AttemptStatus")]
     pub status: enums::AttemptStatus,
     /// The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
@@ -2034,7 +2034,7 @@ pub struct PaymentAttemptResponse {
     /// The currency of the amount of the payment attempt
     #[schema(value_type = Option<Currency>, example = "USD")]
     #[smithy(value_type = "Option<Currency>")]
-    pub currency: Option<enums::Currency>,
+    pub currency: Option<Currency>,
     /// The name of the payment connector (e.g., 'stripe', 'adyen') used for this attempt.
     #[smithy(value_type = "Option<String>")]
     pub connector: Option<String>,
@@ -2042,18 +2042,18 @@ pub struct PaymentAttemptResponse {
     #[smithy(value_type = "Option<String>")]
     pub error_message: Option<String>,
     /// The payment method that is to be used
-    #[schema(value_type = Option<PaymentMethod>, example = "bank_transfer")]
+    #[schema(value_type = Option<api_enums::PaymentMethod>, example = "bank_transfer")]
     #[smithy(value_type = "Option<PaymentMethod>")]
     pub payment_method: Option<enums::PaymentMethod>,
     /// A unique identifier for a payment provided by the connector
     #[smithy(value_type = "Option<String>")]
     pub connector_transaction_id: Option<String>,
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
-    #[schema(value_type = Option<CaptureMethod>, example = "scheduled")]
+    #[schema(value_type = Option<api_enums::CaptureMethod>, example = "scheduled")]
     #[smithy(value_type = "Option<CaptureMethod>")]
     pub capture_method: Option<enums::CaptureMethod>,
     /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS
-    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
+    #[schema(value_type = Option<api_enums::AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     #[smithy(value_type = "Option<AuthenticationType>")]
     pub authentication_type: Option<enums::AuthenticationType>,
     /// Time at which the payment attempt was created
@@ -2083,11 +2083,11 @@ pub struct PaymentAttemptResponse {
     #[smithy(value_type = "Option<Object>")]
     pub connector_metadata: Option<serde_json::Value>,
     /// Payment Experience for the current payment
-    #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
+    #[schema(value_type = Option<api_enums::PaymentExperience>, example = "redirect_to_url")]
     #[smithy(value_type = "Option<PaymentExperience>")]
     pub payment_experience: Option<enums::PaymentExperience>,
     /// Payment Method Type
-    #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
+    #[schema(value_type = Option<api_enums::PaymentMethodType>, example = "google_pay")]
     #[smithy(value_type = "Option<PaymentMethodType>")]
     pub payment_method_type: Option<enums::PaymentMethodType>,
     /// The connector's own reference or transaction ID for this specific payment attempt. Useful for reconciliation with the connector.
@@ -2120,7 +2120,7 @@ pub struct PaymentAttemptResponse {
     pub id: id_type::GlobalAttemptId,
 
     /// /// The status of the attempt
-    #[schema(value_type = AttemptStatus, example = "charged")]
+    #[schema(value_type = api_enums::AttemptStatus, example = "charged")]
     pub status: enums::AttemptStatus,
 
     /// Amount related information for this payment and attempt
@@ -2134,7 +2134,7 @@ pub struct PaymentAttemptResponse {
     pub error: Option<ErrorDetails>,
 
     /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS, as the 3DS method helps with more robust payer authentication
-    #[schema(value_type = AuthenticationType, example = "no_three_ds", default = "three_ds")]
+    #[schema(value_type = api_enums::AuthenticationType, example = "no_three_ds", default = "three_ds")]
     pub authentication_type: api_enums::AuthenticationType,
 
     /// Date and time of Payment attempt creation
@@ -2158,11 +2158,11 @@ pub struct PaymentAttemptResponse {
     pub connector_metadata: Option<pii::SecretSerdeValue>,
 
     /// Payment Experience for the current payment
-    #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
+    #[schema(value_type = Option<api_enums::PaymentExperience>, example = "redirect_to_url")]
     pub payment_experience: Option<enums::PaymentExperience>,
 
     /// Payment method type for the payment attempt
-    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
+    #[schema(value_type = Option<api_enums::PaymentMethod>, example = "wallet")]
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// reference(Identifier) to the payment at connector side
@@ -2170,7 +2170,7 @@ pub struct PaymentAttemptResponse {
     pub connector_reference_id: Option<String>,
 
     /// The payment method subtype for the payment attempt.
-    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    #[schema(value_type = Option<api_enums::PaymentMethodType>, example = "apple_pay")]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// A unique identifier for a payment provided by the connector
@@ -2201,7 +2201,7 @@ pub struct PaymentAttemptRecordResponse {
     #[schema(value_type = String)]
     pub id: id_type::GlobalAttemptId,
     /// The status of the attempt
-    #[schema(value_type = AttemptStatus, example = "charged")]
+    #[schema(value_type = api_enums::AttemptStatus, example = "charged")]
     pub status: enums::AttemptStatus,
     /// The amount of the payment attempt
     #[schema(value_type = i64, example = 6540)]
@@ -2230,7 +2230,7 @@ pub struct RecoveryPaymentsResponse {
     )]
     pub id: id_type::GlobalPaymentId,
 
-    #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
+    #[schema(value_type = api_enums::IntentStatus, example = "failed", default = "requires_confirmation")]
     pub intent_status: api_enums::IntentStatus,
 
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
@@ -2255,7 +2255,7 @@ pub struct PaymentAttemptFeatureMetadata {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentAttemptRevenueRecoveryData {
     /// Flag to find out whether an attempt was created by external or internal system.
-    #[schema(value_type = Option<TriggeredBy>, example = "internal")]
+    #[schema(value_type = Option<common_enums::TriggeredBy>, example = "internal")]
     pub attempt_triggered_by: common_enums::TriggeredBy,
     // stripe specific field used to identify duplicate attempts.
     #[schema(value_type = Option<String>, example = "ch_123abc456def789ghi012klmn")]
@@ -2278,7 +2278,7 @@ pub struct CaptureResponse {
     #[smithy(value_type = "String")]
     pub capture_id: String,
     /// The status of the capture
-    #[schema(value_type = CaptureStatus, example = "charged")]
+    #[schema(value_type = api_enums::CaptureStatus, example = "charged")]
     #[smithy(value_type = "CaptureStatus")]
     pub status: enums::CaptureStatus,
     /// The capture amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
@@ -2288,7 +2288,7 @@ pub struct CaptureResponse {
     /// The currency of the amount of the capture
     #[schema(value_type = Option<Currency>, example = "USD")]
     #[smithy(value_type = "Option<Currency>")]
-    pub currency: Option<enums::Currency>,
+    pub currency: Option<Currency>,
     /// The name of the payment connector that processed this capture.
     #[smithy(value_type = "String")]
     pub connector: String,
@@ -2391,7 +2391,7 @@ pub struct MandateData {
     #[smithy(value_type = "Option<String>")]
     pub update_mandate_id: Option<String>,
     /// A consent from the customer to store the payment method
-    #[schema(value_type = Option<CustomerAcceptance>)]
+    #[schema(value_type = Option<common_payments_types::CustomerAcceptance>)]
     #[smithy(value_type = "Option<CustomerAcceptance>")]
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     /// A way to select the type of mandate used
@@ -2402,7 +2402,7 @@ pub struct MandateData {
 #[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct SingleUseMandate {
     pub amount: MinorUnit,
-    pub currency: api_enums::Currency,
+    pub currency: Currency,
 }
 
 #[derive(
@@ -2425,7 +2425,7 @@ pub struct MandateAmountData {
     /// The currency for the transaction
     #[schema(value_type = Currency, example = "USD")]
     #[smithy(value_type = "Currency")]
-    pub currency: api_enums::Currency,
+    pub currency: Currency,
     /// Specifying start date of the mandate
     #[schema(example = "2022-09-10T00:00:00Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -2517,7 +2517,7 @@ pub struct Card {
     pub card_issuer: Option<String>,
 
     /// The card network for the card
-    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[schema(value_type = Option<api_enums::CardNetwork>, example = "Visa")]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
 
@@ -2607,7 +2607,7 @@ pub struct ExtendedCardInfo {
     pub card_issuer: Option<String>,
 
     /// The card network for the card
-    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[schema(value_type = Option<api_enums::CardNetwork>, example = "Visa")]
     pub card_network: Option<api_enums::CardNetwork>,
 
     #[schema(example = "CREDIT")]
@@ -2770,7 +2770,7 @@ pub enum PayLaterData {
         #[smithy(value_type = "Option<String>")]
         billing_email: Option<Email>,
         // The billing country code
-        #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+        #[schema(value_type = Option<api_enums::CountryAlpha2>, example = "US")]
         #[smithy(value_type = "Option<CountryAlpha2>")]
         billing_country: Option<api_enums::CountryAlpha2>,
     },
@@ -2982,11 +2982,11 @@ pub enum BankDebitData {
         #[smithy(value_type = "Option<String>")]
         bank_account_holder_name: Option<Secret<String>>,
 
-        #[schema(value_type = Option<BankNames>, example = "absa")]
+        #[schema(value_type = Option<api_enums::BankNames>, example = "absa")]
         #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
 
-        #[schema(value_type = Option<BankType>, example = "savings")]
+        #[schema(value_type = Option<api_enums::BankType>, example = "savings")]
         #[smithy(value_type = "Option<BankType>")]
         bank_type: Option<common_enums::BankType>,
     },
@@ -3242,9 +3242,9 @@ impl PaymentMethodDataRequest {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SplitPaymentMethodDataRequest {
     pub payment_method_data: PaymentMethodData,
-    #[schema(value_type = PaymentMethod)]
+    #[schema(value_type = api_enums::PaymentMethod)]
     pub payment_method_type: api_enums::PaymentMethod,
-    #[schema(value_type = PaymentMethodType)]
+    #[schema(value_type = api_enums::PaymentMethodType)]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 }
 
@@ -3306,7 +3306,7 @@ pub struct ProxyCardData {
     pub card_issuer: Option<String>,
 
     /// The card network for the card
-    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[schema(value_type = Option<api_enums::CardNetwork>, example = "Visa")]
     pub card_network: Option<api_enums::CardNetwork>,
 
     #[schema(example = "CREDIT")]
@@ -3375,7 +3375,7 @@ pub struct NetworkTokenData {
     pub token_cryptogram: Secret<String>,
 
     /// The card network for the card
-    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[schema(value_type = Option<api_enums::CardNetwork>, example = "Visa")]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
 
@@ -3436,7 +3436,7 @@ pub struct NetworkTokenResponse {
     pub card_type: Option<String>,
 
     /// The card network for the card
-    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[schema(value_type = Option<api_enums::CardNetwork>, example = "Visa")]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
 
@@ -3864,7 +3864,7 @@ pub struct PMBalanceCheckSuccessResponse {
     pub balance: MinorUnit,
     pub applicable_amount: MinorUnit,
     #[schema(value_type = Currency)]
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -3900,7 +3900,7 @@ pub struct CheckAndApplyPaymentMethodDataResponse {
     /// The amount left after subtracting applied payment method balance from order amount
     pub remaining_amount: MinorUnit,
     #[schema(value_type = Currency)]
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
     /// Whether the applied payment method balance is enough for the order amount or additional PM is required
     pub requires_additional_pm_data: bool,
     pub surcharge_details: Option<Vec<ApplyPaymentMethodDataSurchargeResponseItem>>,
@@ -3908,11 +3908,11 @@ pub struct CheckAndApplyPaymentMethodDataResponse {
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct ApplyPaymentMethodDataSurchargeResponseItem {
-    #[schema(value_type = PaymentMethod)]
+    #[schema(value_type = api_enums::PaymentMethod)]
     pub payment_method_type: api_enums::PaymentMethod,
-    #[schema(value_type = PaymentMethodType)]
+    #[schema(value_type = api_enums::PaymentMethodType)]
     pub payment_method_subtype: api_enums::PaymentMethodType,
-    #[schema(value_type = Option<SurchargeDetailsResponse>)]
+    #[schema(value_type = Option<payment_methods::SurchargeDetailsResponse>)]
     pub surcharge_details: Option<payment_methods::SurchargeDetailsResponse>,
 }
 
@@ -3981,10 +3981,13 @@ pub struct AdditionalCardInfo {
     /// Extended bin of card, contains the first 8 digits of card number
     pub card_extended_bin: Option<String>,
 
+    #[schema(value_type = Option<String>)]
     pub card_exp_month: Option<Secret<String>>,
 
+    #[schema(value_type = Option<String>)]
     pub card_exp_year: Option<Secret<String>>,
 
+    #[schema(value_type = Option<String>)]
     pub card_holder_name: Option<Secret<String>>,
 
     /// Additional payment checks done on the cvv and billing address by the processors.
@@ -4032,15 +4035,19 @@ pub struct AdditionalNetworkTokenInfo {
     pub token_isin: Option<String>,
 
     /// The expiry month of the token
+    #[schema(value_type = Option<String>)]
     pub token_exp_month: Option<Secret<String>>,
 
     /// The expiry year of the token
+    #[schema(value_type = Option<String>)]
     pub token_exp_year: Option<Secret<String>>,
 
     /// The card holder's name
+    #[schema(value_type = Option<String>)]
     pub card_holder_name: Option<Secret<String>>,
 
     /// Payment Account Reference (PAR) for the card
+    #[schema(value_type = Option<String>)]
     pub par: Option<Secret<String>>,
 }
 
@@ -4120,7 +4127,7 @@ impl AdditionalPaymentData {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct KlarnaSdkPaymentMethod {
     pub payment_type: Option<String>,
 }
@@ -4177,12 +4184,12 @@ pub enum BankRedirectData {
         billing_details: Option<BankRedirectBilling>,
 
         /// The hyperswitch bank code for eps
-        #[schema(value_type = BankNames, example = "triodos_bank")]
+        #[schema(value_type = api_enums::BankNames, example = "triodos_bank")]
         #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
 
         /// The country for bank payment
-        #[schema(value_type = CountryAlpha2, example = "US")]
+        #[schema(value_type = api_enums::CountryAlpha2, example = "US")]
         #[smithy(value_type = "Option<CountryAlpha2>")]
         country: Option<api_enums::CountryAlpha2>,
     },
@@ -4203,7 +4210,7 @@ pub enum BankRedirectData {
         bank_account_iban: Option<Secret<String>>,
 
         /// The country for bank payment
-        #[schema(value_type = CountryAlpha2, example = "US")]
+        #[schema(value_type = api_enums::CountryAlpha2, example = "US")]
         #[smithy(value_type = "Option<CountryAlpha2>")]
         country: Option<api_enums::CountryAlpha2>,
     },
@@ -4214,19 +4221,19 @@ pub enum BankRedirectData {
         billing_details: Option<BankRedirectBilling>,
 
         /// The hyperswitch bank code for ideal
-        #[schema(value_type = BankNames, example = "abn_amro")]
+        #[schema(value_type = api_enums::BankNames, example = "abn_amro")]
         #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
 
         /// The country for bank payment
-        #[schema(value_type = CountryAlpha2, example = "US")]
+        #[schema(value_type = api_enums::CountryAlpha2, example = "US")]
         #[smithy(value_type = "Option<CountryAlpha2>")]
         country: Option<api_enums::CountryAlpha2>,
     },
     #[smithy(nested_value_type)]
     Interac {
         /// The country for bank payment
-        #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+        #[schema(value_type = Option<api_enums::CountryAlpha2>, example = "US")]
         #[smithy(value_type = "Option<CountryAlpha2>")]
         country: Option<api_enums::CountryAlpha2>,
 
@@ -4237,7 +4244,7 @@ pub enum BankRedirectData {
     #[smithy(nested_value_type)]
     OnlineBankingCzechRepublic {
         // Issuer banks
-        #[schema(value_type = BankNames)]
+        #[schema(value_type = api_enums::BankNames)]
         #[smithy(value_type = "BankNames")]
         issuer: common_enums::BankNames,
     },
@@ -4251,32 +4258,32 @@ pub enum BankRedirectData {
     #[smithy(nested_value_type)]
     OnlineBankingPoland {
         // Issuer banks
-        #[schema(value_type = BankNames)]
+        #[schema(value_type = api_enums::BankNames)]
         #[smithy(value_type = "BankNames")]
         issuer: common_enums::BankNames,
     },
     #[smithy(nested_value_type)]
     OnlineBankingSlovakia {
         // Issuer value corresponds to the bank
-        #[schema(value_type = BankNames)]
+        #[schema(value_type = api_enums::BankNames)]
         #[smithy(value_type = "BankNames")]
         issuer: common_enums::BankNames,
     },
     #[smithy(nested_value_type)]
     OpenBankingUk {
         // Issuer banks
-        #[schema(value_type = BankNames)]
+        #[schema(value_type = api_enums::BankNames)]
         #[smithy(value_type = "Option<BankNames>")]
         issuer: Option<common_enums::BankNames>,
         /// The country for bank payment
-        #[schema(value_type = CountryAlpha2, example = "US")]
+        #[schema(value_type = api_enums::CountryAlpha2, example = "US")]
         #[smithy(value_type = "Option<CountryAlpha2>")]
         country: Option<api_enums::CountryAlpha2>,
     },
     #[smithy(nested_value_type)]
     Przelewy24 {
         //Issuer banks
-        #[schema(value_type = Option<BankNames>)]
+        #[schema(value_type = Option<api_enums::BankNames>)]
         #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
 
@@ -4291,7 +4298,7 @@ pub enum BankRedirectData {
         billing_details: Option<BankRedirectBilling>,
 
         /// The country for bank payment
-        #[schema(value_type = CountryAlpha2, example = "US")]
+        #[schema(value_type = api_enums::CountryAlpha2, example = "US")]
         #[smithy(value_type = "Option<CountryAlpha2>")]
         country: Option<api_enums::CountryAlpha2>,
 
@@ -4303,20 +4310,20 @@ pub enum BankRedirectData {
     #[smithy(nested_value_type)]
     Trustly {
         /// The country for bank payment
-        #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+        #[schema(value_type = Option<api_enums::CountryAlpha2>, example = "US")]
         #[smithy(value_type = "Option<CountryAlpha2>")]
         country: Option<api_enums::CountryAlpha2>,
     },
     #[smithy(nested_value_type)]
     OnlineBankingFpx {
         // Issuer banks
-        #[schema(value_type = BankNames)]
+        #[schema(value_type = api_enums::BankNames)]
         #[smithy(value_type = "BankNames")]
         issuer: common_enums::BankNames,
     },
     #[smithy(nested_value_type)]
     OnlineBankingThailand {
-        #[schema(value_type = BankNames)]
+        #[schema(value_type = api_enums::BankNames)]
         #[smithy(value_type = "BankNames")]
         issuer: common_enums::BankNames,
     },
@@ -4657,7 +4664,7 @@ pub struct UpiIntentData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
     /// The country associated with the billing
-    #[schema(value_type = CountryAlpha2, example = "US")]
+    #[schema(value_type = api_enums::CountryAlpha2, example = "US")]
     pub billing_country: String,
 }
 
@@ -4717,7 +4724,7 @@ pub enum BankTransferData {
         billing_details: Option<SepaAndBacsBillingDetails>,
 
         /// The two-letter ISO country code for SEPA and BACS
-        #[schema(value_type = CountryAlpha2, example = "US")]
+        #[schema(value_type = api_enums::CountryAlpha2, example = "US")]
         #[smithy(value_type = "Option<CountryAlpha2>")]
         country: Option<api_enums::CountryAlpha2>,
     },
@@ -4837,7 +4844,7 @@ pub enum BankTransferData {
     InstantBankTransferPoland {},
     #[smithy(nested_value_type)]
     IndonesianBankTransfer {
-        #[schema(value_type = Option<BankNames>, example = "bri")]
+        #[schema(value_type = Option<api_enums::BankNames>, example = "bri")]
         #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
     },
@@ -5387,7 +5394,7 @@ pub struct GooglePayWalletData {
     #[smithy(value_type = "GooglePayPaymentMethodInfo")]
     pub info: GooglePayPaymentMethodInfo,
     /// The tokenization data of Google pay
-    #[schema(value_type = GpayTokenizationData)]
+    #[schema(value_type = common_types::payments::GpayTokenizationData)]
     #[smithy(value_type = "Object")]
     pub tokenization_data: common_types::payments::GpayTokenizationData,
 }
@@ -5646,7 +5653,7 @@ pub struct AmazonPayWalletData {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayWalletData {
     /// The payment data of Apple pay
-    #[schema(value_type = ApplePayPaymentData)]
+    #[schema(value_type = common_types::payments::ApplePayPaymentData)]
     #[smithy(value_type = "Object")]
     pub payment_data: common_types::payments::ApplePayPaymentData,
     /// The payment method of Apple pay
@@ -5691,7 +5698,7 @@ pub struct CardResponse {
     pub last4: Option<String>,
     #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
-    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[schema(value_type = Option<api_enums::CardNetwork>, example = "Visa")]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
     #[smithy(value_type = "Option<String>")]
@@ -5966,7 +5973,7 @@ pub struct BankDebitResponse {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BankRedirectResponse {
     /// Name of the bank
-    #[schema(value_type = Option<BankNames>)]
+    #[schema(value_type = Option<api_enums::BankNames>)]
     #[smithy(value_type = "Option<BankNames>")]
     pub bank_name: Option<common_enums::BankNames>,
     #[serde(flatten)]
@@ -6179,6 +6186,7 @@ pub enum PaymentIdType {
 #[cfg(feature = "v2")]
 pub enum PaymentIdType {
     /// The identifier for payment intent
+    #[schema(value_type = String)]
     PaymentIntentId(id_type::GlobalPaymentId),
     /// The identifier for connector transaction
     ConnectorTransactionId(String),
@@ -6285,7 +6293,7 @@ pub struct AddressDetails {
     pub city: Option<String>,
 
     /// The two-letter ISO 3166-1 alpha-2 country code (e.g., US, GB).
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<api_enums::CountryAlpha2>, example = "US")]
     #[smithy(value_type = "Option<CountryAlpha2>")]
     pub country: Option<api_enums::CountryAlpha2>,
 
@@ -6450,7 +6458,7 @@ pub struct PaymentsCaptureRequest {
     #[smithy(value_type = "Option<String>")]
     pub statement_descriptor_prefix: Option<String>,
     /// Merchant connector details used to make payments. (Deprecated)
-    #[schema(value_type = Option<MerchantConnectorDetailsWrap>, deprecated)]
+    #[schema(value_type = Option<admin::MerchantConnectorDetailsWrap>, deprecated)]
     #[smithy(value_type = "Option<MerchantConnectorDetailsWrap>")]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     /// If true, returns stringified connector raw response body
@@ -6471,10 +6479,11 @@ pub struct PaymentsCaptureRequest {
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct PaymentsCaptureResponse {
     /// The unique identifier for the payment
+    #[schema(value_type = String)]
     pub id: id_type::GlobalPaymentId,
 
     /// Status of the payment
-    #[schema(value_type = IntentStatus, example = "succeeded")]
+    #[schema(value_type = api_enums::IntentStatus, example = "succeeded")]
     pub status: common_enums::IntentStatus,
 
     /// Amount details related to the payment
@@ -6494,10 +6503,11 @@ pub struct PaymentsCancelRequest {
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct PaymentsCancelResponse {
     /// The unique identifier for the payment
+    #[schema(value_type = String)]
     pub id: id_type::GlobalPaymentId,
 
     /// Status of the payment
-    #[schema(value_type = IntentStatus, example = "cancelled")]
+    #[schema(value_type = api_enums::IntentStatus, example = "cancelled")]
     pub status: common_enums::IntentStatus,
 
     /// Cancellation reason for the payment cancellation
@@ -6508,6 +6518,7 @@ pub struct PaymentsCancelResponse {
     pub amount: PaymentAmountDetailsResponse,
 
     /// The unique identifier for the customer associated with the payment
+    #[schema(value_type = Option<String>)]
     pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// The connector used for the payment
@@ -6519,10 +6530,10 @@ pub struct PaymentsCancelResponse {
     pub created: PrimitiveDateTime,
 
     /// The payment method type for this payment attempt
-    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
+    #[schema(value_type = Option<api_enums::PaymentMethod>, example = "wallet")]
     pub payment_method_type: Option<api_enums::PaymentMethod>,
 
-    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    #[schema(value_type = Option<api_enums::PaymentMethodType>, example = "apple_pay")]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// List of payment attempts associated with payment intent
@@ -6741,7 +6752,7 @@ pub struct ThreeDsData {
     #[smithy(value_type = "Option<String>")]
     pub directory_server_id: Option<String>,
     /// The card network for the card
-    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[schema(value_type = Option<api_enums::CardNetwork>, example = "Visa")]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
     /// Preferred 3ds Connector
@@ -6846,6 +6857,7 @@ pub struct SdkNextActionData {
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct FetchQrCodeInformation {
+    #[schema(value_type = String)]
     #[smithy(value_type = "String")]
     pub qr_code_fetch_url: Url,
 }
@@ -6882,15 +6894,19 @@ pub struct VoucherNextStepData {
     #[smithy(value_type = "String")]
     pub reference: String,
     /// Url to download the payment instruction
+    #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub download_url: Option<Url>,
     /// Url to payment instruction page
+    #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub instructions_url: Option<Url>,
     /// Human-readable numeric version of the barcode.
+    #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub digitable_line: Option<Secret<String>>,
     /// Machine-readable numeric code used to generate the barcode representation.
+    #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub barcode: Option<Secret<String>>,
     /// The url for Pix Qr code given by the connector associated with the voucher
@@ -7154,7 +7170,7 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "String")]
     pub merchant_id: id_type::MerchantId,
 
-    #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
+    #[schema(value_type = api_enums::IntentStatus, example = "failed", default = "requires_confirmation")]
     #[smithy(value_type = "IntentStatus")]
     pub status: api_enums::IntentStatus,
 
@@ -7194,7 +7210,7 @@ pub struct PaymentsResponse {
     /// - Some(Platform): Platform merchant initiated payment on behalf of connected merchant
     /// - Some(Connected): Connected merchant initiated payment directly in a platform setup
     /// - None: Standard merchant flow, JWT/Admin initiator, or insufficient information
-    #[schema(value_type = Option<Initiator>, example = "platform")]
+    #[schema(value_type = Option<platform::Initiator>, example = "platform")]
     #[smithy(value_type = "Option<Initiator>")]
     pub initiator: Option<platform::Initiator>,
 
@@ -7209,7 +7225,7 @@ pub struct PaymentsResponse {
     pub connector: Option<String>,
 
     /// The current state metadata of the payment intent, providing additional context about its status.
-    #[schema(value_type = Option<PaymentIntentStateMetadata>)]
+    #[schema(value_type = Option<common_types::payments::PaymentIntentStateMetadata>)]
     pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
 
     /// A secret token unique to this payment intent. It is primarily used by client-side applications (e.g., Hyperswitch SDKs) to authenticate actions like confirming the payment or handling next actions. This secret should be handled carefully and not exposed publicly beyond its intended client-side use.
@@ -7260,12 +7276,12 @@ pub struct PaymentsResponse {
     pub description: Option<String>,
 
     /// An array of refund objects associated with this payment. Empty or null if no refunds have been processed.
-    #[schema(value_type = Option<Vec<RefundResponse>>)]
+    #[schema(value_type = Option<Vec<refunds::RefundResponse>>)]
     #[smithy(value_type = "Option<Vec<RefundResponse>>")]
     pub refunds: Option<Vec<refunds::RefundResponse>>,
 
     /// List of disputes that happened on this intent
-    #[schema(value_type = Option<Vec<DisputeResponsePaymentsRetrieve>>)]
+    #[schema(value_type = Option<Vec<disputes::DisputeResponsePaymentsRetrieve>>)]
     #[smithy(value_type = "Option<Vec<DisputeResponsePaymentsRetrieve>>")]
     pub disputes: Option<Vec<disputes::DisputeResponsePaymentsRetrieve>>,
 
@@ -7292,7 +7308,7 @@ pub struct PaymentsResponse {
     pub mandate_data: Option<MandateData>,
 
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
-    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    #[schema(value_type = Option<api_enums::FutureUsage>, example = "off_session")]
     #[smithy(value_type = "Option<FutureUsage>")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
 
@@ -7310,12 +7326,12 @@ pub struct PaymentsResponse {
     pub capture_on: Option<PrimitiveDateTime>,
 
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
-    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    #[schema(value_type = Option<api_enums::CaptureMethod>, example = "automatic")]
     #[smithy(value_type = "Option<CaptureMethod>")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
     /// The payment method that is to be used
-    #[schema(value_type = PaymentMethod, example = "bank_transfer")]
+    #[schema(value_type = api_enums::PaymentMethod, example = "bank_transfer")]
     #[smithy(value_type = "Option<PaymentMethod>")]
     pub payment_method: Option<api_enums::PaymentMethod>,
 
@@ -7371,7 +7387,7 @@ pub struct PaymentsResponse {
     pub return_url: Option<String>,
 
     /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS, as the 3DS method helps with more robust payer authentication
-    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
+    #[schema(value_type = Option<api_enums::AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     #[smithy(value_type = "Option<AuthenticationType>")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
@@ -7419,12 +7435,12 @@ pub struct PaymentsResponse {
     pub error_details: Option<PaymentErrorDetails>,
 
     /// Describes the type of payment flow experienced by the customer (e.g., 'redirect_to_url', 'invoke_sdk', 'display_qr_code').
-    #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
+    #[schema(value_type = Option<api_enums::PaymentExperience>, example = "redirect_to_url")]
     #[smithy(value_type = "Option<PaymentExperience>")]
     pub payment_experience: Option<api_enums::PaymentExperience>,
 
     /// The specific payment method subtype used for this payment (e.g., 'credit_card', 'klarna', 'gpay'). This provides more granularity than the 'payment_method' field.
-    #[schema(value_type = Option<PaymentMethodType>, example = "gpay")]
+    #[schema(value_type = Option<api_enums::PaymentMethodType>, example = "gpay")]
     #[smithy(value_type = "Option<PaymentMethodType>")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
@@ -7434,7 +7450,7 @@ pub struct PaymentsResponse {
     pub connector_label: Option<String>,
 
     /// The two-letter ISO country code (e.g., US, GB) of the business unit or profile under which this payment was processed. To be deprecated soon. Pass the profile_id instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
+    #[schema(value_type = Option<api_enums::CountryAlpha2>, example = "US", deprecated)]
     #[smithy(value_type = "Option<CountryAlpha2>")]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
@@ -7449,7 +7465,7 @@ pub struct PaymentsResponse {
     pub business_sub_label: Option<String>,
 
     /// Allowed Payment Method Types for a given PaymentIntent
-    #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    #[schema(value_type = Option<Vec<api_enums::PaymentMethodType>>)]
     #[smithy(value_type = "Option<Vec<PaymentMethodType>>")]
     pub allowed_payment_method_types: Option<serde_json::Value>,
 
@@ -7552,7 +7568,7 @@ pub struct PaymentsResponse {
     pub browser_info: Option<serde_json::Value>,
 
     /// Indicates how the payment was initiated (e.g., ecommerce, mail, or telephone).
-    #[schema(value_type = Option<PaymentChannel>)]
+    #[schema(value_type = Option<api_enums::PaymentChannel>)]
     #[smithy(value_type = "Option<PaymentChannel>")]
     pub payment_channel: Option<common_enums::PaymentChannel>,
 
@@ -7574,7 +7590,7 @@ pub struct PaymentsResponse {
 
     /// Payment Method Status, refers to the status of the payment method used for this payment.
     /// Refer `payment_method_tokenization_details` for detailed view of payment method tokenization
-    #[schema(value_type = Option<PaymentMethodStatus>)]
+    #[schema(value_type = Option<api_enums::PaymentMethodStatus>)]
     #[smithy(value_type = "Option<PaymentMethodStatus>")]
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 
@@ -7585,7 +7601,7 @@ pub struct PaymentsResponse {
     pub updated: Option<PrimitiveDateTime>,
 
     /// Fee information to be charged on the payment being collected
-    #[schema(value_type = Option<ConnectorChargeResponseData>)]
+    #[schema(value_type = Option<common_types::payments::ConnectorChargeResponseData>)]
     #[smithy(value_type = "Option<ConnectorChargeResponseData>")]
     pub split_payments: Option<common_types::payments::ConnectorChargeResponseData>,
 
@@ -7635,7 +7651,7 @@ pub struct PaymentsResponse {
     pub connector_mandate_id: Option<String>,
 
     /// Method through which card was discovered
-    #[schema(value_type = Option<CardDiscovery>, example = "manual")]
+    #[schema(value_type = Option<api_enums::CardDiscovery>, example = "manual")]
     #[smithy(value_type = "Option<CardDiscovery>")]
     pub card_discovery: Option<enums::CardDiscovery>,
 
@@ -7690,20 +7706,20 @@ pub struct PaymentsResponse {
     pub is_stored_credential: Option<bool>,
 
     /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
-    #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    #[schema(value_type = Option<api_enums::MitCategory>, example = "recurring")]
     #[smithy(value_type = "Option<MitCategory>")]
     pub mit_category: Option<api_enums::MitCategory>,
 
     /// Billing descriptor information for the payment
-    #[schema(value_type = Option<BillingDescriptor>)]
+    #[schema(value_type = Option<common_types::payments::BillingDescriptor>)]
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
-    #[schema(value_type = Option<Tokenization>,example="skip_psp")]
+    #[schema(value_type = Option<api_enums::Tokenization>,example="skip_psp")]
     pub tokenization: Option<enums::Tokenization>,
 
     /// Information identifying partner and merchant details
-    #[schema(value_type = Option<PartnerMerchantIdentifierDetails>)]
+    #[schema(value_type = Option<common_types::payments::PartnerMerchantIdentifierDetails>)]
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 
@@ -7711,11 +7727,11 @@ pub struct PaymentsResponse {
     pub payment_method_tokenization_details: Option<PaymentMethodTokenizationDetails>,
 
     /// Installment payment options associated with this payment, grouped by payment method
-    #[schema(value_type = Option<Vec<InstallmentOption>>)]
+    #[schema(value_type = Option<Vec<common_types::payments::InstallmentOption>>)]
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 
     /// Installment selection confirmed by the customer for this payment
-    #[schema(value_type = Option<InstallmentData>)]
+    #[schema(value_type = Option<common_types::payments::InstallmentData>)]
     pub installment_data: Option<common_types::payments::InstallmentData>,
 
     /// A connector-specific identifier representing the stored payment instrument
@@ -7734,7 +7750,7 @@ pub struct PaymentMethodTokenizationDetails {
     /// The unique identifier for the payment method
     pub payment_method_id: String,
     /// The status of the payment method
-    #[schema(value_type = Option<PaymentMethodStatus>)]
+    #[schema(value_type = Option<api_enums::PaymentMethodStatus>)]
     pub payment_method_status: enums::PaymentMethodStatus,
     /// This indicates whether there is at least one active PSP token available
     pub psp_tokenization: bool,
@@ -7783,7 +7799,7 @@ pub struct PaymentsListResponseItem {
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 
     /// Status of the payment
-    #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
+    #[schema(value_type = api_enums::IntentStatus, example = "failed", default = "requires_confirmation")]
     pub status: api_enums::IntentStatus,
 
     /// Amount related information for this payment and attempt
@@ -7795,14 +7811,14 @@ pub struct PaymentsListResponseItem {
     pub created: PrimitiveDateTime,
 
     /// The payment method type for this payment attempt
-    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
+    #[schema(value_type = Option<api_enums::PaymentMethod>, example = "wallet")]
     pub payment_method_type: Option<api_enums::PaymentMethod>,
 
-    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    #[schema(value_type = Option<api_enums::PaymentMethodType>, example = "apple_pay")]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// The connector used for the payment
-    #[schema(value_type = Option<Connector>, example = "stripe")]
+    #[schema(value_type = Option<api_enums::Connector>, example = "stripe")]
     pub connector: Option<String>,
 
     /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
@@ -7832,15 +7848,15 @@ pub struct PaymentsListResponseItem {
     pub description: Option<String>,
 
     /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS
-    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
+    #[schema(value_type = Option<api_enums::AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
-    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    #[schema(value_type = Option<api_enums::CaptureMethod>, example = "automatic")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
-    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    #[schema(value_type = Option<api_enums::FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
 
     /// Total number of attempts associated with this payment
@@ -7869,7 +7885,7 @@ pub struct PaymentsListResponseItem {
     pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
 
     /// Allowed Payment Method Types for a given PaymentIntent
-    #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    #[schema(value_type = Option<Vec<api_enums::PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
 
     /// Total number of authorizations happened in an incremental_authorization payment
@@ -7914,7 +7930,7 @@ pub struct RecoveryPaymentsListResponseItem {
     pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// Status of the payment
-    #[schema(value_type = RecoveryStatus, example = "failed", default = "requires_confirmation")]
+    #[schema(value_type = common_enums::RecoveryStatus, example = "failed", default = "requires_confirmation")]
     pub status: api_enums::RecoveryStatus,
 
     /// Amount related information for this payment and attempt
@@ -7926,14 +7942,14 @@ pub struct RecoveryPaymentsListResponseItem {
     pub created: PrimitiveDateTime,
 
     /// The payment method type for this payment attempt
-    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
+    #[schema(value_type = Option<api_enums::PaymentMethod>, example = "wallet")]
     pub payment_method_type: Option<api_enums::PaymentMethod>,
 
-    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    #[schema(value_type = Option<api_enums::PaymentMethodType>, example = "apple_pay")]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// The connector used for the payment
-    #[schema(value_type = Option<Connector>, example = "stripe")]
+    #[schema(value_type = Option<api_enums::Connector>, example = "stripe")]
     pub connector: Option<String>,
 
     /// Identifier of the connector which was chosen to make the payment
@@ -7991,22 +8007,22 @@ pub struct PaymentsConfirmIntentRequest {
     pub split_payment_method_data: Option<Vec<SplitPaymentMethodDataRequest>>,
 
     /// The payment method type to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethod, example = "card")]
+    #[schema(value_type = api_enums::PaymentMethod, example = "card")]
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    #[schema(value_type = Option<api_enums::PaymentMethodType>, example = "apple_pay")]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// The shipping address for the payment. This will override the shipping address provided in the create-intent request
     pub shipping: Option<Address>,
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
-    #[schema(value_type = Option<CustomerAcceptance>)]
+    #[schema(value_type = Option<common_payments_types::CustomerAcceptance>)]
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 
     /// Additional details required by 3DS 2.0
-    #[schema(value_type = Option<BrowserInformation>)]
+    #[schema(value_type = Option<common_utils::types::BrowserInformation>)]
     pub browser_info: Option<common_utils::types::BrowserInformation>,
 
     /// The payment_method_id to be associated with the payment
@@ -8017,7 +8033,7 @@ pub struct PaymentsConfirmIntentRequest {
     pub payment_token: Option<String>,
 
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    #[schema(value_type = Option<common_types::domain::MerchantConnectorAuthDetails>)]
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 
     /// If true, returns stringified connector raw response body
@@ -8044,7 +8060,7 @@ pub struct ProxyPaymentsRequest {
     pub shipping: Option<Address>,
 
     /// Additional details required by 3DS 2.0
-    #[schema(value_type = Option<BrowserInformation>)]
+    #[schema(value_type = Option<common_utils::types::BrowserInformation>)]
     pub browser_info: Option<common_utils::types::BrowserInformation>,
 
     #[schema(example = "stripe")]
@@ -8067,22 +8083,22 @@ pub struct ExternalVaultProxyPaymentsRequest {
     pub payment_method_data: ProxyPaymentMethodDataRequest,
 
     /// The payment method type to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethod, example = "card")]
+    #[schema(value_type = api_enums::PaymentMethod, example = "card")]
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    #[schema(value_type = api_enums::PaymentMethodType, example = "apple_pay")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
     /// The shipping address for the payment. This will override the shipping address provided in the create-intent request
     pub shipping: Option<Address>,
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
-    #[schema(value_type = Option<CustomerAcceptance>)]
+    #[schema(value_type = Option<common_payments_types::CustomerAcceptance>)]
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 
     /// Additional details required by 3DS 2.0
-    #[schema(value_type = Option<BrowserInformation>)]
+    #[schema(value_type = Option<common_utils::types::BrowserInformation>)]
     pub browser_info: Option<common_utils::types::BrowserInformation>,
 
     /// The payment_method_id to be associated with the payment
@@ -8093,7 +8109,7 @@ pub struct ExternalVaultProxyPaymentsRequest {
     pub payment_token: Option<String>,
 
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    #[schema(value_type = Option<common_types::domain::MerchantConnectorAuthDetails>)]
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 
     /// If true, returns stringified connector raw response body
@@ -8123,10 +8139,10 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<String>)]
     pub routing_algorithm_id: Option<id_type::RoutingId>,
 
-    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    #[schema(value_type = Option<api_enums::CaptureMethod>, example = "automatic")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
-    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
+    #[schema(value_type = Option<api_enums::AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The billing details of the payment. This address will be used for invoicing.
@@ -8145,7 +8161,7 @@ pub struct PaymentsRequest {
     pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
-    #[schema(example = "present", value_type = Option<PresenceOfCustomerDuringPayment>)]
+    #[schema(example = "present", value_type = Option<common_enums::PresenceOfCustomerDuringPayment>)]
     pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
 
     /// A description for the payment
@@ -8156,11 +8172,11 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
     pub return_url: Option<common_utils::types::Url>,
 
-    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    #[schema(value_type = Option<api_enums::FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
 
     /// Apply MIT exemption for a payment
-    #[schema(value_type = Option<MitExemptionRequest>)]
+    #[schema(value_type = Option<common_enums::MitExemptionRequest>)]
     pub apply_mit_exemption: Option<common_enums::MitExemptionRequest>,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
@@ -8177,7 +8193,7 @@ pub struct PaymentsRequest {
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
 
     /// Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent
-    #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    #[schema(value_type = Option<Vec<api_enums::PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
@@ -8191,15 +8207,15 @@ pub struct PaymentsRequest {
     pub feature_metadata: Option<FeatureMetadata>,
 
     /// Whether to generate the payment link for this payment or not (if applicable)
-    #[schema(value_type = Option<EnablePaymentLinkRequest>)]
+    #[schema(value_type = Option<common_enums::EnablePaymentLinkRequest>)]
     pub payment_link_enabled: Option<common_enums::EnablePaymentLinkRequest>,
 
     /// Configure a custom payment link for the particular payment
-    #[schema(value_type = Option<PaymentLinkConfigRequest>)]
+    #[schema(value_type = Option<admin::PaymentLinkConfigRequest>)]
     pub payment_link_config: Option<admin::PaymentLinkConfigRequest>,
 
     ///Request an incremental authorization, i.e., increase the authorized amount on a confirmed payment before you capture it.
-    #[schema(value_type = Option<RequestIncrementalAuthorization>)]
+    #[schema(value_type = Option<common_enums::RequestIncrementalAuthorization>)]
     pub request_incremental_authorization: Option<common_enums::RequestIncrementalAuthorization>,
 
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config
@@ -8212,7 +8228,7 @@ pub struct PaymentsRequest {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// Whether to perform external authentication (if applicable)
-    #[schema(value_type = Option<External3dsAuthenticationRequest>)]
+    #[schema(value_type = Option<common_enums::External3dsAuthenticationRequest>)]
     pub request_external_three_ds_authentication:
         Option<common_enums::External3dsAuthenticationRequest>,
 
@@ -8220,19 +8236,19 @@ pub struct PaymentsRequest {
     pub payment_method_data: PaymentMethodDataRequest,
 
     /// The payment method type to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethod, example = "card")]
+    #[schema(value_type = api_enums::PaymentMethod, example = "card")]
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    #[schema(value_type = Option<api_enums::PaymentMethodType>, example = "apple_pay")]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
-    #[schema(value_type = Option<CustomerAcceptance>)]
+    #[schema(value_type = Option<common_payments_types::CustomerAcceptance>)]
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 
     /// Additional details required by 3DS 2.0
-    #[schema(value_type = Option<BrowserInformation>)]
+    #[schema(value_type = Option<common_utils::types::BrowserInformation>)]
     pub browser_info: Option<common_utils::types::BrowserInformation>,
 
     /// The payment_method_id to be associated with the payment
@@ -8246,7 +8262,7 @@ pub struct PaymentsRequest {
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    #[schema(value_type = Option<common_types::domain::MerchantConnectorAuthDetails>)]
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 
     /// Stringified connector raw response body. Only returned if `return_raw_connector_response` is true
@@ -8340,7 +8356,7 @@ pub struct PaymentsRetrieveRequest {
     /// If true, returns stringified connector raw response body
     pub return_raw_connector_response: Option<bool>,
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    #[schema(value_type = Option<common_types::domain::MerchantConnectorAuthDetails>)]
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 
@@ -8380,19 +8396,19 @@ pub struct PaymentErrorDetails {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
 pub struct ApiUnifiedErrorDetails {
     /// Error category
-    #[schema(value_type = Option<UnifiedCode>)]
+    #[schema(value_type = Option<api_enums::UnifiedCode>)]
     pub category: Option<String>,
     /// Human-readable error message
     pub message: Option<String>,
     /// Standardised error code
-    #[schema(value_type = Option<StandardisedCode>)]
+    #[schema(value_type = Option<api_enums::StandardisedCode>)]
     pub standardised_code: Option<api_enums::StandardisedCode>,
     /// Detailed description of the error
     pub description: Option<String>,
     /// User-friendly guidance message
     pub user_guidance_message: Option<String>,
     /// Recommended action (e.g., "do_not_retry", "retry_later")
-    #[schema(value_type = Option<RecommendedAction>)]
+    #[schema(value_type = Option<api_enums::RecommendedAction>)]
     pub recommended_action: Option<api_enums::RecommendedAction>,
 }
 
@@ -8413,7 +8429,7 @@ pub struct ApiIssuerErrorDetails {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
 pub struct ApiNetworkErrorDetails {
     /// Card network (e.g., Visa, Mastercard)
-    #[schema(value_type = Option<CardNetwork>)]
+    #[schema(value_type = Option<api_enums::CardNetwork>)]
     pub name: Option<api_enums::CardNetwork>,
     /// Network advice code
     pub advice_code: Option<String>,
@@ -8497,7 +8513,7 @@ pub struct PaymentsResponse {
     )]
     pub id: id_type::GlobalPaymentId,
 
-    #[schema(value_type = IntentStatus, example = "succeeded")]
+    #[schema(value_type = api_enums::IntentStatus, example = "succeeded")]
     pub status: api_enums::IntentStatus,
 
     /// Amount related information for this payment and attempt
@@ -8521,7 +8537,7 @@ pub struct PaymentsResponse {
     /// - Some(Platform): Platform merchant initiated payment on behalf of connected merchant
     /// - Some(Connected): Connected merchant initiated payment directly in a platform setup
     /// - None: Standard merchant flow, JWT/Admin initiator, or insufficient information
-    #[schema(value_type = Option<Initiator>, example = "platform")]
+    #[schema(value_type = Option<platform::Initiator>, example = "platform")]
     pub initiator: Option<platform::Initiator>,
 
     /// The connector used for the payment
@@ -8544,10 +8560,10 @@ pub struct PaymentsResponse {
     pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
 
     /// The payment method type for this payment attempt
-    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
+    #[schema(value_type = Option<api_enums::PaymentMethod>, example = "wallet")]
     pub payment_method_type: Option<api_enums::PaymentMethod>,
 
-    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    #[schema(value_type = Option<api_enums::PaymentMethodType>, example = "apple_pay")]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// A unique identifier for a payment provided by the connector
@@ -8563,7 +8579,7 @@ pub struct PaymentsResponse {
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// The browser information used for this payment
-    #[schema(value_type = Option<BrowserInformation>)]
+    #[schema(value_type = Option<common_utils::types::BrowserInformation>)]
     pub browser_info: Option<common_utils::types::BrowserInformation>,
 
     /// Error details for the payment if any
@@ -8593,12 +8609,12 @@ pub struct PaymentsResponse {
     pub return_url: Option<common_utils::types::Url>,
 
     /// The authentication type that was requested for this order
-    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
+    #[schema(value_type = Option<api_enums::AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The authentication type that was appliced for this order
     /// This depends on the 3DS rules configured, If not a default authentication type will be applied
-    #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
+    #[schema(value_type = Option<api_enums::AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
     pub authentication_type_applied: Option<api_enums::AuthenticationType>,
 
     /// Indicates if the redirection has to open in the iframe
@@ -8679,14 +8695,14 @@ pub struct PaymentStartRedirectionParams {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ExternalAuthenticationDetailsResponse {
     /// Authentication Type - Challenge / Frictionless
-    #[schema(value_type = Option<DecoupledAuthenticationType>)]
+    #[schema(value_type = Option<api_enums::DecoupledAuthenticationType>)]
     #[smithy(value_type = "Option<DecoupledAuthenticationType>")]
     pub authentication_flow: Option<enums::DecoupledAuthenticationType>,
     /// Electronic Commerce Indicator (eci)
     #[smithy(value_type = "Option<String>")]
     pub electronic_commerce_indicator: Option<String>,
     /// Authentication Status
-    #[schema(value_type = AuthenticationStatus)]
+    #[schema(value_type = api_enums::AuthenticationStatus)]
     #[smithy(value_type = "AuthenticationStatus")]
     pub status: enums::AuthenticationStatus,
     /// DS Transaction ID
@@ -8848,27 +8864,27 @@ pub struct PaymentListConstraints {
     /// The end amount to filter list of transactions which are less than or equal to the end amount
     pub end_amount: Option<i64>,
     /// The connector to filter payments list
-    #[param(value_type = Option<Vec<Connector>>)]
+    #[param(value_type = Option<Vec<api_enums::Connector>>)]
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub connector: Option<Vec<api_enums::Connector>>,
     /// The currency to filter payments list
     #[param(value_type = Option<Vec<Currency>>)]
     #[serde(deserialize_with = "parse_comma_separated", default)]
-    pub currency: Option<Vec<enums::Currency>>,
+    pub currency: Option<Vec<Currency>>,
     /// The payment status to filter payments list
-    #[param(value_type = Option<Vec<IntentStatus>>)]
+    #[param(value_type = Option<Vec<api_enums::IntentStatus>>)]
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub status: Option<Vec<enums::IntentStatus>>,
     /// The payment method type to filter payments list
-    #[param(value_type = Option<Vec<PaymentMethod>>)]
+    #[param(value_type = Option<Vec<api_enums::PaymentMethod>>)]
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub payment_method_type: Option<Vec<enums::PaymentMethod>>,
     /// The payment method subtype to filter payments list
-    #[param(value_type = Option<Vec<PaymentMethodType>>)]
+    #[param(value_type = Option<Vec<api_enums::PaymentMethodType>>)]
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub payment_method_subtype: Option<Vec<enums::PaymentMethodType>>,
     /// The authentication type to filter payments list
-    #[param(value_type = Option<Vec<AuthenticationType>>)]
+    #[param(value_type = Option<Vec<api_enums::AuthenticationType>>)]
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub authentication_type: Option<Vec<enums::AuthenticationType>>,
     /// The merchant connector id to filter payments list
@@ -8882,7 +8898,7 @@ pub struct PaymentListConstraints {
     #[serde(default)]
     pub order_by: SortBy,
     /// The card networks to filter payments list
-    #[param(value_type = Option<Vec<CardNetwork>>)]
+    #[param(value_type = Option<Vec<api_enums::CardNetwork>>)]
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub card_network: Option<Vec<enums::CardNetwork>>,
     /// The identifier for merchant order reference id
@@ -8942,7 +8958,7 @@ pub struct IncrementalAuthorizationResponse {
     #[schema(value_type = i64, example = 6540)]
     #[smithy(value_type = "i64")]
     pub amount: MinorUnit,
-    #[schema(value_type= AuthorizationStatus)]
+    #[schema(value_type= api_enums::AuthorizationStatus)]
     #[smithy(value_type = "AuthorizationStatus")]
     /// The status of the authorization
     pub status: common_enums::AuthorizationStatus,
@@ -8990,7 +9006,7 @@ pub struct PaymentListFilterConstraints {
     /// The list of connectors to filter payments list
     pub connector: Option<Vec<api_enums::Connector>>,
     /// The list of currencies to filter payments list
-    pub currency: Option<Vec<enums::Currency>>,
+    pub currency: Option<Vec<Currency>>,
     /// The list of payment status to filter payments list
     pub status: Option<Vec<enums::IntentStatus>>,
     /// The list of payment methods to filter payments list
@@ -9032,7 +9048,7 @@ pub struct PaymentListFilters {
     /// The list of available connector filters
     pub connector: Vec<String>,
     /// The list of available currency filters
-    pub currency: Vec<enums::Currency>,
+    pub currency: Vec<Currency>,
     /// The list of available payment status filters
     pub status: Vec<enums::IntentStatus>,
     /// The list of available payment method filters
@@ -9048,7 +9064,7 @@ pub struct PaymentListFiltersV2 {
     /// The list of available connector filters
     pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
     /// The list of available currency filters
-    pub currency: Vec<enums::Currency>,
+    pub currency: Vec<Currency>,
     /// The list of available payment status filters
     pub status: Vec<enums::IntentStatus>,
     /// The list payment method and their corresponding types
@@ -9397,7 +9413,7 @@ pub struct PaymentsRetrieveRequest {
     /// Optionally specifies the connector to be used for a 'force_sync' retrieve operation. If provided, Hyperswitch will attempt to sync the payment status from this specific connector.
     pub connector: Option<String>,
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
+    #[schema(value_type = Option<admin::MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: Option<String>,
@@ -9517,10 +9533,10 @@ pub struct PaymentsSessionRequest {
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: Option<String>,
     /// The list of the supported wallets
-    #[schema(value_type = Vec<PaymentMethodType>)]
+    #[schema(value_type = Vec<api_enums::PaymentMethodType>)]
     pub wallets: Vec<api_enums::PaymentMethodType>,
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
+    #[schema(value_type = Option<admin::MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
@@ -9548,7 +9564,7 @@ pub struct PaymentsUpdateMetadataResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// The status of the payment intent after the metadata update
-    #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
+    #[schema(value_type = api_enums::IntentStatus, example = "failed", default = "requires_confirmation")]
     pub status: api_enums::IntentStatus,
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     #[schema(value_type = Option<FeatureMetadata>)]
@@ -9566,10 +9582,10 @@ pub struct PaymentsPostSessionTokensRequest {
     #[schema(value_type = Option<String>)]
     pub client_secret: Option<Secret<String>>,
     /// Payment method type
-    #[schema(value_type = PaymentMethodType)]
+    #[schema(value_type = api_enums::PaymentMethodType)]
     pub payment_method_type: api_enums::PaymentMethodType,
     /// The payment method that is to be used for the payment
-    #[schema(value_type = PaymentMethod, example = "card")]
+    #[schema(value_type = api_enums::PaymentMethod, example = "card")]
     pub payment_method: api_enums::PaymentMethod,
 }
 
@@ -9580,7 +9596,7 @@ pub struct PaymentsPostSessionTokensResponse {
     pub payment_id: id_type::PaymentId,
     /// Additional information required for redirection
     pub next_action: Option<NextActionData>,
-    #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
+    #[schema(value_type = api_enums::IntentStatus, example = "failed", default = "requires_confirmation")]
     pub status: api_enums::IntentStatus,
 }
 
@@ -9596,7 +9612,7 @@ pub struct PaymentsDynamicTaxCalculationRequest {
     #[schema(value_type = Option<String>)]
     pub client_secret: Option<Secret<String>>,
     /// Payment method type
-    #[schema(value_type = PaymentMethodType)]
+    #[schema(value_type = api_enums::PaymentMethodType)]
     pub payment_method_type: api_enums::PaymentMethodType,
     /// Session Id
     pub session_id: Option<String>,
@@ -9751,13 +9767,13 @@ pub struct GpayAllowedPaymentMethods {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct GpayTransactionInfo {
     /// The country code
-    #[schema(value_type = CountryAlpha2, example = "US")]
+    #[schema(value_type = api_enums::CountryAlpha2, example = "US")]
     #[smithy(value_type = "CountryAlpha2")]
     pub country_code: api_enums::CountryAlpha2,
     /// The currency code
     #[schema(value_type = Currency, example = "USD")]
     #[smithy(value_type = "Currency")]
-    pub currency_code: api_enums::Currency,
+    pub currency_code: Currency,
     /// The total price status (ex: 'FINAL')
     #[smithy(value_type = "String")]
     pub total_price_status: String,
@@ -9781,7 +9797,7 @@ pub struct GpayMerchantInfo {
     pub merchant_name: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayMetaData {
     pub merchant_info: GpayMerchantInfo,
     pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
@@ -9954,7 +9970,7 @@ pub struct BraintreeData {
     /// Information about the merchant_config_currency that merchant wants to specify at connector level.
     #[schema(value_type = String)]
     #[smithy(value_type = "String")]
-    pub merchant_config_currency: Option<api_enums::Currency>,
+    pub merchant_config_currency: Option<Currency>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -10018,13 +10034,13 @@ pub enum ApplepaySessionTokenMetadata {
     ApplePay(ApplePayMetadata),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ApplePayMetadata {
     pub payment_request_data: PaymentRequestMetadata,
     pub session_token_data: SessionTokenInfo,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplePayCombinedMetadata {
     Simplified {
@@ -10044,7 +10060,7 @@ pub struct PeachpaymentsData {
     pub rrn: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentRequestMetadata {
     pub supported_networks: Vec<String>,
     pub merchant_capabilities: Vec<String>,
@@ -10068,7 +10084,7 @@ pub struct SessionTokenInfo {
     pub initiative: ApplepayInitiative,
     #[smithy(value_type = "Option<String>")]
     pub initiative_context: Option<String>,
-    #[schema(value_type = Option<CountryAlpha2>)]
+    #[schema(value_type = Option<api_enums::CountryAlpha2>)]
     #[smithy(value_type = "Option<CountryAlpha2>")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     #[serde(flatten)]
@@ -10111,7 +10127,7 @@ pub struct PaymentProcessingDetails {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SessionTokenForSimplifiedApplePay {
     pub initiative_context: String,
-    #[schema(value_type = Option<CountryAlpha2>)]
+    #[schema(value_type = Option<api_enums::CountryAlpha2>)]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 }
 
@@ -10324,7 +10340,7 @@ pub struct PazeSessionTokenResponse {
     /// The transaction currency code
     #[schema(value_type = Currency, example = "USD")]
     #[smithy(value_type = "Currency")]
-    pub transaction_currency_code: api_enums::Currency,
+    pub transaction_currency_code: Currency,
     /// The transaction amount
     #[schema(value_type = String, example = "38.02")]
     #[smithy(value_type = "String")]
@@ -10463,7 +10479,7 @@ pub struct SamsungPayMerchantPaymentInformation {
     #[smithy(value_type = "Option<String>")]
     pub url: Option<String>,
     /// Merchant country code
-    #[schema(value_type = CountryAlpha2, example = "US")]
+    #[schema(value_type = api_enums::CountryAlpha2, example = "US")]
     #[smithy(value_type = "CountryAlpha2")]
     pub country_code: api_enums::CountryAlpha2,
 }
@@ -10481,7 +10497,7 @@ pub struct SamsungPayAmountDetails {
     /// The currency code
     #[schema(value_type = Currency, example = "USD")]
     #[smithy(value_type = "Currency")]
-    pub currency_code: api_enums::Currency,
+    pub currency_code: Currency,
     /// The total amount of the transaction
     #[serde(rename = "total")]
     #[schema(value_type = String, example = "38.02")]
@@ -10561,7 +10577,7 @@ pub struct PaypalTransactionInfo {
     pub flow: PaypalFlow,
     /// Currency code
     #[schema(value_type = Currency, example = "USD")]
-    pub currency_code: api_enums::Currency,
+    pub currency_code: Currency,
     /// Total price
     #[schema(value_type = String, example = "38.02")]
     pub total_price: StringMajorUnit,
@@ -10591,7 +10607,7 @@ pub struct PaypalSessionTokenResponse {
     /// Transaction currency code
     #[schema(example = "USD", value_type = Option<Currency>)]
     #[smithy(value_type = "Option<Currency>")]
-    pub currency: Option<common_enums::Currency>,
+    pub currency: Option<Currency>,
     /// PayPal capture method
     #[schema(value_type = Option<PaypalCaptureMethod>)]
     #[smithy(value_type = "Option<PaypalCaptureMethod>")]
@@ -10721,13 +10737,13 @@ pub struct SecretInfoToInitiateSdk {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplePayPaymentRequest {
     /// The code for country
-    #[schema(value_type = CountryAlpha2, example = "US")]
+    #[schema(value_type = api_enums::CountryAlpha2, example = "US")]
     #[smithy(value_type = "CountryAlpha2")]
     pub country_code: api_enums::CountryAlpha2,
     /// The code for currency
     #[schema(value_type = Currency, example = "USD")]
     #[smithy(value_type = "Currency")]
-    pub currency_code: api_enums::Currency,
+    pub currency_code: Currency,
     /// Represents the total for the payment.
     #[smithy(value_type = "AmountInfo")]
     pub total: AmountInfo,
@@ -10873,7 +10889,7 @@ pub struct AmazonPaySessionTokenResponse {
     /// Ledger currency provided during registration for the given merchant identifier
     #[schema(example = "USD", value_type = Currency)]
     #[smithy(value_type = "Currency")]
-    pub ledger_currency: common_enums::Currency,
+    pub ledger_currency: Currency,
     /// Amazon Pay store ID
     #[smithy(value_type = "String")]
     pub store_id: String,
@@ -10945,7 +10961,7 @@ pub struct AmazonPayDeliveryPrice {
     /// Transaction currency code in ISO 4217 format
     #[schema(example = "USD", value_type = Currency)]
     #[smithy(value_type = "Currency")]
-    pub currency_code: common_enums::Currency,
+    pub currency_code: Currency,
 }
 
 #[derive(
@@ -10994,8 +11010,8 @@ impl AmazonPayDeliveryOptions {
     }
 
     pub fn validate_currency(
-        currency_code: common_enums::Currency,
-        amazonpay_supported_currencies: HashSet<common_enums::Currency>,
+        currency_code: Currency,
+        amazonpay_supported_currencies: HashSet<Currency>,
     ) -> Result<(), ValidationError> {
         if !amazonpay_supported_currencies.contains(&currency_code) {
             return Err(ValidationError::InvalidValue {
@@ -11008,7 +11024,7 @@ impl AmazonPayDeliveryOptions {
 
     pub fn insert_display_amount(
         delivery_options: &mut Vec<Self>,
-        currency_code: common_enums::Currency,
+        currency_code: Currency,
     ) -> Result<(), error_stack::Report<common_utils::errors::ParsingError>> {
         let required_amount_type = common_utils::types::StringMajorUnitForCore;
         for option in delivery_options {
@@ -11107,7 +11123,7 @@ pub struct PaymentsCancelRequest {
     #[smithy(value_type = "Option<String>")]
     pub cancellation_reason: Option<String>,
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorDetailsWrap>, deprecated)]
+    #[schema(value_type = Option<admin::MerchantConnectorDetailsWrap>, deprecated)]
     #[smithy(value_type = "Option<MerchantConnectorDetailsWrap>")]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     /// If enabled, provides whole connector response
@@ -11332,7 +11348,7 @@ pub struct ListMethodsForPaymentsRequest {
 
     /// The two-letter ISO currency code
     #[serde(deserialize_with = "parse_comma_separated", default)]
-    #[schema(value_type = Option<Vec<CountryAlpha2>>, example = json!(["US", "UK", "IN"]))]
+    #[schema(value_type = Option<Vec<api_enums::CountryAlpha2>>, example = json!(["US", "UK", "IN"]))]
     pub accepted_countries: Option<Vec<api_enums::CountryAlpha2>>,
 
     /// Filter by amount
@@ -11342,7 +11358,7 @@ pub struct ListMethodsForPaymentsRequest {
     /// The three-letter ISO currency code
     #[serde(deserialize_with = "parse_comma_separated", default)]
     #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
-    pub accepted_currencies: Option<Vec<api_enums::Currency>>,
+    pub accepted_currencies: Option<Vec<Currency>>,
 
     /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
@@ -11350,7 +11366,7 @@ pub struct ListMethodsForPaymentsRequest {
 
     /// Indicates whether the payment method is eligible for card networks
     #[serde(deserialize_with = "parse_comma_separated", default)]
-    #[schema(value_type = Option<Vec<CardNetwork>>, example = json!(["visa", "mastercard"]))]
+    #[schema(value_type = Option<Vec<api_enums::CardNetwork>>, example = json!(["visa", "mastercard"]))]
     pub card_networks: Option<Vec<api_enums::CardNetwork>>,
 
     /// Indicates the limit of last used payment methods
@@ -11366,7 +11382,7 @@ pub struct PaymentMethodListResponseForPayments {
 
     /// The list of payment methods that are saved by the given customer
     /// This field is only returned if the customer_id is provided in the request
-    #[schema(value_type = Option<Vec<CustomerPaymentMethodResponseItem>>)]
+    #[schema(value_type = Option<Vec<payment_methods::CustomerPaymentMethodResponseItem>>)]
     pub customer_payment_methods: Option<Vec<payment_methods::CustomerPaymentMethodResponseItem>>,
 }
 
@@ -11374,29 +11390,29 @@ pub struct PaymentMethodListResponseForPayments {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypesForPayments {
     /// The payment method type enabled
-    #[schema(example = "pay_later", value_type = PaymentMethod)]
+    #[schema(example = "pay_later", value_type = api_enums::PaymentMethod)]
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// The payment method subtype enabled
-    #[schema(example = "klarna", value_type = PaymentMethodType)]
+    #[schema(example = "klarna", value_type = api_enums::PaymentMethodType)]
     pub payment_method_subtype: common_enums::PaymentMethodType,
 
     /// The payment experience for the payment method
-    #[schema(value_type = Option<Vec<PaymentExperience>>)]
+    #[schema(value_type = Option<Vec<api_enums::PaymentExperience>>)]
     pub payment_experience: Option<Vec<common_enums::PaymentExperience>>,
 
     /// payment method subtype specific information
     #[serde(flatten)]
-    #[schema(value_type = Option<PaymentMethodSubtypeSpecificData>)]
+    #[schema(value_type = Option<payment_methods::PaymentMethodSubtypeSpecificData>)]
     pub extra_information: Option<payment_methods::PaymentMethodSubtypeSpecificData>,
 
     /// Required fields for the payment_method_type.
     /// This is the union of all the required fields for the payment method type enabled in all the connectors.
-    #[schema(value_type = RequiredFieldInfo)]
+    #[schema(value_type = payment_methods::RequiredFieldInfo)]
     pub required_fields: Vec<payment_methods::RequiredFieldInfo>,
 
     /// surcharge details for this payment method type if exists
-    #[schema(value_type = Option<SurchargeDetailsResponse>)]
+    #[schema(value_type = Option<payment_methods::SurchargeDetailsResponse>)]
     pub surcharge_details: Option<payment_methods::SurchargeDetailsResponse>,
 }
 
@@ -11404,7 +11420,7 @@ pub struct ResponsePaymentMethodTypesForPayments {
 pub struct PaymentsExternalAuthenticationResponse {
     /// Indicates the transaction status
     #[serde(rename = "trans_status")]
-    #[schema(value_type = TransactionStatus)]
+    #[schema(value_type = api_enums::TransactionStatus)]
     pub transaction_status: common_enums::TransactionStatus,
     /// Access Server URL to be used for challenge submission
     pub acs_url: Option<String>,
@@ -11819,18 +11835,18 @@ pub struct BoletoAdditionalDetails {
     pub due_date: Option<PrimitiveDateTime>,
     /// It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
     /// Deprecated since it has been moved to connector_metadata
-    #[schema(value_type = Option<BoletoDocumentKind>, example="commercial_invoice")]
+    #[schema(value_type = Option<api_enums::BoletoDocumentKind>, example="commercial_invoice")]
     pub document_kind: Option<common_enums::BoletoDocumentKind>,
     /// This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
     /// Deprecated since it has been moved to connector_metadata
-    #[schema(value_type = Option<BoletoPaymentType>, example="fixed_amount", deprecated)]
+    #[schema(value_type = Option<api_enums::BoletoPaymentType>, example="fixed_amount", deprecated)]
     pub payment_type: Option<common_enums::BoletoPaymentType>,
     // It is a number which shows a contract between merchant and bank
     #[schema(value_type = Option<String>, example="3568253")]
     pub covenant_code: Option<Secret<String>>,
     /// Pix identification details
     #[schema(
-        value_type = Option<PixKey>, example = json!({
+        value_type = Option<api_enums::PixKey>, example = json!({
             "type": "email",
             "value": "user@example.com"
         })
@@ -11903,7 +11919,7 @@ pub struct ImmediateExpirationTime {
     pub time: u32,
     /// Pix identification details
     #[schema(
-        value_type = Option<PixKey>, example = json!({
+        value_type = Option<api_enums::PixKey>, example = json!({
             "type": "email",
             "value": "user@example.com"
         })
@@ -11922,7 +11938,7 @@ pub struct ScheduledExpirationTime {
     pub validity_after_expiration: Option<u32>,
     /// Pix identification details
     #[schema(
-        value_type = Option<PixKey>, example = json!({
+        value_type = Option<api_enums::PixKey>, example = json!({
             "type": "email",
             "value": "user@example.com"
         })
@@ -12437,7 +12453,7 @@ pub struct RetrievePaymentLinkResponse {
     /// Status Of the Payment Link
     pub status: PaymentLinkStatus,
     #[schema(value_type = Option<Currency>)]
-    pub currency: Option<api_enums::Currency>,
+    pub currency: Option<Currency>,
     /// Secure payment link (with security checks and listing saved payment methods)
     pub secure_link: Option<String>,
 }
@@ -12460,7 +12476,7 @@ pub enum PaymentLinkData {
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct PaymentLinkDetails {
     pub amount: StringMajorUnit,
-    pub currency: api_enums::Currency,
+    pub currency: Currency,
     pub pub_key: String,
     pub client_secret: String,
     pub payment_id: id_type::PaymentId,
@@ -12529,7 +12545,7 @@ pub struct SecurePaymentLinkDetails {
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentLinkStatusDetails {
     pub amount: StringMajorUnit,
-    pub currency: api_enums::Currency,
+    pub currency: Currency,
     pub payment_id: id_type::PaymentId,
     pub merchant_logo: String,
     pub merchant_name: String,
@@ -12606,7 +12622,7 @@ pub struct PaymentLinkListResponse {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentCreatePaymentLinkConfig {
     #[serde(flatten)]
-    #[schema(value_type = Option<PaymentLinkConfigRequest>)]
+    #[schema(value_type = Option<admin::PaymentLinkConfigRequest>)]
     /// Theme config for the particular payment
     pub theme_config: admin::PaymentLinkConfigRequest,
 }
@@ -12620,6 +12636,7 @@ pub struct OrderDetailsWithStringAmount {
     #[schema(example = 1)]
     pub quantity: u16,
     /// the amount per quantity of product
+    #[schema(value_type = String)]
     pub amount: StringMajorUnit,
     /// Product Image link
     pub product_img_link: Option<String>,
@@ -12658,7 +12675,7 @@ pub struct ClickToPaySessionResponse {
     pub dpa_name: String,
     #[smithy(value_type = "String")]
     pub locale: String,
-    #[schema(value_type = Vec<CardNetwork>, example = "[Visa, Mastercard]")]
+    #[schema(value_type = Vec<api_enums::CardNetwork>, example = "[Visa, Mastercard]")]
     #[smithy(value_type = "Vec<CardNetwork>")]
     pub card_brands: HashSet<api_enums::CardNetwork>,
     #[smithy(value_type = "String")]
@@ -12674,7 +12691,7 @@ pub struct ClickToPaySessionResponse {
     pub transaction_amount: StringMajorUnit,
     #[schema(value_type = Currency)]
     #[smithy(value_type = "Currency")]
-    pub transaction_currency_code: common_enums::Currency,
+    pub transaction_currency_code: Currency,
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
     #[smithy(value_type = "Option<String>")]
     pub phone_number: Option<Secret<String>>,
@@ -12684,7 +12701,7 @@ pub struct ClickToPaySessionResponse {
     #[smithy(value_type = "Option<String>")]
     pub phone_country_code: Option<String>,
     /// provider Eg: Visa, Mastercard
-    #[schema(value_type = Option<CtpServiceProvider>)]
+    #[schema(value_type = Option<api_enums::CtpServiceProvider>)]
     #[smithy(value_type = "Option<CtpServiceProvider>")]
     pub provider: Option<api_enums::CtpServiceProvider>,
     #[smithy(value_type = "Option<String>")]
@@ -12702,10 +12719,10 @@ pub struct PaymentsEligibilityCheckRequest {
     #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
     pub client_secret: Option<Secret<String>>,
     /// The payment method to be used for the payment
-    #[schema(value_type = PaymentMethod, example = "wallet")]
+    #[schema(value_type = api_enums::PaymentMethod, example = "wallet")]
     pub payment_method_type: api_enums::PaymentMethod,
     /// The payment method type to be used for the payment
-    #[schema(value_type = Option<PaymentMethodType>)]
+    #[schema(value_type = Option<api_enums::PaymentMethodType>)]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
     /// The payment instrument data for eligibility check
     #[serde(with = "eligibility_payment_method_data_serde", default)]
@@ -12771,7 +12788,7 @@ pub struct EligibilityCard {
     pub card_issuer: Option<String>,
 
     /// The card network for the card
-    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[schema(value_type = Option<api_enums::CardNetwork>, example = "Visa")]
     pub card_network: Option<api_enums::CardNetwork>,
 
     #[schema(example = "CREDIT")]
@@ -12950,10 +12967,10 @@ pub struct PaymentsEligibilityRequest {
     #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
     pub client_secret: Option<Secret<String>>,
     /// The payment method to be used for the payment
-    #[schema(value_type = PaymentMethod, example = "card")]
+    #[schema(value_type = api_enums::PaymentMethod, example = "card")]
     pub payment_method_type: api_enums::PaymentMethod,
     /// The payment method type to be used for the payment
-    #[schema(value_type = Option<PaymentMethodType>)]
+    #[schema(value_type = Option<api_enums::PaymentMethodType>)]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
     /// The payment instrument data for eligibility check and surcharge BIN lookup
     #[serde(with = "eligibility_payment_method_data_serde", default)]
@@ -12992,7 +13009,7 @@ pub struct PaymentsEligibilityResponse {
     pub sdk_next_action: SdkNextAction,
     /// Surcharge details if an external surcharge was calculated. None if eligibility was denied
     /// or no surcharge connector is configured for this merchant.
-    #[schema(value_type = Option<SurchargeDetailsResponse>)]
+    #[schema(value_type = Option<payment_methods::SurchargeDetailsResponse>)]
     pub surcharge_details: Option<payment_methods::SurchargeDetailsResponse>,
 }
 
@@ -13322,13 +13339,13 @@ pub struct PaymentRevenueRecoveryMetadata {
     #[schema(value_type = BillingConnectorPaymentDetails)]
     pub billing_connector_payment_details: BillingConnectorPaymentDetails,
     /// Payment Method Type
-    #[schema(example = "pay_later", value_type = PaymentMethod)]
+    #[schema(example = "pay_later", value_type = api_enums::PaymentMethod)]
     pub payment_method_type: common_enums::PaymentMethod,
     /// PaymentMethod Subtype
-    #[schema(example = "klarna", value_type = PaymentMethodType)]
+    #[schema(example = "klarna", value_type = api_enums::PaymentMethodType)]
     pub payment_method_subtype: common_enums::PaymentMethodType,
     /// The name of the payment connector through which the payment attempt was made.
-    #[schema(value_type = Connector, example = "stripe")]
+    #[schema(value_type = api_enums::Connector, example = "stripe")]
     pub connector: common_enums::connector_enums::Connector,
     #[schema(value_type = BillingConnectorPaymentMethodDetails)]
     /// Extra Payment Method Details that are needed to be stored
@@ -13360,7 +13377,7 @@ pub enum BillingConnectorPaymentMethodDetails {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct BillingConnectorAdditionalCardInfo {
-    #[schema(value_type = CardNetwork, example = "Visa")]
+    #[schema(value_type = api_enums::CardNetwork, example = "Visa")]
     /// Card Network
     pub card_network: Option<common_enums::enums::CardNetwork>,
     #[schema(value_type = Option<String>, example = "JP MORGAN CHASE")]
@@ -13422,7 +13439,7 @@ pub struct PaymentsAttemptRecordRequest {
     /// The amount details for the payment attempt.
     pub amount_details: PaymentAttemptAmountDetails,
 
-    #[schema(value_type = AttemptStatus, example = "charged")]
+    #[schema(value_type = api_enums::AttemptStatus, example = "charged")]
     pub status: enums::AttemptStatus,
 
     /// The billing details of the payment attempt. This address will be used for invoicing.
@@ -13439,14 +13456,15 @@ pub struct PaymentsAttemptRecordRequest {
     pub description: Option<common_utils::types::Description>,
 
     /// A unique identifier for a payment provided by the connector.
+    #[schema(value_type = Option<String>)]
     pub connector_transaction_id: Option<common_utils::types::ConnectorTransactionId>,
 
     /// The payment method type used for payment attempt.
-    #[schema(value_type = PaymentMethod, example = "bank_transfer")]
+    #[schema(value_type = api_enums::PaymentMethod, example = "bank_transfer")]
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// The name of the payment connector through which the payment attempt was made.
-    #[schema(value_type = Option<Connector>, example = "stripe")]
+    #[schema(value_type = Option<api_enums::Connector>, example = "stripe")]
     pub connector: Option<common_enums::connector_enums::Connector>,
 
     /// Billing connector id to update the invoices.
@@ -13458,7 +13476,7 @@ pub struct PaymentsAttemptRecordRequest {
     pub payment_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    #[schema(value_type = api_enums::PaymentMethodType, example = "apple_pay")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
     /// The additional payment data to be used for the payment attempt.
@@ -13499,10 +13517,10 @@ pub struct PaymentsAttemptRecordRequest {
     pub invoice_billing_started_at_time: Option<PrimitiveDateTime>,
 
     /// source where the payment was triggered by
-    #[schema(value_type = TriggeredBy, example = "internal" )]
+    #[schema(value_type = common_enums::TriggeredBy, example = "internal" )]
     pub triggered_by: common_enums::TriggeredBy,
 
-    #[schema(value_type = CardNetwork, example = "Visa" )]
+    #[schema(value_type = api_enums::CardNetwork, example = "Visa" )]
     /// card_network
     pub card_network: Option<common_enums::CardNetwork>,
 
@@ -13540,14 +13558,14 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = String, example = "mca_1234567890")]
     pub payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
-    #[schema(value_type = AttemptStatus, example = "charged")]
+    #[schema(value_type = api_enums::AttemptStatus, example = "charged")]
     pub attempt_status: enums::AttemptStatus,
 
     /// The billing details of the payment attempt.
     pub billing: Option<Address>,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    #[schema(value_type = api_enums::PaymentMethodType, example = "apple_pay")]
     pub payment_method_sub_type: api_enums::PaymentMethodType,
 
     /// The time at which payment attempt was created.
@@ -13556,7 +13574,7 @@ pub struct RecoveryPaymentsCreate {
     pub transaction_created_at: Option<PrimitiveDateTime>,
 
     /// Payment method type for the payment attempt
-    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
+    #[schema(value_type = Option<api_enums::PaymentMethod>, example = "wallet")]
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// customer id at payment connector for which mandate is attached.
@@ -13647,10 +13665,10 @@ pub struct ExternalThreeDsData {
     #[schema(value_type = String)]
     pub eci: String,
     /// Indicates the transaction status from the 3DS authentication flow.
-    #[schema(value_type = TransactionStatus)]
+    #[schema(value_type = api_enums::TransactionStatus)]
     pub transaction_status: common_enums::TransactionStatus,
     /// Optional exemption indicator specifying the exemption type, if any, used in this transaction.
-    #[schema(value_type = Option<ExemptionIndicator>)]
+    #[schema(value_type = Option<api_enums::ExemptionIndicator>)]
     pub exemption_indicator: Option<common_enums::ExemptionIndicator>,
     /// Optional network-specific parameters that may be required by certain card networks.
     #[schema(value_type = Option<NetworkParams>)]
@@ -13681,7 +13699,7 @@ pub struct NetworkParams {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CartesBancairesParams {
     /// The algorithm used to generate the CAVV value.
-    #[schema(value_type = Option<CavvAlgorithm>)]
+    #[schema(value_type = Option<api_enums::CavvAlgorithm>)]
     pub cavv_algorithm: common_enums::CavvAlgorithm,
     /// Exemption indicator specific to Cartes Bancaires network (e.g., "low_value", "trusted_merchant")
     #[schema(value_type = String)]
@@ -13743,7 +13761,7 @@ pub struct SantanderBoletoData {
     #[schema(value_type = Option<BeneficiaryDetails>)]
     pub beneficiary: Option<BeneficiaryDetails>,
     #[smithy(value_type = "Option<BoletoDocumentKind>")]
-    #[schema(value_type = Option<BoletoDocumentKind>, example = "commercial_invoice")]
+    #[schema(value_type = Option<api_enums::BoletoDocumentKind>, example = "commercial_invoice")]
     pub document_kind: Option<common_enums::BoletoDocumentKind>,
 }
 

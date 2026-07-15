@@ -5,9 +5,9 @@
 #[utoipa::path(
     post,
     path = "/authentication",
-    request_body = AuthenticationCreateRequest,
+    request_body = api_models::authentication::AuthenticationCreateRequest,
     responses(
-        (status = 200, description = "Authentication created", body = AuthenticationResponse),
+        (status = 200, description = "Authentication created", body = api_models::authentication::AuthenticationResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Authentication",
@@ -23,15 +23,16 @@ pub async fn authentication_create() {}
 #[utoipa::path(
     post,
     path = "/authentication/{authentication_id}/eligibility",
-    request_body = AuthenticationEligibilityRequest,
+    request_body = api_models::authentication::AuthenticationEligibilityRequest,
     responses(
-        (status = 200, description = "Authentication eligibility checked", body = AuthenticationEligibilityResponse),
+        (status = 200, description = "Authentication eligibility checked", body = api_models::authentication::AuthenticationEligibilityResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Authentication",
     operation_id = "Check Authentication Eligibility",
     security(("api_key" = []), ("publishable_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn authentication_eligibility() {}
 
 /// Authentication - Authenticate
@@ -41,9 +42,9 @@ pub async fn authentication_eligibility() {}
 #[utoipa::path(
     post,
     path = "/authentication/{authentication_id}/authenticate",
-    request_body = AuthenticationAuthenticateRequest,
+    request_body = api_models::authentication::AuthenticationAuthenticateRequest,
     responses(
-        (status = 200, description = "Authentication authenticated", body = AuthenticationAuthenticateResponse),
+        (status = 200, description = "Authentication authenticated", body = api_models::authentication::AuthenticationAuthenticateResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Authentication",
@@ -59,7 +60,7 @@ pub async fn authentication_authenticate() {}
 #[utoipa::path(
     post,
     path = "/authentication/{authentication_id}/redirect",
-    request_body = AuthenticationSyncPostUpdateRequest,
+    request_body = api_models::authentication::AuthenticationSyncPostUpdateRequest,
     responses(
         (status = 200, description = "Authentication redirect"),
         (status = 400, description = "Invalid data")
@@ -77,15 +78,16 @@ pub async fn authentication_redirect() {}
 #[utoipa::path(
     post,
     path = "/authentication/{authentication_id}/sync",
-    request_body = AuthenticationSyncRequest,
+    request_body = api_models::authentication::AuthenticationSyncRequest,
     responses(
-        (status = 200, description = "Authentication sync", body = AuthenticationSyncResponse),
+        (status = 200, description = "Authentication sync", body = api_models::authentication::AuthenticationSyncResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Authentication",
     operation_id = "Sync an Authentication",
     security(("api_key" = []), ("publishable_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn authentication_sync() {}
 
 /// Authentication - Enable Authn Methods Token
@@ -95,9 +97,9 @@ pub async fn authentication_sync() {}
 #[utoipa::path(
     post,
     path = "/authentication/{authentication_id}/enabled_authn_methods_token",
-    request_body = AuthenticationSessionTokenRequest,
+    request_body = api_models::authentication::AuthenticationSessionTokenRequest,
     responses(
-        (status = 200, description = "Authentication enabled authn methods token", body = AuthenticationSessionResponse),
+        (status = 200, description = "Authentication enabled authn methods token", body = api_models::authentication::AuthenticationSessionResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Authentication",
@@ -111,15 +113,16 @@ pub async fn authentication_enabled_authn_methods_token() {}
 #[utoipa::path(
     post,
     path = "/authentication/{authentication_id}/eligibility-check",
-    request_body = AuthenticationEligibilityCheckRequest,
+    request_body = api_models::authentication::AuthenticationEligibilityCheckRequest,
     responses(
-        (status = 200, description = "Eligibility Performed for the Authentication", body = AuthenticationEligibilityCheckResponse),
+        (status = 200, description = "Eligibility Performed for the Authentication", body = api_models::authentication::AuthenticationEligibilityCheckResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Authentication",
     operation_id = "Submit Eligibility for an Authentication",
     security(("publishable_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn authentication_eligibility_check() {}
 
 /// Authentication - GET Eligibility Check
@@ -127,13 +130,14 @@ pub async fn authentication_eligibility_check() {}
 #[utoipa::path(
     get,
     path = "/authentication/{authentication_id}/eligibility-check",
-    request_body = AuthenticationRetrieveEligibilityCheckRequest,
+    request_body = api_models::authentication::AuthenticationRetrieveEligibilityCheckRequest,
     responses(
-        (status = 200, description = "Retrieved Eligibility check data for the Authentication", body = AuthenticationRetrieveEligibilityCheckResponse),
+        (status = 200, description = "Retrieved Eligibility check data for the Authentication", body = api_models::authentication::AuthenticationRetrieveEligibilityCheckResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Authentication",
     operation_id = "Retrieve Eligibility Check data for an Authentication",
     security(("api_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn authentication_retrieve_eligibility_check() {}

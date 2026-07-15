@@ -451,7 +451,7 @@ pub struct OutgoingWebhook {
     pub event_id: String,
 
     /// The type of event this webhook corresponds to.
-    #[schema(value_type = EventType)]
+    #[schema(value_type = api_enums::EventType)]
     pub event_type: api_enums::EventType,
 
     /// This is specific to the flow, for ex: it will be `PaymentsResponse` for payments flow
@@ -470,18 +470,18 @@ pub struct OutgoingWebhook {
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 #[cfg(feature = "v1")]
 pub enum OutgoingWebhookContent {
-    #[schema(value_type = PaymentsResponse, title = "PaymentsResponse")]
+    #[schema(value_type = payments::PaymentsResponse, title = "PaymentsResponse")]
     PaymentDetails(Box<payments::PaymentsResponse>),
-    #[schema(value_type = RefundResponse, title = "RefundResponse")]
+    #[schema(value_type = refunds::RefundResponse, title = "RefundResponse")]
     RefundDetails(Box<refunds::RefundResponse>),
-    #[schema(value_type = DisputeResponse, title = "DisputeResponse")]
+    #[schema(value_type = disputes::DisputeResponse, title = "DisputeResponse")]
     DisputeDetails(Box<disputes::DisputeResponse>),
-    #[schema(value_type = MandateResponse, title = "MandateResponse")]
+    #[schema(value_type = mandates::MandateResponse, title = "MandateResponse")]
     MandateDetails(Box<mandates::MandateResponse>),
     #[cfg(feature = "payouts")]
-    #[schema(value_type = PayoutCreateResponse, title = "PayoutCreateResponse")]
+    #[schema(value_type = payouts::PayoutCreateResponse, title = "PayoutCreateResponse")]
     PayoutDetails(Box<payouts::PayoutCreateResponse>),
-    #[schema(value_type = ConfirmSubscriptionResponse, title = "ConfirmSubscriptionResponse")]
+    #[schema(value_type = subscription::ConfirmSubscriptionResponse, title = "ConfirmSubscriptionResponse")]
     SubscriptionDetails(Box<subscription::ConfirmSubscriptionResponse>),
 }
 
@@ -489,16 +489,16 @@ pub enum OutgoingWebhookContent {
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 #[cfg(feature = "v2")]
 pub enum OutgoingWebhookContent {
-    #[schema(value_type = PaymentsResponse, title = "PaymentsResponse")]
+    #[schema(value_type = payments::PaymentsResponse, title = "PaymentsResponse")]
     PaymentDetails(Box<payments::PaymentsResponse>),
-    #[schema(value_type = RefundResponse, title = "RefundResponse")]
+    #[schema(value_type = refunds::RefundResponse, title = "RefundResponse")]
     RefundDetails(Box<refunds::RefundResponse>),
-    #[schema(value_type = DisputeResponse, title = "DisputeResponse")]
+    #[schema(value_type = disputes::DisputeResponse, title = "DisputeResponse")]
     DisputeDetails(Box<disputes::DisputeResponse>),
-    #[schema(value_type = MandateResponse, title = "MandateResponse")]
+    #[schema(value_type = mandates::MandateResponse, title = "MandateResponse")]
     MandateDetails(Box<mandates::MandateResponse>),
     #[cfg(feature = "payouts")]
-    #[schema(value_type = PayoutCreateResponse, title = "PayoutCreateResponse")]
+    #[schema(value_type = payouts::PayoutCreateResponse, title = "PayoutCreateResponse")]
     PayoutDetails(Box<payouts::PayoutCreateResponse>),
 }
 
