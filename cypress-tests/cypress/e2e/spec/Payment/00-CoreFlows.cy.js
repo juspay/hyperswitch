@@ -5,6 +5,7 @@ import {
   payment_methods_enabled,
   connectorDetails as paymentCommonDetails,
 } from "../../configs/Payment/Commons";
+import { isMockServer } from "../../../support/mitmProxy";
 
 const pmCollectLinkConnectorDetails = paymentCommonDetails.pm_collect_link;
 
@@ -216,7 +217,7 @@ describe("Core flows", () => {
 
     it("Confirm payment after session expiry - should fail with ClientSecretExpired", () => {
       // eslint-disable-next-line cypress/no-unnecessary-waiting
-      cy.wait(SESSION_EXPIRY_WAIT);
+      if (!isMockServer()) cy.wait(SESSION_EXPIRY_WAIT);
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["SessionExpiredConfirmPayment"];
