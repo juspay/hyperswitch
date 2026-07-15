@@ -31,7 +31,10 @@ use storage_impl::{errors::StorageResult, redis::RedisStore, RouterStore};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
-use crate::{configs::settings::Database, configs::Settings, core::errors};
+use crate::{
+    configs::{settings::Database, Settings},
+    core::errors,
+};
 
 #[cfg(not(feature = "olap"))]
 pub type StoreType = storage_impl::database::store::Store;
