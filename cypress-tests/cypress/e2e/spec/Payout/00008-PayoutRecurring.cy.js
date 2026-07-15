@@ -161,13 +161,7 @@ describe("[Payout] Recurring", () => {
       }
       const payoutBody = getPayoutBody();
       delete payoutBody.recurring;
-      cy.createConfirmPayoutTest(
-        payoutBody,
-        data,
-        true,
-        false,
-        globalState
-      );
+      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
