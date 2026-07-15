@@ -1,7 +1,19 @@
 /* eslint-disable no-console */
-const config_fields = ["CONNECTOR_CREDENTIAL", "DELAY", "TRIGGER_SKIP"];
+const config_fields = [
+  "CONNECTOR_CREDENTIAL",
+  "DELAY",
+  "TRIGGER_SKIP",
+  "LOCAL_VAULT_REQUIRED",
+  "skipPaymentMethodStatusAssertion",
+];
 
 const DEFAULT_CONNECTOR = "connector_1";
+const CONNECTOR_CREDENTIAL_PATTERN = /^connector_([1-9]\d*)$/;
+
+function getConnectorCredentialIndex(connectorType) {
+  const match = CONNECTOR_CREDENTIAL_PATTERN.exec(connectorType || "");
+  return match ? Number(match[1]) : null;
+}
 
 // Helper function for type and range validation
 function validateType(value, type) {
@@ -16,9 +28,6 @@ function validateType(value, type) {
 
 // Helper function to validate specific config keys based on schema rules
 function validateConfigValue(key, value) {
-  // At present, there are only 2 api keys for connectors. Will be scaled based on the need
-  const SUPPORTED_CONNECTOR_CREDENTIAL = ["connector_1", "connector_2"];
-
   if (config_fields.includes(key)) {
     switch (key) {
       case "DELAY":
@@ -63,19 +72,18 @@ function validateConfigValue(key, value) {
         }
 
         // Validate structure
-        if (
-          !value.value ||
-          !SUPPORTED_CONNECTOR_CREDENTIAL.includes(value.value)
-        ) {
+        if (!getConnectorCredentialIndex(value.value)) {
           console.error(
-            `Config ${key}.value must be one of ${SUPPORTED_CONNECTOR_CREDENTIAL.join(", ")}.`
+            `Config ${key}.value must use the connector_<positive-number> format.`
           );
           return false;
         }
         break;
 
       case "TRIGGER_SKIP":
+      case "LOCAL_VAULT_REQUIRED":
       case "DELAY.STATUS":
+      case "skipPaymentMethodStatusAssertion":
         if (!validateType(value, "boolean")) return false;
         break;
 
@@ -113,18 +121,19 @@ export function validateConfig(configObject) {
 }
 
 export function getProfileAndConnectorId(connectorType) {
-  const credentials = {
-    connector_1: {
+  const connectorIndex = getConnectorCredentialIndex(connectorType);
+
+  if (!connectorIndex || connectorIndex === 1) {
+    return {
       profileId: "profile",
       connectorId: "merchantConnector",
-    },
-    connector_2: {
-      profileId: "profile1",
-      connectorId: "merchantConnector1",
-    },
-  };
+    };
+  }
 
-  return credentials[connectorType] || credentials.connector_1;
+  return {
+    profileId: `profile${connectorIndex - 1}`,
+    connectorId: `merchantConnector${connectorIndex - 1}`,
+  };
 }
 
 function getSpecName() {
@@ -168,7 +177,7 @@ export function determineConnectorConfig(config) {
         multipleConnectors?.status === true &&
         multipleConnectors?.count > 1
       ) {
-        return "connector_2";
+        return connectorCredential.value || "connector_2";
       }
       return DEFAULT_CONNECTOR;
     }
