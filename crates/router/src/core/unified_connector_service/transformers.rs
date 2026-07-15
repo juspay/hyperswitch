@@ -2345,7 +2345,9 @@ impl
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
             authentication_data,
-            connector_feature_data: None,
+            connector_feature_data: router_data.request.order_id.as_ref().map(|order_id| {
+                Secret::new(serde_json::json!({ "connector_order_id": order_id }).to_string())
+            }),
             locale: router_data.request.locale.clone(),
             connector_testing_data: router_data
                 .request
