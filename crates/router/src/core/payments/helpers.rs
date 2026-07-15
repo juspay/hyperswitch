@@ -2166,7 +2166,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     if customers::is_customer_id_in_global_format(&customer_id) {
                         Err(report!(errors::StorageError::InvalidDataFormat(format!(
                             "customer_id '{}' format is not supported",
-                            &customer_id.get_string_repr()
+                            customer_id.get_string_repr()
                         ))))?
                     }
 
@@ -4327,7 +4327,7 @@ pub async fn make_ephemeral_key(
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let store = &state.store;
     let id = utils::generate_id(consts::ID_LENGTH, "eki");
-    let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
+    let secret = format!("epk_{}", Uuid::new_v4().simple());
     let ek = ephemeral_key::EphemeralKeyNew {
         id,
         customer_id,
@@ -7515,7 +7515,7 @@ impl GooglePayTokenDecryptor {
             check_expiration_date_is_valid(&signed_key.key_expiration),
             Ok(true)
         ) {
-            return Err(errors::GooglePayDecryptionError::SignedKeyExpired)?;
+            Err(errors::GooglePayDecryptionError::SignedKeyExpired)?;
         }
         Ok(signed_key)
     }
