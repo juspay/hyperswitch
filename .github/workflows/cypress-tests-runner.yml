@@ -117,7 +117,9 @@ jobs:
 
           HEAD_REPO="${{ github.event.pull_request.head.repo.full_name }}"
           BASE_REPO="${{ github.event.pull_request.base.repo.full_name }}"
-          # Repository is a fork, ignore checks 
+          # Repository is a fork.
+          # `RUN_TESTS` based checks successfully skip the checks anyway,
+          # no point gating it behind a label in that case.
           if [[ "${HEAD_REPO}" != "${BASE_REPO}" ]]; then
             echo "run-checks=true" >> "${GITHUB_OUTPUT}"
             exit 0
