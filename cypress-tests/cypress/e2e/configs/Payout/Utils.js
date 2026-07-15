@@ -91,10 +91,10 @@ export function getValueByKey(jsonObject, key) {
 // Connector inclusion/exclusion lists for feature gates
 export const CONNECTOR_LISTS = {
   INCLUDE: {
-    ENTITY_TYPE: ["wise"],
+    ENTITY_TYPE: ["adyenplatform"],
     // Payout recurring feature - only verified connectors
-    PAYOUT_RECURRING: ["wise"],
-    PAYOUT_LINK: ["wise"],
+    PAYOUT_RECURRING: ["adyenplatform"],
+    PAYOUT_LINK: ["adyenplatform"],
   },
 };
 
