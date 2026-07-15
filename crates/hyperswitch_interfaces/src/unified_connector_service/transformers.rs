@@ -253,6 +253,24 @@ pub struct ConnectorErrorInner {
     pub network_error_message: Option<String>,
 }
 
+impl From<&ConnectorErrorInner> for ErrorResponse {
+    fn from(error: &ConnectorErrorInner) -> Self {
+        Self {
+            code: error.code.clone(),
+            message: error.message.clone(),
+            reason: error.reason.clone(),
+            status_code: error.status_code,
+            attempt_status: None,
+            connector_transaction_id: error.connector_transaction_id.clone(),
+            connector_response_reference_id: None,
+            network_decline_code: error.network_decline_code.clone(),
+            network_advice_code: error.network_advice_code.clone(),
+            network_error_message: error.network_error_message.clone(),
+            connector_metadata: None,
+        }
+    }
+}
+
 impl ForeignTryFrom<payments_grpc::PaymentChargeType> for common_enums::PaymentChargeType {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -490,7 +508,14 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                             .map(ForeignTryFrom::foreign_try_from)
                             .transpose()?,
                     ),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(
+                        response
+                            .mandate_reference_details
+                            .map(
+                                hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from,
+                            )
+                            .transpose()?,
+                    ),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
@@ -507,25 +532,31 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     }
 }
 
-impl ForeignTryFrom<payments_grpc::MandateReference>
+impl ForeignTryFrom<payments_grpc::MandateReferenceDetails>
     for hyperswitch_domain_models::router_response_types::MandateReference
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from(value: payments_grpc::MandateReference) -> Result<Self, Self::Error> {
-        match value.mandate_id_type {
-            Some(payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(
-                connector_mandate_id,
-            )) => Ok(Self {
-                connector_mandate_id: connector_mandate_id.connector_mandate_id,
-                payment_method_id: connector_mandate_id.payment_method_id,
-                mandate_metadata: None,
-                connector_mandate_request_reference_id: connector_mandate_id
-                    .connector_mandate_request_reference_id,
-            }),
-            _ => Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
-                .attach_printable("Recieved Invalid MandateReference from UCS"),
-        }
+    fn foreign_try_from(
+        value: payments_grpc::MandateReferenceDetails,
+    ) -> Result<Self, Self::Error> {
+        let mandate_metadata = value
+            .mandate_metadata
+            .map(|metadata| {
+                let raw = metadata.expose();
+                serde_json::from_str::<serde_json::Value>(&raw)
+                    .map(hyperswitch_masking::Secret::new)
+                    .change_context(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to deserialize UCS mandate_metadata")
+            })
+            .transpose()?;
+
+        Ok(Self {
+            connector_mandate_id: value.connector_mandate_id,
+            payment_method_id: value.payment_method_id,
+            mandate_metadata,
+            connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
+        })
     }
 }
 
@@ -967,6 +998,12 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
             Some(payments_grpc::redirect_form::FormType::Uri(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "URI form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
+            Some(payments_grpc::redirect_form::FormType::HostedIframe(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Hosted iframe form type is not implemented".to_string(),
                 )
                 .into(),
             ),

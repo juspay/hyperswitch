@@ -2275,11 +2275,7 @@ impl ConnectorSpecifications for Cybersource {
                 // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
                 None
             }
-            api::CurrentFlowInfo::CompleteAuthorize {
-                request_data,
-                payment_method: _,
-                ..
-            } => {
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirect_response = request_data.redirect_response.as_ref()?;
                 match redirect_response.params.as_ref() {
@@ -2290,7 +2286,9 @@ impl ConnectorSpecifications for Cybersource {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => None,
-            api::CurrentFlowInfo::Psync { .. } => None,
+            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
+                None
+            }
         }
     }
     fn get_alternate_flow_if_needed(
@@ -2311,7 +2309,9 @@ impl ConnectorSpecifications for Cybersource {
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => None,
             api::CurrentFlowInfo::SetupMandate { .. } => None,
-            api::CurrentFlowInfo::Psync { .. } => None,
+            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
+                None
+            }
         }
     }
     fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
@@ -2323,7 +2323,9 @@ impl ConnectorSpecifications for Cybersource {
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
+                false
+            }
         }
     }
     /// Check if authentication flow is required
@@ -2333,11 +2335,7 @@ impl ConnectorSpecifications for Cybersource {
                 // during authorize flow, there is no post_authentication call needed
                 false
             }
-            api::CurrentFlowInfo::CompleteAuthorize {
-                request_data,
-                payment_method: _,
-                ..
-            } => {
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data
                     .redirect_response
@@ -2349,7 +2347,9 @@ impl ConnectorSpecifications for Cybersource {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
+                false
+            }
         }
     }
     /// Check if post-authentication flow is required
@@ -2359,11 +2359,7 @@ impl ConnectorSpecifications for Cybersource {
                 // during authorize flow, there is no post_authentication call needed
                 false
             }
-            api::CurrentFlowInfo::CompleteAuthorize {
-                request_data,
-                payment_method: _,
-                ..
-            } => {
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data
                     .redirect_response
@@ -2375,7 +2371,9 @@ impl ConnectorSpecifications for Cybersource {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
+                false
+            }
         }
     }
 }
