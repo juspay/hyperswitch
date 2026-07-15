@@ -14,6 +14,27 @@ echo "Seeding Superposition at $SUPERPOSITION_URL"
 echo "Using seed file: $SEED_FILE"
 echo "Workspace: $WORKSPACE_ID, Org: $ORG_ID"
 
+show_progress() {
+    local current="$1"
+    local total="$2"
+    local prefix="$3"
+    
+    local width=40
+    if [ "$total" -eq 0 ]; then return; fi
+    local percent=$(( current * 100 / total ))
+    local completed=$(( width * current / total ))
+    local remaining=$(( width - completed ))
+    
+    printf "\r%s [" "$prefix"
+    for ((i=0; i<completed; i++)); do printf "#"; done
+    for ((i=0; i<remaining; i++)); do printf "-"; done
+    printf "] %d%% (%d/%d)" "$percent" "$current" "$total"
+    if [ "$current" -eq "$total" ]; then
+        echo ""
+    fi
+}
+
+
 # Wait for superposition to be ready
 echo "Waiting for Superposition to be ready..."
 READY=0
@@ -59,7 +80,7 @@ post_or_fail() {
         2??)
             ;;
         409)
-            echo "  $label already exists (HTTP 409), continuing"
+            # Silently continue on 409 to not break progress bar
             ;;
         *)
             echo "Error: $label failed with HTTP $status"
@@ -72,29 +93,35 @@ post_or_fail() {
     rm -f "$tmp"
 }
 
-# Convert TOML seed file to JSON for processing
-SEED_JSON=$(yq -p toml -o json '.' "$SEED_FILE")
+# Read JSON seed file for processing
+SEED_JSON=$(cat "$SEED_FILE")
 
 # Seed dimensions
 # dimensions are stored as a map keyed by dimension name:
 #   [dimensions.<name>] with position, schema, description, change_reason
 echo "Seeding dimensions..."
-echo "$SEED_JSON" | jq -c '.dimensions | to_entries[] | {dimension: .key, position: .value.position, schema: .value.schema, description: .value.description, change_reason: .value.change_reason}' | while read -r dimension; do
+TOTAL_DIMS=$(echo "$SEED_JSON" | jq '.dimensions | length')
+CURRENT_DIM=0
+echo "$SEED_JSON" | jq -c '.dimensions | to_entries | sort_by(.value.position) | .[] | {dimension: .key, position: .value.position, schema: .value.schema, description: (.value.description // "Dimension: \(.key)"), change_reason: (.value.change_reason // "Seeded from file")}' | while read -r dimension; do
     dim_name=$(echo "$dimension" | jq -r '.dimension')
 
-    echo "Creating dimension: $dim_name"
     post_or_fail "$SUPERPOSITION_URL/dimension" "$dimension" "dimension $dim_name"
+    CURRENT_DIM=$((CURRENT_DIM + 1))
+    show_progress "$CURRENT_DIM" "$TOTAL_DIMS" "Dimensions"
 done
 
 # Seed default configs
 # default-configs are stored as a map keyed by config key:
 #   [default-configs.<key>] with value, schema, description, change_reason
 echo "Seeding default configurations..."
-echo "$SEED_JSON" | jq -c '."default-configs" | to_entries[] | {key: .key, value: .value.value, schema: .value.schema, description: .value.description, change_reason: .value.change_reason}' | while read -r config; do
+TOTAL_CONFIGS=$(echo "$SEED_JSON" | jq '."default-configs" | length')
+CURRENT_CONFIG=0
+echo "$SEED_JSON" | jq -c '."default-configs" | to_entries[] | {key: .key, value: .value.value, schema: .value.schema, description: (.value.description // "Config: \(.key)"), change_reason: (.value.change_reason // "Seeded from file")}' | while read -r config; do
     key=$(echo "$config" | jq -r '.key')
 
-    echo "Setting default config: $key"
     post_or_fail "$SUPERPOSITION_URL/default-config" "$config" "default-config $key"
+    CURRENT_CONFIG=$((CURRENT_CONFIG + 1))
+    show_progress "$CURRENT_CONFIG" "$TOTAL_CONFIGS" "Configs   "
 done
 
 echo "Seeding complete!"
