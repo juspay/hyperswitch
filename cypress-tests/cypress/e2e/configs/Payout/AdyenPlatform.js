@@ -318,6 +318,51 @@ export const connectorDetails = {
           },
         },
       },
+      // InitiatedFlow tests the complete create+confirm+fulfill flow
+      // that results in "initiated" status with instant priority and auto_fulfill=true
+      InitiatedFlow: {
+        Request: {
+          payout_type: "bank",
+          priority: "instant",
+          payout_method_data: {
+            bank: {
+              iban: "NL57INGB4654188101",
+            },
+          },
+          billing: billing,
+          confirm: true,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "initiated",
+            payout_type: "bank",
+          },
+        },
+      },
+      // RecurringInitiated tests recurring payout with confirm that results in initiated
+      RecurringInitiated: {
+        Request: {
+          payout_type: "bank",
+          priority: "instant",
+          payout_method_data: {
+            bank: {
+              iban: "NL57INGB4654188101",
+            },
+          },
+          billing: billing,
+          recurring: true,
+          confirm: true,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "initiated",
+            payout_type: "bank",
+            recurring: true,
+          },
+        },
+      },
     },
     PayoutPriority: {
       Request: {

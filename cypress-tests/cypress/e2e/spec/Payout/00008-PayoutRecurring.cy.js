@@ -230,4 +230,85 @@ describe("[Payout] Recurring", () => {
       });
     });
   });
+
+  context("Verify payout status: initiated", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("create-initiated-flow-payout", () => {
+      const data = Cypress._.cloneDeep(
+        utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["sepa_bank_transfer"]["InitiatedFlow"]
+      );
+
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+        return;
+      }
+
+      cy.createConfirmPayoutTest(
+        getPayoutBody(),
+        data,
+        true,
+        true,
+        globalState
+      ).then((response) => {
+        // Verify response status is "initiated"
+        expect(response.body.status).to.equal("initiated");
+        if (response.body.payout_method_id) {
+          globalState.set("payoutMethodId", response.body.payout_method_id);
+        }
+      });
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("retrieve-initiated-payout-verify-status", () => {
+      cy.retrievePayoutCallTest(globalState).then((response) => {
+        // Verify retrieved payout has initiated status
+        expect(response.body.status).to.equal("initiated");
+      });
+    });
+
+    it("create-recurring-initiated-payout", () => {
+      const data = Cypress._.cloneDeep(
+        utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["sepa_bank_transfer"]["RecurringInitiated"]
+      );
+
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+        return;
+      }
+
+      cy.createConfirmPayoutTest(
+        getPayoutBody(),
+        data,
+        true,
+        true,
+        globalState
+      ).then((response) => {
+        // Verify response status is "initiated" for recurring payout
+        expect(response.body.status).to.equal("initiated");
+        expect(response.body.recurring).to.equal(true);
+      });
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("retrieve-recurring-initiated-payout-verify-status", () => {
+      cy.retrievePayoutCallTest(globalState).then((response) => {
+        // Verify retrieved recurring payout has initiated status
+        expect(response.body.status).to.equal("initiated");
+        expect(response.body.recurring).to.equal(true);
+      });
+    });
+  });
 });
