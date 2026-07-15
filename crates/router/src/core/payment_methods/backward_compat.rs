@@ -1,5 +1,6 @@
 use common_utils::{ext_traits::StringExt, id_type};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::platform::ProviderMerchantId;
 
 use super::{add_payment_method_modular_backward_compat_task, utils};
 use crate::{
@@ -13,14 +14,12 @@ async fn trigger_payment_method_modular_backward_compat_inline(
     state: &SessionState,
     payment_method: &domain::PaymentMethod,
     merchant_id: &id_type::MerchantId,
-    initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+    last_modified_by: Option<String>,
 ) -> Result<(), ProcessTrackerError> {
     let tracking_data = storage::PaymentMethodModularCompatTrackingData {
         payment_method_id: payment_method.get_id().get_string_repr().to_owned(),
         merchant_id: merchant_id.to_owned(),
-        last_modified_by: initiator
-            .and_then(|initiator| initiator.to_created_by())
-            .map(|last_modified_by| last_modified_by.to_string()),
+        last_modified_by,
     };
 
     Box::pin(
@@ -37,14 +36,14 @@ async fn schedule_payment_method_modular_backward_compat_task_best_effort(
     state: &SessionState,
     payment_method: &domain::PaymentMethod,
     merchant_id: &id_type::MerchantId,
-    initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+    last_modified_by: Option<String>,
 ) {
     let res = add_payment_method_modular_backward_compat_task(
         &*state.store,
         payment_method,
         merchant_id,
         state.conf.application_source,
-        initiator,
+        last_modified_by,
     )
     .await
     .change_context(router_errors::ApiErrorResponse::InternalServerError)
@@ -68,14 +67,14 @@ async fn schedule_payment_method_modular_backward_compat_task_best_effort(
     }
 }
 
-pub(super) async fn trigger_payment_method_modular_backward_compat_best_effort(
+pub(super) async fn trigger_payment_method_modular_backward_compat(
     state: &SessionState,
     payment_method: &domain::PaymentMethod,
-    platform: &domain::Platform,
+    last_modified_by: Option<String>,
 ) {
-    let merchant_id = platform.get_provider().get_account().get_id().to_owned();
+    let merchant_id = &payment_method.merchant_id;
     let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+        .with_provider_merchant_id(ProviderMerchantId::new(merchant_id.clone()));
     let should_trigger_backwards_compatibility_inline =
         utils::get_should_trigger_backwards_compatibility_inline(state, &dimensions, None).await;
 
@@ -85,8 +84,8 @@ pub(super) async fn trigger_payment_method_modular_backward_compat_best_effort(
             Box::pin(trigger_payment_method_modular_backward_compat_inline(
                 state,
                 payment_method,
-                &merchant_id,
-                platform.get_initiator(),
+                merchant_id,
+                last_modified_by.clone(),
             )),
         )
         .await;
@@ -117,8 +116,8 @@ pub(super) async fn trigger_payment_method_modular_backward_compat_best_effort(
                 schedule_payment_method_modular_backward_compat_task_best_effort(
                     state,
                     payment_method,
-                    &merchant_id,
-                    platform.get_initiator(),
+                    merchant_id,
+                    last_modified_by,
                 )
                 .await;
             }
@@ -131,8 +130,8 @@ pub(super) async fn trigger_payment_method_modular_backward_compat_best_effort(
             schedule_payment_method_modular_backward_compat_task_best_effort(
                 state,
                 payment_method,
-                &merchant_id,
-                platform.get_initiator(),
+                merchant_id,
+                last_modified_by,
             )
             .await;
         } else {
