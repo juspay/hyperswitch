@@ -571,6 +571,39 @@ impl PaymentsUpdateIntentRequest {
             enable_partial_authorization: None,
         }
     }
+
+    /// Build an update that changes ONLY `feature_metadata`, leaving the active
+    /// attempt (and every other field) unchanged. `set_active_attempt_id: None`
+    /// means "don't touch the active attempt". Used to persist data such as the
+    /// revenue-recovery A/B routing assignment without side effects.
+    pub fn update_feature_metadata_with_api(feature_metadata: FeatureMetadata) -> Self {
+        Self {
+            feature_metadata: Some(feature_metadata),
+            set_active_attempt_id: None,
+            amount_details: None,
+            routing_algorithm_id: None,
+            capture_method: None,
+            authentication_type: None,
+            billing: None,
+            shipping: None,
+            customer_present: None,
+            description: None,
+            return_url: None,
+            setup_future_usage: None,
+            apply_mit_exemption: None,
+            statement_descriptor: None,
+            order_details: None,
+            allowed_payment_method_types: None,
+            metadata: None,
+            connector_metadata: None,
+            payment_link_config: None,
+            request_incremental_authorization: None,
+            session_expiry: None,
+            frm_metadata: None,
+            request_external_three_ds_authentication: None,
+            enable_partial_authorization: None,
+        }
+    }
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -13409,6 +13442,11 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// First Payment Attempt Network Advice Code
     #[schema(value_type = Option<String>, example = "02")]
     pub first_payment_attempt_network_advice_code: Option<String>,
+    /// Revenue recovery A/B routing assignment (opaque JSON; the typed shape is
+    /// owned and (de)serialized by the router's revenue_recovery::routing module).
+    #[serde(default)]
+    #[schema(value_type = Option<Object>)]
+    pub recovery_routing: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]

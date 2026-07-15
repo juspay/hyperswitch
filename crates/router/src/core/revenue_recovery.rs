@@ -1,4 +1,5 @@
 pub mod api;
+pub mod routing;
 pub mod transformers;
 pub mod types;
 use std::marker::PhantomData;
@@ -499,6 +500,49 @@ async fn insert_psync_pcr_task_to_pt(
     Ok(response)
 }
 
+/// Persist a revenue-recovery A/B routing record (assignment, and any outcome set
+/// on it) onto the payment intent's `feature_metadata`. feature_metadata-only
+/// update, so the active attempt is left untouched. Persist failures are logged,
+/// not propagated — an analytics write must never break recovery.
+async fn persist_recovery_routing(
+    state: &SessionState,
+    payment_intent: &PaymentIntent,
+    revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
+    routing_data: &routing::RevenueRecoveryRoutingData,
+    context: &'static str,
+) {
+    let Some(mut api_metadata) = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+        .map(|diesel_metadata| diesel_metadata.convert_back())
+    else {
+        logger::warn!(context, "A/B routing: recovery metadata absent, skipping persist");
+        return;
+    };
+    api_metadata.recovery_routing = serde_json::to_value(routing_data).ok();
+    let updated_feature_metadata = payment_intent
+        .feature_metadata
+        .clone()
+        .unwrap_or_default()
+        .convert_back()
+        .set_payment_revenue_recovery_metadata_using_api(api_metadata);
+    let update_request = api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_with_api(
+        updated_feature_metadata,
+    );
+    match Box::pin(api::update_payment_intent_api(
+        state,
+        payment_intent.id.clone(),
+        revenue_recovery_payment_data,
+        update_request,
+    ))
+    .await
+    {
+        Ok(_) => logger::info!(context, variant = %routing_data.variant, "A/B routing: persisted"),
+        Err(error) => logger::error!(?error, context, "A/B routing: persist failed"),
+    }
+}
+
 pub async fn perform_payments_sync(
     state: &SessionState,
     process: &storage::ProcessTracker,
@@ -546,6 +590,12 @@ pub async fn perform_payments_sync(
     )
     .await?;
 
+    // Revenue Recovery A/B routing: the outcome is NOT persisted here. Whether the
+    // invoice recovered is already authoritatively recorded on the payment itself
+    // (`payment_intent.status`), and the assigned algorithm/variant is persisted on
+    // the assignment at CALCULATE time. Analytics derives the per-variant outcome by
+    // joining the two (status/amount/modified_at × recovery_routing.assigned_algorithm),
+    // so there is nothing to write on the succeeded psync path.
     Ok(())
 }
 
@@ -597,6 +647,74 @@ pub async fn perform_calculate_workflow(
             return Err(sch_errors::ProcessTrackerError::ProcessUpdateFailed);
         }
     };
+
+    // ── Revenue Recovery A/B routing ────────────────────────────────────────
+    // Superposition's experiment engine makes the decision, keyed on the invoice
+    // id (the targeting key). We reuse the persisted assignment if present (sticky
+    // — no re-query), and only query Superposition on the first assignment. When
+    // an assignment exists it overrides the algorithm choice below; when the
+    // experiment is off there is no assignment and legacy routing is unchanged.
+    let ab_assigned_algorithm = {
+        let existing_routing = payment_intent
+            .feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.as_ref())
+            .and_then(|metadata| metadata.recovery_routing.as_ref())
+            .and_then(|value| {
+                serde_json::from_value::<routing::RevenueRecoveryRoutingData>(value.clone()).ok()
+            });
+        let ab_resolution = match existing_routing {
+            Some(existing) => routing::AbRoutingResolution::Reused(existing),
+            None => {
+                let ab_dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                    .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                    .with_connector(revenue_recovery_payment_data.billing_mca.connector_name);
+                let decision = ab_dimensions
+                    .get_revenue_recovery_routing(
+                        db,
+                        state.superposition_service.as_ref(),
+                        Some(&tracking_data.global_payment_id),
+                    )
+                    .await;
+                routing::from_decision(&decision, common_utils::date_time::now())
+            }
+        };
+        // When an assignment exists (created or reused), it drives the algorithm.
+        let assigned_algorithm = match &ab_resolution {
+            routing::AbRoutingResolution::Created(data)
+            | routing::AbRoutingResolution::Reused(data) => Some(data.assigned_algorithm),
+            _ => None,
+        };
+        match ab_resolution {
+            routing::AbRoutingResolution::Created(routing_data) => {
+                persist_recovery_routing(
+                    state,
+                    payment_intent,
+                    revenue_recovery_payment_data,
+                    &routing_data,
+                    "assignment created",
+                )
+                .await;
+            }
+            routing::AbRoutingResolution::Reused(routing_data) => {
+                logger::info!(
+                    variant = %routing_data.variant,
+                    "revenue_recovery A/B routing: reused existing assignment"
+                );
+            }
+            other => {
+                logger::info!(
+                    resolution = ?other,
+                    "revenue_recovery A/B routing: no assignment (disabled/invalid)"
+                );
+            }
+        }
+        assigned_algorithm
+    };
+
+    // An A/B assignment (when present) overrides the legacy algorithm choice; with
+    // the experiment off there is no assignment, so legacy routing is unchanged.
+    let retry_algorithm_type = ab_assigned_algorithm.unwrap_or(retry_algorithm_type);
 
     // External Payments which enter the calculate workflow for the first time will have active attempt id as None
     // Then we dont need to send an webhook to the merchant as its not a failure from our side.

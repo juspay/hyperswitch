@@ -490,6 +490,10 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub first_payment_attempt_network_decline_code: Option<String>,
     /// First Payment Attempt Network Advice Code
     pub first_payment_attempt_network_advice_code: Option<String>,
+    /// Revenue recovery A/B routing assignment (opaque JSON; the typed shape is
+    /// owned and (de)serialized by the router's revenue_recovery::routing module).
+    #[serde(default)]
+    pub recovery_routing: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
