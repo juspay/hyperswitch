@@ -66,11 +66,7 @@ describe("[Payout] Recurring", () => {
         true,
         false,
         globalState
-      ).then((response) => {
-        if (response.body.payout_method_id) {
-          globalState.set("payoutMethodId", response.body.payout_method_id);
-        }
-      });
+      );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -101,11 +97,7 @@ describe("[Payout] Recurring", () => {
         true,
         false,
         globalState
-      ).then((response) => {
-        if (response.body.payout_method_id) {
-          globalState.set("payoutMethodId", response.body.payout_method_id);
-        }
-      });
+      );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -139,11 +131,7 @@ describe("[Payout] Recurring", () => {
         true,
         false,
         globalState
-      ).then((response) => {
-        if (response.body.payout_method_id) {
-          globalState.set("payoutMethodId", response.body.payout_method_id);
-        }
-      });
+      );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -179,11 +167,7 @@ describe("[Payout] Recurring", () => {
         true,
         false,
         globalState
-      ).then((response) => {
-        if (response.body.payout_method_id) {
-          globalState.set("payoutMethodId", response.body.payout_method_id);
-        }
-      });
+      );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -223,11 +207,7 @@ describe("[Payout] Recurring", () => {
         false,
         false,
         globalState
-      ).then((response) => {
-        if (response.body.payout_method_id) {
-          globalState.set("payoutMethodId", response.body.payout_method_id);
-        }
-      });
+      );
     });
   });
 
@@ -259,11 +239,7 @@ describe("[Payout] Recurring", () => {
         true,
         globalState
       ).then((response) => {
-        // Verify response status is "initiated"
         expect(response.body.status).to.equal("initiated");
-        if (response.body.payout_method_id) {
-          globalState.set("payoutMethodId", response.body.payout_method_id);
-        }
       });
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -295,7 +271,6 @@ describe("[Payout] Recurring", () => {
         true,
         globalState
       ).then((response) => {
-        // Verify response status is "initiated" for recurring payout
         expect(response.body.status).to.equal("initiated");
         expect(response.body.recurring).to.equal(true);
       });

@@ -6158,6 +6158,9 @@ Cypress.Commands.add(
           if (response.status === 200) {
             globalState.set("payoutAmount", createConfirmPayoutBody.amount);
             globalState.set("payoutID", response.body.payout_id);
+            if (response.body.payout_method_id) {
+              globalState.set("payoutMethodId", response.body.payout_method_id);
+            }
             for (const key in resData.body) {
               expect(resData.body[key]).to.deep.equal(response.body[key]);
             }
