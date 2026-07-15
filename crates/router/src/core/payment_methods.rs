@@ -975,7 +975,7 @@ pub async fn retrieve_payment_method_with_token(
                     payment_method
                         .connector_payment_method_details
                         .as_ref()
-                        .and_then(|details| details.get(mca_id.get_string_repr()))
+                        .and_then(|details| details.peek().get(mca_id.get_string_repr()))
                         .cloned()
                 });
 
@@ -987,7 +987,7 @@ pub async fn retrieve_payment_method_with_token(
                         iban: vault_iban,
                         sort_code: vault_sort_code,
                         account_holder_name: vault_account_holder_name.or(db_account_holder_name),
-                        additional_details: connector_payment_method_details,
+                        additional_details: connector_payment_method_details.map(Secret::new),
                     },
                 )),
                 payment_method_id: Some(bank_redirect.payment_method_id.clone()),

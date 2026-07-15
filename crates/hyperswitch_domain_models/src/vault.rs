@@ -352,26 +352,25 @@ impl PaymentMethodVaultingData {
                     expiry_year,
                 })
             }
-            Self::BankRedirect(bank_redirect) => {
-                let payment_method_data::BankRedirectDetail::OpenBanking {
+            Self::BankRedirect(bank_redirect) => match bank_redirect {
+                payment_method_data::BankRedirectDetail::OpenBanking {
                     iban,
                     account_number,
                     sort_code,
                     account_holder_name,
-                } = bank_redirect.clone();
-                FingerprintData::BankRedirect(FingerprintBankRedirectData {
-                    iban,
-                    account_number,
-                    sort_code,
-                    account_holder_name,
-                })
-            }
+                } => FingerprintData::BankRedirect(FingerprintBankRedirectData {
+                    iban: iban.clone(),
+                    account_number: account_number.clone(),
+                    sort_code: sort_code.clone(),
+                    account_holder_name: account_holder_name.clone(),
+                }),
+            },
         }
     }
 
     #[cfg(feature = "v2")]
-    pub fn to_auxiliary_fingerprint_data(&self) -> AuxiliaryFingerprintData {
-        match self {
+    pub fn to_auxiliary_fingerprint_data(&self) -> Option<AuxiliaryFingerprintData> {
+        Some(match self {
             Self::Card(card) => AuxiliaryFingerprintData::CardNumber(card.card_number.clone()),
             Self::NetworkToken(nt) => {
                 AuxiliaryFingerprintData::NetworkToken(nt.network_token.clone())
@@ -397,19 +396,16 @@ impl PaymentMethodVaultingData {
                     ..
                 },
             ) => AuxiliaryFingerprintData::CardNumber(application_primary_account_number.clone()),
-            Self::BankRedirect(bank_redirect) => {
-                let payment_method_data::BankRedirectDetail::OpenBanking {
+            Self::BankRedirect(bank_redirect) => match bank_redirect {
+                payment_method_data::BankRedirectDetail::OpenBanking {
                     iban,
                     account_number,
                     ..
-                } = bank_redirect.clone();
-                AuxiliaryFingerprintData::BankRedirect(
-                    account_number
-                        .or(iban)
-                        .unwrap_or_else(|| hyperswitch_masking::Secret::new(String::new())),
-                )
-            }
-        }
+                } => AuxiliaryFingerprintData::BankRedirect(
+                    account_number.clone().or_else(|| iban.clone())?,
+                ),
+            },
+        })
     }
 
     pub fn get_bank_debit_fingerprint_data(

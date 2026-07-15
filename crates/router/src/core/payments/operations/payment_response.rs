@@ -94,9 +94,11 @@ async fn persist_pm_update_from_psync(
             )
             .await
         }
-        _ => Err(report!(errors::ApiErrorResponse::NotImplemented{message: errors::NotImplementedMessage::Reason(
-                            "Payment Method Update is not implemented".to_string(),
-                        )})),
+        _ => Err(report!(errors::ApiErrorResponse::NotImplemented {
+            message: errors::NotImplementedMessage::Reason(
+                "Payment Method Update is not implemented".to_string(),
+            )
+        })),
     }
 }
 
@@ -1117,25 +1119,27 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         )
         .await?;
 
-        if let (Some(payment_method_id), Some(pm_update)) = (
-            payment_data.payment_attempt.payment_method_id.clone(),
-            resp.connector_returned_payment_method_details.as_ref(),
-        ) {
-            if let Err(error) = Box::pin(persist_pm_update_from_psync(
-                state.clone(),
-                platform.get_provider().clone(),
-                platform.get_initiator().cloned(),
-                payment_method_id.as_str(),
-                payment_data.payment_attempt.merchant_connector_id.clone(),
-                pm_update,
-            ))
-            .await
-            {
-                logger::error!(
-                    ?error,
-                    payment_method_id = %payment_method_id,
-                    "Failed to persist payment method details from PSync response"
-                );
+        if resp.status.should_update_payment_method() {
+            if let (Some(payment_method_id), Some(pm_update)) = (
+                payment_data.payment_attempt.payment_method_id.clone(),
+                resp.connector_returned_payment_method_details.as_ref(),
+            ) {
+                if let Err(error) = Box::pin(persist_pm_update_from_psync(
+                    state.clone(),
+                    platform.get_provider().clone(),
+                    platform.get_initiator().cloned(),
+                    payment_method_id.as_str(),
+                    payment_data.payment_attempt.merchant_connector_id.clone(),
+                    pm_update,
+                ))
+                .await
+                {
+                    logger::error!(
+                        ?error,
+                        payment_method_id = %payment_method_id,
+                        "Failed to persist payment method details from PSync response"
+                    );
+                }
             }
         }
         Ok(())

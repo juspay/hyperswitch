@@ -1023,10 +1023,11 @@ impl PaymentMethodsController for PmCards<'_> {
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequest")?;
 
-        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None, None)
-            .await
-            .change_context(errors::VaultError::VaultAPIError)
-            .attach_printable("Call to vault failed")?;
+        let resp =
+            vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None, None)
+                .await
+                .change_context(errors::VaultError::VaultAPIError)
+                .attach_printable("Call to vault failed")?;
 
         let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
             .parse_struct("VaultFingerprintResponse")
@@ -3159,8 +3160,9 @@ pub async fn create_or_update_bank_redirect_payment_method(
     let connector_payment_method_details = merchant_connector_id
         .zip(additional_details)
         .map(|(mca_id, details)| {
-            serde_json::json!({ mca_id.get_string_repr().to_string(): details })
-        });
+            serde_json::json!({ mca_id.get_string_repr().to_string(): details.expose() })
+        })
+        .map(Secret::new);
 
     // Update both the payment_method_data and locker_id in the DB
     let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
@@ -6453,7 +6455,7 @@ pub fn is_eligible_for_saved_flow(
     let mca_id_str = match pm
         .connector_payment_method_details
         .as_ref()
-        .and_then(|v| v.as_object())
+        .and_then(|v| v.peek().as_object())
         .and_then(|obj| obj.keys().next())
         .map(|k| k.to_owned())
     {

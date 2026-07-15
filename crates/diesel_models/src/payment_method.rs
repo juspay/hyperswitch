@@ -79,7 +79,8 @@ pub struct PaymentMethod {
     pub payment_method_subtype: Option<String>,
     pub network_transaction_link_id: Option<String>,
     pub compatibility_updated_at: Option<PrimitiveDateTime>,
-    pub connector_payment_method_details: Option<serde_json::Value>,
+    // Connector-specific payment method details returned during a payment.
+    pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
@@ -187,7 +188,8 @@ pub struct PaymentMethodNew {
     pub network_tokenization_data: Option<Encryption>,
     pub id: Option<String>,
     pub compatibility_updated_at: Option<PrimitiveDateTime>,
-    pub connector_payment_method_details: Option<serde_json::Value>,
+    // Connector-specific payment method details returned during a payment.
+    pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
@@ -303,7 +305,7 @@ pub enum PaymentMethodUpdate {
         last_used_at: Option<PrimitiveDateTime>,
         connector_mandate_details: Option<Box<serde_json::Value>>,
         network_tokenization_data: Option<Encryption>,
-        connector_payment_method_details: Box<Option<serde_json::Value>>,
+        connector_payment_method_details: Box<Option<pii::SecretSerdeValue>>,
     },
     ConnectorMandateDetailsUpdate {
         connector_mandate_details: Option<pii::SecretSerdeValue>,
@@ -480,7 +482,7 @@ pub struct PaymentMethodUpdateInternal {
     payment_method_subtype: Option<String>,
     id: Option<String>,
     compatibility_updated_at: Option<PrimitiveDateTime>,
-    connector_payment_method_details: Option<serde_json::Value>,
+    connector_payment_method_details: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v1")]

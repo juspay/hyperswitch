@@ -1260,7 +1260,7 @@ pub enum BankRedirectData {
         account_number: Option<Secret<String>>,
         sort_code: Option<Secret<String>>,
         account_holder_name: Option<Secret<String>>,
-        additional_details: Option<serde_json::Value>,
+        additional_details: Option<Secret<serde_json::Value>>,
     },
 }
 
@@ -4586,23 +4586,4 @@ impl RecurringDetails {
             | Self::ProcessorPaymentToken(_) => None,
         }
     }
-}
-
-#[cfg(feature = "v1")]
-#[derive(Debug, Deserialize, Serialize)]
-pub enum PaymentMethodPsyncUpdate {
-    BankRedirect(BankRedirectUpdate),
-}
-
-#[cfg(feature = "v1")]
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum BankRedirectUpdate {
-    OpenBanking {
-        account_number: Option<Secret<String>>,
-        iban: Option<Secret<String>>,
-        sort_code: Option<Secret<String>>,
-        account_holder_name: Option<Secret<String>>,
-        connector_payment_method_details: Option<serde_json::Value>,
-    },
 }

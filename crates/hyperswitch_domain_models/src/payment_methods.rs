@@ -99,7 +99,7 @@ pub struct PaymentMethod {
     pub network_tokenization_data: OptionalEncryptableValue,
     pub storage_type: Option<common_enums::StorageType>,
     pub compatibility_updated_at: Option<PrimitiveDateTime>,
-    pub connector_payment_method_details: Option<serde_json::Value>,
+    pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
