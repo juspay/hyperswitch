@@ -831,7 +831,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     lookup_id: format!(
                         "pa_{}_{}",
                         created_attempt.processor_merchant_id.get_string_repr(),
-                        &created_attempt.attempt_id,
+                        created_attempt.attempt_id,
                     ),
                     pk_id: key_str.clone(),
                     sk_id: field.clone(),
