@@ -170,7 +170,14 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
         connector_configs: HashMap::new(),
         default_configs: Some(pm_filter),
     };
-    let mca_graph = kgraph_utils::mca::make_mca_graph(mcas, &config).err_to_js()?;
+    let mca_graph_data = mcas
+        .iter()
+        .map(|mca| api_models::admin::MCACGraphData {
+            connector_name: mca.connector_name.clone(),
+            payment_methods_enabled: mca.payment_methods_enabled.clone(),
+        })
+        .collect::<Vec<_>>();
+    let mca_graph = kgraph_utils::mca::make_mca_graph(mca_graph_data, &config).err_to_js()?;
     let analysis_graph = hyperswitch_constraint_graph::ConstraintGraph::combine(
         &mca_graph,
         &dssa::truth::ANALYSIS_GRAPH,

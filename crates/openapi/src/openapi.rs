@@ -1182,6 +1182,8 @@ Never share your secret api keys. Keep them guarded and secure.
 #[allow(dead_code)]
 pub(crate) struct ApiDoc;
 
+// Bypass clippy lint for not being constructed
+#[allow(dead_code)]
 struct SecurityAddon;
 
 impl utoipa::Modify for SecurityAddon {
