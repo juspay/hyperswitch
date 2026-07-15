@@ -103,7 +103,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     },
@@ -117,7 +117,7 @@ export const connectorDetails = {
           },
         },
         billing: billingDetails,
-        setup_future_usage: "on_session",
+        setup_future_usage: "off_session",
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "online",

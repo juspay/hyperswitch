@@ -44,6 +44,7 @@ import {
   mockRecordBankRedirect,
   mockReplay3ds,
   mockReplayBankRedirect,
+  mockReplayQris,
   resetMitmRedirectSeq,
 } from "./mitmProxy";
 
@@ -5698,6 +5699,9 @@ Cypress.Commands.add(
                     response.body.next_action.image_data_url
                   );
                   globalState.set("nextActionType", "image_data_url");
+                  if (isReplayMode()) {
+                    mockReplayQris(globalState, globalState.get("connectorId"));
+                  }
                 }
                 break;
 

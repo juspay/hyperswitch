@@ -255,6 +255,18 @@ export function mockReplay3ds(globalState, connectorId, nextActionUrl) {
   replayRedirect(connectorId, globalState, redirectBodyFile, notificationUrl);
 }
 
+export function mockReplayQris(globalState, connectorId) {
+  const baseUrl = globalState.get("baseUrl");
+  const paymentId = globalState.get("paymentID");
+  const merchantId = globalState.get("merchantId");
+  const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
+  const seq = nextRedirectSeq(testIdHash);
+  const redirectBodyFile = getRedirectBodyFile(connectorId, testIdHash, seq);
+  const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
+
+  replayRedirect(connectorId, globalState, redirectBodyFile, notificationUrl);
+}
+
 export function mockReplayBankRedirect(globalState, connectorId) {
   const baseUrl = globalState.get("baseUrl");
   const paymentId = globalState.get("paymentID");
