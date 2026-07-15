@@ -349,6 +349,12 @@ where
         if payment_method.network_transaction_link_id.is_none()
             && connector_network_transaction_link_id.is_some()
         {
+            let compat_action = payment_methods::payment_method_modular_forward_compat_action(
+                state,
+                &payment_method.merchant_id,
+                payment_method.customer_id.as_ref(),
+            )
+            .await;
             payment_methods::cards::update_payment_method_network_transaction_link_id(
                 provider.get_key_store(),
                 &*state.store,
@@ -356,6 +362,7 @@ where
                 connector_network_transaction_link_id,
                 provider.get_account().storage_scheme,
                 initiator,
+                compat_action,
             )
             .await
             .map_err(|err| {
@@ -417,6 +424,12 @@ where
                 connector_mandate_request_reference_id,
             )?;
 
+            let compat_action = payment_methods::payment_method_modular_forward_compat_action(
+                state,
+                &payment_method.merchant_id,
+                payment_method.customer_id.as_ref(),
+            )
+            .await;
             payment_methods::cards::update_payment_method_connector_mandate_details(
                 provider.get_key_store(),
                 &*state.store,
@@ -424,6 +437,7 @@ where
                 connector_mandate_details,
                 provider.get_account().storage_scheme,
                 initiator,
+                compat_action,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3326,9 +3340,22 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
             }
         };
 
+        let compat_action = payment_methods::payment_method_modular_forward_compat_action(
+            state,
+            &payment_method.merchant_id,
+            payment_method.customer_id.as_ref(),
+        )
+        .await;
+
         state
             .store
-            .update_payment_method(key_store, payment_method, pm_update, storage_scheme)
+            .update_payment_method(
+                key_store,
+                payment_method,
+                pm_update,
+                storage_scheme,
+                compat_action,
+            )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;

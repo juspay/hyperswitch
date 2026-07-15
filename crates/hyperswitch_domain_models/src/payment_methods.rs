@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodsData;
@@ -508,6 +508,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             payment_method_subtype: None,
             id: None,
             compatibility_updated_at: self.compatibility_updated_at,
+            auxiliary_fingerprint_id: None,
         })
     }
 
@@ -748,6 +749,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             connector_payment_method_details: self.connector_payment_method_details.clone(),
             id: None,
             compatibility_updated_at: self.compatibility_updated_at,
+            auxiliary_fingerprint_id: None,
         })
     }
 }
@@ -1269,6 +1271,7 @@ pub trait PaymentMethodInterface {
         key_store: &MerchantKeyStore,
         payment_method: PaymentMethod,
         storage_scheme: MerchantStorageScheme,
+        compat_action: Option<PaymentMethodCompatAction>,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
     async fn update_payment_method(
@@ -1277,6 +1280,7 @@ pub trait PaymentMethodInterface {
         payment_method: PaymentMethod,
         payment_method_update: StoragePaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
+        compat_action: Option<PaymentMethodCompatAction>,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(feature = "v2")]
@@ -1300,6 +1304,25 @@ pub trait PaymentMethodInterface {
         merchant_id: &id_type::MerchantId,
         payment_method_id: &str,
     ) -> CustomResult<PaymentMethod, Self::Error>;
+}
+
+type PaymentMethodCompatFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
+type PaymentMethodCompatFn =
+    dyn for<'a> Fn(&'a PaymentMethod) -> PaymentMethodCompatFuture<'a> + Send + Sync;
+
+pub struct PaymentMethodCompatAction(Arc<PaymentMethodCompatFn>);
+
+impl PaymentMethodCompatAction {
+    pub fn new<F>(action: F) -> Self
+    where
+        F: for<'a> Fn(&'a PaymentMethod) -> PaymentMethodCompatFuture<'a> + Send + Sync + 'static,
+    {
+        Self(Arc::new(action))
+    }
+
+    pub async fn execute(&self, payment_method: &PaymentMethod) {
+        self.0(payment_method).await;
+    }
 }
 
 #[cfg(feature = "v2")]

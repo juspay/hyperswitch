@@ -17,7 +17,7 @@ use crate::{
     configs::settings,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payment_methods::cards,
+        payment_methods::{self, cards},
         utils::create_encrypted_data,
     },
     logger,
@@ -377,12 +377,19 @@ pub async fn handle_metadata_update(
                 }
             };
             let db = &*state.store;
+            let compat_action = payment_methods::payment_method_modular_compat_action(
+                state,
+                &payment_method.merchant_id,
+                payment_method.customer_id.as_ref(),
+            )
+            .await;
 
             db.update_payment_method(
                 platform.get_processor().get_key_store(),
                 payment_method.clone(),
                 pm_update,
                 platform.get_processor().get_account().storage_scheme,
+                compat_action,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
