@@ -621,6 +621,7 @@ export const CONNECTOR_LISTS = {
       "globalpay",
       "multisafepay",
       "novalnet",
+      "noon",
       "paypal",
     ],
     MIFINITY_WALLET: ["mifinity"],

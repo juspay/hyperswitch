@@ -1,4 +1,5 @@
-import { customerAcceptance } from "./Commons";
+import { customerAcceptance, standardBillingAddress } from "./Commons";
+import { getCurrency, getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -790,6 +791,46 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency:
+            paymentMethodType === "PaypalRedirect"
+              ? "AED"
+              : getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    PaypalRedirect: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        billing: standardBillingAddress,
+        connector_metadata: connectorMetadata,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "19014",
+          error_message:
+            "Unable to proceed due to an invalid combination of payment details such as amount, currency, card brand, channel, or category.",
+        },
+      },
+    }),
   },
   webhook: {
     TransactionIdConfig: {
