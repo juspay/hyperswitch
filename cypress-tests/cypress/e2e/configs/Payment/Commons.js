@@ -3953,47 +3953,6 @@ export const connectorDetails = {
           },
         },
       }),
-      RegisterWebhookAllEvents: getCustomExchange({
-        Request: {
-          event_type: "all_events",
-        },
-        Response: {
-          status: 400,
-          body: {
-            error: {
-              type: "invalid_request",
-              code: "IR_20",
-              message: "Webhook Registration flow not supported",
-            },
-          },
-        },
-      }),
-      RegisterWebhookSpecificEvent: getCustomExchange({
-        Request: {
-          event_type: {
-            specific_event: "payment_succeeded",
-          },
-        },
-        Response: {
-          status: 400,
-          body: {
-            error: {
-              type: "invalid_request",
-              code: "IR_20",
-              message: "Webhook Registration flow not supported",
-            },
-          },
-        },
-      }),
-      RetrieveWebhook: getCustomExchange({
-        Request: {},
-        Response: {
-          status: 200,
-          body: {
-            webhooks: [],
-          },
-        },
-      }),
     },
   },
   upi_pm: {

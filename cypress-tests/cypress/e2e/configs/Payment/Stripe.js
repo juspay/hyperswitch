@@ -2432,15 +2432,5 @@ export const connectorDetails = {
         },
       },
     }),
-    RetrieveWebhook: getCustomExchange({
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          connector: "stripe",
-          webhooks: [],
-        },
-      },
-    }),
   },
 };

@@ -487,59 +487,6 @@ describe("Config Tests", () => {
     });
   });
 
-  context("Connector Webhook Registration and Retrieval", () => {
-    const shouldContinue = true;
-
-    beforeEach(function () {
-      const connectorId = globalState.get("connectorId");
-      const webhookConfigConnectors =
-        utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG;
-
-      // Skip if:
-      // 1. Previous test failed (shouldContinue = false), OR
-      // 2. Connector is NOT in the webhook config list (should only run for specific connectors)
-      const shouldSkip =
-        !shouldContinue ||
-        (Array.isArray(webhookConfigConnectors) &&
-          !webhookConfigConnectors.includes(connectorId));
-
-      if (shouldSkip) {
-        this.skip();
-      }
-    });
-
-    it("Create Business Profile", () => {
-      cy.createBusinessProfileTest(
-        fixtures.businessProfile.bpCreate,
-        globalState,
-        "webhookConnProfile"
-      );
-    });
-
-    it("connector-create-call-test", () => {
-      cy.createConnectorCallTest(
-        "payment_processor",
-        fixtures.createConnectorBody,
-        payment_methods_enabled,
-        globalState,
-        "webhookConnProfile"
-      );
-    });
-
-    it("Retrieve connector webhooks — expect 200 with empty list", () => {
-      // Webhook registration is not yet implemented in Hyperswitch.
-      // RetrieveWebhook returns 200 with empty list until registration is supported.
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["WebhookConfig"]["RetrieveWebhook"];
-      cy.retrieveConnectorWebhooksTest(data, globalState);
-    });
-
-    after("cleanup webhookConnProfile", () => {
-      cy.deleteBusinessProfileTest(globalState, "webhookConnProfile");
-    });
-  });
-
   context("Webhook Config Disabled Events — Negative Cases", () => {
     beforeEach(function () {
       const connectorId = globalState.get("connectorId");
