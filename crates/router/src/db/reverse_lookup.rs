@@ -127,7 +127,7 @@ mod storage {
                         PartitionKey::CombinationKey {
                             combination: &format!(
                                 "reverse_lookup_{}",
-                                &created_rev_lookup.lookup_id
+                                created_rev_lookup.lookup_id
                             ),
                         },
                     ))

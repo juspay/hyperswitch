@@ -1272,6 +1272,38 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
     }
 }
 
+impl ForeignTryFrom<domain::MerchantConnectorAccountWithoutEncrypted>
+    for api_models::admin::MCACGraphData
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
+        item: domain::MerchantConnectorAccountWithoutEncrypted,
+    ) -> Result<Self, Self::Error> {
+        #[cfg(feature = "v1")]
+        let payment_methods_enabled = match item.payment_methods_enabled {
+            Some(secret_val) => {
+                let val = secret_val
+                    .into_iter()
+                    .map(|secret| secret.expose())
+                    .collect();
+                serde_json::Value::Array(val)
+                    .parse_value("PaymentMethods")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+            }
+            None => None,
+        };
+
+        #[cfg(feature = "v2")]
+        let payment_methods_enabled = item.payment_methods_enabled;
+
+        let response = Self {
+            connector_name: item.connector_name,
+            payment_methods_enabled,
+        };
+        Ok(response)
+    }
+}
+
 #[cfg(feature = "v2")]
 impl ForeignTryFrom<domain::MerchantConnectorAccount>
     for api_models::admin::MerchantConnectorResponse

@@ -131,7 +131,7 @@ where
     T: GetKeymanagerTenant + ConvertRaw + Send + Sync + 'static + Debug,
     R: serde::de::DeserializeOwned,
 {
-    let url = format!("{}/{endpoint}", &state.url);
+    let url = format!("{}/{endpoint}", state.url);
 
     logger::info!(key_manager_request=?request_body);
     let mut header = vec![];
