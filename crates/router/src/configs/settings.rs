@@ -85,6 +85,8 @@ pub struct Settings<S: SecretState> {
     pub chat: SecretStateContainer<ChatSettings, S>,
     pub sage: SecretStateContainer<SageSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
+    pub accounts_database: SecretStateContainer<Database, S>,
+    pub global_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
     pub redis: RedisSettings,
@@ -1197,6 +1199,8 @@ impl Settings<SecuredSecret> {
     pub fn validate(&self) -> ApplicationResult<()> {
         self.server.validate()?;
         self.master_database.get_inner().validate()?;
+        self.accounts_database.get_inner().validate()?;
+        self.global_database.get_inner().validate()?;
         #[cfg(feature = "olap")]
         self.replica_database.get_inner().validate()?;
 

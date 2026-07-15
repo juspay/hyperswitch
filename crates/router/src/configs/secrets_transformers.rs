@@ -425,6 +425,20 @@ pub(crate) async fn fetch_raw_secrets(
             .await
             .expect("Failed to decrypt master database configuration");
 
+    #[allow(clippy::expect_used)]
+    let accounts_database = settings::Database::convert_to_raw_secret(
+        conf.accounts_database,
+        secret_management_client,
+    )
+    .await
+    .expect("Failed to decrypt accounts database configuration");
+
+    #[allow(clippy::expect_used)]
+    let global_database =
+        settings::Database::convert_to_raw_secret(conf.global_database, secret_management_client)
+            .await
+            .expect("Failed to decrypt global database configuration");
+
     #[cfg(feature = "olap")]
     #[allow(clippy::expect_used)]
     let analytics =
@@ -564,6 +578,8 @@ pub(crate) async fn fetch_raw_secrets(
         chat,
         sage,
         master_database,
+        accounts_database,
+        global_database,
         redis: conf.redis,
         log: conf.log,
         #[cfg(feature = "kv_store")]

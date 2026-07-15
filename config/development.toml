@@ -43,6 +43,30 @@ connection_timeout = 10
 idle_timeout = 300
 max_lifetime = 1800
 
+[accounts_database]
+username = "db_user"
+password = "db_pass"
+host = "localhost"
+port = 5432
+dbname = "hyperswitch_db"
+max_pool_size = 5
+min_idle_pool_size = 2
+connection_timeout = 10
+idle_timeout = 300
+max_lifetime = 1800
+
+[global_database]
+username = "db_user"
+password = "db_pass"
+host = "localhost"
+port = 5432
+dbname = "hyperswitch_db"
+max_pool_size = 5
+min_idle_pool_size = 2
+connection_timeout = 10
+idle_timeout = 300
+max_lifetime = 1800
+
 [redis]
 host = "127.0.0.1"
 port = 6379

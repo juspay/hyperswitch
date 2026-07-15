@@ -54,10 +54,28 @@ pub async fn get_store(
     test_transaction: bool,
     key_manager_state: keymanager::KeyManagerState,
 ) -> StorageResult<Store> {
-    let master_config = config.master_database.clone().into_inner();
+    // The global tenant's schema pools are sized independently of regular tenants',
+    // since it carries user/role data rather than per-tenant payment traffic.
+    let is_global_tenant =
+        tenant.get_tenant_id() == &config.multitenancy.global_tenant.tenant_id;
 
+    let (master_config, accounts_config) = if is_global_tenant {
+        (
+            config.global_database.clone().into_inner(),
+            config.global_database.clone().into_inner(),
+        )
+    } else {
+        (
+            config.master_database.clone().into_inner(),
+            config.accounts_database.clone().into_inner(),
+        )
+    };
+
+    // Reads are served off a single replica pool regardless of tenant/accounts/global role.
     #[cfg(feature = "olap")]
     let replica_config = config.replica_database.clone().into_inner();
+    #[cfg(feature = "olap")]
+    let accounts_replica_config = replica_config.clone();
 
     #[allow(clippy::expect_used)]
     let master_enc_key = hex::decode(config.secrets.get_inner().master_enc_key.clone().expose())
@@ -65,11 +83,16 @@ pub async fn get_store(
         .expect("Failed to decode master key from hex");
 
     #[cfg(not(feature = "olap"))]
-    let conf = master_config.into();
+    let conf = (master_config.into(), accounts_config.into());
     #[cfg(feature = "olap")]
     // this would get abstracted, for all cases
     #[allow(clippy::useless_conversion)]
-    let conf = (master_config.into(), replica_config.into());
+    let conf = (
+        master_config.into(),
+        replica_config.into(),
+        accounts_config.into(),
+        accounts_replica_config.into(),
+    );
 
     let store: RouterStore<StoreType> = if test_transaction {
         RouterStore::test_store(
