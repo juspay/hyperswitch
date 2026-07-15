@@ -124,7 +124,6 @@ pub struct Settings<S: SecretState> {
     pub installment_config: InstallmentConfig,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub card_only_mit_supported_connectors: CardOnlyMitSupportedConnectors,
-    #[serde(default)]
     pub pmid_mit_supported_connectors: PmidMitSupportedConnectors,
     pub notify_iframe_exit_and_redirect: NotifyIframeExitAndRedirectConnectors,
     pub list_dispute_supported_connectors: ListDiputeSupportedConnectors,
