@@ -43,7 +43,7 @@ jobs:
 
       - name: Install oasdiff
         run: |
-          go install github.com/oasdiff/oasdiff@v1.23.0
+          go install github.com/oasdiff/oasdiff@v1.11.7
           echo "$HOME/go/bin" >> $GITHUB_PATH
 
       - name: Prepare PR schemas
@@ -58,18 +58,6 @@ jobs:
           git show "$BASE_SHA:api-reference/v1/openapi_spec_v1.json" > base-v1-schema.json 2>/dev/null || echo "{}" > base-v1-schema.json
           git show "$BASE_SHA:api-reference/v2/openapi_spec_v2.json" > base-v2-schema.json 2>/dev/null || echo "{}" > base-v2-schema.json
 
-      # utoipa 5 emits OpenAPI 3.1; older specs on the base branch may still be 3.0.
-      # Up-convert the base to 3.1 so oasdiff compares like-for-like (3.1 vs 3.1)
-      # instead of flagging the entire 3.0->3.1 re-encoding as breaking changes.
-      # No-op for schemas already on 3.1.
-      - name: Normalize base schemas to OpenAPI 3.1
-        run: |
-          for f in base-v1-schema.json base-v2-schema.json; do
-            if [ "$(jq -r '.openapi // "3.1.0"' "$f")" != "3.1.0" ]; then
-              npx --yes openapi-format@1.33.5 "$f" --convertTo 3.1 -o "$f.tmp" && mv "$f.tmp" "$f"
-            fi
-          done
-
       - name: Run breaking change detection
         id: breaking_changes
         run: |
@@ -77,8 +65,6 @@ jobs:
 
           if oasdiff breaking \
             --fail-on ERR \
-            --severity-levels .github/api-migration-compatibility/.oasdiff-severity-levels.txt \
-            --err-ignore .github/api-migration-compatibility/.oasdiff-err-ignore.txt \
             --warn-ignore .github/api-migration-compatibility/.oasdiff-warn-ignore.yaml \
             base-v1-schema.json pr-v1-schema.json > v1-breaking-report.txt 2>&1; then
             echo "V1 API is backward compatible" > v1-breaking-status.txt
@@ -90,8 +76,6 @@ jobs:
 
           if oasdiff breaking \
             --fail-on ERR \
-            --severity-levels .github/api-migration-compatibility/.oasdiff-severity-levels.txt \
-            --err-ignore .github/api-migration-compatibility/.oasdiff-err-ignore.txt \
             --warn-ignore .github/api-migration-compatibility/.oasdiff-warn-ignore.yaml \
             base-v2-schema.json pr-v2-schema.json > v2-breaking-report.txt 2>&1; then
             echo "V2 API is backward compatible" > v2-breaking-status.txt
