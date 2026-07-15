@@ -12252,11 +12252,24 @@ pub async fn get_all_action_types(
         .ok()
         .and_then(|details| details.payments);
 
-    let is_mandate_flow = payments_mandate_reference
-        .clone()
-        .zip(merchant_connector_id)
-        .map(|(details, merchant_connector_id)| details.contains_key(merchant_connector_id))
-        .unwrap_or(false);
+    // Connectors opted into the payment_method_id StoredCard MIT flow must replay
+    // via the network-transaction-id (locker card + NTI) path even when a
+    // connector_mandate_id is stored for them. Config-gated (pmid_mit_supported_connectors,
+    // tsys_transit only for now): don't offer the connector-mandate action so the
+    // CardWithNetworkTransactionId action is chosen instead.
+    let prefer_stored_card_nti_flow = state
+        .conf
+        .pmid_mit_supported_connectors
+        .connector_list
+        .contains(&connector.connector_name)
+        && payment_method_info.network_transaction_id.is_some();
+
+    let is_mandate_flow = !prefer_stored_card_nti_flow
+        && payments_mandate_reference
+            .clone()
+            .zip(merchant_connector_id)
+            .map(|(details, merchant_connector_id)| details.contains_key(merchant_connector_id))
+            .unwrap_or(false);
 
     let is_nt_with_ntid_supported_connector = ntid_supported_connectors
         .contains(&connector.connector_name)
