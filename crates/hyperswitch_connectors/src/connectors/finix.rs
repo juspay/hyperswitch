@@ -1157,7 +1157,7 @@ impl webhooks::IncomingWebhook for Finix {
 
         Ok(format!(
             "{}:{}",
-            &security_header_kvs.timestamp,
+            security_header_kvs.timestamp,
             String::from_utf8_lossy(request.body)
         )
         .into_bytes())

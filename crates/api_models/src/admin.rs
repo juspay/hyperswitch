@@ -3820,6 +3820,20 @@ impl std::ops::Deref for TtlForExtendedCardInfo {
     }
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug)]
+pub struct MCACGraphData {
+    pub connector_name: common_enums::connector_enums::Connector,
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Deserialize)]
+pub struct MCACGraphData {
+    pub connector_name: String,
+    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
