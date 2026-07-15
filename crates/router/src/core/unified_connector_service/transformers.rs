@@ -3531,6 +3531,9 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
             common_enums::CardNetwork::Pulse => Self::Pulse,
             common_enums::CardNetwork::Accel => Self::Accel,
             common_enums::CardNetwork::Nyce => Self::Nyce,
+            common_enums::CardNetwork::Prop
+            | common_enums::CardNetwork::PrivateLabel
+            | common_enums::CardNetwork::Dinacard => Self::Unspecified,
         }
     }
 }
