@@ -3059,6 +3059,8 @@ pub enum CustomerPaymentMethodDataForClient {
     Wallet(WalletPaymentMethodDataForClient),
     /// Bank debit details (ACH, …).
     BankDebit(BankDebitDataForClient),
+    /// Masked bank redirect details.
+    BankRedirect(MaskedBankDetails),
 }
 
 /// A saved customer payment method as returned in the client-facing PM list.
