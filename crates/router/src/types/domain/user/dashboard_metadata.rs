@@ -124,7 +124,7 @@ impl From<PaymentAdvancedView> for api::PaymentAdvancedViewResponse {
                 api::PaymentAdvancedViewFiltersV1::PaymentViews(filters),
             ),
         };
-        api::PaymentAdvancedViewResponse {
+        Self {
             view_id: v.view_id,
             view_name: v.view_name,
             data,
