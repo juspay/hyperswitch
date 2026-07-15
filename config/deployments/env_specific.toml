@@ -142,6 +142,7 @@ redis_temp_locker_encryption_key = "redis_temp_locker_encryption_key" # Encrypti
 ttl_for_storage_in_secs = 220752000                                   # Time to live for storage entries in locker
 
 
+
 [log.console]
 enabled = true
 level = "DEBUG"
@@ -163,6 +164,47 @@ otel_exporter_otlp_timeout = 5000                     # timeout (in milliseconds
 use_xray_generator = false                            # Set this to true for AWS X-ray compatible traces
 route_to_trace = ["*/confirm"]
 bg_metrics_collection_interval_in_secs = 15           # Interval for collecting the metrics in background thread
+
+
+[deja]
+mode = "disabled"
+run_id = ""
+
+[deja.recording]
+graph = "disabled"
+
+[deja.recording.kafka]
+brokers = []
+topic = "hyperswitch-deja-recording-events"
+client_id = "hyperswitch-deja-router"
+acks = "all"
+idempotence = true
+linger = 5
+message_timeout = 30000
+
+[deja.replay]
+source = ""
+lookup_dir = ""
+observed_sink = ""
+
+[deja.sampler]
+enabled = false
+record_key = "deja_record"
+timeout_ms = 25
+fail_closed = true
+
+[deja.identity]
+pod_name_env = "POD_NAME"
+git_sha_env = "VERGEN_GIT_SHA"
+instance_id = ""
+code_sha = ""
+
+[deja.writer]
+queue_capacity = 8192
+batch_size = 500
+flush_after_records = 500
+flush_interval_ms = 1000
+shutdown_flush_ms = 5000
 
 [lock_settings]
 delay_between_retries_in_milliseconds = 500 # Delay between retries in milliseconds
