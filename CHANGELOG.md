@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.08.1-hotfix2
+
+### Bug Fixes
+
+- **paymentlink:** Fixed wrongly flagged XSS or SQLi attack for payment links ([#13322](https://github.com/juspay/hyperswitch/pull/13322)) ([`5f4c517`](https://github.com/juspay/hyperswitch/commit/5f4c5175b154976e060731b7865938d0965ecd52))
+
+### Performance
+
+- **core:** Introduce a new MCA domain type to reduce encryption service calls ([#13315](https://github.com/juspay/hyperswitch/pull/13315)) ([`1606da7`](https://github.com/juspay/hyperswitch/commit/1606da750d6ceee59c37bb86bad3728e18a5bdc3))
+
+**Full Changelog:** [`2026.07.08.1-hotfix1...2026.07.08.1-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.07.08.1-hotfix1...2026.07.08.1-hotfix2)
+
+- - -
+
 ## 2026.07.08.1-hotfix1
 
 ### Bug Fixes
