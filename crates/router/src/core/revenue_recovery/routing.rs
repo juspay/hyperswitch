@@ -147,8 +147,10 @@ mod tests {
 
     #[test]
     fn enabled_decision_creates_assignment() {
-        let resolution =
-            from_decision(&decision(true, "treatment_smart", "smart"), fixed_timestamp());
+        let resolution = from_decision(
+            &decision(true, "treatment_smart", "smart"),
+            fixed_timestamp(),
+        );
         let expected = RevenueRecoveryRoutingData {
             experiment_name: "rr_smart_vs_cascading_2026_q3".to_string(),
             variant: "treatment_smart".to_string(),
@@ -172,8 +174,10 @@ mod tests {
 
     #[test]
     fn unsupported_algorithm_is_invalid() {
-        let resolution =
-            from_decision(&decision(true, "treatment", "nonexistent"), fixed_timestamp());
+        let resolution = from_decision(
+            &decision(true, "treatment", "nonexistent"),
+            fixed_timestamp(),
+        );
         assert_eq!(
             resolution,
             AbRoutingResolution::InvalidConfig("nonexistent".to_string())

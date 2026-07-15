@@ -517,7 +517,10 @@ async fn persist_recovery_routing(
         .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
         .map(|diesel_metadata| diesel_metadata.convert_back())
     else {
-        logger::warn!(context, "A/B routing: recovery metadata absent, skipping persist");
+        logger::warn!(
+            context,
+            "A/B routing: recovery metadata absent, skipping persist"
+        );
         return;
     };
     api_metadata.recovery_routing = serde_json::to_value(routing_data).ok();
@@ -527,9 +530,10 @@ async fn persist_recovery_routing(
         .unwrap_or_default()
         .convert_back()
         .set_payment_revenue_recovery_metadata_using_api(api_metadata);
-    let update_request = api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_with_api(
-        updated_feature_metadata,
-    );
+    let update_request =
+        api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_with_api(
+            updated_feature_metadata,
+        );
     match Box::pin(api::update_payment_intent_api(
         state,
         payment_intent.id.clone(),
@@ -658,7 +662,9 @@ pub async fn perform_calculate_workflow(
         let existing_routing = payment_intent
             .feature_metadata
             .as_ref()
-            .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.as_ref())
+            .and_then(|feature_metadata| {
+                feature_metadata.payment_revenue_recovery_metadata.as_ref()
+            })
             .and_then(|metadata| metadata.recovery_routing.as_ref())
             .and_then(|value| {
                 serde_json::from_value::<routing::RevenueRecoveryRoutingData>(value.clone()).ok()
