@@ -575,13 +575,8 @@ pub async fn payment_method_modular_compat_action(
     organization_id: &id_type::OrganizationId,
     customer_id: Option<&id_type::CustomerId>,
 ) -> Option<domain::PaymentMethodCompatAction> {
-    payment_method_modular_forward_compat_action(
-        state,
-        merchant_id,
-        organization_id,
-        customer_id,
-    )
-    .await
+    payment_method_modular_forward_compat_action(state, merchant_id, organization_id, customer_id)
+        .await
 }
 
 #[cfg(feature = "v2")]
