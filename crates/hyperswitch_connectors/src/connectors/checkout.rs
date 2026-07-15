@@ -733,7 +733,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ch
         Ok(format!(
             "{}payments/{}/voids",
             self.base_url(connectors),
-            &req.request.connector_transaction_id
+            req.request.connector_transaction_id
         ))
     }
 
