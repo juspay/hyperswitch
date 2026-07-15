@@ -820,6 +820,7 @@ export const connectorDetails = {
       }),
     PaypalRedirect: getCustomExchange({
       Configs: {
+        TRIGGER_SKIP: true,
         CONNECTOR_CREDENTIAL: {
           specName: ["wallet"],
           value: "connector_2",
