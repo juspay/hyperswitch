@@ -521,7 +521,16 @@ function validateErrorMessage(response, resData) {
   }
 }
 
-//skip MIT using PMId if connector does not support MIT only
+// skip MIT using PMId if connector does not support MIT only.
+// helcim: NOT a duplicate-transaction/Helcim-side rejection (that was an
+// earlier unverified guess) — confirmed via router logs to be a genuine
+// server-side 500: "Failed while decrypting payment method data" /
+// ring::error::Unspecified while decrypting the stored payment method to
+// build the MIT request. Likely tied to the fire-and-forget async
+// "Save card flow" (payment_response.rs) used for on_session-downgraded
+// connectors like Helcim, as opposed to the synchronous save path used by
+// genuinely-supported mandate connectors. This looks like a real router
+// bug worth reporting/investigating separately, not just a test quirk.
 export function shouldSkipMitUsingPMId(connectorId) {
   const skipConnectors = ["fiuu", "helcim"];
   return skipConnectors.includes(connectorId);
@@ -4024,18 +4033,8 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.body.capture_method !== undefined) {
           expect(response.body.payment_id).to.equal(paymentId);
-          if (resData.body?.error === undefined) {
-            for (const key in resData.body) {
-              expect(resData.body[key]).to.equal(response.body[key]);
-            }
-          } else {
-            // Config expected an error (a known-flaky sandbox limitation),
-            // but the capture succeeded anyway this run — treat as a pass
-            // rather than comparing an error shape against a success body.
-            cy.task(
-              "cli_log",
-              "Capture succeeded despite an expected error config; treating as pass"
-            );
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.equal(response.body[key]);
           }
         } else {
           defaultErrorHandler(response, resData);
