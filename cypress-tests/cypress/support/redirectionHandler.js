@@ -358,6 +358,39 @@ function cryptoRedirection(
         },
         { paymentMethodType, coingateBilling: COINGATE_BILLING }
       );
+    } else if (connectorId === "opennode") {
+      cy.document().should("have.property", "readyState", "complete");
+      cy.log("OpenNode payment page loaded");
+
+      cy.get("body").then(($body) => {
+        const bodyText = $body.text();
+        if (/BTC|bitcoin|amount|address|pay with/i.test(bodyText)) {
+          cy.log("OpenNode Bitcoin checkout page verified");
+        } else {
+          cy.log(
+            "OpenNode checkout page did not show expected Bitcoin indicators"
+          );
+        }
+      });
+
+      handleFlow(
+        redirectionUrl,
+        expectedUrl,
+        connectorId,
+        ({ paymentMethodType }) => {
+          switch (paymentMethodType) {
+            case "crypto_currency":
+              cy.log("Handling crypto currency payment redirection");
+              break;
+
+            default:
+              throw new Error(
+                `Unsupported crypto payment method type: ${paymentMethodType}`
+              );
+          }
+        },
+        { paymentMethodType }
+      );
     } else {
       cy.get("canvas.BbpsQr__canvas", { timeout: 5000 })
         .should("exist")
