@@ -833,6 +833,34 @@ impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info
             card_network: item.card_network.map(|x| x.to_string()),
             card_issuer: item.card_issuer,
             card_issuing_country: item.card_issuing_country,
+            funding_source: item.funding_source.map(|x| x.to_string()),
+            card_iin_type: item.card_iin_type.map(|x| x.to_string()),
+            virtual_card: item.virtual_card,
+            gambling_blocked: item.gambling_blocked,
+            co_badged_card_networks: item.co_badged_card_networks,
+            card_segment_type: item.card_segment_type,
+            numeric_country_code: item.numeric_country_code,
+            prepaid: item.prepaid,
+            regulated: item.regulated,
+            issuer_phone: item.issuer_phone,
+            issuer_url: item.issuer_url,
+            regulated_name: item.regulated_name,
+            reloadable_prepaid: item.reloadable_prepaid,
+            account_updater: item.account_updater,
+            account_level_management: item.account_level_management,
+            domestic_only: item.domestic_only,
+            level_two_supported: item.level_two_supported,
+            level_three_supported: item.level_three_supported,
+            issuer_currency: item.issuer_currency,
+            combo_card: item.combo_card,
+            authentication: item.authentication,
+            cost: item.cost,
+            issuer_supports_tokenization: item.issuer_supports_tokenization,
+            billpay_enabled: item.billpay_enabled,
+            ecom_enabled: item.ecom_enabled,
+            flexible_credential_supported: item.flexible_credential_supported,
+            card_subtype_code: item.card_subtype_code,
+            multi_account_access_indicator: item.multi_account_access_indicator,
         }
     }
 }
@@ -928,6 +956,81 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(item: domain::MerchantConnectorAccount) -> Result<Self, Self::Error> {
+        #[cfg(feature = "v1")]
+        let payment_methods_enabled = match item.payment_methods_enabled {
+            Some(secret_val) => {
+                let val = secret_val
+                    .into_iter()
+                    .map(|secret| secret.expose())
+                    .collect();
+                serde_json::Value::Array(val)
+                    .parse_value("PaymentMethods")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+            }
+            None => None,
+        };
+
+        let frm_configs = match item.frm_configs {
+            Some(frm_value) => {
+                let configs_for_frm : Vec<api_models::admin::FrmConfigs> = frm_value
+                    .iter()
+                    .map(|config| { config
+                        .peek()
+                        .clone()
+                        .parse_value("FrmConfigs")
+                        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                            field_name: "frm_configs".to_string(),
+                            expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","payment_method_types": [{"payment_method_type": "credit","card_networks": ["Visa"],"flow": "pre","action": "cancel_txn"}]}]}]"#.to_string(),
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Some(configs_for_frm)
+            }
+            None => None,
+        };
+        #[cfg(feature = "v1")]
+        let response = Self {
+            connector_type: item.connector_type,
+            connector_name: item.connector_name,
+            connector_label: item.connector_label,
+            merchant_connector_id: item.merchant_connector_id,
+            test_mode: item.test_mode,
+            disabled: item.disabled,
+            payment_methods_enabled,
+            business_country: item.business_country,
+            business_label: item.business_label,
+            business_sub_label: item.business_sub_label,
+            frm_configs,
+            profile_id: item.profile_id,
+            applepay_verified_domains: item.applepay_verified_domains,
+            pm_auth_config: item.pm_auth_config,
+            status: item.status,
+        };
+        #[cfg(feature = "v2")]
+        let response = Self {
+            id: item.id,
+            connector_type: item.connector_type,
+            connector_name: item.connector_name,
+            connector_label: item.connector_label,
+            disabled: item.disabled,
+            payment_methods_enabled: item.payment_methods_enabled,
+            frm_configs,
+            profile_id: item.profile_id,
+            applepay_verified_domains: item.applepay_verified_domains,
+            pm_auth_config: item.pm_auth_config,
+            status: item.status,
+        };
+        Ok(response)
+    }
+}
+
+impl ForeignTryFrom<domain::MerchantConnectorAccountWithoutEncrypted>
+    for api_models::admin::MerchantConnectorListResponse
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
+        item: domain::MerchantConnectorAccountWithoutEncrypted,
+    ) -> Result<Self, Self::Error> {
         #[cfg(feature = "v1")]
         let payment_methods_enabled = match item.payment_methods_enabled {
             Some(secret_val) => {
@@ -1164,6 +1267,38 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 })
                 .transpose()?,
             webhook_setup_capabilities,
+        };
+        Ok(response)
+    }
+}
+
+impl ForeignTryFrom<domain::MerchantConnectorAccountWithoutEncrypted>
+    for api_models::admin::MCACGraphData
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
+        item: domain::MerchantConnectorAccountWithoutEncrypted,
+    ) -> Result<Self, Self::Error> {
+        #[cfg(feature = "v1")]
+        let payment_methods_enabled = match item.payment_methods_enabled {
+            Some(secret_val) => {
+                let val = secret_val
+                    .into_iter()
+                    .map(|secret| secret.expose())
+                    .collect();
+                serde_json::Value::Array(val)
+                    .parse_value("PaymentMethods")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+            }
+            None => None,
+        };
+
+        #[cfg(feature = "v2")]
+        let payment_methods_enabled = item.payment_methods_enabled;
+
+        let response = Self {
+            connector_name: item.connector_name,
+            payment_methods_enabled,
         };
         Ok(response)
     }
@@ -1986,7 +2121,7 @@ impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
 impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
     fn foreign_from(customer: &domain::Customer) -> Self {
         Self {
-            id: Some(customer.customer_id.clone()),
+            id: Some(customer.get_id().clone()),
             name: customer
                 .name
                 .as_ref()
@@ -2032,7 +2167,10 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
         }
 
         match (item.object_id.clone(), item.event_id.clone()) {
-            (Some(object_id), None) => Ok(Self::ObjectIdFilter { object_id }),
+            (Some(object_id), None) => Ok(Self::ObjectIdFilter {
+                object_id,
+                recipient: item.recipient,
+            }),
 
             (None, Some(event_id)) => Ok(Self::EventIdFilter { event_id }),
 
@@ -2044,6 +2182,7 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
                 event_classes: item.event_classes,
                 event_types: item.event_types,
                 is_delivered: item.is_delivered,
+                recipient: item.recipient,
             }),
 
             (Some(_), Some(_)) => Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -2055,11 +2194,16 @@ impl ForeignTryFrom<api_types::webhook_events::EventListConstraints>
 }
 
 #[cfg(feature = "olap")]
-impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemResponse {
+impl TryFrom<domain::EventWithDeliverySuccessSource>
+    for api_models::webhook_events::EventListItemResponse
+{
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
+    fn try_from(value: domain::EventWithDeliverySuccessSource) -> Result<Self, Self::Error> {
         use crate::utils::OptionExt;
+
+        let item = value.event;
+        let is_delivery_successful = item.resolve_delivery_success(value.source);
 
         // We only allow retrieving events with merchant_id, business_profile_id
         // and initial_attempt_id populated.
@@ -2084,7 +2228,7 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
             object_id: item.primary_object_id,
             event_type: item.event_type,
             event_class: item.event_class,
-            is_delivery_successful: item.is_overall_delivery_successful,
+            is_delivery_successful,
             initial_attempt_id,
             processor_merchant_id: item.processor_merchant_id,
             created: item.created_at,
@@ -2093,17 +2237,20 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
 }
 
 #[cfg(feature = "olap")]
-impl TryFrom<domain::Event> for api_models::webhook_events::EventRetrieveResponse {
+impl TryFrom<domain::EventWithDeliverySuccessSource>
+    for api_models::webhook_events::EventRetrieveResponse
+{
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(item: domain::Event) -> Result<Self, Self::Error> {
+    fn try_from(value: domain::EventWithDeliverySuccessSource) -> Result<Self, Self::Error> {
         use crate::utils::OptionExt;
+
+        let item = value.event.clone();
 
         // We only allow retrieving events with all required fields in `EventListItemResponse`, and
         // `request` and `response` populated.
         // We cannot retrieve events with only some of these fields populated.
-        let event_information =
-            api_models::webhook_events::EventListItemResponse::try_from(item.clone())?;
+        let event_information = api_models::webhook_events::EventListItemResponse::try_from(value)?;
 
         let request = item
             .request
@@ -2601,6 +2748,34 @@ impl ForeignFrom<card_info_types::CardInfoCreateRequest> for storage::CardInfo {
             date_created: common_utils::date_time::now(),
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: value.last_updated_provider,
+            funding_source: value.funding_source,
+            card_iin_type: value.card_iin_type,
+            virtual_card: value.virtual_card,
+            gambling_blocked: value.gambling_blocked,
+            co_badged_card_networks: value.co_badged_card_networks,
+            card_segment_type: value.card_segment_type,
+            numeric_country_code: value.numeric_country_code,
+            prepaid: value.prepaid,
+            regulated: value.regulated,
+            issuer_phone: value.issuer_phone,
+            issuer_url: value.issuer_url,
+            regulated_name: value.regulated_name,
+            reloadable_prepaid: value.reloadable_prepaid,
+            account_updater: value.account_updater,
+            account_level_management: value.account_level_management,
+            domestic_only: value.domestic_only,
+            level_two_supported: value.level_two_supported,
+            level_three_supported: value.level_three_supported,
+            issuer_currency: value.issuer_currency,
+            combo_card: value.combo_card,
+            authentication: value.authentication,
+            cost: value.cost,
+            issuer_supports_tokenization: value.issuer_supports_tokenization,
+            billpay_enabled: value.billpay_enabled,
+            ecom_enabled: value.ecom_enabled,
+            flexible_credential_supported: value.flexible_credential_supported,
+            card_subtype_code: value.card_subtype_code,
+            multi_account_access_indicator: value.multi_account_access_indicator,
         }
     }
 }
@@ -2620,6 +2795,34 @@ impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for storage::CardInfo {
             date_created: common_utils::date_time::now(),
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: value.last_updated_provider,
+            funding_source: value.funding_source,
+            card_iin_type: value.card_iin_type,
+            virtual_card: value.virtual_card,
+            gambling_blocked: value.gambling_blocked,
+            co_badged_card_networks: value.co_badged_card_networks,
+            card_segment_type: value.card_segment_type,
+            numeric_country_code: value.numeric_country_code,
+            prepaid: value.prepaid,
+            regulated: value.regulated,
+            issuer_phone: value.issuer_phone,
+            issuer_url: value.issuer_url,
+            regulated_name: value.regulated_name,
+            reloadable_prepaid: value.reloadable_prepaid,
+            account_updater: value.account_updater,
+            account_level_management: value.account_level_management,
+            domestic_only: value.domestic_only,
+            level_two_supported: value.level_two_supported,
+            level_three_supported: value.level_three_supported,
+            issuer_currency: value.issuer_currency,
+            combo_card: value.combo_card,
+            authentication: value.authentication,
+            cost: value.cost,
+            issuer_supports_tokenization: value.issuer_supports_tokenization,
+            billpay_enabled: value.billpay_enabled,
+            ecom_enabled: value.ecom_enabled,
+            flexible_credential_supported: value.flexible_credential_supported,
+            card_subtype_code: value.card_subtype_code,
+            multi_account_access_indicator: value.multi_account_access_indicator,
         }
     }
 }

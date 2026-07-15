@@ -17,7 +17,7 @@ use crate::{
     configs::settings,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payment_methods::cards,
+        payment_methods::{self, cards},
         utils::create_encrypted_data,
     },
     logger,
@@ -373,17 +373,13 @@ pub async fn handle_metadata_update(
                 }
             };
             let db = &*state.store;
-            #[cfg(feature = "v1")]
-            let compat_action =
-                crate::core::payment_methods::payment_method_modular_forward_compat_action(
-                    state,
-                    &payment_method.merchant_id,
-                    &platform.get_provider().get_account().organization_id,
-                    payment_method.customer_id.as_ref(),
-                )
-                .await;
-            #[cfg(not(feature = "v1"))]
-            let compat_action = None;
+            let compat_action = payment_methods::payment_method_modular_compat_action(
+                state,
+                &payment_method.merchant_id,
+                &platform.get_provider().get_account().organization_id,
+                payment_method.customer_id.as_ref(),
+            )
+            .await;
 
             db.update_payment_method(
                 platform.get_processor().get_key_store(),

@@ -156,6 +156,54 @@ pub fn contains_potential_xss_or_sqli(input: &str) -> bool {
     false
 }
 
+/// Trait to validate data structures for potential XSS or SQLi injection vectors.
+pub trait ValidateXSSOrSQLi {
+    /// Validates the fields or elements of the type.
+    fn validate_xss_or_sqli(&self) -> Result<(), String>;
+}
+
+impl ValidateXSSOrSQLi for String {
+    fn validate_xss_or_sqli(&self) -> Result<(), String> {
+        if contains_potential_xss_or_sqli(self) {
+            Err(format!(
+                "Input contains potential XSS or SQLi attack vectors: {}",
+                self
+            ))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl<T: ValidateXSSOrSQLi> ValidateXSSOrSQLi for Option<T> {
+    fn validate_xss_or_sqli(&self) -> Result<(), String> {
+        self.as_ref().map_or(Ok(()), |v| v.validate_xss_or_sqli())
+    }
+}
+
+impl<T: ValidateXSSOrSQLi> ValidateXSSOrSQLi for Vec<T> {
+    fn validate_xss_or_sqli(&self) -> Result<(), String> {
+        self.iter().try_for_each(|v| v.validate_xss_or_sqli())
+    }
+}
+
+impl<T: ValidateXSSOrSQLi> ValidateXSSOrSQLi for HashSet<T> {
+    fn validate_xss_or_sqli(&self) -> Result<(), String> {
+        self.iter().try_for_each(|v| v.validate_xss_or_sqli())
+    }
+}
+
+impl<K: ValidateXSSOrSQLi, V: ValidateXSSOrSQLi> ValidateXSSOrSQLi
+    for std::collections::HashMap<K, V>
+{
+    fn validate_xss_or_sqli(&self) -> Result<(), String> {
+        self.iter().try_for_each(|(k, v)| {
+            k.validate_xss_or_sqli()
+                .and_then(|_| v.validate_xss_or_sqli())
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use fake::{faker::internet::en::SafeEmail, Fake};

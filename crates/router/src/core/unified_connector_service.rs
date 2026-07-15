@@ -48,7 +48,7 @@ use crate::{
             helpers::{
                 is_ucs_enabled, should_execute_based_on_rollout,
                 should_execute_based_on_rollout_with_precedence, MerchantConnectorAccountType,
-                ProxyOverride,
+                ProxyOverride, WebhookRolloutConfig, WebhookRolloutExecutionResult,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -703,8 +703,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
     processor: &Processor,
     connector_name: &str,
-    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
-) -> RouterResult<ExecutionPath> {
+) -> RouterResult<(ExecutionPath, Vec<api_models::webhooks::WebhookFlow>)> {
     // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
 
@@ -717,15 +716,11 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     // Check UCS availability using idiomatic helper
     let ucs_availability = check_ucs_availability(state).await;
 
-    let connector_key = merchant_connector_id
-        .map(|id| id.get_string_repr().to_owned())
-        .unwrap_or_else(|| connector_name.to_string());
-
     let rollout_key = format!(
         "{}_{}_{}_{}",
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
         merchant_id,
-        connector_key,
+        connector_name,
         flow_name
     );
 
@@ -736,7 +731,11 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
     let previous_gateway = None;
 
-    let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
+    let rollout_result = should_execute_based_on_rollout::<
+        WebhookRolloutConfig,
+        WebhookRolloutExecutionResult,
+    >(state, &rollout_key)
+    .await?;
 
     // Use the same decision logic as payments, with no call_connector_action to consider
     let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
@@ -747,7 +746,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         decide_execution_path(
             connector_integration_type,
             previous_gateway,
-            rollout_result.execution_mode,
+            rollout_result.rollout_execution_result.execution_mode,
         )?
     };
 
@@ -757,10 +756,10 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         execution_path,
         merchant_id,
         connector_name,
-        flow_name
+        flow_name,
     );
 
-    Ok(execution_path)
+    Ok((execution_path, rollout_result.webhook_flows))
 }
 
 pub fn build_unified_connector_service_payment_method(
@@ -1299,31 +1298,45 @@ pub fn build_unified_connector_service_payment_method(
                 }),
                 hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(
                     apple_pay_wallet_data
-                ) => {
-                    let apple_pay_payment_data = get_apple_pay_payment_data(
-                        &apple_pay_wallet_data.payment_data,
-                        payment_method_token,
-                    );
+                ) => match payment_method_token {
+                    // A connector token minted by the PaymentMethodToken pre-step (e.g. a
+                    // Paysafe payment handle) supersedes the wallet payload: the settle
+                    // leg must reference the handle, not re-send the PKPaymentToken.
+                    // Mirrors the Card arm above.
+                    Some(PaymentMethodToken::Token(token)) => {
+                        let token_payment_method = payments_grpc::TokenPaymentMethodType {
+                            token: Some(token.clone()),
+                        };
+                        Ok(payments_grpc::PaymentMethod {
+                            payment_method: Some(PaymentMethod::Token(token_payment_method)),
+                        })
+                    }
+                    _ => {
+                        let apple_pay_payment_data = get_apple_pay_payment_data(
+                            &apple_pay_wallet_data.payment_data,
+                            payment_method_token,
+                        );
 
-                    let payment_data =
-                        payments_grpc::apple_wallet::payment_data::PaymentData::foreign_try_from(
-                            &apple_pay_payment_data,
-                        )?;
+                        let payment_data =
+                            payments_grpc::apple_wallet::payment_data::PaymentData::foreign_try_from(
+                                &apple_pay_payment_data,
+                            )?;
 
-                    Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::ApplePaySdk(payments_grpc::AppleWallet {
-                            payment_data: Some(payments_grpc::apple_wallet::PaymentData {
-                                payment_data: Some(payment_data),
-                            }),
-                            payment_method: Some(payments_grpc::apple_wallet::PaymentMethod {
-                                display_name: apple_pay_wallet_data.payment_method.display_name,
-                                network: apple_pay_wallet_data.payment_method.network,
-                                r#type: apple_pay_wallet_data.payment_method.pm_type,
-                            }),
-                            transaction_identifier: apple_pay_wallet_data.transaction_identifier,
-                        })),
-                    })
-                }
+                        Ok(payments_grpc::PaymentMethod {
+                            payment_method: Some(PaymentMethod::ApplePaySdk(payments_grpc::AppleWallet {
+                                payment_data: Some(payments_grpc::apple_wallet::PaymentData {
+                                    payment_data: Some(payment_data),
+                                }),
+                                payment_method: Some(payments_grpc::apple_wallet::PaymentMethod {
+                                    display_name: apple_pay_wallet_data.payment_method.display_name,
+                                    network: apple_pay_wallet_data.payment_method.network,
+                                    r#type: apple_pay_wallet_data.payment_method.pm_type,
+                                }),
+                                transaction_identifier: apple_pay_wallet_data.transaction_identifier,
+                            })),
+                        })
+                    }
+                },
                 hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
                     google_pay_wallet_data,
                 ) => {
@@ -1451,6 +1464,13 @@ pub fn build_unified_connector_service_payment_method(
                     Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::GcashRedirect(
                             payments_grpc::GcashRedirectWallet {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::WalletData::Skrill(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::SkrillRedirect(
+                            payments_grpc::SkrillRedirectWallet {},
                         )),
                     })
                 }
@@ -1696,6 +1716,21 @@ pub fn build_unified_connector_service_payment_method(
             .into()),
             }
         }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::GiftCard(
+            gift_card_data,
+        ) => match *gift_card_data {
+            hyperswitch_domain_models::payment_method_data::GiftCardData::PaySafeCard {} => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::PaySafeCard(
+                        payments_grpc::PaySafeCard {},
+                    )),
+                })
+            }
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented payment method subtype: {payment_method_type:?}"
+            ))
+            .into()),
+        },
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
             "Unimplemented payment method: {payment_method_data:?}"
         ))

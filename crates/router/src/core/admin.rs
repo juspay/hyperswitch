@@ -1552,7 +1552,6 @@ struct PMAuthConfigValidation<'a> {
     db: &'a dyn StorageInterface,
     merchant_id: &'a id_type::MerchantId,
     profile_id: &'a id_type::ProfileId,
-    key_store: &'a domain::MerchantKeyStore,
 }
 
 impl PMAuthConfigValidation<'_> {
@@ -1567,10 +1566,9 @@ impl PMAuthConfigValidation<'_> {
 
         let all_mcas = self
             .db
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
                 self.merchant_id,
                 true,
-                self.key_store,
             )
             .await
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -2025,7 +2023,6 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             db: state.store.as_ref(),
             merchant_id: platform.get_processor().get_account().get_id(),
             profile_id: &mca.profile_id.clone(),
-            key_store: platform.get_processor().get_key_store(),
         };
 
         pm_auth_config_validation.validate_pm_auth_config().await?;
@@ -2780,7 +2777,6 @@ pub async fn create_connector(
         db: store,
         merchant_id,
         profile_id: business_profile.get_id(),
-        key_store: processor.get_key_store(),
     };
     pm_auth_config_validation.validate_pm_auth_config().await?;
 
@@ -2892,10 +2888,9 @@ async fn validate_pm_auth(
 
     let all_mcas = state
         .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             merchant_id,
             true,
-            platform.get_processor().get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -3015,10 +3010,9 @@ pub async fn list_payment_connectors(
     let store = state.store.as_ref();
 
     let merchant_connector_accounts = store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             processor.get_account().get_id(),
             true,
-            processor.get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;

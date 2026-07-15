@@ -393,7 +393,7 @@ pub async fn render_pm_collect_link(
                     publishable_key: Secret::new(provider.get_account().clone().publishable_key),
                     client_secret: link_data.client_secret.clone(),
                     pm_collect_link_id: pm_collect_link.link_id,
-                    customer_id: customer.customer_id,
+                    customer_id: customer.get_id().clone(),
                     session_expiry: pm_collect_link.expiry,
                     return_url: pm_collect_link.return_url,
                     ui_config: ui_config_data,
@@ -566,6 +566,35 @@ pub fn payment_method_modular_backward_compat_action(
             .await;
         })
     })
+}
+
+#[cfg(feature = "v1")]
+pub async fn payment_method_modular_compat_action(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    organization_id: &id_type::OrganizationId,
+    customer_id: Option<&id_type::CustomerId>,
+) -> Option<domain::PaymentMethodCompatAction> {
+    payment_method_modular_forward_compat_action(
+        state,
+        merchant_id,
+        organization_id,
+        customer_id,
+    )
+    .await
+}
+
+#[cfg(feature = "v2")]
+pub async fn payment_method_modular_compat_action(
+    state: &SessionState,
+    _merchant_id: &id_type::MerchantId,
+    organization_id: &id_type::OrganizationId,
+    _customer_id: Option<&id_type::GlobalCustomerId>,
+) -> Option<domain::PaymentMethodCompatAction> {
+    Some(payment_method_modular_backward_compat_action(
+        state,
+        organization_id,
+    ))
 }
 
 #[cfg(feature = "v1")]

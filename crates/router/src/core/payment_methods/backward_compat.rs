@@ -131,9 +131,6 @@ pub(super) async fn trigger_payment_method_modular_backward_compat(
             }
         }
     } else {
-        let dimensions = dimension_state::Dimensions::new()
-            .with_provider_merchant_id(ProviderMerchantId::new(merchant_id.clone()))
-            .with_organization_id(organization_id.clone());
         let should_schedule_modular_backward_compat =
             utils::get_should_schedule_modular_backward_compat(state, &dimensions, None).await;
 

@@ -712,10 +712,10 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let merchant_id = payment_attempt.merchant_id.clone();
+                let processor_merchant_id = payment_attempt.processor_merchant_id.clone();
                 let payment_id = payment_attempt.payment_id.clone();
                 let key = PartitionKey::MerchantIdPaymentId {
-                    merchant_id: &merchant_id,
+                    merchant_id: &processor_merchant_id,
                     payment_id: &payment_id,
                 };
                 let key_str = key.to_string();
@@ -831,7 +831,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     lookup_id: format!(
                         "pa_{}_{}",
                         created_attempt.processor_merchant_id.get_string_repr(),
-                        &created_attempt.attempt_id,
+                        created_attempt.attempt_id,
                     ),
                     pk_id: key_str.clone(),
                     sk_id: field.clone(),

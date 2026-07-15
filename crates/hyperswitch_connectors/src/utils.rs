@@ -1024,13 +1024,8 @@ impl<Flow, Request, Response> RouterData
     }
 
     fn get_optional_billing_state_2_digit(&self) -> Option<Secret<String>> {
-        self.get_optional_billing_state().and_then(|state| {
-            if state.clone().expose().len() != 2 {
-                None
-            } else {
-                Some(state)
-            }
-        })
+        self.get_optional_billing_state()
+            .filter(|state| state.peek().len() == 2)
     }
 
     fn get_optional_billing_state_code(&self) -> Option<Secret<String>> {
@@ -7725,7 +7720,6 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
             .request
             .partner_merchant_identifier_details
             .clone(),
-        rrn: None,
         feature_metadata: None,
         installment_details: None,
         connector_intent_metadata: None,

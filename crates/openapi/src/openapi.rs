@@ -798,6 +798,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::HyperswitchVaultData,
         api_models::payments::VgsVaultData,
         api_models::payments::ProxyCardData,
+        api_models::payments::PeachpaymentsCardOnFileTransactionType,
         api_models::payment_methods::RequiredFieldInfo,
         api_models::payment_methods::DefaultPaymentMethod,
         api_models::payment_methods::MaskedBankDetails,
@@ -899,6 +900,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::webhooks::OutgoingWebhookContent,
         api_models::enums::EventClass,
         api_models::enums::EventType,
+        api_models::enums::EventRecipient,
         api_models::enums::DecoupledAuthenticationType,
         api_models::enums::Tokenization,
         api_models::enums::AuthenticationStatus,
@@ -1174,6 +1176,8 @@ Never share your secret api keys. Keep them guarded and secure.
 #[allow(dead_code)]
 pub(crate) struct ApiDoc;
 
+// Bypass clippy lint for not being constructed
+#[allow(dead_code)]
 struct SecurityAddon;
 
 impl utoipa::Modify for SecurityAddon {
