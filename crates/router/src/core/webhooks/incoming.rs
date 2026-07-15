@@ -205,7 +205,7 @@ fn confirm_path_for_flow(
     candidate_path: common_enums::ExecutionPath,
     flow: Option<api::WebhookFlow>,
     enabled_flows: &[api::WebhookFlow],
-    connector_integration_type: &common_enums::ConnectorIntegrationType,
+    connector_integration_type: common_enums::ConnectorIntegrationType,
 ) -> common_enums::ExecutionPath {
     match (flow, connector_integration_type) {
         (_, common_enums::ConnectorIntegrationType::UcsConnector) => {
@@ -338,7 +338,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 candidate_path,
                 flow,
                 &enabled_flows,
-                &connector_integration_type,
+                connector_integration_type,
             );
 
             let execution_mode = match execution_path {
