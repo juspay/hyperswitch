@@ -58,6 +58,7 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
+        payment_methods,
         payments::PaymentData,
     },
     db::StorageInterface,
@@ -107,12 +108,7 @@ pub async fn get_feature_config(
         .without_processor_merchant_id();
 
     let is_payment_method_modular_allowed =
-        crate::core::payment_methods::utils::get_should_call_pm_modular_service(
-            state,
-            &dimensions,
-            None,
-        )
-        .await;
+        payment_methods::utils::get_should_call_pm_modular_service(state, &dimensions, None).await;
     FeatureConfig {
         is_payment_method_modular_allowed,
     }
