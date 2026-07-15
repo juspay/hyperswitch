@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.14.0-hotfix1
+
+### Bug Fixes
+
+- **paymentlink:** Fixed wrongly flagged XSS or SQLi attack for payment links ([#13321](https://github.com/juspay/hyperswitch/pull/13321)) ([`7a52e32`](https://github.com/juspay/hyperswitch/commit/7a52e3257cfe1125822c3b0c8d05022a3d45a4a3))
+
+**Full Changelog:** [`2026.07.14.0...2026.07.14.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.07.14.0...2026.07.14.0-hotfix1)
+
+- - -
+
 ## 2026.07.14.0
 
 ### Bug Fixes
