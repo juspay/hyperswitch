@@ -76,5 +76,7 @@ impl EuclidDirFilter for ThreeDSDecisionRule {
         DirKeyKind::AcquirerCountry,
         DirKeyKind::AcquirerFraudRate,
         DirKeyKind::CardDiscovery,
+        DirKeyKind::BusinessCountry,
+        DirKeyKind::MetaData,
     ];
 }
