@@ -65,6 +65,7 @@ crates/router/src/core/unified_connector_service.rs @juspay/hyperswitch-prism
 crates/router/src/core/unified_connector_service/* @juspay/hyperswitch-prism
 crates/hyperswitch_interfaces/src/unified_connector_service.rs @juspay/hyperswitch-prism
 crates/hyperswitch_interfaces/src/unified_connector_service/transformers.rs @juspay/hyperswitch-prism
+crates/common_utils/src/ucs_types.rs @juspay/hyperswitch-prism
 crates/external_services/src/grpc_client/unified_connector_service.rs @juspay/hyperswitch-prism
 
 crates/external_services/Cargo.toml @juspay/hyperswitch-framework @juspay/hyperswitch-prism
