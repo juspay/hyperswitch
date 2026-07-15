@@ -613,7 +613,7 @@ export const CONNECTOR_LISTS = {
       "wellsfargo",
     ], // payload verified as working
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
-    BANK_REDIRECT_MANDATE: ["adyen"],
+    BANK_REDIRECT_MANDATE: ["adyen", "stripe"],
     BLUECODE_WALLET: ["calida"],
     ALIPAY_HK_WALLET: [""],
     PAYPAL_WALLET: [
@@ -672,7 +672,7 @@ export const CONNECTOR_LISTS = {
     EXTERNAL_THREE_DS: ["stripe", "finix"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     AFFIRM_PAY_LATER: ["affirm"],
-    AFTERPAY_CLEARPAY: ["adyen"],
+    AFTERPAY_CLEARPAY: ["adyen", "stripe"],
     ALMA: ["adyen"],
     WALLEY: ["adyen"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
