@@ -387,14 +387,10 @@ pub async fn fetch_forex_rates_from_fallback_api(
 
     let mut conversions: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
     for enum_curr in enums::Currency::iter() {
-        match fallback_forex_response.quotes.get(
-            format!(
-                "{}{}",
-                FALLBACK_FOREX_API_CURRENCY_PREFIX,
-                &enum_curr.to_string()
-            )
-            .as_str(),
-        ) {
+        match fallback_forex_response
+            .quotes
+            .get(format!("{}{}", FALLBACK_FOREX_API_CURRENCY_PREFIX, enum_curr).as_str())
+        {
             Some(rate) => {
                 let from_factor = match Decimal::new(1, 0).checked_div(**rate) {
                     Some(rate) => rate,
