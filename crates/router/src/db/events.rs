@@ -1083,7 +1083,7 @@ impl EventInterface for MockDb {
             .iter()
             .filter(|event| {
                 event.merchant_id == Some(merchant_id.to_owned())
-                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && event.initial_attempt_id.as_deref() == Some(event.event_id.as_str())
                     && event.primary_object_id.as_str() == primary_object_id
                     && (event_recipient.is_none() || event_recipient == event.recipient)
             })
@@ -1221,7 +1221,7 @@ impl EventInterface for MockDb {
             .iter()
             .filter(|event| {
                 event.business_profile_id == Some(profile_id.to_owned())
-                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && event.initial_attempt_id.as_deref() == Some(event.event_id.as_str())
                     && event.primary_object_id.as_str() == primary_object_id
                     && (event_recipient.is_none() || event_recipient == event.recipient)
             })
@@ -1488,7 +1488,7 @@ impl EventInterface for MockDb {
                     .is_none_or(|pid| event.business_profile_id.as_ref() == Some(pid));
                 matches_initiator
                     && matches_profile
-                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && event.initial_attempt_id.as_deref() == Some(event.event_id.as_str())
                     && event.primary_object_id.as_str() == primary_object_id
                     && (event_recipient.is_none() || event_recipient == event.recipient)
             })
