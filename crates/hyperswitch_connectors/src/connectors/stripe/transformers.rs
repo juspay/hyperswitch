@@ -2140,19 +2140,22 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                             request_overcapture: None,
                         }),
                         PaymentMethodData::StoredCardForNetworkTransactionId(ref stored) => {
-                            let card_details_for_network_transaction_id = payment_method_data::CardDetailsForNetworkTransactionId {
-                                card_number: stored.card_number.clone(),
-                                card_exp_month: stored.card_exp_month.clone(),
-                                card_exp_year: stored.card_exp_year.clone(),
-                                card_issuer: stored.card_issuer.clone(),
-                                card_network: stored.card_network.clone(),
-                                card_type: stored.card_type.clone(),
-                                card_issuing_country: stored.card_issuing_country.clone(),
-                                card_issuing_country_code: stored.card_issuing_country_code.clone(),
-                                bank_code: stored.bank_code.clone(),
-                                nick_name: stored.nick_name.clone(),
-                                card_holder_name: stored.card_holder_name.clone(),
-                            };
+                            let card_details_for_network_transaction_id =
+                                payment_method_data::CardDetailsForNetworkTransactionId {
+                                    card_number: stored.card_number.clone(),
+                                    card_exp_month: stored.card_exp_month.clone(),
+                                    card_exp_year: stored.card_exp_year.clone(),
+                                    card_issuer: stored.card_issuer.clone(),
+                                    card_network: stored.card_network.clone(),
+                                    card_type: stored.card_type.clone(),
+                                    card_issuing_country: stored.card_issuing_country.clone(),
+                                    card_issuing_country_code: stored
+                                        .card_issuing_country_code
+                                        .clone(),
+                                    bank_code: stored.bank_code.clone(),
+                                    nick_name: stored.nick_name.clone(),
+                                    card_holder_name: stored.card_holder_name.clone(),
+                                };
                             StripePaymentMethodData::Card(StripeCardData {
                                 payment_method_data_type: StripePaymentMethodType::Card,
                                 payment_method_data_card_number:

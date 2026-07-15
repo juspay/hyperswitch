@@ -2897,8 +2897,13 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
             // Connectors opted into the payment_method_id MIT flow receive the
             // locker card as the dedicated StoredCardForNetworkTransactionId
             // payment method (carrying the network transaction id in-band).
-            let use_stored_card_variant = connector_variant
-                .is_some_and(|c| state.conf.pmid_mit_supported_connectors.connector_list.contains(&c));
+            let use_stored_card_variant = connector_variant.is_some_and(|c| {
+                state
+                    .conf
+                    .pmid_mit_supported_connectors
+                    .connector_list
+                    .contains(&c)
+            });
             fetch_card_details_for_network_transaction_flow_from_locker(
                 state,
                 customer_id,
@@ -3346,9 +3351,7 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
                 network_transaction_id: network_transaction_id
                     .map(hyperswitch_masking::Secret::new),
             };
-        return Ok(
-            domain::PaymentMethodData::StoredCardForNetworkTransactionId(stored_card),
-        );
+        return Ok(domain::PaymentMethodData::StoredCardForNetworkTransactionId(stored_card));
     }
 
     let card_details_for_network_transaction_id =

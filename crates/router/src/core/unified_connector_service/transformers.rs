@@ -3699,7 +3699,9 @@ impl
             card_issuing_country: stored_card.card_issuing_country.clone(),
             bank_code: stored_card.bank_code.clone(),
             nick_name: stored_card.nick_name.map(|n| n.expose().into()),
-            card_holder_name: stored_card.card_holder_name.map(|name| name.expose().into()),
+            card_holder_name: stored_card
+                .card_holder_name
+                .map(|name| name.expose().into()),
             network_transaction_id: stored_card
                 .network_transaction_id
                 .map(|nti| nti.expose().into()),
