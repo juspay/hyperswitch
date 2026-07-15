@@ -1325,7 +1325,7 @@ connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connecto
 connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit" # Supported connectors for network transaction id
 
 [pmid_mit_supported_connectors]
-connector_list = "tsys_transit"  # payment_method_id MIT -> StoredCardForNetworkTransactionId
+connector_list = "tsys_transit"
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
