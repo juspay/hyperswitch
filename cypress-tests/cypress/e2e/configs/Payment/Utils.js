@@ -56,6 +56,7 @@ import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as nuveiConnectorDetails } from "./Nuvei.js";
+import { connectorDetails as opennodeConnectorDetails } from "./Opennode.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as payjustnowConnectorDetails } from "./Payjustnow.js";
 import { connectorDetails as payjustnowinstoreConnectorDetails } from "./Payjustnowinstore.js";
@@ -139,6 +140,7 @@ const connectorDetails = {
   noon: noonConnectorDetails,
   novalnet: novalnetConnectorDetails,
   nuvei: nuveiConnectorDetails,
+  opennode: opennodeConnectorDetails,
   paybox: payboxConnectorDetails,
   payjustnow: payjustnowConnectorDetails,
   payjustnowinstore: payjustnowinstoreConnectorDetails,
@@ -722,7 +724,7 @@ export const CONNECTOR_LISTS = {
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
     REFUND_TYPE: ["stripe", "adyen", "checkout"],
     MANUAL_PAYMENT_UPDATE: ["stripe"],
-    CRYPTO_PAYMENT: ["bitpay", "coingate", "cryptopay"],
+    CRYPTO_PAYMENT: ["bitpay", "coingate", "cryptopay", "opennode"],
     STEP_UP_RETRY: [
       "cybersource",
       "checkout",
