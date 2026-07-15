@@ -30,6 +30,7 @@ import getConnectorDetails, {
   extractIntegerAtEnd,
   getOriginalConnectorName,
   getValueByKey,
+  injectHelcimTestCard,
   setNormalizedValue,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
@@ -529,6 +530,15 @@ export function shouldSkipMitUsingPMId(connectorId) {
 // skip mandate_id-based MIT for connectors where CIT succeeds via the
 // on_session downgrade but no real connector mandate is ever created
 export function shouldSkipMitForMandates(connectorId) {
+  const skipConnectors = ["helcim"];
+  return skipConnectors.includes(connectorId);
+}
+
+// skip listing mandates for connectors that never create a real mandate
+// object (same on_session-downgrade reason as shouldSkipMitForMandates) —
+// GET /customers/{id}/mandates 404s with "Mandate does not exist" since
+// there's genuinely nothing to list
+export function shouldSkipListMandate(connectorId) {
   const skipConnectors = ["helcim"];
   return skipConnectors.includes(connectorId);
 }
@@ -2846,6 +2856,8 @@ Cypress.Commands.add(
       confirmBody.split_payments = reqData.split_payments;
     }
 
+    injectHelcimTestCard(confirmBody, globalState);
+
     const headers = {
       "Content-Type": "application/json",
       "api-key": apiKey,
@@ -3634,6 +3646,8 @@ Cypress.Commands.add(
     if (reqData?.split_payments && isStripeConnect(globalState)) {
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
+
+    injectHelcimTestCard(createConfirmPaymentBody, globalState);
 
     const headers = {
       "Content-Type": "application/json",
@@ -4555,6 +4569,8 @@ Cypress.Commands.add(
       requestBody.split_payments = reqData.split_payments;
     }
 
+    injectHelcimTestCard(requestBody, globalState);
+
     globalState.set("paymentAmount", requestBody.amount);
 
     cy.request({
@@ -4648,13 +4664,6 @@ Cypress.Commands.add(
               // Response body key comparison runs for all three_ds paths, including succeeded status
               // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
-                if (
-                  key === "status" &&
-                  validatedConfigs?.ALLOW_PROCESSING_STATUS &&
-                  response.body.status === "processing"
-                ) {
-                  continue;
-                }
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
@@ -4675,13 +4684,6 @@ Cypress.Commands.add(
                 requestBody.payment_method_type
               );
               for (const key in resData.body) {
-                if (
-                  key === "status" &&
-                  validatedConfigs?.ALLOW_PROCESSING_STATUS &&
-                  response.body.status === "processing"
-                ) {
-                  continue;
-                }
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
@@ -4734,13 +4736,6 @@ Cypress.Commands.add(
               // Response body key comparison runs for all three_ds paths, including succeeded status
               // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
-                if (
-                  key === "status" &&
-                  validatedConfigs?.ALLOW_PROCESSING_STATUS &&
-                  response.body.status === "processing"
-                ) {
-                  continue;
-                }
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
@@ -4761,13 +4756,6 @@ Cypress.Commands.add(
                 requestBody.payment_method_type
               );
               for (const key in resData.body) {
-                if (
-                  key === "status" &&
-                  validatedConfigs?.ALLOW_PROCESSING_STATUS &&
-                  response.body.status === "processing"
-                ) {
-                  continue;
-                }
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
@@ -5304,6 +5292,13 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("listMandateCallTest", (globalState) => {
+  if (shouldSkipListMandate(globalState.get("connectorId"))) {
+    cy.log(
+      `Skipping listMandateCallTest for connector: ${globalState.get("connectorId")}`
+    );
+    return;
+  }
+
   const customerId = globalState.get("customerId");
   cy.request({
     method: "GET",
