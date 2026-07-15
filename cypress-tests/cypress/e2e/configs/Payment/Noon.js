@@ -795,6 +795,16 @@ export const connectorDetails = {
   wallet_pm: {
     PaymentIntent: (paymentMethodType) =>
       getCustomExchange({
+        ...(paymentMethodType === "PaypalRedirect"
+          ? {
+              Configs: {
+                CONNECTOR_CREDENTIAL: {
+                  specName: ["wallet"],
+                  value: "connector_2",
+                },
+              },
+            }
+          : {}),
         Request: {
           currency:
             paymentMethodType === "PaypalRedirect"
@@ -809,6 +819,12 @@ export const connectorDetails = {
         },
       }),
     PaypalRedirect: getCustomExchange({
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["wallet"],
+          value: "connector_2",
+        },
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "paypal",
@@ -824,10 +840,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "19014",
-          error_message:
-            "Unable to proceed due to an invalid combination of payment details such as amount, currency, card brand, channel, or category.",
+          status: "requires_customer_action",
         },
       },
     }),
