@@ -22014,9 +22014,15 @@
             "type": "array",
             "items": {
               "type": "array",
-              "items": {
-                "type": "string"
-              }
+              "items": false,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ]
             },
             "description": "The request headers sent in the webhook.",
             "example": [
@@ -22050,9 +22056,15 @@
             ],
             "items": {
               "type": "array",
-              "items": {
-                "type": "string"
-              }
+              "items": false,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ]
             },
             "description": "The response headers received for the webhook sent.",
             "example": [

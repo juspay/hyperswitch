@@ -489,7 +489,7 @@ pub async fn attach_dispute_evidence(
         ("dispute_id" = String, Path, description = "The identifier for dispute")
     ),
     responses(
-        (status = 200, description = "The dispute evidence was retrieved successfully", body = api_models::disputes::DisputeResponse),
+        (status = 200, description = "The dispute evidence was retrieved successfully", body = Vec<api_models::disputes::DisputeEvidenceBlock>),
         (status = 404, description = "Dispute does not exist in our records")
     ),
     tag = "Disputes",
