@@ -19,8 +19,11 @@ password = "postgres"
 host = "db"
 port = 5432
 dbname = "loadtest_router"
-pool_size = 20
+max_pool_size = 20
 connection_timeout = 10
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
 
 [server]
 host = "0.0.0.0"
@@ -869,8 +872,11 @@ password = "db_pass"
 host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
-pool_size = 5
+max_pool_size = 5
 connection_timeout = 10
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
 
 [kv_config]
 ttl = 300 # 5 * 60 seconds
