@@ -1,10 +1,10 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
+import * as utils from "../../configs/Payment/Utils";
 import getConnectorDetails, {
   CONNECTOR_LISTS,
   shouldIncludeConnector,
 } from "../../configs/Payment/Utils";
-import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -17,7 +17,8 @@ describe("Step-Up Auth payment flow test", () => {
         globalState = new State(state);
 
         const baseUrl = globalState.get("baseUrl") || "";
-        if (baseUrl.includes("localhost")) {
+        // Only run against hosted integ or sandbox environments (skip localhost etc.)
+        if (!(baseUrl.includes("integ") || baseUrl.includes("sandbox"))) {
           skip = true;
           return;
         }
