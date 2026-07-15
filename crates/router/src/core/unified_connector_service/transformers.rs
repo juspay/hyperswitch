@@ -3499,6 +3499,12 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             // so send Unspecified; the Authorize leg carries the actual method via the
             // payment_method oneof (PaymentMethod::Klarna), which the connector handles.
             common_enums::PaymentMethodType::Klarna => Ok(Self::Unspecified),
+            // Same rationale as Klarna: CreateOrder does not need the exact payment_method_type
+            // (the Authorize leg carries the real method via the payment_method oneof). Airwallex
+            // creates an order/intent for Indonesian bank transfer and Skrill too, so map them to
+            // Unspecified instead of failing to encode the CreateOrder request.
+            common_enums::PaymentMethodType::IndonesianBankTransfer
+            | common_enums::PaymentMethodType::Skrill => Ok(Self::Unspecified),
             _ => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Payment Method Type not yet supported".to_string(),
