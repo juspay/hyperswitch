@@ -309,6 +309,8 @@ impl TenantConfig {
                 &event_handler,
                 conf,
                 tenant,
+                conf.master_database.clone().into_inner(),
+                conf.accounts_database.clone().into_inner(),
                 cache_store.clone(),
                 testable,
             ))
@@ -342,6 +344,8 @@ impl TenantConfig {
                 &event_handler,
                 conf,
                 tenant,
+                conf.master_database.clone().into_inner(),
+                conf.accounts_database.clone().into_inner(),
                 cache_store.clone(),
                 testable,
             ))

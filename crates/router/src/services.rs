@@ -31,7 +31,7 @@ use storage_impl::{errors::StorageResult, redis::RedisStore, RouterStore};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
-use crate::{configs::Settings, core::errors};
+use crate::{configs::settings::Database, configs::Settings, core::errors};
 
 #[cfg(not(feature = "olap"))]
 pub type StoreType = storage_impl::database::store::Store;
@@ -50,26 +50,12 @@ pub type Store = KVRouterStore<StoreType>;
 pub async fn get_store(
     config: &Settings,
     tenant: &dyn TenantConfig,
+    master_config: Database,
+    accounts_config: Database,
     cache_store: Arc<RedisStore>,
     test_transaction: bool,
     key_manager_state: keymanager::KeyManagerState,
 ) -> StorageResult<Store> {
-    // The global tenant's schema pools are sized independently of regular tenants',
-    // since it carries user/role data rather than per-tenant payment traffic.
-    let is_global_tenant = tenant.get_tenant_id() == &config.multitenancy.global_tenant.tenant_id;
-
-    let (master_config, accounts_config) = if is_global_tenant {
-        (
-            config.global_database.clone().into_inner(),
-            config.global_database.clone().into_inner(),
-        )
-    } else {
-        (
-            config.master_database.clone().into_inner(),
-            config.accounts_database.clone().into_inner(),
-        )
-    };
-
     // Reads are served off a single replica pool regardless of tenant/accounts/global role.
     #[cfg(feature = "olap")]
     let replica_config = config.replica_database.clone().into_inner();
