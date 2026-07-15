@@ -650,13 +650,13 @@ pub async fn save_payment_method_api(
                     req.client_secret = Some(client_secret);
                 }
 
-                cards::add_payment_method_data(
+                Box::pin(cards::add_payment_method_data(
                     state,
                     req,
                     auth.platform.get_provider().clone(),
                     auth.platform.get_initiator().cloned(),
                     pm_id,
-                )
+                ))
                 .await
             })
         },
