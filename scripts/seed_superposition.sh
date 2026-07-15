@@ -4,7 +4,7 @@
 set -euo pipefail
 
 SUPERPOSITION_URL="${SUPERPOSITION_URL:-http://localhost:8081}"
-SEED_FILE="${SEED_FILE:-./config/superposition_seed.toml}"
+SEED_FILE="${SEED_FILE:-./config/superposition_seed.json}"
 WORKSPACE_ID="${WORKSPACE_ID:-dev}"
 ORG_ID="${ORG_ID:-localorg}"
 MAX_RETRIES="${MAX_RETRIES:-60}"
