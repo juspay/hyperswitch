@@ -60,6 +60,17 @@ crates/router/src/compatibility/ @juspay/hyperswitch-compatibility
 crates/router/src/core/ @juspay/hyperswitch-core
 crates/router/src/core/connector_validation.rs @juspay/hyperswitch-connector
 
+# Unified Connector Service bridge ownership
+crates/router/src/core/unified_connector_service.rs @juspay/hyperswitch-prism
+crates/router/src/core/unified_connector_service/* @juspay/hyperswitch-prism
+crates/hyperswitch_interfaces/src/unified_connector_service.rs @juspay/hyperswitch-prism
+crates/hyperswitch_interfaces/src/unified_connector_service/transformers.rs @juspay/hyperswitch-prism
+crates/external_services/src/grpc_client/unified_connector_service.rs @juspay/hyperswitch-prism
+
+crates/external_services/Cargo.toml @juspay/hyperswitch-framework @juspay/hyperswitch-prism
+crates/hyperswitch_interfaces/Cargo.toml @juspay/hyperswitch-framework @juspay/hyperswitch-prism
+crates/router/Cargo.toml @juspay/hyperswitch-framework @juspay/hyperswitch-prism
+
 crates/api_models/src/routing.rs @juspay/hyperswitch-routing
 crates/hyperswitch_constraint_graph @juspay/hyperswitch-routing
 crates/euclid @juspay/hyperswitch-routing
