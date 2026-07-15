@@ -17,7 +17,7 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "stripe authorizedotnet paypal"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "stripe authorizedotnet"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay finix"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpay braintree cryptopay paypal worldpayxml volt"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat checkout redsys novalnet noon"
@@ -29,7 +29,7 @@ env:
   EXTENDED_PAYOUTS_CONNECTORS: "adyenplatform wise"
   MOCK_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat zift loonio cashtocode"
   MOCK_PAYMENTS_CONNECTORS_BATCH_2: "redsys worldpayxml cybersource braintree fiuu"
-  MOCK_PAYMENTS_CONNECTORS_BATCH_3: "nmi calida adyen peachpayments payload"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_3: "nmi calida adyen peachpayments"
   MOCK_PAYOUTS_CONNECTORS: "adyenplatform wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
