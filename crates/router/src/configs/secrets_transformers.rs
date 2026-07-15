@@ -426,12 +426,10 @@ pub(crate) async fn fetch_raw_secrets(
             .expect("Failed to decrypt master database configuration");
 
     #[allow(clippy::expect_used)]
-    let accounts_database = settings::Database::convert_to_raw_secret(
-        conf.accounts_database,
-        secret_management_client,
-    )
-    .await
-    .expect("Failed to decrypt accounts database configuration");
+    let accounts_database =
+        settings::Database::convert_to_raw_secret(conf.accounts_database, secret_management_client)
+            .await
+            .expect("Failed to decrypt accounts database configuration");
 
     #[allow(clippy::expect_used)]
     let global_database =

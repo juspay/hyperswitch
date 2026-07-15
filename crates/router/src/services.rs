@@ -56,8 +56,7 @@ pub async fn get_store(
 ) -> StorageResult<Store> {
     // The global tenant's schema pools are sized independently of regular tenants',
     // since it carries user/role data rather than per-tenant payment traffic.
-    let is_global_tenant =
-        tenant.get_tenant_id() == &config.multitenancy.global_tenant.tenant_id;
+    let is_global_tenant = tenant.get_tenant_id() == &config.multitenancy.global_tenant.tenant_id;
 
     let (master_config, accounts_config) = if is_global_tenant {
         (
