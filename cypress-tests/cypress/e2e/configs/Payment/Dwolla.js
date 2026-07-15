@@ -24,14 +24,6 @@ export const connectorDetails = {
       return {
         Request: {
           currency: currencyMap[paymentMethodType] || "USD",
-          billing: {
-            address: {
-              country: "US",
-              first_name: "Test",
-              last_name: "Account",
-            },
-            email: "test@example.com",
-          },
         },
         Response: {
           status: 200,
@@ -41,16 +33,16 @@ export const connectorDetails = {
         },
       };
     },
-    Sepa: {
+    Sepa: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
       },
-    },
-    SepaDebitMandate: {
+    }),
+    SepaDebitMandate: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
       },
-    },
+    }),
     Ach: getCustomExchange({
       Request: {
         payment_method: "bank_debit",
@@ -63,14 +55,14 @@ export const connectorDetails = {
               bank_account_holder_name: "Test Account",
             },
           },
-          billing: {
-            address: {
-              country: "US",
-              first_name: "Test",
-              last_name: "Account",
-            },
-            email: "test@example.com",
+        },
+        billing: {
+          address: {
+            country: "US",
+            first_name: "Test",
+            last_name: "Account",
           },
+          email: "test@example.com",
         },
       },
       Response: {
@@ -78,20 +70,20 @@ export const connectorDetails = {
         body: { status: "processing" },
       },
     }),
-    AchMandate: {
+    AchMandate: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
       },
-    },
-    Becs: {
+    }),
+    Becs: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
       },
-    },
-    Bacs: {
+    }),
+    Bacs: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
       },
-    },
+    }),
   },
 };
