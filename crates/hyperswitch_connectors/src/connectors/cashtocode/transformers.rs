@@ -203,7 +203,7 @@ pub struct CashtocodePaymentsResponseData {
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsSyncResponse {
     pub transaction_id: String,
-    pub amount: FloatMajorUnit,
+    pub amount: Option<FloatMajorUnit>,
 }
 
 fn get_redirect_form_data(

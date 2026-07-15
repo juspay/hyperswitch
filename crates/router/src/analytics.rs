@@ -3960,7 +3960,7 @@ pub mod routes {
                 .change_context(OpenSearchError::UnknownError)?;
                 let permission_groups = role_info.get_permission_groups();
                 if !permission_groups.contains(&common_enums::PermissionGroup::OperationsView) {
-                    return Err(OpenSearchError::AccessForbiddenError)?;
+                    Err(OpenSearchError::AccessForbiddenError)?;
                 }
                 let user_roles: HashSet<UserRole> = match role_info.get_entity_type() {
                     EntityType::Tenant => state
@@ -4117,7 +4117,7 @@ pub mod routes {
                 .change_context(OpenSearchError::UnknownError)?;
                 let permission_groups = role_info.get_permission_groups();
                 if !permission_groups.contains(&common_enums::PermissionGroup::OperationsView) {
-                    return Err(OpenSearchError::AccessForbiddenError)?;
+                    Err(OpenSearchError::AccessForbiddenError)?;
                 }
                 let user_roles: HashSet<UserRole> = match role_info.get_entity_type() {
                     EntityType::Tenant => state
