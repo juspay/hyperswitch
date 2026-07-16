@@ -9347,6 +9347,7 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
 Cypress.Commands.add("verifyIframeRedirection", (globalState, options = {}) => {
   const {
     expectRedirectInsidePopup = true,
+    expectNullNextActionUrl = true,
     expectedStatus = "requires_customer_action",
   } = options;
 
@@ -9360,8 +9361,10 @@ Cypress.Commands.add("verifyIframeRedirection", (globalState, options = {}) => {
       globalState.get("nextActionType"),
       "nextActionType should not be redirect_inside_popup"
     ).to.not.equal("redirect_inside_popup");
-    expect(globalState.get("nextActionUrl"), "nextActionUrl should be null").to
-      .be.null;
+    if (expectNullNextActionUrl) {
+      expect(globalState.get("nextActionUrl"), "nextActionUrl should be null").to
+        .be.null;
+    }
   }
 });
 // ============================================

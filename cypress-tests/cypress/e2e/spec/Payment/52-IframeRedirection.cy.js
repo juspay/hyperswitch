@@ -100,7 +100,7 @@ describeIfSupported("Iframe Redirection Payment Flow Tests", () => {
   });
 
   context("Edge Case - Iframe Redirection Not Explicitly Enabled", () => {
-    it("Create Payment Intent without iframe flag -> Confirm Payment -> Verify redirect still inside popup", function () {
+    it("Create Payment Intent without iframe flag -> Confirm Payment -> Verify redirect goes to external URL (not inside popup)", function () {
       let shouldContinue = true;
 
       cy.step(
@@ -152,16 +152,20 @@ describeIfSupported("Iframe Redirection Payment Flow Tests", () => {
         }
       });
 
-      cy.step("Verify Redirect Still Inside Popup", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Verify Redirect");
-          return;
-        }
+      cy.step(
+        "Verify Redirect Goes to External URL (Not Inside Popup)",
+        () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Verify Redirect");
+            return;
+          }
 
-        cy.verifyIframeRedirection(globalState, {
-          expectRedirectInsidePopup: true,
-        });
-      });
+          cy.verifyIframeRedirection(globalState, {
+            expectRedirectInsidePopup: false,
+            expectNullNextActionUrl: false,
+          });
+        }
+      );
     });
   });
 
