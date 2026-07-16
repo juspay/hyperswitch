@@ -1203,6 +1203,9 @@ export const connectorDetails = {
             status: "requires_customer_action",
           },
         },
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
       }),
     },
     OnlineBankingFpx: getCustomExchange({
@@ -1380,6 +1383,18 @@ export const connectorDetails = {
             },
           },
           billing: standardBillingAddress,
+        },
+      }),
+      MandateSingleUseAutoCapture: getCustomExchange({
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
         },
       }),
     },
