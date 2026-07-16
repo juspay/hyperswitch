@@ -3307,6 +3307,12 @@ pub enum CardNetwork {
     Accel,
     #[serde(alias = "NYCE")]
     Nyce,
+    #[serde(alias = "PROP")]
+    Prop,
+    #[serde(alias = "PRIVATE LABEL")]
+    PrivateLabel,
+    #[serde(alias = "DINACARD")]
+    Dinacard,
 }
 
 #[derive(
@@ -3823,7 +3829,10 @@ impl CardNetwork {
             | Self::Discover
             | Self::UnionPay
             | Self::RuPay
-            | Self::Maestro => true,
+            | Self::Maestro
+            | Self::Prop
+            | Self::PrivateLabel
+            | Self::Dinacard => true,
         }
     }
 
@@ -3840,7 +3849,10 @@ impl CardNetwork {
             | Self::Discover
             | Self::UnionPay
             | Self::RuPay
-            | Self::Maestro => false,
+            | Self::Maestro
+            | Self::Prop
+            | Self::PrivateLabel
+            | Self::Dinacard => false,
         }
     }
 }
@@ -10521,6 +10533,24 @@ pub enum ConnectorTokenStatus {
     Active,
     /// Indicates that the connector mandate  is not active and hence cannot be used for payments.
     Inactive,
+}
+
+impl From<ConnectorMandateStatus> for ConnectorTokenStatus {
+    fn from(status: ConnectorMandateStatus) -> Self {
+        match status {
+            ConnectorMandateStatus::Active => Self::Active,
+            ConnectorMandateStatus::Inactive => Self::Inactive,
+        }
+    }
+}
+
+impl From<ConnectorTokenStatus> for ConnectorMandateStatus {
+    fn from(status: ConnectorTokenStatus) -> Self {
+        match status {
+            ConnectorTokenStatus::Active => Self::Active,
+            ConnectorTokenStatus::Inactive => Self::Inactive,
+        }
+    }
 }
 
 #[derive(
