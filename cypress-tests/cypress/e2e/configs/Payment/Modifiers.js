@@ -234,6 +234,11 @@ const CURRENCY_MAP = {
   Vipps: "NOK",
   Dana: "IDR",
   GoPay: "IDR",
+
+  // Card redirect payment methods
+  Knet: "KWD",
+  Benefit: "BHD",
+  MomoAtm: "VND",
 };
 
 export const getCurrency = (paymentMethodType) => {

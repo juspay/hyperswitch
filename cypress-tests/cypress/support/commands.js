@@ -5417,6 +5417,28 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "handleCardRedirectRedirection",
+  (globalState, paymentMethodType, expectedRedirection) => {
+    const connectorId = globalState.get("connectorId");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    if (skipRedirectionInMockServer("handleCardRedirectRedirection")) {
+      return;
+    }
+
+    const expectedUrl = new URL(expectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
+    handleRedirection(
+      "card_redirect",
+      { redirectionUrl, expectedUrl },
+      connectorId,
+      paymentMethodType
+    );
+  }
+);
+
+Cypress.Commands.add(
   "handleBankTransferRedirection",
   (globalState, paymentMethodType, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
