@@ -418,9 +418,9 @@ pub fn make_dsl_input(
                 domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
                     card_details_for_ntid,
                 ) => card_details_for_ntid.card_network.clone(),
-                domain::PaymentMethodData::RawStoredCardForPMID(
-                    stored_card_for_ntid,
-                ) => stored_card_for_ntid.card_network.clone(),
+                domain::PaymentMethodData::RawStoredCardForPMID(stored_card_for_ntid) => {
+                    stored_card_for_ntid.card_network.clone()
+                }
                 domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
                     card_with_limited_details.card_network.clone()
                 }
@@ -469,9 +469,9 @@ pub fn make_dsl_input(
                 domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
                     card_details_for_ntid,
                 ) => card_details_for_ntid.card_issuer.clone(),
-                domain::PaymentMethodData::RawStoredCardForPMID(
-                    stored_card_for_ntid,
-                ) => stored_card_for_ntid.card_issuer.clone(),
+                domain::PaymentMethodData::RawStoredCardForPMID(stored_card_for_ntid) => {
+                    stored_card_for_ntid.card_issuer.clone()
+                }
                 domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
                     card_with_limited_details.card_issuer.clone()
                 }

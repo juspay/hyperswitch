@@ -3328,24 +3328,22 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
     // card as a dedicated RawStoredCardForPMID that also carries the
     // network transaction id in-band.
     if use_stored_card_variant {
-        let stored_card =
-            hyperswitch_domain_models::payment_method_data::RawStoredCardForPMID {
-                card_number: card_details_from_locker.card_number,
-                card_exp_month: card_details_from_locker.card_exp_month,
-                card_exp_year: card_details_from_locker.card_exp_year,
-                card_issuer: None,
-                card_network,
-                card_type: None,
-                card_issuing_country: None,
-                card_issuing_country_code: None,
-                bank_code: None,
-                nick_name: card_details_from_locker
-                    .nick_name
-                    .map(hyperswitch_masking::Secret::new),
-                card_holder_name: card_details_from_locker.name_on_card.clone(),
-                network_transaction_id: network_transaction_id
-                    .map(hyperswitch_masking::Secret::new),
-            };
+        let stored_card = hyperswitch_domain_models::payment_method_data::RawStoredCardForPMID {
+            card_number: card_details_from_locker.card_number,
+            card_exp_month: card_details_from_locker.card_exp_month,
+            card_exp_year: card_details_from_locker.card_exp_year,
+            card_issuer: None,
+            card_network,
+            card_type: None,
+            card_issuing_country: None,
+            card_issuing_country_code: None,
+            bank_code: None,
+            nick_name: card_details_from_locker
+                .nick_name
+                .map(hyperswitch_masking::Secret::new),
+            card_holder_name: card_details_from_locker.name_on_card.clone(),
+            network_transaction_id: network_transaction_id.map(hyperswitch_masking::Secret::new),
+        };
         return Ok(domain::PaymentMethodData::RawStoredCardForPMID(stored_card));
     }
 
