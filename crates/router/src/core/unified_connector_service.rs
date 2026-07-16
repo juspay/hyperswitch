@@ -259,7 +259,7 @@ async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
 }
 
 /// Determines the connector integration type based on UCS configuration or on both
-async fn determine_connector_integration_type(
+pub async fn determine_connector_integration_type(
     state: &SessionState,
     connector: Connector,
 ) -> RouterResult<ConnectorIntegrationType> {
@@ -703,13 +703,10 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
     processor: &Processor,
     connector_name: &str,
+    connector_integration_type: ConnectorIntegrationType,
 ) -> RouterResult<(ExecutionPath, Vec<api_models::webhooks::WebhookFlow>)> {
     // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
-
-    let connector_enum = Connector::from_str(connector_name)
-        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
-        .attach_printable_lazy(|| format!("Failed to parse connector name: {}", connector_name))?;
 
     let flow_name = "Webhooks";
 
@@ -723,10 +720,6 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         connector_name,
         flow_name
     );
-
-    // Determine connector integration type
-    let connector_integration_type =
-        determine_connector_integration_type(state, connector_enum).await?;
 
     // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
     let previous_gateway = None;
