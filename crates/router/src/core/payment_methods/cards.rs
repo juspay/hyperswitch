@@ -3247,6 +3247,7 @@ pub async fn create_or_update_bank_redirect_payment_method(
         pm,
         pm_update,
         provider.get_account().storage_scheme,
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
