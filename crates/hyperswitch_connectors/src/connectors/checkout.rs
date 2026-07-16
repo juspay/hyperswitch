@@ -140,7 +140,7 @@ impl ConnectorCommon for Checkout {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: CheckoutErrorResponse = if res.response.is_empty() {
+        if res.response.is_empty() {
             let (error_codes, error_type) = if res.status_code == 401 {
                 (
                     Some(vec!["Invalid api key".to_string()]),
@@ -149,49 +149,81 @@ impl ConnectorCommon for Checkout {
             } else {
                 (None, None)
             };
-            CheckoutErrorResponse {
+            let response = CheckoutErrorResponse {
                 request_id: None,
-                error_codes,
-                error_type,
+                error_codes: error_codes.clone(),
+                error_type: error_type.clone(),
+            };
+            event_builder.map(|i| i.set_error_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: error_codes.map(|errors| errors.join(" & ")).or(error_type),
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+
+        let response: Result<
+            CheckoutErrorResponse,
+            error_stack::Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("ErrorResponse");
+
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                let errors_list = response.error_codes.clone().unwrap_or_default();
+                let option_error_code_message =
+                    utils::get_error_code_error_message_based_on_priority(
+                        self.clone(),
+                        errors_list
+                            .into_iter()
+                            .map(|errors| errors.into())
+                            .collect(),
+                    );
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: option_error_code_message
+                        .clone()
+                        .map(|error_code_message| error_code_message.error_code)
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: option_error_code_message
+                        .map(|error_code_message| error_code_message.error_message)
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: response
+                        .error_codes
+                        .map(|errors| errors.join(" & "))
+                        .or(response.error_type),
+                    attempt_status: None,
+                    connector_transaction_id: response.request_id,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
             }
-        } else {
-            res.response
-                .parse_struct("ErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
-        };
-
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        let errors_list = response.error_codes.clone().unwrap_or_default();
-        let option_error_code_message = utils::get_error_code_error_message_based_on_priority(
-            self.clone(),
-            errors_list
-                .into_iter()
-                .map(|errors| errors.into())
-                .collect(),
-        );
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: option_error_code_message
-                .clone()
-                .map(|error_code_message| error_code_message.error_code)
-                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: option_error_code_message
-                .map(|error_code_message| error_code_message.error_message)
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response
-                .error_codes
-                .map(|errors| errors.join(" & "))
-                .or(response.error_type),
-            attempt_status: None,
-            connector_transaction_id: response.request_id,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "checkout")
+            }
+        }
     }
 }
 
@@ -701,7 +733,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ch
         Ok(format!(
             "{}payments/{}/voids",
             self.base_url(connectors),
-            &req.request.connector_transaction_id
+            req.request.connector_transaction_id
         ))
     }
 
@@ -1322,6 +1354,10 @@ impl webhooks::IncomingWebhook for Checkout {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
+        if request.body.is_empty() {
+            return Ok(api_models::webhooks::IncomingWebhookEvent::EndpointVerification);
+        }
+
         let details: checkout::CheckoutWebhookEventTypeBody = request
             .body
             .parse_struct("CheckoutWebhookBody")
@@ -1374,9 +1410,9 @@ impl webhooks::IncomingWebhook for Checkout {
         Ok(DisputePayload {
             amount,
             currency: dispute_details.data.currency,
-            dispute_stage: api_models::enums::DisputeStage::from(
+            dispute_stage: api_models::enums::DisputeStage::try_from(
                 dispute_details.transaction_type.clone(),
-            ),
+            )?,
             connector_dispute_id: dispute_details.data.id,
             connector_reason: None,
             connector_reason_code: dispute_details.data.reason_code,

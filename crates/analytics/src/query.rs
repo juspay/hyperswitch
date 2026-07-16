@@ -912,7 +912,7 @@ where
         if !self.outer_select.is_empty() {
             query.insert_str(
                 0,
-                format!("SELECT {} FROM (", &self.get_outer_select_clause()).as_str(),
+                format!("SELECT {} FROM (", self.get_outer_select_clause()).as_str(),
             );
             query.push_str(") _");
         }

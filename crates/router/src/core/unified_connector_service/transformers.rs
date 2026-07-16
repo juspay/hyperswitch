@@ -2082,7 +2082,12 @@ impl
             address: Some(address),
             auth_type: auth_type.into(),
             enrolled_for_3ds: false,
-            authentication_data: None,
+            authentication_data: router_data
+                .request
+                .authentication_data
+                .clone()
+                .map(payments_grpc::AuthenticationData::foreign_try_from)
+                .transpose()?,
             metadata: router_data
                 .request
                 .metadata
@@ -2288,6 +2293,10 @@ impl
             .map(|additional_payment_data| {
                 payments_grpc::AdditionalPaymentData::foreign_from(additional_payment_data)
             });
+
+        let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)
+            .attach_printable("Failed to convert authentication type")?;
+
         Ok(Self {
             split_payments: router_data
                 .request
@@ -2409,6 +2418,7 @@ impl
                         }
                     }),
                 }),
+            auth_type: Some(auth_type.into()),
         })
     }
 }
@@ -3048,6 +3058,9 @@ impl
             .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id.clone()))
             .unwrap_or(router_request_types::ResponseId::NoResponseId);
 
+        let connector_response_reference_id =
+            Some(response.merchant_recurring_payment_id.clone()).filter(|id| !id.is_empty());
+
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if let Some(error_info) = response.error.as_ref() {
@@ -3087,10 +3100,7 @@ impl
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_transaction_id.get_optional_response_id(),
-                connector_response_reference_id: Some(
-                    response.merchant_recurring_payment_id.clone(),
-                )
-                .filter(|s| !s.is_empty()),
+                connector_response_reference_id: connector_response_reference_id.clone(),
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
@@ -3140,7 +3150,7 @@ impl
                     connector_metadata,
                     network_txn_id: response.network_transaction_id,
                     network_txn_link_id: None,
-                    connector_response_reference_id: Some(response.merchant_recurring_payment_id.clone()),
+                    connector_response_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -3259,7 +3269,7 @@ impl
                     connector_response_reference_id: response.merchant_charge_id.clone(),
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
-                    charges: None,
+                    charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
                 },
                 status,
             ))
@@ -3521,6 +3531,9 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
             common_enums::CardNetwork::Pulse => Self::Pulse,
             common_enums::CardNetwork::Accel => Self::Accel,
             common_enums::CardNetwork::Nyce => Self::Nyce,
+            common_enums::CardNetwork::Prop
+            | common_enums::CardNetwork::PrivateLabel
+            | common_enums::CardNetwork::Dinacard => Self::Unspecified,
         }
     }
 }
@@ -4438,7 +4451,10 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
                 .message_version
                 .map(|message_version| message_version.to_string()),
             ds_transaction_id: authentication_data.ds_trans_id,
-            trans_status: None,
+            trans_status: authentication_data
+                .transaction_status
+                .map(payments_grpc::TransactionStatus::foreign_from)
+                .map(i32::from),
             acs_transaction_id: authentication_data.acs_trans_id,
             connector_transaction_id: None,
             ucaf_collection_indicator: None,
@@ -4450,6 +4466,17 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
                 .cb_network_params
                 .map(payments_grpc::NetworkParams::foreign_try_from)
                 .transpose()?,
+            created_at: Some(authentication_data.created_at.assume_utc().unix_timestamp()),
+            challenge_code: authentication_data.challenge_code,
+            challenge_cancel: authentication_data.challenge_cancel,
+            challenge_code_reason: authentication_data.challenge_code_reason,
+            message_extension: authentication_data
+                .message_extension
+                .map(|message_extension| message_extension.expose().to_string()),
+            authentication_type: authentication_data
+                .authentication_type
+                .map(payments_grpc::DecoupledAuthenticationType::foreign_from)
+                .map(i32::from),
         })
     }
 }
@@ -4479,6 +4506,12 @@ impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
             ucaf_collection_indicator: authentication_data.ucaf_collection_indicator,
             exemption_indicator: None,
             network_params: None,
+            created_at: None,
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+            authentication_type: None,
         })
     }
 }
@@ -4662,6 +4695,12 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             ucaf_collection_indicator,
             exemption_indicator: _,
             network_params: _,
+            created_at: _,
+            challenge_code: _,
+            challenge_cancel: _,
+            challenge_code_reason: _,
+            message_extension: _,
+            authentication_type: _,
         } = response;
         let trans_status = trans_status
             .map(payments_grpc::TransactionStatus::try_from)
@@ -4730,6 +4769,17 @@ impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::Transaction
                 Self::ChallengeRequiredDecoupledAuthentication
             }
             common_enums::TransactionStatus::InformationOnly => Self::InformationOnly,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::DecoupledAuthenticationType>
+    for payments_grpc::DecoupledAuthenticationType
+{
+    fn foreign_from(value: common_enums::DecoupledAuthenticationType) -> Self {
+        match value {
+            common_enums::DecoupledAuthenticationType::Challenge => Self::Challenge,
+            common_enums::DecoupledAuthenticationType::Frictionless => Self::Frictionless,
         }
     }
 }

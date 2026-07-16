@@ -419,6 +419,34 @@ diesel::table! {
         date_created -> Timestamp,
         last_updated -> Nullable<Timestamp>,
         last_updated_provider -> Nullable<Text>,
+        funding_source -> Nullable<Text>,
+        card_iin_type -> Nullable<Text>,
+        virtual_card -> Nullable<Bool>,
+        gambling_blocked -> Nullable<Bool>,
+        co_badged_card_networks -> Nullable<Jsonb>,
+        card_segment_type -> Nullable<Text>,
+        numeric_country_code -> Nullable<Text>,
+        prepaid -> Nullable<Bool>,
+        regulated -> Nullable<Bool>,
+        issuer_phone -> Nullable<Text>,
+        issuer_url -> Nullable<Text>,
+        regulated_name -> Nullable<Text>,
+        reloadable_prepaid -> Nullable<Bool>,
+        account_updater -> Nullable<Bool>,
+        account_level_management -> Nullable<Bool>,
+        domestic_only -> Nullable<Bool>,
+        level_two_supported -> Nullable<Bool>,
+        level_three_supported -> Nullable<Bool>,
+        issuer_currency -> Nullable<Text>,
+        combo_card -> Nullable<Text>,
+        authentication -> Nullable<Jsonb>,
+        cost -> Nullable<Jsonb>,
+        issuer_supports_tokenization -> Nullable<Bool>,
+        billpay_enabled -> Nullable<Bool>,
+        ecom_enabled -> Nullable<Bool>,
+        flexible_credential_supported -> Nullable<Bool>,
+        card_subtype_code -> Nullable<Text>,
+        multi_account_access_indicator -> Nullable<Text>,
     }
 }
 
@@ -1454,6 +1482,8 @@ diesel::table! {
         #[max_length = 255]
         network_transaction_link_id -> Nullable<Varchar>,
         compatibility_updated_at -> Nullable<Timestamp>,
+        #[max_length = 64]
+        auxiliary_fingerprint_id -> Nullable<Varchar>,
     }
 }
 
