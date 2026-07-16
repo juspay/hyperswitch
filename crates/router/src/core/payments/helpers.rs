@@ -2897,8 +2897,8 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
             // Connectors opted into the payment_method_id MIT flow receive the
             // locker card as the dedicated RawStoredCardForPMID
             // payment method (carrying the network transaction id in-band).
-            let use_stored_card_variant = connector_variant
-                .is_some_and(crate::core::payments::is_raw_stored_card_pmid_connector);
+            let use_stored_card_variant =
+                connector_variant.is_some_and(super::is_raw_stored_card_pmid_connector);
             fetch_card_details_for_network_transaction_flow_from_locker(
                 state,
                 customer_id,
