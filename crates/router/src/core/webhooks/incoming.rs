@@ -205,9 +205,13 @@ fn confirm_path_for_flow(
     candidate_path: common_enums::ExecutionPath,
     flow: Option<api::WebhookFlow>,
     enabled_flows: &[api::WebhookFlow],
+    connector_integration_type: common_enums::ConnectorIntegrationType,
 ) -> common_enums::ExecutionPath {
-    match flow {
-        Some(f) if enabled_flows.contains(&f) => candidate_path,
+    match (flow, connector_integration_type) {
+        (_, common_enums::ConnectorIntegrationType::UcsConnector) => {
+            common_enums::ExecutionPath::UnifiedConnectorService
+        }
+        (Some(f), _) if enabled_flows.contains(&f) => candidate_path,
         _ => common_enums::ExecutionPath::Direct,
     }
 }
@@ -283,13 +287,29 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             let connector_name = mca_data.connector_name.clone();
             let mca_ref = mca_data.merchant_connector_account.as_ref();
 
+            let connector_enum = Connector::from_str(&connector_name)
+                .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+                .attach_printable_lazy(|| {
+                    format!("Failed to parse connector name: {}", connector_name)
+                })?;
+
+            // Determine connector integration type
+            let connector_integration_type =
+                unified_connector_service::determine_connector_integration_type(
+                    &state,
+                    connector_enum,
+                )
+                .await?;
+
             let (candidate_path, enabled_flows) =
                 unified_connector_service::should_call_unified_connector_service_for_webhooks(
                     &state,
                     platform.get_processor(),
                     &connector_name,
+                    connector_integration_type,
                 )
                 .await?;
+
             logger::info!(
                 connector = %connector_name,
                 ?candidate_path,
@@ -314,7 +334,12 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
             let flow = ucs_event_type.map(api::WebhookFlow::from);
 
-            let execution_path = confirm_path_for_flow(candidate_path, flow, &enabled_flows);
+            let execution_path = confirm_path_for_flow(
+                candidate_path,
+                flow,
+                &enabled_flows,
+                connector_integration_type,
+            );
 
             let execution_mode = match execution_path {
                 common_enums::ExecutionPath::UnifiedConnectorService => {
