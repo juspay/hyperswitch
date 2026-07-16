@@ -150,6 +150,7 @@ pub async fn retrieve_payment_method_core(
             .await?;
             Ok((pm_opt.to_owned(), payment_token))
         }
+        pm_opt @ Some(domain::PaymentMethodData::CardWithOptionalCVC(_)) => Ok((pm_opt.to_owned(), None)),
         pm_opt @ Some(pm @ domain::PaymentMethodData::BankDebit(_)) => {
             let payment_token = payment_helpers::store_payment_method_data_in_vault(
                 state,
