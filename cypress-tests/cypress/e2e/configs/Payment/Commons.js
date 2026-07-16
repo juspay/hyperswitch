@@ -958,6 +958,7 @@ export const connectorDetails = {
       return getCustomExchange({
         Request: {
           currency: currencyMap[paymentMethodType] || "USD",
+          connector_metadata: null,
         },
         Response: {
           status: 200,

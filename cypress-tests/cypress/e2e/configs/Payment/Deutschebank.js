@@ -295,6 +295,7 @@ export const connectorDetails = {
       return {
         Request: {
           currency: currencyMap[paymentMethodType] || "EUR",
+          connector_metadata: null,
         },
         Response: {
           status: 200,
@@ -327,7 +328,10 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: { status: "processing" },
+        body: { status: "failed" },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
       },
     }),
     SepaDebitMandate: getCustomExchange({
@@ -371,7 +375,10 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: { status: "processing" },
+        body: { status: "failed" },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
       },
     }),
     AchMandate: getCustomExchange({
@@ -417,6 +424,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: { status: "processing" },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
       },
     }),
   },
