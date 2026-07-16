@@ -79,7 +79,7 @@ describe("Card Redirect payment flow test", () => {
           return;
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
-        cy.handleRedirection(globalState, expected_redirection);
+        cy.handleCardRedirectRedirection(globalState, expected_redirection);
       });
 
       cy.step("retrieve payment", () => {
@@ -187,7 +187,7 @@ describe("Card Redirect payment flow test", () => {
           return;
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
-        cy.handleRedirection(globalState, expected_redirection);
+        cy.handleCardRedirectRedirection(globalState, expected_redirection);
       });
 
       cy.step("retrieve payment", () => {

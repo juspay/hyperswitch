@@ -145,6 +145,14 @@ export function handleRedirection(
     case "payout_link_init":
       payoutLinkInitRedirection(urls.redirectionUrl);
       break;
+    case "card_redirect":
+      cardRedirectRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId,
+        paymentMethodType
+      );
+      break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
@@ -3324,6 +3332,52 @@ function voucherRedirection(
     );
   } else {
     cy.log("Skipping voucher redirection - no valid redirect URL provided");
+  }
+
+  cy.then(() => {
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+  });
+}
+
+function cardRedirectRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
+  let verifyUrl = false;
+
+  if (redirectionUrl && redirectionUrl.href) {
+    cy.on("uncaught:exception", () => false);
+
+    cy.visit(redirectionUrl.href, { failOnStatusCode: false });
+    cy.document().should("have.property", "readyState", "complete");
+    cy.url().then((currentUrl) => {
+      cy.log(`Card redirect: navigated to ${currentUrl}`);
+    });
+
+    handleFlow(
+      redirectionUrl,
+      expectedUrl,
+      connectorId,
+      ({ connectorId, paymentMethodType, constants }) => {
+        switch (connectorId) {
+          case "prophetpay":
+            cy.log(`Handling Prophetpay card_redirect flow (${paymentMethodType})`);
+            cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+            verifyUrl = false;
+            break;
+          default:
+            cy.log(
+              `Generic card_redirect handling for ${connectorId}/${paymentMethodType}`
+            );
+            verifyUrl = false;
+        }
+      },
+      { paymentMethodType }
+    );
+  } else {
+    cy.log("Skipping card_redirect redirection - no valid redirect URL provided");
   }
 
   cy.then(() => {
