@@ -529,6 +529,22 @@ export const CONNECTOR_LISTS = {
       "worldpayxml",
     ],
     SAVE_CARD: ["helcim"],
+    // fiuu: connector-specific limitation (pre-existing).
+    // helcim: confirmed via router logs to be a genuine server-side 500
+    // ("Failed while decrypting payment method data" / ring::error::Unspecified)
+    // while decrypting the stored payment method to build the MIT-via-PMID
+    // request — likely tied to the fire-and-forget async "Save card flow"
+    // used for on_session-downgraded connectors, not a Helcim-specific
+    // rejection. Worth investigating/reporting separately as a router bug.
+    MIT_USING_PMID: ["fiuu", "helcim"],
+    // helcim: CIT succeeds via the on_session downgrade, but no real
+    // connector mandate is ever created, so mandate_id-based MIT has
+    // nothing to reuse.
+    MIT_FOR_MANDATES: ["helcim"],
+    // helcim: GET /customers/{id}/mandates 404s with "Mandate does not
+    // exist" since no real mandate object is ever created (same reason as
+    // MIT_FOR_MANDATES).
+    LIST_MANDATE: ["helcim"],
     // Add more exclusion lists
   },
 

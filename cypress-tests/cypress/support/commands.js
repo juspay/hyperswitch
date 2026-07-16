@@ -26,12 +26,14 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 // commands.js or your custom support file
 import getConnectorDetails, {
+  CONNECTOR_LISTS,
   defaultErrorHandler,
   extractIntegerAtEnd,
   getOriginalConnectorName,
   getValueByKey,
   injectHelcimTestCard,
   setNormalizedValue,
+  shouldExcludeConnector,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
@@ -519,37 +521,6 @@ function validateErrorMessage(response, resData) {
     expect(response.body.error_message, "error_message").to.be.null;
     expect(response.body.error_code, "error_code").to.be.null;
   }
-}
-
-// skip MIT using PMId if connector does not support MIT only.
-// helcim: NOT a duplicate-transaction/Helcim-side rejection (that was an
-// earlier unverified guess) — confirmed via router logs to be a genuine
-// server-side 500: "Failed while decrypting payment method data" /
-// ring::error::Unspecified while decrypting the stored payment method to
-// build the MIT request. Likely tied to the fire-and-forget async
-// "Save card flow" (payment_response.rs) used for on_session-downgraded
-// connectors like Helcim, as opposed to the synchronous save path used by
-// genuinely-supported mandate connectors. This looks like a real router
-// bug worth reporting/investigating separately, not just a test quirk.
-export function shouldSkipMitUsingPMId(connectorId) {
-  const skipConnectors = ["fiuu", "helcim"];
-  return skipConnectors.includes(connectorId);
-}
-
-// skip mandate_id-based MIT for connectors where CIT succeeds via the
-// on_session downgrade but no real connector mandate is ever created
-export function shouldSkipMitForMandates(connectorId) {
-  const skipConnectors = ["helcim"];
-  return skipConnectors.includes(connectorId);
-}
-
-// skip listing mandates for connectors that never create a real mandate
-// object (same on_session-downgrade reason as shouldSkipMitForMandates) —
-// GET /customers/{id}/mandates 404s with "Mandate does not exist" since
-// there's genuinely nothing to list
-export function shouldSkipListMandate(connectorId) {
-  const skipConnectors = ["helcim"];
-  return skipConnectors.includes(connectorId);
 }
 
 Cypress.Commands.add("healthCheck", (globalState) => {
@@ -4790,7 +4761,12 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "mitForMandatesCallTest",
   (requestBody, data, amount, confirm, capture_method, globalState) => {
-    if (shouldSkipMitForMandates(globalState.get("connectorId"))) {
+    if (
+      shouldExcludeConnector(
+        globalState.get("connectorId"),
+        CONNECTOR_LISTS.EXCLUDE.MIT_FOR_MANDATES
+      )
+    ) {
       cy.log(
         `Skipping mitForMandatesCallTest for connector: ${globalState.get("connectorId")}`
       );
@@ -5021,7 +4997,12 @@ Cypress.Commands.add(
     globalState,
     connector_agnostic_mit
   ) => {
-    if (shouldSkipMitUsingPMId(globalState.get("connectorId"))) {
+    if (
+      shouldExcludeConnector(
+        globalState.get("connectorId"),
+        CONNECTOR_LISTS.EXCLUDE.MIT_USING_PMID
+      )
+    ) {
       cy.log(
         `Skipping mitUsingPMId for connector: ${globalState.get("connectorId")}`
       );
@@ -5291,7 +5272,12 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("listMandateCallTest", (globalState) => {
-  if (shouldSkipListMandate(globalState.get("connectorId"))) {
+  if (
+    shouldExcludeConnector(
+      globalState.get("connectorId"),
+      CONNECTOR_LISTS.EXCLUDE.LIST_MANDATE
+    )
+  ) {
     cy.log(
       `Skipping listMandateCallTest for connector: ${globalState.get("connectorId")}`
     );

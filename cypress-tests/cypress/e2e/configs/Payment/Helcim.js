@@ -262,8 +262,8 @@ const card_pm = {
   // gated on that field) don't fire, so no special config is needed here —
   // these tests run for real and assert the actual "succeeded"/
   // "requires_capture" outcome like any other connector.
-  // MIT flows below stay skipped (via shouldSkipMitUsingPMId/
-  // shouldSkipMitForMandates) for a different, structural reason: no
+  // MIT flows below stay skipped (via CONNECTOR_LISTS.EXCLUDE.MIT_USING_PMID/
+  // MIT_FOR_MANDATES in Utils.js) for a different, structural reason: no
   // reusable connector mandate is ever created for a subsequent
   // off-session charge, so MIT itself can never succeed here.
   MandateSingleUseNo3DSAutoCapture: {
