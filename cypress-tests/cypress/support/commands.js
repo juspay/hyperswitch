@@ -4761,14 +4761,17 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "mitForMandatesCallTest",
   (requestBody, data, amount, confirm, capture_method, globalState) => {
-    if (
-      shouldExcludeConnector(
-        globalState.get("connectorId"),
-        CONNECTOR_LISTS.EXCLUDE.MIT_FOR_MANDATES
-      )
-    ) {
+    // The router only sets mandate_id when the connector genuinely supports
+    // mandates (see payment_response.rs's is_legacy_mandate/
+    // is_connector_mandate branches, both gated on the connector-facing
+    // setup_future_usage staying "off_session"). For connectors silently
+    // downgraded to on_session, that branch is skipped entirely and
+    // mandate_id is never set — so globalState's "mandateId" stays null.
+    // That's the router's own signal that there's nothing real to reuse;
+    // skip here instead of sending a request with mandate_id: null.
+    if (!globalState.get("mandateId")) {
       cy.log(
-        `Skipping mitForMandatesCallTest for connector: ${globalState.get("connectorId")}`
+        `Skipping mitForMandatesCallTest: no mandate_id was created for connector ${globalState.get("connectorId")} (likely downgraded to on_session)`
       );
       return;
     }
@@ -5272,14 +5275,12 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("listMandateCallTest", (globalState) => {
-  if (
-    shouldExcludeConnector(
-      globalState.get("connectorId"),
-      CONNECTOR_LISTS.EXCLUDE.LIST_MANDATE
-    )
-  ) {
+  // Same signal as mitForMandatesCallTest: no mandate_id means the router
+  // never created a real mandate for this connector (downgraded to
+  // on_session), so there's genuinely nothing on record to list.
+  if (!globalState.get("mandateId")) {
     cy.log(
-      `Skipping listMandateCallTest for connector: ${globalState.get("connectorId")}`
+      `Skipping listMandateCallTest: no mandate_id was created for connector ${globalState.get("connectorId")} (likely downgraded to on_session)`
     );
     return;
   }

@@ -537,15 +537,12 @@ export const CONNECTOR_LISTS = {
     // used for on_session-downgraded connectors, not a Helcim-specific
     // rejection. Worth investigating/reporting separately as a router bug.
     MIT_USING_PMID: ["fiuu", "helcim"],
-    // helcim: CIT succeeds via the on_session downgrade, but no real
-    // connector mandate is ever created, so mandate_id-based MIT has
-    // nothing to reuse.
-    MIT_FOR_MANDATES: ["helcim"],
-    // helcim: GET /customers/{id}/mandates 404s with "Mandate does not
-    // exist" since no real mandate object is ever created (same reason as
-    // MIT_FOR_MANDATES).
-    LIST_MANDATE: ["helcim"],
     // Add more exclusion lists
+    // Note: mandate_id-based MIT (mitForMandatesCallTest) and mandate
+    // listing (listMandateCallTest) don't need a static connector list —
+    // they check globalState's "mandateId" at runtime instead, since the
+    // router itself already signals "no real mandate" by leaving
+    // mandate_id null for any connector downgraded to on_session.
   },
 
   // Inclusion lists (only run for these connectors)
