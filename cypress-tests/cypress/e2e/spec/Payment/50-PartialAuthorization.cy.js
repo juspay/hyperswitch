@@ -40,7 +40,7 @@ describe("Card - Partial Authorization flow test", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PaymentIntent"];
+        ]["PaymentIntentPartialAuth"];
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
