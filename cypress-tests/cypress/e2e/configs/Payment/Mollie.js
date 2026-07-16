@@ -925,6 +925,42 @@ export const connectorDetails = {
         },
       },
     },
+    CaptureOnWrongStatus: {
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially_captured_and_capturable, processing",
+            code: "IR_14",
+          },
+        },
+      },
+    },
+    ConfirmWithoutPmData: {
+      Request: {
+        payment_method: undefined,
+        payment_method_type: undefined,
+        payment_experience: undefined,
+        payment_method_data: undefined,
+        order_details: undefined,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "A payment token or payment method data or ctp service details is required",
+            code: "IR_06",
+          },
+        },
+      },
+    },
   },
   webhook: {
     TransactionIdConfig: {
