@@ -1184,8 +1184,87 @@ pub async fn resume_revenue_recovery_process_tracker(
             };
             Ok(ApplicationResponse::Json(response))
         }
-        IntentStatus::Succeeded
-        | IntentStatus::Cancelled
+        // Payment already charged, but the record-back to the billing connector may have failed
+        // (e.g. `site_not_found`). PSYNC only *syncs* the existing attempt (no re-charge) and, on
+        // `SuccessfulPayment`, re-runs `record_back_to_billing_connector`. So (re)enqueue a PSYNC
+        // task for the executed attempt to retry the record-back.
+        IntentStatus::Succeeded => {
+            // Sync the intent's *active* (charged) attempt, NOT tracking_data's attempt — the latter
+            // is the original failed attempt; the successful retry lives on `active_attempt_id`.
+            let payment_intent = db
+                .find_payment_intent_by_id(
+                    &id,
+                    &revenue_recovery_payment_data.key_store,
+                    revenue_recovery_payment_data.merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::PaymentNotFound)
+                .attach_printable("failed to fetch payment intent to resolve the active attempt")?;
+            let active_attempt_id = payment_intent.active_attempt_id.clone().ok_or(report!(
+                errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "Succeeded recovery intent has no active attempt to sync".to_owned(),
+                }
+            ))?;
+
+            let psync_task = PSYNC_WORKFLOW;
+            let psync_process_tracker_id =
+                active_attempt_id.get_psync_revenue_recovery_id(psync_task, runner);
+
+            let psync_pt = match db
+                .find_process_by_id(&psync_process_tracker_id)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("error retrieving the psync process tracker id")?
+            {
+                // PSYNC task already present -> reset it so the consumer re-runs it.
+                Some(existing_psync) => {
+                    let pt_update = storage::ProcessTrackerUpdate::Update {
+                        name: existing_psync.name.clone(),
+                        tracking_data: Some(existing_psync.tracking_data.clone()),
+                        business_status: Some(request_retrigger.business_status.clone()),
+                        status: Some(request_retrigger.status),
+                        updated_at: Some(common_utils::date_time::now()),
+                        retry_count: Some(existing_psync.retry_count + 1),
+                        schedule_time: Some(
+                            request_retrigger
+                                .schedule_time
+                                .unwrap_or_else(common_utils::date_time::now),
+                        ),
+                    };
+                    db.update_process(existing_psync, pt_update)
+                        .await
+                        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                            message: "Failed to update the psync process tracker".to_owned(),
+                        })?
+                }
+                // No PSYNC task (record-back originally failed inside EXECUTE) -> insert one.
+                None => {
+                    insert_psync_pcr_task_to_pt(
+                        tracking_data.billing_mca_id.clone(),
+                        db,
+                        tracking_data.merchant_id.clone(),
+                        tracking_data.global_payment_id.clone(),
+                        tracking_data.profile_id.clone(),
+                        active_attempt_id.clone(),
+                        runner,
+                        tracking_data.revenue_recovery_retry,
+                        state.conf.application_source,
+                    )
+                    .await?
+                }
+            };
+
+            let response = revenue_recovery::RevenueRecoveryResponse {
+                id: psync_pt.id,
+                name: psync_pt.name,
+                schedule_time_for_payment: None,
+                schedule_time_for_psync: psync_pt.schedule_time,
+                status: psync_pt.status,
+                business_status: psync_pt.business_status,
+            };
+            Ok(ApplicationResponse::Json(response))
+        }
+        IntentStatus::Cancelled
         | IntentStatus::CancelledPostCapture
         | IntentStatus::Processing
         | IntentStatus::RequiresCustomerAction
@@ -1199,7 +1278,6 @@ pub async fn resume_revenue_recovery_process_tracker(
         | IntentStatus::PartiallyCapturedAndProcessing
         | IntentStatus::Conflicted
         | IntentStatus::Expired
-        | IntentStatus::PartiallyCapturedAndProcessing
         | IntentStatus::Review => Err(report!(errors::ApiErrorResponse::NotSupported {
             message: "Invalid Payment Status ".to_owned(),
         })),
