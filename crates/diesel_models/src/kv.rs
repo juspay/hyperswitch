@@ -55,6 +55,7 @@ pub struct SerializableQuery {
 #[strum(serialize_all = "snake_case")]
 pub enum DatabaseOperation {
     Insert,
+    Delete,
     Update,
 }
 
