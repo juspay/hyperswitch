@@ -289,7 +289,6 @@ impl PaymentMethodVaultingData {
         }
     }
 
-    #[cfg(feature = "v2")]
     pub fn to_auxiliary_fingerprint_data(&self) -> AuxiliaryFingerprintData {
         match self {
             Self::Card(card) => AuxiliaryFingerprintData::CardNumber(card.card_number.clone()),
