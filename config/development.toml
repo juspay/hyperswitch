@@ -1,5 +1,6 @@
 application_source = "main"
 
+
 [log.file]
 enabled = false
 
@@ -13,6 +14,47 @@ traces_enabled = false
 metrics_enabled = false
 use_xray_generator = false
 bg_metrics_collection_interval_in_secs = 15
+
+[deja]
+mode = "disabled"
+run_id = ""
+
+[deja.recording]
+graph = "disabled"
+
+[deja.recording.kafka]
+brokers = ["localhost:9092"]
+topic = "hyperswitch-deja-recording-events"
+client_id = "hyperswitch-deja-router-dev"
+acks = "all"
+idempotence = true
+linger = 5
+message_timeout = 30000
+
+[deja.replay]
+source = ""
+lookup_dir = ""
+observed_sink = ""
+
+[deja.sampler]
+enabled = false
+record_key = "deja_record"
+timeout_ms = 25
+fail_closed = true
+
+[deja.identity]
+pod_name_env = "POD_NAME"
+git_sha_env = "VERGEN_GIT_SHA"
+instance_id = ""
+code_sha = ""
+
+[deja.writer]
+queue_capacity = 8192
+batch_size = 500
+flush_after_records = 500
+flush_interval_ms = 1000
+shutdown_flush_ms = 5000
+
 
 [key_manager]
 enabled = false
@@ -1501,7 +1543,7 @@ enabled = "true"
 base_url = "http://localhost:8000"
 connection_timeout = 10
 request_timeout = 35
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
