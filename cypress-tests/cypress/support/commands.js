@@ -9362,8 +9362,8 @@ Cypress.Commands.add("verifyIframeRedirection", (globalState, options = {}) => {
       "nextActionType should not be redirect_inside_popup"
     ).to.not.equal("redirect_inside_popup");
     if (expectNullNextActionUrl) {
-      expect(globalState.get("nextActionUrl"), "nextActionUrl should be null").to
-        .be.null;
+      expect(globalState.get("nextActionUrl"), "nextActionUrl should be null")
+        .to.be.null;
     }
   }
 });

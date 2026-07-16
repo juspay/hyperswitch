@@ -152,20 +152,17 @@ describeIfSupported("Iframe Redirection Payment Flow Tests", () => {
         }
       });
 
-      cy.step(
-        "Verify Redirect Goes to External URL (Not Inside Popup)",
-        () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Verify Redirect");
-            return;
-          }
-
-          cy.verifyIframeRedirection(globalState, {
-            expectRedirectInsidePopup: false,
-            expectNullNextActionUrl: false,
-          });
+      cy.step("Verify Redirect Goes to External URL (Not Inside Popup)", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Verify Redirect");
+          return;
         }
-      );
+
+        cy.verifyIframeRedirection(globalState, {
+          expectRedirectInsidePopup: false,
+          expectNullNextActionUrl: false,
+        });
+      });
     });
   });
 
