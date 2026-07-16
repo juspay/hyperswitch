@@ -23,7 +23,7 @@ fn connector_list() {
 
     let json = serde_json::to_string(&connector_list).unwrap();
 
-    println!("{}", &json);
+    println!("{}", json);
 
     let newlist: types::ConnectorsList = serde_json::from_str(&json).unwrap();
 
