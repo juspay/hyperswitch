@@ -820,6 +820,7 @@ export const connectorDetails = {
       }),
     PaypalRedirect: getCustomExchange({
       Configs: {
+        // Skip: Noon connector_2 credentials don't support PayPal wallet payments — server returns "failed" status on confirm
         TRIGGER_SKIP: true,
         CONNECTOR_CREDENTIAL: {
           specName: ["wallet"],
