@@ -1258,15 +1258,23 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         )
                         .await
                         {
-                            Ok(storage::PaymentTokenData::Permanent(card_token_data))
-                            | Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => {
-                                card_token_data
-                                    .payment_method_id
-                                    .as_deref()
-                                    .unwrap_or(payment_method_ref)
-                                    .to_owned()
+                            Ok(
+                                storage::PaymentTokenData::Permanent(card_token_data)
+                                | storage::PaymentTokenData::PermanentCard(card_token_data),
+                            ) => card_token_data
+                                .payment_method_id
+                                .as_deref()
+                                .unwrap_or(payment_method_ref)
+                                .to_owned(),
+                            Ok(_) => payment_method_ref.to_owned(),
+                            Err(err) => {
+                                logger::warn!(
+                                    ?err,
+                                    payment_method_ref,
+                                    "Failed to fetch payment token from payment server; falling back to PM Modular Service"
+                                );
+                                payment_method_ref.to_owned()
                             }
-                            _ => payment_method_ref.to_owned(),
                         }
                     }
                     _ => payment_method_ref.to_owned(),
@@ -1664,6 +1672,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             .inspect_err(|err| logger::error!("{:?}", err))
                             .ok()
                             .unwrap_or_default(),
+                        business_country: payment_data
+                            .payment_intent
+                            .business_country
+                            .map(common_enums::Country::from_alpha2),
                     },
                     payment_method: Some(
                         api_models::three_ds_decision_rule::PaymentMethodMetaData {
@@ -1706,6 +1718,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             fraud_rate: acquirer.acquirer_fraud_rate,
                         }
                     }),
+                    metadata: payment_data.payment_intent.metadata.clone(),
                 },
             )
             .await
