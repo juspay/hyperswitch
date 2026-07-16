@@ -75,7 +75,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     body: actix_web::web::Bytes,
     is_relay_webhook: bool,
 ) -> RouterResponse<serde_json::Value> {
-    let (application_response, webhooks_response_tracker, serialized_req) =
+    let (webhook_response, webhooks_response_tracker, serialized_req) =
         Box::pin(incoming_webhooks_core::<W>(
             state.clone(),
             req_state,
@@ -103,10 +103,6 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
             .ok(),
     };
 
-    let webhook_response = WebhookResponse::try_from(application_response)
-        .map_err(|_| errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid response type for incoming webhook")?;
-
     Ok(services::ApplicationResponse::IncomingWebhookEvent {
         response: Box::new(webhook_response),
         metadata,
@@ -128,7 +124,7 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
         body: &body,
     };
 
-    let (application_response, webhooks_response_tracker, serialized_req, _merchant_id) = Box::pin(
+    let (webhook_response, webhooks_response_tracker, serialized_req, _merchant_id) = Box::pin(
         network_token_incoming_webhooks_core::<W>(&state, request_details),
     )
     .await?;
@@ -147,10 +143,6 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
             .ok(),
     };
 
-    let webhook_response = WebhookResponse::try_from(application_response)
-        .map_err(|_| errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid response type for incoming webhook")?;
-
     Ok(services::ApplicationResponse::IncomingWebhookEvent {
         response: Box::new(webhook_response),
         metadata,
@@ -168,7 +160,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     body: actix_web::web::Bytes,
     is_relay_webhook: bool,
 ) -> errors::RouterResult<(
-    services::ApplicationResponse<serde_json::Value>,
+    WebhookResponse<serde_json::Value>,
     WebhookResponseTracker,
     common_utils::pii::SecretSerdeValue,
 )> {
@@ -273,7 +265,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         Ok(outcome) if outcome.event_type() == webhooks::IncomingWebhookEvent::SetupWebhook
     ) {
         return Ok((
-            services::ApplicationResponse::StatusOk,
+            WebhookResponse::StatusOk,
             WebhookResponseTracker::NoEffect,
             Secret::new(serde_json::Value::default()),
         ));
@@ -373,7 +365,17 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         }
     };
 
-    Ok((ack_response, webhook_effect, serialized_body))
+    let webhook_response = match ack_response {
+        services::ApplicationResponse::Json(r) => WebhookResponse::Json(r),
+        services::ApplicationResponse::StatusOk => WebhookResponse::StatusOk,
+        services::ApplicationResponse::TextPlain(s) => WebhookResponse::TextPlain(s),
+        services::ApplicationResponse::JsonWithHeaders((r, h)) => {
+            WebhookResponse::JsonWithHeaders((r, h))
+        }
+        _ => return Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unexpected response type for webhook acknowledgement")),
+    };
+    Ok((webhook_response, webhook_effect, serialized_body))
 }
 
 async fn fetch_three_ds_execution_path(
@@ -680,7 +682,7 @@ fn handle_incoming_webhook_error(
     request_details: &IncomingWebhookRequestDetails<'_>,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> errors::RouterResult<(
-    services::ApplicationResponse<serde_json::Value>,
+    WebhookResponse<serde_json::Value>,
     WebhookResponseTracker,
     common_utils::pii::SecretSerdeValue,
 )> {
@@ -710,6 +712,16 @@ fn handle_incoming_webhook_error(
             )
             .switch()
             .attach_printable("Failed to get incoming webhook api response from connector")?;
+        let response = match response {
+            services::ApplicationResponse::Json(r) => WebhookResponse::Json(r),
+            services::ApplicationResponse::StatusOk => WebhookResponse::StatusOk,
+            services::ApplicationResponse::TextPlain(s) => WebhookResponse::TextPlain(s),
+            services::ApplicationResponse::JsonWithHeaders((r, h)) => {
+                WebhookResponse::JsonWithHeaders((r, h))
+            }
+            _ => return Err(report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unexpected response type for webhook acknowledgement")),
+        };
         Ok((
             response,
             WebhookResponseTracker::NoEffect,
@@ -726,7 +738,7 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
     state: &SessionState,
     request_details: IncomingWebhookRequestDetails<'_>,
 ) -> errors::RouterResult<(
-    services::ApplicationResponse<serde_json::Value>,
+    WebhookResponse<serde_json::Value>,
     WebhookResponseTracker,
     serde_json::Value,
     common_utils::id_type::MerchantId,
@@ -788,7 +800,7 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
         .await?;
 
     Ok((
-        services::ApplicationResponse::StatusOk,
+        WebhookResponse::StatusOk,
         webhook_resp_tracker,
         serialized_request,
         merchant_id.clone(),

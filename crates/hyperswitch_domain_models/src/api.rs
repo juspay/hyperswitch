@@ -37,25 +37,6 @@ pub enum WebhookResponse<R> {
     JsonWithHeaders((R, Vec<(String, hyperswitch_masking::Maskable<String>)>)),
 }
 
-impl<R> TryFrom<ApplicationResponse<R>> for WebhookResponse<R> {
-    type Error = ApplicationResponse<R>;
-
-    fn try_from(resp: ApplicationResponse<R>) -> Result<Self, Self::Error> {
-        match resp {
-            ApplicationResponse::Json(r) => Ok(Self::Json(r)),
-            ApplicationResponse::StatusOk => Ok(Self::StatusOk),
-            ApplicationResponse::TextPlain(s) => Ok(Self::TextPlain(s)),
-            ApplicationResponse::JsonWithHeaders((r, h)) => Ok(Self::JsonWithHeaders((r, h))),
-            ApplicationResponse::JsonForRedirection(_)
-            | ApplicationResponse::Form(_)
-            | ApplicationResponse::PaymentLinkForm(_)
-            | ApplicationResponse::FileData(_)
-            | ApplicationResponse::GenericLinkForm(_)
-            | ApplicationResponse::IncomingWebhookEvent { .. } => Err(resp),
-        }
-    }
-}
-
 impl<R> From<WebhookResponse<R>> for ApplicationResponse<R> {
     fn from(resp: WebhookResponse<R>) -> Self {
         match resp {
