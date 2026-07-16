@@ -36,7 +36,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardDetailsWithNoCvv,
+    self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardDetailsWithNoCvc,
     ClassicReward, CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
 };
 
@@ -829,7 +829,7 @@ pub fn build_unified_connector_service_payment_method(
                 .clone()
                 .map(payments_grpc::CardNetwork::foreign_from);
 
-            let card_details = CardDetailsWithNoCvv {
+            let card_details = CardDetailsWithNoCvc {
                 card_number: Some(
                     CardNumber::from_str(&card.card_number.get_card_no()).change_context(
                         UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
@@ -849,7 +849,7 @@ pub fn build_unified_connector_service_payment_method(
             };
 
             Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::CardWithNoCvv(card_details)),
+                payment_method: Some(PaymentMethod::CardWithNoCvc(card_details)),
             })
         }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(

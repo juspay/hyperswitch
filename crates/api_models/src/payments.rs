@@ -3593,6 +3593,7 @@ pub enum PaymentMethodData {
     #[smithy(value_type = "Card")]
     Card(Card),
     #[schema(title = "CardWithNoCVC")]
+    #[serde(rename = "card_with_no_cvc")]
     #[smithy(value_type = "CardWithNoCVC")]
     CardWithNoCVC(CardWithNoCVC),
     #[schema(title = "CardRedirect")]
