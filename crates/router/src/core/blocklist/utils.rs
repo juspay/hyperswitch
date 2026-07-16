@@ -3,7 +3,7 @@ use common_enums::{BlockReason, MerchantDecision};
 use common_utils::errors::CustomResult;
 use diesel_models::{business_profile::CardBlockingConfig, configs};
 use error_stack::ResultExt;
-use hyperswitch_masking::StrongSecret;
+use hyperswitch_masking::{PeekInterface, StrongSecret};
 
 use super::{errors, transformers::generate_fingerprint, SessionState};
 use crate::{
@@ -231,24 +231,15 @@ pub async fn insert_entry_into_blocklist(
     Ok(blocklist_entry.foreign_into())
 }
 
-pub async fn get_merchant_fingerprint_secret(
-    state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorMerchantId,
+pub fn get_merchant_fingerprint_secret(
+    merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<String> {
-    // Fetch from Superposition only
-    let secret = dimensions
-        .get_fingerprint_secret(
-            &*state.store,
-            state.superposition_service.as_ref(),
-            None, // No targeting key needed for merchant-level config
-        )
-        .await;
-
-    match secret.is_empty() {
-        false => Ok(secret),
-        true => Err(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("fingerprint_secret not found in Superposition for merchant"),
-    }
+    merchant_account
+        .fingerprint_secret
+        .as_ref()
+        .map(|secret| secret.peek().clone())
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("fingerprint_secret not found in merchant account")
 }
 
 async fn duplicate_check_insert_bin(
@@ -317,15 +308,12 @@ async fn delete_card_bin_blocklist_entry(
 pub async fn should_payment_be_blocked(
     state: &SessionState,
     processor: &domain::Processor,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     payment_method_data: &Option<domain::EligibilityPaymentMethodData>,
     business_profile: &domain::Profile,
 ) -> CustomResult<Option<BlockReason>, errors::ApiErrorResponse> {
     let db = &state.store;
     let processor_merchant_id = processor.get_account().get_id();
-    let processor_dimensions = dimensions.without_provider_merchant_id();
-    let merchant_fingerprint_secret =
-        get_merchant_fingerprint_secret(state, &processor_dimensions).await?;
+    let merchant_fingerprint_secret = get_merchant_fingerprint_secret(processor.get_account())?;
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.
     let card_number_fingerprint =
@@ -432,7 +420,7 @@ pub async fn should_payment_be_blocked(
 pub async fn validate_data_for_blocklist<F>(
     state: &SessionState,
     processor: &domain::Processor,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     payment_data: &mut PaymentData<F>,
     business_profile: &domain::Profile,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
@@ -443,7 +431,6 @@ where
     let block_reason = should_payment_be_blocked(
         state,
         processor,
-        dimensions,
         &payment_data
             .payment_method_data
             .clone()
@@ -500,7 +487,7 @@ where
     } else {
         payment_data.payment_attempt.fingerprint_id = generate_payment_fingerprint(
             state,
-            &dimensions.without_provider_merchant_id(),
+            processor.get_account(),
             payment_data.payment_method_data.clone(),
         )
         .await?;
@@ -606,10 +593,10 @@ pub async fn should_payment_be_blocked_by_profile_config(
 
 pub async fn generate_payment_fingerprint(
     state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorMerchantId,
+    merchant_account: &domain::MerchantAccount,
     payment_method_data: Option<domain::PaymentMethodData>,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
-    let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, dimensions).await?;
+    let merchant_fingerprint_secret = get_merchant_fingerprint_secret(merchant_account)?;
 
     Ok(
         if let Some(domain::PaymentMethodData::Card(card)) = payment_method_data.as_ref() {
