@@ -835,6 +835,44 @@ export const connectorDetails = {
         },
       },
     },
+    SurchargeDSL: {
+      Request: {
+        amount: 10000,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    SurchargeDSLConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        email: generateRandomEmail(),
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          connector: "authorizedotnet",
+          surcharge_details: {
+            surcharge_amount: 250,
+            tax_amount: 0,
+          },
+          net_amount: 10250,
+        },
+      },
+    },
   },
   webhook: {
     TransactionIdConfig: {

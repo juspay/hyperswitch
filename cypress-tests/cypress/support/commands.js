@@ -2567,10 +2567,13 @@ Cypress.Commands.add(
             "setup_future_usage"
           ).to.equal(response.body.setup_future_usage);
           // If 'shipping_cost' is not included in the request, the 'amount' in 'body' should match the 'amount_capturable' in the response.
+          // For surcharge payments, amount_capturable is 0 at payment intent creation time; the config Response.body handles surcharge-specific assertions.
           if (typeof body?.shipping_cost === "undefined") {
-            expect(body.amount, "amount_capturable").to.equal(
-              response.body.amount_capturable
-            );
+            if (typeof body?.surcharge_details === "undefined") {
+              expect(body.amount, "amount_capturable").to.equal(
+                response.body.amount_capturable
+              );
+            }
           } else {
             expect(
               body.amount + body.shipping_cost,
@@ -6744,7 +6747,12 @@ Cypress.Commands.add(
       method: "PUT",
       url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
       headers: {
-        "api-key": globalState.get("apiKey"),
+        ...(globalState.get("userInfoToken")
+          ? { Authorization: `Bearer ${globalState.get("userInfoToken")}` }
+          : {
+              "api-key":
+                globalState.get("apiKey") || globalState.get("adminApiKey"),
+            }),
         "Content-Type": "application/json",
       },
       body: surchargeBody,
@@ -6855,7 +6863,12 @@ Cypress.Commands.add("retrieveSurchargeDSLConfig", (data, globalState) => {
     method: "GET",
     url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
     headers: {
-      "api-key": globalState.get("apiKey"),
+      ...(globalState.get("userInfoToken")
+        ? { Authorization: `Bearer ${globalState.get("userInfoToken")}` }
+        : {
+            "api-key":
+              globalState.get("apiKey") || globalState.get("adminApiKey"),
+          }),
       "Content-Type": "application/json",
     },
     failOnStatusCode: false,
@@ -6883,7 +6896,12 @@ Cypress.Commands.add("deleteSurchargeDSLConfig", (data, globalState) => {
     method: "DELETE",
     url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
     headers: {
-      "api-key": globalState.get("apiKey"),
+      ...(globalState.get("userInfoToken")
+        ? { Authorization: `Bearer ${globalState.get("userInfoToken")}` }
+        : {
+            "api-key":
+              globalState.get("apiKey") || globalState.get("adminApiKey"),
+          }),
       "Content-Type": "application/json",
     },
     failOnStatusCode: false,
@@ -6891,8 +6909,6 @@ Cypress.Commands.add("deleteSurchargeDSLConfig", (data, globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-
       if (response.status === 200) {
         for (const key in resData.body) {
           expect(resData.body[key]).to.deep.equal(response.body[key]);

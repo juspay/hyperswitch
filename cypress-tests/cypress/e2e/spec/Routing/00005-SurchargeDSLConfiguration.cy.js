@@ -24,13 +24,13 @@ describe("Surcharge DSL Configuration Test", () => {
         name: "surcharge_config_rate",
         merchant_surcharge_configs: {},
         algorithm: {
-          type: "rate",
-          rate: 2.5,
           defaultSelection: {
-            surcharge_type: "rate",
-            rate: 2.5,
+            surcharge_details: {
+              surcharge: { type: "rate", value: { percentage: 2.5 } },
+            },
           },
           rules: [],
+          metadata: {},
         },
       };
 
@@ -75,13 +75,13 @@ describe("Surcharge DSL Configuration Test", () => {
         name: "surcharge_config_fixed",
         merchant_surcharge_configs: {},
         algorithm: {
-          type: "fixed",
-          amount: 100,
           defaultSelection: {
-            surcharge_type: "fixed",
-            amount: 100,
+            surcharge_details: {
+              surcharge: { type: "fixed", value: { amount: 100 } },
+            },
           },
           rules: [],
+          metadata: {},
         },
       };
 
@@ -117,18 +117,29 @@ describe("Surcharge DSL Configuration Test", () => {
         name: "surcharge_config_rules",
         merchant_surcharge_configs: {},
         algorithm: {
-          type: "rate",
-          rate: 2.5,
           defaultSelection: {
-            surcharge_type: "rate",
-            rate: 2.5,
+            surcharge_details: {
+              surcharge: { type: "rate", value: { percentage: 2.5 } },
+            },
           },
           rules: [
             {
               name: "card_surcharge_rule",
+              connectorSelection: {
+                type: "priority",
+                data: [
+                  {
+                    connector: globalState.get("connectorId"),
+                    merchant_connector_id: globalState.get(
+                      `${globalState.get("connectorId")}McaId`
+                    ),
+                  },
+                ],
+              },
               surcharge_value: {
-                surcharge_type: "rate",
-                rate: 3.0,
+                surcharge_details: {
+                  surcharge: { type: "rate", value: { percentage: 3.0 } },
+                },
               },
               statements: [
                 {
@@ -147,6 +158,7 @@ describe("Surcharge DSL Configuration Test", () => {
               ],
             },
           ],
+          metadata: {},
         },
       };
 
