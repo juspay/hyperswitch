@@ -474,55 +474,27 @@ impl TenantConfig {
     /// # Panics
     ///
     /// Panics if Failed to create event handler
-    pub async fn get_store_interface_map(
-        &self,
-        storage_impl: &app::StorageImpl,
-        conf: &configs::Settings,
-        cache_store: Arc<storage_impl::redis::RedisStore>,
-        testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::StorageInterface>> {
-        #[allow(clippy::expect_used)]
-        let event_handler = conf
-            .events
-            .get_event_handler()
-            .await
-            .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = Box::pin(AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                conf.master_database.clone().into_inner(),
-                conf.accounts_database.clone().into_inner(),
-                cache_store.clone(),
-                testable,
-            ))
-            .await
-            .get_storage_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
-    }
-    /// # Panics
     ///
-    /// Panics if Failed to create event handler
-    pub async fn get_accounts_store_interface_map(
+    /// Builds each tenant's store exactly once and derives both the regular and accounts
+    /// storage interfaces from that single instance, instead of building the store twice
+    /// (once per interface) as separate maps.
+    pub async fn get_store_interface_maps(
         &self,
         storage_impl: &app::StorageImpl,
         conf: &configs::Settings,
         cache_store: Arc<storage_impl::redis::RedisStore>,
         testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>> {
+    ) -> (
+        HashMap<id_type::TenantId, Box<dyn app::StorageInterface>>,
+        HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>>,
+    ) {
         #[allow(clippy::expect_used)]
         let event_handler = conf
             .events
             .get_event_handler()
             .await
             .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+        let built_stores = futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
             let store = Box::pin(AppState::get_store_interface(
                 storage_impl,
                 &event_handler,
@@ -533,13 +505,18 @@ impl TenantConfig {
                 cache_store.clone(),
                 testable,
             ))
-            .await
-            .get_accounts_storage_interface();
+            .await;
             (tenant_name.clone(), store)
         }))
-        .await
-        .into_iter()
-        .collect()
+        .await;
+
+        let mut stores = HashMap::new();
+        let mut accounts_store = HashMap::new();
+        for (tenant_name, store) in built_stores {
+            stores.insert(tenant_name.clone(), store.get_storage_interface());
+            accounts_store.insert(tenant_name, store.get_accounts_storage_interface());
+        }
+        (stores, accounts_store)
     }
     #[cfg(feature = "olap")]
     pub async fn get_pools_map(

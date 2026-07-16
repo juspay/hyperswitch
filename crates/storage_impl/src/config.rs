@@ -4,7 +4,7 @@ use hyperswitch_masking::{PeekInterface, Secret};
 
 use crate::{kv_router_store, DatabaseStore, MockDb, RouterStore};
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 pub struct Database {
     pub username: String,
     pub password: Secret<String>,
@@ -53,7 +53,7 @@ impl DbConnectionParams for Database {
     }
 }
 
-#[derive(Debug, serde::Deserialize, Clone, Copy, Default)]
+#[derive(Debug, serde::Deserialize, Clone, Copy, Default, PartialEq, Eq)]
 #[serde(rename_all = "PascalCase")]
 pub enum QueueStrategy {
     #[default]
