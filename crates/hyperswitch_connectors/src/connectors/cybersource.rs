@@ -2275,11 +2275,7 @@ impl ConnectorSpecifications for Cybersource {
                 // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
                 None
             }
-            api::CurrentFlowInfo::CompleteAuthorize {
-                request_data,
-                payment_method: _,
-                ..
-            } => {
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirect_response = request_data.redirect_response.as_ref()?;
                 match redirect_response.params.as_ref() {
@@ -2339,11 +2335,7 @@ impl ConnectorSpecifications for Cybersource {
                 // during authorize flow, there is no post_authentication call needed
                 false
             }
-            api::CurrentFlowInfo::CompleteAuthorize {
-                request_data,
-                payment_method: _,
-                ..
-            } => {
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data
                     .redirect_response
@@ -2367,11 +2359,7 @@ impl ConnectorSpecifications for Cybersource {
                 // during authorize flow, there is no post_authentication call needed
                 false
             }
-            api::CurrentFlowInfo::CompleteAuthorize {
-                request_data,
-                payment_method: _,
-                ..
-            } => {
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data
                     .redirect_response

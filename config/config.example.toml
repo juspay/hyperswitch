@@ -132,6 +132,7 @@ redis_lock_timeout_in_seconds = 100        # Redis remains write locked for 100 
 
 # Logging configuration. Logging can be either to file or console or both.
 
+
 # Logging configuration for file logging
 [log.file]
 enabled = false         # Toggle [true or false]
@@ -174,6 +175,48 @@ otel_exporter_otlp_timeout = 5000                     # timeout (in milliseconds
 use_xray_generator = false                            # Set this to true for AWS X-ray compatible traces
 route_to_trace = ["*/confirm"]
 bg_metrics_collection_interval_in_secs = 15           # Interval for collecting the metrics in background thread
+
+# Deja recording/replay configuration. Disabled by default in checked-in examples.
+[deja]
+mode = "disabled" # allowed values: "disabled", "record", "replay"
+run_id = ""       # stable run identifier; empty lets the runtime choose a safe default
+
+[deja.recording]
+graph = "disabled" # allowed values: "disabled", "enabled" — execution-graph nodes on the recording stream
+
+[deja.recording.kafka]
+brokers = []
+topic = "hyperswitch-deja-recording-events"
+client_id = "hyperswitch-deja-router"
+acks = "all"
+idempotence = true
+linger = 5
+message_timeout = 30000
+
+[deja.replay]
+source = ""
+lookup_dir = ""
+observed_sink = ""
+
+[deja.sampler]
+enabled = false
+record_key = "deja_record"
+timeout_ms = 25
+fail_closed = true
+
+[deja.identity]
+pod_name_env = "POD_NAME"
+git_sha_env = "VERGEN_GIT_SHA"
+instance_id = ""
+code_sha = ""
+
+[deja.writer]
+queue_capacity = 8192
+batch_size = 500
+flush_after_records = 500
+flush_interval_ms = 1000
+shutdown_flush_ms = 5000
+
 
 # This section provides some secret values.
 [secrets]
@@ -1385,7 +1428,7 @@ url = "http://localhost:8080"           # Open Router URL
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
 request_timeout = 35                    # Per-RPC Request Timeout in Seconds
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url

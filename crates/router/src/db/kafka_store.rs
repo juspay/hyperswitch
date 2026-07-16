@@ -2493,9 +2493,10 @@ impl PaymentMethodInterface for KafkaStore {
         key_store: &domain::MerchantKeyStore,
         m: domain::PaymentMethod,
         storage_scheme: MerchantStorageScheme,
+        compat_action: Option<domain::PaymentMethodCompatAction>,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .insert_payment_method(key_store, m, storage_scheme)
+            .insert_payment_method(key_store, m, storage_scheme, compat_action)
             .await
     }
 
@@ -2505,6 +2506,7 @@ impl PaymentMethodInterface for KafkaStore {
         payment_method: domain::PaymentMethod,
         payment_method_update: storage::PaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
+        compat_action: Option<domain::PaymentMethodCompatAction>,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
             .update_payment_method(
@@ -2512,6 +2514,7 @@ impl PaymentMethodInterface for KafkaStore {
                 payment_method,
                 payment_method_update,
                 storage_scheme,
+                compat_action,
             )
             .await
     }

@@ -580,6 +580,8 @@ pub(crate) async fn fetch_raw_secrets(
         global_database,
         redis: conf.redis,
         log: conf.log,
+        #[cfg(feature = "deja")]
+        deja: conf.deja,
         #[cfg(feature = "kv_store")]
         drainer: conf.drainer,
         encryption_management: conf.encryption_management,
