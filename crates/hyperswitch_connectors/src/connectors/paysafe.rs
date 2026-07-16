@@ -1314,9 +1314,93 @@ static PAYSAFE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 
 static PAYSAFE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
+impl Paysafe {
+    /// Card + 3DS uses the connector-native authentication flow: PreAuthenticate mints the
+    /// payment handle (with the `threeDs` object) so Paysafe returns the ACS challenge, then the
+    /// main Authorize settles the handle token after the shopper returns. Only the initial call
+    /// needs the pre-authentication step — once `authentication_data` is populated (the handle
+    /// token threaded back on the post-redirect settle) it must not re-run. Mandates / network
+    /// transactions replay a stored credential and skip 3DS setup.
+    fn is_3ds_setup_required(
+        &self,
+        request: &PaymentsAuthorizeData,
+        auth_type: enums::AuthenticationType,
+    ) -> bool {
+        auth_type.is_three_ds()
+            && request.is_card()
+            && request.connector_mandate_id().is_none()
+            && request.get_optional_network_transaction_id().is_none()
+            && request.authentication_data.is_none()
+    }
+}
+
 impl ConnectorSpecifications for Paysafe {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&PAYSAFE_CONNECTOR_INFO)
+    }
+
+    fn get_alternate_flow_if_needed(
+        &self,
+        current_flow: api::CurrentFlowInfo,
+    ) -> Option<api::AlternateFlow> {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data,
+                auth_type,
+            } => {
+                if self.is_3ds_setup_required(&request_data, auth_type) {
+                    Some(api::AlternateFlow::PreAuthenticate)
+                } else {
+                    None
+                }
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. } => None,
+        }
+    }
+
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data,
+                auth_type,
+            } => self.is_3ds_setup_required(&request_data, auth_type),
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
+        }
+    }
+
+    /// After the ACS redirect returns, run the Authenticate step to re-fetch the payment handle by
+    /// merchantRefNum and recover the `paymentHandleToken` (threaded to the settle Authorize via
+    /// `authentication_data`). Gate on the presence of redirect params so it only runs on the
+    /// post-redirect CompleteAuthorize, not the initial call. No PostAuthenticate — Paysafe has no
+    /// CRes-validation step.
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::CompleteAuthorize {
+                auth_type,
+                request_data,
+                payment_method,
+            } => {
+                let has_redirect_params = request_data
+                    .redirect_response
+                    .as_ref()
+                    .and_then(|redirect_response| redirect_response.params.as_ref())
+                    .map(|params| !params.peek().is_empty())
+                    .unwrap_or(false);
+                auth_type.is_three_ds()
+                    && matches!(payment_method, Some(enums::PaymentMethod::Card))
+                    && has_redirect_params
+            }
+            api::CurrentFlowInfo::Authorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
+        }
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {

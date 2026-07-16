@@ -390,12 +390,20 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
-        let authentication_data = router_data
-            .request
-            .authentication_data
-            .clone()
-            .map(payments_grpc::AuthenticationData::foreign_try_from)
-            .transpose()?;
+        // Frictionless 3DS (e.g. Paysafe card): the PreAuthenticate handle token is threaded via
+        // `ucs_authentication_data` when request-level `authentication_data` is absent. Fall back to
+        // it so the settle Authorize carries the token to the connector.
+        let authentication_data = match router_data.request.authentication_data.clone() {
+            Some(auth_data) => {
+                Some(payments_grpc::AuthenticationData::foreign_try_from(auth_data)?)
+            }
+            None => router_data
+                .request
+                .ucs_authentication_data
+                .clone()
+                .map(payments_grpc::AuthenticationData::foreign_try_from)
+                .transpose()?,
+        };
         let metadata = router_data
             .request
             .metadata
@@ -1664,12 +1672,20 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
-        let authentication_data = router_data
-            .request
-            .authentication_data
-            .clone()
-            .map(payments_grpc::AuthenticationData::foreign_try_from)
-            .transpose()?;
+        // Frictionless 3DS (e.g. Paysafe card): the PreAuthenticate handle token is threaded via
+        // `ucs_authentication_data` when request-level `authentication_data` is absent. Fall back to
+        // it so the settle Authorize carries the token to the connector.
+        let authentication_data = match router_data.request.authentication_data.clone() {
+            Some(auth_data) => {
+                Some(payments_grpc::AuthenticationData::foreign_try_from(auth_data)?)
+            }
+            None => router_data
+                .request
+                .ucs_authentication_data
+                .clone()
+                .map(payments_grpc::AuthenticationData::foreign_try_from)
+                .transpose()?,
+        };
         let metadata = router_data
             .request
             .metadata
