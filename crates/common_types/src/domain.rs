@@ -160,7 +160,7 @@ pub struct MerchantConnectorAuthDetails {
     #[schema(value_type = Object, example = r#"{
         "merchant_connector_creds": {
             "auth_type": "HeaderKey",
-            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+            "api_key":"<stripe_test_secret_key>"
         },
     }"#)]
     pub merchant_connector_creds: common_utils::pii::SecretSerdeValue,
