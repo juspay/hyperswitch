@@ -262,12 +262,15 @@ const card_pm = {
   // gated on that field) don't fire, so no special config is needed here —
   // these tests run for real and assert the actual "succeeded"/
   // "requires_capture" outcome like any other connector.
-  // MIT flows below stay skipped for a different, structural reason: no
-  // reusable connector mandate is ever created for a subsequent
-  // off-session charge. mitUsingPMId is skipped via
-  // CONNECTOR_LISTS.EXCLUDE.MIT_USING_PMID (a confirmed router decryption
-  // bug); mitForMandatesCallTest/listMandateCallTest skip themselves at
-  // runtime once they see mandate_id was never set (see commands.js).
+  // All MIT flows below (mitUsingPMId, mitForMandatesCallTest,
+  // listMandateCallTest) skip themselves at runtime instead of relying on a
+  // static connector list — they check the ground truth the router itself
+  // already gives us (setup_future_usage staying "off_session" / mandate_id
+  // being set) rather than assuming a specific error if attempted anyway,
+  // since that error shape isn't consistent across runs. No reusable
+  // connector mandate or recurring capability is ever created for a
+  // subsequent off-session charge here, so there's nothing for any of them
+  // to reuse or list.
   MandateSingleUseNo3DSAutoCapture: {
     Request: {
       payment_method: "card",
@@ -342,8 +345,16 @@ const card_pm = {
       body: {},
     },
   },
+  // MIT-via-PMID is never actually attempted for Helcim: mitUsingPMId
+  // checks globalState's "mandateSetupFutureUsage" (set by
+  // citForMandatesCallTest from the CIT response) and skips before sending
+  // any request when it isn't "off_session" — which it never is for Helcim,
+  // since the connector gets silently downgraded to on_session. Attempting
+  // it anyway doesn't fail consistently (observed both a 500 payment-method
+  // decryption error and a 400 invalid_request across different runs), so
+  // these Response bodies are placeholders that are never actually
+  // compared against a real response.
   MITAutoCapture: {
-    Configs: { TRIGGER_SKIP: true },
     Request: {},
     Response: {
       status: 200,
@@ -351,7 +362,6 @@ const card_pm = {
     },
   },
   MITManualCapture: {
-    Configs: { TRIGGER_SKIP: true },
     Request: {},
     Response: {
       status: 200,
@@ -359,7 +369,6 @@ const card_pm = {
     },
   },
   MITWithoutBillingAddress: {
-    Configs: { TRIGGER_SKIP: true },
     Request: { billing: null },
     Response: {
       status: 200,

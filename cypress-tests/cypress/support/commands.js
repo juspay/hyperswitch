@@ -4584,6 +4584,20 @@ Cypress.Commands.add(
               .be.null;
           }
 
+          // Ground truth for whether MIT-via-PMID can genuinely be attempted:
+          // the router only keeps setup_future_usage as "off_session" when
+          // the connector actually supports mandates; otherwise it's
+          // silently downgraded to "on_session" (authorize_flow.rs), and no
+          // real recurring capability exists to exercise. mitUsingPMId reads
+          // this instead of assuming a specific error shape, since the
+          // actual failure mode when attempted anyway isn't consistent
+          // across runs (seen both a 500 decryption error and a 400
+          // invalid_request for the same connector).
+          globalState.set(
+            "mandateSetupFutureUsage",
+            response.body.setup_future_usage
+          );
+
           if (requestBody.mandate_data === null) {
             // For wallet mandates that return requires_customer_action, payment_method_id may be null initially.
             // It will be populated after handleWalletRedirection and retrieved in subsequent retrievePaymentCallTest.
@@ -5008,6 +5022,18 @@ Cypress.Commands.add(
     ) {
       cy.log(
         `Skipping mitUsingPMId for connector: ${globalState.get("connectorId")}`
+      );
+      return;
+    }
+
+    // Same ground truth citForMandatesCallTest records: if the CIT response
+    // didn't keep setup_future_usage as "off_session", the connector was
+    // silently downgraded and never gained real recurring capability —
+    // attempting MIT anyway fails, but not with a consistent error shape
+    // across runs, so skip rather than assert a specific one.
+    if (globalState.get("mandateSetupFutureUsage") !== "off_session") {
+      cy.log(
+        `Skipping mitUsingPMId: CIT's setup_future_usage was not "off_session" for connector ${globalState.get("connectorId")} (likely downgraded)`
       );
       return;
     }

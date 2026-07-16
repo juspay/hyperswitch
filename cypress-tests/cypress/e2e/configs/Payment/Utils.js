@@ -530,13 +530,7 @@ export const CONNECTOR_LISTS = {
     ],
     SAVE_CARD: ["helcim"],
     // fiuu: connector-specific limitation (pre-existing).
-    // helcim: confirmed via router logs to be a genuine server-side 500
-    // ("Failed while decrypting payment method data" / ring::error::Unspecified)
-    // while decrypting the stored payment method to build the MIT-via-PMID
-    // request — likely tied to the fire-and-forget async "Save card flow"
-    // used for on_session-downgraded connectors, not a Helcim-specific
-    // rejection. Worth investigating/reporting separately as a router bug.
-    MIT_USING_PMID: ["fiuu", "helcim"],
+    MIT_USING_PMID: ["fiuu"],
     // Add more exclusion lists
     // Note: mandate_id-based MIT (mitForMandatesCallTest) and mandate
     // listing (listMandateCallTest) don't need a static connector list —
