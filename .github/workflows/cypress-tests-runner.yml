@@ -30,6 +30,7 @@ env:
   MOCK_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat zift loonio cashtocode authorizedotnet"
   MOCK_PAYMENTS_CONNECTORS_BATCH_2: "redsys worldpayxml cybersource braintree fiuu"
   MOCK_PAYMENTS_CONNECTORS_BATCH_3: "nmi calida adyen peachpayments"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_4: "novalnet checkout"
   MOCK_PAYOUTS_CONNECTORS: "adyenplatform wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -802,6 +803,15 @@ jobs:
                   "parallel": 5,
                   "report_artifact_name": "cypress-mock-test-results-payments-batch-3",
                   "server_logs_artifact": "mock-server-logs-payments-batch-3"
+                },
+                {
+                  "name": "mock-payments-batch-4",
+                  "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_4}"'",
+                  "payouts_connectors": "",
+                  "platform_connectors": "",
+                  "parallel": 5,
+                  "report_artifact_name": "cypress-mock-test-results-payments-batch-4",
+                  "server_logs_artifact": "mock-server-logs-payments-batch-4"
                 }
                 }
               ]
