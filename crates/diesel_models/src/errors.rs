@@ -1,3 +1,7 @@
+// Deja replay reconstructs a recorded DB error as the SAME typed context the
+// recording threw ("recording threw ⇒ replay throws"); the serde derives give
+// the fieldless variants a lossless wire form (the bare variant-name string).
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Copy, Clone, Debug, thiserror::Error)]
 pub enum DatabaseError {
     #[error("An error occurred when obtaining database connection")]
