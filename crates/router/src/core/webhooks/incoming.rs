@@ -424,17 +424,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         }
     };
 
-    let webhook_response = match ack_response {
-        services::ApplicationResponse::Json(r) => WebhookResponse::Json(r),
-        services::ApplicationResponse::StatusOk => WebhookResponse::StatusOk,
-        services::ApplicationResponse::TextPlain(s) => WebhookResponse::TextPlain(s),
-        services::ApplicationResponse::JsonWithHeaders((r, h)) => {
-            WebhookResponse::JsonWithHeaders((r, h))
-        }
-        _ => return Err(report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unexpected response type for webhook acknowledgement")),
-    };
-    Ok((webhook_response, webhook_effect, serialized_body))
+    Ok((ack_response, webhook_effect, serialized_body))
 }
 
 async fn fetch_three_ds_execution_path(
@@ -771,16 +761,6 @@ fn handle_incoming_webhook_error(
             )
             .switch()
             .attach_printable("Failed to get incoming webhook api response from connector")?;
-        let response = match response {
-            services::ApplicationResponse::Json(r) => WebhookResponse::Json(r),
-            services::ApplicationResponse::StatusOk => WebhookResponse::StatusOk,
-            services::ApplicationResponse::TextPlain(s) => WebhookResponse::TextPlain(s),
-            services::ApplicationResponse::JsonWithHeaders((r, h)) => {
-                WebhookResponse::JsonWithHeaders((r, h))
-            }
-            _ => return Err(report!(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unexpected response type for webhook acknowledgement")),
-        };
         Ok((
             response,
             WebhookResponseTracker::NoEffect,

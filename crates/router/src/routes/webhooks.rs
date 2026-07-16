@@ -7,6 +7,7 @@ use crate::{
         api_locking,
         webhooks::{self, types},
     },
+    events::api_logs::WebhookRequestPayload,
     services::{api, authentication as auth},
 };
 
@@ -25,7 +26,9 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         flow.clone(),
         state,
         &req,
-        (),
+        WebhookRequestPayload {
+            connector: connector_id_or_name.clone(),
+        },
         |state, auth, _, req_state| {
             webhooks::incoming_webhooks_wrapper::<W>(
                 &flow,
@@ -63,7 +66,9 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
         flow.clone(),
         state,
         &req,
-        (),
+        WebhookRequestPayload {
+            connector: connector_id.get_string_repr().to_string(),
+        },
         |state, auth, _, req_state| {
             webhooks::incoming_webhooks_wrapper::<W>(
                 &flow,
@@ -102,7 +107,9 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
         flow.clone(),
         state,
         &req,
-        (),
+        WebhookRequestPayload {
+            connector: connector_id.clone(),
+        },
         |state, auth, _, req_state| {
             webhooks::incoming_webhooks_wrapper::<W>(
                 &flow,
@@ -144,7 +151,9 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         flow.clone(),
         state,
         &req,
-        (),
+        WebhookRequestPayload {
+            connector: connector_id.clone(),
+        },
         |state, auth, _, req_state| {
             webhooks::incoming_webhooks_wrapper::<W>(
                 &flow,

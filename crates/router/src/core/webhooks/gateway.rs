@@ -6,6 +6,7 @@ use common_enums::{ExecutionMode, ExecutionPath};
 use common_utils::{errors::ReportSwitchExt, ext_traits::Encode};
 use error_stack::ResultExt;
 use external_services::grpc_client::LineageIds;
+use hyperswitch_domain_models::api::WebhookResponse;
 use hyperswitch_interfaces::webhooks::{
     IncomingWebhookRequestDetails, WebhookContext, WebhookResourceData,
 };
@@ -33,7 +34,7 @@ use crate::{
         },
     },
     routes::SessionState,
-    services::{self, connector_integration_interface::ConnectorEnum},
+    services::connector_integration_interface::ConnectorEnum,
     types::{api::IncomingWebhook, domain, transformers::ForeignTryFrom},
     utils as helper_utils,
 };
@@ -67,7 +68,7 @@ pub enum WebhookOutcome {
     Skipped {
         reference: Option<ObjectReferenceId>,
         event_type: IncomingWebhookEvent,
-        ack_response: services::ApplicationResponse<serde_json::Value>,
+        ack_response: WebhookResponse<serde_json::Value>,
     },
     Processed {
         reference: ObjectReferenceId,
@@ -85,7 +86,7 @@ pub enum WebhookOutcome {
         webhook_resource_data: Box<Option<WebhookResourceData>>,
         masked_log_payload: common_utils::pii::SecretSerdeValue,
         merchant_connector_account: Box<domain::MerchantConnectorAccount>,
-        ack_response: services::ApplicationResponse<serde_json::Value>,
+        ack_response: WebhookResponse<serde_json::Value>,
     },
 }
 
@@ -432,7 +433,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
             FilterDecision::Skip => WebhookOutcome::Skipped {
                 reference,
                 event_type,
-                ack_response: services::ApplicationResponse::StatusOk,
+                ack_response: WebhookResponse::StatusOk,
             },
             FilterDecision::Proceed => {
                 let reference = reference.ok_or_else(|| {
@@ -512,8 +513,8 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
 
                 let ack_response = handle_response
                     .event_ack_response
-                    .map(ucs_ack_to_application_response)
-                    .unwrap_or(services::ApplicationResponse::StatusOk);
+                    .map(ucs_ack_to_webhook_response)
+                    .unwrap_or(WebhookResponse::StatusOk);
 
                 WebhookOutcome::Processed {
                     reference,
@@ -995,9 +996,9 @@ async fn build_event_context(
     })
 }
 
-fn ucs_ack_to_application_response(
+fn ucs_ack_to_webhook_response(
     ack: payments_grpc::EventAckResponse,
-) -> services::ApplicationResponse<serde_json::Value> {
+) -> WebhookResponse<serde_json::Value> {
     let payments_grpc::EventAckResponse {
         status_code: _,
         headers,
@@ -1005,7 +1006,7 @@ fn ucs_ack_to_application_response(
     } = ack;
 
     if body.is_empty() {
-        return services::ApplicationResponse::StatusOk;
+        return WebhookResponse::StatusOk;
     }
 
     let masked_headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = headers
@@ -1015,14 +1016,14 @@ fn ucs_ack_to_application_response(
 
     if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&body) {
         return if masked_headers.is_empty() {
-            services::ApplicationResponse::Json(value)
+            WebhookResponse::Json(value)
         } else {
-            services::ApplicationResponse::JsonWithHeaders((value, masked_headers))
+            WebhookResponse::JsonWithHeaders((value, masked_headers))
         };
     }
 
     match String::from_utf8(body.clone()) {
-        Ok(text) => services::ApplicationResponse::TextPlain(text),
-        Err(_) => services::ApplicationResponse::FileData((body, mime::APPLICATION_OCTET_STREAM)),
+        Ok(text) => WebhookResponse::TextPlain(text),
+        Err(_) => WebhookResponse::StatusOk,
     }
 }

@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::webhooks::{IncomingWebhookRequestDetails, WebhookResourceData};
 use hyperswitch_masking::Secret;
-use router_env::{instrument, tracing, RequestId};
+use router_env::{instrument, tracing};
 
 use super::{types, utils, MERCHANT_ID};
 #[cfg(feature = "revenue_recovery")]
@@ -195,16 +195,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 )
                 .switch()
                 .attach_printable("Failed while early return in case of event type parsing")?;
-            let response = match response {
-                services::ApplicationResponse::Json(r) => WebhookResponse::Json(r),
-                services::ApplicationResponse::StatusOk => WebhookResponse::StatusOk,
-                services::ApplicationResponse::TextPlain(s) => WebhookResponse::TextPlain(s),
-                services::ApplicationResponse::JsonWithHeaders((r, h)) => {
-                    WebhookResponse::JsonWithHeaders((r, h))
-                }
-                _ => return Err(error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unexpected response type for webhook acknowledgement")),
-            };
 
             return Ok((
                 response,
@@ -399,16 +389,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         )
         .switch()
         .attach_printable("Could not get incoming webhook api response from connector")?;
-    let response = match response {
-        services::ApplicationResponse::Json(r) => WebhookResponse::Json(r),
-        services::ApplicationResponse::StatusOk => WebhookResponse::StatusOk,
-        services::ApplicationResponse::TextPlain(s) => WebhookResponse::TextPlain(s),
-        services::ApplicationResponse::JsonWithHeaders((r, h)) => {
-            WebhookResponse::JsonWithHeaders((r, h))
-        }
-        _ => return Err(error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unexpected response type for webhook acknowledgement")),
-    };
 
     let serialized_request = event_object
         .masked_serialize()
