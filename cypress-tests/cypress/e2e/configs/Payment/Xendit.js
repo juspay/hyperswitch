@@ -136,39 +136,6 @@ export const connectorDetails = {
         },
       },
     },
-    DuitNow: {
-      Request: {
-        payment_method: "real_time_payment",
-        payment_method_type: "duit_now",
-        payment_method_data: {
-          real_time_payment: {
-            duit_now: {},
-          },
-        },
-        billing: {
-          address: {
-            country: "MY",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-    DuitNowRetrieve: {
-      Configs: {
-        skipBillingAssertion: true,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
   },
   card_pm: {
     PaymentIntent: {
