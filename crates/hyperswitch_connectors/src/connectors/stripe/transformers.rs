@@ -4480,6 +4480,91 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
     }
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeChargeOutcome {
+    pub network_advice_code: Option<String>,
+    pub network_decline_code: Option<String>,
+    pub seller_message: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ChargeSyncResponse {
+    pub id: String,
+    pub status: StripePaymentStatus,
+    pub payment_intent: Option<String>,
+    pub amount_captured: Option<MinorUnit>,
+    pub failure_code: Option<String>,
+    pub failure_message: Option<String>,
+    pub outcome: Option<StripeChargeOutcome>,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, ChargeSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, ChargeSyncResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let status = AttemptStatus::from(item.response.status);
+
+        let resource_id = item
+            .response
+            .payment_intent
+            .clone()
+            .unwrap_or_else(|| item.response.id.clone());
+        let outcome = item.response.outcome.clone();
+        let response = if is_payment_failure(status) {
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                code: item
+                    .response
+                    .failure_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .failure_message
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.failure_message.clone(),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(resource_id.clone()),
+                connector_response_reference_id: Some(resource_id.clone()),
+                network_advice_code: outcome.as_ref().and_then(|o| o.network_advice_code.clone()),
+                network_decline_code: outcome
+                    .as_ref()
+                    .and_then(|o| o.network_decline_code.clone()),
+                network_error_message: outcome.as_ref().and_then(|o| o.seller_message.clone()),
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(resource_id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: Some(resource_id.clone()),
+                incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
+            amount_captured: item
+                .response
+                .amount_captured
+                .map(|amount| amount.get_amount_as_i64()),
+            minor_amount_captured: item.response.amount_captured,
+            ..item.data
+        })
+    }
+}
+
 impl<F, T> TryFrom<ResponseRouterData<F, StripeTokenResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
@@ -5332,5 +5417,51 @@ mod test_validate_shipping_address_against_payment_method {
             state: Some(Secret::new(String::from("state"))),
             phone: Some(Secret::new(String::from("pbone number"))),
         }
+    }
+}
+
+#[cfg(test)]
+mod charge_sync_response_tests {
+    use super::{ChargeSyncResponse, StripePaymentStatus};
+
+    #[test]
+    fn parses_declined_charge_with_outcome_and_payment_intent() {
+        let raw = r#"{
+            "id": "ch_3TtSEULPRTt4zENp0yHDq5Da",
+            "status": "failed",
+            "payment_intent": "pi_3TtSEULPRTt4zENp0yHDq5Da",
+            "amount_captured": 0,
+            "failure_code": "card_declined",
+            "failure_message": "Your card was declined.",
+            "outcome": {
+                "network_advice_code": "03",
+                "network_decline_code": "59",
+                "seller_message": "The bank returned the decline code insufficient_funds."
+            }
+        }"#;
+        let resp: ChargeSyncResponse = serde_json::from_str(raw).unwrap();
+        assert_eq!(resp.id, "ch_3TtSEULPRTt4zENp0yHDq5Da");
+        assert_eq!(
+            resp.payment_intent.as_deref(),
+            Some("pi_3TtSEULPRTt4zENp0yHDq5Da")
+        );
+        assert!(matches!(resp.status, StripePaymentStatus::Failed));
+        let outcome = resp.outcome.expect("outcome present");
+        assert_eq!(outcome.network_advice_code.as_deref(), Some("03"));
+        assert_eq!(outcome.network_decline_code.as_deref(), Some("59"));
+    }
+
+    #[test]
+    fn parses_succeeded_charge_without_outcome() {
+        let raw = r#"{
+            "id": "ch_1",
+            "status": "succeeded",
+            "payment_intent": "pi_1",
+            "amount_captured": 3100
+        }"#;
+        let resp: ChargeSyncResponse = serde_json::from_str(raw).unwrap();
+        assert!(matches!(resp.status, StripePaymentStatus::Succeeded));
+        assert!(resp.outcome.is_none());
+        assert!(resp.failure_code.is_none());
     }
 }
