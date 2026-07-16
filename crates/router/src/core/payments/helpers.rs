@@ -3583,11 +3583,9 @@ impl<'a>
             }
             // No-CVC card path: preserve the optional-CVC domain variant so UCS can
             // serialize it as CardWithNoCvv instead of forcing it into regular Card.
-            (Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)), _) => {
-                Some(domain::PaymentMethodData::CardWithOptionalCVC(
-                    card_data.clone(),
-                ))
-            }
+            (Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)), _) => Some(
+                domain::PaymentMethodData::CardWithOptionalCVC(card_data.clone()),
+            ),
             // Raw card as fallback for CardWithNetworkTokenDetails when mandate-specific paths are not selected.
             (
                 Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
