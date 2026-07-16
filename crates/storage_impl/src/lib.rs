@@ -420,7 +420,7 @@ pub trait UniqueConstraints {
         redis_conn: &Arc<RedisConnectionPool>,
     ) -> CustomResult<(), RedisError> {
         let constraints = self.unique_constraints();
-        let unique_contraint_count = constraints.len();
+        let unique_constraint_count = constraints.len();
         let sadd_result = redis_conn
             .sadd(
                 &format!("unique_constraint:{}", self.table_name()).into(),
@@ -431,18 +431,18 @@ pub trait UniqueConstraints {
         match sadd_result {
             SaddReply::KeyNotSet => Err(error_stack::report!(RedisError::SetAddMembersFailed)),
             SaddReply::KeySet(set_count) => {
-                if usize::try_from(set_count) == Ok(unique_contraint_count) {
-                    // If all unique constraints were succesfully inserted into the set, then no collision occurred
+                if usize::try_from(set_count) == Ok(unique_constraint_count) {
+                    // If all unique constraints were successfully inserted into the set, then no collision occurred
                     Ok(())
                 } else {
                     Err(error_stack::report!(RedisError::SetAddMembersFailed)).attach_printable_lazy(||{
-                        // saturating_sub avoids panic if set_count somehow exceeds unique_contraint_count.
-                        let duplicates_found = unique_contraint_count
+                        // saturating_sub avoids panic if set_count somehow exceeds unique_constraint_count.
+                        let duplicates_found = unique_constraint_count
                             .saturating_sub(usize::try_from(set_count).unwrap_or(0));
                         format!(
                             "Unique constraint collision in table '{}': tried to insert {} constraint(s), but {} already existed. Attempted constraints: {:?}",
                             self.table_name(),
-                            unique_contraint_count,
+                            unique_constraint_count,
                             duplicates_found,
                             constraints
                         )
