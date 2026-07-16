@@ -223,40 +223,71 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+
         use bytes::Buf;
         // Handle the case where response bytes contains U+FEFF (BOM) character sent by connector
         let encoding = encoding_rs::UTF_8;
         let intermediate_response = encoding.decode_with_bom_removal(res.response.chunk());
         let intermediate_response =
             bytes::Bytes::copy_from_slice(intermediate_response.0.as_bytes());
-        let response: authorizedotnet::AuthorizedotnetErrorResponse = intermediate_response
-            .parse_struct("AuthorizedotnetErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: Result<
+            authorizedotnet::AuthorizedotnetErrorResponse,
+            error_stack::Report<common_utils::errors::ParsingError>,
+        > = intermediate_response.parse_struct("AuthorizedotnetErrorResponse");
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .clone()
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .clone()
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.message,
-            attempt_status: None,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .error
+                        .code
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error.message,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                crate::utils::handle_json_response_deserialization_failure(res, "authorizedotnet")
+            }
+        }
     }
 }
 
@@ -1055,6 +1086,9 @@ impl webhooks::IncomingWebhook for Authorizedotnet {
                     ),
                 ))
             }
+            authorizedotnet::AuthorizedotnetWebhookEvent::Unknown => {
+                Err(errors::ConnectorError::WebhookBodyDecodingFailed.into())
+            }
         }
     }
 
@@ -1063,6 +1097,10 @@ impl webhooks::IncomingWebhook for Authorizedotnet {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
+        if request.body.is_empty() {
+            return Ok(api_models::webhooks::IncomingWebhookEvent::EndpointVerification);
+        }
+
         let details: authorizedotnet::AuthorizedotnetWebhookEventType = request
             .body
             .parse_struct("AuthorizedotnetWebhookEventType")
@@ -1090,74 +1128,106 @@ impl webhooks::IncomingWebhook for Authorizedotnet {
 
 #[inline]
 fn get_error_response(
-    Response {
-        response,
-        status_code,
-        ..
-    }: Response,
+    res: Response,
     event_builder: Option<&mut ConnectorEvent>,
 ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-    let response: authorizedotnet::AuthorizedotnetPaymentsResponse = response
-        .parse_struct("AuthorizedotnetPaymentsResponse")
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    if res.response.is_empty() {
+        return Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: consts::NO_ERROR_MESSAGE.to_string(),
+            reason: None,
+            attempt_status: None,
+            connector_transaction_id: None,
+            connector_response_reference_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        });
+    }
 
-    event_builder.map(|i| i.set_error_response_body(&response));
-    router_env::logger::info!(connector_response=?response);
+    let response: Result<
+        authorizedotnet::AuthorizedotnetPaymentsResponse,
+        error_stack::Report<common_utils::errors::ParsingError>,
+    > = res.response.parse_struct("AuthorizedotnetPaymentsResponse");
 
-    match response.transaction_response {
-        Some(authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponse(
-            payment_response,
-        )) => Ok(payment_response
-            .errors
-            .and_then(|errors| {
-                errors.into_iter().next().map(|error| ErrorResponse {
-                    code: error.error_code,
-                    message: error.error_text.to_owned(),
-                    reason: Some(error.error_text),
-                    status_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    connector_response_reference_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    connector_metadata: None,
-                })
-            })
-            .unwrap_or_else(|| ErrorResponse {
-                code: consts::NO_ERROR_CODE.to_string(), // authorizedotnet sends 200 in case of bad request so this are hard coded to NO_ERROR_CODE and NO_ERROR_MESSAGE
-                message: consts::NO_ERROR_MESSAGE.to_string(),
-                reason: None,
-                status_code,
-                attempt_status: None,
-                connector_transaction_id: None,
-                connector_response_reference_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
-                connector_metadata: None,
-            })),
-        Some(authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponseError(_))
-        | None => {
-            let message = &response
-                .messages
-                .message
-                .first()
-                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                .text;
-            Ok(ErrorResponse {
-                code: consts::NO_ERROR_CODE.to_string(),
-                message: message.to_string(),
-                reason: Some(message.to_string()),
-                status_code,
-                attempt_status: None,
-                connector_transaction_id: None,
-                connector_response_reference_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
-                connector_metadata: None,
-            })
+    match response {
+        Ok(response) => {
+            event_builder.map(|i| i.set_error_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+
+            let status_code = res.status_code;
+            match response.transaction_response {
+                Some(authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponse(
+                    payment_response,
+                )) => Ok(payment_response
+                    .errors
+                    .and_then(|errors| {
+                        errors.into_iter().next().map(|error| ErrorResponse {
+                            code: error.error_code,
+                            message: error.error_text.to_owned(),
+                            reason: Some(error.error_text),
+                            status_code,
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                            connector_response_reference_id: None,
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
+                            connector_metadata: None,
+                        })
+                    })
+                    .unwrap_or_else(|| ErrorResponse {
+                        code: consts::NO_ERROR_CODE.to_string(), // authorizedotnet sends 200 in case of bad request so this are hard coded to NO_ERROR_CODE and NO_ERROR_MESSAGE
+                        message: consts::NO_ERROR_MESSAGE.to_string(),
+                        reason: None,
+                        status_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        connector_response_reference_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    })),
+                Some(
+                    authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponseError(
+                        _,
+                    ),
+                )
+                | None => {
+                    let message = response
+                        .messages
+                        .message
+                        .first()
+                        .map(|msg| msg.text.clone())
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
+                    Ok(ErrorResponse {
+                        code: consts::NO_ERROR_CODE.to_string(),
+                        message: message.clone(),
+                        reason: Some(message),
+                        status_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        connector_response_reference_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    })
+                }
+            }
+        }
+        Err(error_msg) => {
+            event_builder.map(|event| {
+                event.set_error(serde_json::json!({
+                    "error": res.response.escape_ascii().to_string(),
+                    "status_code": res.status_code,
+                }))
+            });
+            router_env::logger::error!(deserialization_error =? error_msg);
+            crate::utils::handle_json_response_deserialization_failure(res, "authorizedotnet")
         }
     }
 }

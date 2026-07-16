@@ -15940,7 +15940,10 @@
           "Star",
           "Pulse",
           "Accel",
-          "Nyce"
+          "Nyce",
+          "Prop",
+          "PrivateLabel",
+          "Dinacard"
         ]
       },
       "CardNetworkTokenizeRequest": {
@@ -17241,6 +17244,7 @@
           "trustpay",
           "trustpayments",
           "tsys",
+          "tsys_transit",
           "vgs",
           "volt",
           "wellsfargo",
@@ -28685,6 +28689,14 @@
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
+          },
+          "business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Country"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -41334,6 +41346,7 @@
           "trustpayments",
           "tokenio",
           "tsys",
+          "tsys_transit",
           "volt",
           "wellsfargo",
           "wise",
@@ -43798,6 +43811,10 @@
                 "$ref": "#/components/schemas/AcquirerData"
               }
             ],
+            "nullable": true
+          },
+          "metadata": {
+            "description": "Optional metadata about the payment.",
             "nullable": true
           }
         },

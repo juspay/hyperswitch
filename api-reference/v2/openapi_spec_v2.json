@@ -10560,7 +10560,10 @@
           "Star",
           "Pulse",
           "Accel",
-          "Nyce"
+          "Nyce",
+          "Prop",
+          "PrivateLabel",
+          "Dinacard"
         ]
       },
       "CardNetworkTokenizeRequest": {
@@ -11444,6 +11447,7 @@
           "trustpay",
           "trustpayments",
           "tsys",
+          "tsys_transit",
           "vgs",
           "volt",
           "wellsfargo",
@@ -29701,6 +29705,7 @@
           "trustpayments",
           "tokenio",
           "tsys",
+          "tsys_transit",
           "volt",
           "wellsfargo",
           "wise",

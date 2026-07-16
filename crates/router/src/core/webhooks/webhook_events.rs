@@ -102,7 +102,7 @@ pub async fn list_initial_delivery_attempts(
                     .is_none_or(|pid| event.business_profile_id.as_ref() == Some(pid));
                 matches_initiator
                     && matches_profile
-                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && event.initial_attempt_id.as_deref() == Some(event.event_id.as_str())
             });
 
             let (events, total_count) = event_opt.map_or((vec![], 0), |event| (vec![event], 1));
@@ -241,7 +241,14 @@ pub async fn list_initial_delivery_attempts(
 
     let events = events
         .into_iter()
-        .map(api::webhook_events::EventListItemResponse::try_from)
+        .map(|event| {
+            api::webhook_events::EventListItemResponse::try_from(
+                domain::EventWithDeliverySuccessSource {
+                    event,
+                    source: domain::DeliverySuccessSource::ListInitialEvents,
+                },
+            )
+        })
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok(ApplicationResponse::Json(
@@ -288,7 +295,14 @@ pub async fn list_delivery_attempts(
         Ok(ApplicationResponse::Json(
             events
                 .into_iter()
-                .map(api::webhook_events::EventRetrieveResponse::try_from)
+                .map(|event| {
+                    api::webhook_events::EventRetrieveResponse::try_from(
+                        domain::EventWithDeliverySuccessSource {
+                            event,
+                            source: domain::DeliverySuccessSource::ListDeliveryAttempts,
+                        },
+                    )
+                })
                 .collect::<Result<Vec<_>, _>>()?,
         ))
     }
@@ -424,7 +438,12 @@ pub async fn retry_delivery_attempt(
         .to_not_found_response(errors::ApiErrorResponse::EventNotFound)?;
 
     Ok(ApplicationResponse::Json(
-        api::webhook_events::EventRetrieveResponse::try_from(updated_event)?,
+        api::webhook_events::EventRetrieveResponse::try_from(
+            domain::EventWithDeliverySuccessSource {
+                event: updated_event,
+                source: domain::DeliverySuccessSource::ListDeliveryAttempts,
+            },
+        )?,
     ))
 }
 
