@@ -3202,40 +3202,16 @@ export const connectorDetails = {
 
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
-      if (paymentMethodType === "Ach") {
-        return {
-          Request: {
-            currency: "USD",
-          },
-          Response: {
-            status: 200,
-            body: {
-              status: "requires_payment_method",
-            },
-          },
-        };
-      }
-      if (paymentMethodType === "Sepa") {
-        return {
-          Request: {
-            currency: "EUR",
-          },
-          Response: {
-            status: 200,
-            body: {
-              status: "requires_payment_method",
-            },
-          },
-        };
-      }
-      const currencyMap = {
-        Becs: "AUD",
-        Bacs: "GBP",
-      };
+      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
       return {
+        ...(paymentMethodType === "Ach"
+          ? { Configs: { TRIGGER_SKIP: true } }
+          : {}),
         Request: {
           currency: currencyMap[paymentMethodType] || "USD",
-          setup_future_usage: "off_session",
+          ...(paymentMethodType !== "Sepa"
+            ? { setup_future_usage: "off_session" }
+            : {}),
         },
         Response: {
           status: 200,
@@ -3269,6 +3245,7 @@ export const connectorDetails = {
             first_name: "John",
             last_name: "Doe",
           },
+          email: "test@example.com",
         },
         customer_acceptance: customerAcceptance,
       },
@@ -3351,6 +3328,7 @@ export const connectorDetails = {
             first_name: "John",
             last_name: "Doe",
           },
+          email: "test@example.com",
         },
         customer_acceptance: customerAcceptance,
         currency: "USD",
@@ -3387,6 +3365,7 @@ export const connectorDetails = {
             first_name: "John",
             last_name: "Doe",
           },
+          email: "test@example.com",
         },
         customer_acceptance: customerAcceptance,
         mandate_data: {

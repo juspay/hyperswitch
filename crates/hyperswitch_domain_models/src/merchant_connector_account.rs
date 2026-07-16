@@ -1017,6 +1017,249 @@ common_utils::create_list_wrapper!(
     }
 );
 
+/// A lightweight view of [`MerchantConnectorAccount`] containing only the
+/// columns that are NOT keymanager-encrypted. Fetching this type performs no
+/// decryption calls.
+///
+/// If you need `connector_account_details`, `connector_wallets_details`, or
+/// `additional_merchant_data`, fetch the full [`MerchantConnectorAccount`]
+/// via a single-row find instead.
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug)]
+pub struct MerchantConnectorAccountWithoutEncrypted {
+    pub merchant_id: id_type::MerchantId,
+    pub connector_name: String,
+    pub test_mode: Option<bool>,
+    pub disabled: Option<bool>,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+    pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
+    pub connector_type: enums::ConnectorType,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub frm_configs: Option<Vec<pii::SecretSerdeValue>>,
+    pub connector_label: Option<String>,
+    pub business_country: Option<enums::CountryAlpha2>,
+    pub business_label: Option<String>,
+    pub business_sub_label: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
+    pub connector_webhook_details: Option<pii::SecretSerdeValue>,
+    pub profile_id: id_type::ProfileId,
+    pub applepay_verified_domains: Option<Vec<String>>,
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
+    pub status: enums::ConnectorStatus,
+    pub version: common_enums::ApiVersion,
+    pub connector_webhook_registration_details: Option<Value>,
+}
+
+#[cfg(feature = "v1")]
+impl TryFrom<storage::MerchantConnectorAccount> for MerchantConnectorAccountWithoutEncrypted {
+    type Error = error_stack::Report<ValidationError>;
+
+    fn try_from(other: storage::MerchantConnectorAccount) -> Result<Self, Self::Error> {
+        Ok(Self {
+            merchant_id: other.merchant_id,
+            connector_name: other.connector_name,
+            test_mode: other.test_mode,
+            disabled: other.disabled,
+            merchant_connector_id: other.merchant_connector_id,
+            payment_methods_enabled: other.payment_methods_enabled,
+            connector_type: other.connector_type,
+            metadata: other.metadata,
+            frm_configs: other.frm_config,
+            business_country: other.business_country,
+            business_label: other.business_label,
+            connector_label: other.connector_label,
+            business_sub_label: other.business_sub_label,
+            created_at: other.created_at,
+            modified_at: other.modified_at,
+            connector_webhook_details: other.connector_webhook_details,
+            profile_id: other
+                .profile_id
+                .ok_or(ValidationError::MissingRequiredField {
+                    field_name: "profile_id".to_string(),
+                })?,
+            applepay_verified_domains: other.applepay_verified_domains,
+            pm_auth_config: other.pm_auth_config,
+            status: other.status,
+            version: other.version,
+            connector_webhook_registration_details: other.connector_webhook_registration_details,
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl MerchantConnectorAccountWithoutEncrypted {
+    pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
+        self.merchant_connector_id.clone()
+    }
+
+    pub fn get_connector_name_as_string(&self) -> String {
+        self.connector_name.clone()
+    }
+
+    pub fn get_metadata(&self) -> Option<pii::SecretSerdeValue> {
+        self.metadata.clone()
+    }
+}
+
+/// A lightweight view of [`MerchantConnectorAccount`] containing only the
+/// columns that are NOT keymanager-encrypted. Fetching this type performs no
+/// decryption calls.
+///
+/// If you need `connector_account_details`, `connector_wallets_details`, or
+/// `additional_merchant_data`, fetch the full [`MerchantConnectorAccount`]
+/// via a single-row find instead.
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub struct MerchantConnectorAccountWithoutEncrypted {
+    pub id: id_type::MerchantConnectorAccountId,
+    pub merchant_id: id_type::MerchantId,
+    pub connector_name: common_enums::connector_enums::Connector,
+    pub disabled: Option<bool>,
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
+    pub connector_type: enums::ConnectorType,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub frm_configs: Option<Vec<pii::SecretSerdeValue>>,
+    pub connector_label: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
+    pub connector_webhook_details: Option<pii::SecretSerdeValue>,
+    pub profile_id: id_type::ProfileId,
+    pub applepay_verified_domains: Option<Vec<String>>,
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
+    pub status: enums::ConnectorStatus,
+    pub version: common_enums::ApiVersion,
+    pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
+}
+
+#[cfg(feature = "v2")]
+impl TryFrom<storage::MerchantConnectorAccount> for MerchantConnectorAccountWithoutEncrypted {
+    type Error = error_stack::Report<ValidationError>;
+
+    fn try_from(other: storage::MerchantConnectorAccount) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: other.id,
+            merchant_id: other.merchant_id,
+            connector_name: other.connector_name,
+            disabled: other.disabled,
+            payment_methods_enabled: other.payment_methods_enabled,
+            connector_type: other.connector_type,
+            metadata: other.metadata,
+            frm_configs: other.frm_config,
+            connector_label: other.connector_label,
+            created_at: other.created_at,
+            modified_at: other.modified_at,
+            connector_webhook_details: other.connector_webhook_details,
+            profile_id: other.profile_id,
+            applepay_verified_domains: other.applepay_verified_domains,
+            pm_auth_config: other.pm_auth_config,
+            status: other.status,
+            version: other.version,
+            feature_metadata: other.feature_metadata.map(From::from),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl MerchantConnectorAccountWithoutEncrypted {
+    pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
+        self.id.clone()
+    }
+
+    pub fn get_connector_name_as_string(&self) -> String {
+        self.connector_name.clone().to_string()
+    }
+
+    pub fn get_metadata(&self) -> Option<pii::SecretSerdeValue> {
+        self.metadata.clone()
+    }
+}
+
+common_utils::create_list_wrapper!(
+    MerchantConnectorAccountsWithoutEncrypted,
+    MerchantConnectorAccountWithoutEncrypted,
+    impl_functions: {
+        fn filter_and_map<'a, T>(
+            &'a self,
+            filter: impl Fn(&'a MerchantConnectorAccountWithoutEncrypted) -> bool,
+            func: impl Fn(&'a MerchantConnectorAccountWithoutEncrypted) -> T,
+        ) -> rustc_hash::FxHashSet<T>
+        where
+            T: std::hash::Hash + Eq,
+        {
+            self.0
+                .iter()
+                .filter(|mca| filter(mca))
+                .map(func)
+                .collect::<rustc_hash::FxHashSet<_>>()
+        }
+
+        pub fn filter_by_profile<'a, T>(
+            &'a self,
+            profile_id: &'a id_type::ProfileId,
+            func: impl Fn(&'a MerchantConnectorAccountWithoutEncrypted) -> T,
+        ) -> rustc_hash::FxHashSet<T>
+        where
+            T: std::hash::Hash + Eq,
+        {
+            self.filter_and_map(|mca| mca.profile_id == *profile_id, func)
+        }
+        #[cfg(feature = "v2")]
+        pub fn get_connector_and_supporting_payment_method_type_for_session_call(
+            &self,
+        ) -> Vec<(&MerchantConnectorAccountWithoutEncrypted, common_enums::PaymentMethodType, common_enums::PaymentMethod)> {
+            // This vector is created to work around lifetimes
+            let ref_vector = Vec::default();
+
+            let connector_and_supporting_payment_method_type = self.iter().flat_map(|connector_account| {
+                connector_account
+                    .payment_methods_enabled.as_ref()
+                    .unwrap_or(&Vec::default())
+                    .iter()
+                    .flat_map(|payment_method_types| payment_method_types.payment_method_subtypes.as_ref().unwrap_or(&ref_vector).iter().map(|payment_method_subtype| (payment_method_subtype, payment_method_types.payment_method_type)).collect::<Vec<_>>())
+                    .filter(|(payment_method_types_enabled, _)| {
+                        payment_method_types_enabled.payment_experience == Some(api_models::enums::PaymentExperience::InvokeSdkClient)
+                    })
+                    .map(|(payment_method_subtypes, payment_method_type)| {
+                        (connector_account, payment_method_subtypes.payment_method_subtype, payment_method_type)
+                    })
+                    .collect::<Vec<_>>()
+            }).collect();
+            connector_and_supporting_payment_method_type
+        }
+        pub fn filter_based_on_profile_and_connector_type(
+            self,
+            profile_id: &id_type::ProfileId,
+            connector_type: common_enums::ConnectorType,
+        ) -> Self {
+            self.into_iter()
+                .filter(|mca| &mca.profile_id == profile_id && mca.connector_type == connector_type)
+                .collect()
+        }
+        pub fn is_merchant_connector_account_id_in_connector_mandate_details(
+            &self,
+            profile_id: Option<&id_type::ProfileId>,
+            connector_mandate_details: &CommonMandateReference,
+        ) -> bool {
+            let mca_ids = self
+                .iter()
+                .filter(|mca| {
+                    mca.disabled.is_some_and(|disabled| !disabled)
+                        && profile_id.is_some_and(|profile_id| *profile_id == mca.profile_id)
+                })
+                .map(|mca| mca.get_id())
+                .collect::<std::collections::HashSet<_>>();
+
+            connector_mandate_details
+                .payments
+                .as_ref()
+                .as_ref().is_some_and(|payments| {
+                    payments.0.keys().any(|mca_id| mca_ids.contains(mca_id))
+                })
+        }
+    }
+);
+
 #[cfg(feature = "v2")]
 impl From<MerchantConnectorAccountFeatureMetadata>
     for DieselMerchantConnectorAccountFeatureMetadata
@@ -1120,6 +1363,17 @@ where
         get_disabled: bool,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<MerchantConnectorAccounts, Self::Error>;
+
+    /// Like [`Self::find_merchant_connector_account_by_merchant_id_and_disabled_list`],
+    /// but returns [`MerchantConnectorAccountsWithoutEncrypted`] — only the
+    /// non-keymanager-encrypted columns — and therefore performs no
+    /// decryption (no `key_store` needed, zero encryption-service calls).
+    /// Prefer this whenever the encrypted fields are not read.
+    async fn find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        get_disabled: bool,
+    ) -> CustomResult<MerchantConnectorAccountsWithoutEncrypted, Self::Error>;
 
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
