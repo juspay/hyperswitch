@@ -66,7 +66,6 @@ pub(crate) async fn get_webhook_events(
         },
     }];
 
-    #[cfg(feature = "v1")]
     if let Some(surcharge_connector_id) = provider_profile
         .surcharge_connector_details
         .as_ref()
@@ -101,7 +100,6 @@ pub(crate) async fn get_webhook_events(
 }
 
 /// Fetches surcharge connector and builds surcharge webhook event if applicable.
-#[cfg(feature = "v1")]
 async fn get_surcharge_webhook_event(
     state: &SessionState,
     platform: domain::Platform,
@@ -1480,7 +1478,6 @@ async fn handle_successful_delivery(
     .await
 }
 
-#[cfg(feature = "v1")]
 trait OutgoingWebhookResponseHandlerV1 {
     #[allow(clippy::too_many_arguments)]
     async fn handle_success_response<R: WebhookDeliveryResponse>(
@@ -1513,7 +1510,6 @@ trait OutgoingWebhookResponseHandlerV1 {
     >;
 }
 
-#[cfg(feature = "v1")]
 impl OutgoingWebhookResponseHandlerV1 for enums::WebhookDeliveryAttempt {
     async fn handle_success_response<R: WebhookDeliveryResponse>(
         &self,
@@ -1603,7 +1599,6 @@ impl OutgoingWebhookResponseHandlerV1 for enums::WebhookDeliveryAttempt {
     }
 }
 
-#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 trait WebhookNotificationHandlerV1: Send + Sync {
     async fn notified_action(
@@ -1625,7 +1620,6 @@ trait WebhookNotificationHandlerV1: Send + Sync {
     ) -> Option<Report<errors::WebhooksFlowError>>;
 }
 
-#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl WebhookNotificationHandlerV1 for types::InitialAttempt {
     async fn notified_action(
@@ -1671,7 +1665,6 @@ impl WebhookNotificationHandlerV1 for types::InitialAttempt {
     }
 }
 
-#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl WebhookNotificationHandlerV1 for types::AutomaticRetry {
     async fn notified_action(
@@ -1726,7 +1719,6 @@ impl WebhookNotificationHandlerV1 for types::AutomaticRetry {
     }
 }
 
-#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl WebhookNotificationHandlerV1 for types::ManualRetry {
     async fn notified_action(

@@ -151,11 +151,12 @@ pub async fn diesel_make_pg_pool(
     let database_url = database.get_database_url(schema);
     let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
     let mut pool = bb8::Pool::builder()
-        .max_size(database.pool_size)
-        .min_idle(database.min_idle)
+        .max_size(database.max_pool_size)
+        .min_idle(Some(database.min_idle_pool_size))
         .queue_strategy(database.queue_strategy.into())
         .connection_timeout(std::time::Duration::from_secs(database.connection_timeout))
-        .max_lifetime(database.max_lifetime.map(std::time::Duration::from_secs));
+        .max_lifetime(std::time::Duration::from_secs(database.max_lifetime))
+        .idle_timeout(std::time::Duration::from_secs(database.idle_timeout));
 
     if test_transaction {
         pool = pool.connection_customizer(Box::new(TestTransaction));
