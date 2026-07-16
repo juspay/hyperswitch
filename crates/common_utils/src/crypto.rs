@@ -734,6 +734,59 @@ where
     }
 }
 
+/// Serde helpers to round-trip an `Encryptable` through the internal cache, preserving both
+/// the decrypted inner value and the ciphertext. The inherent `Serialize`/`Deserialize` impls
+/// on `Encryptable` are meant for API payloads: serialization emits only the inner value, and
+/// deserialization cannot restore the ciphertext — which would corrupt the encrypted columns
+/// if a cached entity were ever written back to the database.
+///
+/// Values serialized with this module contain decrypted secrets in plain form — restrict its
+/// use to stores that are trusted to hold plaintext.
+pub mod encryptable_cache_serde {
+    use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, Strategy};
+    use serde::{Deserialize, Serialize};
+
+    use super::Encryptable;
+
+    #[derive(Serialize, Deserialize)]
+    struct EncryptableParts<T> {
+        inner: T,
+        encrypted: Vec<u8>,
+    }
+
+    /// Serialize both the decrypted inner value and the ciphertext of an optional encryptable
+    pub fn serialize<T, S, Ser>(
+        value: &Option<Encryptable<Secret<T, S>>>,
+        serializer: Ser,
+    ) -> Result<Ser::Ok, Ser::Error>
+    where
+        T: Clone + Serialize,
+        S: Strategy<T>,
+        Ser: serde::Serializer,
+    {
+        value
+            .as_ref()
+            .map(|value| EncryptableParts {
+                inner: value.get_inner().peek().clone(),
+                encrypted: value.clone().into_encrypted().expose(),
+            })
+            .serialize(serializer)
+    }
+
+    /// Deserialize an optional encryptable from its decrypted inner value and ciphertext
+    pub fn deserialize<'de, T, S, D>(
+        deserializer: D,
+    ) -> Result<Option<Encryptable<Secret<T, S>>>, D::Error>
+    where
+        T: Clone + Deserialize<'de>,
+        S: Strategy<T>,
+        D: serde::Deserializer<'de>,
+    {
+        Ok(Option::<EncryptableParts<T>>::deserialize(deserializer)?
+            .map(|parts| Encryptable::new(Secret::new(parts.inner), Secret::new(parts.encrypted))))
+    }
+}
+
 /// Type alias for `Option<Encryptable<Secret<String>>>`
 pub type OptionalEncryptableSecretString = Option<Encryptable<Secret<String>>>;
 /// Type alias for `Option<Encryptable<Secret<String>>>` used for `name` field
