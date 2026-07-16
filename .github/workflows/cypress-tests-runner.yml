@@ -30,7 +30,7 @@ env:
   MOCK_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat zift loonio cashtocode"
   MOCK_PAYMENTS_CONNECTORS_BATCH_2: "redsys worldpayxml cybersource braintree fiuu"
   MOCK_PAYMENTS_CONNECTORS_BATCH_3: "nmi calida adyen peachpayments"
-  MOCK_PAYMENTS_CONNECTORS_BATCH_4: "novalnet checkout"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_4: "novalnet checkout mifinity"
   MOCK_PAYOUTS_CONNECTORS: "adyenplatform wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
