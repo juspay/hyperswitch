@@ -23,7 +23,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     let (merchant_id, connector_id_or_name) = path.into_inner();
 
     Box::pin(api::server_wrap(
-        flow.clone(),
+        flow,
         state,
         &req,
         WebhookRequestPayload {
@@ -31,7 +31,6 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         },
         |state, auth, _, req_state| {
             webhooks::incoming_webhooks_wrapper::<W>(
-                &flow,
                 state.to_owned(),
                 req_state,
                 &req,
@@ -63,7 +62,7 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
     let is_relay_webhook = true;
 
     Box::pin(api::server_wrap(
-        flow.clone(),
+        flow,
         state,
         &req,
         WebhookRequestPayload {
@@ -71,7 +70,6 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
         },
         |state, auth, _, req_state| {
             webhooks::incoming_webhooks_wrapper::<W>(
-                &flow,
                 state.to_owned(),
                 req_state,
                 &req,
@@ -104,7 +102,7 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
     let is_relay_webhook = true;
 
     Box::pin(api::server_wrap(
-        flow.clone(),
+        flow,
         state,
         &req,
         WebhookRequestPayload {
@@ -112,7 +110,6 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
         },
         |state, auth, _, req_state| {
             webhooks::incoming_webhooks_wrapper::<W>(
-                &flow,
                 state.to_owned(),
                 req_state,
                 &req,
@@ -148,7 +145,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     let (merchant_id, profile_id, connector_id) = path.into_inner();
 
     Box::pin(api::server_wrap(
-        flow.clone(),
+        flow,
         state,
         &req,
         WebhookRequestPayload {
@@ -156,7 +153,6 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         },
         |state, auth, _, req_state| {
             webhooks::incoming_webhooks_wrapper::<W>(
-                &flow,
                 state.to_owned(),
                 req_state,
                 &req,
@@ -187,13 +183,12 @@ pub async fn receive_network_token_requestor_incoming_webhook<W: types::Outgoing
     let flow = Flow::IncomingNetworkTokenWebhookReceive;
 
     Box::pin(api::server_wrap(
-        flow.clone(),
+        flow,
         state,
         &req,
         (),
         |state, _: (), _, _| {
             webhooks::network_token_incoming_webhooks_wrapper::<W>(
-                &flow,
                 state.to_owned(),
                 &req,
                 body.clone(),

@@ -181,6 +181,8 @@ where
                 }
             }
         }
+        // This match arm should never be reached as we map the inner field of IncomingWebhookEvent
+        // to ApplicationResponse above
         Ok(api::ApplicationResponse::IncomingWebhookEvent { .. }) => api::http_response_ok(),
         Err(error) => api::log_and_return_error_response(error),
     };

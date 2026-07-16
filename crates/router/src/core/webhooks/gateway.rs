@@ -1024,6 +1024,6 @@ fn ucs_ack_to_webhook_response(
 
     match String::from_utf8(body.clone()) {
         Ok(text) => WebhookResponse::TextPlain(text),
-        Err(_) => WebhookResponse::StatusOk,
+        Err(_) => WebhookResponse::FileData((body, mime::APPLICATION_OCTET_STREAM)),
     }
 }

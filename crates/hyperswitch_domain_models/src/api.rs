@@ -34,6 +34,7 @@ pub enum WebhookResponse<R> {
     Json(R),
     StatusOk,
     TextPlain(String),
+    FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, hyperswitch_masking::Maskable<String>)>)),
 }
 
@@ -43,6 +44,7 @@ impl<R> From<WebhookResponse<R>> for ApplicationResponse<R> {
             WebhookResponse::Json(r) => Self::Json(r),
             WebhookResponse::StatusOk => Self::StatusOk,
             WebhookResponse::TextPlain(s) => Self::TextPlain(s),
+            WebhookResponse::FileData((v, m)) => Self::FileData((v, m)),
             WebhookResponse::JsonWithHeaders((r, h)) => Self::JsonWithHeaders((r, h)),
         }
     }
