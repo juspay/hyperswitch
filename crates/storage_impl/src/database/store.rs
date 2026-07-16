@@ -47,12 +47,9 @@ impl DatabaseStore for Store {
         _key_manager_state: Option<keymanager::KeyManagerState>,
     ) -> StorageResult<Self> {
         let (master_config, accounts_config) = config;
-        let master_pool = diesel_make_pg_pool(
-            &master_config,
-            tenant_config.get_schema(),
-            test_transaction,
-        )
-        .await?;
+        let master_pool =
+            diesel_make_pg_pool(&master_config, tenant_config.get_schema(), test_transaction)
+                .await?;
         let accounts_pool = if tenant_config.get_schema() == tenant_config.get_accounts_schema()
             && master_config == accounts_config
         {
