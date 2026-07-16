@@ -566,7 +566,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::StoredCardForNetworkTransactionId(_)
+            | PaymentMethodData::RawStoredCardForPMID(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
             | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
@@ -877,7 +877,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-                    | PaymentMethodData::StoredCardForNetworkTransactionId(_)
+                    | PaymentMethodData::RawStoredCardForPMID(_)
                     | PaymentMethodData::CardWithOptionalCVC(_)
                     | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
@@ -941,7 +941,7 @@ impl
                         card_code: None,
                     })
                 }
-                PaymentMethodData::StoredCardForNetworkTransactionId(ref stored) => {
+                PaymentMethodData::RawStoredCardForPMID(ref stored) => {
                     let card_details =
                         hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
                             card_number: stored.card_number.clone(),

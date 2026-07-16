@@ -1616,7 +1616,7 @@ fn create_stripe_payment_method(
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::StoredCardForNetworkTransactionId(_)
+        | PaymentMethodData::RawStoredCardForPMID(_)
         | PaymentMethodData::CardWithOptionalCVC(_)
         | PaymentMethodData::CardWithNetworkTokenDetails(_)
         | PaymentMethodData::CardWithLimitedDetails(_)
@@ -2139,7 +2139,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                             request_extended_authorization: None,
                             request_overcapture: None,
                         }),
-                        PaymentMethodData::StoredCardForNetworkTransactionId(ref stored) => {
+                        PaymentMethodData::RawStoredCardForPMID(ref stored) => {
                             let card_details_for_network_transaction_id =
                                 payment_method_data::CardDetailsForNetworkTransactionId {
                                     card_number: stored.card_number.clone(),
@@ -4929,7 +4929,7 @@ impl
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::StoredCardForNetworkTransactionId(_)
+            | PaymentMethodData::RawStoredCardForPMID(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
             | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)

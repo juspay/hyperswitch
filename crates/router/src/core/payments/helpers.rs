@@ -2895,15 +2895,10 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
         }
         VaultFetchAction::FetchCardDetailsForNetworkTransactionIdFlowFromLocker => {
             // Connectors opted into the payment_method_id MIT flow receive the
-            // locker card as the dedicated StoredCardForNetworkTransactionId
+            // locker card as the dedicated RawStoredCardForPMID
             // payment method (carrying the network transaction id in-band).
-            let use_stored_card_variant = connector_variant.is_some_and(|c| {
-                state
-                    .conf
-                    .pmid_mit_supported_connectors
-                    .connector_list
-                    .contains(&c)
-            });
+            let use_stored_card_variant = connector_variant
+                .is_some_and(crate::core::payments::is_raw_stored_card_pmid_connector);
             fetch_card_details_for_network_transaction_flow_from_locker(
                 state,
                 customer_id,
@@ -3330,11 +3325,11 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
         .flatten();
 
     // Connectors opted into the payment_method_id MIT flow receive the locker
-    // card as a dedicated StoredCardForNetworkTransactionId that also carries the
+    // card as a dedicated RawStoredCardForPMID that also carries the
     // network transaction id in-band.
     if use_stored_card_variant {
         let stored_card =
-            hyperswitch_domain_models::payment_method_data::StoredCardForNetworkTransactionId {
+            hyperswitch_domain_models::payment_method_data::RawStoredCardForPMID {
                 card_number: card_details_from_locker.card_number,
                 card_exp_month: card_details_from_locker.card_exp_month,
                 card_exp_year: card_details_from_locker.card_exp_year,
@@ -3351,7 +3346,7 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
                 network_transaction_id: network_transaction_id
                     .map(hyperswitch_masking::Secret::new),
             };
-        return Ok(domain::PaymentMethodData::StoredCardForNetworkTransactionId(stored_card));
+        return Ok(domain::PaymentMethodData::RawStoredCardForPMID(stored_card));
     }
 
     let card_details_for_network_transaction_id =
@@ -6546,7 +6541,7 @@ pub async fn get_additional_payment_data(
                 })))
             }
         }
-        domain::PaymentMethodData::StoredCardForNetworkTransactionId(stored_card) => {
+        domain::PaymentMethodData::RawStoredCardForPMID(stored_card) => {
             // Same BIN-derived additional data as the inline NTI card variant —
             // reconstruct it and reuse that path.
             let card_data = domain::payment_method_data::CardDetailsForNetworkTransactionId {
@@ -7978,7 +7973,7 @@ pub fn get_key_params_for_surcharge_details(
         domain::PaymentMethodData::CardToken(_)
         | domain::PaymentMethodData::NetworkToken(_)
         | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-        | domain::PaymentMethodData::StoredCardForNetworkTransactionId(_)
+        | domain::PaymentMethodData::RawStoredCardForPMID(_)
         | domain::PaymentMethodData::CardWithLimitedDetails(_)
         | domain::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => None,

@@ -1984,7 +1984,7 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
                 | PaymentMethodData::CardWithOptionalCVC(_)
                 | PaymentMethodData::CardWithNetworkTokenDetails(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-                | PaymentMethodData::StoredCardForNetworkTransactionId(_)
+                | PaymentMethodData::RawStoredCardForPMID(_)
                 | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -3247,7 +3247,7 @@ impl
                             AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)),
                         )))
                     }
-                    PaymentMethodData::StoredCardForNetworkTransactionId(ref stored) => {
+                    PaymentMethodData::RawStoredCardForPMID(ref stored) => {
                         let card_details_for_network_transaction_id =
                             hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
                                 card_number: stored.card_number.clone(),
@@ -3364,7 +3364,7 @@ impl
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::MobilePayment(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-                    | PaymentMethodData::StoredCardForNetworkTransactionId(_)
+                    | PaymentMethodData::RawStoredCardForPMID(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

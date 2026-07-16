@@ -33,7 +33,7 @@ pub enum PaymentMethodData {
     CardWithOptionalCVC(CardWithOptionalCVC),
     CardWithNetworkTokenDetails(Box<CardWithNetworkTokenDetails>),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
-    StoredCardForNetworkTransactionId(StoredCardForNetworkTransactionId),
+    RawStoredCardForPMID(RawStoredCardForPMID),
     CardWithLimitedDetails(CardWithLimitedDetails),
     NetworkTokenDetailsForNetworkTransactionId(NetworkTokenDetailsForNetworkTransactionId),
     DecryptedWalletTokenDetailsForNetworkTransactionId(
@@ -276,7 +276,7 @@ impl PaymentMethodData {
             | Self::CardWithNetworkTokenDetails(_)
             | Self::NetworkToken(_)
             | Self::CardDetailsForNetworkTransactionId(_)
-            | Self::StoredCardForNetworkTransactionId(_)
+            | Self::RawStoredCardForPMID(_)
             | Self::NetworkTokenDetailsForNetworkTransactionId(_)
             | Self::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | Self::CardWithLimitedDetails(_) => Some(common_enums::PaymentMethod::Card),
@@ -575,7 +575,7 @@ pub struct CardDetailsForNetworkTransactionId {
 /// from the card locker via a stored `payment_method_id` — letting a connector
 /// distinguish a stored-credential replay from an inline card + NTI.
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct StoredCardForNetworkTransactionId {
+pub struct RawStoredCardForPMID {
     pub card_number: cards::CardNumber,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
@@ -2278,7 +2278,7 @@ impl From<PaymentMethodData> for EligibilityPaymentMethodData {
             PaymentMethodData::CardWithOptionalCVC(card) => Self::Card(card.into()),
             PaymentMethodData::CardWithNetworkTokenDetails(card) => Self::Card(card.into()),
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::StoredCardForNetworkTransactionId(_)
+            | PaymentMethodData::RawStoredCardForPMID(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {

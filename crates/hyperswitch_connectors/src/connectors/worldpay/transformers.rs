@@ -117,7 +117,7 @@ fn fetch_payment_instrument(
                 card_number: raw_card_details.card_number,
             }))
         }
-        PaymentMethodData::StoredCardForNetworkTransactionId(stored) => {
+        PaymentMethodData::RawStoredCardForPMID(stored) => {
             let raw_card_details =
                 hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
                     card_number: stored.card_number.clone(),
@@ -557,7 +557,7 @@ fn create_three_ds_request<T: WorldpayPaymentsRequestData>(
     ) {
         // 3DS for NTI flow
         (_, PaymentMethodData::CardDetailsForNetworkTransactionId(_))
-        | (_, PaymentMethodData::StoredCardForNetworkTransactionId(_)) => Ok(None),
+        | (_, PaymentMethodData::RawStoredCardForPMID(_)) => Ok(None),
         // 3DS for regular payments
         (enums::AuthenticationType::ThreeDs, _) => {
             let browser_info = router_data.get_browser_info().ok_or(
@@ -642,7 +642,7 @@ fn get_token_and_agreement(
         ),
         // NTI with raw card data
         (PaymentMethodData::CardDetailsForNetworkTransactionId(_), _, _)
-        | (PaymentMethodData::StoredCardForNetworkTransactionId(_), _, _) => (
+        | (PaymentMethodData::RawStoredCardForPMID(_), _, _) => (
             None,
             mandate_ids.and_then(|mandate_ids| {
                 mandate_ids

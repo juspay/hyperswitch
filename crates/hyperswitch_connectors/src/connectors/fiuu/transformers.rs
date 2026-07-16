@@ -614,7 +614,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-                | PaymentMethodData::StoredCardForNetworkTransactionId(_)
+                | PaymentMethodData::RawStoredCardForPMID(_)
                 | PaymentMethodData::CardWithOptionalCVC(_)
                 | PaymentMethodData::CardWithNetworkTokenDetails(_)
                 | PaymentMethodData::CardWithLimitedDetails(_)
@@ -635,7 +635,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                             network_transaction_id.network_transaction_id.clone(),
                         ))
                     }
-                    PaymentMethodData::StoredCardForNetworkTransactionId(ref stored) => {
+                    PaymentMethodData::RawStoredCardForPMID(ref stored) => {
                         let raw_card_details = CardDetailsForNetworkTransactionId {
                             card_number: stored.card_number.clone(),
                             card_exp_month: stored.card_exp_month.clone(),

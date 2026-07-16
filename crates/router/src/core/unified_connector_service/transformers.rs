@@ -3670,13 +3670,13 @@ impl
 
 impl
     transformers::ForeignTryFrom<
-        hyperswitch_domain_models::payment_method_data::StoredCardForNetworkTransactionId,
-    > for payments_grpc::StoredCardForNetworkTransactionId
+        hyperswitch_domain_models::payment_method_data::RawStoredCardForPMID,
+    > for payments_grpc::RawStoredCardForPmid
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        stored_card: hyperswitch_domain_models::payment_method_data::StoredCardForNetworkTransactionId,
+        stored_card: hyperswitch_domain_models::payment_method_data::RawStoredCardForPMID,
     ) -> Result<Self, Self::Error> {
         let card_network = stored_card
             .card_network

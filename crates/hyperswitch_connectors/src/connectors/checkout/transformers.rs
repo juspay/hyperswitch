@@ -170,7 +170,7 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::StoredCardForNetworkTransactionId(_)
+            | PaymentMethodData::RawStoredCardForPMID(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
             | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
@@ -809,7 +809,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 };
                 Ok((payment_source, previous_id, Some(true), p_type, None))
             }
-            PaymentMethodData::StoredCardForNetworkTransactionId(stored) => {
+            PaymentMethodData::RawStoredCardForPMID(stored) => {
                 let ccard = hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
                     card_number: stored.card_number.clone(),
                     card_exp_month: stored.card_exp_month.clone(),

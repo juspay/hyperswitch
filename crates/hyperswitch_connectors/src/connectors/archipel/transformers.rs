@@ -778,7 +778,7 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
                     card_details,
                 ))?
             }
-            PaymentMethodData::StoredCardForNetworkTransactionId(stored) => {
+            PaymentMethodData::RawStoredCardForPMID(stored) => {
                 let card_details =
                     &hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
                         card_number: stored.card_number.clone(),
@@ -876,7 +876,7 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardWithOptionalCVC(..)
             | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(..)
-            | PaymentMethodData::StoredCardForNetworkTransactionId(..)
+            | PaymentMethodData::RawStoredCardForPMID(..)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(..)

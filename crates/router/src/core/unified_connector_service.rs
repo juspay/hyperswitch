@@ -1495,11 +1495,11 @@ pub fn build_unified_connector_service_payment_method(
                 payment_method: Some(PaymentMethod::CardDetailsForNetworkTransactionId(card_details_for_nti)),
             })
         }
-        hyperswitch_domain_models::payment_method_data::PaymentMethodData::StoredCardForNetworkTransactionId(stored_card) => {
-            let stored_card_for_nti = payments_grpc::StoredCardForNetworkTransactionId::foreign_try_from(stored_card)?;
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::RawStoredCardForPMID(stored_card) => {
+            let stored_card_for_nti = payments_grpc::RawStoredCardForPmid::foreign_try_from(stored_card)?;
 
             Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::StoredCardForNetworkTransactionId(stored_card_for_nti)),
+                payment_method: Some(PaymentMethod::RawStoredCardForPmid(stored_card_for_nti)),
             })
         }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(network_token_data) => {
