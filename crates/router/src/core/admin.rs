@@ -1564,31 +1564,25 @@ impl PMAuthConfigValidation<'_> {
         })
         .attach_printable("Failed to deserialize Payment Method Auth config")?;
 
+        // Fetching disabled MCAs too: PM auth config may reference MCAs that are
+        // temporarily disabled — validation checks existence, not activity.
         let all_mcas = self
             .db
-            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+            .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
                 self.merchant_id,
-                true,
+                self.profile_id,
             )
             .await
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: self.merchant_id.get_string_repr().to_owned(),
             })?;
         for conn_choice in config.enabled_payment_methods {
-            let pm_auth_mca = all_mcas
+            all_mcas
                 .iter()
                 .find(|mca| mca.get_id() == conn_choice.mca_id)
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                     message: "payment method auth connector account not found".to_string(),
                 })?;
-
-            if &pm_auth_mca.profile_id != self.profile_id {
-                return Err(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "payment method auth profile_id differs from connector profile_id"
-                        .to_string(),
-                }
-                .into());
-            }
         }
 
         Ok(services::ApplicationResponse::StatusOk)
@@ -2886,12 +2880,11 @@ async fn validate_pm_auth(
             })
             .attach_printable("Failed to deserialize Payment Method Auth config")?;
 
+    // Fetching disabled MCAs too: PM auth config may reference MCAs that are
+    // temporarily disabled — validation checks existence, not activity.
     let all_mcas = state
         .store
-        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
-            merchant_id,
-            true,
-        )
+        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: platform
@@ -2903,20 +2896,12 @@ async fn validate_pm_auth(
         })?;
 
     for conn_choice in config.enabled_payment_methods {
-        let pm_auth_mca = all_mcas
+        all_mcas
             .iter()
             .find(|mca| mca.get_id() == conn_choice.mca_id)
             .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "payment method auth connector account not found".to_string(),
             })?;
-
-        if &pm_auth_mca.profile_id != profile_id {
-            return Err(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "payment method auth profile_id differs from connector profile_id"
-                    .to_string(),
-            }
-            .into());
-        }
     }
 
     Ok(services::ApplicationResponse::StatusOk)

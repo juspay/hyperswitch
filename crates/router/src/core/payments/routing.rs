@@ -2080,9 +2080,9 @@ pub async fn refresh_cgraph_cache(
 ) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
     let mut merchant_connector_accounts = state
         .store
-        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+        .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
             &key_store.merchant_id,
-            false,
+            profile_id,
         )
         .await
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
@@ -2115,8 +2115,8 @@ pub async fn refresh_cgraph_cache(
         }
     };
 
-    let merchant_connector_accounts = merchant_connector_accounts
-        .filter_based_on_profile_and_connector_type(profile_id, connector_type);
+    let merchant_connector_accounts =
+        merchant_connector_accounts.filter_by_connector_type(connector_type);
 
     let api_mcas = merchant_connector_accounts
         .into_iter()
@@ -2337,7 +2337,7 @@ pub async fn perform_eligibility_analysis(
         routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
     };
 
-    let active_mca_ids = get_active_mca_ids(state, key_store).await?;
+    let active_mca_ids = get_active_mca_ids(state, key_store, profile_id).await?;
     perform_cgraph_filtering(
         state,
         key_store,
@@ -2387,7 +2387,7 @@ pub async fn perform_fallback_routing(
         #[cfg(feature = "payouts")]
         routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
     };
-    let active_mca_ids = get_active_mca_ids(state, key_store).await?;
+    let active_mca_ids = get_active_mca_ids(state, key_store, business_profile.get_id()).await?;
     perform_cgraph_filtering(
         state,
         key_store,
@@ -2539,7 +2539,7 @@ pub async fn perform_session_flow_routing<'a>(
         api_enums::PaymentMethodType,
         Vec<routing_types::SessionRoutingChoice>,
     > = FxHashMap::default();
-    let active_mca_ids = get_active_mca_ids(state, key_store).await?;
+    let active_mca_ids = get_active_mca_ids(state, key_store, &profile_id).await?;
 
     for (pm_type, allowed_connectors) in pm_type_map {
         let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
@@ -2703,7 +2703,8 @@ pub async fn perform_session_flow_routing(
         Vec<routing_types::SessionRoutingChoice>,
     > = FxHashMap::default();
     let mut final_routing_approach = None;
-    let active_mca_ids = get_active_mca_ids(session_input.state, session_input.key_store).await?;
+    let active_mca_ids =
+        get_active_mca_ids(session_input.state, session_input.key_store, &profile_id).await?;
 
     for (pm_type, allowed_connectors) in pm_type_map {
         let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
@@ -4087,12 +4088,13 @@ where
 pub async fn get_active_mca_ids(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
+    profile_id: &common_utils::id_type::ProfileId,
 ) -> RoutingResult<std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>> {
     let db_mcas = state
         .store
-        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+        .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
             &key_store.merchant_id,
-            false,
+            profile_id,
         )
         .await
         .unwrap_or_else(|_| {
