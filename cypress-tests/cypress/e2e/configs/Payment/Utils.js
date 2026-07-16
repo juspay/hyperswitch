@@ -35,6 +35,7 @@ import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.j
 import { connectorDetails as finixConnectorDetails } from "./Finix.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
+import { connectorDetails as fiservcommercehubConnectorDetails } from "./Fiservcommercehub.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
@@ -118,6 +119,7 @@ const connectorDetails = {
   facilitapay: facilitapayConnectorDetails,
   fiserv: fiservConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
+  fiservcommercehub: fiservcommercehubConnectorDetails,
   fiuu: fiuuConnectorDetails,
   finix: finixConnectorDetails,
   forte: forteConnectorDetails,
