@@ -912,6 +912,20 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentPartialAuth: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        amount: 1706,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
     PartialAuth: {
       Request: {
         payment_method: "card",

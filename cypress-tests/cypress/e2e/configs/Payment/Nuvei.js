@@ -21,7 +21,7 @@ const successfulThreeDSCardDetails = {
 const partialAuthCardDetails = {
   card_number: "4531739335817394",
   card_exp_month: "01",
-  card_exp_year: "26",
+  card_exp_year: "29",
   card_holder_name: "John Smith",
   card_cvc: "100",
 };
@@ -836,6 +836,19 @@ export const connectorDetails = {
           error: {
             code: "IR_47",
           },
+        },
+      },
+    },
+    PaymentIntentPartialAuth: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
         },
       },
     },

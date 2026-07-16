@@ -2166,7 +2166,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     if customers::is_customer_id_in_global_format(&customer_id) {
                         Err(report!(errors::StorageError::InvalidDataFormat(format!(
                             "customer_id '{}' format is not supported",
-                            &customer_id.get_string_repr()
+                            customer_id.get_string_repr()
                         ))))?
                     }
 
@@ -4327,7 +4327,7 @@ pub async fn make_ephemeral_key(
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let store = &state.store;
     let id = utils::generate_id(consts::ID_LENGTH, "eki");
-    let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
+    let secret = format!("epk_{}", Uuid::new_v4().simple());
     let ek = ephemeral_key::EphemeralKeyNew {
         id,
         customer_id,
@@ -7515,7 +7515,7 @@ impl GooglePayTokenDecryptor {
             check_expiration_date_is_valid(&signed_key.key_expiration),
             Ok(true)
         ) {
-            return Err(errors::GooglePayDecryptionError::SignedKeyExpired)?;
+            Err(errors::GooglePayDecryptionError::SignedKeyExpired)?;
         }
         Ok(signed_key)
     }
@@ -8817,6 +8817,39 @@ pub fn get_redis_key_for_extended_card_info(
 
 pub fn get_external_surcharge_redis_key(payment_id: &id_type::PaymentId) -> String {
     format!("{}_external_surcharge", payment_id.get_string_repr())
+}
+
+// Fetch the surcharge MCA and gate on its `disabled` flag. The profile-level
+// `surcharge_connector_details` is not cleared when the MCA is disabled, so the
+// disabled flag on the MCA row itself is the source of truth. Returns `Ok(None)`
+// when the MCA is disabled so callers can short-circuit before any pre-work.
+#[cfg(feature = "v1")]
+pub async fn fetch_active_surcharge_mca(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    key_store: &domain::MerchantKeyStore,
+    surcharge_connector_id: &id_type::MerchantConnectorAccountId,
+) -> RouterResult<Option<domain::MerchantConnectorAccount>> {
+    let surcharge_mca = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            merchant_id,
+            surcharge_connector_id,
+            key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: surcharge_connector_id.get_string_repr().to_string(),
+        })?;
+    if surcharge_mca.disabled.unwrap_or(false) {
+        logger::warn!(
+            surcharge_connector_id = %surcharge_connector_id.get_string_repr(),
+            "Surcharge MCA is disabled; skipping external surcharge calculation"
+        );
+        Ok(None)
+    } else {
+        Ok(Some(surcharge_mca))
+    }
 }
 
 pub fn check_integrity_based_on_flow<T, Request>(
