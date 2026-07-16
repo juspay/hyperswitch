@@ -3363,7 +3363,9 @@ function cardRedirectRedirection(
       ({ connectorId, paymentMethodType, constants }) => {
         switch (connectorId) {
           case "prophetpay":
-            cy.log(`Handling Prophetpay card_redirect flow (${paymentMethodType})`);
+            cy.log(
+              `Handling Prophetpay card_redirect flow (${paymentMethodType})`
+            );
             cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
             verifyUrl = false;
             break;
@@ -3377,7 +3379,9 @@ function cardRedirectRedirection(
       { paymentMethodType }
     );
   } else {
-    cy.log("Skipping card_redirect redirection - no valid redirect URL provided");
+    cy.log(
+      "Skipping card_redirect redirection - no valid redirect URL provided"
+    );
   }
 
   cy.then(() => {
