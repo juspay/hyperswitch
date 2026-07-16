@@ -1,6 +1,6 @@
 export const connectorDetails = {
   ConnectorOnboarding: {
-    // action_url calls PayPal API — returns IR_06 in test env (no PayPal credentials configured)
+    // action_url calls PayPal API — returns 200 with action_url in integ/sandbox (PayPal creds configured), or 422 IR_06 in dev/test (no PayPal creds)
     ActionUrl: {
       Request: {
         connector: "paypal",
@@ -8,7 +8,7 @@ export const connectorDetails = {
         // connector_id filled at runtime from globalState.get("paypalConnectorId")
       },
       Response: {
-        // In test env: 422 IR_06 (Client Authentication failed — no PayPal creds in config)
+        // Returns 200 with action_url in integ/sandbox (PayPal creds configured), or 422 IR_06 in dev/test (no PayPal creds)
         status: 422,
         body: {
           error: {
@@ -18,7 +18,7 @@ export const connectorDetails = {
         },
       },
     },
-    // sync always returns 400 in test env (no real PayPal connector integration)
+    // sync returns 200 with sync status in integ/sandbox, or 400 in dev/test (no PayPal connector integration)
     Sync: {
       Request: {
         connector: "paypal",

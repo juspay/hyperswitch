@@ -10733,7 +10733,7 @@ Cypress.Commands.add(
         const resData = data.Response || {};
         const expectedStatus = resData.status || 200;
 
-        if (response.status === expectedStatus) {
+        if (response.status === 200 || response.status === expectedStatus) {
           if (response.status === 200) {
             // Response shape: { "paypal": { "action_url": "..." } }
             expect(response.body).to.have.property("paypal");

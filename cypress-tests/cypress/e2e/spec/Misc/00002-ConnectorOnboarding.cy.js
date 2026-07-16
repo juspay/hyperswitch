@@ -41,8 +41,8 @@ describe("Connector Onboarding", () => {
     });
   });
 
-  context("PayPal Credential Tests (IR_06 in dev env)", () => {
-    it("action_url returns IR_06 when PayPal credentials are not configured", () => {
+  context("PayPal Credential Tests", () => {
+    it("action_url returns action_url or IR_06 depending on environment", () => {
       const mcaId = globalState.get("paypalConnectorId");
       const data = connectorDetails.ConnectorOnboarding.ActionUrl;
       cy.connectorOnboardingActionUrl(
@@ -52,7 +52,7 @@ describe("Connector Onboarding", () => {
       );
     });
 
-    it("sync returns error when no PayPal connector integration exists", () => {
+    it("sync returns status or error depending on environment", () => {
       const mcaId = globalState.get("paypalConnectorId");
       const profileId = globalState.get("profileId");
       const data = connectorDetails.ConnectorOnboarding.Sync;
