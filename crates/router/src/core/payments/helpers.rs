@@ -6690,7 +6690,7 @@ pub fn is_apple_pay_simplified_flow(
 }
 
 // This function will return the encrypted connector wallets details with Apple Pay certificates
-// Currently apple pay certificates are stored in the metadata which is not encrypted.
+// Currently apple pay certifiactes are stored in the metadata which is not encrypted.
 // In future we want those certificates to be encrypted and stored in the connector_wallets_details.
 // As part of migration fallback this function checks apple pay details are present in connector_wallets_details
 // If yes, it will encrypt connector_wallets_details and store it in the database.
@@ -6993,7 +6993,7 @@ pub async fn get_apple_pay_retryable_connectors(
             }
         }
         #[cfg(feature = "v1")]
-        let fallback_connectors_list = crate::core::routing::helpers::get_merchant_default_config(
+        let fallback_connetors_list = crate::core::routing::helpers::get_merchant_default_config(
             &*state.clone().store,
             profile_id.get_string_repr(),
             &api_enums::TransactionType::Payment,
@@ -7008,7 +7008,7 @@ pub async fn get_apple_pay_retryable_connectors(
             routing_connector_data_list.push(pre_val.connector_data.merchant_connector_id.clone())
         });
 
-        fallback_connectors_list.iter().for_each(|fallback_val| {
+        fallback_connetors_list.iter().for_each(|fallback_val| {
             routing_connector_data_list
                 .iter()
                 .all(|val| *val != fallback_val.merchant_connector_id)
