@@ -7,8 +7,9 @@ use crate::{
     core::{
         api_locking,
         superposition_proxy::{
-            self, ListAuditLogsQuery, ListContextsQuery, ListDefaultConfigsQuery,
-            ListDimensionsQuery, ResolveConfigExplanationRequest, ResolveDetailedConfigRequest,
+            self, GetDefaultConfigRequest, GetDimensionRequest, ListAuditLogsQuery,
+            ListContextsQuery, ListDefaultConfigsQuery, ListDimensionsQuery,
+            ResolveConfigExplanationRequest, ResolveDetailedConfigRequest,
         },
     },
     services::{api, authentication as auth, authorization::permissions::Permission},
@@ -112,6 +113,92 @@ pub async fn list_dimensions(
         Err(response) => return response,
     };
     let request = query.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        move |state, user, _, _| {
+            let request = request.clone();
+            let org_id = org_id.clone();
+            let workspace_id = workspace_id.clone();
+            async move {
+                superposition_proxy::handle_superposition_proxy_flow(
+                    state,
+                    user,
+                    request,
+                    org_id,
+                    workspace_id,
+                )
+                .await
+            }
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfileSuperpositionConfigRead,
+            allow_connected: true,
+            allow_platform: true,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::SuperpositionGetDimension))]
+pub async fn get_dimension(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::SuperpositionGetDimension;
+    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req) {
+        Ok(headers) => headers,
+        Err(response) => return response,
+    };
+    let request = GetDimensionRequest(path.into_inner());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        move |state, user, _, _| {
+            let request = request.clone();
+            let org_id = org_id.clone();
+            let workspace_id = workspace_id.clone();
+            async move {
+                superposition_proxy::handle_superposition_proxy_flow(
+                    state,
+                    user,
+                    request,
+                    org_id,
+                    workspace_id,
+                )
+                .await
+            }
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfileSuperpositionConfigRead,
+            allow_connected: true,
+            allow_platform: true,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::SuperpositionGetDefaultConfig))]
+pub async fn get_default_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::SuperpositionGetDefaultConfig;
+    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req) {
+        Ok(headers) => headers,
+        Err(response) => return response,
+    };
+    let request = GetDefaultConfigRequest(path.into_inner());
 
     Box::pin(api::server_wrap(
         flow,

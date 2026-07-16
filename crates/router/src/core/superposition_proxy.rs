@@ -7,13 +7,14 @@ use async_trait::async_trait;
 use common_utils::events::ApiEventMetric;
 use external_services::superposition::{
     context_put_from_request, create_context_output_to_struct, doc_map_to_json, document_to_value,
+    get_default_config_output_to_struct, get_dimension_output_to_struct,
     list_audit_logs_to_response, list_contexts_to_response, list_default_configs_to_response,
     list_dimensions_to_response, map_sdk_error, parse_datetime,
     resolve_config_explanation_to_response, value_to_document, AuditAction, ContextFilterSortOn,
     ContextPutRequest, CreateContextInputBuilder, DateTime, DimensionMatchStrategy,
-    GetDetailedResolvedConfigInputBuilder, GetResolvedConfigExplanationInputBuilder,
-    ListAuditLogsInputBuilder, ListContextsInputBuilder, ListDefaultConfigsInputBuilder,
-    ListDimensionsInputBuilder, SortBy, SuperpositionError,
+    GetDefaultConfigInputBuilder, GetDetailedResolvedConfigInputBuilder, GetDimensionInputBuilder,
+    GetResolvedConfigExplanationInputBuilder, ListAuditLogsInputBuilder, ListContextsInputBuilder,
+    ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, SortBy, SuperpositionError,
 };
 
 use crate::{
@@ -497,6 +498,90 @@ impl SuperpositionProxyFlow for ListDimensionsQuery {
             })?;
 
         Ok(list_dimensions_to_response(&output))
+    }
+}
+
+/// `GetDimension` request: the name of the dimension to fetch.
+#[derive(Debug, Clone)]
+pub struct GetDimensionRequest(pub String);
+
+#[async_trait(?Send)]
+impl SuperpositionProxyFlow for GetDimensionRequest {
+    type InputBuilder = GetDimensionInputBuilder;
+    type Response = DimensionResponse;
+
+    fn into_input(
+        self,
+        org_id: String,
+        workspace_id: String,
+    ) -> Result<Self::InputBuilder, error_stack::Report<errors::ApiErrorResponse>> {
+        Ok(GetDimensionInputBuilder::default()
+            .org_id(org_id)
+            .workspace_id(workspace_id)
+            .dimension(self.0))
+    }
+
+    async fn execute(
+        self,
+        state: &SessionState,
+        _auth: &UserFromToken,
+        org_id: String,
+        workspace_id: String,
+    ) -> Result<Self::Response, error_stack::Report<errors::ApiErrorResponse>> {
+        let output = self
+            .into_input(org_id, workspace_id)?
+            .send_with(state.superposition_service.superposition_sdk_client())
+            .await
+            .map_err(|sdk_error| {
+                map_superposition_err(
+                    error_stack::report!(map_sdk_error(sdk_error)),
+                    "Failed to get dimension from Superposition",
+                )
+            })?;
+
+        Ok(get_dimension_output_to_struct(&output))
+    }
+}
+
+/// `GetDefaultConfig` request: the key of the default config to fetch.
+#[derive(Debug, Clone)]
+pub struct GetDefaultConfigRequest(pub String);
+
+#[async_trait(?Send)]
+impl SuperpositionProxyFlow for GetDefaultConfigRequest {
+    type InputBuilder = GetDefaultConfigInputBuilder;
+    type Response = DefaultConfigResponse;
+
+    fn into_input(
+        self,
+        org_id: String,
+        workspace_id: String,
+    ) -> Result<Self::InputBuilder, error_stack::Report<errors::ApiErrorResponse>> {
+        Ok(GetDefaultConfigInputBuilder::default()
+            .org_id(org_id)
+            .workspace_id(workspace_id)
+            .key(self.0))
+    }
+
+    async fn execute(
+        self,
+        state: &SessionState,
+        _auth: &UserFromToken,
+        org_id: String,
+        workspace_id: String,
+    ) -> Result<Self::Response, error_stack::Report<errors::ApiErrorResponse>> {
+        let output = self
+            .into_input(org_id, workspace_id)?
+            .send_with(state.superposition_service.superposition_sdk_client())
+            .await
+            .map_err(|sdk_error| {
+                map_superposition_err(
+                    error_stack::report!(map_sdk_error(sdk_error)),
+                    "Failed to get default config from Superposition",
+                )
+            })?;
+
+        Ok(get_default_config_output_to_struct(&output))
     }
 }
 

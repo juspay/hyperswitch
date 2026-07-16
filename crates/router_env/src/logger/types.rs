@@ -765,6 +765,10 @@ pub enum Flow {
     SuperpositionListDefaultConfigs,
     /// Superposition Proxy Get Dimensions List flow
     SuperpositionListDimensions,
+    /// Superposition Proxy Get Dimension flow
+    SuperpositionGetDimension,
+    /// Superposition Proxy Get Default Config flow
+    SuperpositionGetDefaultConfig,
     /// Superposition Proxy Create Context flow
     SuperpositionCreateContext,
     /// Superposition Proxy Resolve Detailed Config flow

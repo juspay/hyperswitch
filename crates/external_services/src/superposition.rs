@@ -23,7 +23,9 @@ use superposition_sdk::operation::{
 pub use superposition_sdk::{
     operation::{
         create_context::builders::CreateContextInputBuilder,
+        get_default_config::builders::GetDefaultConfigInputBuilder,
         get_detailed_resolved_config::builders::GetDetailedResolvedConfigInputBuilder,
+        get_dimension::builders::GetDimensionInputBuilder,
         get_resolved_config_explanation::builders::GetResolvedConfigExplanationInputBuilder,
         list_audit_logs::builders::ListAuditLogsInputBuilder,
         list_contexts::builders::ListContextsInputBuilder,
@@ -170,12 +172,9 @@ pub fn default_config_response_to_struct(
     }
 }
 
-/// Convert a Superposition SDK `DimensionResponse` into the typed response struct.
-pub fn dimension_response_to_struct(
-    dim: &superposition_sdk::types::DimensionResponse,
-) -> DimensionResponse {
-    let dep_graph: Map<String, serde_json::Value> = dim
-        .dependency_graph()
+/// Convert a dimension dependency graph into a JSON object value.
+fn dependency_graph_to_value(graph: &HashMap<String, Vec<String>>) -> serde_json::Value {
+    let dep_graph: Map<String, serde_json::Value> = graph
         .iter()
         .map(|(k, v)| {
             (
@@ -188,6 +187,13 @@ pub fn dimension_response_to_struct(
             )
         })
         .collect();
+    serde_json::Value::Object(dep_graph)
+}
+
+/// Convert a Superposition SDK `DimensionResponse` into the typed response struct.
+pub fn dimension_response_to_struct(
+    dim: &superposition_sdk::types::DimensionResponse,
+) -> DimensionResponse {
     DimensionResponse {
         dimension: dim.dimension().to_owned(),
         position: dim.position(),
@@ -199,10 +205,51 @@ pub fn dimension_response_to_struct(
         last_modified_by: dim.last_modified_by().to_owned(),
         created_at: datetime_to_string(dim.created_at()),
         created_by: dim.created_by().to_owned(),
-        dependency_graph: serde_json::Value::Object(dep_graph),
+        dependency_graph: dependency_graph_to_value(dim.dependency_graph()),
         dimension_type: dimension_type_to_value(dim.dimension_type()),
         value_compute_function_name: dim.value_compute_function_name().map(str::to_owned),
         mandatory: dim.mandatory(),
+    }
+}
+
+/// Convert a Superposition SDK `GetDimensionOutput` into the typed response struct.
+pub fn get_dimension_output_to_struct(
+    dim: &superposition_sdk::operation::get_dimension::GetDimensionOutput,
+) -> DimensionResponse {
+    DimensionResponse {
+        dimension: dim.dimension().to_owned(),
+        position: dim.position(),
+        schema: doc_map_to_json(dim.schema()),
+        value_validation_function_name: dim.value_validation_function_name().map(str::to_owned),
+        description: dim.description().to_owned(),
+        change_reason: dim.change_reason().to_owned(),
+        last_modified_at: datetime_to_string(dim.last_modified_at()),
+        last_modified_by: dim.last_modified_by().to_owned(),
+        created_at: datetime_to_string(dim.created_at()),
+        created_by: dim.created_by().to_owned(),
+        dependency_graph: dependency_graph_to_value(dim.dependency_graph()),
+        dimension_type: dimension_type_to_value(dim.dimension_type()),
+        value_compute_function_name: dim.value_compute_function_name().map(str::to_owned),
+        mandatory: dim.mandatory(),
+    }
+}
+
+/// Convert a Superposition SDK `GetDefaultConfigOutput` into the typed response struct.
+pub fn get_default_config_output_to_struct(
+    cfg: &superposition_sdk::operation::get_default_config::GetDefaultConfigOutput,
+) -> DefaultConfigResponse {
+    DefaultConfigResponse {
+        key: cfg.key().to_owned(),
+        value: document_to_value(cfg.value().clone()),
+        schema: doc_map_to_json(cfg.schema()),
+        description: cfg.description().to_owned(),
+        change_reason: cfg.change_reason().to_owned(),
+        value_validation_function_name: cfg.value_validation_function_name().map(str::to_owned),
+        value_compute_function_name: cfg.value_compute_function_name().map(str::to_owned),
+        created_at: datetime_to_string(cfg.created_at()),
+        created_by: cfg.created_by().to_owned(),
+        last_modified_at: datetime_to_string(cfg.last_modified_at()),
+        last_modified_by: cfg.last_modified_by().to_owned(),
     }
 }
 
