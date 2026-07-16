@@ -89,6 +89,9 @@ pub struct Settings<S: SecretState> {
     pub replica_database: SecretStateContainer<Database, S>,
     pub redis: RedisSettings,
     pub log: Log,
+    #[cfg(feature = "deja")]
+    #[serde(default)]
+    pub deja: DejaSettings,
     pub secrets: SecretStateContainer<Secrets, S>,
     pub fallback_merchant_ids_api_key_auth: Option<FallbackMerchantIds>,
     pub locker: Locker,
@@ -195,6 +198,187 @@ pub struct Settings<S: SecretState> {
     pub comparison_service: Option<ComparisonServiceConfig>,
     pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
     pub save_payment_method_on_session: OnSessionConfig,
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum DejaMode {
+    #[default]
+    Disabled,
+    Record,
+    Replay,
+}
+
+#[cfg(feature = "deja")]
+impl DejaMode {
+    pub fn is_disabled(&self) -> bool {
+        matches!(self, Self::Disabled)
+    }
+
+    pub fn is_record(&self) -> bool {
+        matches!(self, Self::Record)
+    }
+
+    pub fn is_replay(&self) -> bool {
+        matches!(self, Self::Replay)
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct DejaSettings {
+    pub mode: DejaMode,
+    pub run_id: Option<String>,
+    pub recording: DejaRecordingSettings,
+    pub replay: DejaReplaySettings,
+    pub sampler: DejaSamplerSettings,
+    pub identity: DejaIdentitySettings,
+    pub writer: DejaWriterSettings,
+}
+
+#[cfg(feature = "deja")]
+impl DejaSettings {
+    pub fn effective_run_id(&self) -> Option<&str> {
+        self.run_id.as_deref().filter(|run_id| !run_id.is_empty())
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct DejaRecordingSettings {
+    pub graph: DejaGraphMode,
+    pub kafka: DejaRecordingKafkaSettings,
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum DejaGraphMode {
+    #[default]
+    Disabled,
+    Enabled,
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaRecordingKafkaSettings {
+    pub topic: Option<String>,
+    pub brokers: Vec<String>,
+    pub client_id: Option<String>,
+    pub acks: String,
+    pub idempotence: bool,
+    pub compression: Option<String>,
+    pub linger: Option<u64>,
+    pub message_timeout: Option<u64>,
+    /// rdkafka producer send-buffer depth — the loss-budget knob. A full buffer
+    /// surfaces as enqueue errors the writer accounts as dropped (never memory
+    /// growth); tune per environment. Default matches the former hardcoded cap.
+    pub queue_buffering_max_messages: usize,
+}
+
+#[cfg(feature = "deja")]
+impl DejaRecordingKafkaSettings {
+    pub fn effective_topic(&self) -> Option<&str> {
+        self.topic.as_deref().filter(|topic| !topic.is_empty())
+    }
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaRecordingKafkaSettings {
+    fn default() -> Self {
+        Self {
+            topic: None,
+            brokers: Vec::new(),
+            client_id: None,
+            acks: "all".to_owned(),
+            idempotence: true,
+            compression: None,
+            linger: None,
+            message_timeout: Some(30_000),
+            queue_buffering_max_messages: 100_000,
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaReplaySettings {
+    pub source: Option<String>,
+    pub lookup_dir: Option<PathBuf>,
+    pub observed_sink: Option<String>,
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaSamplerSettings {
+    pub enabled: bool,
+    pub record_key: Option<String>,
+    pub timeout_ms: u64,
+    pub fail_closed: bool,
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaSamplerSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            record_key: None,
+            timeout_ms: 25,
+            fail_closed: true,
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaIdentitySettings {
+    pub pod_name_env: String,
+    pub git_sha_env: String,
+    pub instance_id: Option<String>,
+    pub code_sha: Option<String>,
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaIdentitySettings {
+    fn default() -> Self {
+        Self {
+            pod_name_env: "POD_NAME".to_owned(),
+            git_sha_env: "VERGEN_GIT_SHA".to_owned(),
+            instance_id: None,
+            code_sha: None,
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaWriterSettings {
+    pub queue_capacity: usize,
+    pub batch_size: usize,
+    pub flush_after_records: usize,
+    pub flush_interval_ms: u64,
+    pub shutdown_flush_ms: u64,
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaWriterSettings {
+    fn default() -> Self {
+        Self {
+            queue_capacity: 8_192,
+            batch_size: 500,
+            flush_after_records: 500,
+            flush_interval_ms: 1_000,
+            shutdown_flush_ms: 5_000,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1171,19 +1355,22 @@ impl Settings<SecuredSecret> {
             config.add_source(File::from(required_fields_config_file).required(false))
         };
 
-        let config = config
-            .add_source(
-                Environment::with_prefix("ROUTER")
-                    .try_parsing(true)
-                    .separator("__")
-                    .list_separator(",")
-                    .with_list_parse_key("log.telemetry.route_to_trace")
-                    .with_list_parse_key("redis.cluster_urls")
-                    .with_list_parse_key("events.kafka.brokers")
-                    .with_list_parse_key("connectors.supported.wallets")
-                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
+        let environment_source = Environment::with_prefix("ROUTER")
+            .try_parsing(true)
+            .separator("__")
+            .list_separator(",")
+            .with_list_parse_key("log.telemetry.route_to_trace")
+            .with_list_parse_key("redis.cluster_urls")
+            .with_list_parse_key("events.kafka.brokers")
+            .with_list_parse_key("connectors.supported.wallets")
+            .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id");
 
-            )
+        #[cfg(feature = "deja")]
+        let environment_source =
+            environment_source.with_list_parse_key("deja.recording.kafka.brokers");
+
+        let config = config
+            .add_source(environment_source)
             .build()
             .change_context(ApplicationError::ConfigurationError)?;
 

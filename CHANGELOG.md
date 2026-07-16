@@ -4,6 +4,34 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.16.0
+
+### Features
+
+- **authentication:** Added fields to 3ds exemption manager for migration of 3ds decision manager ([#13238](https://github.com/juspay/hyperswitch/pull/13238)) ([`29326c1`](https://github.com/juspay/hyperswitch/commit/29326c1752da511625da1d1a29b3ecbf4eeae2d6))
+- **config:** Add datatrans to ucs_only_connectors ([#13298](https://github.com/juspay/hyperswitch/pull/13298)) ([`aebe966`](https://github.com/juspay/hyperswitch/commit/aebe966e067b2491cb2f3068e0a0a34e05c785ac))
+- **connectors:** [paypal] add customer id to payment request ([#13203](https://github.com/juspay/hyperswitch/pull/13203)) ([`22d0708`](https://github.com/juspay/hyperswitch/commit/22d070895e5e1b4263cee3658f234d7dfc517519))
+- **deja:** [1/5] optional dependency, feature flags, typed settings + feature-off purity proof ([#13285](https://github.com/juspay/hyperswitch/pull/13285)) ([`55d30a8`](https://github.com/juspay/hyperswitch/commit/55d30a82a4a97c0c6e8b0f94975fa28783d9490e))
+- **router:** Add Prop, PrivateLabel, and Dinacard card networks ([#13300](https://github.com/juspay/hyperswitch/pull/13300)) ([`aaeb67b`](https://github.com/juspay/hyperswitch/commit/aaeb67bea757e295adcc0cbb25dfb3a304cef5fa))
+
+### Bug Fixes
+
+- **connector:** [fiuu] gracefully handle unknown response enum variants and missing optional fields ([#13253](https://github.com/juspay/hyperswitch/pull/13253)) ([`e912a9e`](https://github.com/juspay/hyperswitch/commit/e912a9e468404fb7b7cbd0f96bba7df60c0722d7))
+- **novalnet:** Fix dynamic fields email value mismatch ([#13281](https://github.com/juspay/hyperswitch/pull/13281)) ([`a8eab88`](https://github.com/juspay/hyperswitch/commit/a8eab88b33b4dfb66fe2a333530c33597b11feed))
+- **paymentlink:** Fixed wrongly flagged XSS or SQLi attack for payment links ([#13283](https://github.com/juspay/hyperswitch/pull/13283)) ([`9cc573d`](https://github.com/juspay/hyperswitch/commit/9cc573da61a0c5121828ced61c23829da0569727))
+
+### Performance
+
+- **router:** Remove MCA decryption call in routing ([#13268](https://github.com/juspay/hyperswitch/pull/13268)) ([`f3b36ef`](https://github.com/juspay/hyperswitch/commit/f3b36ef970c1ac7bdc03d82340f9f6e4ce90b326))
+
+### Testing
+
+- **cypress:** Add BankRedirect Ideal mandate and PayLater AfterpayClearpay coverage for stripe ([#13165](https://github.com/juspay/hyperswitch/pull/13165)) ([`693ff40`](https://github.com/juspay/hyperswitch/commit/693ff40ff26b770ee1ca336d8ab04028538cf72e))
+
+**Full Changelog:** [`2026.07.15.0...2026.07.16.0`](https://github.com/juspay/hyperswitch/compare/2026.07.15.0...2026.07.16.0)
+
+- - -
+
 ## 2026.07.15.0
 
 ### Features
