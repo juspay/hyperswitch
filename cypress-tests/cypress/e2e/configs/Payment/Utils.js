@@ -637,7 +637,6 @@ export const CONNECTOR_LISTS = {
     DANA_WALLET_MANDATE: ["adyen"],
     GOPAY_WALLET_MANDATE: ["adyen"],
     CARD_INSTALLMENTS: ["adyen"],
-    FACILITAPAY_PIX_REFUND: ["facilitapay"],
     BILLING_DESCRIPTOR: [
       "adyen",
       "checkout",
