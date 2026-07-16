@@ -6,6 +6,7 @@ use api_models::{
     enums,
     payments::{self, PollConfig, QrCodeInformation, VoucherNextStepData},
 };
+use base64::Engine;
 use cards::{CardNumber, NetworkToken};
 use common_enums::enums as storage_enums;
 #[cfg(feature = "payouts")]
@@ -29,22 +30,30 @@ use hyperswitch_domain_models::{
         PaymentMethodBalance, PaymentMethodToken, RouterData,
     },
     router_flow_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegister, GiftCardBalanceCheck,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
+        GiftCardBalanceCheck,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         AcceptDisputeResponse, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
         SubmitEvidenceResponse,
     },
     types::{
-        ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsExtendAuthorizationRouterData,
-        PaymentsGiftCardBalanceCheckRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
+        ConnectorWebhookGenerateSecretRouterData, ConnectorWebhookRegisterRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
+        PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -54,6 +63,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
+    types::Response,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -441,6 +451,8 @@ pub enum AdyenStatus {
     #[cfg(feature = "payouts")]
     #[serde(rename = "[payout-submit-received]")]
     PayoutSubmitReceived,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -468,6 +480,7 @@ fn get_adyen_payment_status(
     is_manual_capture: bool,
     adyen_status: AdyenStatus,
     pmt: Option<common_enums::PaymentMethodType>,
+    prev_status: storage_enums::AttemptStatus,
 ) -> storage_enums::AttemptStatus {
     match adyen_status {
         AdyenStatus::AuthenticationFinished => {
@@ -498,6 +511,13 @@ fn get_adyen_payment_status(
         AdyenStatus::PayoutSubmitReceived => storage_enums::AttemptStatus::Pending,
         #[cfg(feature = "payouts")]
         AdyenStatus::PayoutDeclineReceived => storage_enums::AttemptStatus::Voided,
+        AdyenStatus::Unknown => {
+            router_env::logger::warn!(
+                "Adyen returned unknown payment status; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
+        }
     }
 }
 
@@ -524,6 +544,9 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
             //If Unexpected Event is received, need to understand how it reached this point
             //Webhooks with Payment Events only should try to conume this resource object.
             AdyenWebhookStatus::UnexpectedEvent | AdyenWebhookStatus::Reversed => {
+                Err(report!(errors::ConnectorError::WebhookBodyDecodingFailed))
+            }
+            AdyenWebhookStatus::Unknown => {
                 Err(report!(errors::ConnectorError::WebhookBodyDecodingFailed))
             }
         }
@@ -610,6 +633,8 @@ pub enum AdyenWebhookStatus {
     Expired,
     AdjustedAuthorization,
     AdjustAuthorizationFailed,
+    #[serde(other)]
+    Unknown,
 }
 
 //Creating custom struct which can be consumed in Psync Handler triggered from Webhooks
@@ -746,6 +771,8 @@ pub enum ActionType {
     #[serde(rename = "qrCode")]
     QrCode,
     Voucher,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -1508,6 +1535,8 @@ pub enum CancelStatus {
     Received,
     #[default]
     Processing,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1599,8 +1628,8 @@ impl FromStr for AdyenRefundRequestReason {
 pub struct AdyenRefundResponse {
     merchant_account: Secret<String>,
     psp_reference: String,
-    payment_psp_reference: String,
-    reference: String,
+    payment_psp_reference: Option<String>,
+    reference: Option<String>,
     status: String,
 }
 
@@ -2186,7 +2215,7 @@ fn get_additional_data(
                     ref_data.transaction_link_id.clone()
                 }
                 mandates::MandateReferenceId::ConnectorMandateId(_)
-                | mandates::MandateReferenceId::CardWithLimitedData => None,
+                | mandates::MandateReferenceId::CardWithLimitedData(_) => None,
             })
     });
 
@@ -2464,7 +2493,10 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
         common_enums::CardNetwork::Accel => Some(CardBrand::Accel),
         common_enums::CardNetwork::Pulse => Some(CardBrand::Pulse),
         common_enums::CardNetwork::Nyce => Some(CardBrand::Nyce),
-        common_enums::CardNetwork::Interac => None,
+        common_enums::CardNetwork::Interac
+        | common_enums::CardNetwork::Prop
+        | common_enums::CardNetwork::PrivateLabel
+        | common_enums::CardNetwork::Dinacard => None,
     }
 }
 
@@ -2993,6 +3025,7 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::IndonesianBankTransfer { .. }
             | BankTransferData::PixEmv { .. }
+            | BankTransferData::PixQr {}
             | BankTransferData::PixAutomaticoPush { .. }
             | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
@@ -3297,7 +3330,7 @@ impl
                     }
                 }
             }
-            mandates::MandateReferenceId::CardWithLimitedData => {
+            mandates::MandateReferenceId::CardWithLimitedData(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Card Only MIT for payment method".to_string(),
                     connector: "Adyen",
@@ -3764,6 +3797,7 @@ impl
             | BankTransferData::PixAutomaticoPush { .. }
             | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::PixEmv {}
+            | BankTransferData::PixQr {}
             | BankTransferData::IndonesianBankTransfer { .. } => (None, None),
         };
         let application_info = get_application_info(item);
@@ -4495,8 +4529,10 @@ pub fn get_adyen_response(
     is_capture_manual: bool,
     status_code: u16,
     pmt: Option<storage_enums::PaymentMethodType>,
+    prev_status: storage_enums::AttemptStatus,
 ) -> CustomResult<AdyenPaymentsResponseData, errors::ConnectorError> {
-    let status = get_adyen_payment_status(is_capture_manual, response.result_code, pmt);
+    let status =
+        get_adyen_payment_status(is_capture_manual, response.result_code, pmt, prev_status);
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == storage_enums::AttemptStatus::Failure
@@ -4718,8 +4754,14 @@ pub fn get_redirection_response(
     is_manual_capture: bool,
     status_code: u16,
     pmt: Option<storage_enums::PaymentMethodType>,
+    prev_status: storage_enums::AttemptStatus,
 ) -> CustomResult<AdyenPaymentsResponseData, errors::ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        prev_status,
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == storage_enums::AttemptStatus::Failure
@@ -4822,8 +4864,14 @@ pub fn get_present_to_shopper_response(
     is_manual_capture: bool,
     status_code: u16,
     pmt: Option<storage_enums::PaymentMethodType>,
+    prev_status: storage_enums::AttemptStatus,
 ) -> CustomResult<AdyenPaymentsResponseData, errors::ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        prev_status,
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == storage_enums::AttemptStatus::Failure
@@ -4895,8 +4943,14 @@ pub fn get_qr_code_response(
     is_manual_capture: bool,
     status_code: u16,
     pmt: Option<storage_enums::PaymentMethodType>,
+    prev_status: storage_enums::AttemptStatus,
 ) -> CustomResult<AdyenPaymentsResponseData, errors::ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        prev_status,
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == storage_enums::AttemptStatus::Failure
@@ -4968,8 +5022,10 @@ pub fn get_redirection_error_response(
     is_manual_capture: bool,
     status_code: u16,
     pmt: Option<storage_enums::PaymentMethodType>,
+    prev_status: storage_enums::AttemptStatus,
 ) -> CustomResult<AdyenPaymentsResponseData, errors::ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code, pmt);
+    let status =
+        get_adyen_payment_status(is_manual_capture, response.result_code, pmt, prev_status);
     let error = {
         let (network_decline_code, network_error_message) = response
             .additional_data
@@ -5297,21 +5353,44 @@ impl<F, Req>
         ),
     ) -> Result<Self, Self::Error> {
         let is_manual_capture = is_manual_capture(capture_method);
+        let prev_status = item.data.status;
         let adyen_payments_response_data = match item.response {
-            AdyenPaymentResponse::Response(response) => {
-                get_adyen_response(*response, is_manual_capture, item.http_code, pmt)?
-            }
-            AdyenPaymentResponse::PresentToShopper(response) => {
-                get_present_to_shopper_response(*response, is_manual_capture, item.http_code, pmt)?
-            }
-            AdyenPaymentResponse::QrCodeResponse(response) => {
-                get_qr_code_response(*response, is_manual_capture, item.http_code, pmt)?
-            }
-            AdyenPaymentResponse::RedirectionResponse(response) => {
-                get_redirection_response(*response, is_manual_capture, item.http_code, pmt)?
-            }
+            AdyenPaymentResponse::Response(response) => get_adyen_response(
+                *response,
+                is_manual_capture,
+                item.http_code,
+                pmt,
+                prev_status,
+            )?,
+            AdyenPaymentResponse::PresentToShopper(response) => get_present_to_shopper_response(
+                *response,
+                is_manual_capture,
+                item.http_code,
+                pmt,
+                prev_status,
+            )?,
+            AdyenPaymentResponse::QrCodeResponse(response) => get_qr_code_response(
+                *response,
+                is_manual_capture,
+                item.http_code,
+                pmt,
+                prev_status,
+            )?,
+            AdyenPaymentResponse::RedirectionResponse(response) => get_redirection_response(
+                *response,
+                is_manual_capture,
+                item.http_code,
+                pmt,
+                prev_status,
+            )?,
             AdyenPaymentResponse::RedirectionErrorResponse(response) => {
-                get_redirection_error_response(*response, is_manual_capture, item.http_code, pmt)?
+                get_redirection_error_response(
+                    *response,
+                    is_manual_capture,
+                    item.http_code,
+                    pmt,
+                    prev_status,
+                )?
             }
             AdyenPaymentResponse::WebhookResponse(response) => get_webhook_response(
                 *response,
@@ -5430,7 +5509,7 @@ pub struct AdyenCaptureResponse {
     payment_psp_reference: String,
     psp_reference: String,
     reference: String,
-    status: String,
+    status: Option<String>,
     amount: Amount,
     merchant_reference: Option<String>,
     store: Option<String>,
@@ -5566,7 +5645,8 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AdyenRefundResponse>> for RefundsRo
 pub struct AdyenErrorResponse {
     pub status: i32,
     pub error_code: String,
-    pub message: String,
+    pub message: Option<String>,
+    pub title: Option<String>,
     pub psp_reference: Option<String>,
 }
 
@@ -5600,6 +5680,8 @@ pub enum DisputeStatus {
     Unresponded,
     Responded,
     Expired,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
@@ -5657,6 +5739,18 @@ pub enum WebhookEventCode {
     PrearbitrationWon,
     PrearbitrationLost,
     RequestForInformation,
+    NotificationOfFraud,
+    InformationSupplied,
+    PrearbitrationOpen,
+    PrearbitrationAccepted,
+    PrearbitrationDeclined,
+    PrearbitrationIssuerWithdrawn,
+    SchemeArbitration,
+    SchemeArbitrationWon,
+    SchemeArbitrationLost,
+    DisputeDefensePeriodEnded,
+    IssuerResponseTimeframeExpired,
+    IssuerComments,
     OfferClosed,
     RecurringContract,
     #[cfg(feature = "payouts")]
@@ -5710,6 +5804,16 @@ pub fn is_chargeback_event(event_code: &WebhookEventCode) -> bool {
             | WebhookEventCode::PrearbitrationWon
             | WebhookEventCode::PrearbitrationLost
             | WebhookEventCode::RequestForInformation
+            | WebhookEventCode::InformationSupplied
+            | WebhookEventCode::PrearbitrationOpen
+            | WebhookEventCode::PrearbitrationAccepted
+            | WebhookEventCode::PrearbitrationDeclined
+            | WebhookEventCode::PrearbitrationIssuerWithdrawn
+            | WebhookEventCode::SchemeArbitration
+            | WebhookEventCode::SchemeArbitrationWon
+            | WebhookEventCode::SchemeArbitrationLost
+            | WebhookEventCode::DisputeDefensePeriodEnded
+            | WebhookEventCode::IssuerResponseTimeframeExpired
     )
 }
 
@@ -5768,24 +5872,38 @@ pub(crate) fn get_adyen_webhook_event(
         WebhookEventCode::NotificationOfChargeback => {
             api_models::webhooks::IncomingWebhookEvent::DisputeOpened
         }
+        // NOTIFICATION_OF_FRAUD - Informational fraud alerts (Visa TC40/Mastercard SAFE)
+        // These are pre-dispute warnings that don't create a dispute record
+        WebhookEventCode::NotificationOfFraud => {
+            api_models::webhooks::IncomingWebhookEvent::EventNotSupported
+        }
         WebhookEventCode::Chargeback => match dispute_status {
             Some(DisputeStatus::Won) => api_models::webhooks::IncomingWebhookEvent::DisputeWon,
-            Some(DisputeStatus::Lost) | None => {
-                api_models::webhooks::IncomingWebhookEvent::DisputeLost
+            Some(DisputeStatus::Lost) => api_models::webhooks::IncomingWebhookEvent::DisputeLost,
+            Some(DisputeStatus::Accepted) => {
+                api_models::webhooks::IncomingWebhookEvent::DisputeAccepted
             }
             Some(_) => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
+            None => api_models::webhooks::IncomingWebhookEvent::DisputeLost,
         },
         WebhookEventCode::RequestForInformation => match dispute_status {
             Some(DisputeStatus::Responded) => {
-                api_models::webhooks::IncomingWebhookEvent::DisputeChallenged
+                api_models::webhooks::IncomingWebhookEvent::DisputeOpened
             }
             Some(DisputeStatus::Expired) => {
                 api_models::webhooks::IncomingWebhookEvent::DisputeExpired
             }
             Some(DisputeStatus::Unresponded) => {
-                api_models::webhooks::IncomingWebhookEvent::EventNotSupported
+                api_models::webhooks::IncomingWebhookEvent::DisputeOpened
             }
             None | Some(_) => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
+        },
+        WebhookEventCode::InformationSupplied => match dispute_status {
+            Some(DisputeStatus::Responded) => {
+                api_models::webhooks::IncomingWebhookEvent::DisputeChallenged
+            }
+            Some(_) => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
+            None => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
         },
         WebhookEventCode::ChargebackReversed => match dispute_status {
             Some(DisputeStatus::Pending) => {
@@ -5796,14 +5914,51 @@ pub(crate) fn get_adyen_webhook_event(
         WebhookEventCode::SecondChargeback => {
             api_models::webhooks::IncomingWebhookEvent::DisputeLost
         }
-        WebhookEventCode::PrearbitrationWon => match dispute_status {
-            Some(DisputeStatus::Pending) => {
-                api_models::webhooks::IncomingWebhookEvent::DisputeOpened
-            }
-            _ => api_models::webhooks::IncomingWebhookEvent::DisputeWon,
-        },
+        WebhookEventCode::PrearbitrationWon => {
+            api_models::webhooks::IncomingWebhookEvent::DisputeWon
+        }
         WebhookEventCode::PrearbitrationLost => {
             api_models::webhooks::IncomingWebhookEvent::DisputeLost
+        }
+        WebhookEventCode::PrearbitrationOpen => match dispute_status {
+            Some(DisputeStatus::Undefended) => {
+                api_models::webhooks::IncomingWebhookEvent::DisputeOpened
+            }
+            _ => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
+        },
+        WebhookEventCode::PrearbitrationAccepted => {
+            api_models::webhooks::IncomingWebhookEvent::DisputeAccepted
+        }
+        WebhookEventCode::PrearbitrationDeclined => {
+            api_models::webhooks::IncomingWebhookEvent::DisputeChallenged
+        }
+        WebhookEventCode::PrearbitrationIssuerWithdrawn => {
+            api_models::webhooks::IncomingWebhookEvent::DisputeWon
+        }
+        WebhookEventCode::SchemeArbitration => {
+            api_models::webhooks::IncomingWebhookEvent::DisputeOpened
+        }
+        WebhookEventCode::SchemeArbitrationWon => {
+            api_models::webhooks::IncomingWebhookEvent::DisputeWon
+        }
+        WebhookEventCode::SchemeArbitrationLost => {
+            api_models::webhooks::IncomingWebhookEvent::DisputeLost
+        }
+        WebhookEventCode::DisputeDefensePeriodEnded => match dispute_status {
+            Some(DisputeStatus::Undefended) | Some(DisputeStatus::Lost) => {
+                api_models::webhooks::IncomingWebhookEvent::DisputeLost
+            }
+            Some(DisputeStatus::Accepted) => {
+                api_models::webhooks::IncomingWebhookEvent::DisputeAccepted
+            }
+            _ => api_models::webhooks::IncomingWebhookEvent::DisputeLost,
+        },
+        WebhookEventCode::IssuerResponseTimeframeExpired => {
+            api_models::webhooks::IncomingWebhookEvent::DisputeWon
+        }
+        // ISSUER_COMMENTS - Informational comments from issuer
+        WebhookEventCode::IssuerComments => {
+            api_models::webhooks::IncomingWebhookEvent::EventNotSupported
         }
         WebhookEventCode::Capture => {
             if is_success_scenario(is_success) {
@@ -5846,11 +6001,25 @@ pub(crate) fn get_adyen_webhook_event(
 impl From<WebhookEventCode> for storage_enums::DisputeStage {
     fn from(code: WebhookEventCode) -> Self {
         match code {
-            WebhookEventCode::NotificationOfChargeback
-            | WebhookEventCode::RequestForInformation => Self::PreDispute,
-            WebhookEventCode::SecondChargeback => Self::PreArbitration,
-            WebhookEventCode::PrearbitrationWon => Self::PreArbitration,
-            WebhookEventCode::PrearbitrationLost => Self::PreArbitration,
+            WebhookEventCode::RequestForInformation
+            | WebhookEventCode::NotificationOfChargeback
+            | WebhookEventCode::Chargeback
+            | WebhookEventCode::ChargebackReversed
+            | WebhookEventCode::InformationSupplied
+            | WebhookEventCode::DisputeDefensePeriodEnded
+            | WebhookEventCode::IssuerResponseTimeframeExpired => Self::Dispute,
+            // PreArbitration: Advanced dispute resolution phases
+            WebhookEventCode::SecondChargeback
+            | WebhookEventCode::PrearbitrationWon
+            | WebhookEventCode::PrearbitrationLost
+            | WebhookEventCode::PrearbitrationOpen
+            | WebhookEventCode::PrearbitrationAccepted
+            | WebhookEventCode::PrearbitrationDeclined
+            | WebhookEventCode::PrearbitrationIssuerWithdrawn
+            | WebhookEventCode::SchemeArbitration
+            | WebhookEventCode::SchemeArbitrationWon
+            | WebhookEventCode::SchemeArbitrationLost => Self::PreArbitration,
+            // Other events don't map to a specific dispute stage
             _ => Self::Dispute,
         }
     }
@@ -5961,6 +6130,18 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                 | WebhookEventCode::SecondChargeback
                 | WebhookEventCode::PrearbitrationWon
                 | WebhookEventCode::PrearbitrationLost
+                | WebhookEventCode::NotificationOfFraud
+                | WebhookEventCode::InformationSupplied
+                | WebhookEventCode::PrearbitrationOpen
+                | WebhookEventCode::PrearbitrationAccepted
+                | WebhookEventCode::PrearbitrationDeclined
+                | WebhookEventCode::PrearbitrationIssuerWithdrawn
+                | WebhookEventCode::SchemeArbitration
+                | WebhookEventCode::SchemeArbitrationWon
+                | WebhookEventCode::SchemeArbitrationLost
+                | WebhookEventCode::DisputeDefensePeriodEnded
+                | WebhookEventCode::IssuerResponseTimeframeExpired
+                | WebhookEventCode::IssuerComments
                 | WebhookEventCode::Unknown => AdyenWebhookStatus::UnexpectedEvent,
             },
             amount: Some(Amount {
@@ -6543,9 +6724,15 @@ pub struct AdyenAcceptDisputeRequest {
 
 #[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenDisputeResponse {
+pub struct DisputeServiceResult {
     pub error_message: Option<String>,
     pub success: bool,
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenDisputeResponse {
+    pub dispute_service_result: DisputeServiceResult,
 }
 
 impl TryFrom<&AcceptDisputeRouterData> for AdyenAcceptDisputeRequest {
@@ -6574,7 +6761,7 @@ impl TryFrom<&DefendDisputeRouterData> for AdyenDefendDisputeRequest {
         Ok(Self {
             dispute_psp_reference: item.request.connector_dispute_id.clone(),
             merchant_account_code,
-            defense_reason_code: "SupplyDefenseMaterial".into(),
+            defense_reason_code: "AdditionalInformation".into(),
         })
     }
 }
@@ -6635,14 +6822,14 @@ fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseD
     if let Some(shipping_documentation) = item.shipping_documentation {
         defense_documents.push(DefenseDocuments {
             content: get_content(shipping_documentation).into(),
-            content_type: item.receipt_file_type,
+            content_type: item.shipping_documentation_file_type.clone(),
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
     if let Some(receipt) = item.receipt {
         defense_documents.push(DefenseDocuments {
             content: get_content(receipt).into(),
-            content_type: item.shipping_documentation_file_type,
+            content_type: item.receipt_file_type.clone(),
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
@@ -6712,7 +6899,7 @@ fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseD
 }
 
 fn get_content(item: Vec<u8>) -> String {
-    String::from_utf8_lossy(&item).to_string()
+    base64::engine::general_purpose::STANDARD.encode(&item)
 }
 
 impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for AcceptDisputeRouterData {
@@ -6720,8 +6907,9 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for AcceptDisputeRouterData {
 
     fn foreign_try_from(item: (&Self, AdyenDisputeResponse)) -> Result<Self, Self::Error> {
         let (data, response) = item;
+        let dispute_result = response.dispute_service_result;
 
-        if response.success {
+        if dispute_result.success {
             Ok(AcceptDisputeRouterData {
                 response: Ok(AcceptDisputeResponse {
                     dispute_status: storage_enums::DisputeStatus::DisputeAccepted,
@@ -6732,20 +6920,16 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for AcceptDisputeRouterData {
         } else {
             Ok(AcceptDisputeRouterData {
                 response: Err(ErrorResponse {
-                    code: response
+                    code: dispute_result
                         .error_message
                         .clone()
                         .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-                    message: response
+                    message: dispute_result
                         .error_message
                         .clone()
                         .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                    reason: response.error_message,
-                    status_code: data.connector_http_status_code.ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "http code",
-                        },
-                    )?,
+                    reason: dispute_result.error_message,
+                    status_code: data.connector_http_status_code.unwrap_or_default(),
                     attempt_status: None,
                     connector_transaction_id: None,
                     connector_response_reference_id: None,
@@ -6764,7 +6948,8 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for SubmitEvidenceRouterData 
     type Error = errors::ConnectorError;
     fn foreign_try_from(item: (&Self, AdyenDisputeResponse)) -> Result<Self, Self::Error> {
         let (data, response) = item;
-        if response.success {
+        let dispute_result = response.dispute_service_result;
+        if dispute_result.success {
             Ok(SubmitEvidenceRouterData {
                 response: Ok(SubmitEvidenceResponse {
                     dispute_status: storage_enums::DisputeStatus::DisputeChallenged,
@@ -6775,20 +6960,16 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for SubmitEvidenceRouterData 
         } else {
             Ok(SubmitEvidenceRouterData {
                 response: Err(ErrorResponse {
-                    code: response
+                    code: dispute_result
                         .error_message
                         .clone()
                         .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-                    message: response
+                    message: dispute_result
                         .error_message
                         .clone()
                         .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                    reason: response.error_message,
-                    status_code: data.connector_http_status_code.ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "http code",
-                        },
-                    )?,
+                    reason: dispute_result.error_message,
+                    status_code: data.connector_http_status_code.unwrap_or_default(),
                     attempt_status: None,
                     connector_transaction_id: None,
                     connector_response_reference_id: None,
@@ -6803,13 +6984,16 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for SubmitEvidenceRouterData 
     }
 }
 
-impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for DefendDisputeRouterData {
+impl ForeignTryFrom<(&Self, Response, AdyenDisputeResponse)> for DefendDisputeRouterData {
     type Error = errors::ConnectorError;
 
-    fn foreign_try_from(item: (&Self, AdyenDisputeResponse)) -> Result<Self, Self::Error> {
-        let (data, response) = item;
+    fn foreign_try_from(
+        item: (&Self, Response, AdyenDisputeResponse),
+    ) -> Result<Self, Self::Error> {
+        let (data, res, response) = item;
+        let dispute_result = response.dispute_service_result;
 
-        if response.success {
+        if dispute_result.success {
             Ok(DefendDisputeRouterData {
                 response: Ok(DefendDisputeResponse {
                     dispute_status: storage_enums::DisputeStatus::DisputeChallenged,
@@ -6820,20 +7004,16 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for DefendDisputeRouterData {
         } else {
             Ok(DefendDisputeRouterData {
                 response: Err(ErrorResponse {
-                    code: response
+                    code: dispute_result
                         .error_message
                         .clone()
                         .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-                    message: response
+                    message: dispute_result
                         .error_message
                         .clone()
                         .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                    reason: response.error_message,
-                    status_code: data.connector_http_status_code.ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "http code",
-                        },
-                    )?,
+                    reason: dispute_result.error_message,
+                    status_code: res.status_code,
                     attempt_status: None,
                     connector_transaction_id: None,
                     connector_response_reference_id: None,
@@ -7220,6 +7400,48 @@ impl
             response: Ok(ConnectorWebhookRegisterResponse {
                 connector_webhook_id: Some(item.response.id.clone()),
                 status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenGenerateHmacResponse {
+    hmac_key: Secret<String>,
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookGenerateSecret,
+            AdyenGenerateHmacResponse,
+            ConnectorWebhookGenerateSecretRequest,
+            ConnectorWebhookGenerateSecretResponse,
+        >,
+    >
+    for RouterData<
+        ConnectorWebhookGenerateSecret,
+        ConnectorWebhookGenerateSecretRequest,
+        ConnectorWebhookGenerateSecretResponse,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookGenerateSecret,
+            AdyenGenerateHmacResponse,
+            ConnectorWebhookGenerateSecretRequest,
+            ConnectorWebhookGenerateSecretResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(ConnectorWebhookGenerateSecretRouterData {
+            response: Ok(ConnectorWebhookGenerateSecretResponse {
+                secret: Some(item.response.hmac_key),
+                status: common_enums::WebhookSecretGenerationStatus::Success,
                 error_code: None,
                 error_message: None,
             }),

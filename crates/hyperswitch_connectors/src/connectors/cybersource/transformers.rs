@@ -117,11 +117,15 @@ pub struct CybersourceConnectorMetadataObject {
 impl TryFrom<&Option<pii::SecretSerdeValue>> for CybersourceConnectorMetadataObject {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
-        let metadata = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "metadata",
-            })?;
-        Ok(metadata)
+        // Cybersource metadata is optional (all fields are optional), so treat an absent
+        // metadata object as the default rather than a missing required field.
+        match meta_data {
+            Some(_) => utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                }),
+            None => Ok(Self::default()),
+        }
     }
 }
 
@@ -1149,7 +1153,7 @@ impl
                         }),
                     )
                 }
-                Some(mandates::MandateReferenceId::CardWithLimitedData) | None => {
+                Some(mandates::MandateReferenceId::CardWithLimitedData(_)) | None => {
                     (None, None, None)
                 }
             }
@@ -5472,7 +5476,10 @@ fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<
         | common_enums::CardNetwork::Star
         | common_enums::CardNetwork::Accel
         | common_enums::CardNetwork::Pulse
-        | common_enums::CardNetwork::Nyce => None,
+        | common_enums::CardNetwork::Nyce
+        | common_enums::CardNetwork::Prop
+        | common_enums::CardNetwork::PrivateLabel
+        | common_enums::CardNetwork::Dinacard => None,
     }
 }
 

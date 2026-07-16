@@ -10,46 +10,65 @@
 # The seeding script ignores this field; it's only needed for runtime fallback
 overrides = []
 
-[dimensions.organization_id]
-position = 1
-schema = { type = "string" }
-description = "Organization identifier"
+[default-configs.deja_record]
+value = true
+schema = { type = "boolean" }
+description = "Whether Deja request recording is enabled for matching request contexts (inert unless deja.sampler.enabled is set)"
 change_reason = "Initial setup"
 
-[dimensions.provider_merchant_id]
-position = 2
-schema = { type = "string" }
-description = "Provider merchant identifier (hyperswitch merchant id)"
-change_reason = "Initial setup"
-
-[dimensions.processor_merchant_id]
-position = 3
-schema = { type = "string" }
-description = "Processor merchant identifier (connector-side merchant id)"
-change_reason = "Initial setup"
-
-[dimensions.profile_id]
-position = 4
-schema = { type = "string" }
-description = "Business profile identifier"
-change_reason = "Initial setup"
 
 [dimensions.connector]
-position = 5
+position = 1
 schema = { type = "string" }
 description = "Payment connector identifier (e.g. stripe, adyen)"
 change_reason = "Initial setup"
 
+[dimensions.payment_method]
+position = 2
+schema = { type = "string" }
+description = "Payment method identifier (e.g. card, wallet, bank_transfer)"
+change_reason = "Initial setup"
+
+[dimensions.payment_method_type]
+position = 3
+schema = { type = "string" }
+description = "Payment method type identifier (e.g. credit, debit, google_pay)"
+change_reason = "Initial setup"
+
 [dimensions.payout_retry_type]
-position = 6
+position = 4
 schema = { type = "string" }
 description = "Type of payout retry (single_connector or multi_connector)"
 change_reason = "Initial setup"
 
 [dimensions.incoming_webhook_events]
-position = 7
+position = 5
 schema = { type = "string" }
 description = "Incoming webhook event type identifier (e.g. payment_intent.succeeded)"
+change_reason = "Initial setup"
+
+[dimensions.organization_id]
+position = 6
+schema = { type = "string" }
+description = "Organization identifier"
+change_reason = "Initial setup"
+
+[dimensions.provider_merchant_id]
+position = 7
+schema = { type = "string" }
+description = "Provider merchant identifier (hyperswitch merchant id)"
+change_reason = "Initial setup"
+
+[dimensions.processor_merchant_id]
+position = 8
+schema = { type = "string" }
+description = "Processor merchant identifier (connector-side merchant id)"
+change_reason = "Initial setup"
+
+[dimensions.profile_id]
+position = 9
+schema = { type = "string" }
+description = "Business profile identifier"
 change_reason = "Initial setup"
 
 [default-configs.requires_cvv]
@@ -139,6 +158,12 @@ schema = { type = "boolean" }
 description = "Whether to call the PM modular service for an organization"
 change_reason = "Initial setup"
 
+[default-configs.should_perform_sdk_vaulting]
+value = true
+schema = { type = "boolean" }
+description = "Org level override on top of should_call_pm_modular_service; when false the SDK skips vaulting"
+change_reason = "Initial setup"
+
 [default-configs.should_schedule_modular_forward_compat]
 value = false
 schema = { type = "boolean" }
@@ -206,6 +231,15 @@ change_reason = "Initial setup"
 start_after = 60
 frequencies = [[300, 2], [600, 5], [3600, 5], [21600, 3]]
 
+[default-configs.pt_mapping_outgoing_connector_webhooks]
+schema = { type = "object" }
+description = "Outgoing connector webhook retry process tracker mapping configuration"
+change_reason = "Initial setup"
+
+[default-configs.pt_mapping_outgoing_connector_webhooks.value.default_mapping]
+start_after = 60
+frequencies = [[300, 2], [600, 5], [3600, 5], [21600, 3]]
+
 [default-configs.pt_mapping_pcr_retries]
 schema = { type = "object" }
 description = "Revenue recovery (PCR) payment retry process tracker mapping configuration"
@@ -251,3 +285,8 @@ max_retries_count = 5
 start_after = 60
 frequencies = [[300, 5]]
 
+[default-configs.save_wallet_decrypted_data]
+value = false
+schema = { type = "boolean" }
+description = "Whether to save wallet decrypted data"
+change_reason = "Initial setup"

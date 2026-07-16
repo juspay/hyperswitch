@@ -103,8 +103,8 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                 let reverse_lookup = ReverseLookupNew {
                     lookup_id: format!(
                         "poa_{}_{}",
-                        &created_attempt.merchant_id.get_string_repr(),
-                        &created_attempt.payout_attempt_id,
+                        created_attempt.merchant_id.get_string_repr(),
+                        created_attempt.payout_attempt_id,
                     ),
                     pk_id: key_str.clone(),
                     sk_id: field.clone(),

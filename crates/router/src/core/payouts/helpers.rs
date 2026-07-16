@@ -25,7 +25,6 @@ use crate::{
     consts,
     core::{
         configs::dimension_state,
-        customers,
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::{
             cards,
@@ -833,6 +832,8 @@ pub async fn save_payout_data_to_locker(
                 existing_pm,
                 pm_update,
                 platform.get_processor().get_account().storage_scheme,
+                // Payout payment method writes are outside PM modular card compat.
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1017,7 +1018,7 @@ pub(super) async fn get_or_create_customer_details(
                     platform
                         .get_initiator()
                         .and_then(|initiator| initiator.to_created_by()), // Same as created_by on creation
-                    customers::generate_global_customer_id(&state.conf.cell_information.id),
+                    id_type::GlobalCustomerId::generate(&state.conf.cell_information.id),
                 );
 
                 Ok(Some(
@@ -1428,7 +1429,7 @@ pub async fn update_payouts_and_payout_attempt(
         payout_data
             .customer_details
             .as_ref()
-            .map(|customer| customer.customer_id.clone())
+            .map(|customer| customer.get_id().clone())
     } else {
         payout_data.payouts.customer_id.clone()
     };
@@ -1492,22 +1493,16 @@ pub async fn update_payouts_and_payout_attempt(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error updating payouts")?;
-    let updated_business_country =
-        payout_attempt
-            .business_country
-            .map_or(req.business_country.to_owned(), |c| {
-                req.business_country
-                    .to_owned()
-                    .and_then(|nc| if nc != c { Some(nc) } else { None })
-            });
-    let updated_business_label =
-        payout_attempt
-            .business_label
-            .map_or(req.business_label.to_owned(), |l| {
-                req.business_label
-                    .to_owned()
-                    .and_then(|nl| if nl != l { Some(nl) } else { None })
-            });
+    let updated_business_country = payout_attempt
+        .business_country
+        .map_or(req.business_country.to_owned(), |c| {
+            req.business_country.to_owned().filter(|&nc| nc != c)
+        });
+    let updated_business_label = payout_attempt
+        .business_label
+        .map_or(req.business_label.to_owned(), |l| {
+            req.business_label.to_owned().filter(|nl| *nl != l)
+        });
     if updated_business_country.is_some()
         || updated_business_label.is_some()
         || customer_id.is_some()

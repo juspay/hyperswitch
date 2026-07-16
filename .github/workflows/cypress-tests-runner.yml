@@ -17,7 +17,7 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "stripe authorizedotnet paypal"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "stripe authorizedotnet"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay finix"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpay braintree cryptopay paypal worldpayxml volt"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat checkout redsys novalnet noon"
@@ -27,7 +27,9 @@ env:
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat loonio nmi"
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_2: "paypal redsys zift"
   EXTENDED_PAYOUTS_CONNECTORS: "adyenplatform wise"
-  MOCK_PAYMENTS_CONNECTORS: "bluesnap gigadat zift loonio cashtocode"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat zift loonio cashtocode"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_2: "redsys worldpayxml cybersource braintree fiuu"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_3: "nmi calida adyen peachpayments"
   MOCK_PAYOUTS_CONNECTORS: "adyenplatform wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -95,11 +97,51 @@ jobs:
             git push
           fi
 
+  check-cypress-prerequisites:
+    name: Check Cypress prerequisites
+    runs-on: ubuntu-latest
+    outputs:
+      run-checks: ${{ steps.check.outputs.run-checks }}
+    steps:
+      - name: Check if S-test-ready label is present
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          # Merge queue, run checks
+          if [[ "${{ github.event_name }}" == "merge_group" ]]; then
+            echo "run-checks=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          HEAD_REPO="${{ github.event.pull_request.head.repo.full_name }}"
+          BASE_REPO="${{ github.event.pull_request.base.repo.full_name }}"
+          # Repository is a fork.
+          # `RUN_TESTS` based checks successfully skip the checks anyway,
+          # no point gating it behind a label in that case.
+          if [[ "${HEAD_REPO}" != "${BASE_REPO}" ]]; then
+            echo "run-checks=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          LABELS=$(
+            gh pr view ${{ github.event.pull_request.number }} \
+              --repo ${{ github.repository }} \
+              --json labels \
+              --jq '.labels[].name'
+          )
+          if echo "${LABELS}" | grep --quiet "S-test-ready"; then
+            echo "run-checks=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "run-checks=false" >> "${GITHUB_OUTPUT}"
+            exit 1
+          fi
+
   build-hyperswitch:
     name: Build hyperswitch server
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    needs: [check-cypress-prerequisites]
+    if: ${{ needs.check-cypress-prerequisites.outputs.run-checks == 'true' }}
     # use hyperswitch-runners-merge for merge queue level checks
     runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     env:
@@ -156,15 +198,14 @@ jobs:
 
   prepare-mandatory-matrix:
     name: Prepare Mandatory Connectors matrix to run cypress tests
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    needs: [check-cypress-prerequisites]
+    if: ${{ needs.check-cypress-prerequisites.outputs.run-checks == 'true' }}
     # use hyperswitch-runners-merge for merge queue level checks
     runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     outputs:
       mandatory-matrix: ${{ steps.set-mandatory-matrix.outputs.matrix }}
-    steps:    
-      - name : Set matrix for mandatory connectors batches
+    steps:
+      - name: Set matrix for mandatory connectors batches
         id: set-mandatory-matrix
         shell: bash
         run: |
@@ -202,9 +243,6 @@ jobs:
   mandatory-cypress-tests:
     name: Run mandatory Cypress tests
     needs: [build-hyperswitch, prepare-mandatory-matrix]
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     permissions:
       pull-requests: write
     # use hyperswitch-runners-merge for merge queue level checks
@@ -291,7 +329,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "68bba6ea-3c75-440f-9c4b-00a30ecbb79d.json.gpg"
+          S3_SOURCE_FILE_NAME: "b06ec672-ca83-405a-a834-856c3fe18dad.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -430,10 +468,7 @@ jobs:
   mandatory-cypress-tests-consolidated-result:
     name: Mandatory Cypress Tests — Consolidated Result
     needs: [mandatory-cypress-tests]
-    if: |
-      (github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' &&
-        contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && !cancelled()
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -579,7 +614,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "68bba6ea-3c75-440f-9c4b-00a30ecbb79d.json.gpg"
+          S3_SOURCE_FILE_NAME: "b06ec672-ca83-405a-a834-856c3fe18dad.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -718,9 +753,8 @@ jobs:
 
   prepare-mock-matrix:
     name: Prepare Mock Connectors matrix
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    needs: [check-cypress-prerequisites]
+    if: ${{ needs.check-cypress-prerequisites.outputs.run-checks == 'true' }}
     runs-on: ubuntu-latest
     outputs:
       mock-matrix: ${{ steps.set-mock-matrix.outputs.matrix }}
@@ -743,13 +777,31 @@ jobs:
                   "server_logs_artifact": "mock-server-logs-payouts"
                 },
                 {
-                  "name": "mock-payments",
-                  "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS}"'",
+                  "name": "mock-payments-batch-1",
+                  "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_1}"'",
                   "payouts_connectors": "",
                   "platform_connectors": "",
                   "parallel": 5,
-                  "report_artifact_name": "cypress-mock-test-results-payments",
-                  "server_logs_artifact": "mock-server-logs-payments"
+                  "report_artifact_name": "cypress-mock-test-results-payments-batch-1",
+                  "server_logs_artifact": "mock-server-logs-payments-batch-1"
+                },
+                {
+                  "name": "mock-payments-batch-2",
+                  "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_2}"'",
+                  "payouts_connectors": "",
+                  "platform_connectors": "",
+                  "parallel": 5,
+                  "report_artifact_name": "cypress-mock-test-results-payments-batch-2",
+                  "server_logs_artifact": "mock-server-logs-payments-batch-2"
+                },
+                {
+                  "name": "mock-payments-batch-3",
+                  "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_3}"'",
+                  "payouts_connectors": "",
+                  "platform_connectors": "",
+                  "parallel": 5,
+                  "report_artifact_name": "cypress-mock-test-results-payments-batch-3",
+                  "server_logs_artifact": "mock-server-logs-payments-batch-3"
                 }
               ]
             }'
@@ -759,10 +811,6 @@ jobs:
   mitm-cassette-replay-cypress-tests:
     name: Run MITM mock Cypress tests (${{ matrix.batch.name }})
     needs: [build-hyperswitch, prepare-mock-matrix]
-    if: |
-      (github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' &&
-        contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && !cancelled()
     runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     strategy:
       fail-fast: false
@@ -845,7 +893,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI }}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "68bba6ea-3c75-440f-9c4b-00a30ecbb79d.json.gpg"
+          S3_SOURCE_FILE_NAME: "b06ec672-ca83-405a-a834-856c3fe18dad.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -934,7 +982,7 @@ jobs:
           # replay store finds them at cypress-tests/mitm-proxy/captures/{connector}/.
           # We accept tarballs created either way (with or without a leading
           # {connector}/ component) and normalise the on-disk layout here so
-          # a misformed tarball doesn't silently produce zero cassettes.
+          # a malformed tarball doesn't silently produce zero cassettes.
           set -euo pipefail
           mkdir -p "cypress-tests/mitm-proxy/captures"
 
@@ -999,7 +1047,7 @@ jobs:
 
       - name: Install uv
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: astral-sh/setup-uv@v8.1.0
+        uses: astral-sh/setup-uv@v8.3.2
 
       - name: Install mitmproxy dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1041,6 +1089,7 @@ jobs:
           ROUTER__TRACE_HEADER__ID_REUSE_STRATEGY: "use_incoming"
           ROUTER__SERVER__WORKERS: 4
           SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
+          RUST_MIN_STACK: 134217728
         shell: bash
         run: |
           MITM_CERT=$(sed 's/$/\\r\\n/' "$HOME/.mitmproxy/mitmproxy-ca-cert.pem" | tr -d '\n')
@@ -1098,6 +1147,7 @@ jobs:
           # Notifies the MITM proxy of each test start/end so test names appear
           # in the replay log alongside cassette hits/misses (logging only).
           CYPRESS_PROXY_ADMIN_URL: "http://127.0.0.1:8001"
+          CYPRESS_CAPTURE_DIR: "${{ github.workspace }}/cypress-tests/mitm-proxy/captures"
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
@@ -1135,10 +1185,7 @@ jobs:
   mitm-cassette-replay-cypress-tests-consolidated-result:
     name: MITM Mock Cypress Tests — Consolidated Result
     needs: [mitm-cassette-replay-cypress-tests]
-    if: |
-      (github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' &&
-        contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && !cancelled()
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -1178,7 +1225,7 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - name : Set matrix for optional connectors batches
+      - name: Set matrix for optional connectors batches
         id: set-matrix
         shell: bash
         run: |
@@ -1208,7 +1255,7 @@ jobs:
   runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
     if: false
-    needs: [ build-hyperswitch, prepare-optional-matrix ]
+    needs: [build-hyperswitch, prepare-optional-matrix]
     runs-on: hyperswitch-runners
     strategy:
       fail-fast: false
@@ -1257,7 +1304,7 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
-      
+
       - name: Install sccache
         uses: taiki-e/install-action@v2
         with:
@@ -1281,7 +1328,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "68bba6ea-3c75-440f-9c4b-00a30ecbb79d.json.gpg"
+          S3_SOURCE_FILE_NAME: "b06ec672-ca83-405a-a834-856c3fe18dad.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -1391,7 +1438,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
-          path: ${{ env.SERVER_LOG_PATH }} 
+          path: ${{ env.SERVER_LOG_PATH }}
           if-no-files-found: ignore
           retention-days: 1
 
@@ -1399,7 +1446,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name:  ${{ matrix.batch.report_artifact_name }}
+          name: ${{ matrix.batch.report_artifact_name }}
           path: |
             cypress-tests/cypress/reports/
           retention-days: 1
@@ -1477,7 +1524,7 @@ jobs:
         run: |
           LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
-      
+
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: dtolnay/rust-toolchain@master
@@ -1631,7 +1678,8 @@ jobs:
 
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
-    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
+    needs: [check-cypress-prerequisites]
+    if: ${{ needs.check-cypress-prerequisites.outputs.run-checks == 'true' }}
     runs-on: hyperswitch-runners
     permissions:
       pull-requests: write
@@ -1691,7 +1739,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "68bba6ea-3c75-440f-9c4b-00a30ecbb79d.json.gpg"
+          S3_SOURCE_FILE_NAME: "b06ec672-ca83-405a-a834-856c3fe18dad.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"

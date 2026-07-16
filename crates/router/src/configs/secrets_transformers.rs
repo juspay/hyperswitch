@@ -315,6 +315,30 @@ impl SecretsHandler for settings::ChatSettings {
 }
 
 #[async_trait::async_trait]
+impl SecretsHandler for settings::SageSettings {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let sage_settings = value.get_inner();
+
+        // Skip the secret fetch when disabled — costs zero.
+        let infra_key = if sage_settings.enabled {
+            secret_management_client
+                .get_secret(sage_settings.infra_key.clone())
+                .await?
+        } else {
+            sage_settings.infra_key.clone()
+        };
+
+        Ok(value.transition_state(|sage_settings| Self {
+            infra_key,
+            ..sage_settings
+        }))
+    }
+}
+
+#[async_trait::async_trait]
 impl SecretsHandler for settings::NetworkTokenizationService {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -547,6 +571,11 @@ pub(crate) async fn fetch_raw_secrets(
         .expect("Failed to decrypt chat configs");
 
     #[allow(clippy::expect_used)]
+    let sage = settings::SageSettings::convert_to_raw_secret(conf.sage, secret_management_client)
+        .await
+        .expect("Failed to decrypt sage configs");
+
+    #[allow(clippy::expect_used)]
     let superposition =
         external_services::superposition::SuperpositionClientConfig::convert_to_raw_secret(
             conf.superposition,
@@ -570,9 +599,12 @@ pub(crate) async fn fetch_raw_secrets(
         server: conf.server,
         application_source: conf.application_source,
         chat,
+        sage,
         master_database,
         redis: conf.redis,
         log: conf.log,
+        #[cfg(feature = "deja")]
+        deja: conf.deja,
         #[cfg(feature = "kv_store")]
         drainer: conf.drainer,
         encryption_management: conf.encryption_management,

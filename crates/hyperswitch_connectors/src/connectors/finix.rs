@@ -1157,7 +1157,7 @@ impl webhooks::IncomingWebhook for Finix {
 
         Ok(format!(
             "{}:{}",
-            &security_header_kvs.timestamp,
+            security_header_kvs.timestamp,
             String::from_utf8_lossy(request.body)
         )
         .into_bytes())
@@ -1180,16 +1180,21 @@ impl webhooks::IncomingWebhook for Finix {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
-        if is_test_webhook(request) {
-            return Ok(IncomingWebhookEvent::SetupWebhook);
-        }
-        let webhook_body: finix::FinixWebhookBody =
-            request
+        let trimmed_body = std::str::from_utf8(request.body)
+            .map(|string| string.trim())
+            .unwrap_or("");
+        if request.body.is_empty() || trimmed_body == "{}" {
+            Ok(IncomingWebhookEvent::EndpointVerification)
+        } else if is_test_webhook(request) {
+            Ok(IncomingWebhookEvent::SetupWebhook)
+        } else {
+            let webhook_body: finix::FinixWebhookBody = request
                 .body
                 .parse_struct("FinixWebhookBody")
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        webhook_body.get_webhook_event_type()
+            webhook_body.get_webhook_event_type()
+        }
     }
     fn get_dispute_details(
         &self,

@@ -59,6 +59,7 @@ use hyperswitch_domain_models::payment_methods::PaymentMethodUpdate as DomainPay
 use hyperswitch_domain_models::{
     payment_method_data::BankDebitData,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent, VaultData},
+    platform::ProviderMerchantId,
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_flow_types::ExternalVaultInsertFlow,
     types::VaultRouterData,
@@ -73,6 +74,7 @@ use time::Duration;
 #[cfg(feature = "v2")]
 use super::payments::tokenization;
 use super::{
+    configs::dimension_state,
     errors::{RouterResponse, StorageErrorExt},
     pm_auth,
 };
@@ -80,8 +82,8 @@ use super::{
 use crate::{
     configs::settings,
     core::{
-        configs::dimension_state, payment_methods::transformers as pm_transforms,
-        payment_methods::utils as payment_method_utils, tokenization as tokenization_core,
+        payment_methods::{transformers as pm_transforms, utils as payment_method_utils},
+        tokenization as tokenization_core,
     },
     headers,
     routes::{self, payment_methods as pm_routes},
@@ -120,6 +122,8 @@ const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TAG: &str = "PM_MOD_FORWARD_COMPAT";
 const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TASK: &str = "PM_MOD_BACK_COMPAT";
 #[cfg(feature = "v2")]
 const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TAG: &str = "PM_MOD_BACK_COMPAT";
+const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
+const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
 #[cfg(feature = "v2")]
 const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
 
@@ -389,7 +393,7 @@ pub async fn render_pm_collect_link(
                     publishable_key: Secret::new(provider.get_account().clone().publishable_key),
                     client_secret: link_data.client_secret.clone(),
                     pm_collect_link_id: pm_collect_link.link_id,
-                    customer_id: customer.customer_id,
+                    customer_id: customer.get_id().clone(),
                     session_expiry: pm_collect_link.expiry,
                     return_url: pm_collect_link.return_url,
                     ui_config: ui_config_data,
@@ -476,6 +480,103 @@ fn generate_task_id_for_payment_method_status_update_workflow(
     format!("{runner}_{task}_{key_id}")
 }
 
+fn generate_task_id_for_payment_method_modular_compat_workflow(
+    key_id: &str,
+    runner: storage::ProcessTrackerRunner,
+    task: &str,
+) -> String {
+    let suffix = common_utils::generate_id_with_len(
+        PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_SUFFIX_LENGTH,
+    );
+    let prefix = format!("{runner}_{task}_");
+    let key_id_len = PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_MAX_LENGTH
+        .saturating_sub(prefix.len() + suffix.len() + 1);
+    let key_id = &key_id[..key_id.len().min(key_id_len)];
+    format!("{prefix}{key_id}_{suffix}")
+}
+
+fn payment_method_compat_modifier(payment_method: &domain::PaymentMethod) -> Option<String> {
+    payment_method
+        .last_modified_by
+        .as_ref()
+        .or(payment_method.created_by.as_ref())
+        .map(ToString::to_string)
+}
+
+#[cfg(feature = "v1")]
+pub async fn payment_method_modular_forward_compat_action(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    customer_id: Option<&id_type::CustomerId>,
+) -> Option<domain::PaymentMethodCompatAction> {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(ProviderMerchantId::new(merchant_id.clone()));
+    let should_schedule_modular_forward_compat =
+        utils::get_should_schedule_modular_forward_compat(state, &dimensions, customer_id).await;
+
+    should_schedule_modular_forward_compat.then(|| {
+        let state = state.clone();
+        domain::PaymentMethodCompatAction::new(move |payment_method| {
+            let state = state.clone();
+            Box::pin(async move {
+                let res = add_payment_method_modular_forward_compat_task(
+                    &*state.store,
+                    payment_method,
+                    &payment_method.merchant_id,
+                    state.conf.application_source,
+                    payment_method_compat_modifier(payment_method),
+                )
+                .await;
+
+                if let Err(err) = res {
+                    logger::error!(
+                        ?err,
+                        payment_method_id=%payment_method.get_id(),
+                        merchant_id=%payment_method.merchant_id.get_string_repr(),
+                        "Failed to schedule modular forward compatibility PT after payment method DB write"
+                    );
+                }
+            })
+        })
+    })
+}
+
+#[cfg(feature = "v2")]
+pub fn payment_method_modular_backward_compat_action(
+    state: &SessionState,
+) -> domain::PaymentMethodCompatAction {
+    let state = state.clone();
+    domain::PaymentMethodCompatAction::new(move |payment_method| {
+        let state = state.clone();
+        Box::pin(async move {
+            backward_compat::trigger_payment_method_modular_backward_compat(
+                &state,
+                payment_method,
+                payment_method_compat_modifier(payment_method),
+            )
+            .await;
+        })
+    })
+}
+
+#[cfg(feature = "v1")]
+pub async fn payment_method_modular_compat_action(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    customer_id: Option<&id_type::CustomerId>,
+) -> Option<domain::PaymentMethodCompatAction> {
+    payment_method_modular_forward_compat_action(state, merchant_id, customer_id).await
+}
+
+#[cfg(feature = "v2")]
+pub async fn payment_method_modular_compat_action(
+    state: &SessionState,
+    _merchant_id: &id_type::MerchantId,
+    _customer_id: Option<&id_type::GlobalCustomerId>,
+) -> Option<domain::PaymentMethodCompatAction> {
+    Some(payment_method_modular_backward_compat_action(state))
+}
+
 #[cfg(feature = "v1")]
 pub async fn add_payment_method_status_update_task(
     db: &dyn StorageInterface,
@@ -543,20 +644,18 @@ pub async fn add_payment_method_modular_forward_compat_task(
     payment_method: &domain::PaymentMethod,
     merchant_id: &id_type::MerchantId,
     application_source: common_enums::ApplicationSource,
-    initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+    last_modified_by: Option<String>,
 ) -> Result<(), ProcessTrackerError> {
     let tracking_data = storage::PaymentMethodModularCompatTrackingData {
         payment_method_id: payment_method.payment_method_id.clone(),
         merchant_id: merchant_id.to_owned(),
-        last_modified_by: initiator
-            .and_then(|initiator| initiator.to_created_by())
-            .map(|last_modified_by| last_modified_by.to_string()),
+        last_modified_by,
     };
 
     let runner = storage::ProcessTrackerRunner::PaymentMethodModularForwardCompatWorkflow;
     let task = PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TASK;
     let tag = [PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TAG];
-    let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
+    let process_tracker_id = generate_task_id_for_payment_method_modular_compat_workflow(
         payment_method.payment_method_id.as_str(),
         runner,
         task,
@@ -597,22 +696,20 @@ pub async fn add_payment_method_modular_backward_compat_task(
     payment_method: &domain::PaymentMethod,
     merchant_id: &id_type::MerchantId,
     application_source: common_enums::ApplicationSource,
-    initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+    last_modified_by: Option<String>,
 ) -> Result<(), ProcessTrackerError> {
     let payment_method_id = payment_method.get_id().get_string_repr().to_owned();
 
     let tracking_data = storage::PaymentMethodModularCompatTrackingData {
         payment_method_id: payment_method_id.clone(),
         merchant_id: merchant_id.to_owned(),
-        last_modified_by: initiator
-            .and_then(|initiator| initiator.to_created_by())
-            .map(|last_modified_by| last_modified_by.to_string()),
+        last_modified_by,
     };
 
     let runner = storage::ProcessTrackerRunner::PaymentMethodModularBackwardCompatWorkflow;
     let task = PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TASK;
     let tag = [PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TAG];
-    let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
+    let process_tracker_id = generate_task_id_for_payment_method_modular_compat_workflow(
         &payment_method_id,
         runner,
         task,
@@ -1726,7 +1823,7 @@ impl LockerOperations for GenericLocker {
         )
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-        let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+        let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None, None)
             .await
             .change_context(errors::VaultError::VaultAPIError)
             .attach_printable("Call to vault failed")?;
@@ -1754,7 +1851,7 @@ impl LockerOperations for GenericLocker {
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultDeleteRequest")?;
 
-        let resp = vault::call_to_vault::<pm_types::VaultDelete>(state, payload, None)
+        let resp = vault::call_to_vault::<pm_types::VaultDelete>(state, payload, None, None)
             .await
             .change_context(errors::VaultError::VaultAPIError)
             .attach_printable("Call to vault failed")?;
@@ -2207,34 +2304,19 @@ impl LockerOperations for LegacyLocker {
                 Ok((None, None))
             }
             Some(pm_transforms::DataDuplicationCheck::MetaDataChanged) => {
-                // delete existing record and add newone with updated metadata but same vault_id
-
-                self.delete_payment_method_from_locker(
-                    state,
-                    platform,
-                    domain::VaultId::generate(legacy_locker_res.card_reference.clone()),
-                    &customer_id,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to delete payment method from legacy locker")?;
-
-                let legacy_locker_res = add_payment_method_to_legacy_locker(
+                let add_vault_response = update_metadata_changed_payment_method_in_legacy_locker(
                     state,
                     platform,
                     vault_request_data,
                     existing_locker_id,
                     &customer_id,
+                    legacy_locker_res.card_reference,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to add payment method to legacy locker")?;
+                .attach_printable(
+                    "Failed to update metadata-changed payment method in legacy locker",
+                )?;
 
-                let add_vault_response = pm_types::AddVaultResponse {
-                    entity_id: None,
-                    vault_id: domain::VaultId::generate(legacy_locker_res.card_reference),
-                    fingerprint_id: None,
-                };
                 logger::info!("Updating only payment method metadata in legacy locker");
                 Ok((Some(vault_request_data.clone()), Some(add_vault_response)))
             }
@@ -2242,6 +2324,45 @@ impl LockerOperations for LegacyLocker {
         }
     }
 }
+
+#[cfg(feature = "v2")]
+pub async fn update_metadata_changed_payment_method_in_legacy_locker(
+    state: &SessionState,
+    platform: &domain::Platform,
+    vault_request_data: &domain::PaymentMethodVaultingData,
+    existing_vault_id: Option<domain::VaultId>,
+    customer_id: &id_type::GlobalCustomerId,
+    metadata_changed_card_reference: String,
+) -> RouterResult<pm_types::AddVaultResponse> {
+    LegacyLocker
+        .delete_payment_method_from_locker(
+            state,
+            platform,
+            domain::VaultId::generate(metadata_changed_card_reference),
+            customer_id,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to delete payment method from legacy locker")?;
+
+    let legacy_locker_res = add_payment_method_to_legacy_locker(
+        state,
+        platform,
+        vault_request_data,
+        existing_vault_id,
+        customer_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to add payment method to legacy locker")?;
+
+    Ok(pm_types::AddVaultResponse {
+        entity_id: Some(customer_id.get_string_repr().to_owned()),
+        vault_id: domain::VaultId::generate(legacy_locker_res.card_reference),
+        fingerprint_id: None,
+    })
+}
+
 #[cfg(feature = "v2")]
 impl LockerType {
     pub fn from_micro_services_config(
@@ -2339,7 +2460,7 @@ pub async fn create_payment_method_bank_redirect_core(
         }
         None => {
             logger::debug!("Payment method is new, creating a new payment method record");
-            create_payment_method_for_confirm(
+            let payment_method = create_payment_method_for_confirm(
                 state,
                 customer_id,
                 payment_method_id,
@@ -2356,7 +2477,9 @@ pub async fn create_payment_method_bank_redirect_core(
                 platform.get_initiator(),
                 enums::PaymentMethodStatus::New,
             )
-            .await?
+            .await?;
+
+            payment_method
         }
     };
 
@@ -2406,7 +2529,7 @@ impl PaymentMethodResolver {
                     Some(
                         vault::insert_cvc_using_payment_token(
                             state,
-                            &existing_pm.id,
+                            existing_pm.id.get_string_repr(),
                             cvc,
                             intent_fulfillment_time,
                             platform.get_provider().get_key_store(),
@@ -2642,6 +2765,7 @@ async fn execute_payment_method_create(
                     payment_method,
                     pm_update,
                     platform.get_provider().get_account().storage_scheme,
+                    Some(payment_method_modular_backward_compat_action(state)),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2658,7 +2782,7 @@ async fn execute_payment_method_create(
                 .async_map(|cvc| {
                     vault::insert_cvc_using_payment_token(
                         state,
-                        &payment_method.id,
+                        payment_method.id.get_string_repr(),
                         cvc,
                         intent_fulfillment_time,
                         platform.get_provider().get_key_store(),
@@ -2678,15 +2802,6 @@ async fn execute_payment_method_create(
                 None,
             )?;
 
-            Box::pin(
-                backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
-                    state,
-                    &payment_method,
-                    platform,
-                ),
-            )
-            .await;
-
             Ok((resp, payment_method))
         }
         Err(e) => {
@@ -2703,6 +2818,8 @@ async fn execute_payment_method_create(
                 payment_method,
                 pm_update,
                 platform.get_provider().get_account().storage_scheme,
+                // Inactivation on failed PM setup should not enqueue compatibility work.
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2829,7 +2946,7 @@ pub async fn create_generic_volatile_payment_method(
                 .async_map(|cvc| {
                     vault::insert_cvc_using_payment_token(
                         state,
-                        &domain_payment_method.id,
+                        domain_payment_method.id.get_string_repr(),
                         cvc,
                         intent_fulfillment_time,
                         platform.get_provider().get_key_store(),
@@ -2931,6 +3048,7 @@ pub async fn create_payment_method_wallet_core(
                 existing_pm,
                 pm_update,
                 platform.get_provider().get_account().storage_scheme,
+                Some(payment_method_modular_backward_compat_action(state)),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2993,10 +3111,13 @@ pub async fn create_payment_method_proxy_card_core(
     let key_manager_state = &(state).into();
 
     // A proxy card is, by definition, vaulted in an external vault, so the external vault
-    // connector must be configured on the profile. Fetch it from the profile and require it —
-    // otherwise the payment method would be persisted with a `None` external vault source.
+    // connector must be configured on the resolved profile (the platform merchant's profile in
+    // platform flows). Fetch it from the profile and require it — otherwise the payment method
+    // would be persisted with a `None` external vault source.
+    let external_vault_profile =
+        payments_core::helpers::resolve_provider_profile(state, platform, profile).await?;
     let external_vault_source = Some(
-        profile
+        external_vault_profile
             .external_vault_connector_details
             .clone()
             .map(|details| details.vault_connector_id)
@@ -3975,6 +4096,7 @@ pub async fn create_payment_method_for_intent(
                 compatibility_updated_at: None,
             },
             storage_scheme,
+            Some(payment_method_modular_backward_compat_action(state)),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4133,6 +4255,7 @@ pub async fn create_payment_method_for_confirm(
                 compatibility_updated_at: None,
             },
             storage_scheme,
+            Some(payment_method_modular_backward_compat_action(state)),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4783,11 +4906,13 @@ pub async fn vault_payment_method(
     pm_types::AddVaultResponse,
     Option<id_type::MerchantConnectorAccountId>,
 )> {
-    let is_external_vault_enabled = profile.is_external_vault_enabled();
+    let external_vault_profile =
+        payments_core::helpers::resolve_provider_profile(state, platform, profile).await?;
+    let is_external_vault_enabled = external_vault_profile.is_external_vault_enabled();
 
     match is_external_vault_enabled {
         true => {
-            let (external_vault_source, vault_token_selector) = profile
+            let (external_vault_source, vault_token_selector) = external_vault_profile
                 .external_vault_connector_details
                 .clone()
                 .map(|connector_details| {
@@ -4801,9 +4926,9 @@ pub async fn vault_payment_method(
 
             let merchant_connector_account =
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                    payments_core::helpers::get_merchant_connector_account_v2(
+                    payments_core::helpers::get_provider_mca_v2(
                         state,
-                        platform.get_processor(),
+                        platform.get_provider(),
                         Some(&external_vault_source),
                     )
                     .await
@@ -5264,13 +5389,25 @@ pub async fn retrieve_payment_method(
     .attach_printable("Failed to retrieve cvc from redis")
     .ok();
 
-    let raw_payment_method_data = raw_payment_method_fetch_access
-        .get_raw_payment_method_data(&state, &platform, &profile, &payment_method, storage_type)
+    let raw_payment_method_data =
+        Box::pin(raw_payment_method_fetch_access.get_raw_payment_method_data(
+            &state,
+            &platform,
+            &profile,
+            &payment_method,
+            storage_type,
+        ))
         .await
         .attach_printable("Failed to get raw payment method data")?;
 
-    let raw_network_token_details = raw_payment_method_fetch_access
-        .get_raw_network_token_data(&state, &platform, &profile, &payment_method, storage_type)
+    let raw_network_token_details =
+        Box::pin(raw_payment_method_fetch_access.get_raw_network_token_data(
+            &state,
+            &platform,
+            &profile,
+            &payment_method,
+            storage_type,
+        ))
         .await
         .inspect_err(|err| {
             logger::warn!(?err, "Failed to fetch raw network token details");
@@ -5575,13 +5712,13 @@ impl RawPaymentMethodFetchAccess {
                     logger::debug!("Skipping raw payment method fetch for wallet or bank redirect payment method");
                     Ok(None)
                 } else {
-                    let vault_data = vault::retrieve_payment_method_data_from_storage(
+                    let vault_data = Box::pin(vault::retrieve_payment_method_data_from_storage(
                         state,
                         platform,
                         profile,
                         payment_method,
                         storage_type,
-                    )
+                    ))
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to retrieve payment method from vault")?
@@ -5636,17 +5773,18 @@ impl RawPaymentMethodFetchAccess {
                     Some(domain::VaultId::generate(network_token_locker_id));
                 network_token_payment_method.customer_id = Some(customer_id);
 
-                let network_token_vault_data = vault::retrieve_payment_method_data_from_storage(
-                    state,
-                    platform,
-                    profile,
-                    &network_token_payment_method,
-                    storage_type,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to retrieve network token from vault")?
-                .data;
+                let network_token_vault_data =
+                    Box::pin(vault::retrieve_payment_method_data_from_storage(
+                        state,
+                        platform,
+                        profile,
+                        &network_token_payment_method,
+                        storage_type,
+                    ))
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve network token from vault")?
+                    .data;
 
                 let check_token_status_response =
                     network_tokenization::do_status_check_for_network_token(state, payment_method)
@@ -5747,7 +5885,14 @@ pub async fn update_payment_method_status_internal(
     };
 
     let updated_pm = db
-        .update_payment_method(key_store, payment_method.clone(), pm_update, storage_scheme)
+        .update_payment_method(
+            key_store,
+            payment_method.clone(),
+            pm_update,
+            storage_scheme,
+            // This internal PM update path is not part of modular compatibility scheduling.
+            None,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update payment method in db")?;
@@ -5905,7 +6050,14 @@ pub async fn delete_payment_method_core(
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Customer not found for the payment method")?;
 
-    delete_payment_method_by_record(db, state, platform, profile, payment_method).await?;
+    Box::pin(delete_payment_method_by_record(
+        db,
+        state,
+        platform,
+        profile,
+        payment_method,
+    ))
+    .await?;
 
     let response = api::PaymentMethodDeleteResponse { id: pm_id };
 
@@ -5936,6 +6088,8 @@ pub async fn delete_payment_method_by_record(
         payment_method.clone(),
         pm_update,
         platform.get_provider().get_account().storage_scheme,
+        // Redaction updates should not trigger PM modular compat scheduling.
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -6332,20 +6486,28 @@ pub async fn payment_methods_session_retrieve(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-/// Stores `card_cvc` and `card_holder_name` as a `TemporaryCardToken` in Redis under `token`.
+/// Stores `card_cvc` as an encrypted CVC under `pm_token_{token}_hyperswitch_cvc` — the same
+/// `_hyperswitch_cvc` mechanism used by the first-time flow — so CVC retrieval (router-side
+/// `retrieve_and_delete_cvc_from_payment_token`) resolves it consistently. The card holder name is
+/// not vaulted with the CVC token; it is carried by the saved payment method itself.
 #[cfg(feature = "v2")]
 async fn store_cvc_and_card_holder_name_as_payment_token_in_redis(
     state: &SessionState,
     token: &str,
     card_cvc: Option<Secret<String>>,
-    card_holder_name: Option<Secret<String>>,
+    _card_holder_name: Option<Secret<String>>,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
-    let redis_token_data =
-        storage::PaymentTokenData::temporary_card_token(card_cvc, card_holder_name);
-    let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
-    pm_routes::ParentPaymentMethodToken::create_key_for_token(&token.to_string())
-        .insert(intent_fulfillment_time, redis_token_data, state)
+    if let Some(card_cvc) = card_cvc {
+        vault::insert_cvc_using_payment_token(
+            state,
+            token,
+            card_cvc,
+            common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
+            key_store,
+        )
         .await?;
+    }
     Ok(())
 }
 
@@ -6455,6 +6617,7 @@ pub async fn payment_methods_session_update_payment_method(
                 &parent_payment_method_token,
                 card_cvc,
                 card_holder_name,
+                platform.get_provider().get_key_store(),
             )
             .await?;
 
@@ -6516,6 +6679,7 @@ pub async fn payment_methods_session_update_payment_method(
                     &pm_token,
                     card_cvc,
                     card_holder_name,
+                    platform.get_provider().get_key_store(),
                 )
                 .await?;
             }
@@ -7149,7 +7313,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             .async_map(|cvc| {
                 vault::insert_cvc_using_payment_token(
                     self.state,
-                    self.payment_method.get_id(),
+                    self.payment_method.get_id().get_string_repr(),
                     cvc,
                     common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
                     self.platform.get_provider().get_key_store(),
@@ -7173,16 +7337,17 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             return Ok((None, None));
         }
 
-        let pmd: domain::PaymentMethodVaultingData = vault::retrieve_payment_method_from_vault(
-            self.state,
-            self.platform,
-            self.profile,
-            &self.payment_method,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to retrieve payment method from vault")?
-        .data;
+        let pmd: domain::PaymentMethodVaultingData =
+            Box::pin(vault::retrieve_payment_method_from_vault(
+                self.state,
+                self.platform,
+                self.profile,
+                &self.payment_method,
+            ))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to retrieve payment method from vault")?
+            .data;
 
         let vault_request_data = self
             .request
@@ -7271,6 +7436,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                 self.payment_method.clone(),
                 pm_update,
                 self.platform.get_provider().get_account().storage_scheme,
+                Some(payment_method_modular_backward_compat_action(self.state)),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -1770,6 +1770,16 @@ static NUVEI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
             specific_features: None,
         },
     );
+    nuvei_supported_payment_methods.add(
+        enums::PaymentMethod::NetworkToken,
+        enums::PaymentMethodType::NetworkToken,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
     nuvei_supported_payment_methods
 });
 
@@ -1800,6 +1810,7 @@ impl ConnectorSpecifications for Nuvei {
                 request_data,
             } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
         }
     }
 
