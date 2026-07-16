@@ -2477,6 +2477,35 @@ function bankRedirectRedirection(
             }
             break;
 
+          case "paystack":
+            if (paymentMethodType === "eft") {
+              cy.log("Handling Paystack EFT bank redirect flow");
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+
+              cy.get("body").then(($body) => {
+                const submitBtn = $body.find(
+                  'button[type="submit"], input[type="submit"]'
+                );
+                if (submitBtn.length > 0) {
+                  cy.wrap(submitBtn.first())
+                    .should("be.visible")
+                    .click({ force: true });
+                  cy.log("Clicked submit button on Paystack EFT redirect page");
+                } else {
+                  cy.log(
+                    "No submit button found on Paystack EFT page - proceeding without interaction"
+                  );
+                }
+              });
+
+              verifyUrl = false;
+            } else {
+              throw new Error(
+                `Unsupported Paystack payment method type: ${paymentMethodType}`
+              );
+            }
+            break;
+
           // payjustnow and payjustnowinstore are handled in their own
           // else-if branch above (before handleFlow)
           // using two sequential cy.origin() calls, because cy.origin cannot be nested.

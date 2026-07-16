@@ -15,7 +15,7 @@ const bankRedirectEftData = {
 export const connectorDetails = {
   bank_redirect_pm: {
     PaymentIntent: (paymentMethodType) => {
-      const currencyMap = { Eft: "USD" };
+      const currencyMap = { Eft: "ZAR" };
       return getCustomExchange({
         Request: {
           currency: currencyMap[paymentMethodType] || "USD",
@@ -31,7 +31,7 @@ export const connectorDetails = {
     Eft: getCustomExchange({
       Request: {
         ...bankRedirectEftData,
-        currency: "USD",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },

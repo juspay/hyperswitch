@@ -614,6 +614,7 @@ export const CONNECTOR_LISTS = {
     ], // payload verified as working
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen", "stripe"],
+    CARD_REDIRECT: ["prophetpay"],
     BLUECODE_WALLET: ["calida"],
     ALIPAY_HK_WALLET: [""],
     PAYPAL_WALLET: [
