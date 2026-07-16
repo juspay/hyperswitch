@@ -532,11 +532,8 @@ export const CONNECTOR_LISTS = {
     // fiuu: connector-specific limitation (pre-existing).
     MIT_USING_PMID: ["fiuu"],
     // Add more exclusion lists
-    // Note: mandate_id-based MIT (mitForMandatesCallTest) and mandate
-    // listing (listMandateCallTest) don't need a static connector list —
-    // they check globalState's "mandateId" at runtime instead, since the
-    // router itself already signals "no real mandate" by leaving
-    // mandate_id null for any connector downgraded to on_session.
+    // Note: mitForMandatesCallTest/listMandateCallTest check
+    // globalState's "mandateId" at runtime instead of a static list here.
   },
 
   // Inclusion lists (only run for these connectors)

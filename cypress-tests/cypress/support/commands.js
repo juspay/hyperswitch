@@ -4584,15 +4584,8 @@ Cypress.Commands.add(
               .be.null;
           }
 
-          // Ground truth for whether MIT-via-PMID can genuinely be attempted:
-          // the router only keeps setup_future_usage as "off_session" when
-          // the connector actually supports mandates; otherwise it's
-          // silently downgraded to "on_session" (authorize_flow.rs), and no
-          // real recurring capability exists to exercise. mitUsingPMId reads
-          // this instead of assuming a specific error shape, since the
-          // actual failure mode when attempted anyway isn't consistent
-          // across runs (seen both a 500 decryption error and a 400
-          // invalid_request for the same connector).
+          // Lets mitUsingPMId know whether the connector actually supports
+          // mandates, or was silently downgraded to on_session.
           globalState.set(
             "mandateSetupFutureUsage",
             response.body.setup_future_usage
@@ -4775,14 +4768,8 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "mitForMandatesCallTest",
   (requestBody, data, amount, confirm, capture_method, globalState) => {
-    // The router only sets mandate_id when the connector genuinely supports
-    // mandates (see payment_response.rs's is_legacy_mandate/
-    // is_connector_mandate branches, both gated on the connector-facing
-    // setup_future_usage staying "off_session"). For connectors silently
-    // downgraded to on_session, that branch is skipped entirely and
-    // mandate_id is never set — so globalState's "mandateId" stays null.
-    // That's the router's own signal that there's nothing real to reuse;
-    // skip here instead of sending a request with mandate_id: null.
+    // Skip if no mandate_id was created — the router only sets one when
+    // the connector genuinely supports mandates (payment_response.rs).
     if (!globalState.get("mandateId")) {
       cy.log(
         `Skipping mitForMandatesCallTest: no mandate_id was created for connector ${globalState.get("connectorId")} (likely downgraded to on_session)`
@@ -5026,11 +5013,8 @@ Cypress.Commands.add(
       return;
     }
 
-    // Same ground truth citForMandatesCallTest records: if the CIT response
-    // didn't keep setup_future_usage as "off_session", the connector was
-    // silently downgraded and never gained real recurring capability —
-    // attempting MIT anyway fails, but not with a consistent error shape
-    // across runs, so skip rather than assert a specific one.
+    // Skip if the connector was downgraded to on_session (set by
+    // citForMandatesCallTest) — no real recurring capability to test.
     if (globalState.get("mandateSetupFutureUsage") !== "off_session") {
       cy.log(
         `Skipping mitUsingPMId: CIT's setup_future_usage was not "off_session" for connector ${globalState.get("connectorId")} (likely downgraded)`
@@ -5301,9 +5285,8 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("listMandateCallTest", (globalState) => {
-  // Same signal as mitForMandatesCallTest: no mandate_id means the router
-  // never created a real mandate for this connector (downgraded to
-  // on_session), so there's genuinely nothing on record to list.
+  // Same signal as mitForMandatesCallTest — nothing to list without a
+  // real mandate_id.
   if (!globalState.get("mandateId")) {
     cy.log(
       `Skipping listMandateCallTest: no mandate_id was created for connector ${globalState.get("connectorId")} (likely downgraded to on_session)`

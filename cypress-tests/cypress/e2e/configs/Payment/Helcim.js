@@ -153,11 +153,9 @@ const card_pm = {
       },
     },
   }),
-  // Refund flows — Helcim's sandbox returns "Card Transaction cannot be
-  // refunded" because sandbox transactions never settle into a closed card
-  // batch. The connector sends a spec-compliant refund request; the failure
-  // is a sandbox limitation, not a code bug. Confirmed in hyperswitch-prism
-  // (helcim_payment_flows_test.rs). Tests assert the actual "failed" status.
+  // Helcim's sandbox can't refund (transactions never settle into a closed
+  // card batch) — a sandbox limitation, not a code bug. Assert the actual
+  // "failed" status.
   SyncRefund: getCustomExchange({
     Response: {
       status: 200,
@@ -192,10 +190,7 @@ const card_pm = {
       body: { status: "failed" },
     },
   }),
-  // Mandate flows — Helcim connector returns NotImplemented for setup_mandate.
-  // The payment intent creation succeeds, but the confirm/SETUP_MANDATE step
-  // returns 501 with "Setup Mandate flow for Helcim is not implemented".
-  // These entries map the test expectations to that actual error response.
+  // Helcim's SetupMandate flow returns 501 NotImplemented.
   ZeroAuthPaymentIntent: getCustomExchange({
     Request: {
       amount: 0,
@@ -241,36 +236,11 @@ const card_pm = {
       },
     },
   },
-  // Helcim isn't in mandates.supported_payment_methods, so off_session
-  // mandate creation gets silently downgraded to on_session by the router
-  // (authorize_flow.rs) — AFTER request validation. Do not override
-  // setup_future_usage to "on_session" in these Requests: payment_confirm.rs
-  // validates setup_future_usage against mandate presence (mandate_data or
-  // a prior payment_attempt.mandate_details) *before* that downgrade runs,
-  // and hard-rejects on_session + mandate context with 400
-  // ("setup_future_usage must be off_session for mandates"). Leave it
-  // unset/off_session (the fixture default) so validation passes, then the
-  // router downgrades it internally — same pattern as Bluesnap/Trustpay/Nmi.
-  //
-  // CIT itself genuinely succeeds this way (confirmed via Postman and live
-  // response inspection: Helcim's own gateway approves synchronously, and
-  // the API response correctly reports the downgraded
-  // setup_future_usage: "on_session" — verified via
-  // transformers.rs:4666's `pa.setup_future_usage_applied.or(pi.setup_future_usage)`).
-  // Since the response's setup_future_usage isn't "off_session",
-  // citForMandatesCallTest's PMID/connector_mandate_id checks (which are
-  // gated on that field) don't fire, so no special config is needed here —
-  // these tests run for real and assert the actual "succeeded"/
-  // "requires_capture" outcome like any other connector.
-  // All MIT flows below (mitUsingPMId, mitForMandatesCallTest,
-  // listMandateCallTest) skip themselves at runtime instead of relying on a
-  // static connector list — they check the ground truth the router itself
-  // already gives us (setup_future_usage staying "off_session" / mandate_id
-  // being set) rather than assuming a specific error if attempted anyway,
-  // since that error shape isn't consistent across runs. No reusable
-  // connector mandate or recurring capability is ever created for a
-  // subsequent off-session charge here, so there's nothing for any of them
-  // to reuse or list.
+  // Helcim doesn't support mandates, so the router silently downgrades
+  // off_session to on_session (after validation) and CIT succeeds for
+  // real — don't override setup_future_usage here, just leave it unset.
+  // MIT/list-mandate skip themselves at runtime (see commands.js) once
+  // they see no real mandate was created.
   MandateSingleUseNo3DSAutoCapture: {
     Request: {
       payment_method: "card",
@@ -345,15 +315,8 @@ const card_pm = {
       body: {},
     },
   },
-  // MIT-via-PMID is never actually attempted for Helcim: mitUsingPMId
-  // checks globalState's "mandateSetupFutureUsage" (set by
-  // citForMandatesCallTest from the CIT response) and skips before sending
-  // any request when it isn't "off_session" — which it never is for Helcim,
-  // since the connector gets silently downgraded to on_session. Attempting
-  // it anyway doesn't fail consistently (observed both a 500 payment-method
-  // decryption error and a 400 invalid_request across different runs), so
-  // these Response bodies are placeholders that are never actually
-  // compared against a real response.
+  // MIT-via-PMID skips itself at runtime (commands.js) before sending any
+  // request, so these Response bodies are unused placeholders.
   MITAutoCapture: {
     Request: {},
     Response: {
