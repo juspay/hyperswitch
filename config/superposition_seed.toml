@@ -10,6 +10,13 @@
 # The seeding script ignores this field; it's only needed for runtime fallback
 overrides = []
 
+[default-configs.deja_record]
+value = true
+schema = { type = "boolean" }
+description = "Whether Deja request recording is enabled for matching request contexts (inert unless deja.sampler.enabled is set)"
+change_reason = "Initial setup"
+
+
 [dimensions.connector]
 position = 1
 schema = { type = "string" }
