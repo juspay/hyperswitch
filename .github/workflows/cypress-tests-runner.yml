@@ -813,7 +813,6 @@ jobs:
                   "report_artifact_name": "cypress-mock-test-results-payments-batch-4",
                   "server_logs_artifact": "mock-server-logs-payments-batch-4"
                 }
-                }
               ]
             }'
             echo "EOF"
