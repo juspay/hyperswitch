@@ -6,9 +6,10 @@ use common_utils::{
     id_type,
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{behaviour::Conversion, payment_methods};
+use hyperswitch_domain_models::payment_methods;
 use hyperswitch_masking::{Mask, PeekInterface};
 use serde_json::Value;
+use storage_impl::behaviour::Conversion;
 use x509_parser::nom::{
     bytes::complete::{tag, take_while1},
     character::complete::{char, multispace0},
