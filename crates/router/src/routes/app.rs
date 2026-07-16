@@ -555,6 +555,7 @@ impl AppState {
     /// # Panics
     ///
     /// Panics if Failed to create store
+    #[allow(clippy::too_many_arguments)]
     pub async fn get_store_interface(
         storage_impl: &StorageImpl,
         event_handler: &EventsHandler,
