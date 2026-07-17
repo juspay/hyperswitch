@@ -3962,81 +3962,7 @@ pub mod routes {
                 if !permission_groups.contains(&common_enums::PermissionGroup::OperationsView) {
                     Err(OpenSearchError::AccessForbiddenError)?;
                 }
-                let user_roles: HashSet<UserRole> = match role_info.get_entity_type() {
-                    EntityType::Tenant => state
-                        .global_store
-                        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-                            user_id: &auth.user_id,
-                            tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
-                            org_id: None,
-                            merchant_id: None,
-                            profile_id: None,
-                            entity_id: None,
-                            version: None,
-                            status: None,
-                            limit: None,
-                        })
-                        .await
-                        .change_context(UserErrors::InternalServerError)
-                        .change_context(OpenSearchError::UnknownError)?
-                        .into_iter()
-                        .collect(),
-                    EntityType::Organization | EntityType::Merchant | EntityType::Profile => state
-                        .global_store
-                        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-                            user_id: &auth.user_id,
-                            tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
-                            org_id: Some(&auth.org_id),
-                            merchant_id: None,
-                            profile_id: None,
-                            entity_id: None,
-                            version: None,
-                            status: None,
-                            limit: None,
-                        })
-                        .await
-                        .change_context(UserErrors::InternalServerError)
-                        .change_context(OpenSearchError::UnknownError)?
-                        .into_iter()
-                        .collect(),
-                };
-
                 let state = Arc::new(state);
-                let role_info_map: HashMap<String, RoleInfo> = user_roles
-                    .iter()
-                    .map(|user_role| {
-                        let state = Arc::clone(&state);
-                        let role_id = user_role.role_id.clone();
-                        let org_id = user_role.org_id.clone().unwrap_or_default();
-                        let tenant_id = &user_role.tenant_id;
-                        async move {
-                            RoleInfo::from_role_id_org_id_tenant_id(
-                                &state, &role_id, &org_id, tenant_id,
-                            )
-                            .await
-                            .change_context(UserErrors::InternalServerError)
-                            .change_context(OpenSearchError::UnknownError)
-                            .map(|role_info| (role_id, role_info))
-                        }
-                    })
-                    .collect::<FuturesUnordered<_>>()
-                    .collect::<Vec<_>>()
-                    .await
-                    .into_iter()
-                    .collect::<Result<HashMap<_, _>, _>>()?;
-
-                let filtered_user_roles: Vec<&UserRole> = user_roles
-                    .iter()
-                    .filter(|user_role| {
-                        let user_role_id = &user_role.role_id;
-                        if let Some(role_info) = role_info_map.get(user_role_id) {
-                            let permissions = role_info.get_permission_groups();
-                            permissions.contains(&common_enums::PermissionGroup::OperationsView)
-                        } else {
-                            false
-                        }
-                    })
-                    .collect();
 
                 let search_params: Vec<AuthInfo> = if role_info.is_internal() {
                     vec![AuthInfo::MerchantLevel {
@@ -4045,6 +3971,89 @@ pub mod routes {
                         processor_merchant_ids: None,
                     }]
                 } else {
+                    let user_roles: HashSet<UserRole> = match role_info.get_entity_type() {
+                        EntityType::Tenant => state
+                            .global_store
+                            .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                                user_id: &auth.user_id,
+                                tenant_id: auth
+                                    .tenant_id
+                                    .as_ref()
+                                    .unwrap_or(&state.tenant.tenant_id),
+                                org_id: None,
+                                merchant_id: None,
+                                profile_id: None,
+                                entity_id: None,
+                                version: None,
+                                status: None,
+                                limit: None,
+                            })
+                            .await
+                            .change_context(UserErrors::InternalServerError)
+                            .change_context(OpenSearchError::UnknownError)?
+                            .into_iter()
+                            .collect(),
+                        EntityType::Organization | EntityType::Merchant | EntityType::Profile => {
+                            state
+                                .global_store
+                                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                                    user_id: &auth.user_id,
+                                    tenant_id: auth
+                                        .tenant_id
+                                        .as_ref()
+                                        .unwrap_or(&state.tenant.tenant_id),
+                                    org_id: Some(&auth.org_id),
+                                    merchant_id: None,
+                                    profile_id: None,
+                                    entity_id: None,
+                                    version: None,
+                                    status: None,
+                                    limit: None,
+                                })
+                                .await
+                                .change_context(UserErrors::InternalServerError)
+                                .change_context(OpenSearchError::UnknownError)?
+                                .into_iter()
+                                .collect()
+                        }
+                    };
+
+                    let role_info_map: HashMap<String, RoleInfo> = user_roles
+                        .iter()
+                        .map(|user_role| {
+                            let state = Arc::clone(&state);
+                            let role_id = user_role.role_id.clone();
+                            let org_id = user_role.org_id.clone().unwrap_or_default();
+                            let tenant_id = &user_role.tenant_id;
+                            async move {
+                                RoleInfo::from_role_id_org_id_tenant_id(
+                                    &state, &role_id, &org_id, tenant_id,
+                                )
+                                .await
+                                .change_context(UserErrors::InternalServerError)
+                                .change_context(OpenSearchError::UnknownError)
+                                .map(|role_info| (role_id, role_info))
+                            }
+                        })
+                        .collect::<FuturesUnordered<_>>()
+                        .collect::<Vec<_>>()
+                        .await
+                        .into_iter()
+                        .collect::<Result<HashMap<_, _>, _>>()?;
+
+                    let filtered_user_roles: Vec<&UserRole> = user_roles
+                        .iter()
+                        .filter(|user_role| {
+                            let user_role_id = &user_role.role_id;
+                            if let Some(role_info) = role_info_map.get(user_role_id) {
+                                let permissions = role_info.get_permission_groups();
+                                permissions.contains(&common_enums::PermissionGroup::OperationsView)
+                            } else {
+                                false
+                            }
+                        })
+                        .collect();
+
                     filtered_user_roles
                         .iter()
                         .filter_map(|user_role| {
@@ -4127,80 +4136,7 @@ pub mod routes {
                 if !permission_groups.contains(&common_enums::PermissionGroup::OperationsView) {
                     Err(OpenSearchError::AccessForbiddenError)?;
                 }
-                let user_roles: HashSet<UserRole> = match role_info.get_entity_type() {
-                    EntityType::Tenant => state
-                        .global_store
-                        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-                            user_id: &auth.user_id,
-                            tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
-                            org_id: None,
-                            merchant_id: None,
-                            profile_id: None,
-                            entity_id: None,
-                            version: None,
-                            status: None,
-                            limit: None,
-                        })
-                        .await
-                        .change_context(UserErrors::InternalServerError)
-                        .change_context(OpenSearchError::UnknownError)?
-                        .into_iter()
-                        .collect(),
-                    EntityType::Organization | EntityType::Merchant | EntityType::Profile => state
-                        .global_store
-                        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-                            user_id: &auth.user_id,
-                            tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
-                            org_id: Some(&auth.org_id),
-                            merchant_id: None,
-                            profile_id: None,
-                            entity_id: None,
-                            version: None,
-                            status: None,
-                            limit: None,
-                        })
-                        .await
-                        .change_context(UserErrors::InternalServerError)
-                        .change_context(OpenSearchError::UnknownError)?
-                        .into_iter()
-                        .collect(),
-                };
                 let state = Arc::new(state);
-                let role_info_map: HashMap<String, RoleInfo> = user_roles
-                    .iter()
-                    .map(|user_role| {
-                        let state = Arc::clone(&state);
-                        let role_id = user_role.role_id.clone();
-                        let org_id = user_role.org_id.clone().unwrap_or_default();
-                        let tenant_id = &user_role.tenant_id;
-                        async move {
-                            RoleInfo::from_role_id_org_id_tenant_id(
-                                &state, &role_id, &org_id, tenant_id,
-                            )
-                            .await
-                            .change_context(UserErrors::InternalServerError)
-                            .change_context(OpenSearchError::UnknownError)
-                            .map(|role_info| (role_id, role_info))
-                        }
-                    })
-                    .collect::<FuturesUnordered<_>>()
-                    .collect::<Vec<_>>()
-                    .await
-                    .into_iter()
-                    .collect::<Result<HashMap<_, _>, _>>()?;
-
-                let filtered_user_roles: Vec<&UserRole> = user_roles
-                    .iter()
-                    .filter(|user_role| {
-                        let user_role_id = &user_role.role_id;
-                        if let Some(role_info) = role_info_map.get(user_role_id) {
-                            let permissions = role_info.get_permission_groups();
-                            permissions.contains(&common_enums::PermissionGroup::OperationsView)
-                        } else {
-                            false
-                        }
-                    })
-                    .collect();
 
                 let search_params: Vec<AuthInfo> = if role_info.is_internal() {
                     vec![AuthInfo::MerchantLevel {
@@ -4209,6 +4145,89 @@ pub mod routes {
                         processor_merchant_ids: None,
                     }]
                 } else {
+                    let user_roles: HashSet<UserRole> = match role_info.get_entity_type() {
+                        EntityType::Tenant => state
+                            .global_store
+                            .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                                user_id: &auth.user_id,
+                                tenant_id: auth
+                                    .tenant_id
+                                    .as_ref()
+                                    .unwrap_or(&state.tenant.tenant_id),
+                                org_id: None,
+                                merchant_id: None,
+                                profile_id: None,
+                                entity_id: None,
+                                version: None,
+                                status: None,
+                                limit: None,
+                            })
+                            .await
+                            .change_context(UserErrors::InternalServerError)
+                            .change_context(OpenSearchError::UnknownError)?
+                            .into_iter()
+                            .collect(),
+                        EntityType::Organization | EntityType::Merchant | EntityType::Profile => {
+                            state
+                                .global_store
+                                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                                    user_id: &auth.user_id,
+                                    tenant_id: auth
+                                        .tenant_id
+                                        .as_ref()
+                                        .unwrap_or(&state.tenant.tenant_id),
+                                    org_id: Some(&auth.org_id),
+                                    merchant_id: None,
+                                    profile_id: None,
+                                    entity_id: None,
+                                    version: None,
+                                    status: None,
+                                    limit: None,
+                                })
+                                .await
+                                .change_context(UserErrors::InternalServerError)
+                                .change_context(OpenSearchError::UnknownError)?
+                                .into_iter()
+                                .collect()
+                        }
+                    };
+
+                    let role_info_map: HashMap<String, RoleInfo> = user_roles
+                        .iter()
+                        .map(|user_role| {
+                            let state = Arc::clone(&state);
+                            let role_id = user_role.role_id.clone();
+                            let org_id = user_role.org_id.clone().unwrap_or_default();
+                            let tenant_id = &user_role.tenant_id;
+                            async move {
+                                RoleInfo::from_role_id_org_id_tenant_id(
+                                    &state, &role_id, &org_id, tenant_id,
+                                )
+                                .await
+                                .change_context(UserErrors::InternalServerError)
+                                .change_context(OpenSearchError::UnknownError)
+                                .map(|role_info| (role_id, role_info))
+                            }
+                        })
+                        .collect::<FuturesUnordered<_>>()
+                        .collect::<Vec<_>>()
+                        .await
+                        .into_iter()
+                        .collect::<Result<HashMap<_, _>, _>>()?;
+
+                    let filtered_user_roles: Vec<&UserRole> = user_roles
+                        .iter()
+                        .filter(|user_role| {
+                            let user_role_id = &user_role.role_id;
+                            if let Some(role_info) = role_info_map.get(user_role_id) {
+                                let permissions = role_info.get_permission_groups();
+                                permissions.contains(&common_enums::PermissionGroup::OperationsView)
+                            } else {
+                                false
+                            }
+                        })
+                        .collect();
+
                     filtered_user_roles
                         .iter()
                         .filter_map(|user_role| {
