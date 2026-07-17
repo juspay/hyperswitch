@@ -1123,6 +1123,7 @@ impl<U, V: Lift<U> + Lift<U, SelfWrapper<U> = V> + Send> AsyncLift<U> for V {
 #[inline]
 async fn encrypt<E: Clone, S>(
     state: &KeyManagerState,
+    table_name: &str,
     inner: Secret<E, S>,
     identifier: Identifier,
     key: &[u8],
@@ -1134,13 +1135,14 @@ where
     record_operation_time(
         crypto::Encryptable::encrypt_via_api(state, inner, identifier, key, crypto::GcmAes256),
         &metrics::ENCRYPTION_TIME,
-        &[],
+        router_env::metric_attributes!(("table", table_name.to_owned())),
     )
     .await
 }
 
 #[inline]
 async fn encrypt_locally<E: Clone, S>(
+    table_name: &str,
     inner: Secret<E, S>,
     key: &[u8],
 ) -> CustomResult<crypto::Encryptable<Secret<E, S>>, CryptoError>
@@ -1151,7 +1153,7 @@ where
     record_operation_time(
         crypto::Encryptable::encrypt(inner, key, crypto::GcmAes256),
         &metrics::ENCRYPTION_TIME,
-        &[],
+        router_env::metric_attributes!(("table", table_name.to_owned())),
     )
     .await
 }
@@ -1159,6 +1161,7 @@ where
 #[inline]
 async fn batch_encrypt<E: Clone, S>(
     state: &KeyManagerState,
+    table_name: &str,
     inner: FxHashMap<String, Secret<E, S>>,
     identifier: Identifier,
     key: &[u8],
@@ -1177,7 +1180,7 @@ where
                 crypto::GcmAes256,
             ),
             &metrics::ENCRYPTION_TIME,
-            &[],
+            router_env::metric_attributes!(("table", table_name.to_owned())),
         )
         .await
     } else {
@@ -1188,6 +1191,7 @@ where
 #[inline]
 async fn encrypt_optional<E: Clone, S>(
     state: &KeyManagerState,
+    table_name: &str,
     inner: Option<Secret<E, S>>,
     identifier: Identifier,
     key: &[u8],
@@ -1198,7 +1202,7 @@ where
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     inner
-        .async_map(|f| encrypt(state, f, identifier, key))
+        .async_map(|f| encrypt(state, table_name, f, identifier, key))
         .await
         .transpose()
 }
@@ -1206,6 +1210,7 @@ where
 #[inline]
 async fn decrypt_optional<T: Clone, S: hyperswitch_masking::Strategy<T>>(
     state: &KeyManagerState,
+    table_name: &str,
     inner: Option<Encryption>,
     identifier: Identifier,
     key: &[u8],
@@ -1214,7 +1219,7 @@ where
     crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
 {
     inner
-        .async_map(|item| decrypt(state, item, identifier, key))
+        .async_map(|item| decrypt(state, table_name, item, identifier, key))
         .await
         .transpose()
 }
@@ -1222,6 +1227,7 @@ where
 #[inline]
 async fn decrypt<T: Clone, S: hyperswitch_masking::Strategy<T>>(
     state: &KeyManagerState,
+    table_name: &str,
     inner: Encryption,
     identifier: Identifier,
     key: &[u8],
@@ -1232,13 +1238,14 @@ where
     record_operation_time(
         crypto::Encryptable::decrypt_via_api(state, inner, identifier, key, crypto::GcmAes256),
         &metrics::DECRYPTION_TIME,
-        &[],
+        router_env::metric_attributes!(("table", table_name.to_owned())),
     )
     .await
 }
 
 #[inline]
 async fn decrypt_locally<T: Clone, S: hyperswitch_masking::Strategy<T>>(
+    table_name: &str,
     inner: Encryption,
     key: &[u8],
 ) -> CustomResult<crypto::Encryptable<Secret<T, S>>, CryptoError>
@@ -1248,7 +1255,7 @@ where
     record_operation_time(
         crypto::Encryptable::decrypt(inner, key, crypto::GcmAes256),
         &metrics::DECRYPTION_TIME,
-        &[],
+        router_env::metric_attributes!(("table", table_name.to_owned())),
     )
     .await
 }
@@ -1256,6 +1263,7 @@ where
 #[inline]
 async fn batch_decrypt<E: Clone, S>(
     state: &KeyManagerState,
+    table_name: &str,
     inner: FxHashMap<String, Encryption>,
     identifier: Identifier,
     key: &[u8],
@@ -1273,8 +1281,8 @@ where
                 key,
                 crypto::GcmAes256,
             ),
-            &metrics::ENCRYPTION_TIME,
-            &[],
+            &metrics::DECRYPTION_TIME,
+            router_env::metric_attributes!(("table", table_name.to_owned())),
         )
         .await
     } else {
@@ -1316,35 +1324,35 @@ where
 {
     match operation {
         CryptoOperation::Encrypt(data) => {
-            let data = encrypt(state, data, identifier, key).await?;
+            let data = encrypt(state, table_name, data, identifier, key).await?;
             Ok(CryptoOutput::Operation(data))
         }
         CryptoOperation::EncryptOptional(data) => {
-            let data = encrypt_optional(state, data, identifier, key).await?;
+            let data = encrypt_optional(state, table_name, data, identifier, key).await?;
             Ok(CryptoOutput::OptionalOperation(data))
         }
         CryptoOperation::EncryptLocally(data) => {
-            let data = encrypt_locally(data, key).await?;
+            let data = encrypt_locally(table_name, data, key).await?;
             Ok(CryptoOutput::Operation(data))
         }
         CryptoOperation::Decrypt(data) => {
-            let data = decrypt(state, data, identifier, key).await?;
+            let data = decrypt(state, table_name, data, identifier, key).await?;
             Ok(CryptoOutput::Operation(data))
         }
         CryptoOperation::DecryptOptional(data) => {
-            let data = decrypt_optional(state, data, identifier, key).await?;
+            let data = decrypt_optional(state, table_name, data, identifier, key).await?;
             Ok(CryptoOutput::OptionalOperation(data))
         }
         CryptoOperation::DecryptLocally(data) => {
-            let data = decrypt_locally(data, key).await?;
+            let data = decrypt_locally(table_name, data, key).await?;
             Ok(CryptoOutput::Operation(data))
         }
         CryptoOperation::BatchEncrypt(data) => {
-            let data = batch_encrypt(state, data, identifier, key).await?;
+            let data = batch_encrypt(state, table_name, data, identifier, key).await?;
             Ok(CryptoOutput::BatchOperation(data))
         }
         CryptoOperation::BatchDecrypt(data) => {
-            let data = batch_decrypt(state, data, identifier, key).await?;
+            let data = batch_decrypt(state, table_name, data, identifier, key).await?;
             Ok(CryptoOutput::BatchOperation(data))
         }
     }

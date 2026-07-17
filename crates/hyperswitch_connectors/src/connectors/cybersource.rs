@@ -178,6 +178,21 @@ impl ConnectorCommon for Cybersource {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+                message: hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
         let response: Result<
             cybersource::CybersourceErrorResponse,
             Report<common_utils::errors::ParsingError>,
@@ -474,38 +489,69 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: cybersource::CybersourceServerErrorResponse = res
-            .response
-            .parse_struct("CybersourceServerErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+                message: hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+        let response: Result<
+            cybersource::CybersourceServerErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("CybersourceServerErrorResponse");
 
-        event_builder.map(|event| event.set_response_body(&response));
-        router_env::logger::info!(error_response=?response);
+        match response {
+            Ok(response) => {
+                event_builder.map(|event| event.set_response_body(&response));
+                router_env::logger::info!(error_response=?response);
 
-        let attempt_status = match response.reason {
-            Some(reason) => match reason {
-                transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
-                transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
-            },
-            None => None,
-        };
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            reason: response.status.clone(),
-            code: response
-                .status
-                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .message
-                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
-            attempt_status,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+                let attempt_status = match response.reason {
+                    Some(reason) => match reason {
+                        transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
+                        transformers::Reason::ServerTimeout
+                        | transformers::Reason::ServiceTimeout => None,
+                        transformers::Reason::Unknown => None,
+                    },
+                    None => None,
+                };
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    reason: response.status.clone(),
+                    code: response
+                        .status
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .message
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
+                    attempt_status,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "cybersource")
+            }
+        }
     }
 }
 
@@ -1078,31 +1124,60 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: cybersource::CybersourceServerErrorResponse = res
-            .response
-            .parse_struct("CybersourceServerErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+                message: hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+        let response: Result<
+            cybersource::CybersourceServerErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("CybersourceServerErrorResponse");
 
-        event_builder.map(|event| event.set_response_body(&response));
-        router_env::logger::info!(error_response=?response);
+        match response {
+            Ok(response) => {
+                event_builder.map(|event| event.set_response_body(&response));
+                router_env::logger::info!(error_response=?response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            reason: response.status.clone(),
-            code: response
-                .status
-                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .message
-                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
-            attempt_status: None,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    reason: response.status.clone(),
+                    code: response
+                        .status
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .message
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "cybersource")
+            }
+        }
     }
 }
 
@@ -1312,38 +1387,69 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: cybersource::CybersourceServerErrorResponse = res
-            .response
-            .parse_struct("CybersourceServerErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+                message: hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+        let response: Result<
+            cybersource::CybersourceServerErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("CybersourceServerErrorResponse");
 
-        event_builder.map(|event| event.set_response_body(&response));
-        router_env::logger::info!(error_response=?response);
+        match response {
+            Ok(response) => {
+                event_builder.map(|event| event.set_response_body(&response));
+                router_env::logger::info!(error_response=?response);
 
-        let attempt_status = match response.reason {
-            Some(reason) => match reason {
-                transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
-                transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
-            },
-            None => None,
-        };
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            reason: response.status.clone(),
-            code: response
-                .status
-                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .message
-                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
-            attempt_status,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+                let attempt_status = match response.reason {
+                    Some(reason) => match reason {
+                        transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
+                        transformers::Reason::ServerTimeout
+                        | transformers::Reason::ServiceTimeout => None,
+                        transformers::Reason::Unknown => None,
+                    },
+                    None => None,
+                };
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    reason: response.status.clone(),
+                    code: response
+                        .status
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .message
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
+                    attempt_status,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "cybersource")
+            }
+        }
     }
 }
 
@@ -1436,38 +1542,69 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: cybersource::CybersourceServerErrorResponse = res
-            .response
-            .parse_struct("CybersourceServerErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+                message: hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+        let response: Result<
+            cybersource::CybersourceServerErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("CybersourceServerErrorResponse");
 
-        event_builder.map(|event| event.set_response_body(&response));
-        router_env::logger::info!(error_response=?response);
+        match response {
+            Ok(response) => {
+                event_builder.map(|event| event.set_response_body(&response));
+                router_env::logger::info!(error_response=?response);
 
-        let attempt_status = match response.reason {
-            Some(reason) => match reason {
-                transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
-                transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
-            },
-            None => None,
-        };
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            reason: response.status.clone(),
-            code: response
-                .status
-                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .message
-                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
-            attempt_status,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+                let attempt_status = match response.reason {
+                    Some(reason) => match reason {
+                        transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
+                        transformers::Reason::ServerTimeout
+                        | transformers::Reason::ServiceTimeout => None,
+                        transformers::Reason::Unknown => None,
+                    },
+                    None => None,
+                };
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    reason: response.status.clone(),
+                    code: response
+                        .status
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .message
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
+                    attempt_status,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "cybersource")
+            }
+        }
     }
 }
 
@@ -1555,38 +1692,69 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Cyber
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: cybersource::CybersourceServerErrorResponse = res
-            .response
-            .parse_struct("CybersourceServerErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+                message: hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+        let response: Result<
+            cybersource::CybersourceServerErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("CybersourceServerErrorResponse");
 
-        event_builder.map(|event| event.set_response_body(&response));
-        router_env::logger::info!(error_response=?response);
+        match response {
+            Ok(response) => {
+                event_builder.map(|event| event.set_response_body(&response));
+                router_env::logger::info!(error_response=?response);
 
-        let attempt_status = match response.reason {
-            Some(reason) => match reason {
-                transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
-                transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
-            },
-            None => None,
-        };
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            reason: response.status.clone(),
-            code: response
-                .status
-                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .message
-                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
-            attempt_status,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+                let attempt_status = match response.reason {
+                    Some(reason) => match reason {
+                        transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
+                        transformers::Reason::ServerTimeout
+                        | transformers::Reason::ServiceTimeout => None,
+                        transformers::Reason::Unknown => None,
+                    },
+                    None => None,
+                };
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    reason: response.status.clone(),
+                    code: response
+                        .status
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .message
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
+                    attempt_status,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "cybersource")
+            }
+        }
     }
 }
 
@@ -1682,38 +1850,69 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: cybersource::CybersourceServerErrorResponse = res
-            .response
-            .parse_struct("CybersourceServerErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+                message: hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+        let response: Result<
+            cybersource::CybersourceServerErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("CybersourceServerErrorResponse");
 
-        event_builder.map(|event| event.set_response_body(&response));
-        router_env::logger::info!(error_response=?response);
+        match response {
+            Ok(response) => {
+                event_builder.map(|event| event.set_response_body(&response));
+                router_env::logger::info!(error_response=?response);
 
-        let attempt_status = match response.reason {
-            Some(reason) => match reason {
-                transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
-                transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
-            },
-            None => None,
-        };
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            reason: response.status.clone(),
-            code: response
-                .status
-                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .message
-                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
-            attempt_status,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+                let attempt_status = match response.reason {
+                    Some(reason) => match reason {
+                        transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
+                        transformers::Reason::ServerTimeout
+                        | transformers::Reason::ServiceTimeout => None,
+                        transformers::Reason::Unknown => None,
+                    },
+                    None => None,
+                };
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    reason: response.status.clone(),
+                    code: response
+                        .status
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .message
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
+                    attempt_status,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "cybersource")
+            }
+        }
     }
 }
 
@@ -1815,31 +2014,60 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Cy
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: cybersource::CybersourceServerErrorResponse = res
-            .response
-            .parse_struct("CybersourceServerErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+                message: hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+        let response: Result<
+            cybersource::CybersourceServerErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("CybersourceServerErrorResponse");
 
-        event_builder.map(|event| event.set_response_body(&response));
-        router_env::logger::info!(error_response=?response);
+        match response {
+            Ok(response) => {
+                event_builder.map(|event| event.set_response_body(&response));
+                router_env::logger::info!(error_response=?response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            reason: response.status.clone(),
-            code: response
-                .status
-                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .message
-                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
-            attempt_status: None,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    reason: response.status.clone(),
+                    code: response
+                        .status
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .message
+                        .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "cybersource")
+            }
+        }
     }
 }
 
@@ -2275,11 +2503,7 @@ impl ConnectorSpecifications for Cybersource {
                 // during authorize flow, there is no pre processing flow. Only alternate PreAuthenticate flow
                 None
             }
-            api::CurrentFlowInfo::CompleteAuthorize {
-                request_data,
-                payment_method: _,
-                ..
-            } => {
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirect_response = request_data.redirect_response.as_ref()?;
                 match redirect_response.params.as_ref() {
@@ -2339,11 +2563,7 @@ impl ConnectorSpecifications for Cybersource {
                 // during authorize flow, there is no post_authentication call needed
                 false
             }
-            api::CurrentFlowInfo::CompleteAuthorize {
-                request_data,
-                payment_method: _,
-                ..
-            } => {
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data
                     .redirect_response
@@ -2367,11 +2587,7 @@ impl ConnectorSpecifications for Cybersource {
                 // during authorize flow, there is no post_authentication call needed
                 false
             }
-            api::CurrentFlowInfo::CompleteAuthorize {
-                request_data,
-                payment_method: _,
-                ..
-            } => {
+            api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data
                     .redirect_response
