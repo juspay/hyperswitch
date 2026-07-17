@@ -14,19 +14,19 @@
 use std::collections::HashMap;
 
 use crate::{
-    ConsumerGroupDestroyReply, DelReply, HsetnxReply, MsetnxReply, RedisConnection,
-    RedisConnectionPool, RedisEntryId, RedisKey, RedisSettings, RedisValue, SaddReply, SetGetReply,
-    SetnxReply, StreamCapKind, StreamCapTrim, StreamTrimConfig,
+    ConsumerGroupDestroyReply, DelReply, HsetnxReply, MsetnxReply, RedisConnectionPool,
+    RedisConnectionWithContext, RedisEntryId, RedisKey, RedisSettings, RedisValue, SaddReply,
+    SetGetReply, SetnxReply, StreamCapKind, StreamCapTrim, StreamTrimConfig,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async fn test_connection(
     settings: &RedisSettings,
-) -> error_stack::Result<RedisConnection, crate::errors::RedisError> {
+) -> error_stack::Result<RedisConnectionWithContext, crate::errors::RedisError> {
     RedisConnectionPool::new(settings)
         .await
-        .map(|pool| pool.get_connection())
+        .map(|pool| std::sync::Arc::new(pool).get_connection())
 }
 
 /// Generate a unique ID for test key isolation.
@@ -51,7 +51,7 @@ fn redis_value_to_option_string(v: &RedisValue) -> Option<String> {
 
 /// Create a cluster `RedisConnectionPool` if `REDIS_CLUSTER_URLS` env var is set.
 /// Returns `None` if no cluster is configured (test should skip, not fail).
-async fn cluster_pool() -> Option<RedisConnection> {
+async fn cluster_pool() -> Option<RedisConnectionWithContext> {
     let cluster_urls_str = std::env::var("REDIS_CLUSTER_URLS").ok()?;
     let cluster_urls: Vec<String> = cluster_urls_str
         .split(',')
@@ -91,7 +91,7 @@ async fn cluster_pool() -> Option<RedisConnection> {
 }
 
 /// Helper: get a cluster pool or skip the test.
-async fn get_cluster_pool_or_skip() -> Option<RedisConnection> {
+async fn get_cluster_pool_or_skip() -> Option<RedisConnectionWithContext> {
     let pool = cluster_pool().await;
     if pool.is_none() {
         tracing::warn!(
@@ -102,7 +102,7 @@ async fn get_cluster_pool_or_skip() -> Option<RedisConnection> {
     pool
 }
 
-async fn get_cluster_pool_with_uid() -> Option<(RedisConnection, String)> {
+async fn get_cluster_pool_with_uid() -> Option<(RedisConnectionWithContext, String)> {
     let pool = get_cluster_pool_or_skip().await?;
     let unique_id = unique_test_id();
     Some((pool, unique_id))
@@ -467,8 +467,8 @@ async fn test_set_key_if_not_exists_and_get_value_concurrent_access() {
             let value1 = "value1".to_string();
             let value2 = "value2".to_string();
 
-            let pool1 = pool.clone("");
-            let pool2 = pool.clone("");
+            let pool1 = pool.clone();
+            let pool2 = pool.clone();
             let key1 = key_name.into();
             let key2 = key_name.into();
 
@@ -1923,16 +1923,18 @@ async fn test_pubsub_standalone_publish_and_receive() {
             let channel = "test_pubsub_channel";
             let test_message = "test_message_value";
 
-            pool.subscriber
+            pool.redis_conn
+                .subscriber
                 .subscribe(channel)
                 .await
                 .expect("failed to subscribe");
 
-            let mut receiver = pool.subscriber.message_rx();
+            let mut receiver = pool.redis_conn.subscriber.message_rx();
 
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
-            pool.publisher
+            pool.redis_conn
+                .publisher
                 .publish(channel, RedisValue::from_string(test_message.to_string()))
                 .await
                 .expect("failed to publish");
@@ -1964,12 +1966,13 @@ async fn test_subscriber_unsubscribe() {
                 .expect("failed to create redis connection pool");
             let channel = "test_unsub_channel";
 
-            pool.subscriber
+            pool.redis_conn
+                .subscriber
                 .subscribe(channel)
                 .await
                 .expect("failed to subscribe");
 
-            let unsub_result = pool.subscriber.unsubscribe(channel).await;
+            let unsub_result = pool.redis_conn.subscriber.unsubscribe(channel).await;
 
             matches!(unsub_result, Ok(()))
         })
@@ -2003,7 +2006,7 @@ async fn test_on_error_triggers_shutdown_when_redis_unreachable() {
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
 
     tokio::spawn(async move {
-        pool.on_error(shutdown_tx).await;
+        pool.redis_conn.on_error(shutdown_tx).await;
     });
 
     let result = tokio::time::timeout(std::time::Duration::from_secs(10), shutdown_rx).await;
@@ -2021,6 +2024,7 @@ async fn test_on_error_keeps_redis_available_when_healthy() {
         .expect("failed to create redis connection pool");
 
     let initial_state = pool
+        .redis_conn
         .is_redis_available
         .load(std::sync::atomic::Ordering::SeqCst);
 
@@ -2054,10 +2058,10 @@ async fn test_on_error_marks_unavailable_after_threshold() {
     };
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
-    let is_available = pool.is_redis_available.clone();
+    let is_available = pool.redis_conn.is_redis_available.clone();
 
     tokio::spawn(async move {
-        pool.on_error(shutdown_tx).await;
+        pool.redis_conn.on_error(shutdown_tx).await;
     });
 
     let result = tokio::time::timeout(std::time::Duration::from_secs(10), shutdown_rx).await;
@@ -2293,16 +2297,18 @@ async fn test_cluster_pubsub() {
             let channel = format!("test_cluster_pubsub_{uid}");
             let test_message = "cluster_message";
 
-            pool.subscriber
+            pool.redis_conn
+                .subscriber
                 .subscribe(&channel)
                 .await
                 .expect("failed to subscribe on cluster");
 
-            let mut receiver = pool.subscriber.message_rx();
+            let mut receiver = pool.redis_conn.subscriber.message_rx();
 
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
-            pool.publisher
+            pool.redis_conn
+                .publisher
                 .publish(&channel, RedisValue::from_string(test_message.to_string()))
                 .await
                 .expect("failed to publish on cluster");

@@ -1,8 +1,8 @@
 use std::{fmt::Debug, sync::Arc};
 
 use common_utils::{
-    execution_context::ExecutionContext,
     external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+    request_id_context::RequestIdContext,
     types::TenantConfig,
 };
 use diesel_models as store;
@@ -145,14 +145,16 @@ where
     }
 }
 
-impl<T: DatabaseStore> ExecutionContext for RouterStore<T> {
+impl<T: DatabaseStore> RequestIdContext for RouterStore<T> {
     fn request_id(&self) -> Option<&str> {
         self.request_id.as_deref()
     }
 }
 
 impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
-    fn get_redis_conn(&self) -> error_stack::Result<redis_interface::RedisConnection, RedisError> {
+    fn get_redis_conn(
+        &self,
+    ) -> error_stack::Result<redis_interface::RedisConnectionWithContext, RedisError> {
         Ok(self
             .cache_store
             .get_redis_pool()?
@@ -434,7 +436,7 @@ pub trait UniqueConstraints {
     fn table_name(&self) -> &str;
     async fn check_for_constraints(
         &self,
-        redis_conn: &redis_interface::RedisConnection,
+        redis_conn: &redis_interface::RedisConnectionWithContext,
     ) -> CustomResult<(), RedisError> {
         let constraints = self.unique_constraints();
         let unique_contraint_count = constraints.len();

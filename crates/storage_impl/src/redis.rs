@@ -7,7 +7,7 @@ use std::sync::{atomic, Arc};
 use common_utils::external_service::{ExternalServiceEventEmitter, NoOpEventEmitter};
 use router_env::tracing::Instrument;
 
-use self::{kv_store::RedisConnInterface, pub_sub::PubSubInterface};
+use self::kv_store::RedisConnInterface;
 
 #[derive(Clone)]
 pub struct RedisStore {
@@ -73,8 +73,10 @@ impl RedisStore {
 impl RedisConnInterface for RedisStore {
     fn get_redis_conn(
         &self,
-    ) -> error_stack::Result<redis_interface::RedisConnection, redis_interface::errors::RedisError>
-    {
+    ) -> error_stack::Result<
+        redis_interface::RedisConnectionWithContext,
+        redis_interface::errors::RedisError,
+    > {
         Ok(self.get_redis_pool()?.get_connection())
     }
 }

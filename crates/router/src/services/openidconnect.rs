@@ -4,7 +4,7 @@ use external_services::http_client::client;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use oidc::TokenResponse;
 use openidconnect::{self as oidc, core as oidc_core};
-use redis_interface::RedisConnection;
+use redis_interface::RedisConnectionWithContext;
 use storage_impl::errors::ApiClientError;
 
 use crate::{
@@ -196,7 +196,9 @@ fn get_oidc_redis_key(csrf: &str) -> String {
     format!("{}OIDC_{}", consts::user::REDIS_SSO_PREFIX, csrf)
 }
 
-fn get_redis_connection_for_global_tenant(state: &SessionState) -> UserResult<RedisConnection> {
+fn get_redis_connection_for_global_tenant(
+    state: &SessionState,
+) -> UserResult<RedisConnectionWithContext> {
     state
         .global_store
         .get_redis_conn()

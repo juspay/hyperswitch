@@ -17,7 +17,7 @@ use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount as DomainMerchantConnectorAccount;
 use hyperswitch_masking::{ExposeInterface, Secret};
-use redis_interface::RedisConnection;
+use redis_interface::RedisConnectionWithContext;
 use router_env::{env, instrument, logger, tracing};
 
 use crate::{
@@ -142,7 +142,9 @@ pub async fn get_active_user_from_db_by_email(
         .map(UserFromStorage::from)
 }
 
-pub fn get_redis_connection_for_global_tenant(state: &SessionState) -> UserResult<RedisConnection> {
+pub fn get_redis_connection_for_global_tenant(
+    state: &SessionState,
+) -> UserResult<RedisConnectionWithContext> {
     state
         .global_store
         .get_redis_conn()

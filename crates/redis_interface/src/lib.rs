@@ -42,12 +42,13 @@ mod module {
 pub use fred::interfaces::{EventInterface, PubsubInterface};
 #[cfg(feature = "fred")]
 pub use module::fred::{
-    PubSubMessage, RedisClient, RedisConfig, RedisConnection, RedisConnectionPool, SubscriberClient,
+    PubSubMessage, RedisClient, RedisConfig, RedisConnectionPool, RedisConnectionWithContext,
+    SubscriberClient,
 };
 #[cfg(feature = "redis-rs")]
 pub use module::redis_rs::{
     redis_value_to_option_string, PubSubMessage, PublisherClient, RedisConfig, RedisConn,
-    RedisConnection, RedisConnectionPool, SubscriberClient,
+    RedisConnectionPool, RedisConnectionWithContext, SubscriberClient,
 };
 
 pub use self::types::*;

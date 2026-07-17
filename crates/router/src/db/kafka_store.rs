@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::Arc};
+use std::collections::HashSet;
 
 use ::payment_methods::state::PaymentMethodsStorageInterface;
 use common_enums::enums::MerchantStorageScheme;
@@ -39,7 +39,7 @@ use hyperswitch_domain_models::{
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use hyperswitch_masking::Secret;
-use redis_interface::{errors::RedisError, RedisConnectionPool, RedisEntryId};
+use redis_interface::{errors::RedisError, RedisEntryId};
 use router_env::{instrument, logger, tracing};
 use scheduler::{
     db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
@@ -3709,7 +3709,9 @@ impl UserInterface for KafkaStore {
 }
 
 impl RedisConnInterface for KafkaStore {
-    fn get_redis_conn(&self) -> CustomResult<redis_interface::RedisConnection, RedisError> {
+    fn get_redis_conn(
+        &self,
+    ) -> CustomResult<redis_interface::RedisConnectionWithContext, RedisError> {
         self.diesel_store.get_redis_conn()
     }
 }

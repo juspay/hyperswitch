@@ -355,11 +355,11 @@ impl std::error::Error for StreamTrimThresholdError {}
 pub struct RedisKey(String);
 
 impl RedisKey {
-    pub fn tenant_aware_key(&self, redis: &crate::RedisConnection) -> String {
+    pub fn tenant_aware_key(&self, redis: &crate::RedisConnectionWithContext) -> String {
         redis.add_prefix(&self.0)
     }
 
-    pub fn tenant_unaware_key(&self, _redis: &crate::RedisConnection) -> String {
+    pub fn tenant_unaware_key(&self, _redis: &crate::RedisConnectionWithContext) -> String {
         self.0.clone()
     }
 }

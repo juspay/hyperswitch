@@ -1,8 +1,8 @@
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
-    execution_context::ExecutionContext, fallback_reverse_lookup_not_found,
+    fallback_reverse_lookup_not_found, request_id_context::RequestIdContext,
     types::keymanager::KeyManagerState,
 };
 use diesel_models::{errors::DatabaseError, kv};
@@ -156,14 +156,16 @@ where
     }
 }
 
-impl<T: DatabaseStore> ExecutionContext for KVRouterStore<T> {
+impl<T: DatabaseStore> RequestIdContext for KVRouterStore<T> {
     fn request_id(&self) -> Option<&str> {
         self.request_id.as_deref()
     }
 }
 
 impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {
-    fn get_redis_conn(&self) -> error_stack::Result<redis_interface::RedisConnection, RedisError> {
+    fn get_redis_conn(
+        &self,
+    ) -> error_stack::Result<redis_interface::RedisConnectionWithContext, RedisError> {
         Ok(self
             .router_store
             .cache_store

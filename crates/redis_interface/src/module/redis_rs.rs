@@ -10,8 +10,8 @@ use std::sync::{atomic, Arc};
 
 use common_utils::{
     errors::CustomResult,
-    execution_context::ExecutionContext,
     external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+    request_id_context::RequestIdContext,
 };
 use error_stack::ResultExt;
 use redis::AsyncCommands;
@@ -364,14 +364,16 @@ pub struct RedisConnectionPool {
     pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
 }
 
+/// A request-scoped Redis handle.
+///
+/// Wraps the shared [`RedisConnectionPool`] and carries the request ID of the
+/// execution that created it, so per-roundtrip events can be correlated back to
+/// the originating API request. Built via [`RedisConnectionPool::get_connection`]
+/// (no request context) or
+/// [`RedisConnectionPool::get_connection_with_context`] (request-scoped).
 #[derive(Clone)]
-pub struct RedisConnection {
-    pub pool: RedisConn,
-    pub key_prefix: String,
-    pub config: Arc<RedisConfig>,
-    pub subscriber: Arc<SubscriberClient>,
-    pub publisher: Arc<PublisherClient>,
-    pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+pub struct RedisConnectionWithContext {
+    pub redis_conn: Arc<RedisConnectionPool>,
     pub request_id: Option<String>,
 }
 
@@ -527,26 +529,32 @@ impl RedisConnectionPool {
         }
     }
 
-    pub fn get_connection(&self) -> RedisConnection {
-        RedisConnection {
-            pool: self.pool.clone(),
-            key_prefix: self.key_prefix.clone(),
-            config: Arc::clone(&self.config),
-            subscriber: Arc::clone(&self.subscriber),
-            publisher: Arc::clone(&self.publisher),
-            event_emitter: Arc::clone(&self.event_emitter),
+    /// Prefix `key` with this pool's tenant key prefix.
+    pub fn add_prefix(&self, key: &str) -> String {
+        if self.key_prefix.is_empty() {
+            key.to_string()
+        } else {
+            format!("{}:{}", self.key_prefix, key)
+        }
+    }
+
+    /// Get a Redis handle with no request context. Calls made through it emit no
+    /// events — use only for background work (drainer, scheduler, health checks).
+    pub fn get_connection(self: &Arc<Self>) -> RedisConnectionWithContext {
+        RedisConnectionWithContext {
+            redis_conn: Arc::clone(self),
             request_id: None,
         }
     }
 
-    pub fn get_connection_with_context(&self, context: &dyn ExecutionContext) -> RedisConnection {
-        RedisConnection {
-            pool: self.pool.clone(),
-            key_prefix: self.key_prefix.clone(),
-            config: Arc::clone(&self.config),
-            subscriber: Arc::clone(&self.subscriber),
-            publisher: Arc::clone(&self.publisher),
-            event_emitter: Arc::clone(&self.event_emitter),
+    /// Get a request-scoped Redis handle. Calls made through it emit events
+    /// correlated to `context`'s request ID.
+    pub fn get_connection_with_context(
+        self: &Arc<Self>,
+        context: &dyn RequestIdContext,
+    ) -> RedisConnectionWithContext {
+        RedisConnectionWithContext {
+            redis_conn: Arc::clone(self),
             request_id: context.request_id().map(str::to_owned),
         }
     }

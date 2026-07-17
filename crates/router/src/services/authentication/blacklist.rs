@@ -1,7 +1,7 @@
 #[cfg(feature = "olap")]
 use common_utils::date_time;
 use error_stack::ResultExt;
-use redis_interface::RedisConnection;
+use redis_interface::RedisConnectionWithContext;
 
 use super::AuthToken;
 #[cfg(feature = "olap")]
@@ -128,7 +128,7 @@ pub async fn check_email_token_in_blacklist(state: &SessionState, token: &str) -
 
 fn get_redis_connection_for_global_tenant<A: SessionStateInfo>(
     state: &A,
-) -> RouterResult<RedisConnection> {
+) -> RouterResult<RedisConnectionWithContext> {
     state
         .global_store()
         .get_redis_conn()

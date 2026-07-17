@@ -1,6 +1,6 @@
 use common_utils::id_type;
 use error_stack::ResultExt;
-use redis_interface::RedisConnection;
+use redis_interface::RedisConnectionWithContext;
 use router_env::logger;
 
 use super::authentication::AuthToken;
@@ -145,7 +145,7 @@ pub fn check_tenant(
 
 fn get_redis_connection_for_global_tenant<A: SessionStateInfo>(
     state: &A,
-) -> RouterResult<RedisConnection> {
+) -> RouterResult<RedisConnectionWithContext> {
     state
         .global_store()
         .get_redis_conn()

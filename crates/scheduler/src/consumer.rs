@@ -12,7 +12,7 @@ use diesel_models::enums;
 pub use diesel_models::{self, process_tracker as storage};
 use error_stack::ResultExt;
 use futures::future;
-use redis_interface::{RedisConnection, RedisEntryId};
+use redis_interface::{RedisConnectionWithContext, RedisEntryId};
 use router_env::{
     instrument,
     tracing::{self, Instrument},
@@ -184,7 +184,7 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
 #[instrument(skip(db, redis_conn))]
 pub async fn fetch_consumer_tasks(
     db: &dyn ProcessTrackerInterface,
-    redis_conn: &RedisConnection,
+    redis_conn: &RedisConnectionWithContext,
     stream_name: &str,
     group_name: &str,
     consumer_name: &str,
