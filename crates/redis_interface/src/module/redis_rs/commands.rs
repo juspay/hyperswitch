@@ -218,7 +218,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "set_key",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -249,7 +249,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "set_key_without_modifying_ttl",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -384,7 +384,7 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     #[deja::redis(
         operation = "get_key",
-        codec = ResultOkCodec,
+        codec = deja::codec::ResultCodec::<DejaRedisValue, errors::RedisError>,
         state_read = key.tenant_aware_key(self),
         args = {
             serde_json::json!({
@@ -685,7 +685,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "delete_key",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<DelReply, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -755,7 +755,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "set_key_with_expiry",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -792,7 +792,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "set_key_if_not_exists_with_expiry",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<SetnxReply, errors::RedisError>,
             state_write = key.tenant_aware_key(self),
             args = {
                 serde_json::json!({
@@ -1257,7 +1257,7 @@ impl super::RedisConnectionPool {
         deja::redis(
             replay = Substitute,
             operation = "sadd",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<SaddReply, errors::RedisError>,
             state_write = key.tenant_aware_key(self),
             args = {
                 serde_json::json!({

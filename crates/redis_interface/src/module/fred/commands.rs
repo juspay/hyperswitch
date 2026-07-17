@@ -127,7 +127,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "set_key",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -161,7 +161,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "set_key_without_modifying_ttl",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -322,13 +322,13 @@ impl super::RedisConnectionPool {
     // The boundary lives on this inner method, which fetches the RAW redis reply
     // (`fred::types::RedisValue`) and mirrors it into the serde-native
     // `DejaRedisValue`. Because the recorded/replayed type is concrete and
-    // serde-native, `codec = ResultOkCodec` works WITHOUT leaking any serde bound onto the
+    // serde-native, the typed `ResultCodec` works WITHOUT leaking any serde bound onto the
     // public `get_key<V>` (which stays exactly as upstream).
     #[cfg(feature = "deja")]
     #[instrument(level = "DEBUG", skip(self))]
     #[deja::redis(
         operation = "get_key",
-        codec = ResultOkCodec,
+        codec = deja::codec::ResultCodec::<DejaRedisValue, errors::RedisError>,
         state_read = key.tenant_aware_key(self),
         args = {
             serde_json::json!({
@@ -379,9 +379,11 @@ impl super::RedisConnectionPool {
         #[cfg(feature = "deja")]
         {
             let raw = self.get_key_raw(key).await?;
-            let value = raw
+            let value: RedisValue = raw
                 .try_into()
-                .map_err(|err| report!(err).change_context(errors::RedisError::GetFailed))?;
+                .map_err(|err: fred::error::RedisError| {
+                    report!(err).change_context(errors::RedisError::GetFailed)
+                })?;
             V::from_value(value).change_context(errors::RedisError::GetFailed)
         }
 
@@ -544,7 +546,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "exists",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<bool, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -638,7 +640,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "delete_key",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<DelReply, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -700,7 +702,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "set_key_with_expiry",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -739,7 +741,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "set_key_if_not_exists_with_expiry",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<SetnxReply, errors::RedisError>,
             // Declare the key we WRITE so the seed plan's pristine rule masks a
             // later read-back of it (e.g. the lock GET after this SETNX). Without
             // this the read-back is seeded as "present", and the replayed Execute
@@ -785,7 +787,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "set_expiry",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -813,7 +815,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "set_expire_at",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -841,7 +843,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "get_ttl",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<i64, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -864,7 +866,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "set_hash_fields",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -938,7 +940,7 @@ impl super::RedisConnectionPool {
         feature = "deja",
         deja::redis(
             operation = "set_hash_field_if_not_exist",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<HsetnxReply, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -1197,7 +1199,7 @@ impl super::RedisConnectionPool {
 
     // Deja hermetic boundary for HGET — same shape as `get_key_raw`: the boundary
     // lives on this inner method which fetches the RAW reply and mirrors it into
-    // the serde-native `DejaRedisValue`, so `codec = ResultOkCodec` substitutes the field read
+    // the serde-native `DejaRedisValue`, so the typed `ResultCodec` substitutes the field read
     // WITHOUT leaking a serde bound onto the public `get_hash_field<V>`. A
     // record-only `result={"ok":bool}` capture would record NO value, leaving
     // replay nothing to reconstruct `V` from — the read would fall through to
@@ -1206,7 +1208,7 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     #[deja::redis(
         operation = "get_hash_field",
-        codec = ResultOkCodec,
+        codec = deja::codec::ResultCodec::<DejaRedisValue, errors::RedisError>,
         state_read = format!("{}:{}", key.tenant_aware_key(self), field),
         args = {
             serde_json::json!({
@@ -1265,7 +1267,7 @@ impl super::RedisConnectionPool {
         #[cfg(feature = "deja")]
         {
             let raw = self.get_hash_field_raw(key, field).await?;
-            let value = raw.try_into().map_err(|err| {
+            let value: RedisValue = raw.try_into().map_err(|err: fred::error::RedisError| {
                 report!(err).change_context(errors::RedisError::GetHashFieldFailed)
             })?;
             V::from_value(value).change_context(errors::RedisError::GetHashFieldFailed)
@@ -1305,7 +1307,7 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     #[deja::redis(
         operation = "get_hash_fields",
-        codec = ResultOkCodec,
+        codec = deja::codec::ResultCodec::<DejaRedisValue, errors::RedisError>,
         state_read = key.tenant_aware_key(self),
         args = {
             serde_json::json!({
@@ -1356,7 +1358,7 @@ impl super::RedisConnectionPool {
         #[cfg(feature = "deja")]
         {
             let raw = self.get_hash_fields_raw(key).await?;
-            let value = raw.try_into().map_err(|err| {
+            let value: RedisValue = raw.try_into().map_err(|err: fred::error::RedisError| {
                 report!(err).change_context(errors::RedisError::GetHashFieldFailed)
             })?;
             V::from_value(value).change_context(errors::RedisError::GetHashFieldFailed)
@@ -1418,7 +1420,7 @@ impl super::RedisConnectionPool {
         deja::redis(
             replay = Substitute,
             operation = "sadd",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<SaddReply, errors::RedisError>,
             state_write = key.tenant_aware_key(self),
             args = {
                 serde_json::json!({
