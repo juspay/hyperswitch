@@ -101,8 +101,8 @@ change_reason = "Initial setup"
 [default-configs.fingerprint_secret]
 value = ""
 schema = { type = "string" }
-description = "Fingerprint secret used for payment card fingerprinting per merchant"
-change_reason = "Initial setup"
+description = "Fingerprint secret used as a migration fallback for merchant accounts"
+change_reason = "Retain during merchant account migration"
 
 [default-configs.should_call_gsm]
 value = false
