@@ -6,8 +6,8 @@ use crate::refunds::{
 };
 #[cfg(feature = "v1")]
 use crate::refunds::{
-    PlatformRefundListRequest, PlatformRefundListResponse, RefundManualUpdateRequest,
-    RefundRequest, RefundUpdateRequest, RefundsRetrieveRequest,
+    PlatformRefundListFilters, PlatformRefundListRequest, PlatformRefundListResponse,
+    RefundManualUpdateRequest, RefundRequest, RefundUpdateRequest, RefundsRetrieveRequest,
 };
 
 #[cfg(feature = "v1")]
@@ -122,6 +122,13 @@ impl ApiEventMetric for PlatformRefundListRequest {
 
 #[cfg(feature = "v1")]
 impl ApiEventMetric for PlatformRefundListResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for PlatformRefundListFilters {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::ResourceListAPI)
     }

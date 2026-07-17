@@ -1,4 +1,4 @@
-#[cfg(feature = "v1")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 use std::fmt;
 use std::{
     collections::{HashMap, HashSet},
@@ -31,12 +31,12 @@ use common_utils::{
 use error_stack::ResultExt;
 
 use crate::customers::CustomerDocumentDetails;
-#[cfg(feature = "v2")]
-fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
+#[cfg(any(feature = "v1", feature = "v2"))]
+pub(crate) fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
 where
-    D: serde::Deserializer<'de>,
+    D: Deserializer<'de>,
     T: std::str::FromStr,
-    <T as std::str::FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
+    <T as std::str::FromStr>::Err: fmt::Debug + fmt::Display + std::error::Error,
 {
     let opt_str: Option<String> = Option::deserialize(v)?;
     match opt_str {
@@ -50,9 +50,7 @@ where
                 let trimmed_item = item.trim();
                 if !trimmed_item.is_empty() {
                     let parsed_item = trimmed_item.parse::<T>().map_err(|e| {
-                        <D::Error as serde::de::Error>::custom(format!(
-                            "Invalid value '{trimmed_item}': {e}"
-                        ))
+                        <D::Error as de::Error>::custom(format!("Invalid value '{trimmed_item}': {e}"))
                     })?;
                     result.push(parsed_item);
                 }
@@ -64,7 +62,7 @@ where
 }
 use hyperswitch_masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
-#[cfg(feature = "v1")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 use serde::{de, Deserializer};
 use serde::{ser::Serializer, Deserialize, Serialize};
 use smithy::SmithyModel;

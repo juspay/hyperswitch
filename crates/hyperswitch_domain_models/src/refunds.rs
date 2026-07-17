@@ -108,22 +108,36 @@ impl From<api_models::refunds::PlatformRefundListRequest> for RefundListConstrai
     fn from(value: api_models::refunds::PlatformRefundListRequest) -> Self {
         let api_models::refunds::PlatformRefundListRequest {
             processor_merchant_id,
+            payment_id,
+            refund_id,
+            profile_id,
             limit,
             offset,
             time_range,
+            start_amount,
+            end_amount,
+            connector,
+            merchant_connector_id,
+            currency,
+            refund_status,
         } = value;
         Self {
-            payment_id: None,
-            refund_id: None,
-            profile_id: None,
+            payment_id,
+            refund_id,
+            profile_id: profile_id.map(|profile_id| vec![profile_id]),
             limit,
             offset,
             time_range,
-            amount_filter: None,
-            connector: None,
-            merchant_connector_id: None,
-            currency: None,
-            refund_status: None,
+            amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some(
+                api_models::payments::AmountFilter {
+                    start_amount,
+                    end_amount,
+                },
+            ),
+            connector,
+            merchant_connector_id,
+            currency,
+            refund_status,
             processor_merchant_id,
         }
     }

@@ -520,11 +520,19 @@ pub struct RefundListResponse {
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct PlatformRefundListRequest {
-    /// The identifier for the connected (processor) merchant whose credentials processed the refund
+    /// The identifier for the connected (processor) merchant whose credentials processed the
+    /// refund. When omitted, refunds across all connected merchants under the platform are returned.
     #[schema(value_type = Option<String>, example = "merchant_1668273825")]
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    /// The identifier for the payment
+    #[schema(value_type = Option<String>)]
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
+    /// The identifier for the refund
+    pub refund_id: Option<String>,
+    /// The identifier for business profile
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// Limit on the number of objects to return
     pub limit: Option<i64>,
     /// The starting point within a list of objects
@@ -532,6 +540,25 @@ pub struct PlatformRefundListRequest {
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc)
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,
+    /// The start amount (inclusive) to filter refunds list by.
+    pub start_amount: Option<i64>,
+    /// The end amount (inclusive) to filter refunds list by.
+    pub end_amount: Option<i64>,
+    /// The comma separated list of connectors to filter refunds list
+    #[serde(deserialize_with = "crate::payments::parse_comma_separated", default)]
+    pub connector: Option<Vec<String>>,
+    /// The comma separated list of merchant connector ids to filter the refunds list for selected label
+    #[schema(value_type = Option<Vec<String>>)]
+    #[serde(deserialize_with = "crate::payments::parse_comma_separated", default)]
+    pub merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+    /// The comma separated list of currencies to filter refunds list
+    #[schema(value_type = Option<Vec<Currency>>)]
+    #[serde(deserialize_with = "crate::payments::parse_comma_separated", default)]
+    pub currency: Option<Vec<enums::Currency>>,
+    /// The comma separated list of refund statuses to filter refunds list
+    #[schema(value_type = Option<Vec<RefundStatus>>)]
+    #[serde(deserialize_with = "crate::payments::parse_comma_separated", default)]
+    pub refund_status: Option<Vec<enums::RefundStatus>>,
 }
 
 #[cfg(feature = "v1")]
@@ -587,10 +614,27 @@ pub struct PlatformRefundListItem {
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PlatformRefundListResponse {
-    /// The number of refunds included in the list
-    pub size: usize,
+    /// The number of refunds included in the current response
+    pub count: usize,
+    /// The total number of refunds matching the given constraints (ignores limit/offset)
+    pub total_count: i64,
     /// The list of refund summaries across the platform's connected merchants
     pub data: Vec<PlatformRefundListItem>,
+}
+
+/// Available filter values for a platform refunds list, aggregated across all of the
+/// platform's connected merchants.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct PlatformRefundListFilters {
+    /// The map of available connector filters, where the key is the connector name and the value is a list of MerchantConnectorInfo instances
+    pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
+    /// The list of available currency filters
+    #[schema(value_type = Vec<Currency>)]
+    pub currency: Vec<enums::Currency>,
+    /// The list of available refund status filters
+    #[schema(value_type = Vec<RefundStatus>)]
+    pub refund_status: Vec<enums::RefundStatus>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, ToSchema)]
