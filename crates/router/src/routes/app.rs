@@ -1507,8 +1507,7 @@ impl Refunds {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
                 .service(
-                    web::resource("/platform/list")
-                        .route(web::get().to(refunds_list_for_platform)),
+                    web::resource("/platform/list").route(web::get().to(refunds_list_for_platform)),
                 )
                 .service(
                     web::resource("/platform/filter")

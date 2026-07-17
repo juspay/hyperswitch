@@ -50,7 +50,9 @@ where
                 let trimmed_item = item.trim();
                 if !trimmed_item.is_empty() {
                     let parsed_item = trimmed_item.parse::<T>().map_err(|e| {
-                        <D::Error as de::Error>::custom(format!("Invalid value '{trimmed_item}': {e}"))
+                        <D::Error as de::Error>::custom(format!(
+                            "Invalid value '{trimmed_item}': {e}"
+                        ))
                     })?;
                     result.push(parsed_item);
                 }
