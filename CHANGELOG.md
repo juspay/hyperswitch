@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.08.1-hotfix3
+
+### Bug Fixes
+
+- **connector:** [checkout] Amex reference id ([#13368](https://github.com/juspay/hyperswitch/pull/13368)) ([`efd8148`](https://github.com/juspay/hyperswitch/commit/efd8148123eb77eb251fa1f3b77060696fc6fb58))
+
+**Full Changelog:** [`2026.07.08.1-hotfix2...2026.07.08.1-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.07.08.1-hotfix2...2026.07.08.1-hotfix3)
+
+- - -
+
 ## 2026.07.08.1-hotfix2
 
 ### Bug Fixes
