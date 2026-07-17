@@ -2919,6 +2919,7 @@ async fn update_connector_mandate_details(
             let compat_action = payment_methods::payment_method_modular_compat_action(
                 state,
                 &payment_method_info.merchant_id,
+                &platform.get_provider().get_account().organization_id,
                 payment_method_info.customer_id.as_ref(),
             )
             .await;
