@@ -3104,10 +3104,6 @@ impl
                     .as_ref()
                     .and_then(|cd| cd.connector_transaction_id.clone())
                     .or_else(|| connector_transaction_id.get_optional_response_id()),
-                connector_response_reference_id: Some(
-                    response.merchant_recurring_payment_id.clone(),
-                )
-                .filter(|s| !s.is_empty()),
                 connector_response_reference_id: connector_response_reference_id.clone(),
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
