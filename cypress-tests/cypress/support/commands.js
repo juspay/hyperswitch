@@ -276,41 +276,49 @@ function createUcsConfigs(globalState, flow, type) {
     });
 }
 
-Cypress.Commands.add("deleteBusinessProfileTest", (globalState) => {
-  const adminApiKey = globalState.get("adminApiKey");
-  const baseUrl = globalState.get("baseUrl");
-  const profileId = globalState.get("profileId");
-  const merchantId = globalState.get("merchantId");
-  const url = `${baseUrl}/account/${merchantId}/business_profile/${profileId}`;
+/**
+ * Deletes a business profile by ID, resolving the profile from globalState.
+ * @param {Object} globalState - The global state object
+ * @param {string} [profilePrefix="profile"] - Prefix used to namespace the profile ID in globalState (e.g. "webhookConfigProfile" resolves to globalState.get("webhookConfigProfileId")). Defaults to "profile" for backward compatibility.
+ */
+Cypress.Commands.add(
+  "deleteBusinessProfileTest",
+  (globalState, profilePrefix = "profile") => {
+    const adminApiKey = globalState.get("adminApiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+    const merchantId = globalState.get("merchantId");
+    const url = `${baseUrl}/account/${merchantId}/business_profile/${profileId}`;
 
-  if (!profileId) {
-    cy.log("No profileId found in globalState, skipping delete");
-    return;
-  }
+    if (!profileId) {
+      cy.log(`No ${profilePrefix}Id found in globalState, skipping delete`);
+      return;
+    }
 
-  cy.request({
-    method: "DELETE",
-    url: url,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "api-key": adminApiKey,
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
+    cy.request({
+      method: "DELETE",
+      url: url,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": adminApiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
 
-    cy.wrap(response).then(() => {
-      if (response.status === 200) {
-        cy.log(`Business profile ${profileId} deleted successfully`);
-      } else {
-        cy.log(
-          `Failed to delete business profile: ${response.body.error?.message || response.statusText}`
-        );
-      }
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          cy.log(`Business profile ${profileId} deleted successfully`);
+        } else {
+          cy.log(
+            `Failed to delete business profile: ${response.body.error?.message || response.statusText}`
+          );
+        }
+      });
     });
-  });
-});
+  }
+);
 
 function storeRequestId(xRequestId, globalState) {
   if (xRequestId && globalState) {
@@ -778,6 +786,13 @@ Cypress.Commands.add(
   }
 );
 
+/**
+ * Creates a business profile and stores the resulting profile_id in globalState.
+ * @param {Object} createBusinessProfile - The business profile creation request body
+ * @param {Object} globalState - The global state object
+ * @param {string} [profilePrefix="profile"] - Prefix used to namespace the stored profile ID in globalState (e.g. "webhookConfigProfile" stores as globalState.set("webhookConfigProfileId", ...)). Defaults to "profile" for backward compatibility.
+ * @param {number} [expectedStatus=200] - Expected HTTP status code. Use 400 for negative test cases that assert validation errors.
+ */
 Cypress.Commands.add(
   "createBusinessProfileTest",
   (
@@ -816,6 +831,31 @@ Cypress.Commands.add(
           if (response.status === 200) {
             globalState.set(`${profilePrefix}Id`, response.body.profile_id);
             expect(response.body.profile_id).to.not.to.be.null;
+            if (createBusinessProfile.webhook_details) {
+              const reqWebhook = createBusinessProfile.webhook_details;
+              const respWebhook = response.body.webhook_details;
+              expect(respWebhook).to.not.be.undefined;
+              if (reqWebhook.payment_statuses_enabled) {
+                expect(respWebhook.payment_statuses_enabled).to.deep.equal(
+                  reqWebhook.payment_statuses_enabled
+                );
+              }
+              if (reqWebhook.refund_statuses_enabled) {
+                expect(respWebhook.refund_statuses_enabled).to.deep.equal(
+                  reqWebhook.refund_statuses_enabled
+                );
+              }
+              if (reqWebhook.payout_statuses_enabled) {
+                expect(respWebhook.payout_statuses_enabled).to.deep.equal(
+                  reqWebhook.payout_statuses_enabled
+                );
+              }
+              if (reqWebhook.payment_failed_enabled !== undefined) {
+                expect(respWebhook.payment_failed_enabled).to.equal(
+                  reqWebhook.payment_failed_enabled
+                );
+              }
+            }
           } else {
             throw new Error(
               `Business Profile call failed ${response.body.error.message}`
@@ -823,6 +863,7 @@ Cypress.Commands.add(
           }
         } else {
           expect(response.status).to.equal(expectedStatus);
+          expect(response.body.error).to.exist;
         }
       });
     });
@@ -1044,6 +1085,163 @@ Cypress.Commands.add(
       });
   }
 );
+
+/**
+ * Updates a business profile's webhook configuration and asserts the response echoes the requested webhook_details.
+ *
+ * This command is separate from UpdateBusinessProfileTest because it performs
+ * specialized webhook_details assertions (payment_statuses_enabled,
+ * refund_statuses_enabled, payout_statuses_enabled, payment_failed_enabled)
+ * that would clutter the general-purpose update command which handles wallet
+ * connector config fields. Consolidating would require adding conditional
+ * assertion branches for unrelated config domains.
+ *
+ * @param {Object} webhookConfigBody - The webhook config update request body (must contain a webhook_details object)
+ * @param {Object} globalState - The global state object
+ * @param {string} [profilePrefix="profile"] - Prefix used to resolve the profile ID from globalState (e.g. "webhookConfigProfile" resolves to globalState.get("webhookConfigProfileId")). Defaults to "profile" for backward compatibility.
+ */
+Cypress.Commands.add(
+  "updateBusinessProfileWebhookConfigTest",
+  (webhookConfigBody, globalState, profilePrefix = "profile") => {
+    const apiKey = globalState.get("apiKey");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+    expect(
+      profileId,
+      "profileId must be set in globalState before calling this command"
+    ).to.not.be.undefined;
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        body: webhookConfigBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        expect(response.status).to.equal(200);
+        const webhookDetails = response.body.webhook_details;
+        expect(webhookDetails).to.not.be.undefined;
+        if (webhookConfigBody.webhook_details.payment_statuses_enabled) {
+          expect(webhookDetails.payment_statuses_enabled).to.deep.equal(
+            webhookConfigBody.webhook_details.payment_statuses_enabled
+          );
+        }
+        if (webhookConfigBody.webhook_details.refund_statuses_enabled) {
+          expect(webhookDetails.refund_statuses_enabled).to.deep.equal(
+            webhookConfigBody.webhook_details.refund_statuses_enabled
+          );
+        }
+        if (webhookConfigBody.webhook_details.payout_statuses_enabled) {
+          expect(webhookDetails.payout_statuses_enabled).to.deep.equal(
+            webhookConfigBody.webhook_details.payout_statuses_enabled
+          );
+        }
+        if (
+          webhookConfigBody.webhook_details.payment_failed_enabled !== undefined
+        ) {
+          expect(webhookDetails.payment_failed_enabled).to.equal(
+            webhookConfigBody.webhook_details.payment_failed_enabled
+          );
+        }
+      });
+  }
+);
+
+/**
+ * Registers a webhook URL and event configuration for a connector and asserts the configured response.
+ * @param {Object} data - Connector config entry containing Request and Response (with optional Configs for DELAY/CONNECTOR_CREDENTIAL/TRIGGER_SKIP)
+ * @param {Object} globalState - The global state object
+ */
+Cypress.Commands.add("registerConnectorWebhookTest", (data, globalState) => {
+  const {
+    Configs: configs = {},
+    Request: reqData,
+    Response: resData,
+  } = data || {};
+
+  const configInfo = execConfig(validateConfig(configs));
+  const apiKey = globalState.get("apiKey");
+  const merchantId = globalState.get("merchantId");
+  const merchantConnectorId = globalState.get(
+    `${configInfo.merchantConnectorPrefix}Id`
+  );
+  expect(
+    merchantConnectorId,
+    "merchantConnectorId must be set in globalState before calling this command"
+  ).to.not.be.undefined;
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors/webhooks/${merchantConnectorId}`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    body: reqData,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(resData.status);
+      if (resData.body) {
+        for (const key in resData.body) {
+          expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
+        }
+      }
+    });
+  });
+});
+
+/**
+ * Retrieves the list of webhooks registered for a connector and asserts the configured response.
+ * @param {Object} data - Connector config entry containing Response (with optional Configs for DELAY/CONNECTOR_CREDENTIAL/TRIGGER_SKIP)
+ * @param {Object} globalState - The global state object
+ */
+Cypress.Commands.add("retrieveConnectorWebhooksTest", (data, globalState) => {
+  const { Configs: configs = {}, Response: resData } = data || {};
+
+  const configInfo = execConfig(validateConfig(configs));
+  const apiKey = globalState.get("apiKey");
+  const merchantId = globalState.get("merchantId");
+  const merchantConnectorId = globalState.get(
+    `${configInfo.merchantConnectorPrefix}Id`
+  );
+  expect(
+    merchantConnectorId,
+    "merchantConnectorId must be set in globalState before calling this command"
+  ).to.not.be.undefined;
+
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors/webhooks/${merchantConnectorId}`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(resData.status);
+      if (resData.body) {
+        for (const key in resData.body) {
+          expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
+        }
+      }
+    });
+  });
+});
 
 // API Key API calls
 Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {

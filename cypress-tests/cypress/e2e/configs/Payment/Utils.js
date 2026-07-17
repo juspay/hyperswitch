@@ -750,6 +750,7 @@ export const CONNECTOR_LISTS = {
     PAYOUT_PRIORITY: ["adyenplatform"],
     DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
+    WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],
     // Add more inclusion lists
   },
