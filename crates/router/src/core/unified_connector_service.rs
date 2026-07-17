@@ -760,6 +760,14 @@ pub fn build_unified_connector_service_payment_method(
     payment_method_type: Option<PaymentMethodType>,
     payment_method_token: Option<&PaymentMethodToken>,
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
+    // A connector tokenization token settles for any payment method, including wallets.
+    if let Some(PaymentMethodToken::Token(token)) = payment_method_token {
+        return Ok(payments_grpc::PaymentMethod {
+            payment_method: Some(PaymentMethod::Token(payments_grpc::TokenPaymentMethodType {
+                token: Some(token.clone()),
+            })),
+        });
+    }
     match payment_method_data {
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => {
             match payment_method_token {

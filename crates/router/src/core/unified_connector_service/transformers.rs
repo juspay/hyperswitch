@@ -602,14 +602,7 @@ impl
                 )
             })
             .transpose()?
-            // A card + 3DS payment settles on CompleteAuthorize after the shopper returns from
-            // the ACS, at which point no PAN survives (it is never persisted). The payment
-            // instrument for the settle is the connector payment-handle token that the
-            // PreAuthenticate leg minted and threaded back via
-            // `authentication_data.threeds_server_transaction_id`. The UCS Authorize handler
-            // requires a `payment_method`, so when none could be rebuilt from card data, forward
-            // that handle as a Token payment method; the connector transformer settles it from
-            // `authentication_data` / `connector_feature_data`.
+            // Post-3DS settle: forward the PreAuthenticate handle token as a Token payment method.
             .or_else(|| {
                 router_data
                     .request

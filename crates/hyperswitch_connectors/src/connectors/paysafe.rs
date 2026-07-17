@@ -76,9 +76,7 @@ impl Paysafe {
         }
     }
 
-    /// Whether a PreAuthenticate (3DS setup) leg must run before Authorize: only for a first-time
-    /// 3DS card payment that isn't a mandate/network-transaction recurring charge and hasn't already
-    /// been authenticated.
+    /// Whether a PreAuthenticate (3DS setup) leg must run before Authorize.
     pub fn is_3ds_setup_required(
         &self,
         request: &PaymentsAuthorizeData,
@@ -1370,11 +1368,7 @@ impl ConnectorSpecifications for Paysafe {
         }
     }
 
-    /// After the ACS redirect returns, run the Authenticate step to re-fetch the payment handle by
-    /// merchantRefNum and recover the `paymentHandleToken` (threaded to the settle Authorize via
-    /// `authentication_data`). Gate on the presence of a `redirect_response` so it only runs on the
-    /// post-redirect CompleteAuthorize, not the initial call. No PostAuthenticate — Paysafe has no
-    /// CRes-validation step.
+    /// Run the Authenticate step on the post-redirect CompleteAuthorize to recover the handle token.
     fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::CompleteAuthorize {
@@ -1382,12 +1376,7 @@ impl ConnectorSpecifications for Paysafe {
                 request_data,
                 payment_method,
             } => {
-                // Distinguish the post-redirect CompleteAuthorize from the initial call by the
-                // presence of a `redirect_response`, NOT by non-empty query params: Paysafe's card
-                // ACS returns the shopper on a plain GET with no cres/PaRes params, so gating on
-                // non-empty params would skip the Authenticate re-fetch that recovers the
-                // `paymentHandleToken`. Matches the UCS `next_authentication_step`, which advances
-                // on `RedirectWithoutParams`.
+                // Paysafe's card ACS returns on a param-less GET, so gate on redirect_response.
                 let is_post_redirect = request_data.redirect_response.is_some();
                 auth_type.is_three_ds()
                     && matches!(payment_method, Some(enums::PaymentMethod::Card))
