@@ -12386,12 +12386,15 @@ where
 {
     let chosen = connectors.apply_filter_for_session_routing();
 
-    let active_mca_ids =
-        routing::get_active_mca_ids(&state, processor.get_key_store(), business_profile.get_id())
-            .await
-            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "Active mca_ids not found".to_string(),
-            })?;
+    let merchant_connector_accounts = routing::get_active_merchant_connector_accounts(
+        &state,
+        processor.get_key_store(),
+        business_profile.get_id(),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+        message: "Active merchant connector accounts not found".to_string(),
+    })?;
 
     let session_input = routing::SessionRoutingInput {
         state: &state,
@@ -12400,7 +12403,7 @@ where
         merchant_account: processor.get_account(),
         transaction_type: &transaction_type,
         chosen: &chosen,
-        active_mca_ids: &active_mca_ids,
+        merchant_connector_accounts: &merchant_connector_accounts,
         default_config: &fallback_config,
         backend_input: &mut backend_input,
     };
