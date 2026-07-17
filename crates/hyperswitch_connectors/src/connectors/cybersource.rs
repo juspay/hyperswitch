@@ -2514,9 +2514,9 @@ impl ConnectorSpecifications for Cybersource {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => None,
-            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
-                None
-            }
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => None,
         }
     }
     fn get_alternate_flow_if_needed(
@@ -2537,9 +2537,9 @@ impl ConnectorSpecifications for Cybersource {
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => None,
             api::CurrentFlowInfo::SetupMandate { .. } => None,
-            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
-                None
-            }
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => None,
         }
     }
     fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
@@ -2551,9 +2551,9 @@ impl ConnectorSpecifications for Cybersource {
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
-                false
-            }
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
     /// Check if authentication flow is required
@@ -2575,9 +2575,9 @@ impl ConnectorSpecifications for Cybersource {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
-                false
-            }
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
     /// Check if post-authentication flow is required
@@ -2599,9 +2599,9 @@ impl ConnectorSpecifications for Cybersource {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
-                false
-            }
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
 }
