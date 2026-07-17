@@ -6815,6 +6815,7 @@ dependencies = [
  "tera",
  "thiserror 1.0.69",
  "toml 0.8.22",
+ "tracing",
  "url 2.5.4",
  "urlencoding",
  "wasm-bindgen",
