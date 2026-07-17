@@ -4,6 +4,40 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.17.1
+
+### Features
+
+- **core/connector:** [SANTANDER/ADYEN/PAYLOAD] Add support for connector webhook register ([#12756](https://github.com/juspay/hyperswitch/pull/12756)) ([`bca5041`](https://github.com/juspay/hyperswitch/commit/bca5041fe0b9dca7d8405dc77872df14f8981dd5))
+- **modular:** Consistent dimensions for modular configs ([#13236](https://github.com/juspay/hyperswitch/pull/13236)) ([`6cf9d6a`](https://github.com/juspay/hyperswitch/commit/6cf9d6aa1f6f7f76409f0c95422314f02cb085e1))
+- **payment-methods:** Add CardWithNoCvc payment method type ([#13344](https://github.com/juspay/hyperswitch/pull/13344)) ([`ac773a0`](https://github.com/juspay/hyperswitch/commit/ac773a09415e5cd3249b93ea959ddfc6d25dc85a))
+
+### Bug Fixes
+
+- **connectors:** [cybersource] gracefully handle unknown response enum variants and missing optional fields ([#13239](https://github.com/juspay/hyperswitch/pull/13239)) ([`ea3ba76`](https://github.com/juspay/hyperswitch/commit/ea3ba768b1e25bc721ff9d5cc6027dddc283d9ff))
+- **core:** Moved merchant fingerprint secret from superposition to merchant account table ([#13346](https://github.com/juspay/hyperswitch/pull/13346)) ([`6418fe1`](https://github.com/juspay/hyperswitch/commit/6418fe19225947b0ee475b0bfd1d580da30ad526))
+- **router:** Prevent redundant api_event entries in case of webhooks ([#12941](https://github.com/juspay/hyperswitch/pull/12941)) ([`b6a5a54`](https://github.com/juspay/hyperswitch/commit/b6a5a54d9604df866f5c83a372154d99ea1d957c))
+
+### Refactors
+
+- **connector:** [Nexixpay] gracefully handle unknown response enum variants and missing optional fields ([#13266](https://github.com/juspay/hyperswitch/pull/13266)) ([`2772f74`](https://github.com/juspay/hyperswitch/commit/2772f74052df5e5d3f8c48558929deb7c68725f2))
+
+### Testing
+
+- **cypress:**
+  - Add Klarna PayLater mandate test cases for Adyen connector ([#13280](https://github.com/juspay/hyperswitch/pull/13280)) ([`5c3fdb1`](https://github.com/juspay/hyperswitch/commit/5c3fdb197bcf5079445000d0ab9e66db0ed09055))
+  - Add webhook config disabled events coverage for bankofamerica ([#13048](https://github.com/juspay/hyperswitch/pull/13048)) ([`9d03d05`](https://github.com/juspay/hyperswitch/commit/9d03d05d53c9c5ff676b34ca566d71f96577c344))
+  - Add Payout Recurring coverage for adyenplatform ([#12571](https://github.com/juspay/hyperswitch/pull/12571)) ([`777322d`](https://github.com/juspay/hyperswitch/commit/777322d1537281beecd143a4392e3d6facbae363))
+
+### Miscellaneous Tasks
+
+- **codeowners:** Add Prism ownership for UCS bridge ([#13329](https://github.com/juspay/hyperswitch/pull/13329)) ([`352090f`](https://github.com/juspay/hyperswitch/commit/352090f874f074ad177baa6266681d93f94f048b))
+- **deps:** Update superposition to 0.115.2 ([#13316](https://github.com/juspay/hyperswitch/pull/13316)) ([`b361ac1`](https://github.com/juspay/hyperswitch/commit/b361ac1447af68564abb4a4fc9dcf86dfc4364fc))
+
+**Full Changelog:** [`2026.07.17.0...2026.07.17.1`](https://github.com/juspay/hyperswitch/compare/2026.07.17.0...2026.07.17.1)
+
+- - -
+
 ## 2026.07.17.0
 
 ### Features
