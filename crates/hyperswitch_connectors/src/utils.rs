@@ -1219,6 +1219,59 @@ pub enum CardIssuer {
     UnionPay,
 }
 
+impl CardIssuer {
+    /// Identifies a card issuer from the first six digits of an ISIN/BIN.
+    ///
+    /// Returns `None` when the value has fewer than six digits, contains
+    /// non-numeric characters, or does not match a known issuer range.
+    pub fn from_isin(isin: &str) -> Option<Self> {
+        CARD_ISIN_REGEX.iter().find_map(|(issuer, regex)| {
+            regex
+                .as_ref()
+                .ok()
+                .filter(|regex| regex.is_match(isin))
+                .map(|_| *issuer)
+        })
+    }
+}
+
+static CARD_ISIN_REGEX: LazyLock<Vec<(CardIssuer, Result<Regex, regex::Error>)>> = LazyLock::new(
+    || {
+        vec![
+            // Specific ranges must precede broader overlapping ranges.
+            (CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{3}")),
+            (
+                CardIssuer::Discover,
+                Regex::new(
+                    r"^(?:6011[0-9]{2}|64[4-9][0-9]{3}|65[0-9]{4}|622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9]{2}|9[01][0-9]|92[0-5]))",
+                ),
+            ),
+            (CardIssuer::AmericanExpress, Regex::new(r"^3[47][0-9]{4}")),
+            (
+                CardIssuer::Master,
+                Regex::new(
+                    r"^(?:5[1-5][0-9]{4}|2(?:2(?:2[1-9]|[3-9][0-9])|[3-6][0-9]{2}|7(?:[01][0-9]|20))[0-9]{2})",
+                ),
+            ),
+            (
+                CardIssuer::Maestro,
+                Regex::new(r"^(?:5018|5020|5038|5893|6304|6759|676[1-3])[0-9]{2}"),
+            ),
+            (
+                CardIssuer::DinersClub,
+                Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{3}"),
+            ),
+            (
+                CardIssuer::JCB,
+                Regex::new(r"^3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))[0-9]{2}"),
+            ),
+            (CardIssuer::UnionPay, Regex::new(r"^62[0-9]{4}")),
+            (CardIssuer::Visa, Regex::new(r"^4[0-9]{5}")),
+            // Cartes Bancaires is co-badged and has no unique ISIN range.
+        ]
+    },
+);
+
 pub trait CardData {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
