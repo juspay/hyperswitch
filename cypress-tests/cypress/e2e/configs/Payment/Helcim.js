@@ -23,6 +23,12 @@ const successfulNo3DSCardDetails = {
   card_cvc: "999",
 };
 
+const cardMandateBaseRequest = {
+  payment_method: "card",
+  payment_method_data: { card: successfulNo3DSCardDetails },
+  currency: "USD",
+};
+
 const failedNo3DSCardDetails = {
   card_number: "4000000000000002",
   card_exp_month: "08",
@@ -159,35 +165,55 @@ const card_pm = {
   SyncRefund: getCustomExchange({
     Response: {
       status: 200,
-      body: { status: "failed" },
+      body: {
+        status: "failed",
+        error_code: "No error code",
+        error_message: "Card Transaction cannot be refunded",
+      },
     },
   }),
   Refund: getCustomExchange({
     Request: { amount: 6000 },
     Response: {
       status: 200,
-      body: { status: "failed" },
+      body: {
+        status: "failed",
+        error_code: "No error code",
+        error_message: "Card Transaction cannot be refunded",
+      },
     },
   }),
   PartialRefund: getCustomExchange({
     Request: { amount: 2000 },
     Response: {
       status: 200,
-      body: { status: "failed" },
+      body: {
+        status: "failed",
+        error_code: "No error code",
+        error_message: "Card Transaction cannot be refunded",
+      },
     },
   }),
   manualPaymentRefund: getCustomExchange({
     Request: { amount: 6000 },
     Response: {
       status: 200,
-      body: { status: "failed" },
+      body: {
+        status: "failed",
+        error_code: "No error code",
+        error_message: "Card Transaction cannot be refunded",
+      },
     },
   }),
   manualPaymentPartialRefund: getCustomExchange({
     Request: { amount: 2000 },
     Response: {
       status: 200,
-      body: { status: "failed" },
+      body: {
+        status: "failed",
+        error_code: "No error code",
+        error_message: "Card Transaction cannot be refunded",
+      },
     },
   }),
   // Helcim's SetupMandate flow returns 501 NotImplemented.
@@ -243,9 +269,7 @@ const card_pm = {
   // they see no real mandate was created.
   MandateSingleUseNo3DSAutoCapture: {
     Request: {
-      payment_method: "card",
-      payment_method_data: { card: successfulNo3DSCardDetails },
-      currency: "USD",
+      ...cardMandateBaseRequest,
       mandate_data: singleUseMandateData,
     },
     Response: {
@@ -255,9 +279,7 @@ const card_pm = {
   },
   MandateSingleUseNo3DSManualCapture: {
     Request: {
-      payment_method: "card",
-      payment_method_data: { card: successfulNo3DSCardDetails },
-      currency: "USD",
+      ...cardMandateBaseRequest,
       mandate_data: singleUseMandateData,
     },
     Response: {
@@ -267,9 +289,7 @@ const card_pm = {
   },
   PaymentMethodIdMandateNo3DSAutoCapture: {
     Request: {
-      payment_method: "card",
-      payment_method_data: { card: successfulNo3DSCardDetails },
-      currency: "USD",
+      ...cardMandateBaseRequest,
       mandate_data: null,
       customer_acceptance: customerAcceptance,
     },
@@ -282,9 +302,7 @@ const card_pm = {
   },
   PaymentMethodIdMandateNo3DSManualCapture: {
     Request: {
-      payment_method: "card",
-      payment_method_data: { card: successfulNo3DSCardDetails },
-      currency: "USD",
+      ...cardMandateBaseRequest,
       mandate_data: null,
       customer_acceptance: customerAcceptance,
     },
@@ -340,9 +358,7 @@ const card_pm = {
   },
   MandateMultiUseNo3DSAutoCapture: {
     Request: {
-      payment_method: "card",
-      payment_method_data: { card: successfulNo3DSCardDetails },
-      currency: "USD",
+      ...cardMandateBaseRequest,
       mandate_data: multiUseMandateData,
     },
     Response: {
@@ -352,9 +368,7 @@ const card_pm = {
   },
   MandateMultiUseNo3DSManualCapture: {
     Request: {
-      payment_method: "card",
-      payment_method_data: { card: successfulNo3DSCardDetails },
-      currency: "USD",
+      ...cardMandateBaseRequest,
       mandate_data: multiUseMandateData,
     },
     Response: {
