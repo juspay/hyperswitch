@@ -763,9 +763,11 @@ pub fn build_unified_connector_service_payment_method(
     // A connector tokenization token settles for any payment method, including wallets.
     if let Some(PaymentMethodToken::Token(token)) = payment_method_token {
         return Ok(payments_grpc::PaymentMethod {
-            payment_method: Some(PaymentMethod::Token(payments_grpc::TokenPaymentMethodType {
-                token: Some(token.clone()),
-            })),
+            payment_method: Some(PaymentMethod::Token(
+                payments_grpc::TokenPaymentMethodType {
+                    token: Some(token.clone()),
+                },
+            )),
         });
     }
     match payment_method_data {

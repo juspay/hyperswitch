@@ -1351,7 +1351,8 @@ impl ConnectorSpecifications for Paysafe {
             api::CurrentFlowInfo::CompleteAuthorize { .. }
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
-            | api::CurrentFlowInfo::UpdatePostConfirm { .. } => None,
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => None,
         }
     }
 
@@ -1364,7 +1365,8 @@ impl ConnectorSpecifications for Paysafe {
             api::CurrentFlowInfo::CompleteAuthorize { .. }
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
-            | api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
 
@@ -1385,7 +1387,8 @@ impl ConnectorSpecifications for Paysafe {
             api::CurrentFlowInfo::Authorize { .. }
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
-            | api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
 
