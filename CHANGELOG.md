@@ -4,6 +4,33 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.17.0
+
+### Features
+
+- **connector:** [Checkout] txn link id in ([#13295](https://github.com/juspay/hyperswitch/pull/13295)) ([`36906fd`](https://github.com/juspay/hyperswitch/commit/36906fd30801f6c6a13da4cabace5b79cfcac675))
+- **core:** Batch Decrypt PaymentMethod ([#13311](https://github.com/juspay/hyperswitch/pull/13311)) ([`c9443bd`](https://github.com/juspay/hyperswitch/commit/c9443bd4ae7eddb618c4aca0d922c7ee7927702c))
+- **encryption:** Add table attribute to encryption time metric ([#13225](https://github.com/juspay/hyperswitch/pull/13225)) ([`ce04395`](https://github.com/juspay/hyperswitch/commit/ce043954749ee65c7e25f72bc39b9bed0e2f9905))
+- **redis_interface:** Introduce hdel operation ([#13075](https://github.com/juspay/hyperswitch/pull/13075)) ([`bfa2dee`](https://github.com/juspay/hyperswitch/commit/bfa2dee42e896c8e93aa3f916ec3e3192ecee610))
+- **users:** Add versioned payment advanced saved views ([#13307](https://github.com/juspay/hyperswitch/pull/13307)) ([`47094e3`](https://github.com/juspay/hyperswitch/commit/47094e328cac021a5157b98d3a397f9fe0f9b254))
+
+### Bug Fixes
+
+- **connector:** [checkout] Amex reference id ([#13355](https://github.com/juspay/hyperswitch/pull/13355)) ([`d60a087`](https://github.com/juspay/hyperswitch/commit/d60a087be16c8a9c2a59488f7a0f988604d85c87))
+- **core:** Always route webhooks to UCS for ucs-only connectors ([#13299](https://github.com/juspay/hyperswitch/pull/13299)) ([`b142427`](https://github.com/juspay/hyperswitch/commit/b142427f0e064da94ed801d6fa303f2bae7ea5ca))
+
+### Refactors
+
+- **connector:** [Trustpay] gracefully handle unknown response enum variants and missing optional fields ([#13248](https://github.com/juspay/hyperswitch/pull/13248)) ([`41d28f2`](https://github.com/juspay/hyperswitch/commit/41d28f2838e35f5c4fae546fc6030b3963b92dfd))
+
+### Testing
+
+- **cypress:** [Payload] add ACH bank debit mandate coverage ([#13258](https://github.com/juspay/hyperswitch/pull/13258)) ([`a0c34b2`](https://github.com/juspay/hyperswitch/commit/a0c34b2e35c07368fb75c3d439dda1476bf53412))
+
+**Full Changelog:** [`2026.07.16.0...2026.07.17.0`](https://github.com/juspay/hyperswitch/compare/2026.07.16.0...2026.07.17.0)
+
+- - -
+
 ## 2026.07.16.0
 
 ### Features
