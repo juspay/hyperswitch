@@ -1,6 +1,7 @@
 pub mod transformers;
 use std::sync::LazyLock;
 
+use api_models::merchant_connector_webhook_management::ScopeIdentifier;
 use base64::Engine;
 use common_enums::enums::{self, PaymentMethodType};
 use common_utils::{
@@ -2607,13 +2608,15 @@ impl
     fn get_url(
         &self,
         req: &ConnectorWebhookRegisterRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let endpoint = connectors.adyen.management_base_url.as_str();
         let auth = adyen::AdyenAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let merchant_id = auth.merchant_account.expose();
-        Ok(format!("{endpoint}/v3/merchants/{merchant_id}/webhooks",))
+        let base_url = req.request.base_url.to_string();
+        Ok(base_url
+            .replace("{merchantId}", &merchant_id)
+            .replace("%7BmerchantId%7D", &merchant_id))
     }
 
     fn get_request_body(
@@ -2649,13 +2652,15 @@ impl
     fn handle_response(
         &self,
         data: &ConnectorWebhookRegisterRouterData,
-        _event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<ConnectorWebhookRegisterRouterData, errors::ConnectorError> {
         let response: adyen::AdyenWebhookRegisterResponse = res
             .response
             .parse_struct("AdyenWebhookRegisterResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -3546,16 +3551,6 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
     adyen_supported_payment_methods
 });
 
-static ADYEN_WEBHOOK_SETUP_CAPABILITIES:
-    common_types::connector_webhook_configuration::WebhookSetupCapabilities =
-    common_types::connector_webhook_configuration::WebhookSetupCapabilities {
-        is_webhook_auto_configuration_supported: true,
-        requires_webhook_secret: Some(false),
-        config_type: Some(
-            common_types::connector_webhook_configuration::WebhookConfigType::AllEvents,
-        ),
-    };
-
 static ADYEN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Adyen",
         description: "Adyen is a Dutch payment company with the status of an acquiring bank that allows businesses to accept e-commerce, mobile, and point-of-sale payments. It is listed on the stock exchange Euronext Amsterdam",
@@ -3586,6 +3581,7 @@ impl ConnectorSpecifications for Adyen {
             }
             api::CurrentFlowInfo::Psync { .. } => false,
             api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
+            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -3614,9 +3610,22 @@ impl ConnectorSpecifications for Adyen {
         })
     }
 
-    fn get_api_webhook_config(
+    fn get_webhook_registration_plan(
         &self,
-    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
-        &ADYEN_WEBHOOK_SETUP_CAPABILITIES
+        scope: &api_models::merchant_connector_webhook_management::Scope,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(ScopeIdentifier, String)>, errors::ConnectorError> {
+        use api_models::merchant_connector_webhook_management::{Scope, ScopeIdentifier};
+        let endpoint = connectors.adyen.management_base_url.as_str();
+        match scope {
+            Scope::NotSpecific => Ok(vec![(
+                ScopeIdentifier::NotSpecific,
+                format!("{endpoint}v3/merchants/{{merchantId}}/webhooks"),
+            )]),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "Scope type not supported".to_string(),
+                connector: "Adyen",
+            })?,
+        }
     }
 }

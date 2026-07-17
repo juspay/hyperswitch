@@ -8273,6 +8273,7 @@ dependencies = [
  "common_types",
  "common_utils",
  "config",
+ "connector_configs",
  "cookie 0.18.1",
  "csv",
  "currency_conversion",
