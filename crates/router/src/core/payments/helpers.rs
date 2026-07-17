@@ -3575,17 +3575,11 @@ impl<'a>
                     domain::CardDetailsForNetworkTransactionId::foreign_try_from(card_data)?,
                 ),
             ),
-            // Raw card as last preference for CardWithOptionalCVC when CVC is available.
-            (Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)), _)
-                if card_data.card_cvc.is_some() =>
-            {
+            // CardWithOptionalCVC becomes regular Card when CVC is available, and
+            // remains CardWithOptionalCVC for no-CVC paths.
+            (Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)), _) => {
                 Some(domain::PaymentMethodData::foreign_try_from(card_data)?)
             }
-            // No-CVC card path: preserve the optional-CVC domain variant so UCS can
-            // serialize it as CardWithNoCvv instead of forcing it into regular Card.
-            (Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)), _) => Some(
-                domain::PaymentMethodData::CardWithOptionalCVC(card_data.clone()),
-            ),
             // Raw card as fallback for CardWithNetworkTokenDetails when mandate-specific paths are not selected.
             (
                 Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
