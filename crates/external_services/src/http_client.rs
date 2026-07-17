@@ -71,7 +71,9 @@ pub fn serialize_to_xml_bytes<T: serde::Serialize>(
         component = "external_services::http_client",
         operation = "send_request",
         correlation = semantic_boundary::request_id(&request),
-        args = semantic_boundary::request_args(&request, option_timeout_secs),
+        // The deja handoff: expose the Secret-wrapped payload so the tape
+        // records full fidelity (Secret only redacts Debug/log output).
+        args = hyperswitch_masking::ExposeInterface::expose(semantic_boundary::request_args(&request, option_timeout_secs)),
         // Rebuild the recorded reqwest::Response (status+headers+body) so the
         // outgoing call (e.g. Stripe) is served from the lookup table with no
         // network. A recorded error reconstructs to None -> falls through to live.

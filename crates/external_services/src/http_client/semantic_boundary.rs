@@ -5,7 +5,7 @@ use common_utils::{
 use deja::DejaHook;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::errors::HttpClientError;
-use hyperswitch_masking::{Maskable, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use reqwest::ResponseBuilderExt;
 use serde_json::json;
 
@@ -64,7 +64,7 @@ pub(super) fn request_id(request: &Request) -> Option<String> {
     })
 }
 
-pub(super) fn request_args(request: &Request, timeout_secs: Option<u64>) -> serde_json::Value {
+pub(super) fn request_args(request: &Request, timeout_secs: Option<u64>) -> Secret<serde_json::Value> {
     // Header storage iterates in non-deterministic (HashMap) order, so the raw
     // sequence differs between record and replay even when the header SET is
     // identical. The args matcher compares serialized JSON arrays
@@ -82,7 +82,7 @@ pub(super) fn request_args(request: &Request, timeout_secs: Option<u64>) -> serd
         .into_iter()
         .map(|(key, value)| json!({ "key": key, "value": value }))
         .collect();
-    json!({
+    Secret::new(json!({
         "method": format!("{:?}", request.method),
         "url": request.url.as_str(),
         "request_id": request_id(request),
@@ -95,17 +95,21 @@ pub(super) fn request_args(request: &Request, timeout_secs: Option<u64>) -> serd
             "certificate_key": request.certificate_key.is_some(),
             "ca_certificate": request.ca_certificate.is_some(),
         },
+    }))
+}
+
+// Captured payloads travel as `Secret<serde_json::Value>` between helpers so
+// their `Debug` output is redacted (response bodies/headers can carry PII or
+// credentials); they are `.expose()`d only at the deja handoff, where the tape
+// keeps full fidelity.
+fn captured_body_json(response: &reqwest::Response) -> Secret<serde_json::Value> {
+    Secret::new(match response.extensions().get::<CapturedResponseBody>() {
+        Some(CapturedResponseBody(bytes)) => deja::http::body(bytes),
+        None => deja::http::missing_body("response body not captured (missing extension)"),
     })
 }
 
-fn captured_body_json(response: &reqwest::Response) -> serde_json::Value {
-    match response.extensions().get::<CapturedResponseBody>() {
-        Some(CapturedResponseBody(bytes)) => deja::http::body(bytes),
-        None => deja::http::missing_body("response body not captured (missing extension)"),
-    }
-}
-
-fn response_headers_json(response: &reqwest::Response) -> serde_json::Value {
+fn response_headers_json(response: &reqwest::Response) -> Secret<serde_json::Value> {
     let mut map = serde_json::Map::new();
     for (key, value) in response.headers() {
         if let Ok(value) = value.to_str() {
@@ -115,19 +119,19 @@ fn response_headers_json(response: &reqwest::Response) -> serde_json::Value {
             );
         }
     }
-    serde_json::Value::Object(map)
+    Secret::new(serde_json::Value::Object(map))
 }
 
 pub(super) fn response_result(
     result: &CustomResult<reqwest::Response, HttpClientError>,
-) -> (serde_json::Value, bool) {
+) -> (Secret<serde_json::Value>, bool) {
     (
-        match result {
+        Secret::new(match result {
             Ok(response) => json!({
                 "status": response.status().as_u16(),
                 "reason": response.status().canonical_reason(),
-                "response_headers": response_headers_json(response),
-                "response_body": captured_body_json(response),
+                "response_headers": response_headers_json(response).expose(),
+                "response_body": captured_body_json(response).expose(),
             }),
             Err(error) => json!({
                 "error": format!("{error:?}"),
@@ -135,7 +139,7 @@ pub(super) fn response_result(
                     "captured": false,
                 },
             }),
-        },
+        }),
         result.is_err(),
     )
 }
@@ -146,7 +150,9 @@ impl deja::codec::ReplayCodec for HttpResponseCodec {
     type Value = CustomResult<reqwest::Response, HttpClientError>;
 
     fn capture(value: &Self::Value) -> (serde_json::Value, bool) {
-        response_result(value)
+        let (payload, is_error) = response_result(value);
+        // The deja handoff: the tape records the full-fidelity value.
+        (payload.expose(), is_error)
     }
 
     fn reconstruct(recorded: serde_json::Value) -> Option<Self::Value> {
