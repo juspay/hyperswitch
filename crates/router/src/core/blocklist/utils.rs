@@ -10,6 +10,7 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{RouterResult, StorageErrorExt},
+        metrics,
         payments::PaymentData,
     },
     logger,
@@ -231,15 +232,32 @@ pub async fn insert_entry_into_blocklist(
     Ok(blocklist_entry.foreign_into())
 }
 
-pub fn get_merchant_fingerprint_secret(
+pub async fn get_merchant_fingerprint_secret(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<String> {
-    merchant_account
-        .fingerprint_secret
-        .as_ref()
-        .map(|secret| secret.peek().clone())
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("fingerprint_secret not found in merchant account")
+    match merchant_account.fingerprint_secret.as_ref() {
+        Some(secret) => Ok(secret.peek().clone()),
+        None => {
+            logger::warn!(
+                merchant_id = ?merchant_account.get_id(),
+                "fingerprint_secret missing from merchant account; falling back to Superposition"
+            );
+            metrics::FINGERPRINT_SECRET_SUPERPOSITION_FETCH_COUNT.add(1, &[]);
+            let dimensions = dimension_state::Dimensions::new()
+                .with_processor_merchant_id(merchant_account.get_id().clone().into());
+            let secret = dimensions
+                .get_fingerprint_secret(&*state.store, state.superposition_service.as_ref(), None)
+                .await;
+
+            match secret.is_empty() {
+                false => Ok(secret),
+                true => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "fingerprint_secret not found in merchant account or Superposition",
+                ),
+            }
+        }
+    }
 }
 
 async fn duplicate_check_insert_bin(
@@ -313,7 +331,8 @@ pub async fn should_payment_be_blocked(
 ) -> CustomResult<Option<BlockReason>, errors::ApiErrorResponse> {
     let db = &state.store;
     let processor_merchant_id = processor.get_account().get_id();
-    let merchant_fingerprint_secret = get_merchant_fingerprint_secret(processor.get_account())?;
+    let merchant_fingerprint_secret =
+        get_merchant_fingerprint_secret(state, processor.get_account()).await?;
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.
     let card_number_fingerprint =
@@ -596,7 +615,8 @@ pub async fn generate_payment_fingerprint(
     merchant_account: &domain::MerchantAccount,
     payment_method_data: Option<domain::PaymentMethodData>,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
-    let merchant_fingerprint_secret = get_merchant_fingerprint_secret(merchant_account)?;
+    let merchant_fingerprint_secret =
+        get_merchant_fingerprint_secret(state, merchant_account).await?;
 
     Ok(
         if let Some(domain::PaymentMethodData::Card(card)) = payment_method_data.as_ref() {

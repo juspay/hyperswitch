@@ -181,6 +181,25 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
     }
 }
 
+// Retained temporarily so merchants without a database value can fall back to
+// their existing Superposition fingerprint secret during migration.
+config! {
+    superposition_key = FINGERPRINT_SECRET,
+    output = String,
+    default = String::new(),
+    requires = dimension_state::DimensionsWithProcessorMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for FingerprintSecret {
+    const KEY: &'static str = "fingerprint_secret";
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
+    }
+}
+
 config! {
     superposition_key = SHOULD_CALL_GSM,
     output = bool,
