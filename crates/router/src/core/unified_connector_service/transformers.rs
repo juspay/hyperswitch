@@ -390,20 +390,12 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
-        // Frictionless 3DS (e.g. Paysafe card): the PreAuthenticate handle token is threaded via
-        // `ucs_authentication_data` when request-level `authentication_data` is absent. Fall back to
-        // it so the settle Authorize carries the token to the connector.
-        let authentication_data = match router_data.request.authentication_data.clone() {
-            Some(auth_data) => Some(payments_grpc::AuthenticationData::foreign_try_from(
-                auth_data,
-            )?),
-            None => router_data
-                .request
-                .ucs_authentication_data
-                .clone()
-                .map(payments_grpc::AuthenticationData::foreign_try_from)
-                .transpose()?,
-        };
+        let authentication_data = router_data
+            .request
+            .authentication_data
+            .clone()
+            .map(payments_grpc::AuthenticationData::foreign_try_from)
+            .transpose()?;
         let metadata = router_data
             .request
             .metadata
@@ -609,7 +601,29 @@ impl
                     router_data.payment_method_token.as_ref(),
                 )
             })
-            .transpose()?;
+            .transpose()?
+            // A card + 3DS payment settles on CompleteAuthorize after the shopper returns from
+            // the ACS, at which point no PAN survives (it is never persisted). The payment
+            // instrument for the settle is the connector payment-handle token that the
+            // PreAuthenticate leg minted and threaded back via
+            // `authentication_data.threeds_server_transaction_id`. The UCS Authorize handler
+            // requires a `payment_method`, so when none could be rebuilt from card data, forward
+            // that handle as a Token payment method; the connector transformer settles it from
+            // `authentication_data` / `connector_feature_data`.
+            .or_else(|| {
+                router_data
+                    .request
+                    .authentication_data
+                    .as_ref()
+                    .and_then(|auth| auth.threeds_server_transaction_id.clone())
+                    .map(|handle_token| payments_grpc::PaymentMethod {
+                        payment_method: Some(payments_grpc::payment_method::PaymentMethod::Token(
+                            payments_grpc::TokenPaymentMethodType {
+                                token: Some(Secret::new(handle_token)),
+                            },
+                        )),
+                    })
+            });
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -1672,20 +1686,12 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
-        // Frictionless 3DS (e.g. Paysafe card): the PreAuthenticate handle token is threaded via
-        // `ucs_authentication_data` when request-level `authentication_data` is absent. Fall back to
-        // it so the settle Authorize carries the token to the connector.
-        let authentication_data = match router_data.request.authentication_data.clone() {
-            Some(auth_data) => Some(payments_grpc::AuthenticationData::foreign_try_from(
-                auth_data,
-            )?),
-            None => router_data
-                .request
-                .ucs_authentication_data
-                .clone()
-                .map(payments_grpc::AuthenticationData::foreign_try_from)
-                .transpose()?,
-        };
+        let authentication_data = router_data
+            .request
+            .authentication_data
+            .clone()
+            .map(payments_grpc::AuthenticationData::foreign_try_from)
+            .transpose()?;
         let metadata = router_data
             .request
             .metadata

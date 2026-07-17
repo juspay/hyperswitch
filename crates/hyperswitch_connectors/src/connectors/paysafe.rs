@@ -75,6 +75,22 @@ impl Paysafe {
             amount_converter: &MinorUnitForConnector,
         }
     }
+
+    /// Whether a PreAuthenticate (3DS setup) leg must run before Authorize: only for a first-time
+    /// 3DS card payment that isn't a mandate/network-transaction recurring charge and hasn't already
+    /// been authenticated.
+    pub fn is_3ds_setup_required(
+        &self,
+        request: &PaymentsAuthorizeData,
+        auth_type: common_enums::AuthenticationType,
+    ) -> bool {
+        router_env::logger::info!(router_data_request=?request, auth_type=?auth_type, "Checking if 3DS setup is required for Paysafe");
+        auth_type.is_three_ds()
+            && request.is_card()
+            && (request.connector_mandate_id().is_none()
+                && request.get_optional_network_transaction_id().is_none())
+            && request.authentication_data.is_none()
+    }
 }
 
 impl api::Payment for Paysafe {}
@@ -1314,26 +1330,6 @@ static PAYSAFE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 
 static PAYSAFE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
-impl Paysafe {
-    /// Card + 3DS uses the connector-native authentication flow: PreAuthenticate mints the
-    /// payment handle (with the `threeDs` object) so Paysafe returns the ACS challenge, then the
-    /// main Authorize settles the handle token after the shopper returns. Only the initial call
-    /// needs the pre-authentication step — once `authentication_data` is populated (the handle
-    /// token threaded back on the post-redirect settle) it must not re-run. Mandates / network
-    /// transactions replay a stored credential and skip 3DS setup.
-    fn is_3ds_setup_required(
-        &self,
-        request: &PaymentsAuthorizeData,
-        auth_type: enums::AuthenticationType,
-    ) -> bool {
-        auth_type.is_three_ds()
-            && request.is_card()
-            && request.connector_mandate_id().is_none()
-            && request.get_optional_network_transaction_id().is_none()
-            && request.authentication_data.is_none()
-    }
-}
-
 impl ConnectorSpecifications for Paysafe {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&PAYSAFE_CONNECTOR_INFO)
@@ -1376,7 +1372,7 @@ impl ConnectorSpecifications for Paysafe {
 
     /// After the ACS redirect returns, run the Authenticate step to re-fetch the payment handle by
     /// merchantRefNum and recover the `paymentHandleToken` (threaded to the settle Authorize via
-    /// `authentication_data`). Gate on the presence of redirect params so it only runs on the
+    /// `authentication_data`). Gate on the presence of a `redirect_response` so it only runs on the
     /// post-redirect CompleteAuthorize, not the initial call. No PostAuthenticate — Paysafe has no
     /// CRes-validation step.
     fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
@@ -1386,15 +1382,16 @@ impl ConnectorSpecifications for Paysafe {
                 request_data,
                 payment_method,
             } => {
-                let has_redirect_params = request_data
-                    .redirect_response
-                    .as_ref()
-                    .and_then(|redirect_response| redirect_response.params.as_ref())
-                    .map(|params| !params.peek().is_empty())
-                    .unwrap_or(false);
+                // Distinguish the post-redirect CompleteAuthorize from the initial call by the
+                // presence of a `redirect_response`, NOT by non-empty query params: Paysafe's card
+                // ACS returns the shopper on a plain GET with no cres/PaRes params, so gating on
+                // non-empty params would skip the Authenticate re-fetch that recovers the
+                // `paymentHandleToken`. Matches the UCS `next_authentication_step`, which advances
+                // on `RedirectWithoutParams`.
+                let is_post_redirect = request_data.redirect_response.is_some();
                 auth_type.is_three_ds()
                     && matches!(payment_method, Some(enums::PaymentMethod::Card))
-                    && has_redirect_params
+                    && is_post_redirect
             }
             api::CurrentFlowInfo::Authorize { .. }
             | api::CurrentFlowInfo::SetupMandate { .. }
