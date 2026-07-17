@@ -7,6 +7,7 @@ use api_models::{
         AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors,
         SurchargeConnectors, TaxConnectors,
     },
+    merchant_connector_webhook_management::ScopeType,
     payments,
 };
 use serde::{Deserialize, Serialize};
@@ -216,11 +217,22 @@ pub struct ConnectorWalletDetailsConfig {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ConnectorWebhookRegisterDetailsConfig {
+    pub label: String,
+    pub webhook_auto_configuration_supported: bool,
+    pub scope_type: Option<ScopeType>,
+    pub payment_method_types: Option<Vec<String>>,
+    pub event_types: Option<Vec<String>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConnectorTomlConfig {
     pub connector_auth: Option<ConnectorAuthType>,
     pub connector_webhook_details: Option<api_models::admin::MerchantConnectorWebhookDetails>,
     pub metadata: Option<Box<ConfigMetadata>>,
     pub connector_wallets_details: Option<Box<ConnectorWalletDetailsConfig>>,
+    pub connector_webhook_register_details: Option<ConnectorWebhookRegisterDetailsConfig>,
     pub additional_merchant_data: Option<Box<ConfigMerchantAdditionalDetails>>,
     pub credit: Option<Vec<CardProvider>>,
     pub debit: Option<Vec<CardProvider>>,
