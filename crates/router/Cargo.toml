@@ -128,6 +128,7 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = ["signa
 common_types = { version = "0.1.0", path = "../common_types" }
 deja = { git = "https://github.com/juspay/deja", rev = "075a614324897b8b6a878af36d7ac243fbec5d33", optional = true, default-features = false }
 deja-core = { git = "https://github.com/juspay/deja", rev = "075a614324897b8b6a878af36d7ac243fbec5d33", optional = true }
+connector_configs = { version = "0.1.0", path = "../connector_configs" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store", "tokenization_v2"], default-features = false }
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }
@@ -149,7 +150,7 @@ storage_impl = { version = "0.1.0", path = "../storage_impl", default-features =
 payment_link = { version = "0.1.0", path = "../payment_link", default-features = false }
 payment_methods = { version = "0.1.0", path = "../payment_methods", default-features = false }
 subscriptions = { version = "0.1.0", path = "../subscriptions", default-features = false }
-superposition_sdk = {version = "0.114.0"}
+superposition_sdk = { version = "0.115.2" }
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }

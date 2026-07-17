@@ -11790,6 +11790,64 @@
         },
         "additionalProperties": false
       },
+      "ConnectorWebhookScope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "not_specific"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "value": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_type"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "value": {
+                "$ref": "#/components/schemas/EventType"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "event_type"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Scope of a single registered connector webhook.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "ContractBasedRoutingConfig": {
         "type": "object",
         "properties": {
@@ -30397,6 +30455,113 @@
           }
         }
       },
+      "Scope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "not_specific"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "values"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_types"
+                ]
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaymentMethodType"
+                },
+                "description": "Scoped by payment method types (e.g., Pix, Boleto)"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "values"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "event_types"
+                ]
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EventType"
+                },
+                "description": "Scoped by event types (e.g., Payments, Refunds, Disputes)"
+              }
+            }
+          }
+        ],
+        "description": "The scope of webhook registration.\nDetermines which entities the connector should register webhooks for.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "ScopeIdentifier": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "NotSpecific"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "PaymentMethodType"
+            ],
+            "properties": {
+              "PaymentMethodType": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "EventType"
+            ],
+            "properties": {
+              "EventType": {
+                "$ref": "#/components/schemas/EventType"
+              }
+            }
+          }
+        ]
+      },
+      "ScopeType": {
+        "type": "string",
+        "description": "Discriminator for the scope type in the response",
+        "enum": [
+          "not_specific",
+          "payment_method_type",
+          "event_type"
+        ]
+      },
       "SdkDisplayMode": {
         "type": "string",
         "description": "Display mode options for controlling how messages are shown.",
@@ -33633,6 +33798,59 @@
           }
         },
         "additionalProperties": false
+      },
+      "WebhookRegistrationError": {
+        "type": "object",
+        "description": "Error details for a failed webhook registration.",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "WebhookRegistrationResult": {
+        "type": "object",
+        "description": "Result of registering a webhook for a single scope identifier.",
+        "required": [
+          "identifier",
+          "status"
+        ],
+        "properties": {
+          "identifier": {
+            "$ref": "#/components/schemas/ScopeIdentifier"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WebhookRegistrationStatus"
+          },
+          "connector_webhook_id": {
+            "type": "string",
+            "description": "The connector-generated webhook ID, if successful.",
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookRegistrationError"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "WebhookRegistrationStatus": {
+        "type": "string",
+        "description": "The status of webhook registration",
+        "enum": [
+          "Success",
+          "Failure"
+        ]
       },
       "XenditChargeResponseData": {
         "oneOf": [
