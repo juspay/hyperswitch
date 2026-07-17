@@ -7,10 +7,32 @@ use crate::core::refunds::*;
 #[cfg(feature = "v2")]
 use crate::core::refunds_v2::*;
 use crate::{
-    core::api_locking,
+    core::api_locking::{self, GetLockingInput},
+    routes::lock_utils,
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::refunds,
 };
+
+/// Locks refund creation on the target payment so concurrent refund requests against the
+/// same payment are serialized. Without this, two refunds can both pass the
+/// `amount_refunded <= amount_captured` check before either is persisted (TOCTOU), letting the
+/// total refunded amount exceed the captured amount.
+#[cfg(feature = "v1")]
+impl GetLockingInput for refunds::RefundRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: router_env::types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.get_string_repr().to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
 
 #[cfg(feature = "v2")]
 /// A private module to hold internal types to be used in route handlers.
@@ -41,6 +63,28 @@ mod internal_payload_types {
             })
         }
     }
+
+    /// Serializes concurrent refund creations against the same payment. Prevents the TOCTOU race
+    /// where two refunds each pass the `amount_refunded <= amount_captured` check before either is
+    /// persisted, letting the total refunded amount exceed the captured amount.
+    impl<T: serde::Serialize> GetLockingInput for RefundsGenericRequestWithResourceId<T> {
+        fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+        where
+            F: router_env::types::FlowMetric,
+            lock_utils::ApiIdentifier: From<F>,
+        {
+            match self.payment_id.as_ref() {
+                Some(payment_id) => api_locking::LockAction::Hold {
+                    input: api_locking::LockingInput {
+                        unique_locking_key: payment_id.get_string_repr().to_owned(),
+                        api_identifier: lock_utils::ApiIdentifier::from(flow),
+                        override_lock_retries: None,
+                    },
+                },
+                None => api_locking::LockAction::NotApplicable,
+            }
+        }
+    }
 }
 
 /// Refunds - Create
@@ -55,11 +99,13 @@ pub async fn refunds_create(
     json_payload: web::Json<refunds::RefundRequest>,
 ) -> HttpResponse {
     let flow = Flow::RefundsCreate;
+    let payload = json_payload.into_inner();
+    let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        payload,
         |state, auth: auth::AuthenticationData, req, _| {
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             refund_create_core(state, auth.platform, profile_id, req)
@@ -76,7 +122,7 @@ pub async fn refunds_create(
             },
             req.headers(),
         ),
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
 }
@@ -101,6 +147,8 @@ pub async fn refunds_create(
             payment_id: Some(payload.payment_id.clone()),
             payload,
         };
+
+    let locking_action = internal_refund_create_payload.get_locking_input(flow.clone());
 
     let auth_type = if state.conf.merchant_id_auth.merchant_id_auth_enabled {
         &auth::MerchantIdAuth
@@ -128,7 +176,7 @@ pub async fn refunds_create(
             refund_create_core(state, auth.platform, req.payload, global_refund_id.clone())
         },
         auth_type,
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
 }
@@ -728,4 +776,74 @@ pub async fn get_refunds_aggregate_profile(
         api_locking::LockAction::NotApplicable,
     ))
     .await
+}
+
+#[cfg(all(test, feature = "v1"))]
+mod refund_locking_tests {
+    use std::borrow::Cow;
+
+    use common_utils::id_type::PaymentId;
+    use router_env::Flow;
+
+    use super::*;
+
+    #[test]
+    fn refund_create_locks_on_its_payment_id() {
+        let req = refunds::RefundRequest {
+            payment_id: PaymentId::try_from(Cow::Borrowed("pay_test_lock_123")).unwrap(),
+            ..Default::default()
+        };
+
+        match req.get_locking_input(Flow::RefundsCreate) {
+            api_locking::LockAction::Hold { input } => {
+                // Lock key must be the payment id so all refunds on that payment serialize.
+                assert_eq!(input.unique_locking_key, "pay_test_lock_123");
+            }
+            other => panic!("expected LockAction::Hold, got {other:?}"),
+        }
+    }
+}
+
+#[cfg(all(test, feature = "v2"))]
+mod refund_locking_tests_v2 {
+    use common_utils::id_type::{CellId, GlobalPaymentId, GlobalRefundId};
+    use router_env::Flow;
+
+    use super::{internal_payload_types::RefundsGenericRequestWithResourceId, *};
+
+    fn cell() -> CellId {
+        CellId::from_string("12").unwrap()
+    }
+
+    #[test]
+    fn refund_create_locks_on_its_payment_id() {
+        let c = cell();
+        let payment_id = GlobalPaymentId::generate(&c);
+        let payload = RefundsGenericRequestWithResourceId {
+            global_refund_id: GlobalRefundId::generate(&c),
+            payment_id: Some(payment_id.clone()),
+            payload: (),
+        };
+
+        match payload.get_locking_input(Flow::RefundsCreate) {
+            api_locking::LockAction::Hold { input } => {
+                assert_eq!(input.unique_locking_key, payment_id.get_string_repr());
+            }
+            other => panic!("expected LockAction::Hold, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn refund_create_without_payment_id_is_not_locked() {
+        let payload = RefundsGenericRequestWithResourceId {
+            global_refund_id: GlobalRefundId::generate(&cell()),
+            payment_id: None,
+            payload: (),
+        };
+
+        assert!(matches!(
+            payload.get_locking_input(Flow::RefundsCreate),
+            api_locking::LockAction::NotApplicable
+        ));
+    }
 }
