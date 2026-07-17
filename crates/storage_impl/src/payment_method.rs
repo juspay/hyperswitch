@@ -1499,7 +1499,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
-    type DstType = diesel_models::payment_method::PaymentMethod;
+    type DstType = PaymentMethod;
     type NewDstType = diesel_models::payment_method::PaymentMethodNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         let payment_method_id = self.id.get_string_repr().to_owned();

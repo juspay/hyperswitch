@@ -1597,7 +1597,7 @@ impl Conversion for domain::Customer {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
-        Ok(diesel_models::customers::CustomerNew {
+        Ok(customers::CustomerNew {
             id: self.id.clone(),
             merchant_reference_id: self.merchant_reference_id,
             merchant_id: self.merchant_id,
