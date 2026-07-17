@@ -136,7 +136,7 @@ pub struct CybersourceZeroMandateRequest {
     payment_information: PaymentInformation,
     order_information: OrderInformationWithBill,
     client_reference_information: ClientReferenceInformation,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "is_none_or_empty")]
     consumer_authentication_information: Option<CybersourceConsumerAuthInformation>,
 }
 
@@ -282,7 +282,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -475,7 +475,7 @@ pub struct CybersourcePaymentsRequest {
     payment_information: PaymentInformation,
     order_information: OrderInformationWithBill,
     client_reference_information: ClientReferenceInformation,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "is_none_or_empty")]
     consumer_authentication_information: Option<CybersourceConsumerAuthInformation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
@@ -484,12 +484,18 @@ pub struct CybersourcePaymentsRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProcessingInformation {
+    #[serde(skip_serializing_if = "Option::is_none")]
     action_list: Option<Vec<CybersourceActionsList>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     action_token_types: Option<Vec<CybersourceActionsTokenType>>,
+    #[serde(skip_serializing_if = "is_none_or_empty")]
     authorization_options: Option<CybersourceAuthorizationOptions>,
     commerce_indicator: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     capture: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     capture_options: Option<CaptureOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     payment_solution: Option<String>,
 }
 
@@ -508,43 +514,92 @@ pub enum CybersourceParesStatus {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthInformation {
+    #[serde(skip_serializing_if = "Option::is_none")]
     ucaf_collection_indicator: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     cavv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     ucaf_authentication_data: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     xid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     directory_server_transaction_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     specification_version: Option<SemanticVersion>,
     /// This field specifies the 3ds version
+    #[serde(skip_serializing_if = "Option::is_none")]
     pa_specification_version: Option<SemanticVersion>,
     /// Verification response enrollment status.
     ///
     /// This field is supported only on Asia, Middle East, and Africa Gateway.
     ///
     /// For external authentication, this field will always be "Y"
+    #[serde(skip_serializing_if = "Option::is_none")]
     veres_enrolled: Option<String>,
     /// Raw electronic commerce indicator (ECI)
+    #[serde(skip_serializing_if = "Option::is_none")]
     eci_raw: Option<String>,
     /// This field is supported only on Asia, Middle East, and Africa Gateway
     /// Also needed for Credit Mutuel-CIC in France and Mastercard Identity Check transactions
     /// This field is only applicable for Mastercard and Visa Transactions
+    #[serde(skip_serializing_if = "Option::is_none")]
     pares_status: Option<CybersourceParesStatus>,
     //This field is used to send the authentication date in yyyyMMDDHHMMSS format
+    #[serde(skip_serializing_if = "Option::is_none")]
     authentication_date: Option<String>,
     /// This field indicates the 3D Secure transaction flow. It is only supported for secure transactions in France.
     /// The possible values are - CH (Challenge), FD (Frictionless with delegation), FR (Frictionless)
+    #[serde(skip_serializing_if = "Option::is_none")]
     effective_authentication_type: Option<EffectiveAuthenticationType>,
     /// This field indicates the authentication type or challenge presented to the cardholder at checkout.
+    #[serde(skip_serializing_if = "Option::is_none")]
     challenge_code: Option<String>,
     /// This field indicates the reason for payer authentication response status. It is only supported for secure transactions in France.
+    #[serde(skip_serializing_if = "Option::is_none")]
     signed_pares_status_reason: Option<String>,
     /// This field indicates the reason why strong authentication was cancelled. It is only supported for secure transactions in France.
+    #[serde(skip_serializing_if = "Option::is_none")]
     challenge_cancel_code: Option<String>,
     /// This field indicates the score calculated by the 3D Securing platform. It is only supported for secure transactions in France.
+    #[serde(skip_serializing_if = "Option::is_none")]
     network_score: Option<u32>,
     /// This is the transaction ID generated by the access control server. This field is supported only for secure transactions in France.
+    #[serde(skip_serializing_if = "Option::is_none")]
     acs_transaction_id: Option<String>,
     /// This is the algorithm for generating a cardholder authentication verification value (CAVV) or universal cardholder authentication field (UCAF) data.
+    #[serde(skip_serializing_if = "Option::is_none")]
     cavv_algorithm: Option<String>,
+}
+
+trait IsEmpty {
+    fn is_empty(&self) -> bool;
+}
+
+fn is_none_or_empty<T: IsEmpty>(value: &Option<T>) -> bool {
+    value.as_ref().is_none_or(IsEmpty::is_empty)
+}
+
+impl IsEmpty for CybersourceConsumerAuthInformation {
+    fn is_empty(&self) -> bool {
+        self.ucaf_collection_indicator.is_none()
+            && self.cavv.is_none()
+            && self.ucaf_authentication_data.is_none()
+            && self.xid.is_none()
+            && self.directory_server_transaction_id.is_none()
+            && self.specification_version.is_none()
+            && self.pa_specification_version.is_none()
+            && self.veres_enrolled.is_none()
+            && self.eci_raw.is_none()
+            && self.pares_status.is_none()
+            && self.authentication_date.is_none()
+            && self.effective_authentication_type.is_none()
+            && self.challenge_code.is_none()
+            && self.signed_pares_status_reason.is_none()
+            && self.challenge_cancel_code.is_none()
+            && self.network_score.is_none()
+            && self.acs_transaction_id.is_none()
+            && self.cavv_algorithm.is_none()
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -576,18 +631,25 @@ pub enum CybersourceActionsTokenType {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceAuthorizationOptions {
+    #[serde(skip_serializing_if = "is_none_or_empty")]
     initiator: Option<CybersourcePaymentInitiator>,
+    #[serde(skip_serializing_if = "is_none_or_empty")]
     merchant_initiated_transaction: Option<MerchantInitiatedTransaction>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     ignore_avs_result: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     ignore_cv_result: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantInitiatedTransaction {
+    #[serde(skip_serializing_if = "Option::is_none")]
     reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     previous_transaction_id: Option<Secret<String>>,
     //Required for recurring mandates payment
+    #[serde(skip_serializing_if = "Option::is_none")]
     original_authorized_amount: Option<String>,
 }
 
@@ -595,9 +657,37 @@ pub struct MerchantInitiatedTransaction {
 #[serde(rename_all = "camelCase")]
 pub struct CybersourcePaymentInitiator {
     #[serde(rename = "type")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     initiator_type: Option<CybersourcePaymentInitiatorTypes>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     credential_stored_on_file: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     stored_credential_used: Option<bool>,
+}
+
+impl IsEmpty for CybersourceAuthorizationOptions {
+    fn is_empty(&self) -> bool {
+        is_none_or_empty(&self.initiator)
+            && is_none_or_empty(&self.merchant_initiated_transaction)
+            && self.ignore_avs_result.is_none()
+            && self.ignore_cv_result.is_none()
+    }
+}
+
+impl IsEmpty for MerchantInitiatedTransaction {
+    fn is_empty(&self) -> bool {
+        self.reason.is_none()
+            && self.previous_transaction_id.is_none()
+            && self.original_authorized_amount.is_none()
+    }
+}
+
+impl IsEmpty for CybersourcePaymentInitiator {
+    fn is_empty(&self) -> bool {
+        self.initiator_type.is_none()
+            && self.credential_stored_on_file.is_none()
+            && self.stored_credential_used.is_none()
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -612,6 +702,7 @@ pub enum CybersourcePaymentInitiatorTypes {
 pub struct CaptureOptions {
     capture_sequence_number: u32,
     total_capture_count: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
     is_final: Option<bool>,
 }
 
@@ -621,6 +712,7 @@ pub struct NetworkTokenizedCard {
     number: NetworkToken,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     cryptogram: Option<Secret<String>>,
     transaction_type: TransactionType,
 }
@@ -643,6 +735,7 @@ pub struct TokenizedCard {
     number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     cryptogram: Option<Secret<String>>,
     transaction_type: TransactionType,
 }
@@ -675,14 +768,23 @@ pub struct MandatePaymentTokenizedCard {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MandateCard {
+    #[serde(skip_serializing_if = "Option::is_none")]
     type_selection_indicator: Option<String>,
 }
+
+impl IsEmpty for MandateCard {
+    fn is_empty(&self) -> bool {
+        self.type_selection_indicator.is_none()
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MandatePaymentInformation {
     payment_instrument: CybersoucrePaymentInstrument,
     #[serde(skip_serializing_if = "Option::is_none")]
     tokenized_card: Option<MandatePaymentTokenizedCard>,
+    #[serde(skip_serializing_if = "is_none_or_empty")]
     card: Option<MandateCard>,
 }
 
@@ -761,15 +863,28 @@ pub struct Card {
     number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     security_code: Option<Secret<String>>,
     #[serde(rename = "type")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     card_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     type_selection_indicator: Option<String>,
 }
+
+fn get_optional_security_code(card_cvc: Secret<String>) -> Option<Secret<String>> {
+    if card_cvc.peek().is_empty() {
+        None
+    } else {
+        Some(card_cvc)
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderInformationWithBill {
     amount_details: Amount,
+    #[serde(skip_serializing_if = "Option::is_none")]
     bill_to: Option<BillTo>,
 }
 
@@ -830,14 +945,19 @@ impl From<PaymentSolution> for String {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BillTo {
+    #[serde(skip_serializing_if = "Option::is_none")]
     first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     address1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     locality: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     administrative_area: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     country: Option<enums::CountryAlpha2>,
     email: pii::Email,
 }
@@ -1603,7 +1723,7 @@ impl
         {
             None
         } else {
-            Some(ccard.card_cvc)
+            get_optional_security_code(ccard.card_cvc)
         };
 
         let payment_information = PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -2081,7 +2201,7 @@ impl
                 number: ccard.card_number,
                 expiration_month: ccard.card_exp_month,
                 expiration_year: ccard.card_exp_year,
-                security_code: Some(ccard.card_cvc),
+                security_code: get_optional_security_code(ccard.card_cvc),
                 card_type,
                 type_selection_indicator: Some("1".to_owned()),
             },
@@ -2822,7 +2942,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -2891,7 +3011,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -3256,6 +3376,7 @@ pub struct CybersourcePaymentsIncrementalAuthorizationResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientReferenceInformation {
+    #[serde(skip_serializing_if = "Option::is_none")]
     code: Option<String>,
 }
 
@@ -3587,7 +3708,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -3733,7 +3854,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -3859,7 +3980,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPostAuthenticateRouterData>>
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -5078,6 +5199,7 @@ pub struct CybersourceRecipientInfo {
     administrative_area: Secret<String>,
     postal_code: Secret<String>,
     country: enums::CountryAlpha2,
+    #[serde(skip_serializing_if = "Option::is_none")]
     phone_number: Option<Secret<String>>,
 }
 
@@ -5371,20 +5493,21 @@ pub fn get_error_response(
 ) -> ErrorResponse {
     let avs_message = risk_information
         .clone()
-        .map(|client_risk_information| {
-            client_risk_information.rules.map(|rules| {
-                rules
+        .and_then(|client_risk_information| {
+            client_risk_information.rules.and_then(|rules| {
+                let message = rules
                     .iter()
-                    .map(|risk_info| {
-                        risk_info.name.clone().map_or("".to_string(), |name| {
-                            format!(" , {}", name.clone().expose())
-                        })
+                    .filter_map(|risk_info| {
+                        risk_info
+                            .name
+                            .as_ref()
+                            .map(|name| format!(" , {}", name.expose()))
                     })
                     .collect::<Vec<String>>()
-                    .join("")
+                    .join("");
+                (!message.is_empty()).then_some(message)
             })
-        })
-        .unwrap_or(Some("".to_string()));
+        });
 
     let detailed_error_info = error_data.as_ref().and_then(|error_data| {
         error_data.details.as_ref().map(|details| {
