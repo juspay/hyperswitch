@@ -11,7 +11,7 @@ pub use hyperswitch_connectors::connectors::{
     barclaycard::Barclaycard, billwerk, billwerk::Billwerk, bitpay, bitpay::Bitpay,
     blackhawknetwork, blackhawknetwork::Blackhawknetwork, bluesnap, bluesnap::Bluesnap, boku,
     boku::Boku, braintree, braintree::Braintree, breadpay, breadpay::Breadpay, calida,
-    calida::Calida, cashtocode, cashtocode::Cashtocode, celero, celero::Celero, chargebee,
+    calida::Calida, capitecvrp, capitecvrp::Capitecvrp, cashtocode, cashtocode::Cashtocode, celero, celero::Celero, chargebee,
     chargebee::Chargebee, checkbook, checkbook::Checkbook, checkout, checkout::Checkout, coinbase,
     coinbase::Coinbase, coingate, coingate::Coingate, cryptopay, cryptopay::Cryptopay,
     ctp_mastercard, ctp_mastercard::CtpMastercard, custombilling, custombilling::Custombilling,

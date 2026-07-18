@@ -27,6 +27,7 @@ mod bluesnap;
 mod boku;
 mod breadpay;
 mod calida;
+mod capitecvrp;
 mod cashtocode;
 mod celero;
 mod chargebee;

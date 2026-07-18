@@ -414,6 +414,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Bluecode
                 | PaymentMethodType::SepaGuarenteedDebit
                 | PaymentMethodType::OpenBanking
+                | PaymentMethodType::OpenBankingCapitec
                 | PaymentMethodType::NetworkToken
                 | PaymentMethodType::PixAutomaticoPush
                 | PaymentMethodType::PixAutomaticoQr => {

@@ -1905,6 +1905,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Givex => Self::GiftCard,
             PaymentMethodType::Oxxo => Self::Voucher,
             PaymentMethodType::OpenBankingUk => Self::BankRedirect,
+            PaymentMethodType::OpenBankingCapitec => Self::OpenBanking,
             PaymentMethodType::SevenEleven => Self::Voucher,
             PaymentMethodType::Lawson => Self::Voucher,
             PaymentMethodType::MiniStop => Self::Voucher,
