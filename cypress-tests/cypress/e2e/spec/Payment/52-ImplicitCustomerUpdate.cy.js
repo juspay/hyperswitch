@@ -61,16 +61,6 @@ describe("Card - Implicit Customer Update flow test", () => {
     "Create customer, confirm payment with inline customer update, verify customer record updated",
     () => {
       it("Create Customer -> Retrieve Baseline -> Create+Confirm Payment with updated customer fields -> Verify Customer Updated", () => {
-        // Skip in MITM cassette-replay mode: cassettes for this new spec have
-        // not been recorded yet. The feature is covered by mandatory live tests.
-        if (isMockServer()) {
-          cy.task(
-            "cli_log",
-            `[ImplicitCustomerUpdate] skipping in mock-server replay mode for ${Cypress.env("CONNECTOR")}`
-          );
-          return;
-        }
-
         let shouldContinue = true;
 
         cy.step("Create Customer", () => {
@@ -136,14 +126,6 @@ describe("Card - Implicit Customer Update flow test", () => {
     "Create customer, confirm payment with partial inline customer update, verify only specified fields changed",
     () => {
       it("Create Customer -> Confirm Payment with partial update -> Verify only email and name changed", () => {
-        if (isMockServer()) {
-          cy.task(
-            "cli_log",
-            `[ImplicitCustomerUpdate] skipping in mock-server replay mode for ${Cypress.env("CONNECTOR")}`
-          );
-          return;
-        }
-
         let shouldContinue = true;
 
         cy.step("Create Customer", () => {
