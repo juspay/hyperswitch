@@ -846,7 +846,7 @@ impl webhooks::IncomingWebhook for Trustly {
             common_utils::crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
         >,
     ) -> CustomResult<
-        hyperswitch_domain_models::api::ApplicationResponse<serde_json::Value>,
+        hyperswitch_domain_models::api::WebhookResponse<serde_json::Value>,
         ConnectorError,
     > {
         let request_body: trustly::TrustlyWebhookBody = request
@@ -884,7 +884,7 @@ impl webhooks::IncomingWebhook for Trustly {
 
         let response_value = serde_json::to_value(response)
             .change_context(ConnectorError::ResponseDeserializationFailed)?;
-        Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        Ok(hyperswitch_domain_models::api::WebhookResponse::Json(
             response_value,
         ))
     }

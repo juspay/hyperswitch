@@ -1996,6 +1996,7 @@ mod tests {
             product_type: None,
             version: common_enums::ApiVersion::V1,
             network_tokenization_credentials: None,
+            fingerprint_secret: None,
         });
         let merchant_account = state
             .store
