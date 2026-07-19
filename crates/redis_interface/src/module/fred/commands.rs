@@ -344,7 +344,7 @@ impl super::RedisConnectionPool {
         match track_redis_call(
             RedisOperation::GetKey,
             self.pool
-                .get::<fred::types::RedisValue, _>(key.tenant_aware_key(self)),
+                .get::<RedisValue, _>(key.tenant_aware_key(self)),
         )
         .await
         .change_context(errors::RedisError::GetFailed)
@@ -361,7 +361,7 @@ impl super::RedisConnectionPool {
                     track_redis_call(
                         RedisOperation::GetKey,
                         self.pool
-                            .get::<fred::types::RedisValue, _>(key.tenant_unaware_key(self)),
+                            .get::<RedisValue, _>(key.tenant_unaware_key(self)),
                     )
                     .await
                     .change_context(errors::RedisError::GetFailed)
@@ -1222,7 +1222,7 @@ impl super::RedisConnectionPool {
         match track_redis_call(
             RedisOperation::GetHashField,
             self.pool
-                .hget::<fred::types::RedisValue, _, _>(key.tenant_aware_key(self), field),
+                .hget::<RedisValue, _, _>(key.tenant_aware_key(self), field),
         )
         .await
         .change_context(errors::RedisError::GetHashFieldFailed)
@@ -1233,7 +1233,7 @@ impl super::RedisConnectionPool {
                 {
                     track_redis_call(
                         RedisOperation::GetHashField,
-                        self.pool.hget::<fred::types::RedisValue, _, _>(
+                        self.pool.hget::<RedisValue, _, _>(
                             key.tenant_unaware_key(self),
                             field,
                         ),
@@ -1319,7 +1319,7 @@ impl super::RedisConnectionPool {
         match track_redis_call(
             RedisOperation::GetHashFields,
             self.pool
-                .hgetall::<fred::types::RedisValue, _>(key.tenant_aware_key(self)),
+                .hgetall::<RedisValue, _>(key.tenant_aware_key(self)),
         )
         .await
         .change_context(errors::RedisError::GetHashFieldFailed)
@@ -1331,7 +1331,7 @@ impl super::RedisConnectionPool {
                     track_redis_call(
                         RedisOperation::GetHashFields,
                         self.pool
-                            .hgetall::<fred::types::RedisValue, _>(key.tenant_unaware_key(self)),
+                            .hgetall::<RedisValue, _>(key.tenant_unaware_key(self)),
                     )
                     .await
                     .change_context(errors::RedisError::GetHashFieldFailed)
