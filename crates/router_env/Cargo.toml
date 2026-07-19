@@ -10,8 +10,8 @@ license.workspace = true
 [dependencies]
 cargo_metadata = "0.18.1"
 config = { version = "0.14.1", features = ["toml"] }
-deja = { git = "https://github.com/juspay/deja", rev = "075a614324897b8b6a878af36d7ac243fbec5d33", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "075a614324897b8b6a878af36d7ac243fbec5d33", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "45755e70bc1e87b83cf1383a93229554fcd59cd0", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "45755e70bc1e87b83cf1383a93229554fcd59cd0", optional = true }
 error-stack = "0.4.1"
 gethostname = "0.4.3"
 opentelemetry = { version = "0.27.1", default-features = false, features = ["internal-logs", "metrics", "trace"] }
