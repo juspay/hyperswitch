@@ -141,11 +141,10 @@ impl deja::GraphNodeSink for RuntimeHookGraphSink {
 
 #[cfg(feature = "deja")]
 fn deja_layer() -> Option<deja::ExecutionGraphLayer> {
-    if !deja::graph_recording_enabled() {
-        return None;
-    }
-    // Graph nodes ride the installed mode's record stream — there is no file
-    // side-channel, so without a recording or replay hook there is no layer.
+    // Coupled to the runtime mode, exactly like `deja_correlation_layer`: the
+    // graph rides whichever Record/Replay hook is installed, or it is absent.
+    // No separate on/off knob (that default-off dial silently dropped graph
+    // nodes); a recording IS a graph recording.
     let hook = deja::installed_runtime_hook()?;
     match hook.as_ref() {
         deja::RuntimeHook::Recording(_) | deja::RuntimeHook::LookupReplay(_) => Some(

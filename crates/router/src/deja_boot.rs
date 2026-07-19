@@ -8,7 +8,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use crate::{
-    configs::settings::{DejaGraphMode, DejaMode, DejaReplaySettings, DejaSettings},
+    configs::settings::{DejaMode, DejaReplaySettings, DejaSettings},
     services::kafka::deja_record_sink::{
         HyperswitchKafkaRecordSink, HyperswitchKafkaRecordSinkConfig,
     },
@@ -274,7 +274,8 @@ fn install_replay(settings: &DejaSettings) -> Result<InstallReport, String> {
 /// error. Replay misconfiguration is fail-loud and aborts boot with the replay
 /// error before logger setup.
 pub fn install(settings: &DejaSettings) -> Result<InstallReport, String> {
-    deja::set_graph_recording_enabled(matches!(settings.recording.graph, DejaGraphMode::Enabled));
+    // Graph capture is coupled to the mode (the graph layer rides the installed
+    // Record/Replay hook), so there is no separate graph dial to declare here.
     match &settings.mode {
         DejaMode::Disabled => Ok(install_disabled(None)),
         DejaMode::Record => Ok(install_record(settings)),

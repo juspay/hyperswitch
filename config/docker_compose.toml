@@ -32,7 +32,6 @@ mode = "disabled"
 run_id = ""
 
 [deja.recording]
-graph = "disabled"
 
 [deja.recording.kafka]
 brokers = ["kafka0:29092"]

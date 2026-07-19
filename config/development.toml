@@ -20,7 +20,6 @@ mode = "disabled"
 run_id = ""
 
 [deja.recording]
-graph = "disabled"
 
 [deja.recording.kafka]
 brokers = ["localhost:9092"]

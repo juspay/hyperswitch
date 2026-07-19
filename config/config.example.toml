@@ -154,7 +154,6 @@ mode = "disabled" # allowed values: "disabled", "record", "replay"
 run_id = ""       # stable run identifier; empty lets the runtime choose a safe default
 
 [deja.recording]
-graph = "disabled" # allowed values: "disabled", "enabled" — execution-graph nodes on the recording stream
 
 [deja.recording.kafka]
 brokers = []

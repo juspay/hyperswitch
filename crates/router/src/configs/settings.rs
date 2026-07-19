@@ -249,17 +249,9 @@ impl DejaSettings {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct DejaRecordingSettings {
-    pub graph: DejaGraphMode,
+    // Execution-graph capture is coupled to the runtime mode (the graph layer
+    // rides the installed Record/Replay hook), so there is no `graph` dial here.
     pub kafka: DejaRecordingKafkaSettings,
-}
-
-#[cfg(feature = "deja")]
-#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum DejaGraphMode {
-    #[default]
-    Disabled,
-    Enabled,
 }
 
 #[cfg(feature = "deja")]
