@@ -3900,6 +3900,75 @@ export const connectorDetails = {
         },
       },
     }),
+    // WebhookConfig: webhook_username and webhook_password are masked
+    // placeholders — not real credentials. They are safe to use in any
+    // connector config as placeholder webhook auth data.
+    WebhookConfig: {
+      Create: getCustomExchange({
+        Request: {
+          webhook_details: {
+            webhook_version: "1.0.2",
+            webhook_username: "<WEBHOOK_USERNAME>",
+            webhook_password: "<WEBHOOK_PASSWORD>",
+            webhook_url: "https://example.com/webhook",
+            payment_created_enabled: true,
+            payment_succeeded_enabled: true,
+            payment_failed_enabled: false,
+            payment_statuses_enabled: ["succeeded", "failed"],
+            refund_statuses_enabled: ["success", "failure"],
+            payout_statuses_enabled: ["success", "failed"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {
+            webhook_details: {
+              payment_failed_enabled: false,
+              payment_statuses_enabled: ["succeeded", "failed"],
+              refund_statuses_enabled: ["success", "failure"],
+              payout_statuses_enabled: ["success", "failed"],
+            },
+          },
+        },
+      }),
+      Update: getCustomExchange({
+        Request: {
+          webhook_details: {
+            webhook_version: "1.0.2",
+            webhook_username: "<WEBHOOK_USERNAME_UPDATED>",
+            webhook_password: "<WEBHOOK_PASSWORD_UPDATED>",
+            webhook_url: "https://example.com/webhook_updated",
+            payment_created_enabled: true,
+            payment_succeeded_enabled: true,
+            payment_failed_enabled: true,
+            payment_statuses_enabled: [
+              "succeeded",
+              "failed",
+              "cancelled",
+              "processing",
+            ],
+            refund_statuses_enabled: ["success", "failure"],
+            payout_statuses_enabled: ["success", "failed", "initiated"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {
+            webhook_details: {
+              payment_failed_enabled: true,
+              payment_statuses_enabled: [
+                "succeeded",
+                "failed",
+                "cancelled",
+                "processing",
+              ],
+              refund_statuses_enabled: ["success", "failure"],
+              payout_statuses_enabled: ["success", "failed", "initiated"],
+            },
+          },
+        },
+      }),
+    },
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
