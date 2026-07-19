@@ -5596,6 +5596,7 @@ Cypress.Commands.add(
     }
 
     if (isRecordMode()) {
+      if (!nextActionUrl) return;
       mockRecordBankRedirect(
         globalState,
         nextActionUrl,
