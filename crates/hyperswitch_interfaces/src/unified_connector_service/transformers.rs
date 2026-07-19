@@ -253,6 +253,24 @@ pub struct ConnectorErrorInner {
     pub network_error_message: Option<String>,
 }
 
+impl From<&ConnectorErrorInner> for ErrorResponse {
+    fn from(error: &ConnectorErrorInner) -> Self {
+        Self {
+            code: error.code.clone(),
+            message: error.message.clone(),
+            reason: error.reason.clone(),
+            status_code: error.status_code,
+            attempt_status: None,
+            connector_transaction_id: error.connector_transaction_id.clone(),
+            connector_response_reference_id: None,
+            network_decline_code: error.network_decline_code.clone(),
+            network_advice_code: error.network_advice_code.clone(),
+            network_error_message: error.network_error_message.clone(),
+            connector_metadata: None,
+        }
+    }
+}
+
 impl ForeignTryFrom<payments_grpc::PaymentChargeType> for common_enums::PaymentChargeType {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 

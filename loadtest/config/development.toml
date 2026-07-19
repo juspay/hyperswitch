@@ -19,8 +19,11 @@ password = "postgres"
 host = "db"
 port = 5432
 dbname = "loadtest_router"
-pool_size = 20
+max_pool_size = 20
 connection_timeout = 10
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
 
 [server]
 host = "0.0.0.0"
@@ -692,6 +695,8 @@ eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 [pm_filters.santander]
 pix_qr = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
+pix_automatico_qr = { country = "BR", currency = "BRL" }
+pix_automatico_push = { country = "BR", currency = "BRL" }
 
 [pm_filters.calida]
 bluecode = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IE,IT,LV,LT,LU,MT,NL,PL,PT,RO,SK,SI,ES,SE,IS,LI,NO", currency = "EUR" }
@@ -868,8 +873,11 @@ password = "db_pass"
 host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
-pool_size = 5
+max_pool_size = 5
 connection_timeout = 10
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
 
 [kv_config]
 ttl = 300 # 5 * 60 seconds

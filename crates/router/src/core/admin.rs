@@ -34,7 +34,6 @@ use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
-        configs::dimension_state,
         connector_validation::ConnectorAuthTypeAndMetadataValidation,
         disputes,
         encryption::transfer_encryption_key,
@@ -72,21 +71,6 @@ pub fn create_merchant_publishable_key() -> String {
         router_env::env::prefix_for_env(),
         Uuid::new_v4().simple()
     )
-}
-
-/// Insert merchant configs using Superposition for fingerprint_secret
-pub async fn insert_merchant_configs_with_superposition(
-    state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorMerchantId,
-) -> RouterResult<()> {
-    let fingerprint_secret = utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
-
-    dimensions
-        .set_fingerprint_secret(state.superposition_service.as_ref(), &fingerprint_secret)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to create fingerprint_secret in Superposition")?;
-    Ok(())
 }
 
 #[cfg(feature = "olap")]
@@ -397,16 +381,7 @@ pub async fn create_merchant_account(
         None,
     );
 
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
-
     add_publishable_key_to_decision_service(&state, &platform);
-
-    Box::pin(insert_merchant_configs_with_superposition(
-        &state,
-        &dimensions,
-    ))
-    .await?;
 
     Ok(service_api::ApplicationResponse::Json(
         api::MerchantAccountResponse::foreign_try_from(merchant_account)
@@ -645,6 +620,10 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     product_type: self.product_type,
                     merchant_account_type,
                     network_tokenization_credentials,
+                    fingerprint_secret: Some(Secret::new(utils::generate_id(
+                        consts::FINGERPRINT_SECRET_LENGTH,
+                        "fs",
+                    ))),
                 },
             )
         }
@@ -941,6 +920,10 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     version: common_types::consts::API_VERSION,
                     product_type: self.product_type,
                     merchant_account_type,
+                    fingerprint_secret: Some(Secret::new(utils::generate_id(
+                        consts::FINGERPRINT_SECRET_LENGTH,
+                        "fs",
+                    ))),
                 }),
             )
         }
@@ -1552,7 +1535,6 @@ struct PMAuthConfigValidation<'a> {
     db: &'a dyn StorageInterface,
     merchant_id: &'a id_type::MerchantId,
     profile_id: &'a id_type::ProfileId,
-    key_store: &'a domain::MerchantKeyStore,
 }
 
 impl PMAuthConfigValidation<'_> {
@@ -1567,10 +1549,9 @@ impl PMAuthConfigValidation<'_> {
 
         let all_mcas = self
             .db
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
                 self.merchant_id,
                 true,
-                self.key_store,
             )
             .await
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -2025,7 +2006,6 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             db: state.store.as_ref(),
             merchant_id: platform.get_processor().get_account().get_id(),
             profile_id: &mca.profile_id.clone(),
-            key_store: platform.get_processor().get_key_store(),
         };
 
         pm_auth_config_validation.validate_pm_auth_config().await?;
@@ -2780,7 +2760,6 @@ pub async fn create_connector(
         db: store,
         merchant_id,
         profile_id: business_profile.get_id(),
-        key_store: processor.get_key_store(),
     };
     pm_auth_config_validation.validate_pm_auth_config().await?;
 
@@ -2892,10 +2871,9 @@ async fn validate_pm_auth(
 
     let all_mcas = state
         .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             merchant_id,
             true,
-            platform.get_processor().get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -3015,10 +2993,9 @@ pub async fn list_payment_connectors(
     let store = state.store.as_ref();
 
     let merchant_connector_accounts = store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             processor.get_account().get_id(),
             true,
-            processor.get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
