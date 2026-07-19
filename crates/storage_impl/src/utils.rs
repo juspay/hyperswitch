@@ -28,6 +28,9 @@ pub async fn pg_connection_read<T: DatabaseStore>(
     ))]
     let pool = store.get_master_pool();
 
+    let _breakdown_timer = router_env::pms_confirm_breakdown::start(
+        router_env::pms_confirm_breakdown::Operation::DatabasePoolReadWait,
+    );
     pool.get()
         .await
         .change_context(StorageError::DatabaseConnectionError)
@@ -42,6 +45,9 @@ pub async fn pg_connection_write<T: DatabaseStore>(
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_master_pool();
 
+    let _breakdown_timer = router_env::pms_confirm_breakdown::start(
+        router_env::pms_confirm_breakdown::Operation::DatabasePoolWriteWait,
+    );
     pool.get()
         .await
         .change_context(StorageError::DatabaseConnectionError)
@@ -68,6 +74,9 @@ pub async fn pg_accounts_connection_read<T: DatabaseStore>(
     ))]
     let pool = store.get_accounts_master_pool();
 
+    let _breakdown_timer = router_env::pms_confirm_breakdown::start(
+        router_env::pms_confirm_breakdown::Operation::DatabasePoolReadWait,
+    );
     pool.get()
         .await
         .change_context(StorageError::DatabaseConnectionError)
@@ -82,6 +91,9 @@ pub async fn pg_accounts_connection_write<T: DatabaseStore>(
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_accounts_master_pool();
 
+    let _breakdown_timer = router_env::pms_confirm_breakdown::start(
+        router_env::pms_confirm_breakdown::Operation::DatabasePoolWriteWait,
+    );
     pool.get()
         .await
         .change_context(StorageError::DatabaseConnectionError)

@@ -25,7 +25,7 @@ use router_env::logger;
 use crate::{errors, query::utils::GetPrimaryKey, PgPooledConn, StorageResult};
 
 pub mod db_metrics {
-    #[derive(Debug)]
+    #[derive(Clone, Copy, Debug)]
     pub enum DatabaseOperation {
         FindOne,
         Filter,
@@ -43,6 +43,20 @@ pub mod db_metrics {
     where
         Fut: std::future::Future<Output = U>,
     {
+        let breakdown_operation = match operation {
+            DatabaseOperation::FindOne | DatabaseOperation::Filter | DatabaseOperation::Count => {
+                router_env::pms_confirm_breakdown::Operation::DatabaseRead
+            }
+            DatabaseOperation::Update
+            | DatabaseOperation::Insert
+            | DatabaseOperation::Delete
+            | DatabaseOperation::DeleteWithResult
+            | DatabaseOperation::UpdateWithResults
+            | DatabaseOperation::UpdateOne => {
+                router_env::pms_confirm_breakdown::Operation::DatabaseWrite
+            }
+        };
+        let _breakdown_timer = router_env::pms_confirm_breakdown::start(breakdown_operation);
         let start = std::time::Instant::now();
         let output = future.await;
         let time_elapsed = start.elapsed();

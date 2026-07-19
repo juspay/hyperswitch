@@ -131,6 +131,9 @@ where
     T: GetKeymanagerTenant + ConvertRaw + Send + Sync + 'static + Debug,
     R: serde::de::DeserializeOwned,
 {
+    let _breakdown_timer = router_env::pms_confirm_breakdown::start(
+        router_env::pms_confirm_breakdown::Operation::EncryptionService,
+    );
     let url = format!("{}/{endpoint}", state.url);
 
     logger::info!(key_manager_request=?request_body);

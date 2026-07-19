@@ -866,6 +866,9 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         fingerprint_id: &str,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
+        let _lookup_timer = router_env::pms_confirm_breakdown::start(
+            router_env::pms_confirm_breakdown::Operation::PaymentMethodFingerprintLookup,
+        );
         let conn = pg_connection_read(self).await?;
         self.call_database(
             key_store,

@@ -2034,7 +2034,13 @@ pub async fn get_fingerprint_id_for_payment_method(
 ) -> CustomResult<String, errors::VaultError> {
     let fingerprint_data = payment_method_data.to_fingerprint_data();
 
-    get_fingerprint_id_from_vault(state, &fingerprint_data, customer_id).await
+    get_fingerprint_id_from_vault(
+        state,
+        &fingerprint_data,
+        customer_id,
+        router_env::pms_confirm_breakdown::Operation::VaultPrimaryFingerprint,
+    )
+    .await
 }
 
 #[cfg(feature = "v2")]
@@ -2045,7 +2051,13 @@ pub async fn get_auxiliary_fingerprint_id_for_payment_method(
 ) -> CustomResult<String, errors::VaultError> {
     let fingerprint_data = payment_method_data.to_auxiliary_fingerprint_data();
 
-    get_fingerprint_id_from_vault(state, &fingerprint_data, customer_id).await
+    get_fingerprint_id_from_vault(
+        state,
+        &fingerprint_data,
+        customer_id,
+        router_env::pms_confirm_breakdown::Operation::VaultAuxiliaryFingerprint,
+    )
+    .await
 }
 
 #[cfg(feature = "v2")]
@@ -2054,6 +2066,7 @@ async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
     state: &routes::SessionState,
     data: &D,
     key: String,
+    breakdown_operation: router_env::pms_confirm_breakdown::Operation,
 ) -> CustomResult<String, errors::VaultError> {
     let data = serde_json::to_string(data)
         .change_context(errors::VaultError::RequestEncodingFailed)
@@ -2064,10 +2077,12 @@ async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequestNew")?;
 
-    let resp = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None, None)
-        .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Call to vault failed")?;
+    let resp = {
+        let _breakdown_timer = router_env::pms_confirm_breakdown::start(breakdown_operation);
+        call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None, None).await
+    }
+    .change_context(errors::VaultError::VaultAPIError)
+    .attach_printable("Call to vault failed")?;
 
     let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
         .parse_struct("VaultFingerprintResponse")
@@ -2106,10 +2121,14 @@ pub async fn add_payment_method_to_vault(
 
     let query_params = write_mode.map(pm_types::VaultQueryParam::from);
 
-    let resp = call_to_vault::<pm_types::AddVault>(state, payload, query_params, None)
-        .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Call to vault failed")?;
+    let resp = {
+        let _breakdown_timer = router_env::pms_confirm_breakdown::start(
+            router_env::pms_confirm_breakdown::Operation::VaultAddCard,
+        );
+        call_to_vault::<pm_types::AddVault>(state, payload, query_params, None).await
+    }
+    .change_context(errors::VaultError::VaultAPIError)
+    .attach_printable("Call to vault failed")?;
 
     let stored_pm_resp = resp
         .parse_struct("AddVaultResponse")

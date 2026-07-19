@@ -59,6 +59,26 @@ pub(crate) async fn track_redis_call<Fut, U>(operation: RedisOperation, future: 
 where
     Fut: std::future::Future<Output = U>,
 {
+    #[cfg(feature = "metrics")]
+    let _breakdown_timer = router_env::pms_confirm_breakdown::start(match operation {
+        RedisOperation::GetKey
+        | RedisOperation::GetMultipleKeys
+        | RedisOperation::Exists
+        | RedisOperation::GetTtl
+        | RedisOperation::GetHashField
+        | RedisOperation::GetHashFields
+        | RedisOperation::Hscan
+        | RedisOperation::Scan
+        | RedisOperation::StreamGetLength
+        | RedisOperation::StreamReadEntries
+        | RedisOperation::StreamReadWithOptions
+        | RedisOperation::GetListElements
+        | RedisOperation::GetListLength => router_env::pms_confirm_breakdown::Operation::RedisRead,
+        RedisOperation::EvaluateRedisScript => {
+            router_env::pms_confirm_breakdown::Operation::RedisOther
+        }
+        _ => router_env::pms_confirm_breakdown::Operation::RedisWrite,
+    });
     let start = std::time::Instant::now();
     let output = future.await;
     let time_elapsed = start.elapsed();

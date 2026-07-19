@@ -1869,39 +1869,81 @@ pub async fn payment_method_session_confirm(
         request: payload,
     };
 
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        request,
-        |state, auth: auth::AuthenticationData, request, req_state| {
-            payment_methods_routes::payment_methods_session_confirm(
-                state,
-                req_state,
-                auth.platform,
-                auth.profile,
-                request.payment_method_session_id,
-                request.request,
-            )
-        },
-        auth::sdk_or_client_auth(
-            &auth::SdkAuthorizationAuth {
-                allow_connected_scope_operation: true,
-                allow_platform_self_operation: true,
-                resource_id: common_utils::types::authentication::ResourceId::PaymentMethodSession(
-                    payment_method_session_id.clone(),
-                ),
+    let (response, breakdown) =
+        router_env::pms_confirm_breakdown::scope(Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            request,
+            |state, auth: auth::AuthenticationData, request, req_state| {
+                payment_methods_routes::payment_methods_session_confirm(
+                    state,
+                    req_state,
+                    auth.platform,
+                    auth.profile,
+                    request.payment_method_session_id,
+                    request.request,
+                )
             },
-            &auth::V2ClientAuth(
-                common_utils::types::authentication::ResourceId::PaymentMethodSession(
-                    payment_method_session_id,
+            auth::sdk_or_client_auth(
+                &auth::SdkAuthorizationAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: true,
+                    resource_id:
+                        common_utils::types::authentication::ResourceId::PaymentMethodSession(
+                            payment_method_session_id.clone(),
+                        ),
+                },
+                &auth::V2ClientAuth(
+                    common_utils::types::authentication::ResourceId::PaymentMethodSession(
+                        payment_method_session_id,
+                    ),
                 ),
+                req.headers(),
             ),
-            req.headers(),
-        ),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
+            api_locking::LockAction::NotApplicable,
+        )))
+        .await;
+
+    logger::info!(
+        tag = "PmsConfirmBreakdown",
+        success = response.status().is_success(),
+        total_ms = breakdown.total_ms,
+        instrumented_ms = breakdown.instrumented_ms,
+        unattributed_ms = breakdown.unattributed_ms,
+        parallel_overlap_ms = breakdown.parallel_overlap_ms,
+        vault_primary_fingerprint_count = breakdown.vault_primary_fingerprint.count,
+        vault_primary_fingerprint_ms = breakdown.vault_primary_fingerprint.ms,
+        vault_auxiliary_fingerprint_count = breakdown.vault_auxiliary_fingerprint.count,
+        vault_auxiliary_fingerprint_ms = breakdown.vault_auxiliary_fingerprint.ms,
+        vault_add_card_count = breakdown.vault_add_card.count,
+        vault_add_card_ms = breakdown.vault_add_card.ms,
+        pm_fingerprint_lookup_count = breakdown.payment_method_fingerprint_lookup.count,
+        pm_fingerprint_lookup_ms = breakdown.payment_method_fingerprint_lookup.ms,
+        encryption_service_count = breakdown.encryption_service.count,
+        encryption_service_ms = breakdown.encryption_service.ms,
+        db_read_count = breakdown.database_read.count,
+        db_read_ms = breakdown.database_read.ms,
+        db_write_count = breakdown.database_write.count,
+        db_write_ms = breakdown.database_write.ms,
+        db_pool_read_wait_count = breakdown.database_pool_read_wait.count,
+        db_pool_read_wait_ms = breakdown.database_pool_read_wait.ms,
+        db_pool_write_wait_count = breakdown.database_pool_write_wait.count,
+        db_pool_write_wait_ms = breakdown.database_pool_write_wait.ms,
+        superposition_count = breakdown.superposition.count,
+        superposition_ms = breakdown.superposition.ms,
+        superposition_success_count = breakdown.superposition_success_count,
+        superposition_fallback_count = breakdown.superposition_fallback_count,
+        redis_read_count = breakdown.redis_read.count,
+        redis_read_ms = breakdown.redis_read.ms,
+        redis_write_count = breakdown.redis_write.count,
+        redis_write_ms = breakdown.redis_write.ms,
+        redis_other_count = breakdown.redis_other.count,
+        redis_other_ms = breakdown.redis_other.ms,
+        "PMS Confirm dependency breakdown"
+    );
+
+    response
 }
 
 #[cfg(feature = "v2")]

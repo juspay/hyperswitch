@@ -210,8 +210,13 @@ where
     let config_type = C::KEY;
     let default_value = C::default_value();
 
-    let superposition_result =
-        C::fetch(superposition_client, context.as_ref(), targeting_key).await;
+    let superposition_result = {
+        let _breakdown_timer = router_env::pms_confirm_breakdown::start(
+            router_env::pms_confirm_breakdown::Operation::Superposition,
+        );
+        C::fetch(superposition_client, context.as_ref(), targeting_key).await
+    };
+    router_env::pms_confirm_breakdown::record_superposition_result(superposition_result.is_ok());
 
     match superposition_result {
         Ok(value) => {
