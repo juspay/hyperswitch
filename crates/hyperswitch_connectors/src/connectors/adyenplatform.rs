@@ -27,7 +27,7 @@ use hyperswitch_domain_models::router_flow_types::PoFulfill;
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::types::{PayoutsData, PayoutsResponseData, PayoutsRouterData};
 use hyperswitch_domain_models::{
-    api::ApplicationResponse,
+    api::WebhookResponse,
     router_data::{AccessToken, ConnectorAuthType},
     router_flow_types::{
         AccessTokenAuth, Authorize, Capture, Execute, PSync, PaymentMethodToken, RSync, Session,
@@ -412,9 +412,9 @@ impl IncomingWebhook for Adyenplatform {
         _request: &IncomingWebhookRequestDetails<'_>,
         error_kind: Option<IncomingWebhookFlowError>,
         _connector_authentication_type: Option<crypto::Encryptable<Secret<serde_json::Value>>>,
-    ) -> CustomResult<ApplicationResponse<serde_json::Value>, ConnectorError> {
+    ) -> CustomResult<WebhookResponse<serde_json::Value>, ConnectorError> {
         if error_kind.is_some() {
-            Ok(ApplicationResponse::JsonWithHeaders((
+            Ok(WebhookResponse::JsonWithHeaders((
                 serde_json::Value::Null,
                 vec![(
                     "x-http-code".to_string(),
@@ -422,7 +422,7 @@ impl IncomingWebhook for Adyenplatform {
                 )],
             )))
         } else {
-            Ok(ApplicationResponse::StatusOk)
+            Ok(WebhookResponse::StatusOk)
         }
     }
 
