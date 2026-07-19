@@ -3504,6 +3504,9 @@ function cardRedirectRedirection(
             .first()
             .find("iframe")
             .should("be.visible")
+            .should(($iframe) => {
+              expect($iframe[0].src).to.not.be.empty;
+            })
             .then(($iframe) => {
               const el = $iframe[0];
               const sandbox = el.getAttribute("sandbox");
@@ -3525,10 +3528,14 @@ function cardRedirectRedirection(
                 // Force navigation to about:blank first
                 el.src = "about:blank";
 
-                // Wait for blank doc, then restore original src
+                // Wait for blank doc, then restore original src.
+                // .to.exist catches BOTH null and undefined — after
+                // setting src to about:blank, contentDocument is briefly
+                // undefined until the blank page loads; .to.not.be.null
+                // would pass on undefined and proceed prematurely.
                 cy.wrap(el)
                   .should(($iframeEl) => {
-                    expect($iframeEl[0].contentDocument).to.not.be.null;
+                    expect($iframeEl[0].contentDocument).to.exist;
                   })
                   .then(() => {
                     el.src = originalSrc;
@@ -3628,7 +3635,8 @@ function cardRedirectRedirection(
           const countryEl = $body.find("#Country");
           if (countryEl.length > 0) {
             if (countryEl.is("select")) {
-              cy.wrap(countryEl.first()).select("US");
+              const $select = countryEl.first();
+              Cypress.$($select).val("US").trigger("change");
             } else {
               cy.wrap(countryEl.first())
                 .clear({ force: true })
