@@ -1008,8 +1008,15 @@ pub trait WritableConfig {
 /// Each config type implements this trait to define how its value should be
 /// retrieved from Superposition.
 pub trait Config {
-    /// The output type of this configuration
-    type Output: Default + Clone;
+    /// The output type of this configuration.
+    ///
+    /// `Serialize + DeserializeOwned` are required because `get_config_value`
+    /// (which `fetch` calls) captures the whole `CustomResult<Output, _>` at the
+    /// deja read boundary. Declaring the bound on the associated type propagates
+    /// it to `fetch` and to every generic `C: Config` caller (e.g. router's
+    /// `fetch_db_config`) without scattering per-call-site where-clauses. All
+    /// real Output types (bool/String/i64/u32/f64/serde_json::Value) satisfy it.
+    type Output: Default + Clone + serde::Serialize + serde::de::DeserializeOwned;
 
     /// The type used as the targeting key for experiment traffic splitting
     type TargetingKey: TargetingKey + Send + Sync;
