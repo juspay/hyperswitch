@@ -1411,21 +1411,6 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::JsonDeserializationFailed)
     }
 
-    #[cfg_attr(
-        feature = "deja",
-        deja::redis(
-            replay = Substitute,
-            operation = "sadd",
-            codec = deja::codec::ResultCodec::<SaddReply, errors::RedisError>,
-            state_write = key.tenant_aware_key(self),
-            args = {
-                serde_json::json!({
-                    "key": key.as_str(),
-                    "command": "SADD",
-                })
-            },
-        )
-    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_hash_fields<F>(
         &self,
@@ -1443,6 +1428,21 @@ impl super::RedisConnectionPool {
         .change_context(errors::RedisError::DeleteHashFieldFailed)
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "sadd",
+            codec = deja::codec::ResultCodec::<SaddReply, errors::RedisError>,
+            state_write = key.tenant_aware_key(self),
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SADD",
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn sadd<V>(
         &self,
