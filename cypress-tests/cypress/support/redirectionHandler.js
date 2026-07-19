@@ -3467,6 +3467,16 @@ function cardRedirectRedirection(
           .type(card_name, { delay: 30, force: true });
         cy.task("cli_log", "Filled cardholder name on prophetpay form");
 
+        // Wait for Blazor to finish processing the name input and
+        // re-render the iframe card fields before we try to access them.
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy.wait(2000);
+
+        // Verify the card number container is present after re-render
+        cy.get("#fullsteam-hosted-card-number-div, .cc-number", {
+          timeout: CONSTANTS.TIMEOUT,
+        }).should("exist");
+
         // Card number, expiry, and CVV are rendered inside separate
         // <iframe> elements by the Fullsteam/Prophetpay hosted tokenize form
         // (within #fullsteam-hosted-card-*-div containers whose class is
@@ -3517,8 +3527,9 @@ function cardRedirectRedirection(
 
                 // Wait for blank doc, then restore original src
                 cy.wrap(el)
-                  .its("0.contentDocument")
-                  .should("exist")
+                  .should(($iframeEl) => {
+                    expect($iframeEl[0].contentDocument).to.not.be.null;
+                  })
                   .then(() => {
                     el.src = originalSrc;
                   });
@@ -3527,9 +3538,14 @@ function cardRedirectRedirection(
                 cy.get(containerSelector)
                   .first()
                   .find("iframe")
-                  .its("0.contentDocument.body")
-                  .should("not.be.empty")
-                  .then((body) => {
+                  .should(($iframe) => {
+                    const doc = $iframe[0].contentDocument;
+                    expect(doc).to.not.be.null;
+                    expect(doc).to.not.be.undefined;
+                    expect(doc.body).to.not.be.empty;
+                  })
+                  .then(($iframe) => {
+                    const body = $iframe[0].contentDocument.body;
                     const $input = Cypress.$(body)
                       .find("input:not([type=hidden])")
                       .first();
@@ -3552,19 +3568,17 @@ function cardRedirectRedirection(
               }
 
               // No sandbox (or has allow-same-origin) — standard
-              // document access using .its() pattern (same as
-              // fillCardInputInIframe at line ~3886).
-              // If the iframe has no src yet (Blazor may not have set
-              // it), wait for it to acquire one before accessing
-              // contentDocument.body — otherwise contentDocument.body
-              // never exists and the 30s timeout fires.
+              // document access. Wait for an accessible, non-empty
+              // contentDocument.body.
               cy.wrap(el)
-                .should(
-                  ($iframeEl) => expect($iframeEl.attr("src")).to.not.be.empty
-                )
-                .its("0.contentDocument.body")
-                .should("not.be.empty")
-                .then((body) => {
+                .should(($iframeEl) => {
+                  const doc = $iframeEl[0].contentDocument;
+                  expect(doc).to.not.be.null;
+                  expect(doc).to.not.be.undefined;
+                  expect(doc.body).to.not.be.empty;
+                })
+                .then(($iframeEl) => {
+                  const body = $iframeEl[0].contentDocument.body;
                   const $input = Cypress.$(body)
                     .find("input:not([type=hidden])")
                     .first();
