@@ -2857,11 +2857,13 @@ checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
 [[package]]
 name = "deja"
 version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=45755e70bc1e87b83cf1383a93229554fcd59cd0#45755e70bc1e87b83cf1383a93229554fcd59cd0"
 dependencies = [
  "deja-context",
  "deja-core",
  "deja-derive",
  "deja-runtime",
+ "error-stack 0.4.1",
  "serde",
  "serde_json",
 ]
@@ -2869,6 +2871,7 @@ dependencies = [
 [[package]]
 name = "deja-context"
 version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=45755e70bc1e87b83cf1383a93229554fcd59cd0#45755e70bc1e87b83cf1383a93229554fcd59cd0"
 dependencies = [
  "pin-project-lite",
 ]
@@ -2876,6 +2879,7 @@ dependencies = [
 [[package]]
 name = "deja-core"
 version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=45755e70bc1e87b83cf1383a93229554fcd59cd0#45755e70bc1e87b83cf1383a93229554fcd59cd0"
 dependencies = [
  "serde",
  "serde_json",
@@ -2885,6 +2889,7 @@ dependencies = [
 [[package]]
 name = "deja-derive"
 version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=45755e70bc1e87b83cf1383a93229554fcd59cd0#45755e70bc1e87b83cf1383a93229554fcd59cd0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2894,6 +2899,7 @@ dependencies = [
 [[package]]
 name = "deja-runtime"
 version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=45755e70bc1e87b83cf1383a93229554fcd59cd0#45755e70bc1e87b83cf1383a93229554fcd59cd0"
 dependencies = [
  "async-trait",
  "deja-context",

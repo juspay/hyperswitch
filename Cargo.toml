@@ -50,10 +50,3 @@ option_map_unit_fn = "allow"
 strip = true
 lto = true
 codegen-units = 1
-
-# 0:3 build wiring (UNCOMMITTED — for the wave record+replay battery; mirrors 0:0's
-# local-deja [patch], removed at Phase-5 repin). Redirect the juspay/deja git deps
-# to the local workspace so `deja` resolves WITH the error-stack feature (0:0 DB-fold).
-[patch."https://github.com/juspay/deja"]
-deja = { path = "../../crates/deja" }
-deja-core = { path = "../../crates/deja-core" }
