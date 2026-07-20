@@ -2163,6 +2163,25 @@ impl
                 .map(|data| Secret::new(data.peek().to_string())),
             l2_l3_data: None,
             setup_mandate_details: None,
+            partner_merchant_identifier_details: router_data
+                .request
+                .partner_merchant_identifier_details
+                .as_ref()
+                .map(|details| payments_grpc::PartnerMerchantIdentifierDetails {
+                    partner_details: details.partner_details.as_ref().map(|p| {
+                        payments_grpc::PartnerApplicationDetails {
+                            name: p.name.clone(),
+                            version: p.version.clone(),
+                            integrator: p.integrator.clone(),
+                        }
+                    }),
+                    merchant_details: details.merchant_details.as_ref().map(|m| {
+                        payments_grpc::MerchantApplicationDetails {
+                            name: m.name.clone(),
+                            version: m.version.clone(),
+                        }
+                    }),
+                }),
         })
     }
 }
@@ -2441,6 +2460,7 @@ impl
                     }),
                 }),
             auth_type: Some(auth_type.into()),
+            complete_authorize_url: router_data.request.complete_authorize_url.clone(),
         })
     }
 }
