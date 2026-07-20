@@ -44,6 +44,7 @@ import {
   mockRecordBankRedirect,
   mockReplay3ds,
   mockReplayBankRedirect,
+  hasCassetteForCurrentTest,
   resetMitmRedirectSeq,
 } from "./mitmProxy";
 
@@ -5381,7 +5382,12 @@ Cypress.Commands.add(
     }
 
     if (isReplayMode()) {
-      mockReplay3ds(globalState, connectorId, nextActionUrl);
+      if (hasCassetteForCurrentTest()) {
+        mockReplay3ds(globalState, connectorId, nextActionUrl);
+      } else {
+        // No cassette: fall back to live connector via redirect proxy (same as record mode).
+        mockRecord3ds(globalState, nextActionUrl, expectedRedirection, handleRedirection);
+      }
       return;
     }
 
@@ -5421,7 +5427,13 @@ Cypress.Commands.add(
     }
 
     if (isReplayMode()) {
-      mockReplayBankRedirect(globalState, connectorId);
+      if (hasCassetteForCurrentTest()) {
+        mockReplayBankRedirect(globalState, connectorId);
+      } else {
+        // No cassette: fall back to live connector via redirect proxy (same as record mode).
+        if (!nextActionUrl) return;
+        mockRecordBankRedirect(globalState, nextActionUrl, expectedRedirection, paymentMethodType, handleRedirection);
+      }
       return;
     }
 

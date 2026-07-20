@@ -49,6 +49,12 @@ export function isReplayMode() {
   return String(Cypress.env("IS_PROXY_ENABLED")) === "true" && isMockServer();
 }
 
+// Returns false only when explicitly set to false (no cassette found for this test).
+// Defaults to true so non-proxy tests are unaffected.
+export function hasCassetteForCurrentTest() {
+  return Cypress.env("currentTestHasCassette") !== false;
+}
+
 // ── Sequence counter ─────────────────────────────────────────────────────────
 
 export function resetMitmRedirectSeq(testIdHash) {

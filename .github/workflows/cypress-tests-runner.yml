@@ -1062,6 +1062,7 @@ jobs:
           ROUTER__PROXY__HTTP_URL: "http://127.0.0.1:8888"
           ROUTER__PROXY__MITM_ENABLED: "true"
           ROUTER__TRACE_HEADER__ID_REUSE_STRATEGY: "use_incoming"
+          ROUTER__MULTITENANCY__TENANTS__PUBLIC__BASE_URL: "http://localhost:9001"
           ROUTER__SERVER__WORKERS: 4
           SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
           RUST_MIN_STACK: 134217728
@@ -1110,6 +1111,32 @@ jobs:
           done
           echo "mitmproxy replay started (PID=${MITM_PID})"
 
+      - name: Start redirect proxy (live fallback for specs with no cassette)
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        env:
+          REDIRECT_PROXY_PORT: "9001"
+          REDIRECT_PROXY_ADMIN_PORT: "9002"
+          CAPTURE_DIR: ${{ github.workspace }}/cypress-tests/mitm-proxy/captures
+        run: |
+          nohup "${{ github.workspace }}/.venv-mitm/bin/python" \
+            cypress-tests/mitm-proxy/redirect_proxy.py \
+            > "${{ github.workspace }}/redirect-proxy.log" 2>&1 &
+          REDIRECT_PROXY_PID=$!
+          echo "REDIRECT_PROXY_PID=${REDIRECT_PROXY_PID}" >> $GITHUB_ENV
+
+          COUNT=0
+          while ! nc -z localhost 9002; do
+            if [ $COUNT -gt 15 ]; then
+              echo "redirect proxy did not start in time."
+              kill ${REDIRECT_PROXY_PID}
+              exit 1
+            fi
+            COUNT=$((COUNT+1))
+            sleep 2
+          done
+          echo "redirect proxy started (PID=${REDIRECT_PROXY_PID})"
+
       - name: Run Cypress tests
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
@@ -1122,6 +1149,8 @@ jobs:
           # Notifies the MITM proxy of each test start/end so test names appear
           # in the replay log alongside cassette hits/misses (logging only).
           CYPRESS_PROXY_ADMIN_URL: "http://127.0.0.1:8001"
+          # Redirect proxy for live fallback when a spec has no cassette.
+          CYPRESS_REDIRECT_PROXY_ADMIN_URL: "http://127.0.0.1:9002"
           CYPRESS_CAPTURE_DIR: "${{ github.workspace }}/cypress-tests/mitm-proxy/captures"
           CYPRESS_SUPERPOSITION_URL: "http://localhost:8081"
           CYPRESS_SUPERPOSITION_WORKSPACE_ID: "dev"
@@ -1132,6 +1161,7 @@ jobs:
 
           kill "${{ env.PID }}"
           kill "${{ env.MITM_PID }}" 2>/dev/null || true
+          kill "${{ env.REDIRECT_PROXY_PID }}" 2>/dev/null || true
 
       - name: Upload MITM replay logs on failure
         if: env.RUN_TESTS == 'true' && failure()

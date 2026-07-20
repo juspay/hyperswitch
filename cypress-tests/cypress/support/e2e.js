@@ -137,6 +137,14 @@ if (IS_PROXY_ENABLED) {
     Cypress.env("currentTestIdHash", testIdHash);
     cy.resetRedirectReadCount(testIdHash);
 
+    if (String(Cypress.env("MOCK_SERVER")) === "true") {
+      cy.task("hasAnyCassette", testIdHash).then((found) => {
+        Cypress.env("currentTestHasCassette", found);
+      });
+    } else {
+      Cypress.env("currentTestHasCassette", true);
+    }
+
     if (PROXY_ADMIN_URL) {
       notifyProxyTestStarted(titlePath, spec, connector);
     }
