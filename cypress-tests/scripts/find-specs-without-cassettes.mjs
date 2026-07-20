@@ -50,14 +50,23 @@ function hasAnyCassette(hash, captureDir) {
  * Extract all test title paths from a spec file.
  * Returns strings like "Describe > Context > it title".
  * Handles single-level nesting (describe > context > it) which all Payment
- * specs use. Falls back gracefully for unusual structures.
+ * specs use. Tolerates multi-line function calls where the string argument
+ * is on the next line(s) after the keyword.
  */
 function extractTitlePaths(specContent) {
   const paths = [];
   const titleStack = [];
 
-  for (const line of specContent.split("\n")) {
-    // Push: describe/context/it titles
+  // Collapse multi-line calls like:
+  //   context(
+  //     "title",
+  // into a single line so the regex always finds keyword + string on one line.
+  const collapsed = specContent.replace(
+    /\b(describe|context|it)\s*\(\s*\n\s*/g,
+    (_, kw) => `${kw}(`
+  );
+
+  for (const line of collapsed.split("\n")) {
     const blockMatch = line.match(
       /^\s*(describe|context|it)\s*\(\s*["'`]([^"'`\n]+)["'`]/
     );

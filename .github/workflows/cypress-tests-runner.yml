@@ -1152,16 +1152,22 @@ jobs:
           CYPRESS_SUPERPOSITION_ORG_ID: "localorg"
         shell: bash -leuo pipefail {0}
         run: |
-          # Build spec list: setup specs (00-03) + uncasseted specs.
-          SETUP_SPECS=$(ls cypress-tests/cypress/e2e/spec/Payment/0[0-3]-*.cy.js 2>/dev/null | tr '\n' ',' | sed 's/,$//')
-          SPEC_LIST="${SETUP_SPECS},$(echo "$UNCASSETED_SPECS" | tr ' ' ',')"
+          # Build spec list from cypress-tests/ so paths are consistent with
+          # where npx cypress run will be called.
+          SPEC_DIR="cypress-tests/cypress/e2e/spec/Payment"
+          SETUP_SPECS=$(ls "${SPEC_DIR}"/0[0-3]-*.cy.js 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+          # UNCASSETED_SPECS holds absolute paths (space-separated); convert to comma list.
+          UNCASSETED_COMMA=$(echo "${UNCASSETED_SPECS}" | tr ' ' ',')
+          SPEC_LIST="${SETUP_SPECS},${UNCASSETED_COMMA}"
+          export SPEC_LIST
 
-          # Run each connector in parallel, same way execute_cypress.sh does.
+          # Run one connector per slot, mirroring execute_cypress.sh.
           run_live() {
             local connector="$1"
+            local slot="${PARALLEL_SEQ:-$RANDOM}"
             export CYPRESS_CONNECTOR="$connector"
             export REPORT_NAME="live_${connector}_report"
-            local display=$((200 + PARALLEL_SEQ))
+            local display=$((200 + slot))
             export DISPLAY=":${display}"
             Xvfb "$DISPLAY" &
             local xvfb_pid=$!
@@ -1169,17 +1175,20 @@ jobs:
             sleep 1
             cd cypress-tests
             npx cypress run --headless --spec "$SPEC_LIST" || true
-            cd ..
           }
           export -f run_live
-          export SPEC_LIST
-          export UNCASSETED_SPECS
 
-          read -r -a pay_connectors <<< "${PAYMENTS_CONNECTORS:-}"
-          if [[ ${#pay_connectors[@]} -gt 0 ]]; then
+          # Collect all connector types for this batch.
+          all_connectors=()
+          read -r -a pay  <<< "${PAYMENTS_CONNECTORS:-}"
+          read -r -a pout <<< "${PAYOUTS_CONNECTORS:-}"
+          read -r -a plat <<< "${PLATFORM_CONNECTORS:-}"
+          all_connectors+=("${pay[@]+"${pay[@]}"}" "${pout[@]+"${pout[@]}"}" "${plat[@]+"${plat[@]}"}")
+
+          if [[ ${#all_connectors[@]} -gt 0 ]]; then
             parallel --jobs 5 --delay 10 --group \
               run_live {} \
-              ::: "${pay_connectors[@]}" || true
+              ::: "${all_connectors[@]}" || true
           fi
 
       - name: Stop live server
