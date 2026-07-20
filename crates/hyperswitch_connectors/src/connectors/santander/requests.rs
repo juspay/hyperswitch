@@ -54,10 +54,20 @@ pub struct SantanderMetadataObject {
 pub struct BoletoMetadataObject {
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
-    pub workspace_id: Secret<String>,
+    pub workspace_id: Option<Secret<String>>,
     pub covenant_code: Secret<String>,
     pub pix_key_value: Option<Secret<String>>,
     pub pix_key_type: Option<responses::SantanderPixKeyType>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BoletoMetadataPatch {
+    pub workspace_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SantanderMetadataPatch {
+    pub boleto: BoletoMetadataPatch,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -590,4 +600,30 @@ pub enum AccessTokenUrlPath {
     Leg1,
     Leg2,
     Boleto,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderWebhookRegisterRequest {
+    pub webhook_url: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderBoletoCovenant {
+    pub code: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderBoletoWebhookRegisterRequest {
+    #[serde(rename = "type")]
+    pub workspace_type: String,
+    pub description: String,
+    pub covenants: Vec<SantanderBoletoCovenant>,
+    #[serde(rename = "webhookURL")]
+    pub webhook_url: url::Url,
+    #[serde(rename = "bankSlipBillingWebhookActive")]
+    pub bank_slip_billing_webhook_active: bool,
+    #[serde(rename = "pixBillingWebhookActive")]
+    pub pix_billing_webhook_active: bool,
 }

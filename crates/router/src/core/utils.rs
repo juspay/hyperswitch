@@ -58,6 +58,7 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
+        payment_methods,
         payments::PaymentData,
     },
     db::StorageInterface,
@@ -104,14 +105,10 @@ pub async fn get_feature_config(
                 .organization_id
                 .clone(),
         )
-        .without_provider_merchant_id()
         .without_processor_merchant_id();
 
-    let is_payment_method_modular_allowed = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
-        state,
-        &dimensions,
-    )
-    .await;
+    let is_payment_method_modular_allowed =
+        payment_methods::utils::get_should_call_pm_modular_service(state, &dimensions, None).await;
     FeatureConfig {
         is_payment_method_modular_allowed,
     }
@@ -125,18 +122,29 @@ pub async fn validate_legacy_endpoint_access<E>(
 where
     E: From<errors::ApiErrorResponse> + error_stack::Context,
 {
+    // The dashboard authenticates via JWT and still relies on these legacy
+    // endpoints, so only merchant (API key) traffic is blocked from deprecated
+    // routes.
+    let is_dashboard_access = matches!(
+        platform.get_initiator(),
+        Some(domain::Initiator::Jwt { .. })
+    );
+
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     let feature_config = get_feature_config(state, platform, &dimensions).await;
-    common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
-        Err(error_stack::report!(E::from(
-            errors::ApiErrorResponse::AccessForbidden {
-                resource: "Deprecated route".to_string(),
-            },
-        )))
-    })?;
+    common_utils::fp_utils::when(
+        feature_config.is_payment_method_modular_allowed && !is_dashboard_access,
+        || {
+            Err(error_stack::report!(E::from(
+                errors::ApiErrorResponse::AccessForbidden {
+                    resource: "Deprecated route".to_string(),
+                },
+            )))
+        },
+    )?;
     Ok(())
 }
 

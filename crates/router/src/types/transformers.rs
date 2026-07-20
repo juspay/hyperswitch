@@ -17,7 +17,6 @@ use common_utils::{
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{mandates, payments::payment_intent::CustomerData};
-use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
@@ -426,9 +425,9 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
         payment_method_data: payments::PaymentMethodData,
     ) -> Result<Self, Self::Error> {
         match payment_method_data {
-            payments::PaymentMethodData::Card(..) | payments::PaymentMethodData::CardToken(..) => {
-                Ok(Self::Card)
-            }
+            payments::PaymentMethodData::Card(..)
+            | payments::PaymentMethodData::CardWithNoCVC(..)
+            | payments::PaymentMethodData::CardToken(..) => Ok(Self::Card),
             payments::PaymentMethodData::Wallet(..) => Ok(Self::Wallet),
             payments::PaymentMethodData::PayLater(..) => Ok(Self::PayLater),
             payments::PaymentMethodData::BankRedirect(..) => Ok(Self::BankRedirect),
@@ -833,6 +832,34 @@ impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info
             card_network: item.card_network.map(|x| x.to_string()),
             card_issuer: item.card_issuer,
             card_issuing_country: item.card_issuing_country,
+            funding_source: item.funding_source.map(|x| x.to_string()),
+            card_iin_type: item.card_iin_type.map(|x| x.to_string()),
+            virtual_card: item.virtual_card,
+            gambling_blocked: item.gambling_blocked,
+            co_badged_card_networks: item.co_badged_card_networks,
+            card_segment_type: item.card_segment_type,
+            numeric_country_code: item.numeric_country_code,
+            prepaid: item.prepaid,
+            regulated: item.regulated,
+            issuer_phone: item.issuer_phone,
+            issuer_url: item.issuer_url,
+            regulated_name: item.regulated_name,
+            reloadable_prepaid: item.reloadable_prepaid,
+            account_updater: item.account_updater,
+            account_level_management: item.account_level_management,
+            domestic_only: item.domestic_only,
+            level_two_supported: item.level_two_supported,
+            level_three_supported: item.level_three_supported,
+            issuer_currency: item.issuer_currency,
+            combo_card: item.combo_card,
+            authentication: item.authentication,
+            cost: item.cost,
+            issuer_supports_tokenization: item.issuer_supports_tokenization,
+            billpay_enabled: item.billpay_enabled,
+            ecom_enabled: item.ecom_enabled,
+            flexible_credential_supported: item.flexible_credential_supported,
+            card_subtype_code: item.card_subtype_code,
+            multi_account_access_indicator: item.multi_account_access_indicator,
         }
     }
 }
@@ -1177,12 +1204,6 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .transpose()?,
         };
 
-        let webhook_setup_capabilities = item
-            .should_construct_webhook_setup_capability()
-            .then(|| api_types::ConnectorData::convert_connector(item.connector_name.as_str()))
-            .transpose()?
-            .map(|connector_enum| connector_enum.get_api_webhook_config().clone());
-
         #[cfg(feature = "v1")]
         let response = Self {
             connector_type: item.connector_type,
@@ -1238,7 +1259,39 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
-            webhook_setup_capabilities,
+            webhook_setup_capabilities: None,
+        };
+        Ok(response)
+    }
+}
+
+impl ForeignTryFrom<domain::MerchantConnectorAccountWithoutEncrypted>
+    for api_models::admin::MCACGraphData
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
+        item: domain::MerchantConnectorAccountWithoutEncrypted,
+    ) -> Result<Self, Self::Error> {
+        #[cfg(feature = "v1")]
+        let payment_methods_enabled = match item.payment_methods_enabled {
+            Some(secret_val) => {
+                let val = secret_val
+                    .into_iter()
+                    .map(|secret| secret.expose())
+                    .collect();
+                serde_json::Value::Array(val)
+                    .parse_value("PaymentMethods")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+            }
+            None => None,
+        };
+
+        #[cfg(feature = "v2")]
+        let payment_methods_enabled = item.payment_methods_enabled;
+
+        let response = Self {
+            connector_name: item.connector_name,
+            payment_methods_enabled,
         };
         Ok(response)
     }
@@ -2688,6 +2741,34 @@ impl ForeignFrom<card_info_types::CardInfoCreateRequest> for storage::CardInfo {
             date_created: common_utils::date_time::now(),
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: value.last_updated_provider,
+            funding_source: value.funding_source,
+            card_iin_type: value.card_iin_type,
+            virtual_card: value.virtual_card,
+            gambling_blocked: value.gambling_blocked,
+            co_badged_card_networks: value.co_badged_card_networks,
+            card_segment_type: value.card_segment_type,
+            numeric_country_code: value.numeric_country_code,
+            prepaid: value.prepaid,
+            regulated: value.regulated,
+            issuer_phone: value.issuer_phone,
+            issuer_url: value.issuer_url,
+            regulated_name: value.regulated_name,
+            reloadable_prepaid: value.reloadable_prepaid,
+            account_updater: value.account_updater,
+            account_level_management: value.account_level_management,
+            domestic_only: value.domestic_only,
+            level_two_supported: value.level_two_supported,
+            level_three_supported: value.level_three_supported,
+            issuer_currency: value.issuer_currency,
+            combo_card: value.combo_card,
+            authentication: value.authentication,
+            cost: value.cost,
+            issuer_supports_tokenization: value.issuer_supports_tokenization,
+            billpay_enabled: value.billpay_enabled,
+            ecom_enabled: value.ecom_enabled,
+            flexible_credential_supported: value.flexible_credential_supported,
+            card_subtype_code: value.card_subtype_code,
+            multi_account_access_indicator: value.multi_account_access_indicator,
         }
     }
 }
@@ -2707,6 +2788,34 @@ impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for storage::CardInfo {
             date_created: common_utils::date_time::now(),
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: value.last_updated_provider,
+            funding_source: value.funding_source,
+            card_iin_type: value.card_iin_type,
+            virtual_card: value.virtual_card,
+            gambling_blocked: value.gambling_blocked,
+            co_badged_card_networks: value.co_badged_card_networks,
+            card_segment_type: value.card_segment_type,
+            numeric_country_code: value.numeric_country_code,
+            prepaid: value.prepaid,
+            regulated: value.regulated,
+            issuer_phone: value.issuer_phone,
+            issuer_url: value.issuer_url,
+            regulated_name: value.regulated_name,
+            reloadable_prepaid: value.reloadable_prepaid,
+            account_updater: value.account_updater,
+            account_level_management: value.account_level_management,
+            domestic_only: value.domestic_only,
+            level_two_supported: value.level_two_supported,
+            level_three_supported: value.level_three_supported,
+            issuer_currency: value.issuer_currency,
+            combo_card: value.combo_card,
+            authentication: value.authentication,
+            cost: value.cost,
+            issuer_supports_tokenization: value.issuer_supports_tokenization,
+            billpay_enabled: value.billpay_enabled,
+            ecom_enabled: value.ecom_enabled,
+            flexible_credential_supported: value.flexible_credential_supported,
+            card_subtype_code: value.card_subtype_code,
+            multi_account_access_indicator: value.multi_account_access_indicator,
         }
     }
 }

@@ -62,6 +62,79 @@ const onlineCustomerAcceptance = {
   acceptance_type: "online",
 };
 
+const idealBaseRequest = {
+  payment_method: "bank_redirect",
+  payment_method_type: "ideal",
+  payment_method_data: {
+    bank_redirect: {
+      ideal: {
+        bank_name: "ing",
+      },
+    },
+  },
+  billing: {
+    address: {
+      line1: "1467",
+      line2: "Harrison Street",
+      line3: "Harrison Street",
+      city: "San Fransico",
+      state: "California",
+      zip: "94122",
+      country: "NL",
+      first_name: "joseph",
+      last_name: "Doe",
+    },
+    phone: {
+      number: "9123456789",
+      country_code: "+91",
+    },
+  },
+};
+
+const bancontactBaseRequest = {
+  payment_method: "bank_redirect",
+  payment_method_type: "bancontact_card",
+  payment_method_data: {
+    bank_redirect: {
+      bancontact_card: {},
+    },
+  },
+  billing: {
+    email: "joseph.Doe@example.com",
+    address: {
+      line1: "1467",
+      line2: "Harrison Street",
+      line3: "Harrison Street",
+      city: "San Fransico",
+      state: "California",
+      zip: "94122",
+      country: "BE",
+      first_name: "joseph",
+      last_name: "Doe",
+    },
+    phone: {
+      number: "9123456789",
+      country_code: "+91",
+    },
+  },
+};
+
+const mandateSingleUseFields = {
+  currency: "EUR",
+  customer_acceptance: customerAcceptance,
+  mandate_data: {
+    ...singleUseMandateData,
+    mandate_type: {
+      single_use: {
+        ...singleUseMandateData.mandate_type.single_use,
+        currency: "EUR",
+      },
+    },
+  },
+  setup_future_usage: "off_session",
+  payment_type: "new_mandate",
+};
+
 const connectorCredential = (connectorIndex) => ({
   value: `connector_${connectorIndex}`,
 });
@@ -1064,37 +1137,28 @@ export const connectorDetails = {
   bank_redirect_pm: {
     Ideal: {
       Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "ideal",
-        payment_method_data: {
-          bank_redirect: {
-            ideal: {
-              bank_name: "ing",
-            },
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "NL",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9123456789",
-            country_code: "+91",
-          },
-        },
+        ...idealBaseRequest,
       },
       Response: {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+      MandateSingleUseAutoCapture: {
+        Request: {
+          ...idealBaseRequest,
+          billing: {
+            ...idealBaseRequest.billing,
+            email: "joseph.Doe@example.com",
+          },
+          ...mandateSingleUseFields,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
         },
       },
     },
@@ -1215,44 +1279,8 @@ export const connectorDetails = {
     BancontactCard: {
       MandateSingleUse: {
         Request: {
-          payment_method: "bank_redirect",
-          payment_method_type: "bancontact_card",
-          payment_method_data: {
-            bank_redirect: {
-              bancontact_card: {},
-            },
-          },
-          billing: {
-            email: "joseph.Doe@example.com",
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "BE",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            phone: {
-              number: "9123456789",
-              country_code: "+91",
-            },
-          },
-          currency: "EUR",
-          customer_acceptance: customerAcceptance,
-          mandate_data: {
-            customer_acceptance: customerAcceptance,
-            mandate_type: {
-              single_use: {
-                amount: 8000,
-                currency: "EUR",
-              },
-            },
-          },
-          setup_future_usage: "off_session",
-          payment_type: "new_mandate",
+          ...bancontactBaseRequest,
+          ...mandateSingleUseFields,
         },
         Response: {
           status: 200,
@@ -1263,44 +1291,8 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
-          payment_method: "bank_redirect",
-          payment_method_type: "bancontact_card",
-          payment_method_data: {
-            bank_redirect: {
-              bancontact_card: {},
-            },
-          },
-          billing: {
-            email: "joseph.Doe@example.com",
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "BE",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            phone: {
-              number: "9123456789",
-              country_code: "+91",
-            },
-          },
-          currency: "EUR",
-          customer_acceptance: customerAcceptance,
-          mandate_data: {
-            customer_acceptance: customerAcceptance,
-            mandate_type: {
-              single_use: {
-                amount: 8000,
-                currency: "EUR",
-              },
-            },
-          },
-          setup_future_usage: "off_session",
-          payment_type: "new_mandate",
+          ...bancontactBaseRequest,
+          ...mandateSingleUseFields,
         },
         Response: {
           status: 200,
@@ -1439,6 +1431,97 @@ export const connectorDetails = {
             type: "invalid_request",
             code: "IR_06",
           },
+        },
+      },
+    }),
+    AfterpayClearpayAutoCapture: getCustomExchange({
+      Request: {
+        currency: "USD",
+        capture_method: "automatic",
+        billing: {
+          address: {
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "Mock",
+            last_name: "Mock",
+          },
+          email: "customer@email.com",
+        },
+        shipping: {
+          address: {
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "Mock",
+            last_name: "Mock",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    AfterpayClearpay: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "afterpay_clearpay",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            afterpay_clearpay_redirect: {},
+          },
+        },
+        currency: "USD",
+        billing: {
+          address: {
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "Mock",
+            last_name: "Mock",
+          },
+          email: "customer@email.com",
+        },
+        shipping: {
+          address: {
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "Mock",
+            last_name: "Mock",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     }),
@@ -2371,5 +2454,66 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  webhook_config: {
+    // WebhookConfig: webhook_username and webhook_password are masked
+    // placeholders — not real credentials. They are safe to use in any
+    // connector config as placeholder webhook auth data.
+    Create: getCustomExchange({
+      Request: {
+        webhook_details: {
+          webhook_version: "2024.01",
+          webhook_username: "<WEBHOOK_USERNAME>",
+          webhook_password: "<WEBHOOK_PASSWORD>",
+          webhook_url: "https://example.com/webhook",
+          payment_created_enabled: true,
+          payment_succeeded_enabled: true,
+          payment_failed_enabled: false,
+          refund_created_enabled: true,
+          refund_succeeded_enabled: true,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          webhook_details: {
+            payment_failed_enabled: false,
+            payment_succeeded_enabled: true,
+            payment_created_enabled: true,
+            refund_created_enabled: true,
+            refund_succeeded_enabled: true,
+          },
+        },
+      },
+    }),
+    Update: getCustomExchange({
+      Request: {
+        webhook_details: {
+          webhook_version: "2024.01",
+          webhook_username: "<WEBHOOK_USERNAME_UPDATED>",
+          webhook_password: "<WEBHOOK_PASSWORD_UPDATED>",
+          webhook_url: "https://example.com/webhook_updated",
+          payment_created_enabled: true,
+          payment_succeeded_enabled: true,
+          payment_failed_enabled: true,
+          refund_created_enabled: true,
+          refund_succeeded_enabled: true,
+          dispute_created_enabled: true,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          webhook_details: {
+            payment_failed_enabled: true,
+            payment_succeeded_enabled: true,
+            payment_created_enabled: true,
+            refund_created_enabled: true,
+            refund_succeeded_enabled: true,
+            dispute_created_enabled: true,
+          },
+        },
+      },
+    }),
   },
 };

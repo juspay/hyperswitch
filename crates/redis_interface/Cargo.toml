@@ -12,12 +12,14 @@ default = ["redis-rs"]
 fred = ["dep:fred"]
 redis-rs = ["dep:redis"]
 multitenancy_fallback = []
+deja = ["common_utils/deja", "dep:deja", "dep:serde_json"]
 metrics = ["dep:router_env"]
 
 [dependencies]
 error-stack = "0.4.1"
 futures = "0.3"
 serde = { version = "1.0.219", features = ["derive"] }
+serde_json = { version = "1.0.140", optional = true }
 thiserror = "1.0.69"
 tokio = "1.48.0"
 tokio-stream = { version = "0.1.17", features = ["sync"] }
@@ -33,6 +35,7 @@ fred = { version = "8.0.6", optional = true, features = [
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext"] }
+deja = { git = "https://github.com/juspay/deja", rev = "075a614324897b8b6a878af36d7ac243fbec5d33", optional = true, default-features = false }
 router_env = { version = "0.1.0", path = "../router_env", optional = true }
 
 [dev-dependencies]
