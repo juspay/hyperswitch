@@ -66,6 +66,7 @@ import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
 import { connectorDetails as placetopayConnectorDetails } from "./Placetopay.js";
+import { connectorDetails as plaidConnectorDetails } from "./Plaid.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as rapydConnectorDetails } from "./Rapyd.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
@@ -146,6 +147,7 @@ const connectorDetails = {
   paypal: paypalConnectorDetails,
   paysafe: paysafeConnectorDetails,
   placetopay: placetopayConnectorDetails,
+  plaid: plaidConnectorDetails,
   payu: payuConnectorDetails,
   peachpayments: peachpaymentsConnectorDetails,
   powertranz: powertranzConnectorDetails,
@@ -752,6 +754,7 @@ export const CONNECTOR_LISTS = {
     FRM: ["stripe"],
     PAYOUT_PRIORITY: ["adyenplatform"],
     DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
+    OPEN_BANKING_PIS: ["plaid"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
     WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],
