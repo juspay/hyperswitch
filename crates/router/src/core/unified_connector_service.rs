@@ -806,7 +806,6 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         .with("connector", connector_name)
         .with("flow_name", flow_name);
 
-
     // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
     let previous_gateway = None;
 
