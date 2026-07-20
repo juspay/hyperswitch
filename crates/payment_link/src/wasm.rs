@@ -10,7 +10,7 @@ const SDK_URL: &str = env!("SDK_URL");
 /// Implementation function for generating payment link preview
 /// Called by the wasm_bindgen wrapper in lib.rs
 pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, String> {
-    let preview_config: PaymentLinkPreviewConfig = serde_json::from_str(config_json)
+    let mut preview_config: PaymentLinkPreviewConfig = serde_json::from_str(config_json)
         .map_err(|e| format!("Failed to deserialize PaymentLinkPreviewConfig: {}", e))?;
 
     if preview_config.payment_link_details.merchant_logo.is_empty() {
@@ -47,7 +47,7 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
         color_icon_card_cvc_error: payment_link_details.color_icon_card_cvc_error.clone(),
         enabled_saved_payment_method: false,
         allowed_domains: None,
-        payment_link_ui_rules: None,
+        payment_link_ui_rules: preview_config.payment_link_ui_rules.clone(),
         custom_message_for_payment_method_types: payment_link_details
             .custom_message_for_payment_method_types
             .clone(),
@@ -58,7 +58,9 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
         payment_link_config.enabled_saved_payment_method =
             config_from_json.enabled_saved_payment_method;
         payment_link_config.allowed_domains = config_from_json.allowed_domains;
-        payment_link_config.payment_link_ui_rules = config_from_json.payment_link_ui_rules;
+        if config_from_json.payment_link_ui_rules.is_some() {
+            payment_link_config.payment_link_ui_rules = config_from_json.payment_link_ui_rules;
+        }
     }
 
     let sdk_url = url::Url::parse(SDK_URL).map_err(|e| format!("Invalid SDK URL: {}", e))?;
@@ -150,4 +152,122 @@ pub fn validate_payment_link_config_impl(config_json: &str) -> Result<String, St
     });
 
     Ok(validation_result.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::{json, Value};
+
+    use super::generate_payment_link_preview_impl;
+
+    fn preview_payload() -> Value {
+        serde_json::from_str(
+            r##"{
+                "test_mode": true,
+                "preload_sdk_with_params": null,
+                "amount": "10.00",
+                "currency": "USD",
+                "pub_key": "pk_test_123",
+                "client_secret": "payment_secret_123",
+                "payment_id": "pay_123",
+                "session_expiry": "2026-01-01T00:00:00Z",
+                "merchant_logo": "https://example.com/logo.png",
+                "return_url": "https://example.com/return",
+                "merchant_name": "Hyperswitch",
+                "order_details": null,
+                "max_items_visible_after_collapse": 3,
+                "theme": "#4E6ADD",
+                "merchant_description": null,
+                "sdk_layout": "accordion",
+                "display_sdk_only": false,
+                "hide_card_nickname_field": false,
+                "show_card_form_by_default": true,
+                "locale": null,
+                "transaction_details": null,
+                "background_image": null,
+                "details_layout": null,
+                "branding_visibility": null,
+                "payment_button_text": null,
+                "skip_status_screen": null,
+                "custom_message_for_card_terms": null,
+                "custom_message_for_payment_method_types": null,
+                "payment_button_colour": null,
+                "payment_button_text_colour": null,
+                "background_colour": null,
+                "sdk_ui_rules": null,
+                "status": "requires_payment_method",
+                "enable_button_only_on_form_ready": false,
+                "payment_form_header_text": null,
+                "payment_form_label_type": null,
+                "show_card_terms": null,
+                "is_setup_mandate_flow": null,
+                "capture_method": null,
+                "setup_future_usage_applied": null,
+                "color_icon_card_cvc_error": null,
+                "show_merchant_name": true
+            }"##,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn preview_html_includes_top_level_payment_link_ui_rules() {
+        let mut payload = preview_payload();
+        payload["payment_link_ui_rules"] = json!({
+            ".hyper-checkout-sdk": {
+                "backgroundColor": "#123456"
+            }
+        });
+
+        let html = generate_payment_link_preview_impl(&payload.to_string()).unwrap();
+
+        assert!(html.contains("/* Dynamically Injected UI Rules */"));
+        assert!(html.contains(".hyper-checkout-sdk {"));
+        assert!(html.contains("background-color: #123456;"));
+    }
+
+    #[test]
+    fn changing_only_payment_link_ui_rules_changes_preview_html() {
+        let mut first_payload = preview_payload();
+        first_payload["payment_link_ui_rules"] = json!({
+            ".hyper-checkout-sdk": {
+                "backgroundColor": "#123456"
+            }
+        });
+
+        let mut second_payload = preview_payload();
+        second_payload["payment_link_ui_rules"] = json!({
+            ".hyper-checkout-sdk": {
+                "backgroundColor": "#654321"
+            }
+        });
+
+        let first_html = generate_payment_link_preview_impl(&first_payload.to_string()).unwrap();
+        let second_html = generate_payment_link_preview_impl(&second_payload.to_string()).unwrap();
+
+        assert_ne!(first_html, second_html);
+        assert!(first_html.contains("background-color: #123456;"));
+        assert!(second_html.contains("background-color: #654321;"));
+    }
+
+    #[test]
+    fn payment_link_ui_rules_are_not_serialized_into_sdk_payload() {
+        let mut payload = preview_payload();
+        payload["payment_link_ui_rules"] = json!({
+            ".hyper-checkout-sdk": {
+                "backgroundColor": "#123456"
+            }
+        });
+        payload["sdk_ui_rules"] = json!({
+            ".AccordionItem": {
+                "color": "#abcdef"
+            }
+        });
+
+        let html = generate_payment_link_preview_impl(&payload.to_string()).unwrap();
+
+        assert!(html.contains("background-color: #123456;"));
+        assert!(html.contains("sdk_ui_rules"));
+        assert!(!html.contains("payment_link_ui_rules"));
+    }
 }
