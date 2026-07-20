@@ -171,3 +171,37 @@ impl ApiEventMetric for PollId {
         })
     }
 }
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct WebhookRequestPayload {
+    pub connector: String,
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for WebhookRequestPayload {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Webhooks {
+            connector: self.connector.clone(),
+            payment_id: None,
+            refund_id: None,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct WebhookRequestPayload {
+    pub connector: common_utils::id_type::MerchantConnectorAccountId,
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for WebhookRequestPayload {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Webhooks {
+            connector: self.connector.clone(),
+            payment_id: None,
+            refund_id: None,
+        })
+    }
+}
