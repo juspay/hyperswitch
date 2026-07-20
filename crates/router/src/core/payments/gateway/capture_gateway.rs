@@ -176,7 +176,7 @@ where
                 router_data.response = router_data_response;
                 router_data.amount_captured = payment_capture_response.captured_amount;
                 router_data.minor_amount_captured = payment_capture_response
-                    .captured_amount
+                    .minor_amount_captured
                     .map(MinorUnit::new);
                 router_data.connector_http_status_code = Some(ucs_data.status_code);
 
