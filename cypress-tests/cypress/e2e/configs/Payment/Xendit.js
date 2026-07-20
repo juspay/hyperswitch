@@ -99,14 +99,6 @@ export const connectorDetails = {
         },
       },
     },
-    QrisRetrieve: {
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
     QrisMandate: {
       Request: {
         payment_method: "real_time_payment",

@@ -136,24 +136,22 @@ describe("Real Time Payment", () => {
     it("Retrieve Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "real_time_payment_pm"
-      ]["QrisRetrieve"];
+      ]["Qris"];
 
       cy.retrievePaymentCallTest({
         globalState,
         data,
-        expectedIntentStatus: "requires_customer_action",
       });
     });
 
     it("Sync Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "real_time_payment_pm"
-      ]["QrisRetrieve"];
+      ]["Qris"];
 
       cy.retrievePaymentCallTest({
         globalState,
         data,
-        expectedIntentStatus: "requires_customer_action",
       });
     });
   });
@@ -205,12 +203,11 @@ describe("Real Time Payment", () => {
     it("Retrieve Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "real_time_payment_pm"
-      ]["QrisRetrieve"];
+      ]["QrisMandate"];
 
       cy.retrievePaymentCallTest({
         globalState,
         data,
-        expectedIntentStatus: "requires_customer_action",
       });
     });
   });
