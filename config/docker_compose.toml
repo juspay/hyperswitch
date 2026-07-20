@@ -1232,6 +1232,15 @@ routing_logs_topic = "hyperswitch-routing-api-events"
 revenue_recovery_topic = "hyperswitch-revenue-recovery-events"
 external_service_call_topic = "hyperswitch-external-service-call-events"
 
+# Optional SASL authentication for the Kafka client. Omit this section entirely to
+# connect over plaintext without authentication (default, backwards compatible).
+# [events.kafka.sasl]
+# mechanism = "PLAIN"             # SASL mechanism: PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, ...
+# security_protocol = "SASL_SSL"  # Security protocol: SASL_SSL (default) or SASL_PLAINTEXT
+# username = "user"               # SASL username
+# password = "password"           # SASL password (decrypted at startup via the configured secrets manager)
+# ca_certificate_path = "/path/to/ca.pem" # Optional CA bundle to verify the broker when using SASL_SSL
+
 [analytics]
 source = "sqlx"
 forex_enabled = false # Enable or disable forex conversion for analytics

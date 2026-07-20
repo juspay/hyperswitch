@@ -412,6 +412,37 @@ impl SecretsHandler for settings::OidcSettings {
     }
 }
 
+#[async_trait::async_trait]
+impl SecretsHandler for crate::events::EventsConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        // Only the Kafka SASL password is a secret that needs decryption. Other
+        // event configurations (and Kafka without SASL) carry no secrets.
+        let sasl_password = match value.get_inner() {
+            Self::Kafka { kafka } => match &kafka.sasl {
+                Some(sasl) => Some(
+                    secret_management_client
+                        .get_secret(sasl.password.clone())
+                        .await?,
+                ),
+                None => None,
+            },
+            Self::Logs => None,
+        };
+
+        Ok(value.transition_state(|mut events| {
+            if let Self::Kafka { kafka } = &mut events {
+                if let (Some(sasl), Some(password)) = (kafka.sasl.as_mut(), sasl_password) {
+                    sasl.password = password;
+                }
+            }
+            events
+        }))
+    }
+}
+
 /// # Panics
 ///
 /// Will panic even if kms decryption fails for at least one field
@@ -558,6 +589,12 @@ pub(crate) async fn fetch_raw_secrets(
         .await
         .expect("Failed to decrypt oidc configs");
 
+    #[allow(clippy::expect_used)]
+    let events =
+        crate::events::EventsConfig::convert_to_raw_secret(conf.events, secret_management_client)
+            .await
+            .expect("Failed to decrypt events configs");
+
     Settings {
         server: conf.server,
         application_source: conf.application_source,
@@ -637,7 +674,7 @@ pub(crate) async fn fetch_raw_secrets(
         frm: conf.frm,
         #[cfg(feature = "olap")]
         report_download_config: conf.report_download_config,
-        events: conf.events,
+        events,
         #[cfg(feature = "olap")]
         connector_onboarding,
         cors: conf.cors,

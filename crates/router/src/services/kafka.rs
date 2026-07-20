@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use common_utils::{errors::CustomResult, types::TenantConfig};
 use error_stack::{report, ResultExt};
 use events::{EventsError, Message, MessagingInterface};
+use hyperswitch_masking::{PeekInterface, Secret};
 use num_traits::ToPrimitive;
 use rdkafka::{
     config::FromClientConfig,
@@ -164,6 +165,32 @@ pub struct KafkaSettings {
     routing_logs_topic: String,
     revenue_recovery_topic: String,
     external_service_call_topic: String,
+    /// Optional SASL authentication settings. When omitted, the client connects
+    /// over plaintext without authentication (backwards compatible behaviour).
+    pub sasl: Option<KafkaSaslAuth>,
+}
+
+/// SASL authentication configuration for the Kafka client.
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct KafkaSaslAuth {
+    /// SASL mechanism to use, e.g. `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`.
+    /// Passed through to librdkafka's `sasl.mechanism`.
+    mechanism: String,
+    /// Security protocol, either `SASL_SSL` (default) or `SASL_PLAINTEXT`.
+    #[serde(default = "default_security_protocol")]
+    security_protocol: String,
+    /// SASL username.
+    username: String,
+    /// SASL password.
+    pub password: Secret<String>,
+    /// Optional path to a CA certificate bundle used to verify the broker when
+    /// using `SASL_SSL`.
+    #[serde(default)]
+    ca_certificate_path: Option<String>,
+}
+
+fn default_security_protocol() -> String {
+    "SASL_SSL".to_string()
 }
 
 impl KafkaSettings {
@@ -325,12 +352,25 @@ impl KafkaProducer {
     }
 
     pub async fn create(conf: &KafkaSettings) -> MQResult<Self> {
+        let mut client_config = rdkafka::ClientConfig::new();
+        client_config.set("bootstrap.servers", conf.brokers.join(","));
+
+        if let Some(sasl) = &conf.sasl {
+            client_config
+                .set("security.protocol", &sasl.security_protocol)
+                .set("sasl.mechanism", &sasl.mechanism)
+                .set("sasl.username", &sasl.username)
+                .set("sasl.password", sasl.password.peek());
+
+            if let Some(ca_certificate_path) = &sasl.ca_certificate_path {
+                client_config.set("ssl.ca.location", ca_certificate_path);
+            }
+        }
+
         Ok(Self {
             producer: Arc::new(RdKafkaProducer(
-                ThreadedProducer::from_config(
-                    rdkafka::ClientConfig::new().set("bootstrap.servers", conf.brokers.join(",")),
-                )
-                .change_context(KafkaError::InitializationError)?,
+                ThreadedProducer::from_config(&client_config)
+                    .change_context(KafkaError::InitializationError)?,
             )),
 
             fraud_check_analytics_topic: conf.fraud_check_analytics_topic.clone(),

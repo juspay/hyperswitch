@@ -160,7 +160,7 @@ pub struct Settings<S: SecretState> {
     pub report_download_config: ReportConfig,
     #[cfg(feature = "olap")]
     pub opensearch: OpenSearchConfig,
-    pub events: EventsConfig,
+    pub events: SecretStateContainer<EventsConfig, S>,
     #[cfg(feature = "olap")]
     pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
     pub unmasked_headers: UnmaskedHeaders,
@@ -482,6 +482,7 @@ impl TenantConfig {
         #[allow(clippy::expect_used)]
         let event_handler = conf
             .events
+            .get_inner()
             .get_event_handler()
             .await
             .expect("Failed to create event handler");
@@ -515,6 +516,7 @@ impl TenantConfig {
         #[allow(clippy::expect_used)]
         let event_handler = conf
             .events
+            .get_inner()
             .get_event_handler()
             .await
             .expect("Failed to create event handler");
@@ -1438,7 +1440,7 @@ impl Settings<SecuredSecret> {
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
         self.lock_settings.validate()?;
-        self.events.validate()?;
+        self.events.get_inner().validate()?;
 
         #[cfg(feature = "olap")]
         self.opensearch.validate()?;

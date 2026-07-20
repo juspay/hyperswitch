@@ -455,6 +455,7 @@ impl AppState {
             #[allow(clippy::expect_used)]
             let event_handler = conf
                 .events
+                .get_inner()
                 .get_event_handler()
                 .await
                 .expect("Failed to create event handler");

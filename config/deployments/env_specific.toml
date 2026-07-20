@@ -110,6 +110,15 @@ routing_logs_topic = "topic"             # Kafka topic to be used for Routing ev
 revenue_recovery_topic = "topic"         # Kafka topic to be used for Revenue Recovery Events
 external_service_call_topic = "topic"   # Kafka topic to be used for External Service Call Events
 
+# Optional SASL authentication for the Kafka client. Omit this section entirely to
+# connect over plaintext without authentication (default, backwards compatible).
+# [events.kafka.sasl]
+# mechanism = "PLAIN"             # SASL mechanism: PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, ...
+# security_protocol = "SASL_SSL"  # Security protocol: SASL_SSL (default) or SASL_PLAINTEXT
+# username = "user"               # SASL username
+# password = "password"           # SASL password (decrypted at startup via the configured secrets manager)
+# ca_certificate_path = "/path/to/ca.pem" # Optional CA bundle to verify the broker when using SASL_SSL
+
 # File storage configuration
 [file_storage]
 file_storage_backend = "aws_s3" # File storage backend to be used
