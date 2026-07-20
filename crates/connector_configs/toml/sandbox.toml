@@ -514,6 +514,11 @@ placeholder = "Enter Live endpoint prefix"
 required = true
 type = "Text"
 
+[adyen.connector_webhook_register_details]
+label="Webhook Registration"
+webhook_auto_configuration_supported=true 
+scope_type="not_specific"
+
 [adyenplatform_payout]
 [[adyenplatform_payout.credit]]
 payment_method_type = "Mastercard"
@@ -5275,6 +5280,42 @@ api_secret = "Developer Id"
 [tsys.connector_webhook_details]
 merchant_secret = "Source verification key"
 
+[tsys_transit]
+[[tsys_transit.credit]]
+payment_method_type = "Mastercard"
+[[tsys_transit.credit]]
+payment_method_type = "Visa"
+[[tsys_transit.credit]]
+payment_method_type = "AmericanExpress"
+[[tsys_transit.credit]]
+payment_method_type = "JCB"
+[[tsys_transit.credit]]
+payment_method_type = "DinersClub"
+[[tsys_transit.credit]]
+payment_method_type = "Discover"
+[[tsys_transit.credit]]
+payment_method_type = "UnionPay"
+[[tsys_transit.debit]]
+payment_method_type = "Mastercard"
+[[tsys_transit.debit]]
+payment_method_type = "Visa"
+[[tsys_transit.debit]]
+payment_method_type = "AmericanExpress"
+[[tsys_transit.debit]]
+payment_method_type = "JCB"
+[[tsys_transit.debit]]
+payment_method_type = "DinersClub"
+[[tsys_transit.debit]]
+payment_method_type = "Discover"
+[[tsys_transit.debit]]
+payment_method_type = "UnionPay"
+[tsys_transit.connector_auth.SignatureKey]
+api_key = "Device Id"
+key1 = "Transaction Key"
+api_secret = "Developer Id"
+[tsys_transit.connector_webhook_details]
+merchant_secret = "Source verification key"
+
 [volt]
 [[volt.bank_redirect]]
 payment_method_type = "open_banking_uk"
@@ -7445,7 +7486,7 @@ type="Text"
 name="workspace_id"
 label="Workspace Id"
 placeholder="Enter the workspace id"
-required=true
+required=false
 type="Text"
 [[santander.metadata.boleto]]
 name="covenant_code"
@@ -7453,6 +7494,12 @@ label="Covenant Code"
 placeholder="Enter the covenant code"
 required=true
 type="Text"
+
+[santander.connector_webhook_register_details]
+label="Webhook Registration & Workspace Creation"
+webhook_auto_configuration_supported=true 
+scope_type="payment_method_type"
+payment_method_types=["pix_emv", "pix_automatico_push", "pix_automatico_qr", "boleto"]
 
 [blackhawknetwork]
 [[blackhawknetwork.gift_card]]
@@ -7490,6 +7537,32 @@ processing_account_id = "processing_account_id"
 api_key = "API Key"
 [payload.connector_webhook_details]
 merchant_secret = "Source verification key"
+
+[payload.connector_webhook_register_details]
+label="Webhook Registration"
+webhook_auto_configuration_supported=true 
+event_types=[
+    "payment_processing",
+    "payment_authorized",
+    "payment_partially_authorized",
+    "payment_succeeded",
+    "payment_captured",
+    "payment_failed",
+    "refund_failed",
+    "payment_cancelled",
+    "payment_cancelled_post_capture",
+    "refund_succeeded",
+    "dispute_opened",
+    "dispute_accepted",
+    "dispute_lost",
+    "payout_initiated",
+    "payout_processing",
+    "payout_success",
+    "payout_failed",
+    "payout_cancelled",
+    "payout_reversed"
+]
+scope_type="event_type"
 
 [silverflow]
 [[silverflow.credit]]
@@ -8286,7 +8359,7 @@ key1 = "Username"
 [[envoy_payout.bank_transfer]]
   payment_method_type = "ach"
 
-  
+
 [vgs]
 [vgs.connector_auth.SignatureKey]
   api_key="Client Id"

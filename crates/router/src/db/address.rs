@@ -566,7 +566,7 @@ mod storage {
                         merchant_id: &merchant_id,
                         payment_id,
                     };
-                    let field = format!("add_{}", &address_new.address_id);
+                    let field = format!("add_{}", address_new.address_id);
                     let created_address = diesel_models::Address {
                         address_id: address_new.address_id.clone(),
                         city: address_new.city.clone(),
