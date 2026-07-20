@@ -97,6 +97,28 @@ min_idle_pool_size = 2
 idle_timeout = 300
 max_lifetime = 1800
 
+[accounts_database]
+username = "db_user"
+password = "db_pass"
+host = "pg"
+port = 5432
+dbname = "hyperswitch_db"
+max_pool_size = 5
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
+
+[global_database]
+username = "db_user"
+password = "db_pass"
+host = "pg"
+port = 5432
+dbname = "hyperswitch_db"
+max_pool_size = 5
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
+
 [secrets]
 admin_api_key = "test_admin"
 jwt_secret = "secret"
