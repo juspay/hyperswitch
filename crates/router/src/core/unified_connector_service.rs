@@ -762,7 +762,6 @@ pub fn build_unified_connector_service_payment_method(
     payment_method_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     payment_method_type: Option<PaymentMethodType>,
     payment_method_token: Option<&PaymentMethodToken>,
-    _connector_name: &str,
     connector_meta_data: Option<&common_utils::pii::SecretSerdeValue>,
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
     match payment_method_data {

@@ -303,7 +303,6 @@ impl
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
                 router_data.payment_method_token.as_ref(),
-                router_data.connector.as_str(),
                 router_data.connector_meta_data.as_ref(),
             )?;
 
@@ -373,7 +372,6 @@ impl
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
                 router_data.payment_method_token.as_ref(),
-                router_data.connector.as_str(),
                 router_data.connector_meta_data.as_ref(),
             )?;
 
@@ -603,7 +601,6 @@ impl
                     payment_method_data,
                     router_data.request.payment_method_type,
                     router_data.payment_method_token.as_ref(),
-                    router_data.connector.as_str(),
                     router_data.connector_meta_data.as_ref(),
                 )
             })
@@ -1141,7 +1138,6 @@ impl
                     payment_method_data,
                     router_data.request.payment_method_type,
                     router_data.payment_method_token.as_ref(),
-                    router_data.connector.as_str(),
                     router_data.connector_meta_data.as_ref(),
                 )
             })
@@ -1248,7 +1244,6 @@ impl
                     payment_method_data,
                     router_data.request.payment_method_type,
                     router_data.payment_method_token.as_ref(),
-                    router_data.connector.as_str(),
                     router_data.connector_meta_data.as_ref(),
                 )
             })
@@ -1338,7 +1333,6 @@ impl
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
                 router_data.payment_method_token.as_ref(),
-                router_data.connector.as_str(),
                 router_data.connector_meta_data.as_ref(),
             )?;
 
@@ -1517,7 +1511,6 @@ impl
                     payment_method_data,
                     router_data.request.payment_method_type,
                     router_data.payment_method_token.as_ref(),
-                    router_data.connector.as_str(),
                     router_data.connector_meta_data.as_ref(),
                 )
             })
@@ -1659,7 +1652,6 @@ impl
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
                 router_data.payment_method_token.as_ref(),
-                router_data.connector.as_str(),
                 router_data.connector_meta_data.as_ref(),
             )?;
 
@@ -2027,7 +2019,6 @@ impl
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
                 router_data.payment_method_token.as_ref(),
-                router_data.connector.as_str(),
                 router_data.connector_meta_data.as_ref(),
             )?;
 
@@ -2314,7 +2305,6 @@ impl
                     payment_method_data,
                     router_data.request.payment_method_type,
                     router_data.payment_method_token.as_ref(),
-                    router_data.connector.as_str(),
                     router_data.connector_meta_data.as_ref(),
                 )
             })
