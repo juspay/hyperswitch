@@ -2179,14 +2179,6 @@ export const connectorDetails = {
         billing: standardBillingAddress,
       },
     }),
-    QrisRetrieve: getCustomExchange({
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
   },
   card_pm: {
     PaymentIntent: getCustomExchange({
