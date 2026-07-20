@@ -470,15 +470,14 @@ impl AppState {
                 .expect("Failed to initialize OpenSearch client.")
                 .map(Arc::new);
 
-            #[allow(clippy::expect_used)]
-            let redis_event_emitter = if conf.events.emit_external_service_call_events {
-                Some(Arc::new(event_handler.clone())
-                    as Arc<
-                        dyn common_utils::external_service::ExternalServiceEventEmitter,
-                    >)
+            let redis_event_emitter: Option<
+                Arc<dyn common_utils::external_service::ExternalServiceEventEmitter>,
+            > = if conf.events.emit_external_service_call_events {
+                Some(Arc::new(event_handler.clone()))
             } else {
                 None
             };
+            #[allow(clippy::expect_used)]
             let cache_store = get_cache_store(
                 &conf.clone(),
                 shut_down_signal,

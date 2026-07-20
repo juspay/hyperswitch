@@ -158,6 +158,7 @@ mod merchant_connector_account_cache_tests {
         let redis_conn = db.get_redis_conn().unwrap();
         let master_key = db.get_master_key();
         redis_conn
+            .redis_conn
             .subscribe("hyperswitch_invalidate")
             .await
             .unwrap();
@@ -341,6 +342,7 @@ mod merchant_connector_account_cache_tests {
         let redis_conn = db.get_redis_conn().unwrap();
         let master_key = db.get_master_key();
         redis_conn
+            .redis_conn
             .subscribe("hyperswitch_invalidate")
             .await
             .unwrap();

@@ -419,7 +419,7 @@ pub async fn redact_from_redis_and_publish<
             redis_conn
                 .publish(
                     IMC_INVALIDATION_CHANNEL,
-                    RedisValue::try_from(key).change_context(RedisError::PublishError)?,
+                    RedisValue::try_from(key).change_context(StorageError::KVError)?,
                 )
                 .await
                 .change_context(StorageError::KVError)
