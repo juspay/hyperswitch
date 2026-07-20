@@ -64,7 +64,10 @@ pub(super) fn request_id(request: &Request) -> Option<String> {
     })
 }
 
-pub(super) fn request_args(request: &Request, timeout_secs: Option<u64>) -> Secret<serde_json::Value> {
+pub(super) fn request_args(
+    request: &Request,
+    timeout_secs: Option<u64>,
+) -> Secret<serde_json::Value> {
     // Header storage iterates in non-deterministic (HashMap) order, so the raw
     // sequence differs between record and replay even when the header SET is
     // identical. The args matcher compares serialized JSON arrays

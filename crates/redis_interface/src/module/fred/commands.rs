@@ -343,8 +343,7 @@ impl super::RedisConnectionPool {
     ) -> CustomResult<DejaRedisValue, errors::RedisError> {
         match track_redis_call(
             RedisOperation::GetKey,
-            self.pool
-                .get::<RedisValue, _>(key.tenant_aware_key(self)),
+            self.pool.get::<RedisValue, _>(key.tenant_aware_key(self)),
         )
         .await
         .change_context(errors::RedisError::GetFailed)
@@ -360,8 +359,7 @@ impl super::RedisConnectionPool {
                 {
                     track_redis_call(
                         RedisOperation::GetKey,
-                        self.pool
-                            .get::<RedisValue, _>(key.tenant_unaware_key(self)),
+                        self.pool.get::<RedisValue, _>(key.tenant_unaware_key(self)),
                     )
                     .await
                     .change_context(errors::RedisError::GetFailed)
@@ -379,11 +377,9 @@ impl super::RedisConnectionPool {
         #[cfg(feature = "deja")]
         {
             let raw = self.get_key_raw(key).await?;
-            let value: RedisValue = raw
-                .try_into()
-                .map_err(|err: fred::error::RedisError| {
-                    report!(err).change_context(errors::RedisError::GetFailed)
-                })?;
+            let value: RedisValue = raw.try_into().map_err(|err: fred::error::RedisError| {
+                report!(err).change_context(errors::RedisError::GetFailed)
+            })?;
             V::from_value(value).change_context(errors::RedisError::GetFailed)
         }
 
@@ -1233,10 +1229,8 @@ impl super::RedisConnectionPool {
                 {
                     track_redis_call(
                         RedisOperation::GetHashField,
-                        self.pool.hget::<RedisValue, _, _>(
-                            key.tenant_unaware_key(self),
-                            field,
-                        ),
+                        self.pool
+                            .hget::<RedisValue, _, _>(key.tenant_unaware_key(self), field),
                     )
                     .await
                     .change_context(errors::RedisError::GetHashFieldFailed)
