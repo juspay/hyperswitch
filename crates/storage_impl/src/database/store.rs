@@ -47,24 +47,19 @@ impl DatabaseStore for Store {
         _key_manager_state: Option<keymanager::KeyManagerState>,
     ) -> StorageResult<Self> {
         let (master_config, accounts_config) = config;
-        let master_pool =
-            diesel_make_pg_pool(&master_config, tenant_config.get_schema(), test_transaction)
-                .await?;
-        let accounts_pool = if tenant_config.get_schema() == tenant_config.get_accounts_schema()
-            && master_config == accounts_config
-        {
-            master_pool.clone()
-        } else {
-            diesel_make_pg_pool(
+        Ok(Self {
+            master_pool: diesel_make_pg_pool(
+                &master_config,
+                tenant_config.get_schema(),
+                test_transaction,
+            )
+            .await?,
+            accounts_pool: diesel_make_pg_pool(
                 &accounts_config,
                 tenant_config.get_accounts_schema(),
                 test_transaction,
             )
-            .await?
-        };
-        Ok(Self {
-            master_pool,
-            accounts_pool,
+            .await?,
         })
     }
 
@@ -105,26 +100,17 @@ impl DatabaseStore for ReplicaStore {
     ) -> StorageResult<Self> {
         let (master_config, replica_config, accounts_master_config, accounts_replica_config) =
             config;
-        let schema_matches_accounts_schema =
-            tenant_config.get_schema() == tenant_config.get_accounts_schema();
-
         let master_pool =
             diesel_make_pg_pool(&master_config, tenant_config.get_schema(), test_transaction)
                 .await
                 .attach_printable("failed to create master pool")?;
-        let accounts_master_pool =
-            if schema_matches_accounts_schema && master_config == accounts_master_config {
-                master_pool.clone()
-            } else {
-                diesel_make_pg_pool(
-                    &accounts_master_config,
-                    tenant_config.get_accounts_schema(),
-                    test_transaction,
-                )
-                .await
-                .attach_printable("failed to create accounts master pool")?
-            };
-
+        let accounts_master_pool = diesel_make_pg_pool(
+            &accounts_master_config,
+            tenant_config.get_accounts_schema(),
+            test_transaction,
+        )
+        .await
+        .attach_printable("failed to create accounts master pool")?;
         let replica_pool = diesel_make_pg_pool(
             &replica_config,
             tenant_config.get_schema(),
@@ -132,19 +118,14 @@ impl DatabaseStore for ReplicaStore {
         )
         .await
         .attach_printable("failed to create replica pool")?;
-        let accounts_replica_pool =
-            if schema_matches_accounts_schema && replica_config == accounts_replica_config {
-                replica_pool.clone()
-            } else {
-                diesel_make_pg_pool(
-                    &accounts_replica_config,
-                    tenant_config.get_accounts_schema(),
-                    test_transaction,
-                )
-                .await
-                .attach_printable("failed to create accounts pool")?
-            };
 
+        let accounts_replica_pool = diesel_make_pg_pool(
+            &accounts_replica_config,
+            tenant_config.get_accounts_schema(),
+            test_transaction,
+        )
+        .await
+        .attach_printable("failed to create accounts pool")?;
         Ok(Self {
             master_pool,
             replica_pool,
