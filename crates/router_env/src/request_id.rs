@@ -50,7 +50,7 @@ use tracing::Instrument;
 use uuid::Uuid;
 
 #[cfg(feature = "deja")]
-pub(crate) mod semantic_boundary {
+pub(crate) mod boundary {
     use std::{
         fmt,
         future::Future,
@@ -558,14 +558,14 @@ fn generate_uuid_v7() -> String {
             // REPLAY: serve the recorded id for this call site (correlated, so it
             // matches robustly). A miss falls through to live generation.
             if let Some(recorded) =
-                semantic_boundary::replay_id_generation("generate_uuid_v7", caller, &request)
+                boundary::replay_id_generation("generate_uuid_v7", caller, &request)
             {
                 return recorded;
             }
 
             // RECORD (or replay miss): generate live and record the value.
             let generated_value = Uuid::now_v7().to_string();
-            semantic_boundary::record_id_generation(
+            boundary::record_id_generation(
                 "generate_uuid_v7",
                 caller,
                 request,
@@ -904,9 +904,8 @@ where
     S::Future: 'static,
     B: actix_web::body::MessageBody + 'static,
 {
-    type Response = ServiceResponse<
-        EitherBody<semantic_boundary::RecordingBody<B>, semantic_boundary::RecordingBody<B>>,
-    >;
+    type Response =
+        ServiceResponse<EitherBody<boundary::RecordingBody<B>, boundary::RecordingBody<B>>>;
     type Error = S::Error;
     type Transform = RequestIdMiddleware<S>;
     type InitError = ();
@@ -968,9 +967,8 @@ where
     S::Future: 'static,
     B: actix_web::body::MessageBody + 'static,
 {
-    type Response = ServiceResponse<
-        EitherBody<semantic_boundary::RecordingBody<B>, semantic_boundary::RecordingBody<B>>,
-    >;
+    type Response =
+        ServiceResponse<EitherBody<boundary::RecordingBody<B>, boundary::RecordingBody<B>>>;
     type Error = S::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
 
@@ -1012,13 +1010,10 @@ where
             }
 
             let mut response: ServiceResponse<
-                EitherBody<
-                    semantic_boundary::RecordingBody<B>,
-                    semantic_boundary::RecordingBody<B>,
-                >,
-            > = if semantic_boundary::process_is_active() {
+                EitherBody<boundary::RecordingBody<B>, boundary::RecordingBody<B>>,
+            > = if boundary::process_is_active() {
                 let mut recording_decision_installed = false;
-                let should_record_http_incoming = if semantic_boundary::process_is_record_mode() {
+                let should_record_http_incoming = if boundary::process_is_record_mode() {
                     let decision = match recording_sampler {
                         Some(sampler) => sampler.should_record(request_facts.clone()).await,
                         None => true,
@@ -1032,8 +1027,7 @@ where
 
                 if should_record_http_incoming {
                     let (request, incoming_record) =
-                        semantic_boundary::capture_incoming_request(request, request_id.as_str())
-                            .await;
+                        boundary::capture_incoming_request(request, request_id.as_str()).await;
                     let fut = service.call(request);
                     let request_span = tracing::info_span!(
                         "deja::http_incoming",
@@ -1043,10 +1037,9 @@ where
                     );
                     // Correlation comes from the ingress root span (CustomRootSpanBuilder
                     // stamps `request_id`) via DejaCorrelationLayer — no explicit scope needed.
-                    let recorded_result =
-                        semantic_boundary::recorded_incoming(fut, incoming_record)
-                            .instrument(request_span)
-                            .await;
+                    let recorded_result = boundary::recorded_incoming(fut, incoming_record)
+                        .instrument(request_span)
+                        .await;
                     if recording_decision_installed {
                         deja::clear_recording_decision(request_id.as_str());
                     }
@@ -1060,13 +1053,13 @@ where
                     }
                     let response = response_result?;
                     response.map_body(|_head, body| {
-                        EitherBody::right(semantic_boundary::RecordingBody::passthrough(body))
+                        EitherBody::right(boundary::RecordingBody::passthrough(body))
                     })
                 }
             } else {
                 let resp = service.call(request).await?;
                 resp.map_body(|_head, body| {
-                    EitherBody::right(semantic_boundary::RecordingBody::passthrough(body))
+                    EitherBody::right(boundary::RecordingBody::passthrough(body))
                 })
             };
 
@@ -1340,7 +1333,7 @@ mod tests {
             serde_json::json!({ "status": 200 }),
             false,
         );
-        let mut body = semantic_boundary::RecordingBody::for_test_with_finalizer(
+        let mut body = boundary::RecordingBody::for_test_with_finalizer(
             ExactSizedNeverEofBody::new(b"{\"ok\":true}"),
             finalizer,
         );
@@ -1402,8 +1395,7 @@ mod tests {
             "stamp-only spawn_fork must run immediately, not wait for a drain"
         );
 
-        let body =
-            semantic_boundary::RecordingBody::passthrough(actix_web::body::BoxBody::new("ok"));
+        let body = boundary::RecordingBody::passthrough(actix_web::body::BoxBody::new("ok"));
         let bytes = actix_web::body::to_bytes(body).await.expect("body bytes");
         assert_eq!(&bytes[..], b"ok");
     }
