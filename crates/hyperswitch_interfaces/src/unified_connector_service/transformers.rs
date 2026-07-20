@@ -456,7 +456,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_transaction_id.get_optional_response_id(),
-                connector_response_reference_id: response.merchant_transaction_id,
+                connector_response_reference_id: response.connector_reference_id,
                 network_decline_code: response.error.as_ref().and_then(|error| {
                     error.issuer_details.as_ref().and_then(|id| {
                         id.network_details
@@ -519,7 +519,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
-                    connector_response_reference_id: response.merchant_transaction_id,
+                    connector_response_reference_id: response.connector_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
