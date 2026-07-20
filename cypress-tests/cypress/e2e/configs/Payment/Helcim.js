@@ -313,14 +313,25 @@ const card_pm = {
       },
     },
   },
+  // Helcim declares three_ds: FeatureStatus::NotSupported (helcim.rs),
+  // so the router rejects the request before it ever reaches the
+  // connector. Kept skipped since there's no real 3DS flow to exercise,
+  // but the Response documents the actual confirmed error.
   PaymentMethodIdMandate3DSAutoCapture: {
     Configs: {
       TRIGGER_SKIP: true,
     },
     Request: {},
     Response: {
-      status: 200,
-      body: {},
+      status: 400,
+      body: {
+        error: {
+          type: "invalid_request",
+          message: "Payment method type not supported",
+          code: "IR_19",
+          reason: "Cards 3DS is not supported by Helcim",
+        },
+      },
     },
   },
   PaymentMethodIdMandate3DSManualCapture: {
@@ -329,8 +340,15 @@ const card_pm = {
     },
     Request: {},
     Response: {
-      status: 200,
-      body: {},
+      status: 400,
+      body: {
+        error: {
+          type: "invalid_request",
+          message: "Payment method type not supported",
+          code: "IR_19",
+          reason: "Cards 3DS is not supported by Helcim",
+        },
+      },
     },
   },
   // MIT-via-PMID skips itself at runtime (commands.js) before sending any
