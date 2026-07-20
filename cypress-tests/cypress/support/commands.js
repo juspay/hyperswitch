@@ -5386,7 +5386,12 @@ Cypress.Commands.add(
         mockReplay3ds(globalState, connectorId, nextActionUrl);
       } else {
         // No cassette: fall back to live connector via redirect proxy (same as record mode).
-        mockRecord3ds(globalState, nextActionUrl, expectedRedirection, handleRedirection);
+        mockRecord3ds(
+          globalState,
+          nextActionUrl,
+          expectedRedirection,
+          handleRedirection
+        );
       }
       return;
     }
@@ -5432,7 +5437,13 @@ Cypress.Commands.add(
       } else {
         // No cassette: fall back to live connector via redirect proxy (same as record mode).
         if (!nextActionUrl) return;
-        mockRecordBankRedirect(globalState, nextActionUrl, expectedRedirection, paymentMethodType, handleRedirection);
+        mockRecordBankRedirect(
+          globalState,
+          nextActionUrl,
+          expectedRedirection,
+          paymentMethodType,
+          handleRedirection
+        );
       }
       return;
     }
