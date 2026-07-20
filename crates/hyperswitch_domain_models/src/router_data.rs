@@ -2490,7 +2490,7 @@ impl
                     code,
                     message,
                     reason,
-                    status_code: _,
+                    status_code,
                     attempt_status: _,
                     connector_transaction_id,
                     connector_response_reference_id,
@@ -2500,14 +2500,22 @@ impl
                     connector_metadata: _,
                 } = error_response.clone();
 
-                // Handle errors exactly
-                let status = match error_response.attempt_status {
-                    // Use the status sent by connector in error_response if it's present
-                    Some(status) => status,
-                    None => match error_response.status_code {
-                        500..=511 => common_enums::AttemptStatus::Pending,
-                        _ => common_enums::AttemptStatus::VoidFailed,
-                    },
+                // Void failures should not overwrite the pre-Void status unless the
+                // connector failure is a 5xx, where the final state is uncertain.
+                let status = match status_code {
+                    500..=511 => common_enums::AttemptStatus::Pending,
+                    _ => payment_data.payment_attempt.status,
+                };
+                // When restoring the pre-Void status, preserve its capturable amount too.
+                let amount_capturable = if status == payment_data.payment_attempt.status {
+                    Some(
+                        payment_data
+                            .payment_attempt
+                            .amount_details
+                            .get_amount_capturable(),
+                    )
+                } else {
+                    Some(MinorUnit::zero())
                 };
 
                 let error_details = ErrorDetails {
@@ -2523,7 +2531,7 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status,
-                    amount_capturable: Some(MinorUnit::zero()),
+                    amount_capturable,
                     error: Box::new(error_details),
                     updated_by: storage_scheme.to_string(),
                     connector_payment_id: connector_transaction_id,
@@ -2532,7 +2540,7 @@ impl
                 }
             }
             Ok(ref _response) => PaymentAttemptUpdate::VoidUpdate {
-                status: self.status,
+                status: self.get_attempt_status_for_db_update(payment_data),
                 cancellation_reason: payment_data.payment_attempt.cancellation_reason.clone(),
                 updated_by: storage_scheme.to_string(),
             },
@@ -2557,17 +2565,16 @@ impl
 
     fn get_attempt_status_for_db_update(
         &self,
-        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+        payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
     ) -> common_enums::AttemptStatus {
-        // For void operations, determine status based on response
         match &self.response {
-            Err(ref error_response) => match error_response.attempt_status {
-                Some(status) => status,
-                None => match error_response.status_code {
-                    500..=511 => common_enums::AttemptStatus::Pending,
-                    _ => common_enums::AttemptStatus::VoidFailed,
-                },
+            Err(ref error_response) => match error_response.status_code {
+                500..=511 => common_enums::AttemptStatus::Pending,
+                _ => payment_data.payment_attempt.status,
             },
+            Ok(ref _response) if self.status == common_enums::AttemptStatus::VoidFailed => {
+                payment_data.payment_attempt.status
+            }
             Ok(ref _response) => self.status,
         }
     }

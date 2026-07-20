@@ -3042,6 +3042,12 @@ impl TryFrom<&CybersourceRouterData<&PaymentsIncrementalAuthorizationRouterData>
 }
 
 #[derive(Debug, Serialize)]
+pub enum CybersourceReversalReason {
+    #[serde(rename = "34")]
+    SuspectedFraud,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceVoidRequest {
     client_reference_information: ClientReferenceInformation,
@@ -3055,7 +3061,7 @@ pub struct CybersourceVoidRequest {
 #[serde(rename_all = "camelCase")]
 pub struct ReversalInformation {
     amount_details: Amount,
-    reason: String,
+    reason: CybersourceReversalReason,
 }
 
 impl TryFrom<&CybersourceRouterData<&PaymentsCancelRouterData>> for CybersourceVoidRequest {
@@ -3085,14 +3091,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsCancelRouterData>> for CybersourceV
                         },
                     )?,
                 },
-                reason: value
-                    .router_data
-                    .request
-                    .cancellation_reason
-                    .clone()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "Cancellation Reason",
-                    })?,
+                reason: CybersourceReversalReason::SuspectedFraud,
             },
             merchant_defined_information,
         })
