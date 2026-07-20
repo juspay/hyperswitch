@@ -43,6 +43,7 @@ import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
 import { connectorDetails as helcimConnectorDetails } from "./Helcim.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
+import { connectorDetails as imerchantsolutionsConnectorDetails } from "./Imerchantsolutions.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
 import { connectorDetails as klarnaConnectorDetails } from "./Klarna.js";
@@ -127,6 +128,7 @@ const connectorDetails = {
   helcim: helcimConnectorDetails,
   hipay: hipayConnectorDetails,
   iatapay: iatapayConnectorDetails,
+  imerchantsolutions: imerchantsolutionsConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
   klarna: klarnaConnectorDetails,
