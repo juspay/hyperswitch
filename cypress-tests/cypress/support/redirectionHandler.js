@@ -3609,16 +3609,180 @@ function cardRedirectRedirection(
             });
         }
 
+        // Expiry month and year are rendered as separate <select> elements
+        // inside two distinct iframes (month = iframe index 0, year = iframe
+        // index 1) within #fullsteam-hosted-card-expire-div by the Fullsteam
+        // hosted tokenize form. Unlike the card-number/CVV iframes which
+        // contain <input> fields, the expiry iframes contain <select>
+        // dropdowns. This helper targets the <select> and sets its value via
+        // native DOM events (dispatchEvent), NOT jQuery .trigger("change"),
+        // because jQuery events dispatched from the parent page do not reach
+        // event listeners inside the iframe's document context. The <select>
+        // and its <option> elements are waited for via .should() retry to
+        // handle asynchronous iframe loading (race condition).
+        function fillIframeSelect(
+          containerSelector,
+          iframeIndex,
+          value,
+          label
+        ) {
+          cy.get(containerSelector, { timeout: 20000 })
+            .should("exist")
+            .first()
+            .find("iframe")
+            .should("be.visible")
+            .should(($iframes) => {
+              expect($iframes[iframeIndex].src).to.not.be.empty;
+            })
+            .then(($iframes) => {
+              const el = $iframes[iframeIndex];
+              const sandbox = el.getAttribute("sandbox");
+              cy.task(
+                "cli_log",
+                `${label}: iframe src=${el.src || "(none)"} ` +
+                  `sandbox="${sandbox || "(none)"}"`
+              );
+
+              // Shared select-filling logic. Fullsteam expiry selects may use
+              // either 2- or 4-digit years, so resolve the option value
+              // robustly: try the raw value, then a 4-digit year variant
+              // (e.g. "30" -> "2030"), then a last-2-digits match.
+              //
+              // CRITICAL: Use native DOM events (dispatchEvent) instead of
+              // jQuery .val().trigger("change"). jQuery's .trigger dispatches
+              // through the PARENT page's jQuery event system, which does NOT
+              // reach event listeners registered inside the iframe's document
+              // (Blazor addEventListener). dispatchEvent on the DOM element
+              // dispatches in the element's own document context, so the
+              // iframe's listeners receive the event. This was the root cause
+              // of Round 8 failing — the <select> value was set but the
+              // Fullsteam framework never "saw" the change.
+              function fillSelect(iframeEl, body) {
+                const selectEl = Cypress.$(body).find("select").first()[0];
+                if (!selectEl) {
+                  cy.task("cli_log", `${label}: no select inside iframe`);
+                  return;
+                }
+                const optionVals = Array.from(selectEl.options).map((o) =>
+                  String(o.value || o.textContent || "").trim()
+                );
+                let target = String(value);
+                if (!optionVals.includes(target)) {
+                  const fourDigit = `20${String(value).slice(-2)}`;
+                  if (optionVals.includes(fourDigit)) {
+                    target = fourDigit;
+                  } else {
+                    const twoDigit = String(value).slice(-2);
+                    const match = optionVals.find(
+                      (v) => String(v).slice(-2) === twoDigit
+                    );
+                    if (match) {
+                      target = match;
+                    }
+                  }
+                }
+                const iframeWin = iframeEl.contentWindow || window;
+                selectEl.value = target;
+                selectEl.dispatchEvent(
+                  new iframeWin.Event("input", { bubbles: true })
+                );
+                selectEl.dispatchEvent(
+                  new iframeWin.Event("change", { bubbles: true })
+                );
+                cy.task(
+                  "cli_log",
+                  `Selected ${label} (target=${target}, actual=${selectEl.value}) in prophetpay iframe`
+                );
+              }
+
+              // If sandboxed without allow-same-origin, remove the attribute
+              // and reload the iframe so the new flags take effect (same
+              // approach as fillIframeField above).
+              if (sandbox !== null && !sandbox.includes("allow-same-origin")) {
+                const originalSrc = el.src;
+                cy.task(
+                  "cli_log",
+                  `${label}: removing sandbox, reloading iframe`
+                );
+                el.removeAttribute("sandbox");
+                el.src = "about:blank";
+                cy.wrap(el)
+                  .should(($iframeEl) => {
+                    expect($iframeEl[0].contentDocument).to.exist;
+                  })
+                  .then(() => {
+                    el.src = originalSrc;
+                  });
+                cy.get(containerSelector)
+                  .first()
+                  .find("iframe")
+                  .should(($iframes) => {
+                    const doc = $iframes[iframeIndex].contentDocument;
+                    expect(doc).to.not.be.null;
+                    expect(doc).to.not.be.undefined;
+                    expect(doc.body).to.not.be.empty;
+                    // Wait for <select> and its <option> elements to load
+                    // (expiry iframes load asynchronously after card-number).
+                    const selectEl = doc.body.querySelector("select");
+                    expect(selectEl, `${label}: select present`).to.not.be.null;
+                    expect(
+                      selectEl.options.length,
+                      `${label}: options loaded`
+                    ).to.be.greaterThan(0);
+                  })
+                  .then(($iframes) => {
+                    fillSelect(
+                      $iframes[iframeIndex],
+                      $iframes[iframeIndex].contentDocument.body
+                    );
+                  });
+                return;
+              }
+
+              // No sandbox (or has allow-same-origin) — standard access.
+              cy.wrap(el)
+                .should(($iframeEl) => {
+                  const doc = $iframeEl[0].contentDocument;
+                  expect(doc).to.not.be.null;
+                  expect(doc).to.not.be.undefined;
+                  expect(doc.body).to.not.be.empty;
+                  // Wait for <select> and its <option> elements to load
+                  // (expiry iframes load asynchronously after card-number).
+                  const selectEl = doc.body.querySelector("select");
+                  expect(selectEl, `${label}: select present`).to.not.be.null;
+                  expect(
+                    selectEl.options.length,
+                    `${label}: options loaded`
+                  ).to.be.greaterThan(0);
+                })
+                .then(($iframeEl) => {
+                  fillSelect($iframeEl[0], $iframeEl[0].contentDocument.body);
+                });
+            });
+        }
+
         fillIframeField(
           "#fullsteam-hosted-card-number-div, .cc-number",
           card_number,
           "card number"
         );
 
-        fillIframeField(
+        // Expiry is split into two separate <select> iframes (month + year).
+        // Fill them individually instead of the previous single combined
+        // "MMYY" string into one iframe input (which never matched because
+        // there was no <input> in the expiry iframe — only <select> elements).
+        fillIframeSelect(
           "#fullsteam-hosted-card-expire-div, .cc-expire",
-          `${card_exp_month}${card_exp_year.slice(-2)}`,
-          "expiry"
+          0,
+          card_exp_month,
+          "expiry month"
+        );
+
+        fillIframeSelect(
+          "#fullsteam-hosted-card-expire-div, .cc-expire",
+          1,
+          card_exp_year,
+          "expiry year"
         );
 
         fillIframeField(
