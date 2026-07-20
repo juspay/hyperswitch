@@ -478,8 +478,8 @@ impl AppState {
                     &event_handler,
                     &conf,
                     &conf.multitenancy.global_tenant,
-                    conf.global_database.clone().into_inner(),
-                    conf.global_database.clone().into_inner(),
+                    conf.global_database_config(),
+                    conf.global_database_config(),
                     Arc::clone(&cache_store),
                     testable,
                 ))
@@ -491,10 +491,20 @@ impl AppState {
                 .tenants
                 .get_pools_map(conf.analytics.get_inner())
                 .await;
-            let (stores, accounts_store) = conf
+            let stores = conf
                 .multitenancy
                 .tenants
-                .get_store_interface_maps(&storage_impl, &conf, Arc::clone(&cache_store), testable)
+                .get_store_interface_map(&storage_impl, &conf, Arc::clone(&cache_store), testable)
+                .await;
+            let accounts_store = conf
+                .multitenancy
+                .tenants
+                .get_accounts_store_interface_map(
+                    &storage_impl,
+                    &conf,
+                    Arc::clone(&cache_store),
+                    testable,
+                )
                 .await;
 
             #[cfg(feature = "email")]
