@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.15.0-hotfix1
+
+### Features
+
+- **payment-methods:** Add CardWithNoCvc payment method type ([#13380](https://github.com/juspay/hyperswitch/pull/13380)) ([`acc5f73`](https://github.com/juspay/hyperswitch/commit/acc5f7302db78485225c8915997dd2e132178c5f))
+
+### Bug Fixes
+
+- **connector:** [checkout] Amex reference id ([#13371](https://github.com/juspay/hyperswitch/pull/13371)) ([`2fdeec2`](https://github.com/juspay/hyperswitch/commit/2fdeec202da5455815efadf7fc4d6a9b0a77eb6e))
+
+**Full Changelog:** [`2026.07.15.0...2026.07.15.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.07.15.0...2026.07.15.0-hotfix1)
+
+- - -
+
 ## 2026.07.15.0
 
 ### Features
