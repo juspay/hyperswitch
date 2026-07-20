@@ -780,7 +780,6 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: DUPLICATION_TIMEOUT,
         },
-        LOCAL_VAULT_REQUIRED: true,
       },
       Request: {
         amount: 6540,
