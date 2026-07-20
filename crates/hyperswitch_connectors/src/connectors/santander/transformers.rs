@@ -15,25 +15,30 @@ use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, BoletoVoucherData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::PushNotification, AuthorizeSessionToken, GenerateQr, SetupMandate,
     },
     router_request_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         AuthorizeSessionTokenData, CurrentFlowInfo, GenerateQrRequestData,
-        PaymentsUpdateMetadataData, PushNotificationRequestData, ResponseId,
+        PaymentsUpdatePostConfirmData, PushNotificationRequestData, ResponseId,
         SetupMandateRequestData,
     },
-    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse, MandateReference,
+        PaymentsResponseData, RefundsResponseData,
+    },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
         PaymentsPreAuthorizeCancelRouterData, PaymentsPushNotificationRouterData,
-        PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData, RefundsRouterData,
+        PaymentsSyncRouterData, PaymentsUpdatePostConfirmRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::{self},
 };
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::Url;
@@ -41,35 +46,37 @@ use url::Url;
 use crate::{
     connectors::santander::{
         requests::{
-            AccessTokenUrlPath, BoletoAdditionalFields, Discount, DiscountObject, Environment,
-            JourneyData, Periodicidade, RecurrenceActivation, RecurrenceCalendar, RecurrenceDebtor,
-            RecurrenceLink, RecurrenceValue, RetryPolicy, SantanderAccountType,
-            SantanderAuthRequest, SantanderAuthType, SantanderBoletoCancelOperation,
-            SantanderBoletoCancelRequest, SantanderBoletoPaymentRequest,
-            SantanderBoletoUpdateRequest, SantanderDebtor, SantanderDiscountType,
-            SantanderGrantType, SantanderMetadataObject, SantanderPaymentRequest,
-            SantanderPaymentsCancelRequest, SantanderPixAutomaticCalendarRequest,
-            SantanderPixAutomaticDestinationRequest, SantanderPixAutomaticSolicitationRequest,
-            SantanderPixAutomaticoCobrCalendario, SantanderPixAutomaticoCobrRequest,
-            SantanderPixAutomaticoCobrValor, SantanderPixAutomaticoRecebedor,
-            SantanderPixCancelRequest, SantanderPixDueDateCalendarRequest,
-            SantanderPixImmediateCalendarRequest, SantanderPixQRPaymentRequest,
-            SantanderPixRequestCalendar, SantanderPostProcessingStepRequest, SantanderProtestType,
-            SantanderRefundRequest, SantanderRouterData, SantanderSetupMandateRequest,
-            SantanderValue, SantanderValueType,
+            AccessTokenUrlPath, BoletoAdditionalFields, BoletoMetadataPatch, Discount,
+            DiscountObject, Environment, JourneyData, Periodicidade, RecurrenceActivation,
+            RecurrenceCalendar, RecurrenceDebtor, RecurrenceLink, RecurrenceValue, RetryPolicy,
+            SantanderAccountType, SantanderAuthRequest, SantanderAuthType,
+            SantanderBoletoCancelOperation, SantanderBoletoCancelRequest,
+            SantanderBoletoPaymentRequest, SantanderBoletoWebhookRegisterRequest, SantanderDebtor,
+            SantanderDiscountType, SantanderGrantType, SantanderMetadataObject,
+            SantanderMetadataPatch, SantanderPaymentRequest, SantanderPaymentsCancelRequest,
+            SantanderPixAutomaticCalendarRequest, SantanderPixAutomaticDestinationRequest,
+            SantanderPixAutomaticSolicitationRequest, SantanderPixAutomaticoCobrCalendario,
+            SantanderPixAutomaticoCobrRequest, SantanderPixAutomaticoCobrValor,
+            SantanderPixAutomaticoRecebedor, SantanderPixCancelRequest,
+            SantanderPixDueDateCalendarRequest, SantanderPixImmediateCalendarRequest,
+            SantanderPixQRPaymentRequest, SantanderPixRequestCalendar,
+            SantanderPostProcessingStepRequest, SantanderProtestType, SantanderRefundRequest,
+            SantanderRouterData, SantanderSetupMandateRequest, SantanderValue, SantanderValueType,
+            SantanderWebhookRegisterRequest,
         },
         responses::{
-            Beneficiary, Key, NsuComposite, Payer, RecurrenceStatus, SanatanderAccessTokenResponse,
+            Beneficiary, Key, Payer, RecurrenceStatus, SanatanderAccessTokenResponse,
             SanatanderTokenResponse, SantanderAdditionalInfo, SantanderBoletoDocumentKind,
             SantanderBoletoPaymentType, SantanderBoletoStatus,
-            SantanderCreatePixPayloadLocationResponse, SantanderDocumentKind, SantanderJourneyType,
+            SantanderBoletoWebhookRegisterResponse, SantanderCreatePixPayloadLocationResponse,
+            SantanderDocumentKind, SantanderEmptyResponse, SantanderJourneyType,
             SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
             SantanderPixAutomaticRecResponse, SantanderPixAutomaticSolicitationResponse,
             SantanderPixAutomaticoCobrStatus, SantanderPixAutomaticoCobrSyncResponse,
             SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
-            SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
-            SantanderSetupMandateResponse, SantanderUpdateMetadataResponse, SantanderVoidResponse,
-            SantanderVoidStatus, WaitScreenData,
+            SantanderPixQRCodeSyncResponse, SantanderPixWebhookRegisterResponse,
+            SantanderRefundResponse, SantanderRefundStatus, SantanderSetupMandateResponse,
+            SantanderUpdateResponse, SantanderVoidResponse, SantanderVoidStatus, WaitScreenData,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -266,33 +273,6 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for SantanderMetadata
                 config: "metadata",
             })?;
         Ok(metadata)
-    }
-}
-
-impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderBoletoUpdateRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
-        let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
-
-        let boleto_mca_metadata = santander_mca_metadata
-            .boleto
-            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
-
-        let boleto_components = extract_boleto_components(&item.request.connector_transaction_id)?;
-
-        let due_date = Some(format_as_date_only(
-            item.request
-                .feature_metadata
-                .clone()
-                .and_then(|data| data.boleto_additional_details)
-                .and_then(|boleto_details| boleto_details.due_date),
-        )?);
-
-        Ok(Self {
-            covenant_code: boleto_mca_metadata.covenant_code,
-            bank_number: boleto_components.bank_number,
-            due_date,
-        })
     }
 }
 
@@ -692,7 +672,7 @@ impl
 
         let payer = Some(Payer {
             name: value.0.router_data.get_billing_full_name()?,
-            document_type,
+            document_type: Some(document_type),
             document_number,
             address: Some(Secret::new(
                 [
@@ -1878,10 +1858,10 @@ impl<F> TryFrom<RefundsResponseRouterData<F, SantanderRefundResponse>> for Refun
     }
 }
 
-impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderPaymentRequest {
+impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderPaymentRequest {
     type Error = Error;
-    fn try_from(value: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
-        match value.request.payment_method_type {
+    fn try_from(value: &PaymentsUpdatePostConfirmRouterData) -> Result<Self, Self::Error> {
+        match value.payment_method_type {
             Some(common_enums::PaymentMethodType::PixQr) => {
                 let pix_qr = SantanderPixQRPaymentRequest::try_from(value)?;
                 Ok(Self::PixQR(Box::new(pix_qr)))
@@ -1897,80 +1877,150 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderPaymentRequest {
     }
 }
 
-impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderBoletoPaymentRequest {
+impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentRequest {
     type Error = Error;
 
-    fn try_from(value: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
+    fn try_from(value: &PaymentsUpdatePostConfirmRouterData) -> Result<Self, Self::Error> {
+        let feature_metadata = value.request.feature_metadata.clone();
+
         let santander_mca_metadata = SantanderMetadataObject::try_from(&value.connector_meta_data)?;
 
         let boleto_mca_metadata = santander_mca_metadata
             .boleto
             .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
 
-        let due_date = Some(
-            value
-                .request
-                .feature_metadata
-                .as_ref()
-                .and_then(|fm| fm.boleto_additional_details.as_ref())
-                .and_then(|details| details.due_date)
-                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "feature_metadata.boleto_additional_details.due_date",
-                })?,
-        );
+        let due_date = feature_metadata
+            .as_ref()
+            .and_then(|fm| fm.boleto_additional_details.as_ref())
+            .and_then(|details| details.due_date);
 
-        let covenant_code = value.request.feature_metadata.clone().and_then(|data| {
-            data.get_optional_boleto_covenant_code()
-                .or(Some(boleto_mca_metadata.covenant_code.clone()))
+        let due_date_str = due_date
+            .map(|dt| format_as_date_only(Some(dt)))
+            .transpose()?;
+
+        let covenant_code = feature_metadata
+            .clone()
+            .and_then(|data| data.get_optional_boleto_covenant_code())
+            .or(Some(boleto_mca_metadata.covenant_code.clone()));
+
+        let (
+            (beneficiary, discount, document_kind),
+            (fine_percentage, fine_quantity_days, interest_percentage, iof_percentage),
+            (protest_type, protest_quantity_days, write_off_quantity_days),
+            (
+                payment_type,
+                value_type,
+                parcels_quantity,
+                min_value_or_percentage,
+                max_value_or_percentage,
+            ),
+        ) = get_boleto_additional_fields_from_connector_metadata(feature_metadata.clone());
+
+        let nominal_value = value
+            .request
+            .amount
+            .map(|amount| {
+                StringMajorUnitForConnector
+                    .convert(amount, enums::Currency::BRL)
+                    .change_context(errors::ConnectorError::ParsingFailed)
+            })
+            .transpose()?;
+
+        let client_number = value.request.merchant_order_reference_id.clone();
+        let participant_code = value.request.merchant_order_reference_id.clone();
+
+        let customer_document = value
+            .request
+            .customer_document_details
+            .as_ref()
+            .or(value.customer_document_details.as_ref())
+            .map(|customer_document_details| {
+                let document_type = match customer_document_details.document_type {
+                    common_types::customers::DocumentKind::Cpf => Ok(SantanderDocumentKind::Cpf),
+                    common_types::customers::DocumentKind::Cnpj => Ok(SantanderDocumentKind::Cnpj),
+                    common_types::customers::DocumentKind::Psn
+                    | common_types::customers::DocumentKind::Other => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Only CPF and CNPJ documents are supported for Santander"
+                                .to_string(),
+                            connector: "Santander",
+                        })
+                    }
+                }?;
+                Ok::<_, Error>((
+                    Some(document_type),
+                    Some(customer_document_details.document_number.clone()),
+                ))
+            })
+            .transpose()?
+            .unwrap_or((None, None));
+
+        let payer = value.request.billing_address.as_ref().and_then(|address| {
+            let name = address.get_optional_full_name()?;
+            let (document_type, document_number) = customer_document.clone();
+            let line1 = address.line1.clone()?;
+            let line2 = address.line2.clone();
+            let city = address.city.clone()?;
+            let state = address.state.clone()?;
+            let zip = address.zip.clone()?;
+            let address = Some(Secret::new(
+                [
+                    Some(line1.peek().as_str()),
+                    line2.as_ref().map(|l| l.peek().as_str()),
+                ]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<&str>>()
+                .join(" "),
+            ));
+            Some(Payer {
+                name,
+                document_type,
+                document_number,
+                address,
+                neighborhood: line2,
+                city: Some(Secret::new(city)),
+                state: Some(state),
+                zip_code: Some(zip),
+            })
         });
 
-        let key = Some(Key {
-            key_type: value
-                .request
-                .feature_metadata
-                .as_ref()
-                .and_then(|data| {
-                    data.get_boleto_pix_key_and_value()
-                        .0
-                        .map(SantanderPixKeyType::from)
-                })
-                .or(boleto_mca_metadata.pix_key_type),
-            dict_key: value
-                .request
-                .feature_metadata
-                .as_ref()
-                .and_then(|data| data.get_boleto_pix_key_and_value().1)
-                .or(boleto_mca_metadata.pix_key_value.clone()),
+        let key = feature_metadata.as_ref().and_then(|data| {
+            let (key_type, value) = data.get_boleto_pix_key_and_value();
+            key_type.map(|key_type| Key {
+                key_type: Some(key_type.into()),
+                dict_key: value,
+            })
         });
 
         Ok(Self {
             bank_number: Some(value.connector_request_reference_id.clone()),
             covenant_code,
-            environment: Some(Environment::Producao),
-            due_date: Some(format_as_date_only(due_date)?),
+            environment: None,
+            due_date: due_date_str,
             nsu_code: None,
             nsu_date: None,
-            client_number: None,
+            client_number,
             issue_date: None,
-            nominal_value: None,
-            participant_code: None,
-            payer: None,
-            beneficiary: None,
-            document_kind: None,
-            discount: None,
-            fine_percentage: None,
-            fine_quantity_days: None,
-            interest_percentage: None,
-            protest_type: None,
-            protest_quantity_days: None,
-            write_off_quantity_days: None,
-            payment_type: None,
-            parcels_quantity: None,
-            value_type: None,
-            min_value_or_percentage: None,
-            max_value_or_percentage: None,
-            iof_percentage: None,
+            nominal_value,
+            participant_code,
+            payer,
+            beneficiary,
+            document_kind,
+            discount,
+            fine_percentage,
+            fine_quantity_days,
+            interest_percentage,
             deduction_value: None,
+            protest_type,
+            protest_quantity_days,
+            write_off_quantity_days,
+            payment_type,
+            parcels_quantity,
+            value_type,
+            min_value_or_percentage,
+            max_value_or_percentage,
+            iof_percentage,
             sharing: None,
             key,
             tx_id: None,
@@ -1979,17 +2029,12 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderBoletoPaymentReques
     }
 }
 
-impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderPixQRPaymentRequest {
+impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderPixQRPaymentRequest {
     type Error = Error;
 
-    fn try_from(value: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
-        match value.request.payment_method_type {
+    fn try_from(value: &PaymentsUpdatePostConfirmRouterData) -> Result<Self, Self::Error> {
+        match value.payment_method_type {
             Some(common_enums::PaymentMethodType::PixQr) => {
-                let santander_mca_metadata =
-                    SantanderMetadataObject::try_from(&value.connector_meta_data)?;
-                let pix_mca_metadata = santander_mca_metadata
-                    .pix_qr
-                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
                 let calendar = match &value
                     .request
                     .feature_metadata
@@ -2013,29 +2058,150 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderPixQRPaymentRequest
                         );
                         Some(cal)
                     }
-                    None => {
-                        let cal = SantanderPixRequestCalendar::Immediate(
-                            SantanderPixImmediateCalendarRequest { expiracao: 3600 },
-                        );
-
-                        Some(cal)
-                    }
+                    None => None,
                 };
+
+                let (cpf, cnpj) = value
+                    .request
+                    .customer_document_details
+                    .as_ref()
+                    .map(|customer_document_details| {
+                        match customer_document_details.document_type {
+                            common_types::customers::DocumentKind::Cpf => (
+                                Some(customer_document_details.document_number.clone()),
+                                None,
+                            ),
+                            common_types::customers::DocumentKind::Cnpj => (
+                                None,
+                                Some(customer_document_details.document_number.clone()),
+                            ),
+                            common_types::customers::DocumentKind::Psn
+                            | common_types::customers::DocumentKind::Other => (
+                                Some(customer_document_details.document_number.clone()),
+                                None,
+                            ),
+                        }
+                    })
+                    .unwrap_or((None, None));
+
+                let debtor_from_address =
+                    value
+                        .request
+                        .billing_address
+                        .as_ref()
+                        .map(|address| SantanderDebtor {
+                            cnpj: cnpj.clone(),
+                            nome: address.get_optional_full_name(),
+                            logradouro: address.line1.clone().map(|line1| {
+                                address.line2.clone().map_or(line1.clone(), |line2| {
+                                    Secret::new(format!("{} {}", line1.peek(), line2.peek()))
+                                })
+                            }),
+                            cidade: address.city.clone().map(Secret::new),
+                            uf: address.state.clone(),
+                            cep: address.zip.clone(),
+                            cpf: cpf.clone(),
+                        });
+
+                let debtor = debtor_from_address.or_else(|| {
+                    (cpf.is_some() || cnpj.is_some()).then_some(SantanderDebtor {
+                        cnpj,
+                        nome: None,
+                        logradouro: None,
+                        cidade: None,
+                        uf: None,
+                        cep: None,
+                        cpf,
+                    })
+                });
 
                 let chave = value
                     .request
                     .feature_metadata
                     .clone()
-                    .and_then(|data| data.get_pix_key_and_value().1)
-                    .or(Some(pix_mca_metadata.pix_key_value.clone()));
+                    .and_then(|data| data.get_pix_key_and_value().1);
+
+                let info_adicionais = value
+                    .request
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.as_object())
+                    .map(|m| {
+                        m.iter()
+                            .map(|(k, v)| SantanderAdditionalInfo {
+                                nome: k.clone().into(),
+                                valor: v.as_str().unwrap_or_default().to_string(),
+                            })
+                            .collect::<Vec<_>>()
+                    });
+
+                if let Some(ref info_list) = info_adicionais {
+                    for info in info_list {
+                        let nome_str: &str = &info.nome.clone().expose();
+                        let valor_str: &str = &info.valor;
+                        if nome_str.len() > 50 {
+                            return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                                connector: "Santander".to_string(),
+                                field_name: "metadata.key".to_string(),
+                                max_length: 50,
+                                received_length: nome_str.len(),
+                            }
+                            .into());
+                        }
+                        if valor_str.len() > 150 {
+                            return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                                connector: "Santander".to_string(),
+                                field_name: "metadata.value".to_string(),
+                                max_length: 150,
+                                received_length: valor_str.len(),
+                            }
+                            .into());
+                        }
+                    }
+                }
+
+                let (solicitacao_pagador, solicitacao_source) =
+                    if let Some(description) = value.request.description.clone() {
+                        (Some(description), "description")
+                    } else if let Some(statement_descriptor) = value
+                        .request
+                        .billing_descriptor
+                        .as_ref()
+                        .and_then(|descriptor| descriptor.statement_descriptor.clone())
+                    {
+                        (Some(statement_descriptor), "statement_descriptor")
+                    } else {
+                        (None, "")
+                    };
+
+                if let Some(ref solicitacao) = solicitacao_pagador {
+                    if solicitacao.len() > 140 {
+                        return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                            connector: "Santander".to_string(),
+                            field_name: solicitacao_source.to_string(),
+                            max_length: 140,
+                            received_length: solicitacao.len(),
+                        }
+                        .into());
+                    }
+                }
 
                 Ok(Self {
                     calendario: calendar,
-                    devedor: None,
-                    valor: None,
+                    devedor: debtor,
+                    valor: value
+                        .request
+                        .amount
+                        .map(|amount| {
+                            StringMajorUnitForConnector
+                                .convert(amount, enums::Currency::BRL)
+                                .change_context(errors::ConnectorError::ParsingFailed)
+                                .map(|original| SantanderValue { original })
+                        })
+                        .transpose()?,
                     chave,
-                    solicitacao_pagador: None,
-                    info_adicionais: None,
+                    solicitacao_pagador,
+                    info_adicionais,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -2049,11 +2215,11 @@ impl<F>
     TryFrom<
         ResponseRouterData<
             F,
-            SantanderUpdateMetadataResponse,
-            PaymentsUpdateMetadataData,
+            SantanderUpdateResponse,
+            PaymentsUpdatePostConfirmData,
             PaymentsResponseData,
         >,
-    > for RouterData<F, PaymentsUpdateMetadataData, PaymentsResponseData>
+    > for RouterData<F, PaymentsUpdatePostConfirmData, PaymentsResponseData>
 where
     F: Clone,
 {
@@ -2061,22 +2227,22 @@ where
     fn try_from(
         item: ResponseRouterData<
             F,
-            SantanderUpdateMetadataResponse,
-            PaymentsUpdateMetadataData,
+            SantanderUpdateResponse,
+            PaymentsUpdatePostConfirmData,
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let status = if item.http_code == 200 {
+        let status = if (200..300).contains(&item.http_code) {
             common_enums::PaymentResourceUpdateStatus::Success
         } else {
             common_enums::PaymentResourceUpdateStatus::Failure
         };
         match item.response {
-            SantanderUpdateMetadataResponse::Pix(_) => Ok(Self {
+            SantanderUpdateResponse::Pix(_) => Ok(Self {
                 response: Ok(PaymentsResponseData::PaymentResourceUpdateResponse { status }),
                 ..item.data
             }),
-            SantanderUpdateMetadataResponse::Boleto(_) => Ok(Self {
+            SantanderUpdateResponse::Boleto(_) => Ok(Self {
                 response: Ok(PaymentsResponseData::PaymentResourceUpdateResponse { status }),
                 ..item.data
             }),
@@ -2092,23 +2258,6 @@ pub fn get_qr_code_type(metadata: Option<Value>) -> Option<ExpiryType> {
         Some(QrCodeInformation::QrCodeUrl { expiry_type, .. }) => expiry_type,
         _ => None,
     }
-}
-
-fn extract_boleto_components(input: &str) -> Result<NsuComposite, errors::ConnectorError> {
-    let parts: Vec<&str> = input.split('.').collect();
-
-    let [nsu_code, nsu_date, environment, covenant_code, bank_number] = parts
-        .as_slice()
-        .try_into()
-        .map_err(|_| errors::ConnectorError::ParsingFailed)?;
-
-    Ok(NsuComposite {
-        nsu_code: nsu_code.to_string(),
-        nsu_date: nsu_date.to_string(),
-        environment: environment.to_string(),
-        covenant_code: covenant_code.to_string(),
-        bank_number: bank_number.to_string(),
-    })
 }
 
 pub fn format_as_date_only(
@@ -2805,6 +2954,23 @@ pub fn decide_access_token_key_suffix(
                     Some(CurrentFlowInfo::SetupMandate { .. }),
                     Some(enums::PaymentMethodType::PixAutomaticoQr),
                 ) => Some(AccessTokenUrlPath::Leg2),
+                // UpdatePostConfirm flow
+                (
+                    Some(CurrentFlowInfo::UpdatePostConfirm { .. }),
+                    Some(enums::PaymentMethodType::Boleto),
+                ) => Some(AccessTokenUrlPath::Boleto),
+                (
+                    Some(CurrentFlowInfo::UpdatePostConfirm { .. }),
+                    Some(enums::PaymentMethodType::PixQr),
+                ) => Some(AccessTokenUrlPath::Leg1),
+                (
+                    Some(CurrentFlowInfo::UpdatePostConfirm { .. }),
+                    Some(enums::PaymentMethodType::PixAutomaticoPush),
+                ) => Some(AccessTokenUrlPath::Leg2),
+                (
+                    Some(CurrentFlowInfo::UpdatePostConfirm { .. }),
+                    Some(enums::PaymentMethodType::PixAutomaticoQr),
+                ) => None,
 
                 (None, Some(enums::PaymentMethodType::Boleto)) => Some(AccessTokenUrlPath::Boleto),
                 (None, Some(enums::PaymentMethodType::PixQr)) => Some(AccessTokenUrlPath::Leg1),
@@ -2828,7 +2994,28 @@ pub fn decide_access_token_key_suffix(
                 (None, Some(enums::PaymentMethodType::PixAutomaticoPush)) => {
                     Some(AccessTokenUrlPath::Leg2)
                 }
-                (None, Some(enums::PaymentMethodType::PixAutomaticoQr)) => None,
+                (None, Some(enums::PaymentMethodType::PixAutomaticoQr)) => {
+                    Some(AccessTokenUrlPath::Leg2)
+                }
+                (
+                    Some(CurrentFlowInfo::ConnectorWebhookRegister { request_data }),
+                    Some(enums::PaymentMethodType::PixAutomaticoQr),
+                ) => {
+                    let base_url = request_data.base_url.to_string();
+                    if base_url.contains("{chaveKey}") || base_url.contains("%7BchaveKey%7D") {
+                        Some(AccessTokenUrlPath::Leg1)
+                    } else {
+                        Some(AccessTokenUrlPath::Leg2)
+                    }
+                }
+                (
+                    Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }),
+                    Some(enums::PaymentMethodType::PixAutomaticoPush),
+                ) => Some(AccessTokenUrlPath::Leg2),
+                (
+                    Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }),
+                    Some(enums::PaymentMethodType::PixQr),
+                ) => Some(AccessTokenUrlPath::Leg1),
                 // No payment method type or unsupported payment method type
                 (_, None) => None,
                 (_, Some(_)) => None,
@@ -2844,5 +3031,166 @@ impl From<SantanderJourneyType> for Option<ExpiryType> {
             SantanderJourneyType::Jornada4 => Some(ExpiryType::Scheduled),
             _ => None,
         }
+    }
+}
+
+impl TryFrom<&ConnectorWebhookRegisterRouterData> for SantanderWebhookRegisterRequest {
+    type Error = Error;
+    fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            webhook_url: Secret::new(item.request.webhook_url.clone().expose().to_string()),
+        })
+    }
+}
+
+impl TryFrom<&ConnectorWebhookRegisterRouterData> for SantanderBoletoWebhookRegisterRequest {
+    type Error = Error;
+    fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
+        let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
+        let boleto_metadata = santander_mca_metadata
+            .boleto
+            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+
+        Ok(Self {
+            workspace_type: "BILLING".to_string(),
+            description: "Workspace de Cobrança".to_string(),
+            covenants: vec![
+                crate::connectors::santander::requests::SantanderBoletoCovenant {
+                    code: boleto_metadata.covenant_code.peek().clone(),
+                },
+            ],
+            webhook_url: item.request.webhook_url.clone().expose(),
+            bank_slip_billing_webhook_active: true,
+            pix_billing_webhook_active: true,
+        })
+    }
+}
+
+fn santander_composite_webhook_id(
+    payment_method_type: Option<enums::PaymentMethodType>,
+    connector_webhook_id: &str,
+) -> String {
+    let pmt_slug = payment_method_type
+        .map(|pmt| format!("{:?}", pmt).to_lowercase())
+        .unwrap_or_else(|| "unknown".to_string());
+    format!("santander_{}_{}", pmt_slug, connector_webhook_id)
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderPixWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    > for ConnectorWebhookRegisterRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderPixWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(ConnectorWebhookRegisterRouterData {
+            response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
+                connector_webhook_id: Some(santander_composite_webhook_id(
+                    item.data.payment_method_type,
+                    &item.response.chave,
+                )),
+                status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+                metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderBoletoWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    > for ConnectorWebhookRegisterRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderBoletoWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let workspace_id = item.response.id.clone();
+        let metadata = Some(
+            serde_json::to_value(SantanderMetadataPatch {
+                boleto: BoletoMetadataPatch {
+                    workspace_id: Secret::new(workspace_id),
+                },
+            })
+            .change_context(errors::ConnectorError::ParsingFailed)
+            .map(common_utils::pii::SecretSerdeValue::new)?,
+        );
+
+        Ok(ConnectorWebhookRegisterRouterData {
+            response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
+                connector_webhook_id: Some(santander_composite_webhook_id(
+                    item.data.payment_method_type,
+                    &item.response.id,
+                )),
+                status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+                metadata,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderEmptyResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    > for ConnectorWebhookRegisterRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderEmptyResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(ConnectorWebhookRegisterRouterData {
+            response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
+                connector_webhook_id: Some(santander_composite_webhook_id(
+                    item.data.payment_method_type,
+                    &uuid::Uuid::new_v4().to_string(),
+                )),
+                status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+                metadata: None,
+            }),
+            ..item.data
+        })
     }
 }

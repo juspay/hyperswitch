@@ -21,6 +21,7 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
+use self::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest;
 use super::payment_method_data::PaymentMethodData;
 use crate::{
     address,
@@ -64,6 +65,15 @@ pub enum CurrentFlowInfo {
         /// The payment setup mandate request data
         request_data: Box<PaymentsSyncData>,
     },
+    /// UpdatePostConfirm flow information
+    UpdatePostConfirm {
+        /// The payment update post confirm request data
+        request_data: Box<PaymentsUpdatePostConfirmData>,
+    },
+    ConnectorWebhookRegister {
+        /// The payment setup mandate request data
+        request_data: Box<ConnectorWebhookRegisterRequest>,
+    },
 }
 
 impl CurrentFlowInfo {
@@ -73,6 +83,8 @@ impl CurrentFlowInfo {
             Self::CompleteAuthorize { .. } => None,
             Self::SetupMandate { .. } => None,
             Self::Psync { request_data } => request_data.feature_metadata.clone(),
+            Self::UpdatePostConfirm { request_data } => request_data.feature_metadata.clone(),
+            Self::ConnectorWebhookRegister { .. } => None,
         }
     }
 }
@@ -278,10 +290,21 @@ pub struct PaymentsPostSessionTokensData {
 pub struct PaymentsUpdateMetadataData {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_transaction_id: String,
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub connector_meta: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PaymentsUpdatePostConfirmData {
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
-    pub payment_method_data: Option<PaymentMethodData>,
+    pub amount: Option<MinorUnit>,
+    pub currency: storage_enums::Currency,
+    pub connector_attempt_metadata: Option<serde_json::Value>,
+    pub connector_transaction_id: String,
+    pub description: Option<String>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub billing_address: Option<AddressDetails>,
+    pub metadata: Option<serde_json::Value>,
+    pub merchant_order_reference_id: Option<String>,
+    pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -316,6 +339,7 @@ pub struct PaymentsCaptureData {
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
     pub minor_amount_to_capture: MinorUnit,
+    pub order_tax_amount: Option<MinorUnit>,
     pub integrity_object: Option<CaptureIntegrityObject>,
     pub webhook_url: Option<String>,
     pub merchant_order_reference_id: Option<String>,
