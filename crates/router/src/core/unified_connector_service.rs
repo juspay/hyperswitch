@@ -36,8 +36,8 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, payment_method::PaymentMethod, CardDetails, ClassicReward,
-    CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
+    self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardDetailsWithNoCvc,
+    ClassicReward, CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
 };
 
 use crate::{
@@ -811,6 +811,46 @@ pub fn build_unified_connector_service_payment_method(
                     })
                 }
             }
+        }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardWithOptionalCVC(
+            card,
+        ) => {
+            let card_exp_month = card
+                .get_card_expiry_month_2_digit()
+                .attach_printable("Failed to extract 2-digit expiry month from card")
+                .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
+                    field_name: "card_exp_month",
+                })?
+                .peek()
+                .to_string();
+
+            let card_network = card
+                .card_network
+                .clone()
+                .map(payments_grpc::CardNetwork::foreign_from);
+
+            let card_details = CardDetailsWithNoCvc {
+                card_number: Some(
+                    CardNumber::from_str(&card.card_number.get_card_no()).change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse card number".to_string(),
+                        ),
+                    )?,
+                ),
+                card_exp_month: Some(card_exp_month.into()),
+                card_exp_year: Some(card.card_exp_year.expose().into()),
+                card_holder_name: card.card_holder_name.map(|name| name.expose().into()),
+                card_issuer: card.card_issuer.clone(),
+                card_network: card_network.map(|card_network| card_network.into()),
+                card_type: card.card_type.clone(),
+                bank_code: card.bank_code.clone(),
+                nick_name: card.nick_name.map(|n| n.expose()),
+                card_issuing_country_alpha2: card.card_issuing_country.clone(),
+            };
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::CardWithNoCvc(card_details)),
+            })
         }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(
             card_redirect_data,
