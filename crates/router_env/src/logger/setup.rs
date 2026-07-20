@@ -162,7 +162,17 @@ fn deja_layer() -> Option<deja::ExecutionGraphLayer> {
 /// operation it is `None`, adding zero per-span overhead.
 #[cfg(feature = "deja")]
 fn deja_correlation_layer() -> Option<deja::DejaCorrelationLayer> {
-    if deja::runtime_mode().consumes_args() {
+    // MUST use `process_runtime_mode`, not `runtime_mode`. This runs once at
+    // tracing setup (process start), before any request has pushed a recording
+    // decision. `runtime_mode` reads the per-request-gated `mode()`, which is
+    // `Disabled` for a record hook until a decision exists — so gating on it
+    // here would leave the correlation layer uninstalled, and boundary events
+    // from spawned tasks would never inherit the request correlation (their
+    // per-boundary gate then resolves no decision and records nothing). Same
+    // circular-dependency shape as the ingress predicates; `process_runtime_mode`
+    // reflects the boot-time configuration and peeks the installed hook. This
+    // mirrors `deja_layer` above, which keys off the installed hook variant.
+    if deja::process_runtime_mode().consumes_args() {
         Some(deja::DejaCorrelationLayer::new())
     } else {
         None
