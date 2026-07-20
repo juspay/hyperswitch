@@ -989,6 +989,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     .await?;
                 Ok(())
             }
+            Some(api_models::payments::PaymentMethodData::CardWithNoCVC(card)) => {
+                payment_data.card_testing_guard_data =
+                    card_testing_guard_utils::validate_card_testing_guard_checks(
+                        state,
+                        request.browser_info.as_ref(),
+                        card.card_number.clone(),
+                        customer_id,
+                        business_profile,
+                    )
+                    .await?;
+                Ok(())
+            }
             _ => Ok(()),
         }
     }
@@ -1127,6 +1139,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .and_then(|pmd| pmd.payment_method_data.as_ref())
                     {
                         Some(api_models::payments::PaymentMethodData::Card(_))
+                        | Some(api_models::payments::PaymentMethodData::CardWithNoCVC(_))
                         | Some(api_models::payments::PaymentMethodData::BankDebit(_))
                         | Some(api_models::payments::PaymentMethodData::Wallet(_))
                         | Some(api_models::payments::PaymentMethodData::BankRedirect(_)) => {
@@ -1141,6 +1154,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                         == Some(common_enums::FutureUsage::OffSession)
                                 }
                                 Some(api_models::payments::PaymentMethodData::Card(_))
+                                | Some(api_models::payments::PaymentMethodData::CardWithNoCVC(_))
                                 | Some(api_models::payments::PaymentMethodData::BankRedirect(_))
                                 | Some(api_models::payments::PaymentMethodData::BankDebit(_)) => {
                                     true
@@ -1672,6 +1686,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             .inspect_err(|err| logger::error!("{:?}", err))
                             .ok()
                             .unwrap_or_default(),
+                        business_country: payment_data
+                            .payment_intent
+                            .business_country
+                            .map(common_enums::Country::from_alpha2),
                     },
                     payment_method: Some(
                         api_models::three_ds_decision_rule::PaymentMethodMetaData {
@@ -1714,6 +1732,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             fraud_rate: acquirer.acquirer_fraud_rate,
                         }
                     }),
+                    metadata: payment_data.payment_intent.metadata.clone(),
                 },
             )
             .await
