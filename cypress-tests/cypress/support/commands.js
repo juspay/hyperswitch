@@ -2639,47 +2639,44 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "postSessionTokensCallTest",
-  (data, globalState) => {
-    const { Request: reqData = {}, Response: resData } = data || {};
+Cypress.Commands.add("postSessionTokensCallTest", (data, globalState) => {
+  const { Request: reqData = {}, Response: resData } = data || {};
 
-    const paymentId = globalState.get("paymentID");
-    const clientSecret = globalState.get("clientSecret");
+  const paymentId = globalState.get("paymentID");
+  const clientSecret = globalState.get("clientSecret");
 
-    const body = {
-      payment_id: paymentId,
-      client_secret: clientSecret,
-      payment_method_type: reqData.payment_method_type,
-      payment_method: reqData.payment_method,
-    };
+  const body = {
+    payment_id: paymentId,
+    client_secret: clientSecret,
+    payment_method_type: reqData.payment_method_type,
+    payment_method: reqData.payment_method,
+  };
 
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/payments/${paymentId}/post_session_tokens`,
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "api-key": globalState.get("publishableKey"),
-        "x-client-platform": "web",
-      },
-      body: body,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/payments/${paymentId}/post_session_tokens`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("publishableKey"),
+      "x-client-platform": "web",
+    },
+    body: body,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
 
-      cy.wrap(response).then(() => {
-        if (resData?.body?.status) {
-          expect(response.status).to.equal(resData.status || 200);
-          expect(response.body.status).to.equal(resData.body.status);
-          expect(response.body.payment_id).to.equal(paymentId);
-        } else {
-          defaultErrorHandler(response, resData);
-        }
-      });
+    cy.wrap(response).then(() => {
+      if (resData?.body?.status) {
+        expect(response.status).to.equal(resData.status || 200);
+        expect(response.body.status).to.equal(resData.body.status);
+        expect(response.body.payment_id).to.equal(paymentId);
+      } else {
+        defaultErrorHandler(response, resData);
+      }
     });
-  }
-);
+  });
+});
 
 Cypress.Commands.add(
   "createPaymentIntentTest",
