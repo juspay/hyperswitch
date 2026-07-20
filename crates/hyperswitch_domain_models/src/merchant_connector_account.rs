@@ -498,6 +498,7 @@ pub enum MerchantConnectorAccountUpdate {
     ConnectorWebhookRegisterationUpdate {
         connector_webhook_registration_details: Option<Value>,
         connector_webhook_details: Option<pii::SecretSerdeValue>,
+        metadata: Option<pii::SecretSerdeValue>,
     },
 }
 
@@ -848,6 +849,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
             MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
                 connector_webhook_registration_details,
                 connector_webhook_details,
+                metadata,
             } => Self {
                 connector_type: None,
                 connector_name: None,
@@ -858,7 +860,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 merchant_connector_id: None,
                 payment_methods_enabled: None,
                 frm_configs: None,
-                metadata: None,
+                metadata,
                 modified_at: None,
                 connector_webhook_details,
                 frm_config: None,
