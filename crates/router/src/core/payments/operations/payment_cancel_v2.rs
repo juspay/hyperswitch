@@ -202,7 +202,7 @@ impl<F: Clone + Send + Sync>
         state: &'b SessionState,
         req_state: ReqState,
         processor: &domain::Processor,
-        mut payment_data: hyperswitch_domain_models::payments::PaymentCancelData<F>,
+        payment_data: hyperswitch_domain_models::payments::PaymentCancelData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
@@ -223,17 +223,17 @@ impl<F: Clone + Send + Sync>
             updated_by: storage_scheme.to_string(),
         };
 
-        let updated_payment_attempt = db
-            .update_payment_attempt(
-                merchant_key_store,
-                payment_data.payment_attempt.clone(),
-                payment_attempt_update,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            .attach_printable("Failed to update payment attempt for cancellation")?;
-        payment_data.set_payment_attempt(updated_payment_attempt);
+        // Persist VoidInitiated before the connector call, but keep payment_data
+        // unchanged so post-connector handling can restore the real pre-Void status.
+        db.update_payment_attempt(
+            merchant_key_store,
+            payment_data.payment_attempt.clone(),
+            payment_attempt_update,
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Failed to update payment attempt for cancellation")?;
 
         Ok((Box::new(self), payment_data))
     }
