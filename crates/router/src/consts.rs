@@ -369,7 +369,7 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
-    /// Fingerprint secret configuration key
+    /// Fingerprint secret configuration key retained for migration fallback
     pub const FINGERPRINT_SECRET: &str = "fingerprint_secret";
     /// Poll config for external 3DS authentication key
     pub const POLL_CONFIG_EXTERNAL_THREE_DS: &str = "poll_config_external_three_ds";
