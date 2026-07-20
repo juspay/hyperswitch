@@ -34,6 +34,10 @@ pub const STRIPE_ACCOUNT_ONBOARDING_DELAY_IN_SECONDS: i64 = 15;
 /// Maximum limit for payment link list get api
 pub const PAYMENTS_LINK_LIST_LIMIT: u32 = 100;
 
+/// Default merchant logo link for payment links.
+pub const DEFAULT_MERCHANT_LOGO: &str =
+    "https://live.hyperswitch.io/payment-link-assets/Merchant_placeholder.png";
+
 /// Maximum limit for payouts list get api
 pub const PAYOUTS_LIST_MAX_LIMIT_GET: u32 = 100;
 /// Maximum limit for payouts list post api

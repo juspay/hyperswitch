@@ -13,6 +13,11 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
     let preview_config: PaymentLinkPreviewConfig = serde_json::from_str(config_json)
         .map_err(|e| format!("Failed to deserialize PaymentLinkPreviewConfig: {}", e))?;
 
+    if preview_config.payment_link_details.merchant_logo.is_empty() {
+        preview_config.payment_link_details.merchant_logo =
+            common_utils::consts::DEFAULT_MERCHANT_LOGO.to_string();
+    }
+
     let payment_link_details = &preview_config.payment_link_details;
 
     let mut payment_link_config = PaymentLinkConfig {
