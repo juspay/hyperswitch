@@ -1,7 +1,8 @@
 use api_models::admin::PaymentLinkConfig;
 
 use crate::{
-    build_payment_link_html, get_css_script, get_js_script, get_meta_tags_html,
+    build_payment_link_html, consts::DEFAULT_MERCHANT_LOGO, get_css_script, get_js_script,
+    get_meta_tags_html,
     types::PaymentLinkPreviewConfig, PaymentLinkFormData,
 };
 
@@ -14,8 +15,7 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
         .map_err(|e| format!("Failed to deserialize PaymentLinkPreviewConfig: {}", e))?;
 
     if preview_config.payment_link_details.merchant_logo.is_empty() {
-        preview_config.payment_link_details.merchant_logo =
-            common_utils::consts::DEFAULT_MERCHANT_LOGO.to_string();
+        preview_config.payment_link_details.merchant_logo = DEFAULT_MERCHANT_LOGO.to_string();
     }
 
     let payment_link_details = &preview_config.payment_link_details;

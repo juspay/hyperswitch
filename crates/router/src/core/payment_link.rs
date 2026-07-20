@@ -5,7 +5,7 @@ use api_models::{
     payments::{PaymentLinkData, PaymentLinkStatusWrap},
 };
 use common_utils::{
-    consts::{DEFAULT_LOCALE, DEFAULT_MERCHANT_LOGO, DEFAULT_SESSION_EXPIRY},
+    consts::{DEFAULT_LOCALE, DEFAULT_SESSION_EXPIRY},
     ext_traits::{OptionExt, ValueExt},
     types::{AmountConvertor, StringMajorUnitForCore},
 };
@@ -13,6 +13,7 @@ use error_stack::{report, ResultExt};
 use futures::future;
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use hyperswitch_masking::{PeekInterface, Secret};
+use payment_link::consts::DEFAULT_MERCHANT_LOGO;
 use router_env::logger;
 use time::PrimitiveDateTime;
 
