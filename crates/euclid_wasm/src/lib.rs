@@ -540,6 +540,14 @@ pub fn get_payout_description_category() -> JsResult {
     Ok(serde_wasm_bindgen::to_value(&category)?)
 }
 
+#[wasm_bindgen(js_name = getCardSubtypeValues)]
+pub fn get_card_subtype_values() -> JsResult {
+    let config = card_metadata::CardMetadataConfig::load()
+        .map_err(|error| error.to_string())
+        .err_to_js()?;
+    Ok(serde_wasm_bindgen::to_value(&config.card_subtypes)?)
+}
+
 #[wasm_bindgen(js_name = getCardTypeValues)]
 pub fn get_card_type_values() -> JsResult {
     let types: Vec<CardType> = CardType::iter().collect();
