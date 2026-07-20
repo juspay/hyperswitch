@@ -84,6 +84,12 @@ describe("Bank Transfers", () => {
   context("Bank transfer - Pix Refund flow", () => {
     it("Create Payment Intent for Pix -> List Merchant Payment Methods -> Confirm Bank Transfer for Pix -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment -> List Refunds -> Retrieve Payment after Refund", () => {
       let shouldContinue = true;
+      const getPixRefundData = () =>
+        globalState.get("connectorId") === "facilitapay"
+          ? getConnectorDetails(globalState.get("connectorId"))[
+              "bank_transfer_pm"
+            ]["Pix"]
+          : undefined;
 
       cy.step("Create Payment Intent for Pix", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -114,9 +120,7 @@ describe("Bank Transfers", () => {
           cy.task("cli_log", "Skipping step: Confirm Bank Transfer for Pix");
           return;
         }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "bank_transfer_pm"
-        ]["Pix"];
+        const confirmData = getPixRefundData();
         if (!confirmData) {
           shouldContinue = false;
           return;
@@ -137,9 +141,7 @@ describe("Bank Transfers", () => {
           );
           return;
         }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "bank_transfer_pm"
-        ]["Pix"];
+        const confirmData = getPixRefundData();
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
 
@@ -196,9 +198,7 @@ describe("Bank Transfers", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment after Refund");
           return;
         }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "bank_transfer_pm"
-        ]["Pix"];
+        const confirmData = getPixRefundData();
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
     });
