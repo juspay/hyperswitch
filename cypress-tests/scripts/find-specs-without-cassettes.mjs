@@ -86,7 +86,7 @@ function extractTitlePaths(specContent) {
 const args = process.argv.slice(2);
 const getArg = (name) => {
   const i = args.indexOf(`--${name}`);
-  return i !== -1 ? args[i + 1] ?? null : null;
+  return i !== -1 ? (args[i + 1] ?? null) : null;
 };
 
 const connectorsRaw = getArg("connectors") ?? "";
