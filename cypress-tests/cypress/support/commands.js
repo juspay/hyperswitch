@@ -1579,11 +1579,6 @@ Cypress.Commands.add(
             authDetails.additional_merchant_data;
         }
 
-        if (authDetails && authDetails.payment_methods_enabled) {
-          createConnectorBody.payment_methods_enabled =
-            authDetails.payment_methods_enabled;
-        }
-
         cy.request({
           method: "POST",
           url: url,
