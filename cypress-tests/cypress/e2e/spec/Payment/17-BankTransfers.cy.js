@@ -116,7 +116,7 @@ describe("Bank Transfers", () => {
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_transfer_pm"
-        ]["PixForRefund"];
+        ]["Pix"];
         if (!confirmData) {
           shouldContinue = false;
           return;
@@ -127,9 +127,6 @@ describe("Bank Transfers", () => {
           true,
           globalState
         );
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
       });
 
       cy.step("Retrieve Payment after Confirmation", () => {
@@ -142,11 +139,8 @@ describe("Bank Transfers", () => {
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_transfer_pm"
-        ]["PixForRefund"];
+        ]["Pix"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
       });
 
       cy.step("Refund Payment", () => {
@@ -204,7 +198,7 @@ describe("Bank Transfers", () => {
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_transfer_pm"
-        ]["PixForRefund"];
+        ]["Pix"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
     });
