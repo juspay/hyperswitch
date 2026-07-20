@@ -171,9 +171,6 @@ pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
 /// [PaymentLink] Default bool for enabling button only when form is ready
 pub const DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY: bool = false;
 
-/// Default Merchant Logo Link
-pub const DEFAULT_MERCHANT_LOGO: &str = consts::DEFAULT_MERCHANT_LOGO;
-
 /// Default Payment Link Background color
 pub const DEFAULT_BACKGROUND_COLOR: &str = "#212E46";
 
