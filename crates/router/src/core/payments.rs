@@ -13508,14 +13508,9 @@ impl EligibilityCheck for BlockListCheck {
         payment_elgibility_data: &PaymentEligibilityData,
         business_profile: &domain::Profile,
     ) -> CustomResult<CheckResult, errors::ApiErrorResponse> {
-        let dimensions = Dimensions::new()
-            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
-
         let block_reason = blocklist_utils::should_payment_be_blocked(
             state,
             platform.get_processor(),
-            &dimensions,
             &payment_elgibility_data.payment_method_data,
             business_profile,
         )
