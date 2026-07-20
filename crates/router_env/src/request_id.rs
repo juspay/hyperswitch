@@ -78,14 +78,27 @@ pub(crate) mod semantic_boundary {
             .as_ref()
     }
 
-    pub(super) fn is_active() -> bool {
-        hook().map(Arc::as_ref).is_some_and(DejaHook::is_active)
-    }
-
-    pub(super) fn is_record_mode() -> bool {
+    /// PROCESS-level "is deja on?" for the ingress middleware.
+    ///
+    /// This MUST read `process_mode`, not `mode`. `mode` on a recorder ANDs in
+    /// the per-correlation sampling decision, and the ingress middleware is the
+    /// thing that PUSHES that decision — gating ingress on `mode` is circular
+    /// (no request is ever recorded because the decision is never set because
+    /// the block that sets it is gated on the decision). `process_mode` reflects
+    /// only the boot-time configuration, so it is stable before any decision
+    /// exists.
+    pub(super) fn process_is_active() -> bool {
         hook()
             .map(Arc::as_ref)
-            .is_some_and(|hook| hook.mode().is_record())
+            .is_some_and(|hook| !hook.process_mode().is_disabled())
+    }
+
+    /// PROCESS-level "is this a record candidate?" for the ingress middleware.
+    /// Reads `process_mode` for the same reason as [`process_is_active`].
+    pub(super) fn process_is_record_mode() -> bool {
+        hook()
+            .map(Arc::as_ref)
+            .is_some_and(|hook| hook.process_mode().is_record())
     }
 
     pub(super) fn record_id_generation(
@@ -1003,9 +1016,9 @@ where
                     semantic_boundary::RecordingBody<B>,
                     semantic_boundary::RecordingBody<B>,
                 >,
-            > = if semantic_boundary::is_active() {
+            > = if semantic_boundary::process_is_active() {
                 let mut recording_decision_installed = false;
-                let should_record_http_incoming = if semantic_boundary::is_record_mode() {
+                let should_record_http_incoming = if semantic_boundary::process_is_record_mode() {
                     let decision = match recording_sampler {
                         Some(sampler) => sampler.should_record(request_facts.clone()).await,
                         None => true,
@@ -1142,6 +1155,56 @@ impl FromRequest for RequestId {
 mod tests {
     use super::*;
 
+    /// Regression sentinel for the ingress circular-dependency bug.
+    ///
+    /// The opt-in recording flip made `RecordingHook::mode()` return `Record`
+    /// only while a per-correlation decision is pushed. The ingress middleware
+    /// is what pushes that decision, so gating ingress on `mode()` was circular:
+    /// `mode()` is `Disabled` at ingress (no decision yet) → the predicate is
+    /// false → the sampler never runs → no decision is ever pushed → nothing is
+    /// ever recorded (the empty-tape bug).
+    ///
+    /// The fix routes the ingress predicates through `process_mode()`, which
+    /// reflects the boot-time configuration and ignores the per-request gate.
+    /// This test pins the exact pivot at the type level, with no global install
+    /// and no async: a fresh recorder with no decision in scope must report
+    /// `process_mode() == Record` (ingress may proceed) while `mode() ==
+    /// Disabled` (the boundary gate still governs actual capture). On the old
+    /// code the first assertion is what the middleware needed and never got.
+    #[cfg(feature = "deja")]
+    #[test]
+    fn ingress_process_mode_is_record_before_any_decision_is_pushed() {
+        struct NullSink;
+        impl deja::RecordSink<deja::DejaRecord> for NullSink {
+            fn write_batch(&mut self, _records: &[deja::DejaRecord]) -> std::io::Result<()> {
+                Ok(())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+
+        let hook = deja::RecordingHook::with_sink(
+            NullSink,
+            "ingress-sentinel".to_string(),
+            deja::WriterConfig::default(),
+        );
+
+        // No per-correlation decision has been pushed for this thread.
+        assert_eq!(
+            deja::DejaHook::process_mode(&hook),
+            deja::RuntimeMode::Record,
+            "ingress predicate must see Record from process config alone, or the \
+             middleware can never push the decision that flips the boundary gate"
+        );
+        assert_eq!(
+            deja::DejaHook::capture_verdict(&hook),
+            deja::CaptureVerdict::SkipNoDecision,
+            "the per-boundary capture gate must stay closed until a decision is \
+             pushed — the split is what breaks the ingress circular dependency"
+        );
+    }
+
     #[test]
     fn request_identifier_builder_keeps_explicit_header_and_id_reuse_without_sampler() {
         let identifier =
@@ -1202,7 +1265,7 @@ mod tests {
 
     #[cfg(feature = "deja")]
     impl deja::DejaHook for ObservedRecordingHook {
-        fn mode(&self) -> deja::RuntimeMode {
+        fn process_mode(&self) -> deja::RuntimeMode {
             deja::RuntimeMode::Record
         }
 
