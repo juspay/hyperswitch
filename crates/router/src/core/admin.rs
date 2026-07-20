@@ -1610,7 +1610,26 @@ impl ConnectorTypeAndConnectorName<'_> {
         let surcharge_connector =
             api_enums::convert_surcharge_connector(self.connector_name.to_string().as_str());
 
-        if pm_auth_connector.is_some() {
+        // ACI is a payment processor that ALSO offers stand-alone 3DS
+        // authentication (`AuthenticationConnectors::Aci`) and FRM
+        // (`FrmConnectors::Aci`). The single-role checks below assume a
+        // connector name maps to exactly one `connector_type`; without this
+        // carve-out, `authentication_connector.is_some()` would reject ACI
+        // payment and FRM MCAs once ACI is registered as an authentication
+        // connector. Validate ACI against the full set of types it supports.
+        if matches!(self.connector_name, api_enums::Connector::Aci) {
+            if !matches!(
+                self.connector_type,
+                api_enums::ConnectorType::PaymentProcessor
+                    | api_enums::ConnectorType::AuthenticationProcessor
+                    | api_enums::ConnectorType::PaymentVas
+            ) {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid connector type given".to_string(),
+                }
+                .into());
+            }
+        } else if pm_auth_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::PaymentMethodAuth
                 && self.connector_type != &api_enums::ConnectorType::PaymentProcessor
             {

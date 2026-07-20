@@ -17,26 +17,46 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
+        authentication::{
+            Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
+        },
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
     },
     router_request_types::{
+        authentication::{
+            ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData,
+            PreAuthNRequestData,
+        },
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        AuthenticationResponseData, ConnectorInfo, PaymentMethodDetails, PaymentsResponseData,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundsRouterData,
     },
 };
+#[cfg(feature = "frm")]
+use hyperswitch_domain_models::{
+    router_flow_types::{Checkout, Sale},
+    router_request_types::fraud_check::{FraudCheckCheckoutData, FraudCheckSaleData},
+    router_response_types::fraud_check::FraudCheckResponseData,
+};
+#[cfg(feature = "frm")]
+use hyperswitch_interfaces::api::{FraudCheckCheckout, FraudCheckSale};
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
+        self,
+        authentication::{
+            ConnectorAuthentication, ConnectorPostAuthentication, ConnectorPreAuthentication,
+            ConnectorPreAuthenticationVersionCall, ExternalAuthentication,
+        },
+        ConnectorCommon, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     errors,
@@ -51,9 +71,14 @@ use hyperswitch_masking::{Mask, PeekInterface};
 use ring::aead::{self, UnboundKey};
 use transformers as aci;
 
+#[cfg(feature = "frm")]
+use crate::types::{FrmCheckoutRouterData, FrmCheckoutType, FrmSaleRouterData, FrmSaleType};
 use crate::{
     constants::headers,
-    types::ResponseRouterData,
+    types::{
+        ConnectorPostAuthenticationRouterData, ConnectorPostAuthenticationType,
+        ConnectorPreAuthenticationType, PreAuthNRouterData, ResponseRouterData,
+    },
     utils::{convert_amount, PaymentsAuthorizeRequestData},
 };
 
@@ -109,6 +134,20 @@ impl ConnectorCommon for Aci {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        // Surface the acquirer response code and parsed connector TX IDs on the
+        // HTTP-error decline path too, not just on the 2xx result-code path.
+        let network_decline_code = response
+            .result_details
+            .as_ref()
+            .and_then(aci::aci_network_decline_code);
+        let network_advice_code = response
+            .result_details
+            .as_ref()
+            .and_then(|details| details.merchant_advice_code.clone());
+        let connector_metadata = response
+            .result_details
+            .as_ref()
+            .and_then(aci::build_error_connector_metadata);
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.result.code,
@@ -126,12 +165,12 @@ impl ConnectorCommon for Aci {
                     .join("; ")
             }),
             attempt_status: None,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
+            connector_transaction_id: response.id.clone(),
+            connector_response_reference_id: response.id,
+            network_advice_code,
+            network_decline_code,
             network_error_message: None,
-            connector_metadata: None,
+            connector_metadata,
         })
     }
 }
@@ -513,7 +552,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = aci::AciRouterData::from((amount, req));
         let connector_req = aci::AciPaymentsRequest::try_from(&connector_router_data)?;
-
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -748,6 +786,208 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Aci {
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Aci {}
 
+// ─── ExternalAuthentication (Standalone 3DS via /v1/threeDSecure) ─────────────
+
+impl ConnectorPreAuthentication for Aci {}
+impl ConnectorPreAuthenticationVersionCall for Aci {}
+impl ConnectorAuthentication for Aci {}
+impl ConnectorPostAuthentication for Aci {}
+impl ExternalAuthentication for Aci {}
+
+/// PreAuthentication maps to `POST /v1/threeDSecure` — initiates standalone 3DS.
+impl ConnectorIntegration<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>
+    for Aci
+{
+    fn get_headers(
+        &self,
+        req: &PreAuthNRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            self.common_get_content_type().to_string().into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PreAuthNRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}v1/threeDSecure", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PreAuthNRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = aci::AciStandaloneThreeDsRequest::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PreAuthNRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&ConnectorPreAuthenticationType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(ConnectorPreAuthenticationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(ConnectorPreAuthenticationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PreAuthNRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PreAuthNRouterData, errors::ConnectorError> {
+        let response: aci::AciPaymentsResponse = res
+            .response
+            .parse_struct("AciPaymentsResponse (3DS PreAuth)")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+/// PreAuthenticationVersionCall — stub (ACI has no separate versioning endpoint).
+impl
+    ConnectorIntegration<
+        PreAuthenticationVersionCall,
+        PreAuthNRequestData,
+        AuthenticationResponseData,
+    > for Aci
+{
+}
+
+/// Authentication — stub (redirect/challenge handled by browser after PreAuth).
+impl
+    ConnectorIntegration<
+        Authentication,
+        ConnectorAuthenticationRequestData,
+        AuthenticationResponseData,
+    > for Aci
+{
+}
+
+/// PostAuthentication maps to `GET /v1/threeDSecure/{id}` — retrieves final 3DS result.
+impl
+    ConnectorIntegration<
+        PostAuthentication,
+        ConnectorPostAuthenticationRequestData,
+        AuthenticationResponseData,
+    > for Aci
+{
+    fn get_headers(
+        &self,
+        req: &ConnectorPostAuthenticationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
+        self.get_auth_header(&req.connector_auth_type)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &ConnectorPostAuthenticationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let auth = aci::AciAuthType::try_from(&req.connector_auth_type)?;
+        Ok(format!(
+            "{}v1/threeDSecure/{}?entityId={}",
+            self.base_url(connectors),
+            req.request.threeds_server_transaction_id,
+            auth.entity_id.peek()
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &ConnectorPostAuthenticationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&ConnectorPostAuthenticationType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(ConnectorPostAuthenticationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &ConnectorPostAuthenticationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<ConnectorPostAuthenticationRouterData, errors::ConnectorError> {
+        let response: aci::AciPaymentsResponse = res
+            .response
+            .parse_struct("AciPaymentsResponse (3DS PostAuth)")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 /// Decrypts an AES-256-GCM encrypted payload where the IV, auth tag, and ciphertext
 /// are provided separately as hex strings. This is specifically tailored for ACI webhooks.
 ///
@@ -819,6 +1059,137 @@ fn decrypt_aci_webhook_payload(
 
     Ok(ciphertext_and_tag)
 }
+
+// =============================================================================
+// Fraud Risk Management (FRM) — ACI stand-alone fraud management (redShield).
+//
+// The `Sale` (post-auth) and `Checkout` (pre-auth) decision flows both map onto
+// `POST /v2/redShield`, reusing the existing ACI auth and base URL. The
+// `Transaction`/`Fulfillment`/`RecordReturn` flows stay no-ops (redShield has no
+// outcome-reporting endpoint) and are provided by the default-impl macros. The
+// `FraudCheck` master trait is also provided by a default-impl macro.
+// =============================================================================
+
+#[cfg(feature = "frm")]
+impl FraudCheckSale for Aci {}
+#[cfg(feature = "frm")]
+impl FraudCheckCheckout for Aci {}
+
+// The Sale and Checkout redShield FRM flows are identical apart from their flow /
+// data / RouterData / type-alias parameters and the parse label; generate both from
+// one definition so a change to the redShield call shape can't drift between them.
+#[cfg(feature = "frm")]
+macro_rules! impl_aci_redshield_frm_flow {
+    ($flow:ty, $data:ty, $router_data:ty, $flow_type:ty, $parse_label:literal) => {
+        impl ConnectorIntegration<$flow, $data, FraudCheckResponseData> for Aci {
+            fn get_headers(
+                &self,
+                req: &$router_data,
+                _connectors: &Connectors,
+            ) -> CustomResult<
+                Vec<(String, hyperswitch_masking::Maskable<String>)>,
+                errors::ConnectorError,
+            > {
+                let mut header = vec![(
+                    headers::CONTENT_TYPE.to_string(),
+                    self.common_get_content_type().to_string().into(),
+                )];
+                let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+                header.append(&mut api_key);
+                Ok(header)
+            }
+
+            fn get_content_type(&self) -> &'static str {
+                self.common_get_content_type()
+            }
+
+            fn get_url(
+                &self,
+                _req: &$router_data,
+                connectors: &Connectors,
+            ) -> CustomResult<String, errors::ConnectorError> {
+                Ok(format!("{}v2/redShield", self.base_url(connectors)))
+            }
+
+            fn get_request_body(
+                &self,
+                req: &$router_data,
+                _connectors: &Connectors,
+            ) -> CustomResult<RequestContent, errors::ConnectorError> {
+                let currency = req.request.currency.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "currency",
+                    },
+                )?;
+                let amount = convert_amount(self.amount_converter, req.request.amount, currency)?;
+                let connector_router_data = aci::AciRouterData::from((amount, req));
+                let connector_req = aci::AciRedShieldRequest::try_from(&connector_router_data)?;
+                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+            }
+
+            fn build_request(
+                &self,
+                req: &$router_data,
+                connectors: &Connectors,
+            ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+                Ok(Some(
+                    RequestBuilder::new()
+                        .method(Method::Post)
+                        .url(&<$flow_type>::get_url(self, req, connectors)?)
+                        .attach_default_headers()
+                        .headers(<$flow_type>::get_headers(self, req, connectors)?)
+                        .set_body(<$flow_type>::get_request_body(self, req, connectors)?)
+                        .build(),
+                ))
+            }
+
+            fn handle_response(
+                &self,
+                data: &$router_data,
+                event_builder: Option<&mut ConnectorEvent>,
+                res: Response,
+            ) -> CustomResult<$router_data, errors::ConnectorError> {
+                let response: aci::AciRedShieldResponse = res
+                    .response
+                    .parse_struct($parse_label)
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                <$router_data>::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+
+            fn get_error_response(
+                &self,
+                res: Response,
+                event_builder: Option<&mut ConnectorEvent>,
+            ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+                self.build_error_response(res, event_builder)
+            }
+        }
+    };
+}
+
+#[cfg(feature = "frm")]
+impl_aci_redshield_frm_flow!(
+    Sale,
+    FraudCheckSaleData,
+    FrmSaleRouterData,
+    FrmSaleType,
+    "AciRedShieldResponse Sale"
+);
+
+#[cfg(feature = "frm")]
+impl_aci_redshield_frm_flow!(
+    Checkout,
+    FraudCheckCheckoutData,
+    FrmCheckoutRouterData,
+    FrmCheckoutType,
+    "AciRedShieldResponse Checkout"
+);
 
 #[async_trait::async_trait]
 impl IncomingWebhook for Aci {
@@ -965,6 +1336,27 @@ impl IncomingWebhook for Aci {
                     Ok(IncomingWebhookEvent::EventNotSupported)
                 }
             }
+            // Registration webhooks are for mandate/token lifecycle events;
+            // Schedule webhooks are not currently actionable.
+            aci::AciWebhookEventType::Registration | aci::AciWebhookEventType::Schedule => {
+                Ok(IncomingWebhookEvent::EventNotSupported)
+            }
+            // Risk webhooks carry async fraud decisions when ACI is used as an
+            // FRM connector (redShield). Map the decision to an FRM event.
+            aci::AciWebhookEventType::Risk => {
+                #[cfg(feature = "frm")]
+                {
+                    let risk_payload: aci::AciRiskWebhookPayload =
+                        serde_json::from_value(aci_notification.payload)
+                            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)
+                            .attach_printable("Could not deserialize ACI risk webhook payload for event type determination")?;
+                    Ok(aci::aci_risk_webhook_event(&risk_payload))
+                }
+                #[cfg(not(feature = "frm"))]
+                {
+                    Ok(IncomingWebhookEvent::EventNotSupported)
+                }
+            }
         }
     }
 
@@ -985,6 +1377,23 @@ impl IncomingWebhook for Aci {
                         .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)
                         .attach_printable("Failed to deserialize ACI payment webhook payload")?;
                 Ok(Box::new(payment_payload))
+            }
+            aci::AciWebhookEventType::Registration | aci::AciWebhookEventType::Schedule => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
+            aci::AciWebhookEventType::Risk => {
+                #[cfg(feature = "frm")]
+                {
+                    let risk_payload: aci::AciRiskWebhookPayload =
+                        serde_json::from_value(aci_notification.payload)
+                            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)
+                            .attach_printable("Failed to deserialize ACI risk webhook payload")?;
+                    Ok(Box::new(risk_payload))
+                }
+                #[cfg(not(feature = "frm"))]
+                {
+                    Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+                }
             }
         }
     }
@@ -1165,7 +1574,7 @@ static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethod::Wallet,
         enums::PaymentMethodType::ApplePay,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
@@ -1176,7 +1585,7 @@ static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethod::Wallet,
         enums::PaymentMethodType::GooglePay,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
@@ -1187,7 +1596,7 @@ static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethod::Wallet,
         enums::PaymentMethodType::SamsungPay,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods,
             specific_features: None,

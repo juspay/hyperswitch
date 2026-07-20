@@ -1,25 +1,46 @@
 use std::str::FromStr;
 
+#[cfg(feature = "frm")]
+use api_models::webhooks::IncomingWebhookEvent;
 use cards::NetworkToken;
-use common_enums::enums;
+#[cfg(feature = "frm")]
+use common_enums::FraudCheckStatus;
+use common_enums::{enums, MitCategory};
 use common_types::payments::{ApplePayPredecryptData, GPayPredecryptData};
-use common_utils::{id_type, pii::Email, request::Method, types::StringMajorUnit};
+use common_utils::{
+    id_type,
+    pii::{Email, IpAddress},
+    request::Method,
+    types::{SemanticVersion, StringMajorUnit},
+};
 use error_stack::report;
+#[cfg(feature = "frm")]
+use hyperswitch_domain_models::router_response_types::fraud_check::FraudCheckResponseData;
 use hyperswitch_domain_models::{
     mandates,
+    mandates::MandateReferenceId,
     payment_method_data::{
         ApplePayWalletData, BankRedirectData, Card, GooglePayWalletData, NetworkTokenData,
         PayLaterData, PaymentMethodData, SamsungPayWalletData, WalletData,
     },
-    payment_methods::storage_enums::MitCategory,
-    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
-    router_flow_types::SetupMandate,
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, PaymentMethodToken, RouterData,
+    },
+    router_flow_types::{
+        authentication::{PostAuthentication, PreAuthentication},
+        SetupMandate,
+    },
     router_request_types::{
+        authentication::{
+            AuthNFlowType, ConnectorPostAuthenticationRequestData, PreAuthNRequestData,
+        },
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsSyncData, ResponseId,
-        SetupMandateRequestData,
+        SetupMandateRequestData, UcsAuthenticationData,
     },
     router_response_types::{
-        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+        AuthenticationResponseData, MandateReference, PaymentsResponseData, RedirectForm,
+        RefundsResponseData,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -27,11 +48,13 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use super::aci_result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
+#[cfg(feature = "frm")]
+use crate::types::{FrmCheckoutRouterData, FrmSaleRouterData};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
@@ -41,6 +64,28 @@ use crate::{
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
+
+/// Dynamic `customParameters[key]` entries forwarded to ACI.
+/// Each entry serializes as its own form field, e.g. `customParameters[paymentId]=pay_xxx`.
+#[derive(Debug, Default)]
+pub struct AciCustomParameters(Vec<(String, String)>);
+
+impl AciCustomParameters {
+    pub fn insert(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.0.push((key.into(), value.into()));
+    }
+}
+
+impl Serialize for AciCustomParameters {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(self.0.len()))?;
+        for (k, v) in &self.0 {
+            map.serialize_entry(&format!("customParameters[{k}]"), v)?;
+        }
+        map.end()
+    }
+}
 
 trait AttemptStatusMapper {
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
@@ -110,11 +155,124 @@ impl TryFrom<&ConnectorAuthType> for AciAuthType {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum StandingInstructionReason {
+    Resubmission,
+    DelayedCharges,
+    NoShow,
+}
+
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum AciRecurringType {
-    Initial,
-    Repeated,
+pub enum AciTestMode {
+    External,
+    Internal,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct AciCustomerBrowserInfo {
+    #[serde(rename = "customer.browser.acceptHeader")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub accept_header: Option<String>,
+    #[serde(rename = "customer.browser.language")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+    #[serde(rename = "customer.browser.screenHeight")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub screen_height: Option<String>,
+    #[serde(rename = "customer.browser.screenWidth")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub screen_width: Option<String>,
+    #[serde(rename = "customer.browser.timezone")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
+    #[serde(rename = "customer.browser.userAgent")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_agent: Option<String>,
+    #[serde(rename = "customer.browser.javascriptEnabled")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub javascript_enabled: Option<bool>,
+    #[serde(rename = "customer.browser.javaEnabled")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub java_enabled: Option<bool>,
+    #[serde(rename = "customer.browser.screenColorDepth")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color_depth: Option<String>,
+    #[serde(rename = "customer.browser.challengeWindow")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub challenge_window: Option<String>,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct AciCustomerData {
+    #[serde(rename = "customer.ip")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ip: Option<Secret<String, IpAddress>>,
+    #[serde(rename = "customer.email")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<Email>,
+    #[serde(rename = "customer.givenName")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub given_name: Option<Secret<String>>,
+    #[serde(rename = "customer.surname")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub surname: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct AciBillingAddress {
+    #[serde(rename = "billing.street1")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub street1: Option<Secret<String>>,
+    #[serde(rename = "billing.city")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<String>,
+    #[serde(rename = "billing.state")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<Secret<String>>,
+    #[serde(rename = "billing.country")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<api_models::enums::CountryAlpha2>,
+    #[serde(rename = "billing.postcode")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postcode: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct AciExternalThreeDsData {
+    #[serde(rename = "threeDSecure.eci")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci: Option<String>,
+    #[serde(rename = "threeDSecure.verificationId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verification_id: Option<Secret<String>>,
+    #[serde(rename = "threeDSecure.dsTransactionId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_transaction_id: Option<String>,
+    #[serde(rename = "threeDSecure.acsTransactionId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acs_transaction_id: Option<String>,
+    /// Merchant 3DS challenge preference (OPPWA `threeDSecure.challengeIndicator`,
+    /// values `01`-`09`). Sourced from request metadata.
+    #[serde(rename = "threeDSecure.challengeIndicator")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub challenge_indicator: Option<String>,
+    /// Requested SCA exemption (OPPWA `threeDSecure.exemptionFlag`, values
+    /// `01`-`04`). Sourced from request metadata.
+    #[serde(rename = "threeDSecure.exemptionFlag")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exemption_flag: Option<String>,
+    /// Authentication amount when it differs from the payment amount.
+    /// Sourced from request metadata.
+    #[serde(rename = "threeDSecure.amount")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<String>,
+    /// Authentication currency when it differs from the payment currency.
+    /// Sourced from request metadata.
+    #[serde(rename = "threeDSecure.currency")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -126,10 +284,29 @@ pub struct AciPaymentsRequest {
     pub payment_method: PaymentDetails,
     #[serde(flatten)]
     pub instruction: Option<Instruction>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub shopper_result_url: Option<String>,
     #[serde(rename = "customParameters[3DS2_enrolled]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub three_ds_two_enrolled: Option<bool>,
-    pub recurring_type: Option<AciRecurringType>,
+    #[serde(rename = "merchantTransactionId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_transaction_id: Option<String>,
+    /// EXTERNAL: forwards to processor's test system. INTERNAL: routes to ACI simulator.
+    /// Omitted on live transactions.
+    #[serde(rename = "testMode")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub test_mode: Option<AciTestMode>,
+    #[serde(flatten)]
+    pub customer_browser_info: AciCustomerBrowserInfo,
+    #[serde(flatten)]
+    pub customer_data: AciCustomerData,
+    #[serde(flatten)]
+    pub billing_address: AciBillingAddress,
+    #[serde(flatten)]
+    pub external_three_ds: AciExternalThreeDsData,
+    #[serde(flatten)]
+    pub custom_parameters: AciCustomParameters,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -139,6 +316,10 @@ pub struct TransactionDetails {
     pub amount: StringMajorUnit,
     pub currency: String,
     pub payment_type: AciPaymentType,
+    /// Dynamic statement descriptor shown on the shopper's statement.
+    /// Composed from statement_descriptor_name + statement_descriptor_suffix.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub descriptor: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -154,6 +335,8 @@ pub struct AciMandateRequest {
     pub entity_id: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_brand: Option<PaymentBrand>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub create_registration: Option<bool>,
     #[serde(flatten)]
     pub payment_details: PaymentDetails,
 }
@@ -165,6 +348,13 @@ pub struct AciMandateResponse {
     pub result: ResultCode,
     pub build_number: String,
     pub timestamp: String,
+    /// Acquirer / connector response details. Carries the CITI (scheme trace /
+    /// network transaction id) used as `standingInstruction.initialTransactionId`
+    /// on subsequent MITs.
+    pub result_details: Option<AciResponseResultDetails>,
+    /// Standing instruction fields (Mastercard agreementId/TLID returned on the
+    /// initial registration).
+    pub standing_instruction: Option<AciResponseStandingInstruction>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -246,20 +436,20 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
 /// Convert Apple Pay decrypted data to ACI network token format
 impl
     TryFrom<(
-        &AciRouterData<&PaymentsAuthorizeRouterData>,
         &ApplePayWalletData,
         Option<&PaymentMethodToken>,
+        Option<&hyperswitch_domain_models::router_request_types::BrowserInformation>,
     )> for PaymentDetails
 {
     type Error = Error;
     fn try_from(
         value: (
-            &AciRouterData<&PaymentsAuthorizeRouterData>,
             &ApplePayWalletData,
             Option<&PaymentMethodToken>,
+            Option<&hyperswitch_domain_models::router_request_types::BrowserInformation>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (_item, apple_pay_wallet_data, payment_method_token) = value;
+        let (apple_pay_wallet_data, payment_method_token, browser_info) = value;
 
         // Check if we have decrypted data available (via payment_method_token or wallet data)
         // If so, use the tokenAccount.* network token flow
@@ -279,6 +469,8 @@ impl
                 return Ok(Self::AciApplePayEncrypted(Box::new(
                     AciApplePayEncryptedData {
                         payment_token: Secret::new(encrypted_token.clone()),
+                        source: detect_wallet_source(browser_info),
+                        payment_brand: PaymentBrand::ApplePay,
                     },
                 )));
             }
@@ -286,13 +478,6 @@ impl
 
         // Decrypted flow — extract DPAN/cryptogram/ECI and use tokenAccount.*
         let apple_pay_data = get_apple_pay_data(apple_pay_wallet_data, payment_method_token)?;
-
-        let payment_brand = parse_wallet_card_network(
-            &apple_pay_wallet_data.payment_method.network,
-        )
-        .ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "apple_pay.payment_method.network",
-        })?;
 
         let aci_network_token_data = AciNetworkTokenData {
             token_type: AciTokenAccountType::Network,
@@ -308,7 +493,12 @@ impl
                     .clone(),
             ),
             eci: apple_pay_data.payment_data.eci_indicator.clone(),
-            payment_brand,
+            payment_brand: get_aci_wallet_payment_brand(
+                &apple_pay_wallet_data.payment_method.network,
+                PaymentBrand::ApplePayTkn,
+            ),
+            apple_pay_source: Some(detect_wallet_source(browser_info)),
+            google_pay_source: None,
         };
 
         Ok(Self::AciNetworkToken(Box::new(aci_network_token_data)))
@@ -318,20 +508,20 @@ impl
 /// Convert Google Pay decrypted data to ACI network token format
 impl
     TryFrom<(
-        &AciRouterData<&PaymentsAuthorizeRouterData>,
         &GooglePayWalletData,
         Option<&PaymentMethodToken>,
+        Option<&hyperswitch_domain_models::router_request_types::BrowserInformation>,
     )> for PaymentDetails
 {
     type Error = Error;
     fn try_from(
         value: (
-            &AciRouterData<&PaymentsAuthorizeRouterData>,
             &GooglePayWalletData,
             Option<&PaymentMethodToken>,
+            Option<&hyperswitch_domain_models::router_request_types::BrowserInformation>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (_item, google_pay_wallet_data, payment_method_token) = value;
+        let (google_pay_wallet_data, payment_method_token, browser_info) = value;
 
         // Check if we have encrypted data and no decryption token — use passthrough
         if let Ok(encrypted_data) = google_pay_wallet_data
@@ -348,6 +538,8 @@ impl
                 return Ok(Self::AciGooglePayEncrypted(Box::new(
                     AciGooglePayEncryptedData {
                         payment_token: Secret::new(encrypted_data.token.clone()),
+                        source: detect_wallet_source(browser_info),
+                        payment_brand: PaymentBrand::GooglePay,
                     },
                 )));
             }
@@ -355,11 +547,6 @@ impl
 
         // Decrypted flow — extract DPAN/cryptogram/ECI and use tokenAccount.*
         let google_pay_data = get_google_pay_data(google_pay_wallet_data, payment_method_token)?;
-
-        let payment_brand = parse_wallet_card_network(&google_pay_wallet_data.info.card_network)
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "google_pay.info.card_network",
-            })?;
 
         let aci_network_token_data = AciNetworkTokenData {
             token_type: AciTokenAccountType::Network,
@@ -374,7 +561,12 @@ impl
             })?,
             token_cryptogram: google_pay_data.cryptogram.clone(),
             eci: google_pay_data.eci_indicator.clone(),
-            payment_brand,
+            payment_brand: get_aci_wallet_payment_brand(
+                &google_pay_wallet_data.info.card_network,
+                PaymentBrand::GooglePayTkn,
+            ),
+            apple_pay_source: None,
+            google_pay_source: Some(detect_wallet_source(browser_info)),
         };
 
         Ok(Self::AciNetworkToken(Box::new(aci_network_token_data)))
@@ -385,12 +577,10 @@ impl
 impl TryFrom<&SamsungPayWalletData> for PaymentDetails {
     type Error = Error;
     fn try_from(samsung_pay_data: &SamsungPayWalletData) -> Result<Self, Self::Error> {
-        let payment_brand =
-            parse_samsung_pay_card_brand(&samsung_pay_data.payment_credential.card_brand)?;
-
         let aci_samsung_pay_data = AciSamsungPayData {
             payment_token: samsung_pay_data.payment_credential.token_data.data.clone(),
-            payment_brand,
+            source: AciWalletSource::App,
+            payment_brand: PaymentBrand::SamsungPayTkn,
         };
 
         Ok(Self::AciSamsungPay(Box::new(aci_samsung_pay_data)))
@@ -514,9 +704,9 @@ impl
                     bank_account_iban: None,
                     billing_country: Some(item.router_data.get_billing_country()?),
                     merchant_customer_id: Some(Secret::new(item.router_data.get_customer_id()?)),
-                    merchant_transaction_id: Some(Secret::new(
-                        item.router_data.connector_request_reference_id.clone(),
-                    )),
+                    merchant_transaction_id: Some(Secret::new(format_aci_merchant_transaction_id(
+                        &item.router_data.connector_request_reference_id,
+                    ))),
                     customer_email: None,
                 }))
             }
@@ -537,6 +727,46 @@ impl
         };
         Ok(payment_data)
     }
+}
+
+/// Normalise a reference into a wire-valid ACI `merchantTransactionId`.
+///
+/// ACI enforces two constraints on this field that Hyperswitch references can
+/// violate: a hard 16-character maximum, and no underscores (Hyperswitch IDs
+/// such as `pay_...` are underscore-delimited). We strip underscores first so
+/// the truncation budget isn't spent on characters ACI would reject, then take
+/// the first 16 characters.
+///
+/// NOTE: this is intentionally lossy — for references longer than 16 chars the
+/// value sent to ACI will differ from `connector_request_reference_id`. The
+/// untruncated reference still lives on the payment attempt; do not treat this
+/// field as a reconciliation key across PSP / merchant / Hyperswitch.
+fn format_aci_merchant_transaction_id(id: &str) -> String {
+    id.chars().filter(|c| *c != '_').take(16).collect()
+}
+
+// Request-metadata keys that map to ACI top-level `threeDSecure.*` request
+// parameters. These are pulled out of the metadata → `customParameters[*]`
+// forwarding and routed to their dedicated fields instead.
+const ACI_META_CHALLENGE_INDICATOR: &str = "threeDSecure.challengeIndicator";
+const ACI_META_EXEMPTION_FLAG: &str = "threeDSecure.exemptionFlag";
+const ACI_META_THREEDS_AMOUNT: &str = "threeDSecure.amount";
+const ACI_META_THREEDS_CURRENCY: &str = "threeDSecure.currency";
+
+const ACI_RESERVED_THREEDS_META_KEYS: [&str; 4] = [
+    ACI_META_CHALLENGE_INDICATOR,
+    ACI_META_EXEMPTION_FLAG,
+    ACI_META_THREEDS_AMOUNT,
+    ACI_META_THREEDS_CURRENCY,
+];
+
+/// Read a string-valued key from the request metadata object, if present.
+fn aci_metadata_string(metadata: Option<&serde_json::Value>, key: &str) -> Option<String> {
+    metadata
+        .and_then(|value| value.as_object())
+        .and_then(|obj| obj.get(key))
+        .and_then(|value| value.as_str())
+        .map(|s| s.to_string())
 }
 
 fn get_aci_payment_brand(
@@ -569,34 +799,31 @@ fn get_aci_payment_brand(
     }
 }
 
-fn parse_wallet_card_network(network: &str) -> Option<PaymentBrand> {
-    match network.to_lowercase().as_str() {
-        "visa" => Some(PaymentBrand::Visa),
-        "mastercard" => Some(PaymentBrand::Mastercard),
-        "amex" | "americanexpress" | "american express" => Some(PaymentBrand::AmericanExpress),
-        "jcb" => Some(PaymentBrand::Jcb),
-        "diners" | "dinersclub" | "diners club" => Some(PaymentBrand::DinersClub),
-        "discover" => Some(PaymentBrand::Discover),
-        "unionpay" | "union pay" => Some(PaymentBrand::UnionPay),
-        "maestro" => Some(PaymentBrand::Maestro),
+/// Map the card-network string carried in the Apple Pay / Google Pay wallet data
+/// (e.g. "visa", "masterCard", "AMEX") to ACI's `PaymentBrand`.
+///
+/// When Hyperswitch decrypts the wallet token itself, ACI expects the underlying
+/// card network as the `paymentBrand` on the `tokenAccount.*` path rather than the
+/// generic `APPLEPAYTKN` / `GOOGLEPAYTKN` brand. Falls back to `fallback` when the
+/// network string can't be mapped.
+fn get_aci_wallet_payment_brand(network: &str, fallback: PaymentBrand) -> PaymentBrand {
+    // Normalize the wallet-specific network string into a typed CardNetwork, then defer
+    // to get_aci_payment_brand for the CardNetwork -> PaymentBrand mapping so that table
+    // lives in exactly one place and the two paths cannot drift.
+    let card_network = match network.to_lowercase().as_str() {
+        "visa" => Some(common_enums::CardNetwork::Visa),
+        "mastercard" | "master" => Some(common_enums::CardNetwork::Mastercard),
+        "amex" | "americanexpress" => Some(common_enums::CardNetwork::AmericanExpress),
+        "jcb" => Some(common_enums::CardNetwork::JCB),
+        "diners" | "dinersclub" => Some(common_enums::CardNetwork::DinersClub),
+        "discover" => Some(common_enums::CardNetwork::Discover),
+        "unionpay" | "chinaunionpay" => Some(common_enums::CardNetwork::UnionPay),
+        "maestro" => Some(common_enums::CardNetwork::Maestro),
         _ => None,
-    }
-}
-
-fn parse_samsung_pay_card_brand(
-    card_brand: &common_enums::SamsungPayCardBrand,
-) -> Result<PaymentBrand, Error> {
-    match card_brand {
-        common_enums::SamsungPayCardBrand::Visa => Ok(PaymentBrand::Visa),
-        common_enums::SamsungPayCardBrand::MasterCard => Ok(PaymentBrand::Mastercard),
-        common_enums::SamsungPayCardBrand::Amex => Ok(PaymentBrand::AmericanExpress),
-        common_enums::SamsungPayCardBrand::Discover => Ok(PaymentBrand::Discover),
-        common_enums::SamsungPayCardBrand::Unknown => {
-            Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "samsung_pay.card_brand",
-            })?
-        }
-    }
+    };
+    card_network
+        .and_then(|network| get_aci_payment_brand(Some(network), false).ok())
+        .unwrap_or(fallback)
 }
 
 fn get_apple_pay_data(
@@ -690,6 +917,8 @@ impl
             ),
             eci: network_token_data.eci.clone(),
             payment_brand,
+            apple_pay_source: None,
+            google_pay_source: None,
         };
         Ok(Self::AciNetworkToken(Box::new(aci_network_token_data)))
     }
@@ -713,12 +942,45 @@ pub struct AciNetworkTokenData {
     #[serde(rename = "tokenAccount.expiryYear")]
     pub token_expiry_year: Secret<String>,
     #[serde(rename = "tokenAccount.cryptogram")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub token_cryptogram: Option<Secret<String>>,
     #[serde(rename = "threeDSecure.eci")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub eci: Option<String>,
     #[serde(rename = "paymentBrand")]
     pub payment_brand: PaymentBrand,
+    /// Set only on the Apple Pay decrypted flow; mutually exclusive with `google_pay_source`.
+    #[serde(rename = "applePay.source", skip_serializing_if = "Option::is_none")]
+    pub apple_pay_source: Option<AciWalletSource>,
+    /// Set only on the Google Pay decrypted flow; mutually exclusive with `apple_pay_source`.
+    #[serde(rename = "googlePay.source", skip_serializing_if = "Option::is_none")]
+    pub google_pay_source: Option<AciWalletSource>,
+}
+
+/// Integration channel for wallet token passthrough — ACI requires either
+/// `web` (browser-based) or `app` (native SDK).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AciWalletSource {
+    #[default]
+    Web,
+    App,
+}
+
+/// Heuristic: a request without a browser User-Agent is treated as a native SDK call;
+/// anything else is treated as a browser-based flow.
+///
+/// Web flows always carry a User-Agent through Hyperswitch's `browser_info`; native
+/// SDKs (iOS PKPaymentRequest, Android Google Pay API) don't populate it. Good enough
+/// for the common case — merchants on edge integrations can still set up the
+/// passthrough wallet without per-MCA config.
+fn detect_wallet_source(
+    browser_info: Option<&hyperswitch_domain_models::router_request_types::BrowserInformation>,
+) -> AciWalletSource {
+    match browser_info.and_then(|b| b.user_agent.as_deref()) {
+        Some(ua) if !ua.is_empty() => AciWalletSource::Web,
+        _ => AciWalletSource::App,
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -726,6 +988,13 @@ pub struct AciNetworkTokenData {
 pub struct AciApplePayEncryptedData {
     #[serde(rename = "applePay.paymentToken")]
     pub payment_token: Secret<String>,
+    /// Required by ACI: indicates the Apple Pay integration channel.
+    /// "web" for browser-based flows, "app" for native iOS app flows.
+    #[serde(rename = "applePay.source")]
+    pub source: AciWalletSource,
+    /// Wallet brand identifier — ACI expects `APPLEPAY` for token-passthrough.
+    #[serde(rename = "paymentBrand")]
+    pub payment_brand: PaymentBrand,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -733,6 +1002,13 @@ pub struct AciApplePayEncryptedData {
 pub struct AciGooglePayEncryptedData {
     #[serde(rename = "googlePay.paymentToken")]
     pub payment_token: Secret<String>,
+    /// Required by ACI: indicates the Google Pay integration channel.
+    /// "web" for browser-based flows, "app" for native Android app flows.
+    #[serde(rename = "googlePay.source")]
+    pub source: AciWalletSource,
+    /// Wallet brand identifier — ACI expects `GOOGLEPAY` for token-passthrough.
+    #[serde(rename = "paymentBrand")]
+    pub payment_brand: PaymentBrand,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -740,6 +1016,9 @@ pub struct AciGooglePayEncryptedData {
 pub struct AciSamsungPayData {
     #[serde(rename = "samsungPay.paymentToken")]
     pub payment_token: Secret<String>,
+    /// Required by ACI: Samsung Pay is always app-based.
+    #[serde(rename = "samsungPay.source")]
+    pub source: AciWalletSource,
     #[serde(rename = "paymentBrand")]
     pub payment_brand: PaymentBrand,
 }
@@ -749,19 +1028,27 @@ pub struct AciSamsungPayData {
 pub struct BankRedirectionPMData {
     payment_brand: PaymentBrand,
     #[serde(rename = "bankAccount.country")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     bank_account_country: Option<api_models::enums::CountryAlpha2>,
     #[serde(rename = "bankAccount.bankName")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     bank_account_bank_name: Option<common_enums::BankNames>,
     #[serde(rename = "bankAccount.bic")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     bank_account_bic: Option<Secret<String>>,
     #[serde(rename = "bankAccount.iban")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     bank_account_iban: Option<Secret<String>>,
     #[serde(rename = "billing.country")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     billing_country: Option<api_models::enums::CountryAlpha2>,
     #[serde(rename = "customer.email")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     customer_email: Option<Email>,
     #[serde(rename = "customer.merchantCustomerId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     merchant_customer_id: Option<Secret<id_type::CustomerId>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     merchant_transaction_id: Option<Secret<String>>,
 }
 
@@ -770,6 +1057,7 @@ pub struct BankRedirectionPMData {
 pub struct WalletPMData {
     payment_brand: PaymentBrand,
     #[serde(rename = "virtualAccount.accountId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     account_id: Option<Secret<String>>,
 }
 
@@ -787,6 +1075,19 @@ pub enum PaymentBrand {
     Mbway,
     #[serde(rename = "ALIPAY")]
     AliPay,
+    // Wallet brands — required by ACI for token-passthrough flows.
+    #[serde(rename = "APPLEPAY")]
+    ApplePay,
+    #[serde(rename = "GOOGLEPAY")]
+    GooglePay,
+    #[serde(rename = "SAMSUNGPAYTKN")]
+    SamsungPayTkn,
+    // Wallet network-token brands — sent on the tokenAccount.* path
+    // when Hyperswitch decrypts the wallet token.
+    #[serde(rename = "APPLEPAYTKN")]
+    ApplePayTkn,
+    #[serde(rename = "GOOGLEPAYTKN")]
+    GooglePayTkn,
     // Card network brands
     #[serde(rename = "VISA")]
     Visa,
@@ -804,6 +1105,28 @@ pub enum PaymentBrand {
     UnionPay,
     #[serde(rename = "MAESTRO")]
     Maestro,
+}
+
+impl PaymentBrand {
+    /// Canonical card network for the card-brand variants, used to populate the
+    /// informational `card_network` response field. Returns `None` for non-card
+    /// brands (wallets/APMs) so they don't leak into `card_network`. Mapping to a
+    /// typed `CardNetwork` keeps the stored value stable (Debug-formatting the enum
+    /// would couple the wire value to the derive and emit names like "Mastercard"
+    /// instead of the canonical network).
+    fn as_card_network(&self) -> Option<common_enums::CardNetwork> {
+        match self {
+            Self::Visa => Some(common_enums::CardNetwork::Visa),
+            Self::Mastercard => Some(common_enums::CardNetwork::Mastercard),
+            Self::AmericanExpress => Some(common_enums::CardNetwork::AmericanExpress),
+            Self::Jcb => Some(common_enums::CardNetwork::JCB),
+            Self::DinersClub => Some(common_enums::CardNetwork::DinersClub),
+            Self::Discover => Some(common_enums::CardNetwork::Discover),
+            Self::UnionPay => Some(common_enums::CardNetwork::UnionPay),
+            Self::Maestro => Some(common_enums::CardNetwork::Maestro),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
@@ -827,6 +1150,8 @@ pub struct CardDetails {
 #[serde(rename_all = "UPPERCASE")]
 pub enum InstructionMode {
     Initial,
+    /// ACI API uses REPEATED on the wire (confirmed by live rejection when
+    /// sending SUBSEQUENT despite some local reference docs listing it).
     Repeated,
 }
 
@@ -862,7 +1187,27 @@ pub struct Instruction {
     #[serde(skip_serializing_if = "Option::is_none")]
     initial_transaction_id: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     create_registration: Option<bool>,
+
+    #[serde(rename = "standingInstruction.reason")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<StandingInstructionReason>,
+
+    #[serde(rename = "standingInstruction.expiry")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiry: Option<String>,
+
+    #[serde(rename = "standingInstruction.frequency")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequency: Option<String>,
+
+    /// Mastercard Economically Related Transaction ID (TLID).
+    /// Returned by Mastercard on initial CIT and must be echoed on all subsequent MITs.
+    /// During the transitional period both this and `initialTransactionId` must be sent.
+    #[serde(rename = "standingInstruction.agreementId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agreement_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
@@ -925,11 +1270,11 @@ impl TryFrom<&AciRouterData<&PaymentsAuthorizeRouterData>> for AciPaymentsReques
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardWithOptionalCVC(_)
-            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),
                 ))?
@@ -946,13 +1291,25 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
         let (item, wallet_data) = value;
         let txn_details = get_transaction_details(item)?;
 
+        let (
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
+            merchant_transaction_id,
+            custom_parameters,
+            test_mode,
+        ) = get_common_payment_fields(item);
+
         match wallet_data {
             WalletData::ApplePay(apple_pay_data) => {
                 let payment_method_token = item.router_data.payment_method_token.as_ref();
-                let payment_method =
-                    PaymentDetails::try_from((item, apple_pay_data, payment_method_token))?;
+                let payment_method = PaymentDetails::try_from((
+                    apple_pay_data,
+                    payment_method_token,
+                    item.router_data.request.browser_info.as_ref(),
+                ))?;
                 let instruction = get_instruction_details(item);
-                let recurring_type = get_recurring_type(item);
 
                 Ok(Self {
                     txn_details,
@@ -960,15 +1317,23 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     instruction,
                     shopper_result_url: item.router_data.request.router_return_url.clone(),
                     three_ds_two_enrolled: None,
-                    recurring_type,
+                    merchant_transaction_id,
+                    customer_browser_info,
+                    customer_data,
+                    billing_address,
+                    external_three_ds,
+                    custom_parameters,
+                    test_mode,
                 })
             }
             WalletData::GooglePay(google_pay_data) => {
                 let payment_method_token = item.router_data.payment_method_token.as_ref();
-                let payment_method =
-                    PaymentDetails::try_from((item, google_pay_data, payment_method_token))?;
+                let payment_method = PaymentDetails::try_from((
+                    google_pay_data,
+                    payment_method_token,
+                    item.router_data.request.browser_info.as_ref(),
+                ))?;
                 let instruction = get_instruction_details(item);
-                let recurring_type = get_recurring_type(item);
 
                 Ok(Self {
                     txn_details,
@@ -976,13 +1341,18 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     instruction,
                     shopper_result_url: item.router_data.request.router_return_url.clone(),
                     three_ds_two_enrolled: None,
-                    recurring_type,
+                    merchant_transaction_id,
+                    customer_browser_info,
+                    customer_data,
+                    billing_address,
+                    external_three_ds,
+                    custom_parameters,
+                    test_mode,
                 })
             }
             WalletData::SamsungPay(samsung_pay_data) => {
                 let payment_method = PaymentDetails::try_from(samsung_pay_data.as_ref())?;
                 let instruction = get_instruction_details(item);
-                let recurring_type = get_recurring_type(item);
 
                 Ok(Self {
                     txn_details,
@@ -990,7 +1360,13 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     instruction,
                     shopper_result_url: item.router_data.request.router_return_url.clone(),
                     three_ds_two_enrolled: None,
-                    recurring_type,
+                    merchant_transaction_id,
+                    customer_browser_info,
+                    customer_data,
+                    billing_address,
+                    external_three_ds,
+                    custom_parameters,
+                    test_mode,
                 })
             }
             // Handle other wallet types via PaymentDetails::try_from
@@ -1003,7 +1379,13 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     instruction: None,
                     shopper_result_url: item.router_data.request.router_return_url.clone(),
                     three_ds_two_enrolled: None,
-                    recurring_type: None,
+                    merchant_transaction_id,
+                    customer_browser_info,
+                    customer_data,
+                    billing_address,
+                    external_three_ds,
+                    custom_parameters,
+                    test_mode,
                 })
             }
         }
@@ -1026,6 +1408,15 @@ impl
         let (item, bank_redirect_data) = value;
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from((item, bank_redirect_data))?;
+        let (
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
+            merchant_transaction_id,
+            custom_parameters,
+            test_mode,
+        ) = get_common_payment_fields(item);
 
         Ok(Self {
             txn_details,
@@ -1033,7 +1424,13 @@ impl
             instruction: None,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
             three_ds_two_enrolled: None,
-            recurring_type: None,
+            merchant_transaction_id,
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
+            custom_parameters,
+            test_mode,
         })
     }
 }
@@ -1046,6 +1443,15 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &PayLaterData)> for 
         let (item, _pay_later_data) = value;
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::Klarna;
+        let (
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
+            merchant_transaction_id,
+            custom_parameters,
+            test_mode,
+        ) = get_common_payment_fields(item);
 
         Ok(Self {
             txn_details,
@@ -1053,7 +1459,13 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &PayLaterData)> for 
             instruction: None,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
             three_ds_two_enrolled: None,
-            recurring_type: None,
+            merchant_transaction_id,
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
+            custom_parameters,
+            test_mode,
         })
     }
 }
@@ -1068,11 +1480,19 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from((card_data.clone(), card_holder_name))?;
         let instruction = get_instruction_details(item);
-        let recurring_type = get_recurring_type(item);
         let three_ds_two_enrolled = item
             .router_data
             .is_three_ds()
             .then_some(item.router_data.request.enrolled_for_3ds);
+        let (
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
+            merchant_transaction_id,
+            custom_parameters,
+            test_mode,
+        ) = get_common_payment_fields(item);
 
         Ok(Self {
             txn_details,
@@ -1080,7 +1500,13 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
             instruction,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
             three_ds_two_enrolled,
-            recurring_type,
+            merchant_transaction_id,
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
+            custom_parameters,
+            test_mode,
         })
     }
 }
@@ -1102,6 +1528,15 @@ impl
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from((item, network_token_data))?;
         let instruction = get_instruction_details(item);
+        let (
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
+            merchant_transaction_id,
+            custom_parameters,
+            test_mode,
+        ) = get_common_payment_fields(item);
 
         Ok(Self {
             txn_details,
@@ -1109,7 +1544,13 @@ impl
             instruction,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
             three_ds_two_enrolled: None,
-            recurring_type: None,
+            merchant_transaction_id,
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
+            custom_parameters,
+            test_mode,
         })
     }
 }
@@ -1130,7 +1571,15 @@ impl
         let (item, _mandate_data) = value;
         let instruction = get_instruction_details(item);
         let txn_details = get_transaction_details(item)?;
-        let recurring_type = get_recurring_type(item);
+        let (
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
+            merchant_transaction_id,
+            custom_parameters,
+            test_mode,
+        ) = get_common_payment_fields(item);
 
         Ok(Self {
             txn_details,
@@ -1138,9 +1587,145 @@ impl
             instruction,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
             three_ds_two_enrolled: None,
-            recurring_type,
+            merchant_transaction_id,
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
+            custom_parameters,
+            test_mode,
         })
     }
+}
+
+fn get_common_payment_fields(
+    item: &AciRouterData<&PaymentsAuthorizeRouterData>,
+) -> (
+    AciCustomerBrowserInfo,
+    AciCustomerData,
+    AciBillingAddress,
+    AciExternalThreeDsData,
+    Option<String>,
+    AciCustomParameters,
+    Option<AciTestMode>,
+) {
+    let customer_browser_info = item
+        .router_data
+        .request
+        .get_browser_info()
+        .ok()
+        .map(|bi| AciCustomerBrowserInfo {
+            accept_header: bi.accept_header,
+            language: bi.language,
+            screen_height: bi.screen_height.map(|h| h.to_string()),
+            screen_width: bi.screen_width.map(|w| w.to_string()),
+            timezone: bi.time_zone.map(|t| t.to_string()),
+            user_agent: bi.user_agent,
+            javascript_enabled: bi.java_script_enabled,
+            java_enabled: bi.java_enabled,
+            color_depth: bi.color_depth.map(|c| c.to_string()),
+            challenge_window: None,
+        })
+        .unwrap_or_default();
+
+    let ip = item.router_data.request.get_ip_address_as_optional();
+    let email = item.router_data.get_optional_billing_email();
+    let given_name = item.router_data.get_optional_billing_first_name();
+    let surname = item.router_data.get_optional_billing_last_name();
+
+    let customer_data = AciCustomerData {
+        ip,
+        email,
+        given_name,
+        surname,
+    };
+
+    let billing_address = AciBillingAddress {
+        street1: item.router_data.get_optional_billing_line1(),
+        city: item.router_data.get_optional_billing_city(),
+        state: item.router_data.get_optional_billing_state(),
+        country: item.router_data.get_optional_billing_country(),
+        postcode: item.router_data.get_optional_billing_zip(),
+    };
+
+    // External-3DS passthrough fields come from authentication_data (present only
+    // when an external 3DS authentication has already completed). The challenge /
+    // exemption / auth-amount preferences are merchant request hints sourced from
+    // request metadata, so they apply whether or not authentication_data is set.
+    let auth = item.router_data.request.authentication_data.as_ref();
+    let metadata = item.router_data.request.metadata.as_ref();
+    let external_three_ds = AciExternalThreeDsData {
+        eci: auth.and_then(|auth| auth.eci.clone()),
+        verification_id: auth.map(|auth| auth.cavv.clone()),
+        ds_transaction_id: auth.and_then(|auth| auth.ds_trans_id.clone()),
+        acs_transaction_id: auth.and_then(|auth| auth.acs_trans_id.clone()),
+        challenge_indicator: aci_metadata_string(metadata, ACI_META_CHALLENGE_INDICATOR),
+        exemption_flag: aci_metadata_string(metadata, ACI_META_EXEMPTION_FLAG),
+        amount: aci_metadata_string(metadata, ACI_META_THREEDS_AMOUNT),
+        currency: aci_metadata_string(metadata, ACI_META_THREEDS_CURRENCY),
+    };
+
+    // Prefer the merchant-supplied order reference when available; fall back to
+    // Hyperswitch's connector_request_reference_id so this field is always
+    // populated. format_aci_merchant_transaction_id enforces ACI's 16-char max
+    // and strips underscores (see its docs for the reconciliation caveat).
+    let merchant_transaction_id = {
+        let id = item
+            .router_data
+            .request
+            .merchant_order_reference_id
+            .as_deref()
+            .unwrap_or(item.router_data.connector_request_reference_id.as_str());
+        Some(format_aci_merchant_transaction_id(id))
+    };
+
+    // Build customParameters: merchant metadata first, then fixed debug fields
+    // (fixed fields always win over any conflicting metadata key).
+    let mut custom_parameters = AciCustomParameters::default();
+    if let Some(metadata) = &item.router_data.request.metadata {
+        if let Some(obj) = metadata.as_object() {
+            for (k, v) in obj {
+                // Reserved keys are routed to dedicated threeDSecure.* fields above.
+                if ACI_RESERVED_THREEDS_META_KEYS.contains(&k.as_str()) {
+                    continue;
+                }
+                let str_val = match v {
+                    serde_json::Value::String(s) => s.clone(),
+                    serde_json::Value::Null => continue,
+                    other => other.to_string(),
+                };
+                custom_parameters.insert(k, str_val);
+            }
+        }
+    }
+    custom_parameters.insert("orchestrator", "hyperswitch");
+    custom_parameters.insert("paymentId", &item.router_data.payment_id);
+
+    // testMode routing — opt-in via connector metadata `test_mode: "EXTERNAL"` or "INTERNAL".
+    // EXTERNAL routes to the acquirer's test system and requires entity-side configuration;
+    // sending it to a plain test entity causes ACI to reject with 900.100.100. Defaulting to
+    // None lets ACI use its own default (INTERNAL) for test entities.
+    let test_mode = item
+        .router_data
+        .connector_meta_data
+        .as_ref()
+        .and_then(|meta| meta.peek().get("test_mode"))
+        .and_then(|v| v.as_str())
+        .and_then(|s| match s.to_uppercase().as_str() {
+            "EXTERNAL" => Some(AciTestMode::External),
+            "INTERNAL" => Some(AciTestMode::Internal),
+            _ => None,
+        });
+
+    (
+        customer_browser_info,
+        customer_data,
+        billing_address,
+        external_three_ds,
+        merchant_transaction_id,
+        custom_parameters,
+        test_mode,
+    )
 }
 
 fn get_transaction_details(
@@ -1152,11 +1737,28 @@ fn get_transaction_details(
     } else {
         AciPaymentType::Preauthorization
     };
+    let descriptor = item
+        .router_data
+        .request
+        .billing_descriptor
+        .as_ref()
+        .and_then(|billing_descriptor| {
+            let parts: Vec<String> = [
+                billing_descriptor.statement_descriptor.clone(),
+                billing_descriptor.statement_descriptor_suffix.clone(),
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
+            (!parts.is_empty()).then(|| parts.join(" "))
+        });
+
     Ok(TransactionDetails {
         entity_id: auth.entity_id,
         amount: item.amount.to_owned(),
         currency: item.router_data.request.currency.to_string(),
         payment_type,
+        descriptor,
     })
 }
 
@@ -1164,21 +1766,42 @@ fn get_instruction_details(
     item: &AciRouterData<&PaymentsAuthorizeRouterData>,
 ) -> Option<Instruction> {
     if item.router_data.request.customer_acceptance.is_some()
-        && item.router_data.request.setup_future_usage == Some(enums::FutureUsage::OffSession)
+        && item.router_data.request.setup_future_usage.is_some()
     {
+        // First (CIT) transaction of a stored-credential series: consent is captured
+        // (customer_acceptance) AND the merchant signalled a future-usage intent
+        // (setup_future_usage). A bare customer_acceptance with no future-usage intent
+        // is a one-off payment and must NOT create a registration / standing instruction.
         return Some(Instruction {
             mode: InstructionMode::Initial,
             transaction_type: InstructionType::Unscheduled,
             source: InstructionSource::CardholderInitiatedTransaction,
             initial_transaction_id: None,
             create_registration: Some(true),
+            reason: None,
+            expiry: None,
+            frequency: None,
+            agreement_id: None,
         });
     } else if item.router_data.request.mandate_id.is_some() {
+        // For MIT: pass the CITI (traceId) as standingInstruction.initialTransactionId.
+        // Primary source: connector_mandate_request_reference_id (CITI stored on ACI registration).
+        // Fallback: NetworkMandateId (CITI stored as network_txn_id on DB-only mandates).
         let initial_transaction_id = item
             .router_data
             .request
             .get_connector_mandate_request_reference_id()
-            .ok();
+            .ok()
+            .or_else(|| {
+                item.router_data.request.mandate_id.as_ref().and_then(|m| {
+                    match &m.mandate_reference_id {
+                        Some(MandateReferenceId::NetworkMandateId(ntid)) => {
+                            Some(ntid.network_transaction_id.clone())
+                        }
+                        _ => None,
+                    }
+                })
+            });
 
         let transaction_type = match item.router_data.request.mit_category.as_ref() {
             Some(MitCategory::Installment) => InstructionType::Installment,
@@ -1188,29 +1811,38 @@ fn get_instruction_details(
             }
         };
 
+        let reason = match item.router_data.request.mit_category.as_ref() {
+            Some(MitCategory::Resubmission) => Some(StandingInstructionReason::Resubmission),
+            _ => None,
+        };
+
+        // Read Mastercard agreementId (TLID) stored in mandate_metadata from the initial CIT.
+        // During the transitional period both agreementId and initialTransactionId must be sent.
+        let agreement_id = item
+            .router_data
+            .request
+            .mandate_id
+            .as_ref()
+            .and_then(|m| m.get_connector_mandate_metadata())
+            .and_then(|meta| meta.peek()["agreementId"].as_str().map(|s| s.to_string()));
+
         return Some(Instruction {
             mode: InstructionMode::Repeated,
             transaction_type,
             source: InstructionSource::MerchantInitiatedTransaction,
             initial_transaction_id,
             create_registration: None,
+            reason,
+            expiry: None,
+            frequency: None,
+            agreement_id,
         });
     }
+    // No off-session-only fallback: a setup_future_usage=off_session with no captured
+    // customer_acceptance must NOT emit standingInstruction.mode=INITIAL / source=CIT,
+    // as that asserts cardholder-initiated consent we never recorded. Off-session WITH
+    // consent is already handled by the first (CIT) branch above.
     None
-}
-
-fn get_recurring_type(
-    item: &AciRouterData<&PaymentsAuthorizeRouterData>,
-) -> Option<AciRecurringType> {
-    if item.router_data.request.mandate_id.is_some() {
-        Some(AciRecurringType::Repeated)
-    } else if item.router_data.request.customer_acceptance.is_some()
-        && item.router_data.request.setup_future_usage == Some(enums::FutureUsage::OffSession)
-    {
-        Some(AciRecurringType::Initial)
-    } else {
-        None
-    }
 }
 
 impl TryFrom<&PaymentsCancelRouterData> for AciCancelRequest {
@@ -1235,50 +1867,73 @@ impl TryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponse
     ) -> Result<Self, Self::Error> {
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;
 
-        let (payment_brand, payment_details) = match &item.request.payment_method_data {
-            PaymentMethodData::Card(card_data) => {
-                let brand = get_aci_payment_brand(card_data.card_network.clone(), false).ok();
-                match brand.as_ref() {
-                    Some(PaymentBrand::Visa)
-                    | Some(PaymentBrand::Mastercard)
-                    | Some(PaymentBrand::AmericanExpress) => (),
-                    Some(_) => {
-                        return Err(errors::ConnectorError::NotSupported {
-                            message: "Payment method not supported for mandate setup".to_string(),
-                            connector: "ACI",
+        let (payment_brand, payment_details, create_registration) =
+            match &item.request.payment_method_data {
+                PaymentMethodData::Card(card_data) => {
+                    let brand = get_aci_payment_brand(card_data.card_network.clone(), false).ok();
+                    match brand.as_ref() {
+                        Some(PaymentBrand::Visa)
+                        | Some(PaymentBrand::Mastercard)
+                        | Some(PaymentBrand::AmericanExpress) => (),
+                        Some(_) => {
+                            return Err(errors::ConnectorError::NotSupported {
+                                message: "Payment method not supported for mandate setup"
+                                    .to_string(),
+                                connector: "ACI",
+                            }
+                            .into());
                         }
-                        .into());
-                    }
-                    None => (),
-                };
+                        None => (),
+                    };
 
-                let details = PaymentDetails::AciCard(Box::new(CardDetails {
-                    card_number: card_data.card_number.clone(),
-                    card_expiry_month: card_data.card_exp_month.clone(),
-                    card_expiry_year: card_data.get_expiry_year_4_digit(),
-                    card_cvv: card_data.card_cvc.clone(),
-                    card_holder: card_data.card_holder_name.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "card_holder_name",
-                        },
-                    )?,
-                    payment_brand: brand.clone(),
-                }));
+                    let details = PaymentDetails::AciCard(Box::new(CardDetails {
+                        card_number: card_data.card_number.clone(),
+                        card_expiry_month: card_data.card_exp_month.clone(),
+                        card_expiry_year: card_data.get_expiry_year_4_digit(),
+                        card_cvv: card_data.card_cvc.clone(),
+                        card_holder: card_data.card_holder_name.clone().ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "card_holder_name",
+                            },
+                        )?,
+                        payment_brand: brand.clone(),
+                    }));
 
-                (brand, details)
-            }
-            _ => {
-                return Err(errors::ConnectorError::NotSupported {
-                    message: "Payment method not supported for mandate setup".to_string(),
-                    connector: "ACI",
+                    (brand, details, None)
                 }
-                .into());
-            }
-        };
+                PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
+                    let details = PaymentDetails::try_from((
+                        apple_pay_data,
+                        item.payment_method_token.as_ref(),
+                        item.request.browser_info.as_ref(),
+                    ))?;
+                    (None, details, Some(true))
+                }
+                PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
+                    let details = PaymentDetails::try_from((
+                        google_pay_data,
+                        item.payment_method_token.as_ref(),
+                        item.request.browser_info.as_ref(),
+                    ))?;
+                    (None, details, Some(true))
+                }
+                PaymentMethodData::Wallet(WalletData::SamsungPay(samsung_pay_data)) => {
+                    let details = PaymentDetails::try_from(samsung_pay_data.as_ref())?;
+                    (None, details, Some(true))
+                }
+                _ => {
+                    return Err(errors::ConnectorError::NotSupported {
+                        message: "Payment method not supported for mandate setup".to_string(),
+                        connector: "ACI",
+                    }
+                    .into());
+                }
+            };
 
         Ok(Self {
             entity_id: auth.entity_id,
             payment_brand,
+            create_registration,
             payment_details,
         })
     }
@@ -1324,25 +1979,194 @@ impl FromStr for AciPaymentStatus {
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciThreeDSecureResponse {
+    pub eci: Option<String>,
+    pub verification_id: Option<Secret<String>>,
+    pub version: Option<String>,
+    pub flow: Option<String>,
+    pub ds_transaction_id: Option<String>,
+    pub acs_transaction_id: Option<String>,
+    pub challenge_mandated_indicator: Option<String>,
+    pub authentication_type: Option<String>,
+    pub card_holder_info: Option<String>,
+    pub authentication_status: Option<String>,
+    pub xid: Option<String>,
+    pub cavv: Option<String>,
+    pub error_code: Option<String>,
+    pub error_description: Option<String>,
+    pub error_source: Option<String>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciPaymentsResponse {
     id: String,
+    /// Registration token ID returned when `createRegistration=true` was sent.
+    /// ACI returns this as `registrationId` at the top level.
     registration_id: Option<Secret<String>>,
     ndc: String,
     timestamp: String,
     build_number: String,
     pub(super) result: ResultCode,
     pub(super) redirect: Option<AciRedirectionData>,
+    /// The payment type from the response (DB, PA, CP, RF, etc.)
+    payment_type: Option<AciPaymentType>,
+    /// The card network / payment brand (VISA, MASTERCARD, etc.)
+    payment_brand: Option<PaymentBrand>,
+    /// The processed amount
+    amount: Option<StringMajorUnit>,
+    /// The processed currency (ISO 4217)
+    currency: Option<String>,
+    /// Merchant-facing human-readable short transaction ID
+    short_id: Option<String>,
+    /// Acquirer / connector response details
+    result_details: Option<AciResponseResultDetails>,
+    /// Masked card details returned in the response
+    card: Option<AciResponseCardDetails>,
+    /// 3DS authentication data from ACI
+    #[serde(rename = "threeDSecure")]
+    #[serde(skip_serializing)]
+    three_d_secure: Option<AciThreeDSecureResponse>,
+    /// Standing instruction fields (Mastercard agreementId/TLID returned on initial CIT)
+    #[serde(skip_serializing)]
+    standing_instruction: Option<AciResponseStandingInstruction>,
+}
+
+/// Masked card details returned in an ACI payment response.
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciResponseCardDetails {
+    pub bin: Option<String>,
+    #[serde(rename = "last4Digits")]
+    pub last4_digits: Option<String>,
+    pub holder: Option<Secret<String>>,
+    pub expiry_month: Option<Secret<String>>,
+    pub expiry_year: Option<Secret<String>>,
+    #[serde(rename = "binCountry")]
+    pub bin_country: Option<String>,
+}
+
+/// Acquirer / connector-level response details in an ACI payment response.
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct AciResponseResultDetails {
+    pub extended_description: Option<String>,
+    #[serde(rename = "clearingInstituteName")]
+    pub clearing_institute_name: Option<String>,
+    #[serde(rename = "ConnectorTxID1")]
+    pub connector_tx_id1: Option<String>,
+    #[serde(rename = "ConnectorTxID2")]
+    pub connector_tx_id2: Option<String>,
+    #[serde(rename = "ConnectorTxID3")]
+    pub connector_tx_id3: Option<String>,
+    #[serde(rename = "AcquirerResponse")]
+    pub acquirer_response: Option<String>,
+    #[serde(rename = "AuthCode")]
+    pub auth_code: Option<String>,
+    /// Alternate authorisation code field returned by some acquirers and
+    /// in ACI sandbox test mode. When `AuthCode` is absent, `ApprovalCode`
+    /// holds the same value.
+    #[serde(rename = "ApprovalCode")]
+    pub approval_code: Option<String>,
+    #[serde(rename = "MerchantAdviceCode")]
+    pub merchant_advice_code: Option<String>,
+    /// Scheme trace ID (network-level transaction reference). On ABSA this
+    /// is the canonical CITI for COF; on Nedbank the same value is also
+    /// embedded inside ConnectorTxID3[4].
+    #[serde(rename = "SchemeTransactionId")]
+    pub scheme_transaction_id: Option<String>,
+    /// Visa/Mastercard Payment Account Reference.
+    #[serde(rename = "PaymentAccountReference")]
+    pub payment_account_reference: Option<String>,
+}
+
+/// Identifies the downstream acquirer routing the transaction. ACI's
+/// `resultDetails.ConnectorTxID1/2/3` composites have acquirer-specific
+/// pipe-delimited layouts, so accurate parsing requires knowing which
+/// acquirer is on the other side. Detection is best-effort: we key off
+/// `clearingInstituteName` when ACI populates it, and fall back to
+/// shape-based heuristics otherwise.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AciAcquirer {
+    Nedbank,
+    Absa,
+    /// MPGS (Mastercard Payment Gateway Services).
+    Mpgs,
+    /// CyberSource REST API via ACI's EMC (also called VDP — Visa Direct
+    /// Platform — when configured for that routing).
+    Cybersource,
+    /// Planet Payment (multi-currency pricing platform; supports VISA,
+    /// MASTER, AMEX, DINERS, DISCOVER, JCB, UNIONPAY, UNIONPAY_SMS).
+    Planet,
+    Unknown,
+}
+
+impl AciAcquirer {
+    fn from_details(details: &AciResponseResultDetails) -> Self {
+        if let Some(name) = details
+            .clearing_institute_name
+            .as_deref()
+            .map(|s| s.to_lowercase())
+        {
+            if name.contains("nedbank") || name.contains("postilion") {
+                return Self::Nedbank;
+            }
+            if name.contains("absa") {
+                return Self::Absa;
+            }
+            if name.contains("mpgs") || name.contains("mastercard payment gateway") {
+                return Self::Mpgs;
+            }
+            if name.contains("cybersource") || name.contains("emc") || name.contains("vdp") {
+                return Self::Cybersource;
+            }
+            if name.contains("planet") {
+                return Self::Planet;
+            }
+        }
+        // Shape heuristic: if PIM tags appear in the ConnectorTxID payload
+        // it's the ACI sandbox's ABSA simulator format; if ConnectorTxID3
+        // has 5+ pipe-separated fields, it's Nedbank-shaped.
+        let has_pim = matches!(&details.connector_tx_id1, Some(s) if s.contains("PIM"))
+            || matches!(&details.connector_tx_id2, Some(s) if s.contains("PIM"));
+        if has_pim {
+            return Self::Absa;
+        }
+        if let Some(t3) = details.connector_tx_id3.as_deref() {
+            if t3.matches('|').count() >= 4 {
+                return Self::Nedbank;
+            }
+        }
+        Self::Unknown
+    }
+}
+
+/// Standing instruction fields returned in an ACI payment response.
+/// Mastercard returns `agreementId` (TLID) on initial CIT responses.
+/// During the transitional period both `agreementId` and `initialTransactionId` are returned.
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciResponseStandingInstruction {
+    pub agreement_id: Option<String>,
+    pub initial_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciErrorResponse {
+    /// ACI transaction id. Present on gateway/acquirer declines returned with a
+    /// non-2xx status; absent on early request-validation errors.
+    pub(super) id: Option<String>,
     ndc: String,
     timestamp: String,
     build_number: String,
     pub(super) result: ResultCode,
+    /// Acquirer / connector response details. Carries the Mastercard
+    /// MerchantAdviceCode and the acquirer response code on declines surfaced
+    /// through the error path.
+    pub(super) result_details: Option<AciResponseResultDetails>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -1350,7 +2174,9 @@ pub struct AciErrorResponse {
 pub struct AciRedirectionData {
     pub method: Option<Method>,
     pub parameters: Vec<Parameters>,
-    pub url: Url,
+    // Absent on 3DS challenge responses, where the redirect target lives inside
+    // the first precondition (`preconditions[0].url`) instead of at the top level.
+    pub url: Option<Url>,
     pub preconditions: Option<Vec<PreconditionData>>,
 }
 
@@ -1374,6 +2200,8 @@ pub struct ResultCode {
     pub(super) code: String,
     pub(super) description: String,
     pub(super) parameter_errors: Option<Vec<ErrorParameters>>,
+    #[serde(rename = "cvvResponse")]
+    pub cvv_response: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -1381,6 +2209,175 @@ pub struct ErrorParameters {
     pub(super) name: String,
     pub(super) value: Option<String>,
     pub(super) message: String,
+}
+
+pub struct AciParsedConnectorIds {
+    pub rrn: Option<String>,
+    pub citi: Option<String>,
+    pub stan: Option<String>,
+    pub auth_code: Option<String>,
+    pub original_transaction_id: Option<String>,
+}
+
+fn parse_connector_tx_ids(details: &AciResponseResultDetails) -> AciParsedConnectorIds {
+    fn split_pipe(s: &str) -> Vec<String> {
+        s.split('|').map(|s| s.to_string()).collect()
+    }
+    fn get(v: &[String], i: usize) -> Option<String> {
+        v.get(i).filter(|s| !s.is_empty()).cloned()
+    }
+    let t1: Vec<String> = details
+        .connector_tx_id1
+        .as_deref()
+        .map(split_pipe)
+        .unwrap_or_default();
+    let t2: Vec<String> = details
+        .connector_tx_id2
+        .as_deref()
+        .map(split_pipe)
+        .unwrap_or_default();
+    let t3: Vec<String> = details
+        .connector_tx_id3
+        .as_deref()
+        .map(split_pipe)
+        .unwrap_or_default();
+
+    // Prefer the canonical AuthCode field; fall back to ApprovalCode (used
+    // by some acquirers and the ACI sandbox in test mode).
+    let direct_auth = details
+        .auth_code
+        .clone()
+        .or_else(|| details.approval_code.clone());
+    let scheme_trace = details.scheme_transaction_id.clone();
+
+    match AciAcquirer::from_details(details) {
+        // Nedbank via Postilion:
+        //   TxID1[0]   = Terminal ID
+        //   TxID2[0]   = STAN
+        //   TxID2[1]   = RRN
+        //   TxID3[0]   = Authorization Code
+        //   TxID3[1]   = Response Code
+        //   TxID3[2-3] = Initial transaction date/time
+        //   TxID3[4]   = CITI (CardholderInitiatedTransactionID)
+        //   TxID3[5]   = Merchant ID
+        AciAcquirer::Nedbank => AciParsedConnectorIds {
+            rrn: get(&t2, 1),
+            citi: get(&t3, 4).or(scheme_trace),
+            stan: get(&t2, 0),
+            auth_code: direct_auth.or_else(|| get(&t3, 0)),
+            original_transaction_id: None,
+        },
+        // ABSA:
+        //   TxID1[0]    = ACI Client Terminal Seq Num (P-37)
+        //   TxID1[1]    = Draft Capture Flag
+        //   TxID1[2]    = Terminal owner ID
+        //   TxID1[3]    = Card Issuer Category Response Code Data
+        //   TxID1[4]    = Token OH
+        //   TxID1[5]    = Original ID
+        //   TxID2[0]    = merchantTransactionId / Invoice ID
+        //   TxID2[1]    = Action code (P-39)
+        //   TxID2[2]    = Approval code (P-38)         <- not RRN
+        //   TxID2[3..]  = various scheme tokens
+        //   TxID3[0]    = STAN (P-11)
+        //   TxID3[1]    = Token 17
+        //   TxID3[2]    = Token 20 (scheme trace ID)
+        //
+        // ABSA does not expose RRN inside the pipe-delimited composites;
+        // for COF the CITI is the scheme trace ID (Token 20), surfaced as
+        // resultDetails.SchemeTransactionId.
+        AciAcquirer::Absa => AciParsedConnectorIds {
+            rrn: None,
+            citi: scheme_trace.or_else(|| get(&t3, 2)),
+            stan: get(&t3, 0),
+            auth_code: direct_auth.or_else(|| get(&t2, 2)),
+            original_transaction_id: get(&t1, 5),
+        },
+        // MPGS surfaces canonical fields at the top level of resultDetails
+        // rather than inside ConnectorTxID composites.
+        AciAcquirer::Mpgs => AciParsedConnectorIds {
+            rrn: None,
+            citi: scheme_trace,
+            stan: None,
+            auth_code: direct_auth,
+            original_transaction_id: None,
+        },
+        // CyberSource REST via EMC (sometimes referred to as VDP / NPG
+        // depending on routing configuration). The wire format is JSON
+        // over HTTPS with structured `processingInformation.*` and
+        // `clientReferenceInformation.*` blocks rather than pipe-delimited
+        // composites — there's no documented ConnectorTxID layout to lean
+        // on, so we trust the canonical top-level fields.
+        AciAcquirer::Cybersource => AciParsedConnectorIds {
+            rrn: None,
+            citi: scheme_trace,
+            stan: None,
+            auth_code: direct_auth,
+            original_transaction_id: None,
+        },
+        // Planet Payment — multi-currency pricing platform. The merchant
+        // account configuration is centred on User Id / Password / Terminal
+        // Id; ConnectorTxID composite layout isn't documented for this
+        // acquirer, so we apply the same conservative defaults as MPGS
+        // and CyberSource.
+        AciAcquirer::Planet => AciParsedConnectorIds {
+            rrn: None,
+            citi: scheme_trace,
+            stan: None,
+            auth_code: direct_auth,
+            original_transaction_id: None,
+        },
+        // Unknown acquirer — mirror the previous best-effort heuristics so
+        // we don't regress acquirers we've never explicitly characterised.
+        AciAcquirer::Unknown => AciParsedConnectorIds {
+            rrn: get(&t2, 2),
+            citi: get(&t3, 4).or(scheme_trace),
+            stan: get(&t3, 0).or_else(|| get(&t2, 1)),
+            auth_code: direct_auth,
+            original_transaction_id: get(&t1, 5),
+        },
+    }
+}
+
+/// The acquirer's own response code (ISO-8583 P-39), surfaced by ACI as
+/// `resultDetails.AcquirerResponse` (also documented as `Acquirer.Response.Code`
+/// / `ResponseCode`). On a decline this is the raw network/acquirer decline
+/// code, so it maps to `ErrorResponse.network_decline_code`.
+pub(super) fn aci_network_decline_code(details: &AciResponseResultDetails) -> Option<String> {
+    details.acquirer_response.clone()
+}
+
+/// Package the parsed acquirer transaction identifiers and raw acquirer
+/// response into a `connector_metadata` payload. Used on both the decline
+/// (2xx result-code) and HTTP-error paths so the ConnectorTxID mappings are
+/// retained on failures, not just successes.
+pub(super) fn build_error_connector_metadata(
+    details: &AciResponseResultDetails,
+) -> Option<Secret<serde_json::Value>> {
+    let parsed = parse_connector_tx_ids(details);
+    let mut map = serde_json::Map::new();
+    let mut insert = |key: &str, value: Option<String>| {
+        if let Some(value) = value {
+            map.insert(key.to_string(), serde_json::Value::String(value));
+        }
+    };
+    insert("acquirerResponse", details.acquirer_response.clone());
+    insert("rrn", parsed.rrn);
+    insert("stan", parsed.stan);
+    insert("networkTransactionId", parsed.citi);
+    insert("authCode", parsed.auth_code);
+    insert("originalTransactionId", parsed.original_transaction_id);
+    insert("merchantAdviceCode", details.merchant_advice_code.clone());
+    insert("schemeTransactionId", details.scheme_transaction_id.clone());
+    insert(
+        "paymentAccountReference",
+        details.payment_account_reference.clone(),
+    );
+
+    if map.is_empty() {
+        None
+    } else {
+        Some(Secret::new(serde_json::Value::Object(map)))
+    }
 }
 
 impl<F, Req> TryFrom<ResponseRouterData<F, AciPaymentsResponse, Req, PaymentsResponseData>>
@@ -1392,32 +2389,87 @@ where
     fn try_from(
         item: ResponseRouterData<F, AciPaymentsResponse, Req, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item.response.redirect.map(|data| {
+        let redirection_data = item.response.redirect.and_then(|data| {
             let mut form_fields = std::collections::HashMap::<_, _>::from_iter(
                 data.parameters
                     .iter()
                     .map(|parameter| (parameter.name.clone(), parameter.value.clone())),
             );
 
-            if let Some(preconditions) = data.preconditions {
-                if let Some(first_precondition) = preconditions.first() {
-                    for param in &first_precondition.parameters {
-                        form_fields.insert(param.name.clone(), param.value.clone());
-                    }
+            // Bank redirects carry url/method/parameters at the top level; 3DS
+            // challenge responses instead nest them inside the first precondition.
+            let first_precondition = data
+                .preconditions
+                .as_ref()
+                .and_then(|preconditions| preconditions.first());
+
+            if let Some(first_precondition) = first_precondition {
+                for param in &first_precondition.parameters {
+                    form_fields.insert(param.name.clone(), param.value.clone());
                 }
             }
 
+            // Prefer the top-level redirect target; fall back to the precondition's.
+            // Without a url on either there is nothing to redirect to, so skip it.
+            let endpoint = data
+                .url
+                .as_ref()
+                .or_else(|| first_precondition.map(|precondition| &precondition.url))?
+                .to_string();
+
             // If method is Get, parameters are appended to URL
             // If method is post, we http Post the method to URL
-            RedirectForm::Form {
-                endpoint: data.url.to_string(),
-                // Handles method for Bank redirects currently.
-                // 3DS response have method within preconditions. That would require replacing below line with a function.
-                method: data.method.unwrap_or(Method::Post),
+            Some(RedirectForm::Form {
+                endpoint,
+                method: data
+                    .method
+                    .or_else(|| first_precondition.and_then(|precondition| precondition.method))
+                    .unwrap_or(Method::Post),
                 form_fields,
-            }
+            })
         });
 
+        // Parse connector transaction IDs for RRN, CITI (network_txn_id), and auth_code
+        let parsed_ids = item
+            .response
+            .result_details
+            .as_ref()
+            .map(parse_connector_tx_ids);
+
+        let rrn = parsed_ids.as_ref().and_then(|p| p.rrn.clone());
+        let citi = parsed_ids.as_ref().and_then(|p| p.citi.clone());
+        let stan = parsed_ids.as_ref().and_then(|p| p.stan.clone());
+        let parsed_auth_code = parsed_ids.as_ref().and_then(|p| p.auth_code.clone());
+        let original_transaction_id = parsed_ids
+            .as_ref()
+            .and_then(|p| p.original_transaction_id.clone());
+        let connector_response_reference_id =
+            rrn.clone().or_else(|| Some(item.response.id.clone()));
+
+        // Network-level merchant advice code (Mastercard MAC), surfaced by ACI
+        // under resultDetails.MerchantAdviceCode. It conveys why a transaction
+        // was declined and whether/when a retry is permitted, so map it into the
+        // universal network_advice_code field on the failure response.
+        let network_advice_code = item
+            .response
+            .result_details
+            .as_ref()
+            .and_then(|d| d.merchant_advice_code.clone());
+
+        // Build mandate reference from registrationId (returned at top level when createRegistration=true).
+        // connector_mandate_id = ACI registrationId (RG ID) — used for subsequent MIT lookup.
+        // connector_mandate_request_reference_id = CITI (traceId) — passed as
+        // standingInstruction.initialTransactionId on subsequent MIT requests.
+        // mandate_metadata = JSON with Mastercard agreementId (TLID) when present —
+        // both agreementId and initialTransactionId must be sent during the transitional period.
+        let agreement_id = item
+            .response
+            .standing_instruction
+            .as_ref()
+            .and_then(|si| si.agreement_id.clone());
+        let mandate_metadata = agreement_id
+            .as_ref()
+            .map(|aid| Secret::new(serde_json::json!({ "agreementId": aid })));
         let mandate_reference = item
             .response
             .registration_id
@@ -1425,8 +2477,8 @@ where
             .map(|id| MandateReference {
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
-                mandate_metadata: None,
-                connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                mandate_metadata,
+                connector_mandate_request_reference_id: citi.clone(),
             });
 
         let status = if redirection_data.is_some() {
@@ -1443,7 +2495,87 @@ where
             )
         };
 
+        // Build authentication_data from 3DS response if present
+        let authentication_data = item.response.three_d_secure.as_ref().map(|tds| {
+            Box::new(UcsAuthenticationData {
+                eci: tds.eci.clone(),
+                cavv: tds
+                    .verification_id
+                    .clone()
+                    .or_else(|| tds.cavv.as_ref().map(|c| Secret::new(c.clone()))),
+                threeds_server_transaction_id: tds.ds_transaction_id.clone(),
+                message_version: tds.version.as_deref().and_then(|v| v.parse().ok()),
+                ds_trans_id: tds.ds_transaction_id.clone(),
+                acs_trans_id: tds.acs_transaction_id.clone(),
+                trans_status: None,
+                transaction_id: tds.xid.clone(),
+                ucaf_collection_indicator: None,
+            })
+        });
+
+        // Build ConnectorResponseData from auth_code, card_network, and payment_checks.
+        // Use parsed_auth_code which covers both the direct AuthCode field and fallback
+        // extraction from connector TX ID fields.
+        let auth_code = parsed_auth_code;
+        let card_network = item
+            .response
+            .payment_brand
+            .as_ref()
+            .and_then(|b| b.as_card_network())
+            .map(|network| network.to_string());
+        let payment_checks = {
+            let cvv = item.response.result.cvv_response.clone();
+            let acq = item
+                .response
+                .result_details
+                .as_ref()
+                .and_then(|d| d.acquirer_response.clone());
+            if cvv.is_some() || acq.is_some() || stan.is_some() || original_transaction_id.is_some()
+            {
+                Some(serde_json::json!({
+                    "cvvResponse": cvv,
+                    "acquirerResponse": acq,
+                    "stan": stan,
+                    "originalTransactionId": original_transaction_id,
+                }))
+            } else {
+                None
+            }
+        };
+        // Serialize the 3DS response (eci, dsTransactionId, version, acsTransactionId, etc.)
+        // for the per-card additional_payment_method_data.authentication_data surface.
+        // The same data also drives the top-level TransactionResponse.authentication_data
+        // above; both fields are populated so merchants reading either get the 3DS context.
+        let authentication_data_json = item
+            .response
+            .three_d_secure
+            .as_ref()
+            .and_then(|tds| serde_json::to_value(tds).ok());
+        let connector_response = if auth_code.is_some()
+            || card_network.is_some()
+            || payment_checks.is_some()
+            || authentication_data_json.is_some()
+        {
+            Some(ConnectorResponseData::with_additional_payment_method_data(
+                AdditionalPaymentMethodConnectorResponse::Card {
+                    auth_code,
+                    card_network,
+                    payment_checks,
+                    authentication_data: authentication_data_json,
+                    domestic_network: None,
+                },
+            ))
+        } else {
+            None
+        };
+
         let response = if status == enums::AttemptStatus::Failure {
+            // Retain the acquirer response code and parsed connector TX IDs on
+            // the decline surface (network_decline_code + connector_metadata),
+            // mirroring what the success path exposes via connector_response.
+            let result_details = item.response.result_details.as_ref();
+            let network_decline_code = result_details.and_then(aci_network_decline_code);
+            let error_metadata = result_details.and_then(build_error_connector_metadata);
             Err(ErrorResponse {
                 code: item.response.result.code.clone(),
                 message: item.response.result.description.clone(),
@@ -1451,11 +2583,15 @@ where
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id.clone()),
-                connector_response_reference_id: Some(item.response.id.clone()),
-                network_decline_code: None,
-                network_advice_code: None,
+                // Prefer the acquirer RRN as the human-facing reference, falling
+                // back to the ACI transaction id (consistent with the success path).
+                connector_response_reference_id: rrn
+                    .clone()
+                    .or_else(|| Some(item.response.id.clone())),
+                network_decline_code,
+                network_advice_code,
                 network_error_message: None,
-                connector_metadata: None,
+                connector_metadata: error_metadata,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -1463,11 +2599,12 @@ where
                 redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
-                network_txn_id: None,
+                network_txn_id: citi,
                 network_txn_link_id: None,
-                connector_response_reference_id: Some(item.response.id),
+
+                connector_response_reference_id,
                 incremental_authorization_allowed: None,
-                authentication_data: None,
+                authentication_data,
                 charges: None,
             })
         };
@@ -1475,6 +2612,7 @@ where
         Ok(Self {
             status,
             response,
+            connector_response,
             ..item.data
         })
     }
@@ -1498,6 +2636,7 @@ impl TryFrom<&AciRouterData<&PaymentsCaptureRouterData>> for AciCaptureRequest {
                 amount: item.amount.to_owned(),
                 currency: item.router_data.request.currency.to_string(),
                 payment_type: AciPaymentType::Capture,
+                descriptor: None,
             },
         })
     }
@@ -1513,7 +2652,7 @@ pub struct AciCaptureResponse {
     currency: String,
     descriptor: String,
     result: AciCaptureResult,
-    result_details: Option<AciCaptureResultDetails>,
+    result_details: Option<AciResponseResultDetails>,
     build_number: String,
     timestamp: String,
     ndc: Secret<String>,
@@ -1527,18 +2666,6 @@ pub struct AciCaptureResponse {
 pub struct AciCaptureResult {
     code: String,
     description: String,
-}
-
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct AciCaptureResultDetails {
-    extended_description: String,
-    #[serde(rename = "clearingInstituteName")]
-    clearing_institute_name: Option<String>,
-    connector_tx_i_d1: Option<String>,
-    connector_tx_i_d3: Option<String>,
-    connector_tx_i_d2: Option<String>,
-    acquirer_response: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]
@@ -1629,7 +2756,7 @@ pub struct AciVoidResponse {
     currency: String,
     descriptor: String,
     result: AciCaptureResult,
-    result_details: Option<AciCaptureResultDetails>,
+    result_details: Option<AciResponseResultDetails>,
     build_number: String,
     timestamp: String,
     ndc: Secret<String>,
@@ -1669,6 +2796,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciVoidResponse, T, PaymentsResponseDat
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
+
                 connector_response_reference_id: Some(item.response.referenced_id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -1745,6 +2873,15 @@ impl From<AciRefundStatus> for enums::RefundStatus {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciPaymentReference {
+    #[serde(rename = "referenceId")]
+    pub reference_id: Option<String>,
+    #[serde(rename = "type")]
+    pub reference_type: Option<String>,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1754,6 +2891,8 @@ pub struct AciRefundResponse {
     timestamp: String,
     build_number: String,
     pub(super) result: ResultCode,
+    pub result_details: Option<AciResponseResultDetails>,
+    pub references: Option<Vec<AciPaymentReference>>,
 }
 
 impl<F> TryFrom<RefundsResponseRouterData<F, AciRefundResponse>> for RefundsRouterData<F> {
@@ -1810,11 +2949,28 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        // Parse the CITI (scheme trace / network transaction id) so the mandate
+        // carries it the same way the inline createRegistration flow does:
+        //   connector_mandate_id                    = ACI registrationId (response.id)
+        //   network_txn_id / request_reference_id   = CITI (initialTransactionId on MIT)
+        //   mandate_metadata.agreementId            = Mastercard TLID, when present
+        let citi = item
+            .response
+            .result_details
+            .as_ref()
+            .map(parse_connector_tx_ids)
+            .and_then(|p| p.citi);
+        let mandate_metadata = item
+            .response
+            .standing_instruction
+            .as_ref()
+            .and_then(|si| si.agreement_id.clone())
+            .map(|aid| Secret::new(serde_json::json!({ "agreementId": aid })));
         let mandate_reference = Some(MandateReference {
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
-            mandate_metadata: None,
-            connector_mandate_request_reference_id: Some(item.response.id.clone()),
+            mandate_metadata,
+            connector_mandate_request_reference_id: citi.clone(),
         });
 
         let status = if SUCCESSFUL_CODES.contains(&item.response.result.code.as_str()) {
@@ -1845,8 +3001,9 @@ impl
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
-                network_txn_id: None,
+                network_txn_id: citi,
                 network_txn_link_id: None,
+
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -1862,13 +3019,19 @@ impl
     }
 }
 
+/// ACI sends webhook event types in UPPERCASE (e.g. "PAYMENT", "REGISTRATION").
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum AciWebhookEventType {
     Payment,
+    Registration,
+    Schedule,
+    Risk,
 }
 
+/// ACI sends action values in UPPERCASE (e.g. "CREATED", "UPDATED", "DELETED").
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum AciWebhookAction {
     Created,
     Updated,
@@ -1938,6 +3101,13 @@ pub struct AciPaymentWebhookPayload {
     pub payment_method: Option<String>,
     #[serde(rename = "shortId")]
     pub short_id: Option<String>,
+    /// Registration token ID returned when `createRegistration=true` was sent.
+    pub registration_id: Option<Secret<String>>,
+    /// Acquirer / connector-level result details.
+    pub result_details: Option<AciResponseResultDetails>,
+    /// 3DS authentication data from ACI
+    #[serde(rename = "threeDSecure")]
+    pub three_d_secure: Option<AciThreeDSecureResponse>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1947,4 +3117,630 @@ pub struct AciWebhookNotification {
     pub event_type: AciWebhookEventType,
     pub action: Option<AciWebhookAction>,
     pub payload: serde_json::Value,
+}
+
+// ─── Standalone 3DS (/v1/threeDSecure) ───────────────────────────────────────
+
+/// Request body for `POST /v1/threeDSecure` (standalone 3DS authentication).
+#[derive(Debug, Serialize)]
+pub struct AciStandaloneThreeDsRequest {
+    #[serde(rename = "entityId")]
+    pub entity_id: Secret<String>,
+    /// Amount (optional for NPA flows).
+    #[serde(rename = "amount")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<StringMajorUnit>,
+    /// Currency (optional for NPA flows).
+    #[serde(rename = "currency")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<String>,
+    #[serde(rename = "paymentType")]
+    pub payment_type: AciPaymentType,
+    #[serde(flatten)]
+    pub card: CardDetails,
+    /// Non-Payment Authentication flag.
+    #[serde(rename = "threeDSecure.npa")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_ds_npa: Option<bool>,
+    #[serde(rename = "shopperResultUrl")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shopper_result_url: Option<String>,
+}
+
+impl TryFrom<&crate::types::PreAuthNRouterData> for AciStandaloneThreeDsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: &crate::types::PreAuthNRouterData) -> Result<Self, Self::Error> {
+        let auth = AciAuthType::try_from(&item.connector_auth_type)?;
+        let card = &item.request.card;
+        let card_holder_name =
+            card.card_holder_name
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_holder_name",
+                })?;
+        let card_details = CardDetails {
+            card_number: card.card_number.clone(),
+            card_holder: card_holder_name,
+            card_expiry_month: card.card_exp_month.clone(),
+            card_expiry_year: card.get_expiry_year_4_digit(),
+            card_cvv: card.card_cvc.clone(),
+            payment_brand: get_aci_payment_brand(card.card_network.clone(), false).ok(),
+        };
+        Ok(Self {
+            entity_id: auth.entity_id,
+            amount: None,
+            currency: None,
+            payment_type: AciPaymentType::Preauthorization,
+            card: card_details,
+            three_ds_npa: Some(true),
+            shopper_result_url: None,
+        })
+    }
+}
+
+/// Map ACI payment response to PreAuthentication RouterData response.
+impl
+    TryFrom<
+        ResponseRouterData<
+            PreAuthentication,
+            AciPaymentsResponse,
+            PreAuthNRequestData,
+            AuthenticationResponseData,
+        >,
+    > for RouterData<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            PreAuthentication,
+            AciPaymentsResponse,
+            PreAuthNRequestData,
+            AuthenticationResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let result_code = &item.response.result.code;
+
+        let response = if FAILURE_CODES.contains(&result_code.as_str()) {
+            Err(ErrorResponse {
+                code: result_code.clone(),
+                message: item.response.result.description.clone(),
+                reason: Some(item.response.result.description),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else if let Some(tds) = item
+            .response
+            .three_d_secure
+            .as_ref()
+            .filter(|_| SUCCESSFUL_CODES.contains(&result_code.as_str()))
+        {
+            // Frictionless: 3DS authentication actually completed (success result code)
+            // without a challenge. A non-success code (e.g. a pending 000.200.x) that
+            // still carries a threeDSecure block means authentication is NOT yet
+            // complete, so it must fall through to the challenge/redirect branch rather
+            // than be reported as Frictionless+Success — otherwise we would propagate a
+            // bogus/empty CAVV/ECI and claim a liability shift ACI has not granted.
+            Ok(AuthenticationResponseData::AuthNResponse {
+                authn_flow_type: AuthNFlowType::Frictionless,
+                authentication_value: tds
+                    .verification_id
+                    .clone()
+                    .or_else(|| tds.cavv.as_ref().map(|c| Secret::new(c.clone()))),
+                trans_status: enums::TransactionStatus::Success,
+                connector_metadata: None,
+                ds_trans_id: tds.ds_transaction_id.clone(),
+                eci: tds.eci.clone(),
+                challenge_code: None,
+                challenge_cancel: None,
+                challenge_code_reason: None,
+                message_extension: None,
+            })
+        } else {
+            // Pending/redirect: challenge required
+            let three_ds_method_url = item
+                .response
+                .redirect
+                .as_ref()
+                .and_then(|r| r.preconditions.as_ref())
+                .and_then(|p| p.first())
+                .map(|p| p.url.to_string());
+            let version = item
+                .response
+                .three_d_secure
+                .as_ref()
+                .and_then(|tds| tds.version.as_ref())
+                .and_then(|v| v.parse::<SemanticVersion>().ok())
+                .unwrap_or(SemanticVersion::new(2, 0, 0));
+            Ok(AuthenticationResponseData::PreAuthNResponse {
+                threeds_server_transaction_id: item.response.id.clone(),
+                maximum_supported_3ds_version: version.clone(),
+                connector_authentication_id: item.response.id.clone(),
+                three_ds_method_data: None,
+                three_ds_method_url,
+                message_version: version,
+                connector_metadata: None,
+                directory_server_id: None,
+                scheme_id: None,
+            })
+        };
+
+        Ok(Self {
+            response,
+            ..item.data
+        })
+    }
+}
+
+/// Map ACI payment response to PostAuthentication RouterData response.
+impl
+    TryFrom<
+        ResponseRouterData<
+            PostAuthentication,
+            AciPaymentsResponse,
+            ConnectorPostAuthenticationRequestData,
+            AuthenticationResponseData,
+        >,
+    >
+    for RouterData<
+        PostAuthentication,
+        ConnectorPostAuthenticationRequestData,
+        AuthenticationResponseData,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            PostAuthentication,
+            AciPaymentsResponse,
+            ConnectorPostAuthenticationRequestData,
+            AuthenticationResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let result_code = &item.response.result.code;
+
+        let response = if FAILURE_CODES.contains(&result_code.as_str()) {
+            Err(ErrorResponse {
+                code: result_code.clone(),
+                message: item.response.result.description.clone(),
+                reason: Some(item.response.result.description),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let tds = item.response.three_d_secure.as_ref();
+            Ok(AuthenticationResponseData::PostAuthNResponse {
+                trans_status: if SUCCESSFUL_CODES.contains(&result_code.as_str()) {
+                    enums::TransactionStatus::Success
+                } else {
+                    enums::TransactionStatus::Failure
+                },
+                authentication_value: tds.and_then(|t| {
+                    t.verification_id
+                        .clone()
+                        .or_else(|| t.cavv.as_ref().map(|c| Secret::new(c.clone())))
+                }),
+                eci: tds.and_then(|t| t.eci.clone()),
+                challenge_cancel: None,
+                challenge_code_reason: None,
+            })
+        };
+
+        Ok(Self {
+            response,
+            ..item.data
+        })
+    }
+}
+
+// =============================================================================
+// Fraud Risk Management (FRM) — ACI stand-alone fraud management (redShield)
+//
+// ACI exposes a stand-alone risk service at `POST /v2/redShield` on the same
+// card host and using the same auth (`Bearer api_key` + `entityId`) as the card
+// gateway. It returns a risk decision independently of payment processing. We
+// reuse the `aci` connector identity for FRM (see `FrmConnectors::Aci`).
+//
+// Both the FRM `Sale` (post-auth) and `Checkout` (pre-auth) flows map onto the
+// same redShield call and request/response shape.
+// =============================================================================
+
+/// redShield request. Serialized as `x-www-form-urlencoded` (ACI's content
+/// type), with the same dotted-key convention as the payment request.
+#[cfg(feature = "frm")]
+#[derive(Debug, Serialize)]
+pub struct AciRedShieldRequest {
+    #[serde(rename = "entityId")]
+    pub entity_id: Secret<String>,
+    pub amount: StringMajorUnit,
+    pub currency: String,
+    #[serde(
+        rename = "merchantTransactionId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_transaction_id: Option<String>,
+    #[serde(
+        rename = "customer.merchantCustomerId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub customer_merchant_id: Option<Secret<String>>,
+    #[serde(rename = "customer.email", skip_serializing_if = "Option::is_none")]
+    pub customer_email: Option<Email>,
+    #[serde(rename = "customer.ip", skip_serializing_if = "Option::is_none")]
+    pub customer_ip: Option<Secret<String, IpAddress>>,
+    #[serde(rename = "customer.phone", skip_serializing_if = "Option::is_none")]
+    pub customer_phone: Option<Secret<String>>,
+}
+
+/// Shared builder for the redShield request. `Sale` and `Checkout` carry the
+/// same customer/amount fields, so both flows funnel through here.
+#[cfg(feature = "frm")]
+#[allow(clippy::too_many_arguments)]
+fn build_aci_redshield_request(
+    amount: StringMajorUnit,
+    currency: Option<common_enums::Currency>,
+    auth_type: &ConnectorAuthType,
+    connector_request_reference_id: &str,
+    customer_id: Option<&id_type::CustomerId>,
+    email: Option<Email>,
+    client_ip: Option<std::net::IpAddr>,
+    phone: Option<Secret<String>>,
+) -> Result<AciRedShieldRequest, Error> {
+    let auth = AciAuthType::try_from(auth_type)?;
+    let currency = currency.ok_or(errors::ConnectorError::MissingRequiredField {
+        field_name: "currency",
+    })?;
+    Ok(AciRedShieldRequest {
+        entity_id: auth.entity_id,
+        amount,
+        currency: currency.to_string(),
+        merchant_transaction_id: Some(format_aci_merchant_transaction_id(
+            connector_request_reference_id,
+        )),
+        customer_merchant_id: customer_id.map(|id| Secret::new(id.get_string_repr().to_string())),
+        customer_email: email,
+        customer_ip: client_ip.map(|ip| Secret::new(ip.to_string())),
+        customer_phone: phone,
+    })
+}
+
+#[cfg(feature = "frm")]
+impl TryFrom<&AciRouterData<&FrmSaleRouterData>> for AciRedShieldRequest {
+    type Error = Error;
+    fn try_from(item: &AciRouterData<&FrmSaleRouterData>) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let req = &router_data.request;
+        build_aci_redshield_request(
+            item.amount.clone(),
+            req.currency,
+            &router_data.connector_auth_type,
+            &router_data.connector_request_reference_id,
+            req.customer_id.as_ref(),
+            req.email.clone(),
+            req.client_ip,
+            req.phone.clone(),
+        )
+    }
+}
+
+#[cfg(feature = "frm")]
+impl TryFrom<&AciRouterData<&FrmCheckoutRouterData>> for AciRedShieldRequest {
+    type Error = Error;
+    fn try_from(item: &AciRouterData<&FrmCheckoutRouterData>) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let req = &router_data.request;
+        build_aci_redshield_request(
+            item.amount.clone(),
+            req.currency,
+            &router_data.connector_auth_type,
+            &router_data.connector_request_reference_id,
+            req.customer_id.as_ref(),
+            req.email.clone(),
+            req.client_ip,
+            req.phone.clone(),
+        )
+    }
+}
+
+/// Risk-specific fields inside the redShield response `resultDetails`.
+#[cfg(feature = "frm")]
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+pub struct AciRedShieldResultDetails {
+    #[serde(rename = "RiskOrderId")]
+    pub risk_order_id: Option<String>,
+    #[serde(rename = "TransactionId")]
+    pub transaction_id: Option<String>,
+    /// redShield risk decision (e.g. ACCEPT / DENY / CHALLENGE).
+    #[serde(rename = "RiskFraudStatusCode")]
+    pub risk_fraud_status_code: Option<String>,
+    #[serde(rename = "RiskFraudDescription")]
+    pub risk_fraud_description: Option<String>,
+    /// Neural fraud score; returned as a numeric string.
+    #[serde(rename = "RiskNeuralScore")]
+    pub risk_neural_score: Option<String>,
+    #[serde(rename = "RiskRuleCategory")]
+    pub risk_rule_category: Option<String>,
+}
+
+#[cfg(feature = "frm")]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciRedShieldResponse {
+    pub id: Option<String>,
+    pub result: ResultCode,
+    pub result_details: Option<AciRedShieldResultDetails>,
+}
+
+/// Map an ACI risk decision to Hyperswitch's `FraudCheckStatus`.
+///
+/// Prefers the explicit redShield `RiskFraudStatusCode` when present, otherwise
+/// falls back to ACI's shared result-code classification tables (the same
+/// tables the payment flows use). A decision we cannot classify fails CLOSED to
+/// `ManualReview` (which holds the payment for merchant action) rather than
+/// `Pending` (which lets it proceed) — we never auto-approve a risk outcome we
+/// don't understand.
+#[cfg(feature = "frm")]
+pub fn map_aci_risk_status(result_code: &str, risk_status_code: Option<&str>) -> FraudCheckStatus {
+    // Match exact, normalized values rather than substrings: substring matching
+    // both over-matches composites (e.g. "ACCEPT_REVIEW" would map to Legit) and
+    // under-matches denials that lack the literal token (e.g. "DECLINED"). The
+    // value set is best-effort and MUST be confirmed against the live sandbox;
+    // anything unrecognized falls through to the shared result-code tables below.
+    if let Some(status) = risk_status_code {
+        match status.trim().to_uppercase().as_str() {
+            "ACCEPT" | "ACCEPTED" => return FraudCheckStatus::Legit,
+            "DENY" | "DENIED" | "DECLINE" | "DECLINED" | "REJECT" | "REJECTED" => {
+                return FraudCheckStatus::Fraud
+            }
+            "CHALLENGE" | "REVIEW" | "MANUAL_REVIEW" => return FraudCheckStatus::ManualReview,
+            _ => {}
+        }
+    }
+    if SUCCESSFUL_CODES.contains(&result_code) {
+        FraudCheckStatus::Legit
+    } else if PENDING_CODES.contains(&result_code) {
+        // "Awaiting confirmation" codes: hold for manual review rather than Pending. A
+        // synchronous redShield decision must never silently proceed, and the RISK
+        // webhook maps a still-pending code to EventNotSupported (see
+        // aci_risk_webhook_event), so a Pending FRM status could never be resolved
+        // asynchronously and would hang the payment indefinitely.
+        FraudCheckStatus::ManualReview
+    } else if FAILURE_CODES.contains(&result_code) {
+        FraudCheckStatus::Fraud
+    } else {
+        // Unrecognized code with no recognized risk status: fail closed.
+        FraudCheckStatus::ManualReview
+    }
+}
+
+#[cfg(feature = "frm")]
+impl<F, T> TryFrom<ResponseRouterData<F, AciRedShieldResponse, T, FraudCheckResponseData>>
+    for RouterData<F, T, FraudCheckResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<F, AciRedShieldResponse, T, FraudCheckResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let details = item.response.result_details.as_ref();
+        let status = map_aci_risk_status(
+            &item.response.result.code,
+            details.and_then(|d| d.risk_fraud_status_code.as_deref()),
+        );
+        let score = details
+            .and_then(|d| d.risk_neural_score.as_deref())
+            .and_then(|s| s.parse::<f64>().ok())
+            .map(|s| s.round() as i32);
+        let resource_id = item
+            .response
+            .id
+            .clone()
+            .or_else(|| {
+                details.and_then(|d| d.risk_order_id.clone().or_else(|| d.transaction_id.clone()))
+            })
+            .map(ResponseId::ConnectorTransactionId)
+            .unwrap_or(ResponseId::NoResponseId);
+        let connector_metadata = details.and_then(|d| serde_json::to_value(d).ok());
+        let reason = details
+            .and_then(|d| d.risk_fraud_description.clone())
+            .map(serde_json::Value::from);
+        Ok(Self {
+            response: Ok(FraudCheckResponseData::TransactionResponse {
+                resource_id,
+                status,
+                connector_metadata,
+                score,
+                reason,
+            }),
+            ..item.data
+        })
+    }
+}
+
+/// Lenient payload for an ACI `RISK` webhook (decrypted). Only `result` is
+/// guaranteed; the rest is best-effort enrichment.
+#[cfg(feature = "frm")]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciRiskWebhookPayload {
+    pub id: Option<String>,
+    pub merchant_transaction_id: Option<String>,
+    pub result: ResultCode,
+    pub result_details: Option<AciRedShieldResultDetails>,
+    pub risk: Option<AciWebhookRiskDetails>,
+}
+
+/// Map a decrypted ACI `RISK` webhook to an incoming FRM webhook event.
+#[cfg(feature = "frm")]
+pub fn aci_risk_webhook_event(payload: &AciRiskWebhookPayload) -> IncomingWebhookEvent {
+    match map_aci_risk_status(
+        &payload.result.code,
+        payload
+            .result_details
+            .as_ref()
+            .and_then(|d| d.risk_fraud_status_code.as_deref()),
+    ) {
+        FraudCheckStatus::Legit => IncomingWebhookEvent::FrmApproved,
+        FraudCheckStatus::Fraud => IncomingWebhookEvent::FrmRejected,
+        FraudCheckStatus::ManualReview
+        | FraudCheckStatus::Pending
+        | FraudCheckStatus::TransactionFailure => IncomingWebhookEvent::EventNotSupported,
+    }
+}
+
+#[cfg(all(test, feature = "frm"))]
+mod frm_tests {
+    use common_enums::FraudCheckStatus;
+
+    use super::{map_aci_risk_status, FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
+
+    #[test]
+    fn explicit_risk_status_code_takes_precedence() {
+        // RiskFraudStatusCode overrides the generic result code classification.
+        assert_eq!(
+            map_aci_risk_status("800.100.151", Some("ACCEPT")),
+            FraudCheckStatus::Legit
+        );
+        assert_eq!(
+            map_aci_risk_status("000.100.110", Some("DENY")),
+            FraudCheckStatus::Fraud
+        );
+        assert_eq!(
+            map_aci_risk_status("000.100.110", Some("CHALLENGE")),
+            FraudCheckStatus::ManualReview
+        );
+    }
+
+    #[test]
+    fn falls_back_to_result_code_tables() {
+        // A known successful code → Legit; a known failure code → Fraud.
+        assert_eq!(
+            map_aci_risk_status(SUCCESSFUL_CODES[0], None),
+            FraudCheckStatus::Legit
+        );
+        assert_eq!(
+            map_aci_risk_status(FAILURE_CODES[0], None),
+            FraudCheckStatus::Fraud
+        );
+        // An unrecognized code fails closed to ManualReview (holds the payment
+        // for merchant action rather than letting it proceed).
+        assert_eq!(
+            map_aci_risk_status("not.a.real.code", None),
+            FraudCheckStatus::ManualReview
+        );
+        // An unrecognized explicit risk status with an unknown result code also
+        // fails closed.
+        assert_eq!(
+            map_aci_risk_status("not.a.real.code", Some("SOMETHING_NEW")),
+            FraudCheckStatus::ManualReview
+        );
+        // A pending/await result code is held for manual review (a synchronous
+        // decision must not proceed, and a still-pending RISK webhook is
+        // EventNotSupported so Pending could never resolve).
+        assert_eq!(
+            map_aci_risk_status(PENDING_CODES[0], None),
+            FraudCheckStatus::ManualReview
+        );
+    }
+}
+
+#[cfg(test)]
+mod connector_tx_id_tests {
+    use super::{
+        aci_network_decline_code, build_error_connector_metadata, parse_connector_tx_ids,
+        AciResponseResultDetails, PeekInterface,
+    };
+
+    fn nedbank_details() -> AciResponseResultDetails {
+        AciResponseResultDetails {
+            clearing_institute_name: Some("Nedbank".to_string()),
+            // TxID2 = STAN|RRN
+            connector_tx_id2: Some("123456|987654321012".to_string()),
+            // TxID3 = AuthCode|RespCode|InitDate|InitTime|CITI|MerchantId
+            connector_tx_id3: Some("A1B2C3|00|0707|101500|NEDCITI0001|MID900".to_string()),
+            acquirer_response: Some("00".to_string()),
+            ..Default::default()
+        }
+    }
+
+    fn absa_details() -> AciResponseResultDetails {
+        AciResponseResultDetails {
+            // No clearing name — exercise the PIM shape heuristic.
+            connector_tx_id1: Some("SEQ|F|OWNER|PIMDATA|OH|ORIG-ABSA-1".to_string()),
+            // TxID2 = InvoiceId|ActionCode(P-39)|ApprovalCode(P-38)
+            connector_tx_id2: Some("INV0001|05|APPROVAL9".to_string()),
+            // TxID3 = STAN|Token17|Token20(scheme trace)
+            connector_tx_id3: Some("445566|T17VAL|TRACE20VAL".to_string()),
+            scheme_transaction_id: Some("ABSASCHEME01".to_string()),
+            acquirer_response: Some("05".to_string()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn nedbank_layout_parses_rrn_stan_citi_and_auth() {
+        let parsed = parse_connector_tx_ids(&nedbank_details());
+        assert_eq!(parsed.rrn.as_deref(), Some("987654321012"));
+        assert_eq!(parsed.stan.as_deref(), Some("123456"));
+        assert_eq!(parsed.citi.as_deref(), Some("NEDCITI0001"));
+        // Direct AuthCode/ApprovalCode absent → falls back to TxID3[0].
+        assert_eq!(parsed.auth_code.as_deref(), Some("A1B2C3"));
+    }
+
+    #[test]
+    fn absa_layout_uses_scheme_trace_for_citi_and_p38_for_auth() {
+        let parsed = parse_connector_tx_ids(&absa_details());
+        // ABSA does not expose RRN in the composites.
+        assert_eq!(parsed.rrn, None);
+        // STAN is TxID3[0].
+        assert_eq!(parsed.stan.as_deref(), Some("445566"));
+        // CITI is the scheme trace id (SchemeTransactionId), not TxID3[2].
+        assert_eq!(parsed.citi.as_deref(), Some("ABSASCHEME01"));
+        // Auth code is the P-38 approval code at TxID2[2].
+        assert_eq!(parsed.auth_code.as_deref(), Some("APPROVAL9"));
+        // Original transaction id is TxID1[5].
+        assert_eq!(parsed.original_transaction_id.as_deref(), Some("ORIG-ABSA-1"));
+    }
+
+    #[test]
+    fn network_decline_code_is_the_acquirer_response() {
+        assert_eq!(
+            aci_network_decline_code(&absa_details()).as_deref(),
+            Some("05")
+        );
+        assert_eq!(
+            aci_network_decline_code(&AciResponseResultDetails::default()),
+            None
+        );
+    }
+
+    #[test]
+    fn error_metadata_retains_acquirer_response_and_parsed_ids() {
+        let meta = build_error_connector_metadata(&nedbank_details())
+            .expect("metadata should be populated when result details are present");
+        let value = meta.peek();
+        assert_eq!(value["acquirerResponse"], "00");
+        assert_eq!(value["rrn"], "987654321012");
+        assert_eq!(value["stan"], "123456");
+        assert_eq!(value["networkTransactionId"], "NEDCITI0001");
+        assert_eq!(value["authCode"], "A1B2C3");
+    }
+
+    #[test]
+    fn error_metadata_is_none_when_nothing_to_report() {
+        assert!(build_error_connector_metadata(&AciResponseResultDetails::default()).is_none());
+    }
 }

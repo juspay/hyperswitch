@@ -724,6 +724,7 @@ fn create_samsung_pay_session_token(
                     order_number: formatted_payment_id,
                     merchant_payment_information:
                         payment_types::SamsungPayMerchantPaymentInformation {
+                            id: samsung_pay_wallet_details.merchant_id,
                             name: samsung_pay_wallet_details.merchant_display_name,
                             url: merchant_domain,
                             country_code: samsung_pay_wallet_details.merchant_business_country,
