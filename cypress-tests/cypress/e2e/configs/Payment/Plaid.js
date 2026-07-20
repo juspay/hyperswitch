@@ -63,6 +63,26 @@ export const connectorDetails = {
         },
       },
     }),
+    OpenBankingPISNoBilling: getCustomExchange({
+      Request: {
+        payment_method: "open_banking",
+        payment_method_type: "open_banking_pis",
+        payment_method_data: {
+          open_banking: {
+            open_banking_pis: {},
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+          },
+        },
+      },
+    }),
     SyncPayment: getCustomExchange({
       Request: {},
       Response: {

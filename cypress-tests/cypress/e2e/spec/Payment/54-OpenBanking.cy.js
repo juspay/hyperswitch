@@ -154,35 +154,16 @@ describe("Plaid Open Banking PIS flow test", () => {
           return;
         }
 
-        const paymentId = globalState.get("paymentID");
-        const clientSecret = globalState.get("clientSecret");
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "open_banking_pm"
+        ]["OpenBankingPISNoBilling"];
 
-        cy.request({
-          method: "POST",
-          url: `${globalState.get("baseUrl")}/payments/${paymentId}/confirm`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("publishableKey"),
-          },
-          body: {
-            client_secret: clientSecret,
-            payment_method: "open_banking",
-            payment_method_type: "open_banking_pis",
-            payment_method_data: {
-              open_banking: {
-                open_banking_pis: {},
-              },
-            },
-            return_url: "https://example.com/return",
-          },
-          failOnStatusCode: false,
-        }).then((response) => {
-          expect(response.status).to.equal(400);
-          expect(response.body.error.code).to.equal("IR_04");
-          expect(response.body.error.message).to.include(
-            "billing.address.country"
-          );
-        });
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          data,
+          true,
+          globalState
+        );
       });
     });
   });
